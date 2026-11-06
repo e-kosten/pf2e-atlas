@@ -340,7 +340,7 @@ fn unrelated_malformed_remaster_provenance_does_not_break_search_or_neighbor_reu
         for bad in ["{}", "not-json"] {
             mutate(
                 &artifact.path(),
-                &format!("UPDATE remaster_declarations SET payload_json='{bad}'"),
+                &format!("UPDATE remaster_pairs SET evidence_json='{bad}'"),
             );
             let actual = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
                 .search_text(request())

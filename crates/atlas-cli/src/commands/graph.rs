@@ -121,56 +121,24 @@ pub(crate) fn run_graph_uses(o: GraphUsesOptions) -> Result<ExitCode, String> {
 }
 pub(crate) fn run_graph_remaster(o: GraphRemasterOptions) -> Result<ExitCode, String> {
     let s = match client(o.path_mode, o.index) {
-        Ok(service) => service,
-        Err(error) => return report_app_error(error, o.json),
+        Ok(s) => s,
+        Err(e) => return report_app_error(e, o.json),
     };
-    let subject = if let Some(term) = o.term {
-        atlas_app_model::RemasterSubjectRequest::Term { term }
-    } else if let Some(reference) = o.record_ref {
-        let key = match reference.parse::<atlas_domain::RecordKey>() {
-            Ok(key) => key,
-            Err(_) => match seed(&s, reference, o.json)? {
-                Ok(key) => key,
-                Err(exit) => return Ok(exit),
-            },
-        };
-        atlas_app_model::RemasterSubjectRequest::Record {
-            selection: atlas_app_model::RecordNavigationView {
-                spell_rank: None,
-                record_key: key.to_string(),
-                owners: vec![],
-                field: None,
-                passage: None,
-                source_fingerprint: None,
-            },
-        }
-    } else {
-        return Err("Specify a record or --term".into());
+    let key = match seed(&s, o.record_ref, o.json)? {
+        Ok(k) => k,
+        Err(exit) => return Ok(exit),
     };
-    let result = match s.remaster_relationships(
-        atlas_app_model::RemasterRelationshipsRequest {
-            subject,
-            limit: o.limit,
-            expected_artifact_generation: None,
-        },
-        &atlas_app_service::ReadExecutionContext::uncancellable(),
-    ) {
-        Ok(result) => result,
-        Err(error) => return report_app_error(error.into_app_error(), o.json),
+    let result = match s.record_detail(&key.to_string()) {
+        Ok(r) => r,
+        Err(e) => return report_app_error(e.into_app_error(), o.json),
     };
     if o.json {
-        write_json_data(&result)?;
+        write_json_data(&result.remaster_relationships)?;
     } else {
-        if let atlas_app_model::RemasterSubjectView::Term { scope_label, .. } = &result.subject {
-            println!("{scope_label}");
-        }
         print!(
             "{}",
-            super::remaster_presentation::full(&result.relationships)
+            super::remaster_presentation::lines(&result.remaster_relationships)
         );
-        if let Some(context) = &result.source_remaster_context {
-            print!("{}", super::remaster_presentation::source_context(context));
-        }
     }
     Ok(ExitCode::SUCCESS)
 }

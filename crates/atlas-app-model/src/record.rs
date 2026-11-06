@@ -138,7 +138,7 @@ pub struct RecordResolutionCandidateView {
     pub normalized_query: String,
     pub match_kind: String,
     pub matched_text: String,
-    pub lookup_context: Option<crate::RemasterLookupContextView>,
+    pub evidence: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]

@@ -212,36 +212,16 @@ export function SourceRemasterInformation({
   if (category.kind === "unavailable")
     return <p className="remaster-information__context">{category.reason}</p>;
   if (category.content.relationships.kind === "empty") return null;
-  const source = category.content.source;
-  const resolution = source.resolution;
+  const navigation = category.content.navigation;
   return (
     <section
       className="remaster-source-context"
       aria-label="Source-entry remaster information"
     >
       <div className="remaster-source-context__heading">
-        {resolution.kind === "current" && source.label === resolution.record.title ? (
-          <RemasterRecordLink
-            navigation={resolution.navigation}
-            onReference={onReference}
-          >
-            {category.content.heading}
-          </RemasterRecordLink>
-        ) : (
-          <span>{category.content.heading}</span>
-        )}
-        {resolution.kind === "current" && source.label !== resolution.record.title && (
-          <>
-            {" "}
-            ·{" "}
-            <RemasterRecordLink
-              navigation={resolution.navigation}
-              onReference={onReference}
-            >
-              Open current entry: {resolution.record.title}
-            </RemasterRecordLink>
-          </>
-        )}
+        <RemasterRecordLink navigation={navigation} onReference={onReference}>
+          {category.content.heading}
+        </RemasterRecordLink>
       </div>
       <RemasterInformation
         category={category.content.relationships}

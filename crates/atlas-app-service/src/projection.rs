@@ -205,7 +205,6 @@ pub(crate) fn search_results_view(
     result: atlas_search::TextSearchResult,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> atlas_app_model::SearchResultsView {
-    let mut budget = crate::remaster::ProjectionBudget::default();
     atlas_app_model::SearchResultsView {
         sort: result.sort,
         search_profile: result.search_profile,
@@ -220,11 +219,6 @@ pub(crate) fn search_results_view(
                     .map(|w| search_witness_view(w, retrieval.source_fingerprint()))
                     .collect();
                 atlas_app_model::SearchResultRow {
-                    alias_matches: crate::remaster::alias_matches(
-                        r.alias_matches,
-                        retrieval,
-                        &mut budget,
-                    ),
                     similarity: None,
                     relationship_evidence: vec![],
                     record: localized_summary_view(&r.record, retrieval),
@@ -426,7 +420,6 @@ pub(crate) fn localized_summary_view(
 pub(crate) fn resolution_view(
     v: atlas_search::RecordResolutionResult,
     r: &atlas_search::AtlasRetrievalService,
-    budget: &mut crate::remaster::ProjectionBudget,
 ) -> atlas_app_model::RecordResolutionCandidateView {
     atlas_app_model::RecordResolutionCandidateView {
         record: localized_summary_view(&v.record, r),
@@ -439,9 +432,7 @@ pub(crate) fn resolution_view(
         }
         .into(),
         matched_text: v.matched_text,
-        lookup_context: v
-            .support
-            .map(|support| crate::remaster::lookup_context(support, r, budget)),
+        evidence: v.evidence,
     }
 }
 

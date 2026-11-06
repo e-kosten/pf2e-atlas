@@ -147,7 +147,6 @@ beforeEach(() => {
       {
         record: summaryFixture(selectedKey, "Leather Armor"),
         matches: [],
-        alias_matches: [],
         relationship_evidence: [],
       },
     ],

@@ -225,6 +225,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: crate::REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 32,
+        name: "compact-remaster-context",
+        sql: crate::COMPACT_REMASTER_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -360,11 +366,14 @@ fn spool_input_in(
             },
         })?;
     }
-    for row in &input.remaster_sources {
-        spool.remaster_sources.push(row)?;
+    for row in &input.remaster_context {
+        spool.remaster_context.push(row)?;
     }
-    for row in &input.remaster_declarations {
-        spool.remaster_declarations.push(row)?;
+    for row in &input.aliases {
+        spool.aliases.push(row)?;
+    }
+    for row in &input.remaster_pairs {
+        spool.remaster_pairs.push(row)?;
     }
     for row in &input.traits {
         spool.traits.push(row)?;
@@ -458,7 +467,6 @@ pub fn publish_pre_core_fixture(
             crate::similarity_projection::write_similarity_parts(connection, input)?;
         }
         let mut context = input.context.clone();
-        context.remaster_inputs_identity.clear();
         if version == 19 {
             publish_schema20_catalog(connection, &mut context)?;
         }
@@ -497,7 +505,6 @@ pub fn publish_pre_section_fixture(
         crate::similarity_projection::write_similarity_parts(connection, input)?;
         crate::historical_core_projection::write_core_sections(connection, input)?;
         let mut context = input.context.clone();
-        context.remaster_inputs_identity.clear();
         context.selected_sections_recipe.clear();
         connection.execute(
             "UPDATE artifact_context SET context_hash=?,context_json=?",
@@ -547,7 +554,7 @@ pub fn publish_historical_record_fixture(
                 connection.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN {column}"))?;
             }
         }
-        let mut context=input.context.clone();context.remaster_inputs_identity.clear();context.selected_sections_recipe.clear();context.core_sections_recipe.clear();
+        let mut context=input.context.clone();context.selected_sections_recipe.clear();context.core_sections_recipe.clear();
         publish_schema20_catalog(connection, &mut context)?;
         connection.execute("UPDATE artifact_context SET context_hash=?,context_json=?",rusqlite::params![context.sha256()?,serde_json::to_string(&context)?])?;
         connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
@@ -790,162 +797,15 @@ pub(crate) fn fixture_native_values<'a>(
     Ok(selected.into_values().collect())
 }
 
-pub fn capture_remaster_declarations(input: &mut crate::IndexBuildInput) -> Result<(), IndexError> {
-    use atlas_record::remaster::*;
-    use atlas_record::source_record::{FieldAvailability, SourceContentStatus, SourceNodeView};
-    let mut declarations = vec![];
-    let mut fields = vec![];
-    let mut facts = std::collections::BTreeMap::new();
-    for source in &input.records {
-        let node = SourceNodeView::from(source.record.source());
-        if node.document_kind() != "Macro" {
-            facts.insert(
-                source.record.key().clone(),
-                RemasterRecordFacts {
-                    name: node.name().value().cloned(),
-                    source_type: node.source_type().value().map(str::to_owned),
-                },
-            );
-        }
-        if node.document_kind() != "JournalEntry"
-            || node.name().value().map(String::as_str) != Some("Remaster Changes")
-        {
-            continue;
-        }
-        for outcome in &source.content {
-            if !matches!(outcome.visibility_availability, FieldAvailability::Value)
-                || !crate::writer::permits(input.context.audience, outcome.visibility)
-            {
-                continue;
-            }
-            if let SourceContentStatus::Prepared(content) = &outcome.status {
-                let section = source
-                    .record
-                    .node_at(&content.locator.owners)
-                    .and_then(|n| n.name().value().cloned())
-                    .unwrap_or_else(|| "Remaster Changes".into());
-                declarations.extend(
-                    journal_declarations(&section, content)
-                        .map_err(|e| IndexError::Invalid(e.to_string()))?,
-                );
-                fields.push(RemasterSelectedField {
-                    locator: content.locator.clone(),
-                    authored_sha256: content.authored_markup_sha256.clone(),
-                    references: content.references.clone(),
-                });
-            }
-        }
-    }
-    for source in &input.remaster_sources {
-        declarations
-            .extend(file_declarations(source).map_err(|e| IndexError::Invalid(e.to_string()))?);
-    }
-    let bindings = bind_remaster_declarations(&declarations, &facts, &fields)
-        .map_err(|e| IndexError::Invalid(e.to_string()))?;
-    let aliases =
-        derive_remaster_aliases(&declarations, &bindings, &facts, &input.remaster_sources);
-    input
-        .lexical_units
-        .retain(|unit| unit.kind != crate::SourceLexicalUnitKind::RootAlias);
-    for source in &input.records {
-        let Some(pack) = input
-            .packs
-            .iter()
-            .find(|p| p.pack_id == source.record.key().pack().as_str())
-        else {
-            continue;
-        };
-        let selection = atlas_record::source_record::select_record_search(
-            &source.record,
-            &source.content,
-            input.context.audience,
-            &pack.label,
-            &input.context.used_trait_labels,
-        )
-        .map_err(|e| IndexError::Invalid(e.to_string()))?;
-        let terms = aliases
-            .iter()
-            .filter(|a| a.record == *source.record.key())
-            .map(|a| a.alias.clone())
-            .collect::<Vec<_>>();
-        input.lexical_units.extend(
-            crate::project_lexical_units(&selection, &terms)
-                .into_iter()
-                .filter(|u| u.kind == crate::SourceLexicalUnitKind::RootAlias),
-        );
-    }
-    input.remaster_declarations = declarations;
-    Ok(())
-}
-
 pub fn add_remaster_relationship(
     input: &mut crate::IndexBuildInput,
-    predecessor: &atlas_domain::RecordKey,
-    successor: &atlas_domain::RecordKey,
-) -> Result<(), IndexError> {
-    use atlas_record::remaster::*;
-    use atlas_record::source_record::SourceNodeView;
-    let label = |key: &atlas_domain::RecordKey| {
-        input
-            .records
-            .iter()
-            .find(|r| r.record.key() == key)
-            .and_then(|r| {
-                SourceNodeView::from(r.record.source())
-                    .name()
-                    .value()
-                    .cloned()
-            })
-            .unwrap_or_else(|| key.to_string())
-    };
-    let family = input
-        .records
-        .iter()
-        .find(|r| r.record.key() == successor)
-        .and_then(|r| {
-            SourceNodeView::from(r.record.source())
-                .source_type()
-                .value()
-                .map(str::to_owned)
-        })
-        .ok_or_else(|| IndexError::Invalid("fixture successor family missing".into()))?;
-    let value = ReviewedCorrespondences {
-        entries: vec![ReviewedCorrespondence {
-            before: predecessor.clone(),
-            after: successor.clone(),
-            before_label: label(predecessor),
-            after_label: label(successor),
-            namespace: "fixture".into(),
-            kind: atlas_record::remaster::RemasterChangeKind::Replaced,
-            qualifier: None,
-            journal_context: None,
-            rationale: "Explicit fixture correspondence".into(),
-            source_type: family,
-        }],
-    };
-    let source = RemasterSourceInput::new(
-        RemasterInputKind::AtlasCorrespondence,
-        RemasterOrigin::AtlasReviewed,
-        "fixture/v1".into(),
-        format!("fixtures/remaster-{}.json", input.remaster_sources.len()),
-        serde_json::to_vec(&value)?,
-    );
-    input.remaster_sources.push(source);
-    capture_remaster_declarations(input)
-}
-
-pub fn corrupt_remaster_declaration(
-    path: impl AsRef<std::path::Path>,
-    schema: u32,
-) -> Result<(), IndexError> {
-    let workspace = atlas_storage::Workspace::at(path)?;
-    let write = workspace.write(schema)?;
-    let changed=write.connection().execute("UPDATE remaster_declarations SET payload_json='{}' WHERE declaration_id=(SELECT declaration_id FROM remaster_declarations ORDER BY declaration_id LIMIT 1)",[])?;
-    if changed != 1 {
-        return Err(IndexError::Invalid(
-            "fixture has no remaster declaration".into(),
-        ));
-    }
-    write.commit()?;
+    old: &atlas_domain::RecordKey,
+    new: &atlas_domain::RecordKey,
+) -> Result<(), crate::IndexError> {
+    input.remaster_pairs.push(crate::SourceRemasterPairInput {
+        legacy: old.clone(),
+        remaster: new.clone(),
+        provenance: None,
+    });
     Ok(())
 }

@@ -494,7 +494,6 @@ describe("useSearchWorkspace", () => {
         rows: [
           {
             record: summaryFixture("items:new"),
-            alias_matches: [],
             relationship_evidence: [],
             matches: [],
           },
@@ -2265,7 +2264,6 @@ function searchResultsPage(
     },
     rows: recordKeys.map((key) => ({
       record: summaryFixture(key),
-      alias_matches: [],
       relationship_evidence: [],
       matches: [],
     })),

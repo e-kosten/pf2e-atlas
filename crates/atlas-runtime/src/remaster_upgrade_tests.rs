@@ -10,7 +10,8 @@ fn remaster_v29_upgrade_rolls_back_then_preserves_state_until_source_reprepare()
     let old = Workspace::at(&path).unwrap();
     old.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
     let records=[("aaaaaaaaaaaaaaaa","Attack of Opportunity"),("bbbbbbbbbbbbbbbb","Reactive Strike")].map(|(id,name)|atlas_search::test_support::record("actions","Item",json!({"_id":id,"name":name,"type":"action","system":{"description":{"value":"<p>Current retained text.</p>"}}})));
-    let input = atlas_search::test_support::input(records.into(), false);
+    let mut input = atlas_search::test_support::input(records.into(), false);
+    input.context.remaster_inputs_identity.clear();
     {
         let owner = old.update_owner().unwrap();
         let maintenance = owner
@@ -83,7 +84,7 @@ fn remaster_v29_upgrade_rolls_back_then_preserves_state_until_source_reprepare()
         assert!(
             read.connection()
                 .prepare("SELECT 1 FROM remaster_pairs")
-                .is_err()
+                .is_ok()
         );
     }
     assert!(
@@ -132,9 +133,8 @@ fn remaster_v29_upgrade_rolls_back_then_preserves_state_until_source_reprepare()
     assert_eq!(reader.artifact_instance().workspace_key(), key);
     assert_eq!(
         reader
-            .remaster_record_information(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap(), &[], 20)
+            .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
             .unwrap()
-            .declarations
             .len(),
         1
     );

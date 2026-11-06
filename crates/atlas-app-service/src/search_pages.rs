@@ -240,7 +240,6 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
-                                alias_matches: vec![],
                                 similarity: None,
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
@@ -264,7 +263,6 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
-                                alias_matches: vec![],
                                 similarity: None,
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),

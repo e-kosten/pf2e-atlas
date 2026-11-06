@@ -78,7 +78,6 @@ function result(
     rows: [
       {
         record: summaryFixture("actors:" + title.toLowerCase(), title),
-        alias_matches: [],
         relationship_evidence: [],
         matches: [],
       },

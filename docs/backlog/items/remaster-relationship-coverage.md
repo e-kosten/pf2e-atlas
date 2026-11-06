@@ -45,40 +45,18 @@ and browser controls. Search and discovery retain both independently matching
 records. Journal extraction continues to supply useful aliases and compact context;
 uncertain class, merger and adventure cases are not promoted by name matching.
 
-## Desired outcome
+## Accepted compact implementation
 
-Deliver this as a focused PR, separate from the merged frontend presentation changes.
-Preserve authored change statements, context, grouped endpoints and repeatable
-source evidence, including missing legacy text and non-record terminology. Bind
-records only through explicit evidence or an agreed reviewed-correspondence policy.
-Keep publication metadata, declaration meaning, endpoint resolution and
-counterpart navigation separate.
+PR219 retains the existing alias and pair projections and adds one per-record
+context table. It removes the experimental declaration/citation/binding/support/
+term/capture framework, term inspection, missing-save modal and search annotations.
+Normal record reads and the existing record-only graph command supply compact
+relationships and useful journal navigation. Shared reader typography and inline
+info controls remain. [ADR0067](../../architecture/decisions/0067-remaster-relationships.md)
+owns the current design; the counts above describe the earlier research candidate.
 
-- Distinguish name renames, merges, replacements and verified document counterparts.
-- Audit declarations whose legacy record is absent, ambiguous or in a different
-  pack/context. A matching name alone must not silently establish equivalence
-  between a class feature, general action and creature ability.
-- Preserve source attribution and exact destinations. Keep useful aliases when
-  the evidence cannot identify a legacy record.
-- Retain every independently matching record in search and discovery. Counterpart
-  mappings enable navigation and comparison without hiding results. Preserve exact
-  saved, encounter and owned identities.
-- Present relation-specific context above rules, with source navigation and CLI
-  parity; do not label every merger or replacement group an interchangeable version.
-- Cover real pinned-source examples, including Attack of Opportunity, and report
-  corpus-wide accepted, unresolved and rejected relationship coverage.
-- Validate downstream counterpart presentation, search visibility and ordinary
-  lookup. Preserve saved state and compatible embeddings through any required
-  artifact upgrade.
-
-The baseline extractor and pair tables above are being replaced by the declaration,
-binding and support ownership in [ADR0067](../../architecture/decisions/0067-remaster-relationships.md).
-See [artifact evidence policy](../../architecture/artifact-contract.md) and
-[runtime architecture](../../architecture/runtime.md). Keep navigation, name lookup
-and reviewed counterpart identity distinct.
-
-Additional reference providers, general UUID redirect handling and explicit
-saved-entry conversion remain separate potential work. Saved records follow the
-current content at their selected key; historical record snapshots and pinning
-are excluded. Updating content at the same key does not authorize rebinding a
-save to another key through a replacement relationship.
+Future coverage work can add reviewed exact mappings without building a new
+relationship catalog. Uncertain class, merger and adventure identities remain
+unmapped. Broader legacy-content imports, general UUID redirect handling and
+saved-entry conversion are separate potential work. Saved records follow current
+content at their exact chosen key.

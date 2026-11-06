@@ -107,6 +107,80 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
     Ok(())
 }
 
+pub(crate) fn aliases(
+    c: &Connection,
+    input: &crate::PublicationSpool,
+    ids: &BTreeMap<RecordKey, i64>,
+) -> Result<(), IndexError> {
+    let mut kept = BTreeSet::new();
+    input.aliases(&mut |alias| {
+        if alias.alias.trim().is_empty() || alias.evidence.trim().is_empty() {
+            return Err(IndexError::Invalid("alias needs text and evidence".into()));
+        }
+        let id = crate::writer::product_id(ids, &alias.record)?;
+        if !kept.insert((id, alias.alias.clone())) {
+            return Err(IndexError::Invalid("duplicate alias".into()));
+        }
+        let mut row = ProjectionRow::new("verified_aliases");
+        row.id("record_id", id);
+        row.text("alias", &alias.alias);
+        row.text(
+            "alias_lookup_key",
+            atlas_domain::normalize_record_name(&alias.alias),
+        );
+        row.text("evidence_json", serde_json::to_string(&alias.evidence)?);
+        upsert(c, &row, "record_id,alias")?;
+        Ok(())
+    })?;
+    for pair in c
+        .prepare("SELECT record_id,alias FROM verified_aliases")?
+        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?
+    {
+        if !kept.contains(&pair) {
+            c.execute(
+                "DELETE FROM verified_aliases WHERE record_id=? AND alias=?",
+                rusqlite::params![pair.0, pair.1],
+            )?;
+        }
+    }
+    let mut kept = BTreeSet::new();
+    input.remaster_pairs(&mut |pair| {
+        let legacy = crate::writer::product_id(ids, &pair.legacy)?;
+        if !kept.insert(legacy) {
+            return Err(IndexError::Invalid("duplicate remaster pair".into()));
+        }
+        let mut row = ProjectionRow::new("remaster_pairs");
+        row.id("legacy_record_id", legacy);
+        row.id(
+            "remaster_record_id",
+            crate::writer::product_id(ids, &pair.remaster)?,
+        );
+        row.text("evidence_json", serde_json::to_string(&pair.provenance)?);
+        upsert(c, &row, "legacy_record_id")?;
+        Ok(())
+    })?;
+    remove_unkept(c, "remaster_pairs", "legacy_record_id", &kept)?;
+    Ok(())
+}
+fn remove_unkept(
+    c: &Connection,
+    table: &str,
+    key: &str,
+    kept: &BTreeSet<i64>,
+) -> Result<(), IndexError> {
+    let ids = c
+        .prepare(&format!("SELECT {key} FROM {table}"))?
+        .query_map([], |r| r.get::<_, i64>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for id in ids {
+        if !kept.contains(&id) {
+            c.execute(&format!("DELETE FROM {table} WHERE {key}=?"), [id])?;
+        }
+    }
+    Ok(())
+}
+
 const PREVIOUS_EXACT_LOCATION_SQL: &str = "SELECT u.unit_id FROM semantic_units u JOIN semantic_locations l USING(location_id) WHERE u.location_id=?5 AND u.profile_id=?2 AND l.record_id=?1 AND l.section_id IS ?3 AND l.chunk_ordinal=?4 ORDER BY u.unit_id";
 const PREVIOUS_OTHER_LOCATION_SQL: &str = "SELECT u.unit_id FROM semantic_locations l JOIN semantic_units u USING(location_id) WHERE l.record_id=?1 AND u.profile_id=?2 AND l.section_id IS ?3 AND l.chunk_ordinal=?4 AND l.location_id<>?5 ORDER BY u.unit_id";
 

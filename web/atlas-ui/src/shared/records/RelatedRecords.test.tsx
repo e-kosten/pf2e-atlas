@@ -213,7 +213,6 @@ function page(
 const row = (key: string, title: string): SearchResultRow => ({
   record: summaryFixture(key, title),
   matches: [],
-  alias_matches: [],
   relationship_evidence: [],
 });
 function preview(request: SearchResultsRequest) {

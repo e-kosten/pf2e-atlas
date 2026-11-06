@@ -1,345 +1,423 @@
 use super::*;
-use crate::source_content::{PreparedSourceContent, prepared_plain_text};
+use crate::source_content::{
+    ContentReferenceResolution, ContentReferenceTarget, PreparedSourceContent, prepared_plain_text,
+};
 use scraper::{ElementRef, Html, Selector};
 
-fn selector(value: &str) -> Result<Selector, RemasterError> {
-    Selector::parse(value).map_err(|e| RemasterError::Invalid(e.to_string()))
+fn selector(value: &str) -> Result<Selector, String> {
+    Selector::parse(value).map_err(|e| e.to_string())
 }
-fn plain(value: &str) -> Result<String, RemasterError> {
-    prepared_plain_text(value).map_err(|e| RemasterError::Invalid(e.to_string()))
+fn plain(element: ElementRef<'_>) -> Result<String, String> {
+    prepared_plain_text(&element.html()).map_err(|e| e.to_string())
 }
-fn descriptor(target: &str) -> &str {
-    [".Item.", ".Actor.", ".JournalEntryPage.", ".JournalEntry."]
-        .iter()
-        .find_map(|marker| target.rsplit_once(marker).map(|(_, tail)| tail))
-        .unwrap_or(target)
+fn direct_references(element: ElementRef<'_>) -> bool {
+    fn residual(element: ElementRef<'_>, out: &mut String) {
+        if element.value().attr("data-atlas-reference").is_some() {
+            return;
+        }
+        for node in element.children() {
+            if let Some(child) = ElementRef::wrap(node) {
+                residual(child, out);
+            } else if let scraper::node::Node::Text(text) = node.value() {
+                out.push_str(&text.text);
+            }
+        }
+    }
+    let mut text = String::new();
+    residual(element, &mut text);
+    text.to_ascii_lowercase()
+        .split(|c: char| !c.is_alphabetic())
+        .all(|word| matches!(word, "" | "and" | "or"))
 }
-fn text(
+fn targets(
     element: ElementRef<'_>,
     content: &PreparedSourceContent,
-    refs: &mut Vec<RemasterReference>,
-    out: &mut String,
-) -> Result<(), RemasterError> {
-    if let Some(value) = element.value().attr("data-atlas-reference") {
-        let ordinal = value
-            .parse::<usize>()
-            .map_err(|_| RemasterError::Invalid("invalid remaster reference ordinal".into()))?;
-        let reference = content
+) -> Result<Vec<RemasterTarget>, String> {
+    let mut result = Vec::new();
+    for element in element.select(&selector("[data-atlas-reference]")?) {
+        let Some(ordinal) = element
+            .value()
+            .attr("data-atlas-reference")
+            .and_then(|v| v.parse::<usize>().ok())
+        else {
+            continue;
+        };
+        let Some(reference) = content
             .references
             .iter()
             .find(|r| r.ordinal == ordinal && r.visible)
-            .ok_or_else(|| RemasterError::Invalid("remaster reference is not selected".into()))?;
-        let label = if reference.label.explicit {
-            plain(&element.html())?
+        else {
+            continue;
+        };
+        let (record, owners) = match &reference.resolution {
+            ContentReferenceResolution::Resolved(ContentReferenceTarget::Record { key }) => {
+                (Some(key.clone()), vec![])
+            }
+            ContentReferenceResolution::Resolved(ContentReferenceTarget::OwnedNode {
+                key,
+                owners,
+            }) => (Some(key.clone()), owners.clone()),
+            _ => (None, vec![]),
+        };
+        let name = if reference.label.explicit {
+            plain(element)?
         } else {
-            descriptor(&reference.authored_target).to_owned()
+            [".Item.", ".Actor.", ".JournalEntryPage.", ".JournalEntry."]
+                .iter()
+                .find_map(|m| {
+                    reference
+                        .authored_target
+                        .rsplit_once(m)
+                        .map(|(_, tail)| tail)
+                })
+                .unwrap_or(&reference.authored_target)
+                .to_owned()
         };
-        out.push_str(&label);
-        refs.push(RemasterReference {
-            target: reference.authored_target.clone(),
-            label,
-            occurrence: Some(ordinal),
-            explicit_key: None,
+        result.push(RemasterTarget {
+            name,
+            record,
+            owners,
         });
-        return Ok(());
     }
-    for node in element.children() {
-        if let Some(child) = ElementRef::wrap(node) {
-            out.push(' ');
-            text(child, content, refs, out)?;
-            out.push(' ');
-        } else if let scraper::node::Node::Text(value) = node.value() {
-            out.push_str(&value.text);
+    if result.is_empty() {
+        let name = plain(element)?;
+        if !name.is_empty() && name != "—" {
+            result.push(RemasterTarget {
+                name,
+                record: None,
+                owners: vec![],
+            });
         }
+    } else if !direct_references(element) {
+        fn flush(text: &mut String, parts: &mut Vec<RemasterTarget>) {
+            let name = text
+                .trim()
+                .trim_matches(|c: char| matches!(c, ',' | '(' | ')'))
+                .trim();
+            let name = name
+                .strip_suffix(" and")
+                .or_else(|| name.strip_suffix(" or"))
+                .unwrap_or(name)
+                .trim();
+            let name = name
+                .strip_prefix("and ")
+                .or_else(|| name.strip_prefix("or "))
+                .unwrap_or(name)
+                .trim();
+            if !name.is_empty() && !matches!(name, "and" | "or") {
+                parts.push(RemasterTarget {
+                    name: name.into(),
+                    record: None,
+                    owners: vec![],
+                });
+            }
+            text.clear();
+        }
+        fn walk(
+            element: ElementRef<'_>,
+            refs: &mut std::vec::IntoIter<RemasterTarget>,
+            parts: &mut Vec<RemasterTarget>,
+            text: &mut String,
+        ) {
+            if element.value().attr("data-atlas-reference").is_some() {
+                flush(text, parts);
+                if let Some(target) = refs.next() {
+                    parts.push(target);
+                }
+                return;
+            }
+            for node in element.children() {
+                if let Some(child) = ElementRef::wrap(node) {
+                    walk(child, refs, parts, text);
+                } else if let scraper::node::Node::Text(value) = node.value() {
+                    text.push_str(&value.text);
+                }
+            }
+        }
+        let mut refs = result.into_iter();
+        let mut parts = vec![];
+        let mut text = String::new();
+        walk(element, &mut refs, &mut parts, &mut text);
+        flush(&mut text, &mut parts);
+        result = parts;
     }
-    Ok(())
+    Ok(result)
 }
-fn side(
-    element: ElementRef<'_>,
+fn add(
+    result: &mut Vec<RecordRemasterContext>,
+    old: Vec<RemasterTarget>,
+    new: Vec<RemasterTarget>,
+    relation: RemasterRelation,
+    scope: &str,
     content: &PreparedSourceContent,
-) -> Result<RemasterSide, RemasterError> {
-    let mut references = vec![];
-    let mut value = String::new();
-    text(element, content, &mut references, &mut value)?;
-    let value = value.split_whitespace().collect::<Vec<_>>().join(" ");
-    let terms = if references.is_empty() {
-        (!value.is_empty() && value != "—")
-            .then(|| value.clone())
-            .into_iter()
-            .collect()
-    } else {
-        references.iter().map(|r| r.label.clone()).collect()
+) {
+    let reverse = match relation {
+        RemasterRelation::FormerName => RemasterRelation::RenamedTo,
+        RemasterRelation::MergedFrom => RemasterRelation::MergedInto,
+        _ => RemasterRelation::ReplacedBy,
     };
-    Ok(RemasterSide {
-        text: value,
-        terms,
-        references,
-    })
-}
-fn kinds(status: &str) -> Vec<RemasterChangeKind> {
-    let mut result = vec![];
-    for token in status.split(',').map(|s| s.trim().to_ascii_lowercase()) {
-        let kind = match token.as_str() {
-            "rename" | "renamed" => RemasterChangeKind::Renamed,
-            "merged" => RemasterChangeKind::Merged,
-            "replaced" => RemasterChangeKind::Replaced,
-            "removed" => RemasterChangeKind::Removed,
-            "altered mechanics" => RemasterChangeKind::MechanicsChanged,
-            _ => RemasterChangeKind::Unclassified,
-        };
-        if !result.contains(&kind) {
-            result.push(kind);
+    for (anchors, targets, relation) in [(&new, &old, relation), (&old, &new, reverse)] {
+        for anchor in anchors {
+            if let Some(record) = &anchor.record {
+                let targets = targets
+                    .iter()
+                    .filter(|target| {
+                        target.record.as_ref() != Some(record) || target.owners != anchor.owners
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                if !targets.is_empty() {
+                    result.push(RecordRemasterContext {
+                        record: record.clone(),
+                        owners: anchor.owners.clone(),
+                        relation,
+                        targets,
+                        journal: Some(content.locator.clone()),
+                        scope: scope.into(),
+                    });
+                }
+            }
         }
     }
-    result
 }
-fn namespace(section: &str) -> &str {
-    match section {
-        "Class Features" => "class_feature",
-        "Feats" => "feat",
-        "Spells" => "spell",
-        "Equipment" => "equipment",
-        "Bestiaries" => "creature",
-        "Languages" => "language",
-        "Domains" => "domain",
-        "Pantheons" => "pantheon",
-        _ => "rules",
-    }
-}
-fn context(section: &str, qualifier: Option<String>) -> RemasterContext {
-    RemasterContext {
-        section: section.into(),
-        namespace: namespace(section).into(),
-        qualifier,
-        source_type: None,
-    }
-}
-fn declaration(
-    content: &PreparedSourceContent,
-    context: RemasterContext,
-    selector: RemasterSelector,
-    status: Option<String>,
-    change: Vec<RemasterChangeKind>,
-    before: Vec<RemasterSide>,
-    after: Vec<RemasterSide>,
-) -> Result<RemasterDeclaration, RemasterError> {
-    RemasterDeclaration {
-        id: String::new(),
-        kinds: change,
-        authored_status: status,
-        context,
-        before,
-        after,
-        citations: vec![RemasterCitation::Journal {
-            locator: content.locator.clone(),
-            selector,
-            authored_sha256: content.authored_markup_sha256.clone(),
-        }],
-    }
-    .seal()
-}
-
-/// Interpret only an audience-selected prepared field. Its attributed occurrences
-/// supply authored reference text; current resolutions never enter canonical data.
-pub fn journal_declarations(
+pub fn journal_context(
     section: &str,
     content: &PreparedSourceContent,
-) -> Result<Vec<RemasterDeclaration>, RemasterError> {
+) -> Result<Vec<RecordRemasterContext>, String> {
     let html = Html::parse_fragment(&content.html);
-    let mut declarations = vec![];
+    let mut result = Vec::new();
     let cells = selector("td")?;
-    for (ordinal, row) in html.select(&selector("tr")?).enumerate() {
-        let values = row
-            .select(&cells)
-            .map(|e| side(e, content))
-            .collect::<Result<Vec<_>, _>>()?;
-        if values.is_empty() {
-            continue;
-        }
-        let table = row
+    for row in html.select(&selector("tr")?) {
+        let values = row.select(&cells).collect::<Vec<_>>();
+        let Some(table) = row
             .ancestors()
             .filter_map(ElementRef::wrap)
-            .find(|e| e.value().name() == "table");
+            .find(|e| e.value().name() == "table")
+        else {
+            continue;
+        };
         let headers = table
-            .map(|table| {
-                table
-                    .select(&selector("th")?)
-                    .map(|h| {
-                        plain(&h.html()).map(|v| {
-                            v.to_ascii_lowercase()
-                                .chars()
-                                .filter(|c| c.is_ascii_alphanumeric())
-                                .collect::<String>()
-                        })
-                    })
-                    .collect::<Result<Vec<_>, _>>()
+            .select(&selector("th")?)
+            .map(plain)
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(|s| {
+                s.to_ascii_lowercase()
+                    .chars()
+                    .filter(|c| c.is_ascii_alphanumeric())
+                    .collect::<String>()
             })
-            .transpose()?
-            .unwrap_or_default();
-        let known_section = matches!(
-            section,
-            "Class Features" | "Feats" | "Spells" | "Equipment" | "Bestiaries"
-        );
-        let known_first = headers
-            .first()
-            .is_some_and(|v| matches!(v.as_str(), "old" | "oldname" | "itemname" | "spellname"));
-        let known_last = headers
-            .last()
-            .is_some_and(|v| matches!(v.as_str(), "new" | "newname"));
-        let supported = known_section
-            && known_first
-            && known_last
-            && headers.len() == values.len()
-            && match headers.as_slice() {
-                [_, _] => true,
-                [_, status, _] => status == "status",
-                [_, qualifier, status, _] => {
-                    matches!(qualifier.as_str(), "class" | "maintrait") && status == "status"
-                }
-                _ => false,
-            };
-        let (status, qualifier) = if supported {
-            match values.len() {
-                4 => (Some(values[2].text.clone()), Some(values[1].text.clone())),
-                3 => (Some(values[1].text.clone()), None),
-                _ => (None, None),
+            .collect::<Vec<_>>();
+        if headers.len() != values.len()
+            || !headers
+                .first()
+                .is_some_and(|v| matches!(v.as_str(), "old" | "oldname" | "itemname" | "spellname"))
+            || !headers
+                .last()
+                .is_some_and(|v| matches!(v.as_str(), "new" | "newname"))
+        {
+            continue;
+        }
+        let (status, qualifier) = match headers.as_slice() {
+            [_, _] => ("renamed".into(), String::new()),
+            [_, s, _] if s == "status" => (plain(values[1])?, String::new()),
+            [_, q, s, _] if matches!(q.as_str(), "class" | "maintrait") && s == "status" => {
+                (plain(values[2])?, plain(values[1])?)
             }
-        } else {
-            (None, None)
+            _ => continue,
         };
-        let change = if supported {
-            status
-                .as_deref()
-                .map(kinds)
-                .unwrap_or_else(|| vec![RemasterChangeKind::Renamed])
+        let status = status.to_ascii_lowercase();
+        let relation = if status.contains("replaced") {
+            RemasterRelation::Replaces
+        } else if status.contains("merged") {
+            RemasterRelation::MergedFrom
+        } else if status.contains("renamed") {
+            RemasterRelation::FormerName
         } else {
-            vec![RemasterChangeKind::Unclassified]
+            continue;
         };
-        let before = values.first().cloned().into_iter().collect();
-        let after = if supported {
-            values.last().cloned().into_iter().collect()
-        } else {
-            values.iter().skip(1).cloned().collect()
-        };
-        declarations.push(declaration(
+        let Some(last) = values.last() else { continue };
+        if !direct_references(*last) {
+            continue;
+        }
+        let old = targets(values[0], content)?;
+        let new = targets(*last, content)?;
+        if new.len() != 1 {
+            continue;
+        }
+        add(
+            &mut result,
+            old,
+            new,
+            relation,
+            &format!("{section}:{qualifier}"),
             content,
-            context(section, qualifier),
-            RemasterSelector::TableRow { ordinal },
-            status,
-            change,
-            before,
-            after,
-        )?);
+        );
     }
-    let mut current_section = section.to_owned();
-    let mut material_context = false;
-    let mut list_ordinal = 0usize;
-    let mut discussion_ordinal = 0usize;
-    for element in html
-        .root_element()
-        .descendants()
-        .filter_map(ElementRef::wrap)
-    {
-        match element.value().name() {
-            "h2" => {
-                current_section = plain(&element.html())?;
-                material_context = false;
-            }
-            "li" => {
-                let mut value = side(element, content)?;
-                let lower = value.text.to_ascii_lowercase();
-                let split = [
-                    " are merged into ",
-                    " is merged into ",
-                    " are now ",
-                    " is now ",
-                ]
-                .iter()
-                .find_map(|delimiter| lower.find(delimiter).map(|p| (p, *delimiter)));
-                if let Some((position, delimiter)) = split {
-                    let old = value.text[..position].to_owned();
-                    let new = value.text[position + delimiter.len()..].to_owned();
-                    let terms = old
-                        .replace(" and ", ", ")
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
-                        .map(str::to_owned)
-                        .collect();
-                    let before = RemasterSide {
-                        text: old,
-                        terms,
-                        references: vec![],
-                    };
-                    value.text = new;
-                    if value.references.is_empty() {
-                        value.terms = vec![value.text.trim_end_matches('.').to_owned()];
-                    }
-                    let kind = if delimiter.contains("merged") {
-                        RemasterChangeKind::Merged
-                    } else {
-                        RemasterChangeKind::Renamed
-                    };
-                    let mut item = declaration(
-                        content,
-                        context(&current_section, None),
-                        RemasterSelector::ListItem {
-                            ordinal: list_ordinal,
-                        },
-                        Some(delimiter.trim().into()),
-                        vec![kind],
-                        vec![before],
-                        vec![value],
-                    )?;
-                    if material_context {
-                        item.context.namespace = "material".into();
-                        item = item.seal()?;
-                    }
-                    declarations.push(item);
-                } else if !value.text.is_empty() {
-                    value.terms.clear();
-                    declarations.push(declaration(
-                        content,
-                        context(&current_section, None),
-                        RemasterSelector::ListItem {
-                            ordinal: list_ordinal,
-                        },
-                        None,
-                        vec![RemasterChangeKind::Unclassified],
-                        vec![],
-                        vec![value],
-                    )?);
-                }
-                list_ordinal += 1;
-            }
-            "p" if element
-                .ancestors()
-                .filter_map(ElementRef::wrap)
-                .all(|p| !matches!(p.value().name(), "table" | "li")) =>
-            {
-                let mut value = side(element, content)?;
-                if section == "Equipment" && value.text == "Some materials have been renamed." {
-                    material_context = true;
-                }
-                if value.text.is_empty() {
-                    continue;
-                }
-                value.terms.clear();
-                declarations.push(declaration(
-                    content,
-                    context(&current_section, None),
-                    RemasterSelector::Discussion {
-                        ordinal: discussion_ordinal,
-                    },
-                    None,
-                    vec![RemasterChangeKind::Discussion],
-                    vec![],
-                    vec![value],
-                )?);
-                discussion_ordinal += 1;
-            }
-            _ => {}
+    for item in html.select(&selector("li")?) {
+        let value = plain(item)?;
+        let lower = value.to_ascii_lowercase();
+        let split = [
+            " are merged into ",
+            " is merged into ",
+            " are now ",
+            " is now ",
+        ]
+        .iter()
+        .find_map(|d| lower.find(d).map(|i| (i, *d)));
+        let Some((at, delimiter)) = split else {
+            continue;
+        };
+        let old = value[..at]
+            .replace(" and ", ", ")
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|name| RemasterTarget {
+                name: name.into(),
+                record: None,
+                owners: vec![],
+            })
+            .collect();
+        let new = targets(item, content)?
+            .into_iter()
+            .filter(|t| t.record.is_some())
+            .collect::<Vec<_>>();
+        if !new.is_empty() {
+            add(
+                &mut result,
+                old,
+                new,
+                if delimiter.contains("merged") {
+                    RemasterRelation::MergedFrom
+                } else {
+                    RemasterRelation::FormerName
+                },
+                section,
+                content,
+            );
         }
     }
-    Ok(declarations)
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        source_content::{ContentAudience, ContentVisibilityRule},
+        source_record::{
+            SourceBackedRecord, SourceContentStatus, SourceReferenceIndex, prepare_record_content,
+        },
+    };
+    fn record(pack: &str, kind: &str, value: serde_json::Value) -> SourceBackedRecord {
+        let source = atlas_foundry_model::admit_document_source(
+            kind,
+            atlas_foundry_model::SourceContext::new(pack, "fixture.json", "$"),
+            value.to_string().as_bytes(),
+        )
+        .unwrap()
+        .model
+        .unwrap();
+        SourceBackedRecord::new(pack, source).unwrap()
+    }
+    fn extract(markup: &str) -> Vec<RecordRemasterContext> {
+        let new = record(
+            "items",
+            "Item",
+            serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"New name","type":"action"}),
+        );
+        let journal = record(
+            "journals",
+            "JournalEntry",
+            serde_json::json!({"_id":"bbbbbbbbbbbbbbbb","name":"Remaster Changes","pages":[{"_id":"cccccccccccccccc","name":"Class Features","type":"text","text":{"format":1,"content":markup}}]}),
+        );
+        let mut index = SourceReferenceIndex::default();
+        index.insert_source(new.key(), new.source());
+        let old = record(
+            "items",
+            "Item",
+            serde_json::json!({"_id":"dddddddddddddddd","name":"Old B","type":"action"}),
+        );
+        index.insert_source(old.key(), old.source());
+        let audience = ContentAudience {
+            include_gm: false,
+            include_owner: false,
+            implicit_check_dc: ContentVisibilityRule::None,
+        };
+        let outcomes = prepare_record_content(&journal, audience, None, Some(&index));
+        outcomes
+            .into_iter()
+            .filter_map(|o| {
+                if let SourceContentStatus::Prepared(content) = o.status {
+                    Some(journal_context("Class Features", &content).unwrap())
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .collect()
+    }
+    const TARGET: &str = "@UUID[Compendium.pf2e.items.Item.aaaaaaaaaaaaaaaa]{New name}";
+    #[test]
+    fn selected_direct_rename_keeps_plain_old_name_and_journal_without_qualifier_copy() {
+        let rows = extract(&format!(
+            "<table><tr><th>Old</th><th>Class</th><th>Status</th><th>New</th></tr><tr><td>Old name</td><td>Runelord Class Archetype</td><td>Renamed, altered mechanics</td><td>{TARGET}</td></tr><tr data-visibility='gm'><td>Secret name</td><td>Hidden</td><td>Renamed</td><td>{TARGET}</td></tr></table>"
+        ));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].relation, RemasterRelation::FormerName);
+        assert_eq!(rows[0].targets[0].name, "Old name");
+        assert!(rows[0].targets[0].record.is_none());
+        assert!(rows[0].journal.is_some());
+        assert_eq!(rows[0].scope, "Class Features:Runelord Class Archetype");
+    }
+    #[test]
+    fn prose_references_and_collective_destinations_are_not_individual_renames() {
+        for new in [
+            format!("Removed - see {TARGET}"),
+            format!("See {TARGET}"),
+            format!("Marvelous Miniatures ({TARGET}, {TARGET})"),
+            format!("{TARGET} and {TARGET}"),
+        ] {
+            assert!(extract(&format!("<table><tr><th>Old</th><th>New</th></tr><tr><td>Old group</td><td>{new}</td></tr></table>")).is_empty(),"{new}");
+        }
+    }
+    #[test]
+    fn heritage_merge_keeps_all_predecessors_once() {
+        let rows = extract(&format!(
+            "<ul><li>Aasimar, Aphorite, Ganzi, and Tiefling are merged into {TARGET}.</li></ul>"
+        ));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].relation, RemasterRelation::MergedFrom);
+        assert_eq!(
+            rows[0]
+                .targets
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Aasimar", "Aphorite", "Ganzi", "Tiefling"]
+        );
+    }
+    #[test]
+    fn mixed_plain_and_linked_predecessors_keep_authored_order_and_exact_identity() {
+        let rows = extract(&format!(
+            "<table><tr><th>Old</th><th>New</th></tr><tr><td>Old A and @UUID[Compendium.pf2e.items.Item.dddddddddddddddd]{{Old B}}</td><td>{TARGET}</td></tr></table>"
+        ));
+        let row = rows
+            .iter()
+            .find(|c| c.relation == RemasterRelation::FormerName)
+            .unwrap();
+        assert_eq!(
+            row.targets
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Old A", "Old B"]
+        );
+        assert!(row.targets[0].record.is_none());
+        assert_eq!(
+            row.targets[1].record.as_ref().unwrap().to_string(),
+            "items:dddddddddddddddd"
+        );
+    }
 }

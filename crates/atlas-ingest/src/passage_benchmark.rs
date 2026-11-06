@@ -258,12 +258,10 @@ fn published_layout_reuse_full_corpus_benchmark() {
                 let mut aliases = Vec::new();
                 prepared
                     .spool
-                    .lexical
+                    .aliases
                     .visit(&mut |alias| {
-                        if alias.record == changed_key
-                            && alias.kind == atlas_index::SourceLexicalUnitKind::RootAlias
-                        {
-                            aliases.push(alias.alias_terms);
+                        if alias.record == changed_key {
+                            aliases.push(alias.alias);
                         }
                         Ok(())
                     })

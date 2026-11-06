@@ -247,13 +247,10 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 [],
             )
             .unwrap();
-        if initial_schema == 2 {
-            // This table is the released schema-two input, retired by migration 30.
-            write.connection().execute(
+        write.connection().execute(
             "INSERT INTO verified_aliases(record_id,alias,alias_lookup_key,evidence_json) SELECT record_id,'Snow Keeper','snow keeper','\"source redirect\"' FROM records",
             [],
         ).unwrap();
-        }
         write
             .connection()
             .execute(
@@ -359,7 +356,10 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 crate::WORKSPACE_SCHEMA_VERSION
             );
         } else {
-            for phrase in ["Test Creature", "Flame Lance", "Frozen Grave"] {
+            for phrase in ["Test Creature", "Flame Lance", "Frozen Grave"]
+                .into_iter()
+                .chain(lexical_changed.then_some("Snow Keeper"))
+            {
                 let matches: i64 = read
                     .connection()
                     .query_row(
@@ -371,19 +371,12 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 assert!(matches > 0, "missing migrated FTS match: {phrase}");
             }
             let reader = runtime.open_index().unwrap();
-            if lexical_changed {
-                assert!(
-                    reader
-                        .lookup_name_or_alias("Snow Keeper")
-                        .unwrap()
-                        .is_empty(),
-                    "a fabricated legacy alias column cannot grant current lookup authority"
-                );
-                assert_eq!(read.connection().query_row("SELECT count(*) FROM lexical_fts WHERE lexical_fts MATCH 'Snow Keeper'", [], |row|row.get::<_,usize>(0)).unwrap(), 0);
-            }
             let query =
                 atlas_index::validate_query(&atlas_domain::QueryPredicate::boolean(true)).unwrap();
-            for phrase in ["Test Creature", "Frozen Grave"] {
+            for phrase in ["Test Creature", "Frozen Grave"]
+                .into_iter()
+                .chain(lexical_changed.then_some("Snow Keeper"))
+            {
                 let matches = reader
                     .lexical_candidates(
                         phrase,
@@ -414,10 +407,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 "SELECT count(*) FROM lexical_units WHERE unit_kind='root_alias' AND alias_terms='Snow Keeper'",
                 [], |row| row.get(0),
             ).unwrap();
-                assert_eq!(
-                    aliases, 0,
-                    "unsupported old alias values cannot create current alias units"
-                );
+                assert_eq!(aliases, 1);
             }
         }
         let cached: Vec<u8> = read.connection().query_row(

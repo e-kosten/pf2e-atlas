@@ -129,6 +129,20 @@ pub struct SourceArtifactRecordInput {
     pub diagnostics: Vec<SourceArtifactDiagnostic>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourceAliasInput {
+    pub record: RecordKey,
+    pub alias: String,
+    pub evidence: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourceRemasterPairInput {
+    pub legacy: RecordKey,
+    pub remaster: RecordKey,
+    pub provenance: Option<SourceContentLocator>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceLexicalUnitKind {
     RootName,
@@ -184,8 +198,9 @@ pub struct IndexBuildInput {
     pub records: Vec<SourceArtifactRecordInput>,
     pub packs: Vec<IndexBuildPack>,
     pub context: SourceArtifactBuildContext,
-    pub remaster_sources: Vec<atlas_record::remaster::RemasterSourceInput>,
-    pub remaster_declarations: Vec<atlas_record::remaster::RemasterDeclaration>,
+    pub aliases: Vec<SourceAliasInput>,
+    pub remaster_context: Vec<atlas_record::remaster::RecordRemasterContext>,
+    pub remaster_pairs: Vec<SourceRemasterPairInput>,
     pub lexical_units: Vec<SourceLexicalUnitInput>,
     pub semantic_units: Vec<SourceSemanticUnitInput>,
 }

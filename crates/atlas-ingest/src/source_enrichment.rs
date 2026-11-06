@@ -214,8 +214,6 @@ pub struct SourceEnrichmentReport {
     pub content_diagnostics: BTreeMap<String, usize>,
     pub references: usize,
     pub relationships: usize,
-    pub remaster_declarations: usize,
-    pub remaster_aliases: usize,
 }
 
 impl EnrichedFoundrySource {

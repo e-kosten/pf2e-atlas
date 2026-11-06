@@ -4,24 +4,14 @@
       "before": "bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O",
       "after": "bestiary-ability-glossary-srd:W7SbTykXrNwxDzJc",
       "before_label": "Attack of Opportunity",
-      "after_label": "Reactive Strike",
-      "namespace": "creature_ability",
       "source_type": "action",
-      "rationale": "Atlas-reviewed creature glossary counterpart. Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18 retains the Bestiary Attack of Opportunity and Monster Core Reactive Strike entries in the same glossary. Their selected English ability texts agree (SHA-256 6366c8de03d73b324eae84473f9008fd53573ebd1dd13e871efbf57f238eedd9). This correspondence is an Atlas assertion about those exact glossary entries, not the class-feature journal's general-action link or a claim that all identically named actions are interchangeable. Ordinary errata does not alone withdraw counterpart meaning; current exact endpoints, action family and glossary scope are required.",
-      "kind": "replaced",
-      "qualifier": null,
       "journal_context": null
     },
     {
       "before": "pathfinder-bestiary:x23aXeWTo026pMui",
       "after": "pathfinder-monster-core:4n0nhynklrs2iHUJ",
       "before_label": "Earth Mephit",
-      "after_label": "Earth Scamp",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Earth Mephit root pathfinder-bestiary:x23aXeWTo026pMui; the authored row renames it to Earth Scamp (pathfinder-monster-core:4n0nhynklrs2iHUJ). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/earth-mephit.json and packs/pf2e/pathfinder-monster-core/earth-scamp.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -42,12 +32,7 @@
       "before": "pathfinder-bestiary:xqnl2eFzy5H2NZoQ",
       "after": "pathfinder-monster-core:WDBGcfNArKSpN7z0",
       "before_label": "Shaitan",
-      "after_label": "Jabali",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Shaitan root pathfinder-bestiary:xqnl2eFzy5H2NZoQ; the authored row renames it to Jabali (pathfinder-monster-core:WDBGcfNArKSpN7z0). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/shaitan.json and packs/pf2e/pathfinder-monster-core/jabali.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -68,12 +53,7 @@
       "before": "pathfinder-bestiary:GyigGu36XLPV72nW",
       "after": "pathfinder-monster-core:OCZR5r4EBUrt97Ai",
       "before_label": "Djinni",
-      "after_label": "Jaathoom",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Djinni root pathfinder-bestiary:GyigGu36XLPV72nW; the authored row renames it to Jaathoom (pathfinder-monster-core:OCZR5r4EBUrt97Ai). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/djinni.json and packs/pf2e/pathfinder-monster-core/jaathoom.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -94,12 +74,7 @@
       "before": "pathfinder-bestiary:KFf6pJmFmzj7HH9i",
       "after": "pathfinder-monster-core:Fn5ZKPwiaXm242Np",
       "before_label": "Water Mephit",
-      "after_label": "Water Scamp",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Water Mephit root pathfinder-bestiary:KFf6pJmFmzj7HH9i; the authored row renames it to Water Scamp (pathfinder-monster-core:Fn5ZKPwiaXm242Np). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/water-mephit.json and packs/pf2e/pathfinder-monster-core/water-scamp.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -120,12 +95,7 @@
       "before": "pathfinder-bestiary:cuET2PHGcE7eL7DJ",
       "after": "pathfinder-monster-core:CAEdqhfZDfMLmEyS",
       "before_label": "Marid",
-      "after_label": "Faydhaan",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Marid root pathfinder-bestiary:cuET2PHGcE7eL7DJ; the authored row renames it to Faydhaan (pathfinder-monster-core:CAEdqhfZDfMLmEyS). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/marid.json and packs/pf2e/pathfinder-monster-core/faydhaan.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -146,12 +116,7 @@
       "before": "equipment-srd:ChIhgRwtnhTukICY",
       "after": "equipment-srd:vAEQsYQbOYmqfIc0",
       "before_label": "Liar's Demise",
-      "after_label": "Fraudslayer Oil",
-      "namespace": "equipment",
       "source_type": "consumable",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Equipment, to the exact retained Liar's Demise root equipment-srd:ChIhgRwtnhTukICY; the authored row renames it to Fraudslayer Oil (equipment-srd:vAEQsYQbOYmqfIc0). Reviewed root type consumable, publication, rules body and equipment scope at packs/pf2e/equipment/liars-demise.json and packs/pf2e/equipment/fraudslayer-oil.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -172,12 +137,7 @@
       "before": "pathfinder-bestiary:tMxtnGthVV01wNQb",
       "after": "pathfinder-monster-core:Ccjg08wVRO43YlTf",
       "before_label": "Janni",
-      "after_label": "Jann",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Janni root pathfinder-bestiary:tMxtnGthVV01wNQb; the authored row renames it to Jann (pathfinder-monster-core:Ccjg08wVRO43YlTf). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/janni.json and packs/pf2e/pathfinder-monster-core/jann.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -198,12 +158,7 @@
       "before": "pathfinder-bestiary:k9fM0vufbdsDPQul",
       "after": "pathfinder-monster-core:UwvAf8riRdMaitA4",
       "before_label": "Fire Mephit",
-      "after_label": "Fire Scamp",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Fire Mephit root pathfinder-bestiary:k9fM0vufbdsDPQul; the authored row renames it to Fire Scamp (pathfinder-monster-core:UwvAf8riRdMaitA4). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/fire-mephit.json and packs/pf2e/pathfinder-monster-core/fire-scamp.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -224,12 +179,7 @@
       "before": "pathfinder-bestiary:HFbZ580RDOG6Rxz2",
       "after": "pathfinder-monster-core:NAKHn3jzuaZTerir",
       "before_label": "Sea Devil Baron",
-      "after_label": "Sedacthy Speaker",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Sea Devil Baron root pathfinder-bestiary:HFbZ580RDOG6Rxz2; the authored row renames it to Sedacthy Speaker (pathfinder-monster-core:NAKHn3jzuaZTerir). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/sea-devil-baron.json and packs/pf2e/pathfinder-monster-core/sedacthy-speaker.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -250,12 +200,7 @@
       "before": "feats-srd:yAgFDUU8HfVK4KTy",
       "after": "feats-srd:Bm8votckjbge54bl",
       "before_label": "Dragging Strike",
-      "after_label": "Sleek Reposition",
-      "namespace": "feat",
       "source_type": "feat",
-      "kind": "renamed",
-      "qualifier": "Fighter",
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Feats, to the exact retained Dragging Strike root feats-srd:yAgFDUU8HfVK4KTy; the authored row renames it to Sleek Reposition (feats-srd:Bm8votckjbge54bl). Reviewed root type feat, publication, rules body and Fighter scope at packs/pf2e/feats/class/fighter/level-2/dragging-strike.json and packs/pf2e/feats/class/fighter/level-2/sleek-reposition.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -276,12 +221,7 @@
       "before": "pathfinder-bestiary:UrviURGu5o9LkhxN",
       "after": "pathfinder-monster-core:VzkfSgbtsGV79WZH",
       "before_label": "Sea Devil Brute",
-      "after_label": "Sedacthy Marauder",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Sea Devil Brute root pathfinder-bestiary:UrviURGu5o9LkhxN; the authored row renames it to Sedacthy Marauder (pathfinder-monster-core:VzkfSgbtsGV79WZH). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/sea-devil-brute.json and packs/pf2e/pathfinder-monster-core/sedacthy-marauder.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -302,12 +242,7 @@
       "before": "pathfinder-bestiary:c0zqasudrwZU3fdw",
       "after": "pathfinder-monster-core:oKaewcA4gu3fbSVP",
       "before_label": "Efreeti",
-      "after_label": "Ifrit",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Efreeti root pathfinder-bestiary:c0zqasudrwZU3fdw; the authored row renames it to Ifrit (pathfinder-monster-core:oKaewcA4gu3fbSVP). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/efreeti.json and packs/pf2e/pathfinder-monster-core/ifrit.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -328,12 +263,7 @@
       "before": "feats-srd:3vjOXL9ZD4ibaJL6",
       "after": "feats-srd:ahyQpMVDIqhvXkQ4",
       "before_label": "Green Empathy",
-      "after_label": "Plant Empathy",
-      "namespace": "feat",
       "source_type": "feat",
-      "kind": "renamed",
-      "qualifier": "Druid",
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Feats, to the exact retained Green Empathy root feats-srd:3vjOXL9ZD4ibaJL6; the authored row renames it to Plant Empathy (feats-srd:ahyQpMVDIqhvXkQ4). Reviewed root type feat, publication, rules body and Druid scope at packs/pf2e/feats/class/druid/level-6/green-empathy.json and packs/pf2e/feats/class/druid/level-1/plant-empathy.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -354,12 +284,7 @@
       "before": "pathfinder-bestiary:KDRlxdIUADWHI6Vr",
       "after": "pathfinder-monster-core:MSm1im7lZA5i82rz",
       "before_label": "Air Mephit",
-      "after_label": "Air Scamp",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Air Mephit root pathfinder-bestiary:KDRlxdIUADWHI6Vr; the authored row renames it to Air Scamp (pathfinder-monster-core:MSm1im7lZA5i82rz). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/air-mephit.json and packs/pf2e/pathfinder-monster-core/air-scamp.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -380,12 +305,7 @@
       "before": "pathfinder-bestiary:PXru127aJljwKhSy",
       "after": "pathfinder-monster-core:qRUezfNovWdrZtdt",
       "before_label": "Sea Devil Scout",
-      "after_label": "Sedacthy Scout",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "renamed",
-      "qualifier": null,
-      "rationale": "Atlas binds the plain old-name operand in Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18, Remaster Changes / Bestiaries, to the exact retained Sea Devil Scout root pathfinder-bestiary:PXru127aJljwKhSy; the authored row renames it to Sedacthy Scout (pathfinder-monster-core:qRUezfNovWdrZtdt). Reviewed root type npc, publication, rules body and creature scope at packs/pf2e/pathfinder-bestiary/sea-devil-scout.json and packs/pf2e/pathfinder-monster-core/sedacthy-scout.json. This exact-root correspondence is an Atlas decision, not an upstream UUID for the old operand or rules interchangeability.",
       "journal_context": {
         "locator": {
           "record": "journals:6L2eweJuM8W7OCf2",
@@ -406,109 +326,64 @@
       "before": "pathfinder-bestiary-3:xIT2yHlwILLc5hgw",
       "after": "pathfinder-dark-archive:3Oz62UCZeqwG6BzE",
       "before_label": "Amalgamite",
-      "after_label": "Amalgamite",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Amalgamite counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary-3/amalgamite.json and packs/pf2e/pathfinder-dark-archive/npcs/amalgamite.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "pathfinder-bestiary:x4mlZseBP5bWcy4H",
       "after": "pathfinder-monster-core:8CYHgj4SV2LvlaUs",
       "before_label": "Barghest",
-      "after_label": "Barghest",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Barghest counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary/barghest.json and packs/pf2e/pathfinder-monster-core/barghest.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "pathfinder-bestiary:Z7xWkQKCHGyd02B1",
       "after": "pathfinder-monster-core:KCVKMVYRuq6huXGz",
       "before_label": "Giant Mantis",
-      "after_label": "Giant Mantis",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Giant Mantis counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary/giant-mantis.json and packs/pf2e/pathfinder-monster-core/giant-mantis.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "pathfinder-bestiary-2:JgePINrFINmlsvn3",
       "after": "pathfinder-monster-core-2:QIRi0t71ejowE10b",
       "before_label": "Hound Of Tindalos",
-      "after_label": "Hound of Tindalos",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Hound Of Tindalos counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary-2/hound-of-tindalos.json and packs/pf2e/pathfinder-monster-core-2/hound-of-tindalos.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "pathfinder-bestiary-3:LjpOnADaKe9ormfL",
       "after": "pathfinder-dark-archive:OmN5yYg61HqlTcgW",
       "before_label": "Kuchisake-Onna",
-      "after_label": "Kuchisake-Onna",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Kuchisake-Onna counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary-3/kuchisake-onna.json and packs/pf2e/pathfinder-dark-archive/npcs/kuchisake-onna.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "pathfinder-bestiary-2:hvoIxruNUei1auQT",
       "after": "pathfinder-monster-core-2:OsBQYnlQxDgVNxWp",
       "before_label": "Melody On The Wind",
-      "after_label": "Melody on the Wind",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Melody On The Wind counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary-2/melody-on-the-wind.json and packs/pf2e/pathfinder-monster-core-2/melody-on-the-wind.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "pathfinder-bestiary:Jgh0WGVetNXi5jlM",
       "after": "pathfinder-monster-core:dfshMY9yEEXOUoMo",
       "before_label": "Quatoid",
-      "after_label": "Quatoid",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Quatoid counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary/quatoid.json and packs/pf2e/pathfinder-monster-core/quatoid.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "pathfinder-bestiary:x26dyZZZRvZpzK2X",
       "after": "pathfinder-monster-core:G5OY8UMEOrbycZZc",
       "before_label": "Quelaunt",
-      "after_label": "Quelaunt",
-      "namespace": "creature",
       "source_type": "npc",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Quelaunt counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic matching creature template with retained level and distinctive source description across the older Bestiary and current core/remastered reference. Reviewed packs/pf2e/pathfinder-bestiary/quelaunt.json and packs/pf2e/pathfinder-monster-core/quelaunt.json, current type npc, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     },
     {
       "before": "hazards:1egK7HFAFdHxMS9N",
       "after": "pathfinder-monster-core-2:iFhJMyHC1nkQVrnb",
       "before_label": "Sportlebore",
-      "after_label": "Sportlebore",
-      "namespace": "hazard",
       "source_type": "hazard",
-      "kind": "replaced",
-      "qualifier": null,
-      "journal_context": null,
-      "rationale": "Atlas-reviewed exact Sportlebore counterpart at Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18. Generic level-7 Sportlebore hazard retained from Bestiary 2 in Monster Core 2; exact template and source description reviewed. Reviewed packs/pf2e/hazards/sportlebore.json and packs/pf2e/pathfinder-monster-core-2/sportlebore.json, current type hazard, publications, traits and rules bodies. This is Atlas correspondence rather than a Foundry-authored exact pair or a claim that all same-name adventure variants are interchangeable."
+      "journal_context": null
     }
   ]
 }

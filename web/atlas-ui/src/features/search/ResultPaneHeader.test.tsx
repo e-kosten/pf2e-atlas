@@ -8,7 +8,6 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { getRemasterRelationships } from "../../api/atlasApi";
 import { ReferencePreviewContext } from "../../shared/records/ReferencePreviewContext";
 import { summaryFixture } from "../../test/fixtures";
 import type { SearchResultsPage } from "../../generated/atlas";
@@ -17,11 +16,6 @@ import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { SearchView } from "./SearchView";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
-
-vi.mock("../../api/atlasApi", async (original) => ({
-  ...(await original<typeof import("../../api/atlasApi")>()),
-  getRemasterRelationships: vi.fn(),
-}));
 
 function render(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -36,8 +30,6 @@ function render(ui: ReactElement) {
 
 describe("search pane composition", () => {
   it("does not request or render an automatic remaster panel for ordinary completed text search", async () => {
-    const read = vi.mocked(getRemasterRelationships);
-    read.mockReset();
     const resultPage = {
       ...searchResultsPage(),
       mode: {
@@ -59,7 +51,6 @@ describe("search pane composition", () => {
       </SearchProfileProvider>,
     );
     await act(async () => {});
-    expect(read).not.toHaveBeenCalled();
     expect(
       screen.queryByRole("region", {
         name: "Source statements about this term or entry",

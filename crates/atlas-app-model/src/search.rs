@@ -165,7 +165,6 @@ pub struct SearchResultsPage {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultRow {
-    pub alias_matches: Vec<crate::RemasterAliasMatchView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub similarity: Option<crate::SimilarityEvidenceView>,

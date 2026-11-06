@@ -88,14 +88,3 @@ mod core_search_tests;
 mod neighbor_reuse_tests;
 
 mod remaster;
-pub use remaster::{
-    DEFAULT_REMASTER_INFORMATION_LIMIT, MAX_REMASTER_INFORMATION_LIMIT,
-    RecordRemasterInformationRequest, RecordRemasterInformationResult, RemasterAliasMatch,
-    RemasterChangeKind, RemasterCitationResult, RemasterCitationSource, RemasterContext,
-    RemasterDeclarationResult, RemasterEndpointCandidate, RemasterEndpointResolution,
-    RemasterEndpointResult, RemasterInformation, RemasterLookupSupport, RemasterOrigin,
-    RemasterSideResult, RemasterTermInformationRequest, RemasterTermInformationResult,
-};
-
-#[cfg(test)]
-mod remaster_tests;

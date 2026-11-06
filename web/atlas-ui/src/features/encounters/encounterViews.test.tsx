@@ -3434,7 +3434,6 @@ function searchResultsFixture(): SearchResultsPage {
     rows: [
       {
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
-        alias_matches: [],
         relationship_evidence: [],
         matches: [],
       },

@@ -85,12 +85,6 @@ pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow])
         {
             println!("  Matched: {label}");
         }
-        for matched in &r.alias_matches {
-            println!(
-                "  {}: {}",
-                matched.lookup_context.label, matched.matched_text
-            );
-        }
         print_relationship_evidence(&r.relationship_evidence);
         println!();
     }

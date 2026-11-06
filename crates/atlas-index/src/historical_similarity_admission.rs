@@ -44,6 +44,7 @@ impl Context {
     fn into_record_context(self) -> SourceArtifactBuildContext {
         SourceArtifactBuildContext {
             selected_sections_recipe: String::new(),
+            remaster_inputs_identity: String::new(),
             admission: None,
             core_sections_recipe: self.core_sections_recipe,
             trait_policy: self.trait_policy,
@@ -62,7 +63,6 @@ impl Context {
             content_interpretation_version: self.content_interpretation_version,
             content_selection_version: self.content_selection_version,
             asset_policy: self.asset_policy,
-            remaster_inputs_identity: String::new(),
             relationship_policy: self.relationship_policy,
             query_projection_version: self.query_projection_version,
             query_catalog_version: self.query_catalog_version,

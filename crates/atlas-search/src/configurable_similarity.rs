@@ -643,7 +643,6 @@ impl crate::AtlasRetrievalService {
                     // Page selection needs ranks/summaries only. Recover seed and
                     // candidate witnesses together once the page is known.
                     witnesses: vec![],
-                    matched_aliases: vec![],
                 });
                 pending.insert(
                     key,

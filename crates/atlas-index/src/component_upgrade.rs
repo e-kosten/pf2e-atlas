@@ -267,7 +267,7 @@ pub fn ensure_reference_projections(
                     )
                     .map_err(|error| IndexError::Invalid(error.to_string()))?;
                     let aliases = c
-                        .prepare("SELECT alias FROM remaster_aliases WHERE record_id=? ORDER BY alias")?
+                        .prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?
                         .query_map([id], |row| row.get::<_, String>(0))?
                         .collect::<Result<Vec<_>, _>>()?;
                     for unit in crate::project_lexical_units(&selection, &aliases) {

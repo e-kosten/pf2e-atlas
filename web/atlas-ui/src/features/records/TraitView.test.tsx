@@ -71,7 +71,6 @@ beforeEach(() => {
             {
               record: summaryFixture("weapons:dagger", "Dagger"),
               matches: [],
-              alias_matches: [],
               relationship_evidence: [],
             },
           ],

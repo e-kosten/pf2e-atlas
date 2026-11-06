@@ -23,7 +23,6 @@ export function RecordGrants({
                 row={{
                   record: entry.record,
                   matches: [],
-                  alias_matches: [],
                   relationship_evidence: [],
                 }}
                 navigation={entry.navigation}

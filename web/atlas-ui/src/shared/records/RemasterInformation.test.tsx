@@ -50,10 +50,6 @@ it.each([
         },
       ],
     };
-    content.declarations = Array.from({ length: 5 }, (_, index) => ({
-      ...content.declarations[0],
-      id: `support-${index}`,
-    }));
     render(
       <RemasterInformation
         category={{ kind: "content", content }}
@@ -71,33 +67,6 @@ it.each([
     expect(screen.queryByRole("heading", { name: "After" })).toBeNull();
   },
 );
-
-it("does not derive browser explanation links or provider diagnostics from canonical evidence", () => {
-  const content = remasterInformationFixture();
-  content.declarations[0].origins = ["foundry", "atlas_reviewed"];
-  content.declarations[0].citations[0] = {
-    ...content.declarations[0].citations[0],
-    attribution: "Internal migration script",
-    revision: "private-revision",
-    destination: { kind: "external", url: "https://example.com/migration.ts" },
-  };
-  content.declarations[0].authored_status = "are merged into";
-  render(
-    <RemasterInformation
-      category={{ kind: "content", content }}
-      onReference={vi.fn()}
-    />,
-  );
-  expect(screen.getByRole("link", { name: "New name" })).toBeVisible();
-  expect(screen.getAllByRole("link")).toHaveLength(1);
-  expect(
-    screen.queryByText(
-      /Internal migration|private-revision|Revision:|Atlas|Foundry|are merged into/,
-    ),
-  ).toBeNull();
-  expect(screen.queryByText("Sources")).toBeNull();
-  expect(document.querySelector("details")).toBeNull();
-});
 
 it("retains exact current destinations, distinct projected scopes and bounded information", () => {
   const content = remasterInformationFixture();

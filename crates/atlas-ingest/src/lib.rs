@@ -10,9 +10,9 @@ mod native_execution;
 #[cfg(test)]
 mod passage_benchmark;
 mod product_preparation;
-mod remaster_information;
 mod report;
 mod source;
+mod source_aliases;
 mod source_compatibility;
 mod source_enrichment;
 mod source_fingerprint;

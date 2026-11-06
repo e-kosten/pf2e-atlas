@@ -56,7 +56,7 @@ a visible Compare button for supported pairs. A former name or explanation link
 alone does not warrant that tab. Omit the reader notice throughout Explore; each
 tab owns its content. In Versions, place comparison actions below their relationship
 line. Comparison columns retain their own identities and rules without reciprocal
-notices. Technical attribution remains available in explicit inspection workflows.
+notices. Technical provenance belongs in developer diagnostics rather than these reader interactions.
 
 Search and discovery show every independently matching legacy and remaster entry.
 Counterpart links explain relationships and enable comparison; they do not hide

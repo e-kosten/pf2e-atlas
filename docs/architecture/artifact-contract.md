@@ -174,8 +174,7 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Prepared content         | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed.                                                                                                               |
 | Developer reports        | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports.                                                                                                                                                                               |
 | Relationships            | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status.                                                                                                                                                               |
-| Remaster source evidence | `remaster_source_inputs`, `remaster_declarations`: checked selected-file captures and typed authored change statements.                                                                                                                                                                                                       |
-| Remaster projections     | `remaster_citations`, `remaster_bindings`, `remaster_terms`, `remaster_aliases`/`remaster_alias_support`, `remaster_metadata`: derived citation FKs, current endpoint resolution, lookup terms, supported aliases and publication digest.                                                                                     |
+| Remaster context         | `verified_aliases`, `remaster_pairs`, `record_remaster_context`: lookup aliases, explicit counterparts and compact per-record relationship/journal context.                                                                                                                                                                   |
 | Selected sections        | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns.                                                                                                                      |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels.                                                                                                                                                                                       |
 | Semantic search          | `search_profiles`, `semantic_units`, profile-specific `native_vectors_<identity hash>` tables keyed by input ID: complete profile identity and one active vector per native input. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
@@ -571,44 +570,25 @@ identity, rehydrating all neighbors in the
 consuming snapshot. Index still owns the masked native query and location decoder;
 search owns bounded transient retention. See [ADR0062](decisions/0062-exact-text-neighbor-reuse.md).
 
-Remaster declarations retain authored context, compound kinds, ordered sides,
-references and evidence. Current record bindings and summaries remain derived.
-Selected non-record source inputs retain exact bytes, revision, path, hash and
-adapter origin once. Journal statements use audience-selected prepared content
-and authored reference evidence bound to checked source-field hashes. Excluded
-fragments cannot become statements, aliases or excerpts. The canonical payload
-never incorporates a current resolved label as authored source truth.
+Remaster information uses existing alias/pair projections and one compact per-record
+context table. Selected journal expressions supply relevant names, exact references
+when available and optional journal fields. Scope remains internal to consolidation;
+source prose mentioning a link does not establish replacement identity. A small
+curated manifest supplies reviewed exact counterparts with family checks.
 
-`source-remaster-statements/v3` and the exact remaster-input identity require
-source-backed preparation after the schema31 upgrade. The content occurrence
-policy remains v7; unchanged rendering and passage-layout dependencies stay
-reusable. Old opaque strings are not converted.
-Setup preserves saved lists/encounters, exact record keys and compatible vectors;
-without compatible source, reference readiness reports normal source-preparation
-guidance. Captures and declarations support the installed current corpus rather
-than historical document rendering.
+Schema32 removes the experimental declaration/citation/binding/support/term/capture
+framework while retaining its earlier migration checksums. The compiled remaster
+input identity in the normal build context requires source-backed preparation.
+Content, layout and native-vector reuse depend on their own unchanged contracts.
+Setup preserves saved state and exact keys. No-op setup skips publication; normal
+row reconciliation avoids rewrites when metadata is unchanged.
 
-Derived bindings retain explicit key text even when the referenced record is
-absent. Multiple statements can support the same alias.
-Full validation checks captures, declarations and the exact derived projection,
-including missing or extra citation FKs and support rows. Metadata/support changes
-participate in generation. Ordinary no-op setup skips publication; an unchanged
-remaster digest skips remaster-row writes. Explicit publication retains the
-existing reference-revision increment.
-
-Search and discovery retain every independently matching record. A small explicit
-Atlas manifest provides reviewed counterpart identities for navigation and
-comparison, without inferring them from matching names. Schema31 removes the
-preference and preference-support tables. Exact key reads and saved hydration
-retain chosen identity; saved-list filtering retains independently matching
-chosen members. App-service projects bounded,
-logical inline relationships, exact targets and useful current journal explanation
-links. Bounded supporting declarations remain available for explicit inspection.
-App-service projects Versions availability separately from declaration presence.
-Scope and grouped semantics survive display consolidation; source
-rows do not independently multiply product messages. Explicit term information
-and exact unavailable-key relationship reads remain separate from strict record
-lookup and ordinary Search results. See [ADR0067](decisions/0067-remaster-relationships.md).
+App-service projects compact relationship facts and useful current journal links
+for record/related reads and CLI presentation. Missing predecessors remain plain
+names. Versions depends on actual alternatives, not textual context alone. Ordinary
+Search retains all independently matching records and adds no alias annotations.
+There is no term-inspection API or remaster-specific unavailable-save action.
+See [ADR0067](decisions/0067-remaster-relationships.md).
 
 Suggested variants are bounded evidence-backed same-pack,
 family and compatible-category candidates. Verification distinguishes a complete

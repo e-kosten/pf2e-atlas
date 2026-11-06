@@ -2,4 +2,4 @@
 import type { RemasterExplanationLinkView } from "./RemasterExplanationLinkView";
 import type { RemasterInlinePartView } from "./RemasterInlinePartView";
 
-export type RemasterRelationshipView = { id: string, label: string, parts: Array<RemasterInlinePartView>, declaration_ids: Array<string>, explanation_links: Array<RemasterExplanationLinkView>, truncated: boolean, };
+export type RemasterRelationshipView = { id: string, label: string, parts: Array<RemasterInlinePartView>, explanation_links: Array<RemasterExplanationLinkView>, truncated: boolean, };

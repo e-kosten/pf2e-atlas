@@ -112,7 +112,7 @@ impl AtlasAppService {
                 }),
             );
             let (remaster_relationships, source_remaster_context) =
-                crate::remaster::reading_context(&selection, r, None);
+                crate::remaster::reading_context(&selection, r);
             let variants = if selection.owners.is_empty() {
                 category(crate::retrieval::variant_group_view(r, &key))
             } else {
@@ -167,23 +167,8 @@ fn show_versions(
     }
     match source {
         Some(RelatedCategoryView::Content { content }) => {
-            let source_selection = match &content.source.resolution {
-                atlas_app_model::RemasterEndpointResolutionView::Current { navigation, .. } => {
-                    navigation.clone()
-                }
-                atlas_app_model::RemasterEndpointResolutionView::Absent { record_key, .. } => {
-                    atlas_app_model::RecordNavigationView {
-                        record_key: record_key.clone(),
-                        owners: vec![],
-                        field: None,
-                        passage: None,
-                        spell_rank: None,
-                        source_fingerprint: None,
-                    }
-                }
-                _ => selection.clone(),
-            };
-            if relationship_versions(&content.relationships, &source_selection) {
+            let source_selection = &content.navigation;
+            if relationship_versions(&content.relationships, source_selection) {
                 return true;
             }
         }
@@ -236,186 +221,50 @@ fn scoped_section(
 mod versions_tests {
     use super::*;
     use atlas_app_model::*;
-    use serde_json::json;
-    fn nav(key: &str) -> RecordNavigationView {
-        RecordNavigationView {
-            record_key: key.into(),
+    #[test]
+    fn plain_former_name_and_journal_do_not_create_versions_but_an_actual_alternative_does() {
+        let selection = RecordNavigationView {
+            record_key: "items:aaaaaaaaaaaaaaaa".into(),
             owners: vec![],
             field: None,
             passage: None,
             spell_rank: None,
             source_fingerprint: None,
-        }
-    }
-    fn summary(key: &str) -> RecordSummaryView {
-        serde_json::from_value(
-            json!({"record_key":key,"title":"Entry","kind":"rule","kind_label":"Rule","traits":[]}),
-        )
-        .unwrap()
-    }
-    fn notes(parts: Vec<RemasterInlinePartView>) -> RelatedCategoryView<RemasterRelationshipsView> {
-        RelatedCategoryView::Content {
-            content: RemasterRelationshipsView {
-                relationships: vec![RemasterRelationshipView {
-                    id: "relation".into(),
-                    label: "Former name".into(),
-                    parts,
-                    declaration_ids: vec![],
-                    explanation_links: vec![RemasterExplanationLinkView {
-                        label: "Remaster Changes — Spells".into(),
-                        navigation: nav("journals:aaaaaaaaaaaaaaaa"),
-                    }],
-                    truncated: false,
+        };
+        let mut content = RemasterRelationshipsView {
+            relationships: vec![RemasterRelationshipView {
+                id: "rename".into(),
+                label: "Former name".into(),
+                parts: vec![RemasterInlinePartView::Text {
+                    text: "Magic Missile".into(),
                 }],
-                declarations: vec![],
+                explanation_links: vec![RemasterExplanationLinkView {
+                    label: "Remaster Changes — Spells".into(),
+                    navigation: selection.clone(),
+                }],
                 truncated: false,
-            },
-        }
-    }
-    fn reference(key: &str) -> RemasterInlinePartView {
-        RemasterInlinePartView::Reference {
-            label: "Other entry".into(),
-            navigation: Box::new(nav(key)),
-        }
-    }
-    #[test]
-    fn versions_ignores_force_cleanse_nephilim_names_explanations_and_self_addresses() {
-        let selected = nav("items:aaaaaaaaaaaaaaaa");
-        for names in [
-            "Magic Missile",
-            "Remove Curse, Remove Disease, and Neutralize Poison",
-            "Aasimar, Aphorite, Ganzi, and Tiefling",
-        ] {
-            let direct = notes(vec![RemasterInlinePartView::Text { text: names.into() }]);
-            assert!(!show_versions(
-                &selected,
-                &direct,
-                None,
-                &RelatedCategoryView::Empty
-            ));
-        }
-        assert!(!show_versions(
-            &selected,
-            &notes(vec![reference(&selected.record_key)]),
-            None,
-            &RelatedCategoryView::Empty
-        ));
-        let mut owned = selected.clone();
-        owned.owners = vec![atlas_domain::OwnedContentLocator {
-            collection: "/items".into(),
-            identity: atlas_domain::OwnedContentIdentity::Stable("child".into()),
-        }];
-        assert!(!show_versions(
-            &owned,
-            &RelatedCategoryView::Empty,
-            None,
-            &RelatedCategoryView::Unavailable {
-                reason: "Variant verification applies to root records".into()
-            }
-        ));
-    }
-    #[test]
-    fn versions_retains_real_glossary_counterparts_suggestions_and_lookup_retries() {
-        let selected = nav("bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O");
-        assert!(show_versions(
-            &selected,
-            &notes(vec![reference(
-                "bestiary-ability-glossary-srd:W7SbTykXrNwxDzJc"
-            )]),
-            None,
-            &RelatedCategoryView::Empty
-        ));
-        let variants = |keys: Vec<&str>| RelatedCategoryView::Content {
-            content: VariantGroupView {
-                seed: summary(&selected.record_key),
-                base_name: "Entry".into(),
-                variants: keys.into_iter().map(summary).collect(),
-                evidence: vec![],
-                ambiguous: false,
-                truncated: false,
-            },
+            }],
+            truncated: false,
         };
         assert!(!show_versions(
-            &selected,
-            &RelatedCategoryView::Empty,
-            None,
-            &variants(vec![&selected.record_key])
-        ));
-        assert!(show_versions(
-            &selected,
-            &RelatedCategoryView::Empty,
-            None,
-            &variants(vec!["items:bbbbbbbbbbbbbbbb"])
-        ));
-        assert!(show_versions(
-            &selected,
-            &RelatedCategoryView::Error {
-                error: AppError::new(AppErrorCode::InternalError, "Read failed")
+            &selection,
+            &RelatedCategoryView::Content {
+                content: content.clone()
             },
             None,
             &RelatedCategoryView::Empty
         ));
-        assert!(show_versions(
-            &selected,
-            &RelatedCategoryView::Unavailable {
-                reason: "Temporarily unavailable".into()
-            },
-            None,
-            &RelatedCategoryView::Empty
-        ));
-        assert!(show_versions(
-            &selected,
-            &RelatedCategoryView::Empty,
-            None,
-            &RelatedCategoryView::Error {
-                error: AppError::new(AppErrorCode::InternalError, "Variants failed")
-            }
-        ));
-    }
-    #[test]
-    fn versions_source_context_compares_against_its_own_exact_entry_and_keeps_errors() {
-        let selected = nav("actors:aaaaaaaaaaaaaaaa");
-        let source_key = "items:bbbbbbbbbbbbbbbb";
-        let source = |relationships| RelatedCategoryView::Content {
-            content: RemasterSourceContextView {
-                heading: "Source entry".into(),
-                source: RemasterEndpointView {
-                    label: "Source entry".into(),
-                    context: None,
-                    resolution: RemasterEndpointResolutionView::Current {
-                        record: Box::new(summary(source_key)),
-                        navigation: nav(source_key),
-                    },
-                },
-                relationships,
-            },
-        };
-        assert!(!show_versions(
-            &selected,
-            &RelatedCategoryView::Empty,
-            Some(&source(notes(vec![reference(source_key)]))),
-            &RelatedCategoryView::Empty
-        ));
-        assert!(show_versions(
-            &selected,
-            &RelatedCategoryView::Empty,
-            Some(&source(notes(vec![reference("items:cccccccccccccccc")]))),
-            &RelatedCategoryView::Empty
-        ));
-        assert!(show_versions(
-            &selected,
-            &RelatedCategoryView::Empty,
-            Some(&source(RelatedCategoryView::Error {
-                error: AppError::new(AppErrorCode::InternalError, "Source relationships failed")
-            })),
-            &RelatedCategoryView::Empty
-        ));
-        assert!(show_versions(
-            &selected,
-            &RelatedCategoryView::Empty,
-            Some(&RelatedCategoryView::Error {
-                error: AppError::new(AppErrorCode::InternalError, "Origin failed")
+        content.relationships[0].parts = vec![RemasterInlinePartView::Reference {
+            label: "Other record".into(),
+            navigation: Box::new(RecordNavigationView {
+                record_key: "items:bbbbbbbbbbbbbbbb".into(),
+                ..selection.clone()
             }),
+        }];
+        assert!(show_versions(
+            &selection,
+            &RelatedCategoryView::Content { content },
+            None,
             &RelatedCategoryView::Empty
         ));
     }

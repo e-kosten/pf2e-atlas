@@ -54,11 +54,7 @@ it("renders an exact owned notice supplied by Rust without borrowing root classi
       kind: "content",
       content: {
         heading: "Source entry: Old name",
-        source: {
-          label: "Old name",
-          context: null,
-          resolution: { kind: "term", message: "Explicit source entry" },
-        },
+        navigation: rootNavigation("rules:old"),
         relationships: { kind: "content", content: remasterInformationFixture() },
       },
     };

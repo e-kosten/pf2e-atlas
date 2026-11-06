@@ -118,10 +118,10 @@ pub use input::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, EXPECTED_SOURCE_KIND,
     IndexBuildPack, LEXICAL_SELECTION_VERSION, LOCALIZATION_POLICY_VERSION,
     RELATIONSHIP_POLICY_VERSION, SOURCE_LOOKUP_VERSION, SOURCE_PROJECTION_VERSION,
-    SourceArtifactBuildContext, SourceArtifactDiagnostic, SourceArtifactRecordInput,
-    SourceLexicalUnitInput, SourceLexicalUnitKind, SourcePreparedContent,
-    SourceRelationshipDetails, SourceSearchProfileIdentity, SourceStoredRelationship,
-    SourceUnitLocation,
+    SourceAliasInput, SourceArtifactBuildContext, SourceArtifactDiagnostic,
+    SourceArtifactRecordInput, SourceLexicalUnitInput, SourceLexicalUnitKind,
+    SourcePreparedContent, SourceRelationshipDetails, SourceRemasterPairInput,
+    SourceSearchProfileIdentity, SourceStoredRelationship, SourceUnitLocation,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use input::{IndexBuildInput, SourceSemanticUnitInput};
@@ -133,7 +133,7 @@ pub use read_content::{
 };
 pub use read_units::{
     SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,
-    SourceLexicalRootHit, SourceVectorCandidateRequest, SourceVectorHit,
+    SourceLexicalRootHit, SourceRemasterPair, SourceVectorCandidateRequest, SourceVectorHit,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use reader::SourceReadMetrics;
@@ -173,6 +173,5 @@ mod publication_crash_tests;
 
 mod remaster;
 pub use remaster::{
-    REMASTER_SCHEMA_SQL, REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL, SourceRemasterCitation,
-    SourceRemasterDeclaration, SourceRemasterInformation,
+    COMPACT_REMASTER_SCHEMA_SQL, REMASTER_SCHEMA_SQL, REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
 };

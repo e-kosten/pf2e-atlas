@@ -363,9 +363,8 @@ fn authentic_v7_schema29_upgrade_reuses_sources_layouts_and_native_values() {
     assert!(reader.artifact_instance().reference_revision() > old_revision);
     assert_eq!(
         reader
-            .remaster_record_information(&"items:bbbbbbbbbbbbbbbb".parse().unwrap(), &[], 20)
+            .read_remaster_links(&"items:bbbbbbbbbbbbbbbb".parse().unwrap())
             .unwrap()
-            .declarations
             .len(),
         1
     );

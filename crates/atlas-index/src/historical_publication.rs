@@ -69,7 +69,6 @@ pub(crate) fn records(
 ) -> Result<BTreeMap<RecordKey, i64>, IndexError> {
     require_unpublished_reference(c)?;
     let mut context = input.context.clone();
-    context.remaster_inputs_identity.clear();
     context.search_profiles = input.context.canonical_profiles()?;
     let json = serde_json::to_string(&context)?;
     c.execute("INSERT INTO artifact_context(singleton,format_version,context_hash,context_json) VALUES(1,?,?,?)",
@@ -183,6 +182,36 @@ pub(crate) fn records(
         for diagnostic in crate::projections::projection_diagnostics(&source.record) {
             crate::writer::write_diagnostic(c, id, &diagnostic)?;
         }
+    }
+    for alias in &input.aliases {
+        if alias.alias.trim().is_empty() || alias.evidence.trim().is_empty() {
+            return Err(IndexError::Invalid("alias needs text and evidence".into()));
+        }
+        let mut row = ProjectionRow::new("verified_aliases");
+        row.id(
+            "record_id",
+            crate::writer::product_id(&products, &alias.record)?,
+        );
+        row.text("alias", &alias.alias);
+        row.text(
+            "alias_lookup_key",
+            atlas_domain::normalize_record_name(&alias.alias),
+        );
+        row.text("evidence_json", serde_json::to_string(&alias.evidence)?);
+        row.insert(c)?;
+    }
+    for pair in &input.remaster_pairs {
+        let mut row = ProjectionRow::new("remaster_pairs");
+        row.id(
+            "legacy_record_id",
+            crate::writer::product_id(&products, &pair.legacy)?,
+        );
+        row.id(
+            "remaster_record_id",
+            crate::writer::product_id(&products, &pair.remaster)?,
+        );
+        row.text("evidence_json", serde_json::to_string(&pair.provenance)?);
+        row.insert(c)?;
     }
     for definition in crate::query::query_capabilities()?.fields {
         let mut row = ProjectionRow::new("query_field_catalog");

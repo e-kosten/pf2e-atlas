@@ -1034,33 +1034,19 @@ Damage/healing categories come from parsed source tags, not display-string tests
 The browser renders these facts and binds each dialog name to its visible heading.
 These presentation changes require no artifact re-preparation or locale changes.
 
-### Remaster declaration preparation
+### Compact remaster context preparation
 
-`source-remaster-statements/v3` replaces pair-only and opaque-alias authority
-with typed declarations, captured source inputs and rebuildable bindings/supports.
-The unchanged content occurrence policy remains v7. Remaster-input identity
-independently requires metadata publication while content and layout reuse check
-their actual preparation, section, segmentation and model dependencies. Physical
-profile-storage corruption remains an error on that reuse path. Schema30 introduced the declaration contract; schema31 removes its preference
-projections without modifying earlier migration checksums. Existing workspaces use source-backed setup and
-atomic checked publication, preserving saved state and compatible vector reuse.
-Old strings do not supply invented evidence. When a committed contract upgrade
-needs source-backed preparation, ordinary reference reads retain the normal
-readiness boundary rather than serving a compatibility projection.
+Ingest supplies existing aliases, exact counterpart pairs and per-record context
+from selected journals and the small curated mapping. Index publishes them in
+one transaction using the existing reference generation. The compiled remaster
+input identity requires source-backed metadata preparation when the recipe or
+mapping changes. Content/layout/native-input compatibility checks remain separate.
 
-Full validation verifies captured evidence and exact derived rows. A small explicit
-Atlas manifest supplies reviewed counterpart identities; normal source preparation
-validates those keys and families. No matching-name counterpart discovery or
-replacement-based result suppression runs. App-service consolidates compatible
-source statements into bounded logical inline relationships, retaining scoped and
-collective meanings and every supporting declaration ID. Browser and CLI render
-those facts. Browser presentation uses useful direct journal explanation links;
-full attributed evidence remains in explicit inspection responses. App-service
-projects Versions availability from actual alternative records, not mere evidence
-presence, while retaining local lookup failures and recovery.
-An exact-key information request may explain an unavailable record without
-creating a record body or changing strict lookup. Explicit API/CLI term context stays
-outside result counts and saved identity; ordinary Search has no automatic
-source-statement panel. See
-[ADR0067](decisions/0067-remaster-relationships.md) and the
-[artifact contract](artifact-contract.md).
+Schema32 removes the experimental declaration framework and keeps only the alias,
+pair and context projections. Normal setup preserves saved state and compatible
+vectors; ordinary reads keep the normal readiness boundary until required
+preparation completes. Search retains all independently matching records.
+App-service supplies compact facts and useful journal destinations through ordinary
+record and related reads. No term catalog, missing-save inspector or dedicated
+relationship API is retained. See [ADR0067](decisions/0067-remaster-relationships.md)
+and the [artifact contract](artifact-contract.md).

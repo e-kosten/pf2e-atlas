@@ -425,24 +425,8 @@ export type { SimilarityComponentView } from "../../../../crates/atlas-app-model
 
 export type { CheckDetailsView } from "../../../../crates/atlas-app-model/bindings/CheckDetailsView";
 export type { RoutineHeaderView } from "../../../../crates/atlas-app-model/bindings/RoutineHeaderView";
-export type { RemasterAliasMatchView } from "../../../../crates/atlas-app-model/bindings/RemasterAliasMatchView";
-export type { RemasterChangeKindView } from "../../../../crates/atlas-app-model/bindings/RemasterChangeKindView";
-export type { RemasterCitationDestinationView } from "../../../../crates/atlas-app-model/bindings/RemasterCitationDestinationView";
-export type { RemasterCitationOriginView } from "../../../../crates/atlas-app-model/bindings/RemasterCitationOriginView";
-export type { RemasterCitationView } from "../../../../crates/atlas-app-model/bindings/RemasterCitationView";
-export type { RemasterDeclarationView } from "../../../../crates/atlas-app-model/bindings/RemasterDeclarationView";
-export type { RemasterEndpointCandidateView } from "../../../../crates/atlas-app-model/bindings/RemasterEndpointCandidateView";
-export type { RemasterEndpointResolutionView } from "../../../../crates/atlas-app-model/bindings/RemasterEndpointResolutionView";
-export type { RemasterEndpointView } from "../../../../crates/atlas-app-model/bindings/RemasterEndpointView";
-export type { RemasterLookupContextView } from "../../../../crates/atlas-app-model/bindings/RemasterLookupContextView";
-export type { RemasterLookupSupportView } from "../../../../crates/atlas-app-model/bindings/RemasterLookupSupportView";
-export type { RemasterRelationshipsRequest } from "../../../../crates/atlas-app-model/bindings/RemasterRelationshipsRequest";
-export type { RemasterRelationshipsResponse } from "../../../../crates/atlas-app-model/bindings/RemasterRelationshipsResponse";
 export type { RemasterRelationshipsView } from "../../../../crates/atlas-app-model/bindings/RemasterRelationshipsView";
-export type { RemasterSideView } from "../../../../crates/atlas-app-model/bindings/RemasterSideView";
 export type { RemasterSourceContextView } from "../../../../crates/atlas-app-model/bindings/RemasterSourceContextView";
-export type { RemasterSubjectRequest } from "../../../../crates/atlas-app-model/bindings/RemasterSubjectRequest";
-export type { RemasterSubjectView } from "../../../../crates/atlas-app-model/bindings/RemasterSubjectView";
 export type { RemasterRelationshipView } from "../../../../crates/atlas-app-model/bindings/RemasterRelationshipView";
 export type { RemasterInlinePartView } from "../../../../crates/atlas-app-model/bindings/RemasterInlinePartView";
 export type { RemasterExplanationLinkView } from "../../../../crates/atlas-app-model/bindings/RemasterExplanationLinkView";

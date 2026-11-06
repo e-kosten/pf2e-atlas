@@ -346,7 +346,7 @@ function VersionCard({
   return (
     <div role="listitem">
       <ReferenceResult
-        row={{ record, matches: [], alias_matches: [], relationship_evidence: [] }}
+        row={{ record, matches: [], relationship_evidence: [] }}
         selected={false}
         disabled={false}
         onPreview={(anchor) => onReference(record.record_key, anchor)}

@@ -55,13 +55,12 @@ impl AtlasAppService {
         filter: Option<QueryPredicate>,
     ) -> AppServiceResult<Vec<atlas_app_model::RecordResolutionCandidateView>> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            let mut budget = crate::remaster::ProjectionBudget::default();
             Ok(r.resolve_record(ResolveRecordRequest {
                 query: &query,
                 filter: filter.as_ref(),
             })?
             .into_iter()
-            .map(|v| crate::projection::resolution_view(v, r, &mut budget))
+            .map(|v| crate::projection::resolution_view(v, r))
             .collect())
         })
     }
@@ -71,7 +70,6 @@ impl AtlasAppService {
         filter: Option<QueryPredicate>,
     ) -> AppServiceResult<atlas_app_model::RecordRefResolutionView> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            let mut budget = crate::remaster::ProjectionBudget::default();
             Ok(
                 match r.resolve_record_ref(ResolveRecordRefRequest {
                     record_ref: &record_ref,
@@ -86,7 +84,7 @@ impl AtlasAppService {
                     RecordRefResolutionResult::Ambiguous(v) => {
                         atlas_app_model::RecordRefResolutionView::Ambiguous(
                             v.into_iter()
-                                .map(|v| crate::projection::resolution_view(v, r, &mut budget))
+                                .map(|v| crate::projection::resolution_view(v, r))
                                 .collect(),
                         )
                     }
@@ -412,7 +410,7 @@ impl<'a> LoadedRecordDetail<'a> {
             relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
         };
         (view.remaster_relationships, view.source_remaster_context) =
-            crate::remaster::reading_context(&view.selected, r, Some(detail));
+            crate::remaster::reading_context(&view.selected, r);
         crate::contextual_references::attach_consumable_spell(&mut view, r)?;
         crate::contextual_references::attach_ranked_effects(&mut view, r)?;
         if whole_document {

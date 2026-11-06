@@ -1032,7 +1032,6 @@ function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
     },
     rows: recordKeys.map((key) => ({
       record: summaryFixture(key),
-      alias_matches: [],
       relationship_evidence: [],
       matches: [],
     })),

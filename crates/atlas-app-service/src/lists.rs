@@ -920,12 +920,11 @@ fn record_resolution_ambiguous_error(
     matches: Vec<atlas_search::RecordResolutionResult>,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> AppServiceError {
-    let mut budget = crate::remaster::ProjectionBudget::default();
     let details = RecordResolutionAmbiguousView {
         record_ref: record_ref.to_string(),
         matches: matches
             .into_iter()
-            .map(|value| crate::projection::resolution_view(value, retrieval, &mut budget))
+            .map(|value| crate::projection::resolution_view(value, retrieval))
             .collect(),
     };
     let details = serde_json::to_value(details).unwrap_or_else(|_| {

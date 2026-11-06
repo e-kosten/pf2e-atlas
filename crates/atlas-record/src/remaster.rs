@@ -1,179 +1,162 @@
-//! Authored remaster statements, separate from current reference resolution.
-mod journal;
-mod projection;
-mod static_inputs;
-
 use crate::source_content::SourceContentLocator;
+use atlas_domain::{OwnedContentLocator, RecordKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-pub use journal::journal_declarations;
-pub use projection::*;
-pub use static_inputs::{
-    ReviewedCorrespondence, ReviewedCorrespondences, ReviewedJournalContext, file_declarations,
-};
-
+mod journal;
+pub use journal::journal_context;
 pub const ATLAS_CORRESPONDENCE_BYTES: &[u8] = include_bytes!("remaster/correspondences.json");
-/// Metadata inputs have their own admission identity, independent of content rendering.
 pub fn remaster_inputs_identity() -> String {
-    hash(format!("{}:{}", REMASTER_RECIPE, hash(ATLAS_CORRESPONDENCE_BYTES)).as_bytes())
+    format!(
+        "compact-remaster-context/v1:{:x}",
+        Sha256::digest(ATLAS_CORRESPONDENCE_BYTES)
+    )
 }
-pub const REMASTER_RECIPE: &str = "source-remaster-statements/v3";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RemasterChangeKind {
-    Renamed,
-    Merged,
-    Replaced,
-    Removed,
-    MechanicsChanged,
-    Discussion,
-    Unclassified,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RemasterContext {
-    pub section: String,
-    pub namespace: String,
-    pub qualifier: Option<String>,
-    pub source_type: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RemasterReference {
-    pub target: String,
-    pub label: String,
-    /// Ordinal in the selected source field; absent for static literal inputs.
-    pub occurrence: Option<usize>,
-    pub explicit_key: Option<atlas_domain::RecordKey>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RemasterSide {
-    pub text: String,
-    pub terms: Vec<String>,
-    pub references: Vec<RemasterReference>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RemasterSelector {
-    TableRow { ordinal: usize },
-    ListItem { ordinal: usize },
-    Discussion { ordinal: usize },
-    LiteralEntry { ordinal: usize },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum RemasterCitation {
-    Journal {
-        locator: SourceContentLocator,
-        selector: RemasterSelector,
-        authored_sha256: String,
-    },
-    CapturedFile {
-        input_key: String,
-        selector: RemasterSelector,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RemasterDeclaration {
-    pub id: String,
-    pub kinds: Vec<RemasterChangeKind>,
-    pub authored_status: Option<String>,
-    pub context: RemasterContext,
-    pub before: Vec<RemasterSide>,
-    pub after: Vec<RemasterSide>,
-    pub citations: Vec<RemasterCitation>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum RemasterInputKind {
-    Migration850,
-    Migration887,
-    AtlasCorrespondence,
+pub enum RemasterRelation {
+    FormerName,
+    Replaces,
+    MergedFrom,
+    RenamedTo,
+    ReplacedBy,
+    MergedInto,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RemasterOrigin {
-    Foundry,
-    AtlasReviewed,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RemasterSourceInput {
-    pub key: String,
-    pub kind: RemasterInputKind,
-    pub origin: RemasterOrigin,
-    pub revision: String,
-    pub path: String,
-    pub sha256: String,
-    pub bytes: Vec<u8>,
+pub struct RemasterTarget {
+    pub name: String,
+    pub record: Option<RecordKey>,
+    pub owners: Vec<OwnedContentLocator>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecordRemasterContext {
+    pub record: RecordKey,
+    pub owners: Vec<OwnedContentLocator>,
+    pub relation: RemasterRelation,
+    pub targets: Vec<RemasterTarget>,
+    pub journal: Option<SourceContentLocator>,
+    pub scope: String,
+}
+#[derive(Deserialize)]
+pub struct Correspondences {
+    pub entries: Vec<Correspondence>,
+}
+#[derive(Deserialize)]
+pub struct Correspondence {
+    pub before: RecordKey,
+    pub after: RecordKey,
+    pub before_label: String,
+    pub source_type: String,
+    pub journal_context: Option<JournalContext>,
+}
+#[derive(Deserialize)]
+pub struct JournalContext {
+    pub locator: SourceContentLocator,
+    pub authored_sha256: String,
 }
 
-impl RemasterSourceInput {
-    pub fn new(
-        kind: RemasterInputKind,
-        origin: RemasterOrigin,
-        revision: String,
-        path: String,
-        bytes: Vec<u8>,
-    ) -> Self {
-        let sha256 = hash(&bytes);
-        let key = hash(format!("{kind:?}:{origin:?}:{revision}:{path}:{sha256}").as_bytes());
-        Self {
-            key,
-            kind,
-            origin,
-            revision,
-            path,
-            sha256,
-            bytes,
-        }
-    }
-}
-
-impl RemasterDeclaration {
-    pub(crate) fn seal(mut self) -> Result<Self, RemasterError> {
-        self.id.clear();
-        self.id = hash(&serde_json::to_vec(&self)?);
-        Ok(self)
-    }
-}
-
-pub fn hash(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
-}
-
-#[derive(Debug)]
-pub enum RemasterError {
-    Invalid(String),
-    Json(serde_json::Error),
-}
-impl std::fmt::Display for RemasterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Invalid(s) => f.write_str(s),
-            Self::Json(e) => e.fmt(f),
-        }
-    }
-}
-impl std::error::Error for RemasterError {}
-impl From<serde_json::Error> for RemasterError {
-    fn from(value: serde_json::Error) -> Self {
-        Self::Json(value)
+pub fn refine_context(contexts: &mut Vec<RecordRemasterContext>) {
+    let cleanse = "spells-srd:SUKaxVZW2TlM8lu0";
+    let required = ["Remove Curse", "Remove Disease", "Neutralize Poison"];
+    let Some(source) = contexts
+        .iter()
+        .find(|c| {
+            c.record.to_string() == cleanse
+                && c.owners.is_empty()
+                && c.relation == RemasterRelation::FormerName
+                && c.scope == "Spells:"
+                && c.journal.is_some()
+        })
+        .cloned()
+    else {
+        return;
+    };
+    let applies = |c: &RecordRemasterContext| {
+        c.record == source.record
+            && c.owners.is_empty()
+            && c.relation == RemasterRelation::FormerName
+            && c.scope == source.scope
+            && c.journal == source.journal
+    };
+    let present = contexts
+        .iter()
+        .filter(|c| applies(c))
+        .flat_map(|c| &c.targets)
+        .map(|t| t.name.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    if required.iter().all(|name| present.contains(name)) {
+        contexts.retain(|c| {
+            !applies(c)
+                || !c
+                    .targets
+                    .iter()
+                    .all(|t| t.record.is_none() && required.contains(&t.name.as_str()))
+        });
+        contexts.push(RecordRemasterContext {
+            relation: RemasterRelation::Replaces,
+            targets: required
+                .into_iter()
+                .map(|name| RemasterTarget {
+                    name: name.into(),
+                    record: None,
+                    owners: vec![],
+                })
+                .collect(),
+            ..source
+        });
     }
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    use super::*;
+    #[test]
+    fn cleanse_requires_all_three_predecessors_in_one_selected_journal_scope() {
+        let journal = SourceContentLocator {
+            record: "journals:aaaaaaaaaaaaaaaa".parse().unwrap(),
+            owners: vec![],
+            field: "/text/content".into(),
+        };
+        let mut rows = ["Neutralize Poison", "Remove Curse", "Remove Disease"]
+            .into_iter()
+            .map(|name| RecordRemasterContext {
+                record: "spells-srd:SUKaxVZW2TlM8lu0".parse().unwrap(),
+                owners: vec![],
+                relation: RemasterRelation::FormerName,
+                targets: vec![RemasterTarget {
+                    name: name.into(),
+                    record: None,
+                    owners: vec![],
+                }],
+                journal: Some(journal.clone()),
+                scope: "Spells:".into(),
+            })
+            .collect::<Vec<_>>();
+        let mut partial = rows[..2].to_vec();
+        refine_context(&mut partial);
+        assert!(
+            partial
+                .iter()
+                .all(|c| c.relation == RemasterRelation::FormerName)
+        );
+        let mut mixed = rows.clone();
+        mixed[2].journal = None;
+        refine_context(&mut mixed);
+        assert!(
+            mixed
+                .iter()
+                .all(|c| c.relation == RemasterRelation::FormerName)
+        );
+        refine_context(&mut rows);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].relation, RemasterRelation::Replaces);
+        assert_eq!(
+            rows[0]
+                .targets
+                .iter()
+                .map(|t| t.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Remove Curse", "Remove Disease", "Neutralize Poison"]
+        );
+    }
+}

@@ -3,10 +3,7 @@ use atlas_domain::{SourceByteRange, SourcePassageAddress};
 use atlas_foundry_model::{
     SNAPSHOT_VERSION, SOURCE_CONTRACT_ID, SourceContext, admit_document_source,
 };
-pub use atlas_index::test_support::{
-    add_remaster_relationship, capture_remaster_declarations, corrupt_remaster_declaration,
-    publish_input,
-};
+pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
 pub use atlas_index::{TraitSeedChunk, TraitVectorInput};
 use atlas_record::{
@@ -54,7 +51,7 @@ pub fn open_source_fixture(
 ) -> Result<(crate::AtlasRetrievalService, FixtureArtifact), crate::SearchError> {
     open_input_fixture(input(records, semantic))
 }
-/// Allows tests to supply captured remaster declarations and selected unit vectors.
+/// Allows tests to supply verified alias/pair evidence and selected unit vectors.
 pub fn open_input_fixture(
     input: IndexBuildInput,
 ) -> Result<(crate::AtlasRetrievalService, FixtureArtifact), crate::SearchError> {
@@ -106,8 +103,8 @@ pub fn context(semantic: bool) -> SourceArtifactBuildContext {
         content_interpretation_version: CONTENT_INTERPRETATION_VERSION.into(),
         content_selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
         asset_policy: ASSET_POLICY_VERSION.into(),
-        remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
         relationship_policy: RELATIONSHIP_POLICY_VERSION.into(),
+        remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
         query_projection_version: SOURCE_PROJECTION_VERSION.into(),
         query_catalog_version: query_capabilities().unwrap().version,
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
@@ -267,8 +264,9 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
         context,
         lexical_units,
         semantic_units,
-        remaster_sources: vec![],
-        remaster_declarations: vec![],
+        aliases: vec![],
+        remaster_context: vec![],
+        remaster_pairs: vec![],
     }
 }
 
@@ -300,89 +298,46 @@ pub fn input_with_both_profiles(records: Vec<SourceArtifactRecordInput>) -> Inde
     input
 }
 
-/// Supply an old name through a selected journal statement. The old record may
-/// be absent; the explicit current endpoint supplies source-backed alias authority.
 pub fn add_remaster_alias(
-    input: &mut IndexBuildInput,
-    successor: &atlas_domain::RecordKey,
+    input: &mut atlas_index::IndexBuildInput,
+    key: &atlas_domain::RecordKey,
     alias: &str,
 ) -> Result<(), atlas_index::IndexError> {
-    let target = input
+    input.aliases.push(atlas_index::SourceAliasInput {
+        record: key.clone(),
+        alias: alias.into(),
+        evidence: "fixture".into(),
+    });
+    let aliases = input
+        .aliases
+        .iter()
+        .filter(|a| &a.record == key)
+        .map(|a| a.alias.clone())
+        .collect::<Vec<_>>();
+    let record = input
         .records
         .iter()
-        .find(|record| record.record.key() == successor)
-        .ok_or_else(|| atlas_index::IndexError::Invalid("fixture alias successor absent".into()))?;
-    let node = atlas_record::source_record::SourceNodeView::from(target.record.source());
-    let section = match node.document_kind() {
-        "Actor" => "Bestiaries",
-        _ if node.source_type().value() == Some("spell") => "Spells",
-        _ => "Equipment",
-    };
-    let html_alias = alias
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;");
-    let html = format!(
-        "<table><tr><th>Old</th><th>Status</th><th>New</th></tr><tr><td>{html_alias}</td><td>Renamed</td><td>@UUID[Compendium.pf2e.{}.{}.{}]</td></tr></table>",
-        successor.pack(),
-        node.document_kind(),
-        successor.id(),
-    );
-    let id =
-        hash(format!("{successor}:{alias}:{}", input.records.len()).as_bytes())[..16].to_owned();
-    let journal = record(
-        "fixture-remaster",
-        "JournalEntry",
-        serde_json::json!({
-            "_id":id,"name":"Remaster Changes","pages":[{
-                "_id":"aaaaaaaaaaaaaaaa","name":section,"type":"text","text":{"format":1,"content":html}
-            }]
-        }),
-    );
-    let key = journal.record.key().clone();
-    let mut records = std::mem::take(&mut input.records);
-    records.push(journal);
-    // Reprepare against the complete fixture resolver, so declarations consume
-    // actual selected occurrence evidence rather than a fabricated binding.
-    let mut prepared = self::input(records, !input.context.search_profiles.is_empty());
-    input.records = prepared.records;
-    input.context.source_file_count = input.records.len();
-    let context_hash = input.context.preparation_sha256()?;
-    for source in &mut input.records {
-        source.preparation_context_hash = context_hash.clone();
-    }
-    for pack in prepared.packs {
-        if !input
-            .packs
-            .iter()
-            .any(|existing| existing.pack_id == pack.pack_id)
-        {
-            input.packs.push(pack);
-        }
-    }
-    input.inventory = CompleteSourceInventory::checked(
-        &input.context.source_fingerprint,
-        input.packs.iter().map(|pack| pack.pack_id.clone()),
-        input.packs.iter().map(|pack| pack.pack_id.clone()),
-    )?;
-    input.lexical_units.extend(
-        prepared
-            .lexical_units
-            .drain(..)
-            .filter(|unit| unit.record == key),
-    );
-    let semantic = prepared
-        .semantic_units
-        .into_iter()
-        .filter(|unit| unit.record == key)
-        .collect::<Vec<_>>();
-    for profile in &input.context.search_profiles {
-        input
-            .semantic_units
-            .extend(semantic.iter().cloned().map(|mut unit| {
-                unit.profile_id = profile.profile_id.clone();
-                unit
-            }));
-    }
-    capture_remaster_declarations(input)
+        .find(|r| r.record.key() == key)
+        .unwrap();
+    let selection = atlas_record::source_record::select_record_search(
+        &record.record,
+        &record.content,
+        input.context.audience,
+        "fixture",
+        &input.context.used_trait_labels,
+    )
+    .map_err(|e| atlas_index::IndexError::Invalid(e.to_string()))?;
+    input.lexical_units.retain(|u| &u.record != key);
+    input
+        .lexical_units
+        .extend(atlas_index::project_lexical_units(&selection, &aliases));
+    Ok(())
+}
+
+pub fn add_remaster_relationship(
+    input: &mut atlas_index::IndexBuildInput,
+    old: &atlas_domain::RecordKey,
+    new: &atlas_domain::RecordKey,
+) -> Result<(), atlas_index::IndexError> {
+    atlas_index::test_support::add_remaster_relationship(input, old, new)
 }

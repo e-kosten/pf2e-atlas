@@ -71,7 +71,6 @@ pub struct TextSearchRecord {
     pub lexical_rank: Option<usize>,
     pub semantic_similarity: Option<f64>,
     pub score: f64,
-    pub alias_matches: Vec<crate::RemasterAliasMatch>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SearchCoverage {
@@ -92,7 +91,7 @@ pub struct TextSearchResult {
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_domain::{RecordKey, SourcePassageAddress};
 use atlas_index::{SourceLexicalHit, SourceVectorHit, ValidatedQuery};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 const SEMANTIC_WINDOWS: [usize; 3] = [1024, 2048, 4096];
 const TARGET_ROOTS: usize = 200;
 #[derive(Debug, Clone)]
@@ -103,7 +102,6 @@ pub(crate) struct RankedRoot {
     pub score: f64,
     pub tier: u8,
     pub witnesses: Vec<SearchWitness>,
-    pub matched_aliases: Vec<String>,
 }
 pub(crate) struct CandidateRequest<'a> {
     pub content_scope: atlas_domain::SearchContentScope,
@@ -170,7 +168,6 @@ pub(crate) fn semantic_roots(hits: Vec<SourceVectorHit>) -> Vec<RankedRoot> {
                 score: similarity,
                 tier: 3,
                 witnesses: hits.into_iter().take(3).map(semantic_witness).collect(),
-                matched_aliases: vec![],
             }
         })
         .collect::<Vec<_>>();
@@ -336,25 +333,6 @@ impl AtlasRetrievalService {
                         similarity: None,
                         score,
                         tier: t,
-                        matched_aliases: hit
-                            .witnesses
-                            .iter()
-                            .filter(|w| {
-                                w.unit_kind == atlas_index::SourceLexicalUnitKind::RootAlias
-                            })
-                            .filter_map(|w| w.label.clone())
-                            .chain(
-                                identities
-                                    .iter()
-                                    .filter(|m| m.key == hit.record)
-                                    .filter_map(|m| m.alias.clone()),
-                            )
-                            .collect::<BTreeSet<_>>()
-                            .into_iter()
-                            // One overflow witness lets product projection report
-                            // its ten-alias cut without hydrating an unbounded row.
-                            .take(11)
-                            .collect(),
                         witnesses: hit.witnesses.into_iter().map(lexical_witness).collect(),
                     },
                 );
@@ -418,15 +396,6 @@ impl AtlasRetrievalService {
             .collect::<Vec<_>>();
         let keys = selected.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
         let summaries = self.summaries(&keys)?;
-        let aliases = selected
-            .iter()
-            .flat_map(|root| {
-                root.matched_aliases
-                    .iter()
-                    .map(|alias| (root.key.clone(), alias.clone()))
-            })
-            .collect::<Vec<_>>();
-        let mut alias_supports = self.remaster_alias_support(&aliases)?;
         let owned_locations = selected
             .iter()
             .flat_map(|root| &root.witnesses)
@@ -524,17 +493,7 @@ impl AtlasRetrievalService {
                     ));
                 }
             }
-            let alias_matches = root
-                .matched_aliases
-                .into_iter()
-                .filter_map(|alias| {
-                    alias_supports
-                        .remove(&(root.key.clone(), alias.clone()))
-                        .map(|support| crate::RemasterAliasMatch { alias, support })
-                })
-                .collect();
             records.push(TextSearchRecord {
-                alias_matches,
                 record,
                 matches,
                 lexical_rank: root.lexical_rank,

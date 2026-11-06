@@ -139,18 +139,15 @@ atlas graph variants 'Dread Ampoule' --json
 ```
 
 `links` shows references made by an entry and, with `--backlinks`, references to
-it. `uses` finds entries referring to the chosen rule or record. Read source-backed
-remaster changes by exact record key, or look up an authored term independently
-of record lookup:
+it. `uses` finds entries referring to the chosen rule or record. Read the same compact relationship information shown in the record reader:
 
 ```bash
+atlas record get 'Force Barrage'
 atlas graph remaster bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O --json
-atlas graph remaster --term 'Attack of Opportunity' --limit 20 --json
 ```
 
-The exact-key form can return change information even when the record itself is
-unavailable. Responses preserve grouped changes, uncertain endpoints and source
-attribution. Search, Similar and filter discovery retain all independently matching
+Record reads include former names or replacement links and useful changes-journal
+destinations. Search, Similar and filter discovery retain all independently matching
 legacy and remaster entries. Suggested variants are
 possible alternatives, rather than verified names for the same record. Some
 source links have unresolved targets; graph previews retain those links.

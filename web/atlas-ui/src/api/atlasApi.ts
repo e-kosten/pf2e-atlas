@@ -1577,15 +1577,3 @@ export function applyEncounterRecovery(
     body: jsonBody(request),
   });
 }
-
-export async function getRemasterRelationships(
-  request: import("../generated/atlas").RemasterRelationshipsRequest,
-  signal?: AbortSignal,
-): Promise<import("../generated/atlas").RemasterRelationshipsResponse> {
-  return atlasFetch("/api/remaster/relationships", {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-    signal,
-  });
-}

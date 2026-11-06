@@ -497,8 +497,8 @@ fn empty_requested_profile_has_one_empty_native_table_and_no_target_history() {
     input.records.clear();
     input.semantic_units.clear();
     input.lexical_units.clear();
-    input.remaster_sources.clear();
-    input.remaster_declarations.clear();
+    input.aliases.clear();
+    input.remaster_pairs.clear();
     input.context.source_file_count = 0;
     let owner = workspace.update_owner().unwrap();
     let scratch = BuildScratch::new(&owner).unwrap();

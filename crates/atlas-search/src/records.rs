@@ -84,7 +84,7 @@ pub struct RecordResolutionResult {
     pub normalized_query: String,
     pub match_kind: RecordResolutionMatchKind,
     pub matched_text: String,
-    pub support: Option<crate::RemasterLookupSupport>,
+    pub evidence: Option<String>,
     pub record: SourceRecordSummary,
 }
 #[derive(Debug, Clone)]
@@ -219,16 +219,6 @@ impl AtlasRetrievalService {
                 Ok((record, exact))
             })
             .collect::<Result<Vec<_>, SearchError>>()?;
-        let aliases = selected
-            .iter()
-            .filter_map(|(record, exact)| {
-                exact
-                    .alias
-                    .as_ref()
-                    .map(|alias| (record.key.clone(), alias.clone()))
-            })
-            .collect::<Vec<_>>();
-        let mut supports = self.remaster_alias_support(&aliases)?;
         let mut result = Vec::new();
         for (record, exact) in selected {
             let name = record.name.as_value().cloned().unwrap_or_default();
@@ -244,10 +234,7 @@ impl AtlasRetrievalService {
                 normalized_query: atlas_domain::normalize_record_name(request.query),
                 match_kind,
                 matched_text: exact.alias.clone().unwrap_or(name),
-                support: exact
-                    .alias
-                    .as_ref()
-                    .and_then(|alias| supports.remove(&(record.key.clone(), alias.clone()))),
+                evidence: exact.evidence.clone(),
                 record,
             });
         }

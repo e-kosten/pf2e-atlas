@@ -13,7 +13,6 @@ const navigation = activityFixture("Breath Fire", "actors:firewyrm").navigation;
 const row: SearchResultRow = {
   record: summaryFixture("actors:firewyrm", "Firewyrm"),
   matches: [],
-  alias_matches: [],
   relationship_evidence: [],
   matching_sections: [{ navigation, label: "Breath Fire", snippet: "A cone of fire." }],
 };

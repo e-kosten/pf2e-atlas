@@ -100,13 +100,8 @@ mod error;
 mod filter;
 mod remaster;
 pub use remaster::{
-    RemasterAliasMatchView, RemasterChangeKindView, RemasterCitationDestinationView,
-    RemasterCitationOriginView, RemasterCitationView, RemasterDeclarationView,
-    RemasterEndpointCandidateView, RemasterEndpointResolutionView, RemasterEndpointView,
-    RemasterExplanationLinkView, RemasterInlinePartView, RemasterLookupContextView,
-    RemasterLookupSupportView, RemasterRelationshipView, RemasterRelationshipsRequest,
-    RemasterRelationshipsResponse, RemasterRelationshipsView, RemasterSideView,
-    RemasterSourceContextView, RemasterSubjectRequest, RemasterSubjectView,
+    RemasterExplanationLinkView, RemasterInlinePartView, RemasterRelationshipView,
+    RemasterRelationshipsView, RemasterSourceContextView,
 };
 mod graph;
 mod list;
@@ -344,8 +339,6 @@ mod tests {
         RecordRefResolutionView::export_all_to(path).expect("resolution bindings");
         GraphContextViewRequest::export_all_to(path).expect("graph request bindings");
         GraphContextView::export_all_to(path).expect("graph bindings");
-        RemasterRelationshipsResponse::export_all_to(path).expect("remaster response bindings");
-        RemasterRelationshipsRequest::export_all_to(path).expect("remaster request bindings");
         VariantGroupView::export_all_to(path).expect("variants bindings");
         SimilarRecordsView::export_all_to(path).expect("similar bindings");
         AppError::export_all_to(path).expect("AppError bindings should export");

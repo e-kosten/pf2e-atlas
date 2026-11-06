@@ -32,7 +32,7 @@ pub(crate) fn validate_selection(
         crate::core_projection::validate_record_core(c, id, record, &selection)?;
     }
     let mut aliases =
-        c.prepare("SELECT alias FROM remaster_aliases WHERE record_id=? ORDER BY alias")?;
+        c.prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?;
     let aliases = aliases
         .query_map([id], |r| r.get::<_, String>(0))?
         .collect::<Result<Vec<_>, _>>()?;

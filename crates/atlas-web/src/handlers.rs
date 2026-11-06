@@ -1080,17 +1080,3 @@ pub(crate) async fn apply_encounter_recovery(
         .await?,
     ))
 }
-
-pub(crate) async fn remaster_relationships(
-    State(state): State<AtlasWebState>,
-    payload: Result<Json<atlas_app_model::RemasterRelationshipsRequest>, JsonRejection>,
-) -> Result<impl IntoResponse, WebError> {
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
-    let service = state.service.clone();
-    Ok(Json(
-        call_read_service(state, move |execution| {
-            service.remaster_relationships(request, &execution)
-        })
-        .await?,
-    ))
-}

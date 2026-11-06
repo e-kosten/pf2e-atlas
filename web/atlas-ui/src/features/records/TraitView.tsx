@@ -493,7 +493,6 @@ function TraitAssociatedRecords({
                     row={{
                       record: row.record,
                       matches: [],
-                      alias_matches: [],
                       relationship_evidence: [],
                     }}
                     selected={false}

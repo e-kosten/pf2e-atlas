@@ -284,7 +284,7 @@ pub(crate) fn actual(
     )
     .map_err(|e| IndexError::Invalid(e.to_string()))?;
     let aliases = c
-        .prepare("SELECT alias FROM remaster_aliases WHERE record_id=? ORDER BY alias")?
+        .prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?
         .query_map([id], |r| r.get(0))?
         .collect::<Result<Vec<String>, _>>()?;
     let lexical = crate::project_lexical_units(&selection, &aliases);
@@ -564,8 +564,7 @@ mod tests {
             .unwrap(),
             0
         );
-        let mut before = crate::test_support::reference_preservation_rows(&c).unwrap();
-        assert!(before.remove("remaster_metadata").unwrap().is_empty());
+        let before = crate::test_support::reference_preservation_rows(&c).unwrap();
         audit(&c);
         crate::test_support::publish_input(&path, &input).unwrap();
         let writes:usize=c.query_row("SELECT count(*) FROM component_write_audit WHERE component<>'reference_component_digests'",[],|r|r.get(0)).unwrap();
@@ -575,12 +574,6 @@ mod tests {
         );
         let mut after = crate::test_support::reference_preservation_rows(&c).unwrap();
         after.remove("component_write_audit");
-        let remaster_metadata = after.remove("remaster_metadata").unwrap();
-        assert_eq!(
-            remaster_metadata.len(),
-            1,
-            "source publication establishes the current remaster digest"
-        );
         after.insert("reference_component_digests".into(), vec![]);
         assert_eq!(after, before);
         crate::validate_reference(&c).unwrap();

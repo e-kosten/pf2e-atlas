@@ -217,7 +217,7 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
     assert_eq!(aliases.len(), 1);
     assert_eq!(aliases[0].match_kind, RecordResolutionMatchKind::Alias);
     assert_eq!(aliases[0].record.key, key("aaaaaaaaaaaaaaaa"));
-    assert_eq!(aliases[0].support.as_ref().unwrap().declarations.len(), 1);
+    assert!(aliases[0].evidence.is_some());
     assert_eq!(
         search(&mut service, "Verified dragon").records[0]
             .record
@@ -418,14 +418,8 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
     assert_eq!(page2.records[0].record.key, both.records[1].record.key);
     assert_eq!(
         service
-            .record_remaster_information(RecordRemasterInformationRequest {
-                record_key: &key("aaaaaaaaaaaaaaaa"),
-                owners: &[],
-                limit: 20
-            })
+            .record_remaster_context(&key("bbbbbbbbbbbbbbbb"), &[])
             .unwrap()
-            .information
-            .declarations
             .len(),
         1
     );
