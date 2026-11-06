@@ -9,7 +9,7 @@ use crate::source_model::generated::rules::token_effect_icon::{
 use crate::source_model::parse::{ParseResult, SourceContext};
 use crate::source_model::value::SourceValue;
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@1bd9a3e3f5cc4be798feff2e; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@5ebe2c2e69ec5090060e3e58; deferred fields:
 pub type TokenNameRule = SourceFromSchemaTokenEffectIconSchema;
 pub fn parse_token_name_rule(
     v: &SourceValue,

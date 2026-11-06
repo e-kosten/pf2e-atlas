@@ -13,7 +13,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a8927afcca78352cb0835d16
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@83cc0adfc7f97e536d301270
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaMAPRuleSchema {
@@ -75,7 +75,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_maprule_schema
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@a8927afcca78352cb0835d16; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@83cc0adfc7f97e536d301270; deferred fields:
 pub type MultipleAttackPenaltyRule = SourceFromSchemaMAPRuleSchema;
 pub fn parse_multiple_attack_penalty_rule(
     v: &SourceValue,

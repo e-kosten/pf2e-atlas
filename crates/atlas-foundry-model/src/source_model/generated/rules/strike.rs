@@ -1153,7 +1153,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_strike_schema_
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0ea2db3866b971974f0f0694
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@7db0abbd5f3f12d1e3776632
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaStrikeSchemaDamageSourceFromSchemaBaseSourceFromSchema {
@@ -1184,7 +1184,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_strike_schema_
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@101028bb5d7f8e2b1b9bb8fe
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3b5b29b9ae2f272a52def256
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaStrikeSchemaDamageSourceFromSchema {
@@ -1208,7 +1208,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_strike_schema_
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@bc90907ce94fd5ca29770e86#authored-input:traits
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1eeb31950437902adc83e289#authored-input:traits
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaStrikeSchema {
@@ -1309,7 +1309,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_strike_schema(
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@bc90907ce94fd5ca29770e86; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@1eeb31950437902adc83e289; deferred fields:
 pub type StrikeRule = SourceFromSchemaStrikeSchema;
 pub fn parse_strike_rule(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<StrikeRule> {
     read_source_from_schema_strike_schema(v, c, p)

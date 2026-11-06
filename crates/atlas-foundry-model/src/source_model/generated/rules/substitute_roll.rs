@@ -36,7 +36,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_substitute_rol
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@545f65c2d2b70b7c5a8f0dd3
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8778bb4701f7f2823e369c4a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaSubstituteRollSchema {
@@ -116,7 +116,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_substitute_rol
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@545f65c2d2b70b7c5a8f0dd3; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@8778bb4701f7f2823e369c4a; deferred fields:
 pub type SubstituteRollRule = SourceFromSchemaSubstituteRollSchema;
 pub fn parse_substitute_roll_rule(
     v: &SourceValue,

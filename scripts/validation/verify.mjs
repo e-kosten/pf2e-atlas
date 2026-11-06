@@ -22,6 +22,7 @@ try {
     "research",
     "skill",
     "tooling",
+    "audit",
   ]);
   if (selected && [...selected].some((name) => !surfaces.has(name)))
     throw new Error("Unknown validation surface");

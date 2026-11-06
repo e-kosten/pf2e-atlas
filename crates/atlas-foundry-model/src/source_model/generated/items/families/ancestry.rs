@@ -35,7 +35,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a7a44ecab5c072f1a18b51ca
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1115c31b412638c5f582eb80
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AncestrySystemSourceAdditionalLanguagesSourceFromSchema {
@@ -61,7 +61,7 @@ pub(in crate::source_model::generated) fn read_ancestry_system_source_additional
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@4ad7ee4470b79a8670005dad
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@ebf4199fffbacfc13824e316
 pub type AncestrySystemSourceAlternateAncestryBoosts = Vec<PhysicalSystemSourceApexAttribute>;
 pub(in crate::source_model::generated) fn read_ancestry_system_source_alternate_ancestry_boosts(
     v: &SourceValue,
@@ -97,7 +97,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_attribute_slot
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@0e656b166c23961621c37f68
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@7b5f7e8c4c7ce9859d6456cc
 pub type AncestrySystemSourceBoosts =
     crate::source_model::SourceMap<SourceFromSchemaAttributeSlotSchema>;
 pub(in crate::source_model::generated) fn read_ancestry_system_source_boosts(
@@ -137,7 +137,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_abcfeature_ent
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@38e4d324c54f4f593a30944f
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@1a6fbce0ef8d43f096d2a606
 pub type AncestrySystemSourceItems =
     crate::source_model::SourceMap<SourceFromSchemaABCFeatureEntrySchema>;
 pub(in crate::source_model::generated) fn read_ancestry_system_source_items(
@@ -148,7 +148,7 @@ pub(in crate::source_model::generated) fn read_ancestry_system_source_items(
     keyed(v, c, p, read_source_from_schema_abcfeature_entry_schema)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ec446295f96e1683004dfe5e
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@26a2f4523f6388aea3009346
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AncestrySystemSourceLanguagesSourceFromSchema {

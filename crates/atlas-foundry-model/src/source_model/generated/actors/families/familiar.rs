@@ -96,7 +96,7 @@ pub(in crate::source_model::generated) fn read_familiar_details_source(
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@499c1908f2acb70900ce8a95
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@27764fb5d60361f0acd4d742
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FamiliarSystemSourceMasterSourceFromSchema {

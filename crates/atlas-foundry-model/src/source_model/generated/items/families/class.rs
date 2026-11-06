@@ -34,7 +34,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@f2a894376a1d71da22b1e7e8
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@d312a67a7d037b934db21bf8
 pub type ClassSystemSourceAncestryFeatLevelsSourceFromSchemaValue = Vec<Number>;
 pub(in crate::source_model::generated) fn read_class_system_source_ancestry_feat_levels_source_from_schema_value(
     v: &SourceValue,
@@ -44,7 +44,7 @@ pub(in crate::source_model::generated) fn read_class_system_source_ancestry_feat
     array(v, c, p, number)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@67b3aa454a764ff18235968e
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@640b9712fe03c2f74b71d062
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ClassSystemSourceAncestryFeatLevelsSourceFromSchema {
@@ -67,7 +67,7 @@ pub(in crate::source_model::generated) fn read_class_system_source_ancestry_feat
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@cb6124d8796efe56c2ff4cc0
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@577255a1614a460a1179b9e6
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaClassAttackProficienciesSchemaOtherSourceFromSchema {
@@ -182,7 +182,7 @@ pub(in crate::source_model::generated) fn read_class_system_source_saving_throws
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@4cbc164cacccbe6b0f25c9d6
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@59119f2bb940cca5207107f7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ClassSystemSourceTrainedSkillsSourceFromSchema {

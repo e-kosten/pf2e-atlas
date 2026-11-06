@@ -23,7 +23,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f235100f63ad082d9833eaa2
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@97a6d76b5cd9792fbf9c3878
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaItemAlterationRuleSchema {
@@ -108,7 +108,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_item_alteratio
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@f235100f63ad082d9833eaa2; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@97a6d76b5cd9792fbf9c3878; deferred fields:
 pub type ItemAlterationRule = SourceFromSchemaItemAlterationRuleSchema;
 pub fn parse_item_alteration_rule(
     v: &SourceValue,

@@ -19,7 +19,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: src/module/rules/rule-element/special-statistic.ts#SpecialStatisticSchema.$object.baseModifier.$object@94f4fb3e25c48b3290eceba2
+// Source declaration: src/module/rules/rule-element/special-statistic.ts#SpecialStatisticSchema.$object.baseModifier.$object@8721d6f9a5ff5b4b9f899e08
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaSpecialStatisticSchemaBaseModifier {
@@ -45,7 +45,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_special_statis
     })
 }
 
-// Source declaration: src/module/rules/rule-element/special-statistic.ts#SpecialStatisticSchema.$object.itemCasting.$object@1fce89d2ef5d618530344f6d
+// Source declaration: src/module/rules/rule-element/special-statistic.ts#SpecialStatisticSchema.$object.itemCasting.$object@d90d24503772220c206b9c7b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaSpecialStatisticSchemaItemCasting {
@@ -93,7 +93,7 @@ pub(in crate::source_model::generated) fn read_statistic_type(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@99825c70e9f76836672c5000
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8c718fc0c7fbdb692c4bf2e2
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaSpecialStatisticSchema {
@@ -173,7 +173,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_special_statis
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@99825c70e9f76836672c5000; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@8c718fc0c7fbdb692c4bf2e2; deferred fields:
 pub type SpecialStatisticRule = SourceFromSchemaSpecialStatisticSchema;
 pub fn parse_special_statistic_rule(
     v: &SourceValue,

@@ -160,7 +160,7 @@ export function ChoicePicker({
                         : unavailable
                           ? token.colorTextDisabled
                           : undefined,
-                  background:
+                  backgroundColor:
                     state === "include"
                       ? "var(--filter-include-bg)"
                       : state === "exclude"
@@ -310,7 +310,7 @@ export function ChoicePicker({
                       state === "exclude"
                         ? "var(--filter-exclude-text)"
                         : "var(--filter-include-text)",
-                    background:
+                    backgroundColor:
                       state === "exclude"
                         ? "var(--filter-exclude-bg)"
                         : "var(--filter-include-bg)",

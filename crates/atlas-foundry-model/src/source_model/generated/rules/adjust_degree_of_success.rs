@@ -49,7 +49,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_adjust_degree_
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@12e0b57a2c6e42e8b920015b
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@1eb4b6b3684a0ee0c9c5277f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAdjustDegreeRuleSchemaAdjustmentPartial {
@@ -126,7 +126,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_adjust_degree_
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2d570151e181670a988fd31d
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ba5445284b10c37217e2a6ef
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAdjustDegreeRuleSchema {
@@ -198,7 +198,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_adjust_degree_
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@2d570151e181670a988fd31d; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@ba5445284b10c37217e2a6ef; deferred fields:
 pub type AdjustDegreeOfSuccessRule = SourceFromSchemaAdjustDegreeRuleSchema;
 pub fn parse_adjust_degree_of_success_rule(
     v: &SourceValue,

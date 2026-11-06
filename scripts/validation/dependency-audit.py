@@ -88,7 +88,7 @@ def audit_npm():
                     accepted = (
                         project == "web/atlas-ui"
                         and node == "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch"
-                        and package["version"] == "10.2.5"
+                        and package["version"] == "10.2.6"
                         and package.get("dev") is True
                         and advisory["url"] == "https://github.com/advisories/GHSA-g3hv-75wg-m249"
                         and advisory["severity"] == "moderate"

@@ -17,7 +17,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@6a2f390d53204a41e4ff8574
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@34c2d85d21c1509888ea1eea
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaJournalEntrySchemaPagesEntrySourceFromSchemaImageSourceFromSchema {
@@ -53,7 +53,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_journal_entry_
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@33615535cbaa8bf4a4ee4463
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@48d0d81b9481a747324450f1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaJournalEntrySchemaPagesEntrySourceFromSchemaTextSourceFromSchema {
@@ -79,7 +79,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_journal_entry_
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@7fa74cad45308adbc8c82f65
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2c93f22b024c40fc19e3c339
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaJournalEntrySchemaPagesEntrySourceFromSchemaTitleSourceFromSchema {
@@ -105,7 +105,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_journal_entry_
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@eb6325e73c95ea741718f09f
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8f27168cc8c695d8321d5268
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaJournalEntrySchemaPagesEntrySourceFromSchemaVideoSourceFromSchema {
@@ -154,7 +154,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_journal_entry_
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1a986352f72ab7aa5647d86b
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2b74731de2a7eeaeede7faec
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaJournalEntrySchemaPagesEntrySourceFromSchema {
@@ -218,7 +218,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_journal_entry_
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@2794eb4d8ce570dff968792c
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@faf41ac6c0a6e6701c0f7ef4
 pub type SourceFromSchemaJournalEntrySchemaPages =
     Vec<SourceFromSchemaJournalEntrySchemaPagesEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_journal_entry_schema_pages(

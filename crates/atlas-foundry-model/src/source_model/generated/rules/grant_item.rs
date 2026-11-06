@@ -20,7 +20,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5baad196184902b4b92419d1
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@d59a99c0bee7c73ef11c4992
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaGrantItemSchemaOnDeleteActionsSourceFromSchema {
@@ -45,7 +45,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_grant_item_sch
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@4d56d18fe6ccacea38064d48
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@162e106e0e16484f57420b67
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaGrantItemSchema {
@@ -149,7 +149,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_grant_item_sch
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@4d56d18fe6ccacea38064d48; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@162e106e0e16484f57420b67; deferred fields:
 pub type GrantItemRule = SourceFromSchemaGrantItemSchema;
 pub fn parse_grant_item_rule(
     v: &SourceValue,

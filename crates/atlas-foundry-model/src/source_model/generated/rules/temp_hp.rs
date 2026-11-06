@@ -36,7 +36,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_temp_hpevents_
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@d10b995548e326cac78635fe
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@66a90bb6ea08b12d7f3e59f0
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTempHPRuleSchema {
@@ -98,7 +98,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_temp_hprule_sc
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@d10b995548e326cac78635fe; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@66a90bb6ea08b12d7f3e59f0; deferred fields:
 pub type TempHPRule = SourceFromSchemaTempHPRuleSchema;
 pub fn parse_temp_hprule(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<TempHPRule> {
     read_source_from_schema_temp_hprule_schema(v, c, p)

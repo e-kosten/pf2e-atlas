@@ -226,7 +226,7 @@ pub(in crate::source_model::generated) fn read_labeled_speed(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@901bd2bd37cac55fdab35696
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@901bd2bd37cac55fdab35696
 pub type NPCAttributesSourceSpeedOtherSpeeds = Vec<LabeledSpeed>;
 pub(in crate::source_model::generated) fn read_npcattributes_source_speed_other_speeds(
     v: &SourceValue,
@@ -236,7 +236,7 @@ pub(in crate::source_model::generated) fn read_npcattributes_source_speed_other_
     array(v, c, p, read_labeled_speed)
 }
 
-// Source declaration: src/module/actor/npc/data.ts#NPCAttributesSource.speed.$object@c01390679b7cca42585d2a82
+// Source declaration: src/module/actor/npc/data.ts#NPCAttributesSource.speed.$object@418c5c4be36a4d32a1b0ef90
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NPCAttributesSourceSpeed {
@@ -456,7 +456,7 @@ pub(in crate::source_model::generated) fn read_sense_constructor_params(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@a13dcd74c9ba1aaf80cb9ecb#authored-sense-constructor
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@f2f50fef91ba74378aaa09a6#authored-sense-constructor
 pub type NPCPerceptionSourceSenses = Vec<SenseConstructorParams>;
 pub(in crate::source_model::generated) fn read_npcperception_source_senses(
     v: &SourceValue,
@@ -495,7 +495,7 @@ pub(in crate::source_model::generated) fn read_npcperception_source(
     })
 }
 
-// Source declaration: src/module/actor/npc/data.ts#NPCSavesSource.$object@242d24d163e7785ebc8b6fbc
+// Source declaration: src/module/actor/npc/data.ts#NPCSavesSource.$object@8f6a57f5632d9c5d5be0027f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NPCSavesSourceFortitude {
@@ -570,7 +570,7 @@ pub(in crate::source_model::generated) fn read_npcspecial_skill_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@b01531a0eef62fdf1f4b9014
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@b01531a0eef62fdf1f4b9014
 pub type NPCSkillSourceSpecial = Vec<NPCSpecialSkillSource>;
 pub(in crate::source_model::generated) fn read_npcskill_source_special(
     v: &SourceValue,
@@ -606,7 +606,7 @@ pub(in crate::source_model::generated) fn read_npcskill_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@a8b83d19ab9ee8767e0366c3
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@bc26db9b57a1a5854701edb6
 pub type NPCSystemSourceSkills = crate::source_model::SourceMap<NPCSkillSource>;
 pub(in crate::source_model::generated) fn read_npcsystem_source_skills(
     v: &SourceValue,
@@ -616,7 +616,7 @@ pub(in crate::source_model::generated) fn read_npcsystem_source_skills(
     keyed(v, c, p, read_npcskill_source)
 }
 
-// Source declaration: src/module/actor/npc/data.ts#NPCSystemSource.spellcasting.$object.rituals.$object@36352955afb37da1c38f11d1
+// Source declaration: src/module/actor/npc/data.ts#NPCSystemSource.spellcasting.$object.rituals.$object@5eaaed5beaa8ed893986edd9
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NPCSystemSourceSpellcastingRituals {
@@ -636,7 +636,7 @@ pub(in crate::source_model::generated) fn read_npcsystem_source_spellcasting_rit
     })
 }
 
-// Source declaration: src/module/actor/npc/data.ts#NPCSystemSource.spellcasting.$object@ad618c055afd84c4d5f10872
+// Source declaration: src/module/actor/npc/data.ts#NPCSystemSource.spellcasting.$object@41e036825458f15d76b0f5af
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NPCSystemSourceSpellcasting {
@@ -738,7 +738,7 @@ pub fn parse_npcsystem_source(
     read_npcsystem_source(v, c, p)
 }
 
-// Source declaration: structural:d00812c5750c7f58fa60433a
+// Source declaration: structural:d868f978133b9bb1113edba8
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NPCSourceFlagsEntry {
@@ -776,7 +776,7 @@ pub(in crate::source_model::generated) fn read_npcsource_flags_entry(
     })
 }
 
-// Source declaration: structural:b6e39881869ac486f7c155c3
+// Source declaration: structural:e0dbe60167df0a0ceab777b7
 pub type NPCSourceFlags = crate::source_model::SourceMap<NPCSourceFlagsEntry>;
 pub(in crate::source_model::generated) fn read_npcsource_flags(
     v: &SourceValue,

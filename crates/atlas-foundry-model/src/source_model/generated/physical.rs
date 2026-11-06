@@ -195,7 +195,7 @@ pub(in crate::source_model::generated) fn read_partial_price(
     })
 }
 
-// Source declaration: src/module/item/physical/data.ts#PhysicalSystemSource.usage.$object@71a25e0f497be6d0a2f2a3a9
+// Source declaration: src/module/item/physical/data.ts#PhysicalSystemSource.usage.$object@7e4c93d78f3a1b5357fd89ec
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PhysicalEquipmentFieldsUsage {
@@ -284,7 +284,7 @@ pub(in crate::source_model::generated) fn read_physical_system_source_apex_attri
     }
 }
 
-// Source declaration: src/module/item/physical/data.ts#PhysicalSystemSource.apex.$object@ea529c6e200457cc59c0bbde
+// Source declaration: src/module/item/physical/data.ts#PhysicalSystemSource.apex.$object@11322500d660f2c77ceb6080
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PhysicalSystemSourceApex {
@@ -326,7 +326,7 @@ pub(in crate::source_model::generated) fn read_identification_status(
     }
 }
 
-// Source declaration: src/module/item/physical/data.ts#MystifiedData.data.$object@b89fd9e3a18fd48d50a50f3b
+// Source declaration: src/module/item/physical/data.ts#MystifiedData.data.$object@fcaf9479a146244221e48f9d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MystifiedDataData {
@@ -346,7 +346,7 @@ pub(in crate::source_model::generated) fn read_mystified_data_data(
     })
 }
 
-// Source declaration: structural:29f9f1a334bc2465b6ff0dfd
+// Source declaration: structural:dc7921c2153030e0d7dec9c0
 pub type MystifiedDataImg = String;
 pub(in crate::source_model::generated) fn read_mystified_data_img(
     v: &SourceValue,
@@ -726,7 +726,7 @@ pub(in crate::source_model::generated) fn read_physical_item_source(
     candidates.finish(v, c, p)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@74b2ba25567f2ed3972fb653#authored-document#authored-document-patch
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@2380f5031ba62a766ba84859#authored-document#authored-document-patch
 pub type PhysicalSystemSourceSubitems = Vec<PhysicalItemSource>;
 pub(in crate::source_model::generated) fn read_physical_system_source_subitems(
     v: &SourceValue,
@@ -2351,7 +2351,7 @@ pub(in crate::source_model::generated) fn read_physical_item_trait(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@59aef874fae5e994e92fa3c4
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@1216e61e42d565448ea47230
 pub type PhysicalItemTraitsPhysicalItemTraitValue = Vec<PhysicalItemTrait>;
 pub(in crate::source_model::generated) fn read_physical_item_traits_physical_item_trait_value(
     v: &SourceValue,
@@ -2361,7 +2361,7 @@ pub(in crate::source_model::generated) fn read_physical_item_traits_physical_ite
     array(v, c, p, read_physical_item_trait)
 }
 
-// Source declaration: src/module/item/physical/data.ts#PhysicalItemTraits@59aef874fae5e994e92fa3c4
+// Source declaration: src/module/item/physical/data.ts#PhysicalItemTraits@1216e61e42d565448ea47230
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PhysicalItemTraitsPhysicalItemTrait {

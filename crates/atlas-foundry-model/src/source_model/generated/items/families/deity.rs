@@ -297,7 +297,7 @@ pub(in crate::source_model::generated) fn read_deity_system_source_domains_alter
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@3ff42606c27d492b6e07dc04
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@b336f63a9707c4933edfaec8
 pub type DeitySystemSourceDomainsAlternate = Vec<DeitySystemSourceDomainsAlternateEntry>;
 pub(in crate::source_model::generated) fn read_deity_system_source_domains_alternate(
     v: &SourceValue,
@@ -307,7 +307,7 @@ pub(in crate::source_model::generated) fn read_deity_system_source_domains_alter
     array(v, c, p, read_deity_system_source_domains_alternate_entry)
 }
 
-// Source declaration: src/module/item/deity/data.ts#DeitySystemSource.$object.domains.$object@813f68df7c4c0777c8467099
+// Source declaration: src/module/item/deity/data.ts#DeitySystemSource.$object.domains.$object@54d21b457364a6bdf507c525
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DeitySystemSourceDomains {
@@ -330,7 +330,7 @@ pub(in crate::source_model::generated) fn read_deity_system_source_domains(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@82dc6ad4cf43149375b8b1c2
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@e263da6988e52879b1662e73
 pub type DivineFontsAlternative1 = Vec<String>;
 pub(in crate::source_model::generated) fn read_divine_fonts_alternative1(
     v: &SourceValue,
@@ -372,7 +372,7 @@ pub(in crate::source_model::generated) fn read_divine_fonts_alternative2_entry2(
     }
 }
 
-// Source declaration: structural:ac219ec891cb94751c18f34a
+// Source declaration: structural:e5f942ce91504cc20e730400
 pub(in crate::source_model::generated) fn read_divine_fonts_alternative2(
     v: &SourceValue,
     c: &SourceContext,
@@ -385,7 +385,7 @@ pub(in crate::source_model::generated) fn read_divine_fonts_alternative2(
     ))
 }
 
-// Source declaration: structural:c575b8c2ece7f093a418f4fc
+// Source declaration: structural:ad47fb578f69df96b40ccffb
 pub(in crate::source_model::generated) fn read_divine_fonts_alternative3(
     v: &SourceValue,
     c: &SourceContext,
@@ -399,7 +399,7 @@ pub(in crate::source_model::generated) fn read_divine_fonts_alternative3(
     )?,))
 }
 
-// Source declaration: structural:d1e400e3e20099628aad7b78
+// Source declaration: structural:540370c5c6ea9c1b07b843a4
 pub(in crate::source_model::generated) fn read_divine_fonts_alternative4(
     v: &SourceValue,
     c: &SourceContext,
@@ -492,7 +492,7 @@ pub(in crate::source_model::generated) fn read_sanctification(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@7bd71c20b5608c4ca36b7c3d
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@2eee6f23234b3b6ca2f73c1c
 pub type DeitySanctificationWhat = Vec<Sanctification>;
 pub(in crate::source_model::generated) fn read_deity_sanctification_what(
     v: &SourceValue,
@@ -525,7 +525,7 @@ pub(in crate::source_model::generated) fn read_deity_sanctification(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@433286a18895a42fc5e97496
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@d1456fe5a669a1674c194797
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RecordNumberItemUUID {
@@ -544,7 +544,7 @@ pub(in crate::source_model::generated) fn read_record_number_item_uuid(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@2c585b5239bb489f3aa59a35
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@e11b6f338f81bbf93990c15d
 pub type DeitySystemSourceWeapons = Vec<WeaponSystemSourceBaseItem>;
 pub(in crate::source_model::generated) fn read_deity_system_source_weapons(
     v: &SourceValue,

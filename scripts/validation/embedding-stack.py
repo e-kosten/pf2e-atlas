@@ -12,7 +12,7 @@ PACKAGES = {
     "fastembed", "tokenizers", "text-splitter", "ort", "ort-sys",
     "onig", "onig_sys", "ndarray", "matrixmultiply",
     "esaxx-rs", "regex", "regex-syntax", "spm_precompiled",
-    "unicode-normalization-alignments", "unicode-segmentation",
+    "unicode-normalization-alignments", "unicode-segmentation", "daachorse",
 }
 
 

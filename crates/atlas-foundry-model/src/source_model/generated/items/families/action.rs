@@ -55,7 +55,7 @@ pub(in crate::source_model::generated) fn read_ability_system_source_action_type
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3774a194c4b81f8962568502
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8d6c65b444133518a2562260
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AbilitySystemSourceActionTypeSourceFromSchema {
@@ -91,7 +91,7 @@ pub(in crate::source_model::generated) fn read_ability_system_source_actions_sou
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a349fb67ff38493da7f7ecc1
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f769c99f74fb549e415e7bd0
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AbilitySystemSourceActionsSourceFromSchema {
@@ -186,7 +186,7 @@ pub(in crate::source_model::generated) fn read_ability_system_source_frequency_p
     }
 }
 
-// Source declaration: src/module/item/ability/data.ts#AbilitySystemSchema.$object.frequency.$object@7ba7d5ebff675ae228ca3d6a
+// Source declaration: src/module/item/ability/data.ts#AbilitySystemSchema.$object.frequency.$object@8721ee5beff58303a50e59c3
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AbilitySystemSourceFrequency {
@@ -212,7 +212,7 @@ pub(in crate::source_model::generated) fn read_ability_system_source_frequency(
     })
 }
 
-// Source declaration: src/module/item/ability/data.ts#AbilitySystemSchema.$object.selfEffect.$object@af57a67c48917e9729cd5a45
+// Source declaration: src/module/item/ability/data.ts#AbilitySystemSchema.$object.selfEffect.$object@59e1df42771ac0e972bf7a88
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AbilitySystemSourceSelfEffect {
@@ -255,7 +255,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_trait_toggle_s
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@23ad3c74803f645ebeea2dbf
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@e8f7913a96aa26b859876136
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AbilitySystemSourceTraitsSourceFromSchema {

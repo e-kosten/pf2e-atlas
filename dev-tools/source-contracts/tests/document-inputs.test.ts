@@ -28,7 +28,7 @@ function fixture(): TypeGraph {
       object('SpellDefenseSource', spellFile, [field('passive','PassiveNullable',spellFile,false,true),field('save','SaveNullable',spellFile,false,true)]),
       object('CreatureInitiativeSource', 'src/module/actor/creature/data.ts', [field('statistic', 'vocabulary', 'src/module/actor/creature/data.ts')]),
       object('SpellSystemSource', spellFile, [field('damage', 'SpellDamageSource', spellFile), field('next', 'SpellSystemSource', spellFile, true)]),
-      object('Partial', 'node_modules/typescript/lib/lib.es5.d.ts', [field('damage', 'SpellDamageSource', spellFile, true), field('next', 'SpellSystemSource', spellFile, true)]),
+      object('Partial', 'node_modules/@typescript/old/lib/lib.es5.d.ts', [field('damage', 'SpellDamageSource', spellFile, true), field('next', 'SpellSystemSource', spellFile, true)]),
       object('Levels', spellFile, Array.from({length:10}, (_, index) => field(String(index + 1), 'Partial', spellFile, true))),
       object('SpellHeighteningFixed', spellFile, [field('levels', 'Levels', spellFile)]),
       object('SpellOverlayOverride', spellFile, [field('system', 'Partial', spellFile, true)]),
@@ -78,6 +78,8 @@ test('document projection preserves sentinels, area strings and custom statistic
 test('document policy drift is a visible error, not a silently weakened field', () => {
   for (const alter of [(graph: TypeGraph) => { graph.complete = false; },
     (graph: TypeGraph) => { graph.nodes = graph.nodes.filter(node => node.name !== 'WeaponDamage'); },
+    ...['src/partial.ts', 'node_modules/typescript/lib/lib.es5.d.ts'].map(file => (graph: TypeGraph) => { graph.nodes.find(node => node.id === 'Partial')!.declaredAt = location(file); }),
+    ...['missing', 'extra', 'required'].map(change => (graph: TypeGraph) => { const node = graph.nodes.find(node => node.id === 'Partial')!; if (node.kind !== 'object') throw new Error('fixture'); if (change === 'missing') node.fields.pop(); else if (change === 'extra') node.fields.push(field('extra', 'primitive:string', spellFile, true)); else node.fields[0].optional = false; }),
     (graph: TypeGraph) => { const node = graph.nodes.find(node => node.id === 'Reload')!; if (node.kind === 'object') node.fields[0].ref = 'primitive:string'; },
     (graph: TypeGraph) => { const node = graph.nodes.find(node => node.id === 'Levels')!; if (node.kind === 'object') node.fields.forEach(field => {field.ref = 'primitive:string';}); },
     (graph: TypeGraph) => { const node = graph.nodes.find(node => node.id === 'SpellOverlayOverride')!; if (node.kind === 'object') node.fields[0].nullable = true; }]) {

@@ -73,7 +73,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_kit_entry_valu
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@5322196a2aa00f2f95f2e9ae
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@c3c49968678c4bf090c8d2ba
 pub type KitSystemSourceItems = crate::source_model::SourceMap<SourceFromSchemaKitEntryValueSchema>;
 pub(in crate::source_model::generated) fn read_kit_system_source_items(
     v: &SourceValue,

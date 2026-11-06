@@ -1,3 +1,4 @@
+import type { UnionOrderRegistry } from './union-order.js';
 import type { ActionDefinition } from './action-definitions.js';
 import type { ConditionCatalog } from './condition-definitions.js';
 import type { TraitDefinition } from './trait-definitions.js';
@@ -8,6 +9,7 @@ export interface GenerationRoot {
   documentKind?: string; ruleKey?: string;
 }
 export interface GenerationInput {
+  unionOrder?: UnionOrderRegistry;
   referenceSource?: { repository: string; commit: string; systemVersion: string };
   traitDefinitions?: TraitDefinition[];
   actionDefinitions?: ActionDefinition[];

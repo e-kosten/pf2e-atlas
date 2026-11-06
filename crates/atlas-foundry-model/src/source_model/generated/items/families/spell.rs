@@ -150,7 +150,7 @@ pub(in crate::source_model::generated) fn read_spell_damage_source_category(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@3dcdbd3b2ba202fad07ce7ff
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@22ce5cdf2cc59cf00d59deda
 pub type SpellDamageSourceKinds = Vec<DamageKind>;
 pub(in crate::source_model::generated) fn read_spell_damage_source_kinds(
     v: &SourceValue,
@@ -224,7 +224,7 @@ pub(in crate::source_model::generated) fn read_spell_damage_source_materials_ent
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@ea7dc3e457473b9a0337896d
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@9cf01cc8330dd557cadc2a9f
 pub type SpellDamageSourceMaterials = Vec<SpellDamageSourceMaterialsEntry>;
 pub(in crate::source_model::generated) fn read_spell_damage_source_materials(
     v: &SourceValue,
@@ -276,7 +276,7 @@ pub(in crate::source_model::generated) fn read_spell_damage_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@489608af506e2c0d9e9bf2d7#authored-document
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@caa9cea7dfe901b88382c54e#authored-document
 pub type SpellSystemSourceDamage = crate::source_model::SourceMap<SpellDamageSource>;
 pub(in crate::source_model::generated) fn read_spell_system_source_damage(
     v: &SourceValue,
@@ -314,7 +314,7 @@ pub(in crate::source_model::generated) fn read_spell_defense_source_passive_stat
     }
 }
 
-// Source declaration: src/module/item/spell/data.ts#SpellDefenseSource.passive.$object@7f86fb98748861a46054d9eb#authored-document:statistic
+// Source declaration: src/module/item/spell/data.ts#SpellDefenseSource.passive.$object@baeab6983fe6963e2d9e70f0#authored-document:statistic
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellDefenseSourcePassive {
@@ -359,7 +359,7 @@ pub(in crate::source_model::generated) fn read_spell_defense_source_save_statist
     }
 }
 
-// Source declaration: src/module/item/spell/data.ts#SpellDefenseSource.save.$object@b22b480942f13311ae9ca263#authored-document:statistic
+// Source declaration: src/module/item/spell/data.ts#SpellDefenseSource.save.$object@2d1146c0ad82df3ab0b96e1f#authored-document:statistic
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellDefenseSourceSave {
@@ -405,7 +405,7 @@ pub(in crate::source_model::generated) fn read_spell_defense_source(
     })
 }
 
-// Source declaration: src/module/item/spell/data.ts#SpellSystemSource.duration.$object@58aeaa609d6051d98e580024
+// Source declaration: src/module/item/spell/data.ts#SpellSystemSource.duration.$object@f3d93fae0d544d1690610880
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellSystemSourceDuration {
@@ -428,7 +428,7 @@ pub(in crate::source_model::generated) fn read_spell_system_source_duration(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@9df52587b00ac00753cf2f62#object-patch
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@9440407f1485c35a2a66500e#object-patch
 pub type PatchSpellSystemSourceHeighteningDamage = crate::source_model::SourceMap<String>;
 pub(in crate::source_model::generated) fn read_patch_spell_system_source_heightening_damage(
     v: &SourceValue,
@@ -454,7 +454,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source_heighte
     }
 }
 
-// Source declaration: structural:051eb7ae133a77d719a25142#object-patch:object
+// Source declaration: structural:e54d5accca77d402400311e1#object-patch:object
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellSystemSourceHeighteningLevels1Level {
@@ -477,7 +477,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source_heighte
     })
 }
 
-// Source declaration: structural:3af14c70543e70ef50bdb623#object-patch:object
+// Source declaration: structural:86ddf4da4a248f6774c08f05#object-patch:object
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellSystemSourceHeighteningLevels1Location {
@@ -537,7 +537,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_overlay_override_over
     }
 }
 
-// Source declaration: src/module/item/spell/data.ts#RitualData.primary.$object@b6870e2495051a543dab770a#object-patch
+// Source declaration: src/module/item/spell/data.ts#RitualData.primary.$object@41aab0997cb01def7c709236#object-patch
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellOverlayOverrideSystemRitualPrimary {
@@ -557,7 +557,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_overlay_override_syst
     })
 }
 
-// Source declaration: src/module/item/spell/data.ts#RitualData.secondary.$object@c6a11fc94e7148d489d217a5#object-patch
+// Source declaration: src/module/item/spell/data.ts#RitualData.secondary.$object@a5a646bb6767d69241f7727b#object-patch
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellOverlayOverrideSystemRitualSecondary {
@@ -580,7 +580,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_overlay_override_syst
     })
 }
 
-// Source declaration: structural:c4449a2e76b56acc11a40775#object-patch:object
+// Source declaration: structural:fd806f0fd8f9306ee58385cd#object-patch:object
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellOverlayOverrideSystemRitual {
@@ -634,7 +634,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_overlay_override_syst
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@5452644ea855c638a1416d0c
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@731d6f1e2b1a1aa3f2d6164a
 pub type PatchSpellOverlayOverrideSystemTraitsTraditions =
     Vec<PatchSpellOverlayOverrideSystemTraitsTraditionsEntry>;
 pub(in crate::source_model::generated) fn read_patch_spell_overlay_override_system_traits_traditions(
@@ -650,7 +650,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_overlay_override_syst
     )
 }
 
-// Source declaration: structural:9a4caec4917120f3f261aef5#object-patch:object
+// Source declaration: structural:557be6aaabe6a1adccf0704d#object-patch:object
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellOverlayOverrideSystemTraits {
@@ -685,7 +685,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_overlay_override_syst
     })
 }
 
-// Source declaration: structural:ae2d70dfdcbd8da7d02d3da6#authored-document#object-patch:object
+// Source declaration: structural:b561070c13de75f83e05ee9c#authored-document#object-patch:object
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellOverlayOverrideSystem {
@@ -828,7 +828,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_overlay_override(
     })
 }
 
-// Source declaration: structural:3491b474e85484d4ea8b3401#authored-document#object-patch:object
+// Source declaration: structural:c8b54781951e14400e13dfad#authored-document#object-patch:object
 pub type PatchSpellSystemSourceHeighteningLevels1Overlays =
     crate::source_model::SourceMap<PatchSpellOverlayOverride>;
 pub(in crate::source_model::generated) fn read_patch_spell_system_source_heightening_levels1_overlays(
@@ -839,7 +839,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source_heighte
     keyed(v, c, p, read_patch_spell_overlay_override)
 }
 
-// Source declaration: structural:146d1d0fd8afa8d8a63b4b5f#authored-document#object-patch:object
+// Source declaration: structural:0889c6f34f10b2e87a4f73aa#authored-document#object-patch:object
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellSystemSourceHeighteningLevels1 {
@@ -959,7 +959,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source_heighte
     })
 }
 
-// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@7a4b31e3c7f84084227dd081#authored-document#object-patch
+// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@4a54ae6b972c8887f03b816c#authored-document#object-patch
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellSystemSourceHeighteningLevels {
@@ -1055,7 +1055,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source_heighte
     }
 }
 
-// Source declaration: structural:b56bc384743a7a2fa5c6db5c#authored-document#object-patch:object
+// Source declaration: structural:2b0b51eb439267d805a86717#authored-document#object-patch:object
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellSystemSourceHeightening {
@@ -1207,7 +1207,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source(
     })
 }
 
-// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@7a4b31e3c7f84084227dd081#authored-spell-levels
+// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@4a54ae6b972c8887f03b816c#authored-spell-levels
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellHeighteningFixedLevels {
@@ -1348,7 +1348,7 @@ pub(in crate::source_model::generated) fn read_spell_heightening_interval(
     })
 }
 
-// Source declaration: structural:b56bc384743a7a2fa5c6db5c#authored-document#authored-document-patch
+// Source declaration: structural:2b0b51eb439267d805a86717#authored-document#authored-document-patch
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SpellSystemSourceHeightening {
@@ -1534,7 +1534,7 @@ pub(in crate::source_model::generated) fn read_spell_overlay_override(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@c7ec860265538a8676fe0961#authored-document#authored-document-patch
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@9082c039cba3b59902abc84e#authored-document#authored-document-patch
 pub type SpellSystemSourceOverlays = crate::source_model::SourceMap<SpellOverlayOverride>;
 pub(in crate::source_model::generated) fn read_spell_system_source_overlays(
     v: &SourceValue,

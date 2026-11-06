@@ -9,6 +9,7 @@ import { extract } from '../discovery/extract.js';
 import { sourceIdentity } from '../discovery/source-identity.js';
 import { selectPortfolioInput } from './portfolio-selection.js';
 import type { GenerationInput } from './generation-input.js';
+import { assertUnionOrderRegistry } from './union-order.js';
 import { prepareGeneratedFiles } from './generated-files.js';
 import { generateRustModules, generatedHeader } from './source-generation.js';
 import { assertSourcePin, contains, defaultCache, preparePinnedSource, readSourcePin, repositoryRoot } from './pinned-source.js';
@@ -31,6 +32,9 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   if (!summary.complete) throw new Error('Pinned source extraction is incomplete; inspect ' + extraction);
   const graph = JSON.parse(await readFile(path.join(extraction, 'type-graph.json'), 'utf8')) as TypeGraph;
   const input = selectPortfolioInput(graph, summary);
+  const unionOrder = JSON.parse(await readFile(path.join(repositoryRoot, 'dev-tools/source-contracts/source-union-order.json'), 'utf8'));
+  assertUnionOrderRegistry(unionOrder);
+  input.unionOrder = unionOrder;
   const catalog = JSON.parse(await readFile(path.join(extraction, 'trait-catalog.json'), 'utf8')) as TraitCatalog;
   input.traitDefinitions = traitDefinitions(catalog);
   input.actionDefinitions = await actionDefinitions(source);

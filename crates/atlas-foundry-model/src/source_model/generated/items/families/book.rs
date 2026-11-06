@@ -71,7 +71,7 @@ pub(in crate::source_model::generated) fn read_item_uuid(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@7de1942076413957767de01e
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@94394e09ee3241dbeaafca8c
 pub type BookSystemSourceContents = Vec<ItemUUID>;
 pub(in crate::source_model::generated) fn read_book_system_source_contents(
     v: &SourceValue,

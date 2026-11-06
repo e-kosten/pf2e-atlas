@@ -48,7 +48,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: structural:a7042b5cee2460e666cd888f
+// Source declaration: structural:7f6ad583d47dab141e7823e1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WeaponSourceFlagsEntry {
@@ -107,7 +107,7 @@ pub(in crate::source_model::generated) fn read_weapon_source_flags_entry(
     })
 }
 
-// Source declaration: structural:4eabafe388a0098aade07419
+// Source declaration: structural:412b07d762ec42ab6388f803
 pub type WeaponSourceFlags = crate::source_model::SourceMap<WeaponSourceFlagsEntry>;
 pub(in crate::source_model::generated) fn read_weapon_source_flags(
     v: &SourceValue,
@@ -3070,7 +3070,7 @@ pub(in crate::source_model::generated) fn read_combo_weapon_melee_usage_damage_d
     }
 }
 
-// Source declaration: src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.damage.$object@08dbdc45331b9f3252be1f28
+// Source declaration: src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.damage.$object@fa1cda061b6e488c3e7f7e3d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ComboWeaponMeleeUsageDamage {
@@ -3142,7 +3142,7 @@ pub(in crate::source_model::generated) fn read_combo_weapon_melee_usage_group(
     }
 }
 
-// Source declaration: src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.traitToggles.$object@22464dbc5901320ba1f6cd20
+// Source declaration: src/module/item/weapon/data.ts#ComboWeaponMeleeUsage.traitToggles.$object@3c2119ca964481896de7f1f8
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ComboWeaponMeleeUsageTraitToggles {
@@ -3247,7 +3247,7 @@ pub(in crate::source_model::generated) fn read_weapon_system_source_reload_value
     }
 }
 
-// Source declaration: src/module/item/weapon/data.ts#WeaponSystemSource.reload.$object@dfe53818b2e4487b5e427820#authored-document:value
+// Source declaration: src/module/item/weapon/data.ts#WeaponSystemSource.reload.$object@ae7a1ae6a63b7f8838ec1eb5#authored-document:value
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WeaponSystemSourceReload {
@@ -3333,7 +3333,7 @@ pub(in crate::source_model::generated) fn read_weapon_system_source_splash_damag
     candidates.finish(v, c, p)
 }
 
-// Source declaration: src/module/item/weapon/data.ts#WeaponSystemSource.splashDamage.$object@b4ddb6391a285b829cfaa3b2#authored-document:value
+// Source declaration: src/module/item/weapon/data.ts#WeaponSystemSource.splashDamage.$object@b2a8c956122c6c0f542ed214#authored-document:value
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WeaponSystemSourceSplashDamage {
@@ -3353,7 +3353,7 @@ pub(in crate::source_model::generated) fn read_weapon_system_source_splash_damag
     })
 }
 
-// Source declaration: src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.doubleBarrel.$object@795f884413ae289ef26ee2ab
+// Source declaration: src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.doubleBarrel.$object@b81ce2395b47dccbcd471942
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WeaponTraitsSourceTogglesDoubleBarrel {
@@ -3373,7 +3373,7 @@ pub(in crate::source_model::generated) fn read_weapon_traits_source_toggles_doub
     })
 }
 
-// Source declaration: src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.modular.$object@18471c0b5125e862d5892b1e
+// Source declaration: src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object.modular.$object@773e24536db10b72c4efb69a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WeaponTraitsSourceTogglesModular {
@@ -3393,7 +3393,7 @@ pub(in crate::source_model::generated) fn read_weapon_traits_source_toggles_modu
     })
 }
 
-// Source declaration: src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object@963fe816c91bb1d4a7dbe9b1
+// Source declaration: src/module/item/weapon/data.ts#WeaponTraitsSource.toggles.$object@e6d558f711394ec20204f7ed
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WeaponTraitsSourceToggles {
@@ -3483,7 +3483,7 @@ pub(in crate::source_model::generated) fn read_weapon_system_source_usage_value(
     }
 }
 
-// Source declaration: src/module/item/weapon/data.ts#WeaponSystemSource.usage.$object@471852ab9750311e71300586
+// Source declaration: src/module/item/weapon/data.ts#WeaponSystemSource.usage.$object@ca515a51a9b6746641cdbf83
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct WeaponSystemSourceUsage {

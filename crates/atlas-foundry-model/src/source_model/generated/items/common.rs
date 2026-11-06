@@ -126,7 +126,7 @@ pub(in crate::source_model::generated) fn read_new_document_migration_record(
     })
 }
 
-// Source declaration: src/module/data.ts#MigrationDataField.$object.previous.$object@cf4a180c2567104560a7b5e3
+// Source declaration: src/module/data.ts#MigrationDataField.$object.previous.$object@cdbb80a0e781ac077ccc3d19
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MigrationRecordAlternative2SourceFromSchemaPrevious {
@@ -152,7 +152,7 @@ pub(in crate::source_model::generated) fn read_migration_record_alternative2_sou
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@e010f750d86e4e20b071c1bf
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@47c37eb8877af7762c349894
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MigrationRecordAlternative2SourceFromSchema {
@@ -208,7 +208,7 @@ pub(in crate::source_model::generated) fn read_migration_record(
     candidates.finish(v, c, p)
 }
 
-// Source declaration: src/module/item/base/data/system.ts#ItemSystemSource.$object.level.$object@b57cf010fb31d233fb20ace1
+// Source declaration: src/module/item/base/data/system.ts#ItemSystemSource.$object.level.$object@fec003f2178302b48f11120a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ItemSystemSourceLevel {
@@ -228,7 +228,7 @@ pub(in crate::source_model::generated) fn read_item_system_source_level(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@e344db4e5159eff10fc930f1
 pub type ItemSystemSourceRules = Vec<RuleElementSource>;
 pub(in crate::source_model::generated) fn read_item_system_source_rules(
     v: &SourceValue,
@@ -279,7 +279,7 @@ pub(in crate::source_model::generated) fn read_trait_config_area_type(
     }
 }
 
-// Source declaration: src/module/item/base/data/system.ts#TraitConfig.area.$object@10c0889331abc38074b9931a
+// Source declaration: src/module/item/base/data/system.ts#TraitConfig.area.$object@aa0c63d6873b2a173aff0d0f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TraitConfigArea {
@@ -403,7 +403,7 @@ pub(in crate::source_model::generated) fn read_modular_config_damage_type(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@23b31424e6e73fbfd5ec8a5d; trait identifiers intentionally remain open strings.
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@32a67dca8f37d465aff5a67d; trait identifiers intentionally remain open strings.
 pub type ModularConfigTraits = Vec<String>;
 pub(in crate::source_model::generated) fn read_modular_config_traits(
     v: &SourceValue,
@@ -436,7 +436,7 @@ pub(in crate::source_model::generated) fn read_modular_config(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@17d1a1fc61a8b22c3cd4841f
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@17d1a1fc61a8b22c3cd4841f
 pub type TraitConfigModular = Vec<ModularConfig>;
 pub(in crate::source_model::generated) fn read_trait_config_modular(
     v: &SourceValue,
@@ -446,7 +446,7 @@ pub(in crate::source_model::generated) fn read_trait_config_modular(
     array(v, c, p, read_modular_config)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@8802e25b47649f01923ba165
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@d0e1cefcdaf0703d1e6b0df6
 pub type TraitConfigVersatile = Vec<ModularConfigDamageType>;
 pub(in crate::source_model::generated) fn read_trait_config_versatile(
     v: &SourceValue,
@@ -2902,7 +2902,7 @@ pub(in crate::source_model::generated) fn read_item_trait(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@2c5c2c029ca667fd7fd2a2ea
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@d120a1bb3e472289323a520b
 pub type ItemTraitsItemTraitValue = Vec<ItemTrait>;
 pub(in crate::source_model::generated) fn read_item_traits_item_trait_value(
     v: &SourceValue,
@@ -2912,7 +2912,7 @@ pub(in crate::source_model::generated) fn read_item_traits_item_trait_value(
     array(v, c, p, read_item_trait)
 }
 
-// Source declaration: src/module/item/base/data/system.ts#ItemTraits@2c5c2c029ca667fd7fd2a2ea
+// Source declaration: src/module/item/base/data/system.ts#ItemTraits@d120a1bb3e472289323a520b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ItemTraitsItemTrait {
@@ -2941,7 +2941,7 @@ pub(in crate::source_model::generated) fn read_item_traits_item_trait(
     })
 }
 
-// Source declaration: src/module/item/base/data/system.ts#ItemTraitsNoRarity@2c5c2c029ca667fd7fd2a2ea
+// Source declaration: src/module/item/base/data/system.ts#ItemTraitsNoRarity@d120a1bb3e472289323a520b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ItemTraitsNoRarityItemTrait {
@@ -3010,7 +3010,7 @@ pub(in crate::source_model::generated) fn read_rarity_trait_and_other_tags(
     })
 }
 
-// Source declaration: structural:815af2dbe2d25b3839aaac6b
+// Source declaration: structural:55a8803727a748311a553dab
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum ItemSystemSourceTraits {

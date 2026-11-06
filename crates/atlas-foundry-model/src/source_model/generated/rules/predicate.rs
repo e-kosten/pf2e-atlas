@@ -12,7 +12,7 @@ use crate::source_model::union::{UnionCandidates, union_object, union_required};
 use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@49c18e8633fb418f11fc747f
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@151ca2b7f72b4f47ac0f7b89
 pub type AlternativeDenialNand = Vec<PredicateStatement>;
 pub(in crate::source_model::generated) fn read_alternative_denial_nand(
     v: &SourceValue,
@@ -125,7 +125,7 @@ pub(in crate::source_model::generated) fn read_disjunction(
     })
 }
 
-// Source declaration: structural:cb03a4eb3c8dfd597213039f
+// Source declaration: structural:307d494d58346fd8309d2123
 pub(in crate::source_model::generated) fn read_equal_to_eq(
     v: &SourceValue,
     c: &SourceContext,
@@ -441,7 +441,7 @@ pub fn parse_predicate_statements(
     read_alternative_denial_nand(v, c, p)
 }
 
-// Source declaration: src/module/apps/pick-a-thing-prompt/app.ts#PickableThing@c7b069aeecdb71fec02355c2#predicate:constructor-input
+// Source declaration: src/module/apps/pick-a-thing-prompt/app.ts#PickableThing@352939964dc85e300ff1dee0#predicate:constructor-input
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum PredicateInput {
@@ -481,7 +481,7 @@ pub(in crate::source_model::generated) fn read_predicate_input(
     candidates.finish(v, c, p)
 }
 
-// src/module/apps/pick-a-thing-prompt/app.ts#PickableThing@c7b069aeecdb71fec02355c2#predicate:constructor-input; deferred fields:
+// src/module/apps/pick-a-thing-prompt/app.ts#PickableThing@352939964dc85e300ff1dee0#predicate:constructor-input; deferred fields:
 pub fn parse_predicate_input(
     v: &SourceValue,
     c: &SourceContext,

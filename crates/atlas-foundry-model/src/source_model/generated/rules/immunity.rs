@@ -21,7 +21,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8a9ef28e3ea8078c269c1061#authored-input:type
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0075fc84702027cfc6a820a2#authored-input:type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaImmunityRuleSchema {
@@ -101,7 +101,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_immunity_rule_
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@8a9ef28e3ea8078c269c1061; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@0075fc84702027cfc6a820a2; deferred fields:
 pub type ImmunityRule = SourceFromSchemaImmunityRuleSchema;
 pub fn parse_immunity_rule(
     v: &SourceValue,

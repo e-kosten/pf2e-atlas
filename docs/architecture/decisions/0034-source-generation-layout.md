@@ -45,6 +45,28 @@ and rule dispatch have separate modules. Handwritten source presence, ordered va
 parsing primitives and composition stay outside the generated directory.
 Rust builds and application execution have no Node dependency.
 
+Persisted union tags and positional type hints are Atlas-owned contract data.
+`dev-tools/source-contracts/source-union-order.json` records explicit member
+ordinals and Serde names for unions with declaration-backed members. The generator
+applies the reviewed ordering to memoized normalized views before cycle analysis,
+structural sharing, guard generation or child allocation. It preserves the original
+declaration graph and collection references as evidence.
+
+Semantic policy keys describe resolved values, including collection null/undefined
+behavior and open trait arrays. They exclude compiler-local IDs, numeric compiler
+flags, source locations and printed generic arguments. Recursive components use
+bounded context-sensitive traversal with memoization only across component
+boundaries. Canonical unnamed scalar/literal identities need no duplicate policy.
+
+Normal pinned generation requires valid policy metadata and cannot reseed it.
+Missing/extra/ambiguous members, duplicate ordinals and persisted-name drift fail
+before publication of generated Rust. Retired ordinals may leave gaps; survivors
+keep their names and slots. Intentional incompatibility follows the snapshot codec
+version policy rather than silently changing tags under an unchanged contract.
+The initial policy is seeded from accepted predecessor generation and must preserve
+its complete Rust output. Frozen predecessor snapshot bytes and compiler/order
+perturbation tests protect the reader/writer contract across compiler upgrades.
+
 Freshness checks cover the full Rust file set, including missing/obsolete files.
 Regeneration formats and preflights outputs before writing, removes only obsolete
 generator-owned files, and refuses unmanaged files or symlinks in output directories.

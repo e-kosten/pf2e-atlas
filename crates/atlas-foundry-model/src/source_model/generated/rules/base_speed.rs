@@ -13,7 +13,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@d78e0d93329ff8f1f00a3d93
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2f3ecb1da16478a46c73a61d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaBaseSpeedRuleSchema {
@@ -79,7 +79,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_base_speed_rul
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@d78e0d93329ff8f1f00a3d93; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@2f3ecb1da16478a46c73a61d; deferred fields:
 pub type BaseSpeedRule = SourceFromSchemaBaseSpeedRuleSchema;
 pub fn parse_base_speed_rule(
     v: &SourceValue,

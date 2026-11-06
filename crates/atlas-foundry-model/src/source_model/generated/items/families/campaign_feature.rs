@@ -85,7 +85,7 @@ pub(in crate::source_model::generated) fn read_campaign_feature_system_source_ca
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@9359bb6557b586cc513202a1
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@bc654073e9478f849f5a95ae
 pub type CampaignFeatureSystemSourcePrerequisitesSourceFromSchemaValue =
     Vec<PhysicalEquipmentFieldsUsage>;
 pub(in crate::source_model::generated) fn read_campaign_feature_system_source_prerequisites_source_from_schema_value(
@@ -96,7 +96,7 @@ pub(in crate::source_model::generated) fn read_campaign_feature_system_source_pr
     array(v, c, p, read_physical_equipment_fields_usage)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3e755918d1e9a214bd03aaff
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@cf787d0f391be3b6061d856f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CampaignFeatureSystemSourcePrerequisitesSourceFromSchema {

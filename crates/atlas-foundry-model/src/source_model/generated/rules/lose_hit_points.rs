@@ -13,7 +13,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1be3cc51f145530549d405cf
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8a06683752e30b87af717619
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaLoseHitPointsRuleSchema {
@@ -79,7 +79,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_lose_hit_point
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@1be3cc51f145530549d405cf; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@8a06683752e30b87af717619; deferred fields:
 pub type LoseHitPointsRule = SourceFromSchemaLoseHitPointsRuleSchema;
 pub fn parse_lose_hit_points_rule(
     v: &SourceValue,
