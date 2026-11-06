@@ -334,7 +334,16 @@ pub(crate) fn schema20_catalog() -> Result<BTreeMap<String, String>, IndexError>
     crate::query::query_capabilities()?
         .fields
         .into_iter()
-        .filter(|definition| definition.id != "has_description")
+        .filter(|definition| {
+            !matches!(
+                definition.id.as_str(),
+                "has_description"
+                    | "senses[].acuity"
+                    | "senses[].range"
+                    | "armor.group"
+                    | "embedded.equipment[].armor.group"
+            )
+        })
         .map(|definition| Ok((definition.id.clone(), serde_json::to_string(&definition)?)))
         .collect()
 }

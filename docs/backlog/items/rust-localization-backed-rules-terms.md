@@ -13,13 +13,17 @@ prepared content wherever available. Standalone definitions extend the trait
 storage owner in place. Open contextual help in the shared Drawer; discovery comes
 from record context and filters. A dedicated glossary browser is outside this scope.
 
-The initial implementation slice covers generated source evidence, canonical
-definition storage/publication, offline migration and explicit setup freshness.
-Remaining retrieval and presentation work must provide readable language names with
-communication notes, sense qualifiers, sourced definition content and exact related-
-record filters for every included entry. Preserve the distinction between having
-a property and explicitly referencing a definition. Labels without source
-definitions stay useful filter values; do not invent rules prose or name-based links.
+The implementation supplies generated source evidence, canonical publication,
+offline migration, explicit setup freshness, source-free definition reads and exact
+query/discovery bindings. Rust projections retain raw values beside readable labels,
+communication notes, sense qualifiers, attribution and typed help destinations.
+See [ADR0067](../../architecture/decisions/0067-contextual-reference-definitions.md).
+
+Remaining presentation work activates the shared Drawer and complete per-type help,
+new definition selection controls, related-filter actions and mixed reading history
+with purpose-aware native destinations. Preserve the distinction between having a
+property and explicitly referencing a definition. Labels without source definitions
+stay useful filter values; do not invent rules prose or name-based links.
 
 Trait pages, exact membership/reference navigation, stored-vector Similar, CLI
 lookup and shared document chrome were delivered in

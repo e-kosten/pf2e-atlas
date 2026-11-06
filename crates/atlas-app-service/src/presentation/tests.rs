@@ -2288,7 +2288,18 @@ fn reference_profiles_keep_choices_and_unavailable_source_distinct() {
     assert_eq!(v.speed.value.unwrap().as_u64(), Some(0));
     assert_eq!(
         v.boosts.value.unwrap()[0].choices.value,
-        Some(vec!["Constitution".into(), "Wisdom".into()])
+        Some(vec![
+            ReferenceValueView {
+                value: "con".into(),
+                label: "Constitution".into(),
+                help: None,
+            },
+            ReferenceValueView {
+                value: "wis".into(),
+                label: "Wisdom".into(),
+                help: None,
+            },
+        ])
     );
     assert_eq!(v.languages.value, Some(vec![]));
     assert_eq!(v.reach.state, QueryFieldState::Missing);
@@ -2544,7 +2555,21 @@ fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effect
     };
     assert_eq!(
         character.languages.value,
-        Some(vec!["aklo".into(), "common".into()])
+        Some(
+            ["aklo", "common"]
+                .into_iter()
+                .map(|value| ReferenceValueView {
+                    value: value.into(),
+                    label: value.into(),
+                    help: Some(ReferenceHelpView {
+                        definition_key: Some(format!("language:{value}")),
+                        availability: DefinitionAvailabilityView::SetupRequired,
+                        destination: None,
+                        related_filters: vec![],
+                    }),
+                })
+                .collect()
+        )
     );
     assert_eq!(character.maximum_hp.state, QueryFieldState::NotApplicable);
     assert_eq!(character.maximum_hp.value, None);
