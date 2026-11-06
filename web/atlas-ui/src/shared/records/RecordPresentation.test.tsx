@@ -4,6 +4,8 @@ import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference"
 import { SpellChanges, SpellReference } from "./SpellReference";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { decodeFilterUrl } from "../filters/filterUrl";
+import { ReferenceHelpProvider } from "./ReferenceHelp";
+import { RouterTestContext } from "../../test/router";
 import {
   actorFixture,
   activityFixture,
@@ -277,6 +279,7 @@ describe("semantic family presentation", () => {
 
   it("keeps general-entry lookup secondary to the customized item with native navigation", async () => {
     const onReference = vi.fn();
+    const onHelp = vi.fn();
     const detail = detailFixture(
       "actors:caster",
       "Customized staff",
@@ -291,17 +294,19 @@ describe("semantic family presentation", () => {
       target_title: "Staff",
     };
     const view = (available = true) => (
-      <RecordPresentation
-        presentation={detail.presentation}
-        root={summaryFixture("actors:caster", "Caster")}
-        selection={selected}
-        relationships={[
-          available
-            ? relationship
-            : { ...relationship, status: "unresolved", target: null },
-        ]}
-        onReference={onReference}
-      />
+      <ReferenceHelpProvider onHelp={onHelp}>
+        <RecordPresentation
+          presentation={detail.presentation}
+          root={summaryFixture("actors:caster", "Caster")}
+          selection={selected}
+          relationships={[
+            available
+              ? relationship
+              : { ...relationship, status: "unresolved", target: null },
+          ]}
+          onReference={onReference}
+        />
+      </ReferenceHelpProvider>
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
@@ -311,12 +316,21 @@ describe("semantic family presentation", () => {
     expect(destination.search).toBe("");
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
+    expect(onHelp).not.toHaveBeenCalled();
     fireEvent.click(original);
-    expect(onReference).toHaveBeenCalledExactlyOnceWith(
-      "equipment:catalog-staff",
+    expect(onHelp).toHaveBeenCalledExactlyOnceWith(
+      {
+        definition_key: null,
+        availability: "available",
+        related_filters: [],
+        destination: { kind: "record", navigation: relationship.target },
+      },
       original,
-      relationship.target,
+      undefined,
     );
+    expect(onReference).not.toHaveBeenCalled();
+    expect(onHelp.mock.calls[0][0].destination).not.toHaveProperty("reading_context");
+    expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
     rerender(view(false));
     expect(
       screen.queryByRole("link", { name: "Open general entry: Staff" }),
@@ -1396,6 +1410,7 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   const onReference = vi.fn();
   const { rerender } = render(
     <RecordPresentation presentation={presentation} onReference={onReference} />,
+    { wrapper: RouterTestContext },
   );
   expect(
     screen
@@ -1419,7 +1434,18 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   expect(screen.queryByText("Contents")).toBeNull();
   expect(screen.getByText("Category").parentElement).toHaveTextContent("wand");
   presentation.identity.traits = [
-    { kind: "trait", value: "wand", label: "Wand", trait_key: "trait:wand" },
+    {
+      kind: "trait",
+      value: "wand",
+      label: "Wand",
+      trait_key: "trait:wand",
+      help: {
+        definition_key: "trait:wand",
+        availability: "available",
+        destination: { kind: "definition", key: "trait:wand" },
+        related_filters: [],
+      },
+    },
   ];
   consumable.spell_presented_inline = true;
   consumable.source_uses = numberFact(1);

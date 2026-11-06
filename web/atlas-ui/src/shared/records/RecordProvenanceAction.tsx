@@ -20,7 +20,6 @@ export function RecordProvenanceAction({
     destination: {
       kind: "record" as const,
       navigation,
-      reading_context: "general_definition" as const,
     },
   };
   return (

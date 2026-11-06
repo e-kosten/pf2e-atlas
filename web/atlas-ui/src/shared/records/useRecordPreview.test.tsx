@@ -182,10 +182,13 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   };
   const host = document.createElement("section");
   host.className = "record-preview-drawer__body";
+  const drawer = document.createElement("div");
+  drawer.className = "record-preview-drawer";
   const source = document.createElement("a");
   source.href = "/records/rules:next";
   host.append(source);
-  document.body.append(host);
+  drawer.append(host);
+  document.body.append(drawer);
   act(() => result.current.open(first.record_key, opener, first, first));
   host.scrollTop = 314;
   act(() => result.current.open("rules:next", source));
@@ -195,6 +198,7 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   expect(result.current.readingHistory.restore).toEqual({
     scroll: 314,
     focusHref: "/records/rules:next",
+    focusRegion: "body",
   });
   for (let index = 0; index < 30; index++)
     act(() => result.current.open(`rules:${index}`, source));
@@ -205,7 +209,7 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   act(() => result.current.close());
   expect(opener).toHaveFocus();
   expect(result.current.readingHistory.canGoBack).toBe(false);
-  host.remove();
+  drawer.remove();
   opener.remove();
 });
 
