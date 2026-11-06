@@ -75,7 +75,7 @@ pub enum RemasterInlinePartView {
     },
     Reference {
         label: String,
-        navigation: RecordNavigationView,
+        navigation: Box<RecordNavigationView>,
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -119,7 +119,7 @@ pub struct RemasterEndpointView {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RemasterEndpointResolutionView {
     Current {
-        record: RecordSummaryView,
+        record: Box<RecordSummaryView>,
         navigation: RecordNavigationView,
     },
     Absent {

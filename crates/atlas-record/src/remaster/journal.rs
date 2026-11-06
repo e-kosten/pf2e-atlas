@@ -106,10 +106,17 @@ fn namespace(section: &str) -> &str {
         _ => "rules",
     }
 }
+fn context(section: &str, qualifier: Option<String>) -> RemasterContext {
+    RemasterContext {
+        section: section.into(),
+        namespace: namespace(section).into(),
+        qualifier,
+        source_type: None,
+    }
+}
 fn declaration(
     content: &PreparedSourceContent,
-    section: &str,
-    qualifier: Option<String>,
+    context: RemasterContext,
     selector: RemasterSelector,
     status: Option<String>,
     change: Vec<RemasterChangeKind>,
@@ -120,12 +127,7 @@ fn declaration(
         id: String::new(),
         kinds: change,
         authored_status: status,
-        context: RemasterContext {
-            section: section.into(),
-            namespace: namespace(section).into(),
-            qualifier,
-            source_type: None,
-        },
+        context,
         before,
         after,
         citations: vec![RemasterCitation::Journal {
@@ -221,8 +223,7 @@ pub fn journal_declarations(
         };
         declarations.push(declaration(
             content,
-            section,
-            qualifier,
+            context(section, qualifier),
             RemasterSelector::TableRow { ordinal },
             status,
             change,
@@ -281,8 +282,7 @@ pub fn journal_declarations(
                     };
                     let mut item = declaration(
                         content,
-                        &current_section,
-                        None,
+                        context(&current_section, None),
                         RemasterSelector::ListItem {
                             ordinal: list_ordinal,
                         },
@@ -300,8 +300,7 @@ pub fn journal_declarations(
                     value.terms.clear();
                     declarations.push(declaration(
                         content,
-                        &current_section,
-                        None,
+                        context(&current_section, None),
                         RemasterSelector::ListItem {
                             ordinal: list_ordinal,
                         },
@@ -328,8 +327,7 @@ pub fn journal_declarations(
                 value.terms.clear();
                 declarations.push(declaration(
                     content,
-                    &current_section,
-                    None,
+                    context(&current_section, None),
                     RemasterSelector::Discussion {
                         ordinal: discussion_ordinal,
                     },

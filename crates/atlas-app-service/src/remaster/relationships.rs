@@ -486,7 +486,7 @@ fn append_list(
         match value.navigation {
             Some(navigation) => parts.push(Part::Reference {
                 label: super::text(&value.label),
-                navigation,
+                navigation: Box::new(navigation),
             }),
             None => push_text(parts, &value.label),
         }
@@ -780,7 +780,9 @@ mod tests {
             .parts
             .iter()
             .filter_map(|part| match part {
-                Part::Reference { label, navigation } => Some((label.as_str(), navigation)),
+                Part::Reference { label, navigation } => {
+                    Some((label.as_str(), navigation.as_ref()))
+                }
                 _ => None,
             })
             .collect()

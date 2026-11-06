@@ -56,7 +56,7 @@ pub struct RemasterEndpointResult {
 #[derive(Debug, Clone)]
 pub enum RemasterEndpointResolution {
     Current {
-        record: SourceRecordSummary,
+        record: Box<SourceRecordSummary>,
         owners: Vec<OwnedContentLocator>,
     },
     MissingExplicitKey {
@@ -332,7 +332,7 @@ fn project_sides(
                 let resolution = match &binding.resolution {
                     RemasterBindingResolution::Current { record_key, owners } => {
                         RemasterEndpointResolution::Current {
-                            record: summary(summaries, record_key)?,
+                            record: Box::new(summary(summaries, record_key)?),
                             owners: owners.clone(),
                         }
                     }

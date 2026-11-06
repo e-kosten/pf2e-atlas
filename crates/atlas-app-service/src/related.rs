@@ -275,7 +275,7 @@ mod versions_tests {
     fn reference(key: &str) -> RemasterInlinePartView {
         RemasterInlinePartView::Reference {
             label: "Other entry".into(),
-            navigation: nav(key),
+            navigation: Box::new(nav(key)),
         }
     }
     #[test]
@@ -383,7 +383,7 @@ mod versions_tests {
                     label: "Source entry".into(),
                     context: None,
                     resolution: RemasterEndpointResolutionView::Current {
-                        record: summary(source_key),
+                        record: Box::new(summary(source_key)),
                         navigation: nav(source_key),
                     },
                 },

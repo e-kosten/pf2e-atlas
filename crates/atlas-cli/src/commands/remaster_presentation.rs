@@ -183,7 +183,7 @@ mod tests {
                         },
                         RemasterInlinePartView::Reference {
                             label: "Current entry".into(),
-                            navigation: destination,
+                            navigation: Box::new(destination),
                         },
                     ],
                     declaration_ids: vec!["statement-1".into()],

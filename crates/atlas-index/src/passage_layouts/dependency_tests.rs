@@ -163,7 +163,9 @@ fn seed_schema29(workspace: &Workspace, input: &IndexBuildInput) {
     });
     result.unwrap();
 }
-fn native_snapshot(c: &Connection) -> Vec<(String, Vec<u8>, usize, Vec<u8>, Vec<u8>)> {
+type NativeInputSnapshot = (String, Vec<u8>, usize, Vec<u8>, Vec<u8>);
+
+fn native_snapshot(c: &Connection) -> Vec<NativeInputSnapshot> {
     let models = c
         .prepare("SELECT model_id,identity_json FROM embedding_models ORDER BY model_id")
         .unwrap()

@@ -216,7 +216,7 @@ fn source_context(
                 message: "This source entry is not available in the current collection".into(),
             },
             |record| RemasterEndpointResolutionView::Current {
-                record,
+                record: Box::new(record),
                 navigation: source_selection.clone(),
             },
         );
@@ -325,7 +325,9 @@ fn endpoint(
         RemasterEndpointResolution::Current { record, owners } => {
             RemasterEndpointResolutionView::Current {
                 navigation: navigation(&record.key, &owners, retrieval),
-                record: crate::projection::localized_summary_view(&record, retrieval),
+                record: Box::new(crate::projection::localized_summary_view(
+                    &record, retrieval,
+                )),
             }
         }
         RemasterEndpointResolution::MissingExplicitKey { record_key } => {
@@ -646,7 +648,7 @@ mod tests {
         assert!(cut);
         assert_eq!(short.chars().count(), 400);
         assert!(short.ends_with('…'));
-        assert_eq!(shorten(&"é".repeat(400)).1, false);
+        assert!(!shorten(&"é".repeat(400)).1);
     }
     #[test]
     fn declaration_and_global_citation_cuts_are_explicit() {
