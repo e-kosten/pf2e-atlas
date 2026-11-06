@@ -94,8 +94,7 @@ pub use remaster::{
     RemasterChangeKind, RemasterCitationResult, RemasterCitationSource, RemasterContext,
     RemasterDeclarationResult, RemasterEndpointCandidate, RemasterEndpointResolution,
     RemasterEndpointResult, RemasterInformation, RemasterLookupSupport, RemasterOrigin,
-    RemasterRecordAvailability, RemasterSideResult, RemasterTermInformationRequest,
-    RemasterTermInformationResult,
+    RemasterSideResult, RemasterTermInformationRequest, RemasterTermInformationResult,
 };
 
 #[cfg(test)]

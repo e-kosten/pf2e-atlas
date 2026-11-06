@@ -15,11 +15,6 @@ pub struct RemasterTermInformationRequest<'a> {
     pub term: &'a str,
     pub limit: usize,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RemasterRecordAvailability {
-    Available,
-    Unavailable,
-}
 #[derive(Debug, Clone)]
 pub struct RemasterInformation {
     pub declarations: Vec<RemasterDeclarationResult>,
@@ -29,7 +24,6 @@ pub struct RemasterInformation {
 pub struct RecordRemasterInformationResult {
     pub record_key: RecordKey,
     pub seed: Option<SourceRecordSummary>,
-    pub availability: RemasterRecordAvailability,
     pub information: RemasterInformation,
 }
 #[derive(Debug, Clone)]
@@ -146,11 +140,6 @@ impl AtlasRetrievalService {
         let summaries = self.remaster_summaries(std::iter::once(&information))?;
         Ok(RecordRemasterInformationResult {
             record_key: request.record_key.clone(),
-            availability: if seed.is_some() {
-                RemasterRecordAvailability::Available
-            } else {
-                RemasterRecordAvailability::Unavailable
-            },
             seed,
             information: project_information(information, &summaries)?,
         })

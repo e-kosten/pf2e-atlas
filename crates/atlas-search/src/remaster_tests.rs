@@ -32,7 +32,6 @@ fn unavailable_exact_key_information_preserves_identity_and_never_reads_a_body()
         .unwrap();
     assert_eq!(info.record_key, old);
     assert!(info.seed.is_none());
-    assert_eq!(info.availability, RemasterRecordAvailability::Unavailable);
     let change = &info.information.declarations[0];
     assert!(matches!(&change.before[0].endpoints[0].resolution,
         RemasterEndpointResolution::MissingExplicitKey { record_key } if record_key == &old));
