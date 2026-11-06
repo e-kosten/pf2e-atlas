@@ -51,6 +51,57 @@ impl Fixture {
         }
         c.output().unwrap()
     }
+    fn isolated_repo_command(&self) -> Command {
+        // Ordinary setup writes its reference cache according to path mode, not
+        // the source/index/model overrides. Give writing tests a disposable repo.
+        if !self.root.join(".git").exists() {
+            fs::create_dir_all(self.root.join("crates/atlas-cli")).unwrap();
+            fs::write(self.root.join("Cargo.toml"), "[workspace]\n").unwrap();
+            fs::write(self.root.join("crates/atlas-cli/Cargo.toml"), "").unwrap();
+            let mut git = Command::new("git");
+            git.args(["init", "--quiet"]).arg(&self.root);
+            for name in [
+                "GIT_DIR",
+                "GIT_WORK_TREE",
+                "GIT_INDEX_FILE",
+                "GIT_PREFIX",
+                "GIT_COMMON_DIR",
+            ] {
+                git.env_remove(name);
+            }
+            let initialized = git.output().unwrap();
+            assert!(initialized.status.success(), "{initialized:?}");
+        }
+        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        command.current_dir(&self.root);
+        for name in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_PREFIX",
+            "GIT_COMMON_DIR",
+            "ATLAS_LOG",
+        ] {
+            command.env_remove(name);
+        }
+        command
+    }
+    fn assert_reference_cache_is_isolated(&self) {
+        let cache = self.root.join(".cache/reference-supplements");
+        assert!(
+            cache
+                .canonicalize()
+                .unwrap()
+                .starts_with(self.root.canonicalize().unwrap())
+        );
+        assert!(
+            cache
+                .join(atlas_ingest::bundled_reference_supplement_id())
+                .join("manifest.json")
+                .is_file()
+        );
+        assert_eq!(fs::read_dir(cache).unwrap().count(), 1);
+    }
     fn data(&self, args: &[&str]) -> Value {
         let o = self.command(args, false);
         assert!(
@@ -859,10 +910,21 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
             .join("onnx/model.onnx")
             .exists()
     );
+    let fingerprint = atlas_ingest::compute_source_fingerprint(&f.root, None)
+        .unwrap()
+        .value;
     let setup = |model_cache: &std::path::Path, profiles: &[&str], mode: &str| {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        let mut command = f.isolated_repo_command();
         command
-            .args(["--progress", mode, "setup", "--offline", "--json"])
+            .args([
+                "--progress",
+                mode,
+                "setup",
+                "--path-mode",
+                "repo",
+                "--offline",
+                "--json",
+            ])
             .arg("--source")
             .arg(&f.root)
             .arg("--index")
@@ -887,6 +949,9 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
         )
     };
     let (first, progress) = setup(&isolated_root, &["embeddinggemma"], "always");
+    f.assert_reference_cache_is_isolated();
+    assert_eq!(first["path_mode"], "repo");
+    assert_eq!(first["build"]["source_fingerprint"], fingerprint);
     assert_eq!(first["search_profiles"].as_array().unwrap().len(), 1);
     assert_eq!(first["search_profiles"][0]["profile_id"], "embeddinggemma");
     assert!(first["build"]["inferred_inputs"].as_u64().unwrap() > 0);
@@ -1466,11 +1531,16 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
     let fixture = Fixture::new();
     fixture.data(&["lists", "create", "keep", "--name", "Keep", "--json"]);
     fs::write(fixture.root.join("packs/actions/bad.json"), "{bad").unwrap();
+    let fingerprint = atlas_ingest::compute_source_fingerprint(&fixture.root, None)
+        .unwrap()
+        .value;
     let setup = |json: bool| {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        let mut command = fixture.isolated_repo_command();
         command
             .args([
                 "setup",
+                "--path-mode",
+                "repo",
                 "--no-embeddings",
                 "--offline",
                 "--force",
@@ -1493,7 +1563,10 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
         String::from_utf8_lossy(&first.stdout),
         String::from_utf8_lossy(&first.stderr)
     );
+    fixture.assert_reference_cache_is_isolated();
     let first: Value = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(first["data"]["path_mode"], "repo");
+    assert_eq!(first["data"]["build"]["source_fingerprint"], fingerprint);
     let admission = &first["data"]["build"]["admission"];
     assert_eq!(admission["discovered_files"], 3);
     assert_eq!(admission["admitted_records"], 2);
