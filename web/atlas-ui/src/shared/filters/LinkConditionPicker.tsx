@@ -1,15 +1,6 @@
 import { linkScopeCopy } from "./linkScopeCopy";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import {
-  Button,
-  ConfigProvider,
-  Form,
-  Popover,
-  Radio,
-  Select,
-  Typography,
-  theme,
-} from "antd";
+import { Button, Form, Popover, Radio, Select, Typography } from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type {
   QueryRelationship,
@@ -39,7 +30,6 @@ export function LinkConditionPicker({
   const [scopeHelpOpen, setScopeHelpOpen] = useState(false);
   const scopeHelpTrigger = useRef<HTMLButtonElement>(null);
   const [form] = Form.useForm<LinkFilterForm>();
-  const { token } = theme.useToken();
   const [direction, setDirection] = useState<QueryRelationshipDirection>(
     initial?.direction ?? "incoming",
   );
@@ -75,32 +65,19 @@ export function LinkConditionPicker({
   }
   const controls = (
     <>
-      <ConfigProvider
-        theme={{
-          components: {
-            Radio: {
-              buttonSolidCheckedBg: token.colorPrimaryBg,
-              buttonSolidCheckedColor: token.colorPrimaryText,
-              buttonSolidCheckedHoverBg: token.colorPrimaryBgHover,
-              buttonSolidCheckedActiveBg: token.colorPrimaryBgHover,
-            },
-          },
+      <Radio.Group
+        aria-label="Link filter direction"
+        buttonStyle="solid"
+        value={direction}
+        onChange={(event) => {
+          setDirection(event.target.value);
+          setCandidate(null);
+          setFeedback(selection ? "Direction changed. Choose a record." : null);
         }}
       >
-        <Radio.Group
-          aria-label="Link filter direction"
-          buttonStyle="solid"
-          value={direction}
-          onChange={(event) => {
-            setDirection(event.target.value);
-            setCandidate(null);
-            setFeedback(selection ? "Direction changed. Choose a record." : null);
-          }}
-        >
-          <Radio.Button value="incoming">Links to</Radio.Button>
-          <Radio.Button value="outgoing">Linked from</Radio.Button>
-        </Radio.Group>
-      </ConfigProvider>
+        <Radio.Button value="incoming">Links to</Radio.Button>
+        <Radio.Button value="outgoing">Linked from</Radio.Button>
+      </Radio.Group>
       <div className="link-picker-context__scope">
         <Select
           className="link-picker-context__scope-select"

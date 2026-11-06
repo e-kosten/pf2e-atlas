@@ -425,3 +425,143 @@ test("editing a link opens its current target and clearing never restores it", a
   ).toBeDisabled();
   await expect(picker.locator(".record-reference__title")).toHaveCount(0);
 });
+
+async function renderedContrast(
+  locator: import("@playwright/test").Locator,
+  radio = false,
+) {
+  return locator.evaluate(async (element, radio) => {
+    const root = radio ? element.closest("label")! : element;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    getComputedStyle(root).getPropertyValue("color");
+    await Promise.all(
+      root
+        .getAnimations({ subtree: true })
+        .filter(
+          (animation) => animation.effect?.getComputedTiming().iterations !== Infinity,
+        )
+        .map((animation) => animation.finished.catch(() => {})),
+    );
+    const ink = radio ? root.lastElementChild! : root;
+    const channels = (color: string) => color.match(/[\d.]+/g)!.map(Number);
+    let background = [0, 0, 0, 0];
+    for (let current: Element | null = root; current; current = current.parentElement) {
+      const value = channels(getComputedStyle(current).backgroundColor);
+      const alpha = value[3] ?? 1;
+      background = [
+        ...background
+          .slice(0, 3)
+          .map(
+            (channel, index) => channel + value[index] * alpha * (1 - background[3]),
+          ),
+        background[3] + alpha * (1 - background[3]),
+      ];
+      if (background[3] >= 0.999) break;
+    }
+    const luminance = (rgb: number[]) =>
+      rgb
+        .slice(0, 3)
+        .map((value) => value / 255)
+        .map((value) =>
+          value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+        )
+        .reduce(
+          (sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index],
+          0,
+        );
+    const values = [
+      luminance(channels(getComputedStyle(ink).color)),
+      luminance(background),
+    ].sort((a, b) => b - a);
+    return (values[0] + 0.05) / (values[1] + 0.05);
+  }, radio);
+}
+
+test("shared selected and hover states keep readable rendered contrast in both themes", async ({
+  page,
+}) => {
+  const filter = encodeFilterUrl({
+    kind: "relationship",
+    clause_id: "contrast",
+    relationship: {
+      direction: "incoming",
+      include_contents: true,
+      selection: {
+        record_key: "equipment-srd:e9Xiei2wduOEGI5r",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  });
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.goto("/records/equipment-srd:e9Xiei2wduOEGI5r");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+    await page
+      .getByRole("button", { name: "Explore related records", exact: true })
+      .click();
+    const tab = page.getByRole("tab", { selected: true }).first();
+    await expect(tab).toBeVisible();
+    expect(
+      await renderedContrast(tab),
+      `${colorScheme} selected tab`,
+    ).toBeGreaterThanOrEqual(4.5);
+    await tab.hover();
+    expect(
+      await renderedContrast(tab),
+      `${colorScheme} hovered selected tab`,
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.getByRole("button", { name: "Theme", exact: true }).click();
+    const appearance = page.getByRole("radio", { name: "System", exact: true });
+    await expect(appearance).toBeChecked();
+    expect(
+      await renderedContrast(appearance, true),
+      `${colorScheme} selected segmented option`,
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.keyboard.press("Escape");
+    await page.goto(`/search?filter=${encodeURIComponent(filter)}`);
+    await page
+      .getByRole("group", { name: "Relationship filter", exact: true })
+      .getByRole("button", { name: /Links to Wovenwood Shield/ })
+      .click();
+    const outline = page.getByRole("radio", { name: "Links to", exact: true });
+    await expect(outline).toBeChecked();
+    expect(
+      await renderedContrast(outline, true),
+      `${colorScheme} selected outline radio`,
+    ).toBeGreaterThanOrEqual(4.5);
+    await outline.locator("xpath=ancestor::label").hover();
+    expect(
+      await renderedContrast(outline, true),
+      `${colorScheme} hovered outline radio`,
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.getByRole("button", { name: "Change record", exact: true }).click();
+    const picker = page.getByRole("dialog", {
+      name: "Edit link condition",
+      exact: true,
+    });
+    const solid = picker.getByRole("radio", { name: "Links to", exact: true });
+    await expect(solid).toBeChecked();
+    expect(
+      await renderedContrast(solid, true),
+      `${colorScheme} selected solid radio`,
+    ).toBeGreaterThanOrEqual(4.5);
+    const cancel = picker.getByRole("button", { name: "Cancel", exact: true });
+    await cancel.hover();
+    expect(
+      await renderedContrast(cancel),
+      `${colorScheme} hovered outlined button`,
+    ).toBeGreaterThanOrEqual(4.5);
+    await page.mouse.down();
+    try {
+      expect(
+        await renderedContrast(cancel),
+        `${colorScheme} pressed outlined button`,
+      ).toBeGreaterThanOrEqual(4.5);
+    } finally {
+      await page.mouse.up();
+    }
+  }
+});

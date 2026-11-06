@@ -423,6 +423,10 @@ shared 6px base radius. Generic controls retain Ant component/token ownership.
 `themeDefinitions.ts` owns the authored light/dark anchors and shared semantic
 roles. `atlasTheme.ts` projects them into the Ant configuration and document-level
 CSS variables. Use the root provider so portaled content receives the same colors.
+Generic selected/hover/pressed contrast belongs to these shared tokens and the
+root provider's public Button/Radio semantic hooks, not feature-local providers.
+Keep solid action fills separate from readable selected-control ink; check settled
+interaction states rather than sampling during their color transition.
 The shell stores only the optional appearance preference; changing it must preserve
 the active route, reader and drafts. Native `color-scheme` follows the resolved
 appearance. Pass that resolved appearance to Ant components with documented

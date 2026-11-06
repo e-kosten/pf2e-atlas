@@ -1,4 +1,4 @@
-import type { GlobalToken, ThemeConfig } from "antd";
+import type { ButtonProps, GlobalToken, RadioProps, ThemeConfig } from "antd";
 import { theme as antTheme } from "antd";
 import type { CSSProperties } from "react";
 import {
@@ -21,6 +21,43 @@ export const atlasTheme = {
 const FONT_FAMILY =
   'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const WORDMARK_FONT_FAMILY = '"Lora Variable", Lora, Georgia, serif';
+
+/** Semantic hooks keep quiet controls readable without changing solid action fills. */
+export const atlasButtonClassNames: NonNullable<ButtonProps["classNames"]> = ({
+  props,
+}) => {
+  if (props.disabled) return {};
+  if (props.color === "danger" && props.variant === "solid")
+    return { root: "atlas-destructive-confirm" };
+  if (props.color !== "primary" || props.variant === "solid") return {};
+  return {
+    root: [
+      "atlas-accent-control",
+      props.variant === "outlined" || props.variant === "dashed"
+        ? "atlas-accent-control--outlined"
+        : props.variant === "filled"
+          ? "atlas-accent-control--filled"
+          : props.variant === "link"
+            ? "atlas-accent-control--link"
+            : "atlas-accent-control--text",
+    ].join(" "),
+  };
+};
+
+export function atlasRadioStyles(
+  scheme: ResolvedColorScheme,
+): NonNullable<RadioProps["styles"]> {
+  const palette = resolveAtlasPalette(scheme);
+  // Radio reuses primary for both glyph fills and button ink. Style the public
+  // label slot so readable button text does not alter the ordinary radio glyph.
+  return ({ props }) =>
+    props.disabled
+      ? {}
+      : {
+          label: { color: props.checked ? palette.selection.text : palette.text },
+          root: props.checked ? { borderColor: palette.selection.border } : {},
+        };
+}
 
 export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
   const palette = resolveAtlasPalette(scheme);
@@ -244,9 +281,22 @@ function themeConfig(scheme: ResolvedColorScheme, palette: AtlasPalette): ThemeC
         dangerColor: palette.onPrimary,
         borderRadius: atlasTheme.radius.md,
         controlHeight: atlasTheme.controlHeight,
+        defaultHoverColor: palette.selection.text,
+        defaultHoverBg: palette.selection.background,
+        defaultHoverBorderColor: palette.selection.border,
+        defaultActiveColor: palette.selection.text,
+        defaultActiveBg: palette.selection.hover,
+        defaultActiveBorderColor: palette.selection.border,
       },
       Checkbox: { colorWhite: palette.onPrimary },
-      Radio: { colorWhite: palette.onPrimary },
+      Radio: {
+        colorWhite: palette.onPrimary,
+        buttonCheckedBg: palette.selection.background,
+        buttonSolidCheckedBg: palette.selection.background,
+        buttonSolidCheckedColor: palette.selection.text,
+        buttonSolidCheckedHoverBg: palette.selection.hover,
+        buttonSolidCheckedActiveBg: palette.selection.hover,
+      },
       Switch: { colorTextLightSolid: palette.onPrimary },
       Segmented: {
         trackBg: palette.surface,

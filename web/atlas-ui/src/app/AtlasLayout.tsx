@@ -13,6 +13,8 @@ import {
   COLOR_SCHEME_STORAGE_KEY,
   applyAtlasDocumentTheme,
   atlasPopoverStyles,
+  atlasButtonClassNames,
+  atlasRadioStyles,
   antDesignTheme,
   type ColorSchemePreference,
   type ResolvedColorScheme,
@@ -70,18 +72,8 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
           },
         },
       }}
-      button={{
-        classNames: ({ props }) => ({
-          root:
-            props.color && props.variant
-              ? props.color === "danger" && props.variant === "solid"
-                ? "atlas-destructive-confirm"
-                : undefined
-              : props.type === "primary" && props.danger
-                ? "atlas-destructive-confirm"
-                : undefined,
-        }),
-      }}
+      button={{ classNames: atlasButtonClassNames }}
+      radio={{ styles: atlasRadioStyles(resolvedColorScheme) }}
       tooltip={{ styles: { root: { pointerEvents: "none" } } }}
       popover={{
         styles: atlasPopoverStyles(resolvedColorScheme),
