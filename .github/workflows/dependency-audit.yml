@@ -1,14 +1,6 @@
 name: dependency audit
 
 on:
-  pull_request:
-    paths:
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
-      - '**/package.json'
-      - '**/package-lock.json'
-      - 'scripts/validation/dependency-audit.py'
-      - '.github/workflows/dependency-audit.yml'
   schedule:
     - cron: '37 10 * * *'
   workflow_dispatch:

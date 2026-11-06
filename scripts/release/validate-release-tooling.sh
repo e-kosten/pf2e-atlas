@@ -12,11 +12,7 @@ sh -n \
 
 npm --prefix "$repo_root/dev-tools/release" run verify
 
-ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path) }' \
-  "$repo_root/.github/workflows/ci.yml" \
-  "$repo_root/.github/workflows/release.yml" \
-  "$repo_root/.github/workflows/release-build-check.yml" \
-    "$repo_root/.github/workflows/nightly.yml"
+ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path) }' "$repo_root"/.github/workflows/*.yml
 
 if command -v pwsh >/dev/null 2>&1; then
   pwsh -NoProfile -Command "\$tokens = \$null; \$errors = \$null; \$null = [System.Management.Automation.Language.Parser]::ParseFile('$repo_root/scripts/install/atlas-installer.ps1', [ref]\$tokens, [ref]\$errors); if (\$errors.Count -gt 0) { \$errors | ForEach-Object { Write-Error \$_ }; exit 1 }"
@@ -26,11 +22,7 @@ else
 fi
 
 if command -v actionlint >/dev/null 2>&1; then
-  actionlint \
-    "$repo_root/.github/workflows/ci.yml" \
-    "$repo_root/.github/workflows/release.yml" \
-    "$repo_root/.github/workflows/release-build-check.yml" \
-    "$repo_root/.github/workflows/nightly.yml"
+  (cd "$repo_root" && actionlint)
 else
   printf 'warning: actionlint not found; workflow semantic lint is skipped locally\n' >&2
 fi

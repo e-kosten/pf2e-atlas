@@ -14,6 +14,12 @@ and validate it with `npm --prefix dev-tools/release run verify`. See
 [release tooling](../../dev-tools/release/README.md) for notices, manifest, checksum and
 platform smoke-test commands. These dependencies stay out of product bundles.
 
+The shared macOS packaging job links the static Apple compiler runtime resolved
+by `xcrun --sdk macosx clang -print-libgcc-file-name`. ONNX Runtime's CoreML
+availability checks require this helper when Rust links for the release deployment
+target with its default libraries disabled. This adds the standard Apple runtime
+helper without changing the deployment target or embedding policy.
+
 Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
 archive (`atlas-cli-only-<target>.*`). Both contain `atlas`; full is the default.
 Cargo-dist uses `precise-builds = true` to build the shipped CLI package rather
@@ -31,7 +37,19 @@ manually from `main`. Scheduled runs skip the commit already served by the night
 channel; manual runs rebuild it. A single source SHA is used for CI, packaging and
 publication. Runs from other branches do not publish.
 
-The workflow calls the existing CI and release-build-check workflows. Nightly
+Nightly first looks for successful push-to-main CI for the exact planned SHA,
+including its completed `validation complete` and advisory jobs. It waits up to
+30 minutes for a pending run, then falls back to fresh CI when no qualifying
+success exists. Failed, cancelled or incomplete evidence cannot authorize
+packaging. Manual dispatch accepts `force-verification` to request fresh CI.
+GitHub API errors fail the planning job. Reading prior runs requires `actions: read`.
+
+Stable releases, nightlies and nonpublishing checks share the
+`release-build-check.yml` build-and-assembly workflow. Its caller may mark release
+tools verified only after successful full CI for the same source. Nightly does
+so after reused or fresh verification; standalone checks and stable releases
+verify their tools themselves. Tool verification builds the TypeScript output,
+so no preliminary duplicate build is needed. Nightly
 packaging edits only the CI checkout's CLI manifest and lockfile, using a version
 such as `0.1.0-nightly.20261018092300.gabcdef123456`. No version-bump commits or
 handwritten release notes are needed. The four-platform packaging checks run both variants before upload. The publication job validates all assets, publishes
@@ -59,10 +77,11 @@ Local release-tooling checks:
 scripts/release/validate-release-tooling.sh
 scripts/release/test-release-tools.sh
 scripts/release/test-prepare-release.sh
-npm --prefix dev-tools/release run verify
 ```
 
-The Windows packaging job also runs `scripts/release/test-installer.ps1`. Fixture
+When tools have not already been verified, the full Windows packaging job also
+runs `scripts/release/test-installer.ps1`; the CLI-only job retains its own
+packaged-binary smoke test. Fixture
 tests cover pointer resolution and pinning, invalid pointers, checksum failures,
 version preparation, scheduled skipping, and preserving the channel on failures.
 
@@ -150,6 +169,8 @@ Repository settings checklist:
 - Tag pushes trigger workflows.
 - The release workflow can use `GITHUB_TOKEN` with `contents: write` for release asset upload.
 - Only maintainers can push `v*` release tags.
+- The main ruleset requires `validation complete`; this includes every selected
+  gate and dependency advisories, with no separate path-filtered required workflow.
 - Branch protection allows release-preparation PRs to land normally.
 
 Published release assets are treated as immutable. Fix bad published releases with a new patch release and document known issues in the affected release notes. Draft releases may be corrected before publication.
