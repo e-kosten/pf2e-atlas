@@ -2930,7 +2930,7 @@ test("definition discovery preserves drafts while reading help and applies suppl
   await expect(page.getByText("0 records", { exact: true })).toBeVisible();
   await expect(emptyResults.locator("[data-record-key]")).toHaveCount(0);
   await expect(
-    emptyResults.getByRole("group", { name: "Result pages", exact: true }),
+    page.getByRole("group", { name: "Result pages", exact: true }),
   ).toHaveCount(0);
 
   await noPageOverflow(page);
