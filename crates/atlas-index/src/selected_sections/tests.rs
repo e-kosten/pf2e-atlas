@@ -277,6 +277,7 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
         let (_directory, path, workspace) = historical(&input);
         let write = workspace.write(26).unwrap();
         let before = numerical(write.connection(), &input);
+        let native_before = native_preservation_rows(write.connection()).unwrap();
         let saved_before = saved(write.connection());
         let selectors = write
             .connection()
@@ -295,19 +296,35 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
         assert_eq!(saved(read.connection()), saved_before);
         assert_eq!(
             classify_reference_upgrade(read.connection()).unwrap(),
-            ReferenceUpgrade::SectionProjections
+            ReferenceUpgrade::SourcePreparation
         );
         assert!(
             read.connection()
                 .prepare("SELECT * FROM similarity_parts")
                 .is_err()
         );
+        assert_eq!(
+            read.connection()
+                .prepare("SELECT selector FROM selected_sections ORDER BY selector")
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap(),
+            selectors,
+            "stale remaster metadata does not discard compatible section attribution"
+        );
         assert_eq!(read.connection().query_row("SELECT count(*) FROM selected_sections WHERE record_id=(SELECT record_id FROM records WHERE name='Empty')",[],|r|r.get::<_,usize>(0)).unwrap(),0);
         drop(read);
-        assert!(ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+        assert!(!ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+        assert!(open_reader(&path).is_err());
+        publish_input(&path, &input).unwrap();
         let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(read.reference_revision().unwrap(), revision + 1);
-        assert_eq!(numerical(read.connection(), &input), before);
+        assert_eq!(
+            native_preservation_rows(read.connection()).unwrap(),
+            native_before
+        );
         assert_eq!(saved(read.connection()), saved_before);
         crate::validate_reference(read.connection()).unwrap();
         let reader = SqliteIndexReader::from_session(read).unwrap();
@@ -427,13 +444,6 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
 fn profile_specific_ranges_share_whole_sections_without_collapsing_locations() {
     let mut input = sample();
     let gemma = atlas_domain::SearchProfileId::new("embeddinggemma");
-    input
-        .context
-        .search_profiles
-        .iter_mut()
-        .find(|p| p.profile_id == gemma)
-        .unwrap()
-        .input_recipe = "retained-profile-layout/v1".into();
     let old = std::mem::take(&mut input.semantic_units);
     for unit in old {
         if unit.profile_id != gemma || matches!(unit.address, SourcePassageAddress::Identity {}) {
@@ -466,14 +476,12 @@ fn profile_specific_ranges_share_whole_sections_without_collapsing_locations() {
             input.semantic_units.push(chunk);
         }
     }
-    let (_directory, path, workspace) = historical(&input);
-    let read = workspace.read(26).unwrap();
-    let before = numerical(read.connection(), &input);
-    drop(read);
-    let upgraded = initialize_workspace(&path).unwrap();
-    assert!(ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
-    let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(numerical(read.connection(), &input), before);
+    // Different profile ranges are a current projection contract. Historical
+    // migration preservation and source-required recovery are covered above.
+    let (_directory, path) = crate::foundation_tests::build(&input);
+    let workspace = Workspace::at(&path).unwrap();
+    assert!(!ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert!(read.connection().query_row("SELECT EXISTS(SELECT 1 FROM semantic_locations WHERE section_id IS NOT NULL GROUP BY section_id,chunk_ordinal HAVING count(*)>1)",[],|r|r.get::<_,bool>(0)).unwrap());
     let reader = SqliteIndexReader::from_session(read).unwrap();
     for profile in &input.context.search_profiles {

@@ -816,7 +816,7 @@ fn alias_journal_barrier_filters_duplicates_and_keeps_final_preparation_counts_a
     ]}).to_string()).unwrap();
     let journal = |file: &str, id: &str, alias: &str| {
         let body = format!(
-            "<table><tr><td>{alias}</td><td>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]</td></tr></table>"
+            "<table><tr><th>Old</th><th>New</th></tr><tr><td>{alias}</td><td>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]</td></tr></table>"
         );
         fs::write(fixture.0.path().join("packs/journals").join(file),serde_json::json!({
             "_id":id,"name":"Remaster Changes","pages":[{"_id":"ffffffffffffffff","name":"Changes","type":"text","text":{"format":1,"content":body}}]

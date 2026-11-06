@@ -389,9 +389,9 @@ fn authentic_v7_schema29_upgrade_reuses_sources_layouts_and_native_values() {
     crate::semantic_locations::validate(read.connection()).unwrap();
     assert_eq!(
         read.connection()
-            .query_row("SELECT count(*) FROM remaster_bindings", [], |r| r
+            .query_row("SELECT count(*) FROM remaster_pairs", [], |r| r
                 .get::<_, usize>(0))
             .unwrap(),
-        2
+        1
     );
 }

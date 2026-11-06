@@ -451,8 +451,8 @@ fn no_core_prose_and_unmodelled_kind_keep_distinct_identity_only_outcomes() {
 use crate::test_support::reference_preservation_rows as table_values;
 
 #[test]
-fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generation() {
-    use atlas_local_state::{LocalStateWrite, NewSavedList};
+fn historical_core_upgrade_preserves_source_saved_and_native_state_before_repreparation() {
+    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
     let input = nested_fixture(true);
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("core-upgrade.sqlite");
@@ -467,7 +467,7 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
         crate::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
     }
     let write = workspace.write(20).unwrap();
-    LocalStateWrite::new(&write)
+    let saved_list = LocalStateWrite::new(&write)
         .saved_lists()
         .create(NewSavedList {
             slug: "kept".into(),
@@ -479,25 +479,16 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     let revision = write.reference_revision().unwrap();
     let mut context = input.context.clone();
     context.core_sections_recipe.clear();
-    let mut before = table_values(write.connection()).unwrap();
-    assert!(
-        before
-            .remove("encounter_participant_adjustments")
-            .unwrap()
-            .is_empty()
-    );
-    let sequences = before.get_mut("sqlite_sequence").unwrap();
-    assert!(!sequences.iter().any(
-        |row| row[0] == rusqlite::types::Value::Text("encounter_participant_conditions".into())
-    ));
-    sequences.push(vec![
-        rusqlite::types::Value::Text("encounter_participant_conditions".into()),
-        rusqlite::types::Value::Integer(0),
-    ]);
-    sequences.sort_by_key(|row| match &row[0] {
-        rusqlite::types::Value::Text(name) => name.clone(),
-        _ => panic!("SQLite sequence name must remain text"),
-    });
+    // Canonical section addresses remain unavailable while this historical
+    // source contract needs preparation, so the current-location oracle cannot
+    // certify every projection row. Compare retained authority directly instead.
+    let bodies = |connection: &rusqlite::Connection| {
+        connection.prepare("SELECT r.key,b.snapshot FROM records r JOIN record_bodies b USING(record_id) ORDER BY r.key").unwrap()
+            .query_map([], |row| Ok((row.get::<_,String>(0)?, row.get::<_,Vec<u8>>(1)?))).unwrap()
+            .collect::<Result<Vec<_>,_>>().unwrap()
+    };
+    let bodies_before = bodies(write.connection());
+    let native_before = crate::test_support::native_preservation_rows(write.connection()).unwrap();
     write.commit().unwrap();
     let upgraded = crate::test_support::initialize_workspace(&path).unwrap();
     let read = upgraded
@@ -506,11 +497,11 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     assert_eq!(read.reference_revision().unwrap(), revision);
     assert_eq!(
         classify_reference_upgrade(read.connection()).unwrap(),
-        ReferenceUpgrade::CoreProjections
+        ReferenceUpgrade::SourcePreparation
     );
     drop(read);
     assert!(
-        ensure_reference_projections(
+        !ensure_reference_projections(
             &upgraded,
             crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION
         )
@@ -519,44 +510,50 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     let read = upgraded
         .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
+    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(bodies(read.connection()), bodies_before);
+    assert_eq!(
+        crate::test_support::native_preservation_rows(read.connection()).unwrap(),
+        native_before
+    );
+    assert_eq!(
+        LocalStateRead::new(&read)
+            .saved_lists()
+            .get(&saved_list.list_key)
+            .unwrap()
+            .unwrap(),
+        saved_list
+    );
+    assert_eq!(
+        read.connection()
+            .query_row(
+                "SELECT count(*) FROM reference_component_digests",
+                [],
+                |row| row.get::<_, usize>(0)
+            )
+            .unwrap(),
+        0,
+        "schema-only upgrades leave component attestations unknown"
+    );
+    drop(read);
+    assert!(crate::test_support::open_reader(&path).is_err());
+    crate::test_support::publish_input(&path, &input).unwrap();
+    let read = upgraded
+        .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
     assert_eq!(read.reference_revision().unwrap(), revision + 1);
-    let mut after = table_values(read.connection()).unwrap();
-    assert!(
-        after
-            .remove("encounter_participant_baselines")
-            .unwrap()
-            .is_empty()
+    assert_eq!(bodies(read.connection()), bodies_before);
+    assert_eq!(
+        crate::test_support::native_preservation_rows(read.connection()).unwrap(),
+        native_before
     );
-    assert!(
-        after
-            .remove("encounter_recovery_receipts")
+    assert_eq!(
+        LocalStateRead::new(&read)
+            .saved_lists()
+            .get(&saved_list.list_key)
             .unwrap()
-            .is_empty()
-    );
-    assert!(
-        after
-            .remove("encounter_manual_trackers")
-            .unwrap()
-            .is_empty()
-    );
-    assert!(after.remove("encounter_turn_receipts").unwrap().is_empty());
-    assert!(
-        after
-            .remove("reference_component_digests")
-            .unwrap()
-            .is_empty(),
-        "schema-only upgrades must leave component attestations unknown"
-    );
-    assert!(
-        after == before,
-        "unexpected changed logical tables: {:?}; sqlite_sequence before: {:?}; after: {:?}",
-        before
-            .keys()
-            .chain(after.keys())
-            .filter(|key| before.get(*key) != after.get(*key))
-            .collect::<std::collections::BTreeSet<_>>(),
-        before.get("sqlite_sequence"),
-        after.get("sqlite_sequence")
+            .unwrap(),
+        saved_list
     );
     let context_after = read_stored_reference_context(read.connection())
         .unwrap()

@@ -52,7 +52,6 @@ pub struct Correspondence {
 #[derive(Deserialize)]
 pub struct JournalContext {
     pub locator: SourceContentLocator,
-    pub authored_sha256: String,
 }
 
 pub fn refine_context(contexts: &mut Vec<RecordRemasterContext>) {

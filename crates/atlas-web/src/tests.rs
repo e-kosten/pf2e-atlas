@@ -1354,14 +1354,6 @@ async fn compact_remaster_context_crosses_record_and_related_http_with_exact_jou
     );
     let (status,journal)=fixture.json(Method::POST,"/api/records/detail",Some(json!({"record_key":navigation["record_key"],"embedded_path":navigation["embedded_path"],"fields":[navigation["field"]]}))).await;
     assert_eq!(status, StatusCode::OK, "{journal}");
-    let (status, _) = fixture
-        .json(
-            Method::POST,
-            "/api/remaster/relationships",
-            Some(json!({"subject":{"kind":"term","term":"Old name"}})),
-        )
-        .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

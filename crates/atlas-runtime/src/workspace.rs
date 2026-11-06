@@ -630,6 +630,7 @@ mod tests {
             c.execute_batch("CREATE TABLE artifact_context(singleton INTEGER PRIMARY KEY,format_version INTEGER,context_hash TEXT,context_json TEXT);").unwrap();
             let mut context = atlas_search::test_support::context(false);
             context.selected_sections_recipe.clear();
+            context.remaster_inputs_identity.clear();
             let mut stored = serde_json::to_value(context).unwrap();
             stored["query_catalog_version"] = serde_json::json!(8);
             stored[field] = serde_json::json!(retired);
@@ -782,8 +783,14 @@ mod tests {
         assert_eq!(roles, vec!["description", "reset"]);
         drop(read);
         assert!(
-            atlas_index::ensure_reference_projections(&upgraded, WORKSPACE_SCHEMA_VERSION).unwrap()
+            !atlas_index::ensure_reference_projections(&upgraded, WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
         );
+        assert!(open_workspace_index(&path).is_err());
+        // The historical section backfill remains source-free, but new remaster
+        // authority requires an ordinary current publication before product reads.
+        atlas_index::test_support::publish_input_in(&upgraded, WORKSPACE_SCHEMA_VERSION, &input)
+            .unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         atlas_index::validate_reference(read.connection()).unwrap();
         let published_revision = read.reference_revision().unwrap();
@@ -809,9 +816,7 @@ mod tests {
     fn runtime_automatically_upgrades_core_without_source_models_or_changed_reference_values() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("core-runtime.sqlite");
-        register_extensions().unwrap();
-        let workspace = Workspace::at(&path).unwrap();
-        workspace.migrate(&MIGRATIONS[..20], |_| Ok(())).unwrap();
+        let workspace = initialize_workspace(&path).unwrap();
         let input = atlas_search::test_support::input_with_both_profiles(vec![
             atlas_search::test_support::record(
                 "actors",
@@ -819,12 +824,9 @@ mod tests {
                 serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Core creature","type":"npc","system":{"details":{"publicNotes":"<h2>Description</h2><p>A cold guardian.</p>","blurb":"Guardian"}}}),
             ),
         ]);
-        {
-            let owner = workspace.update_owner().unwrap();
-            let maintenance = owner.maintenance(20, "runtime Core fixture").unwrap();
-            atlas_index::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
-        }
-        let write = workspace.write(20).unwrap();
+        atlas_index::test_support::publish_input_in(&workspace, WORKSPACE_SCHEMA_VERSION, &input)
+            .unwrap();
+        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         LocalStateWrite::new(&write)
             .saved_lists()
             .create(NewSavedList {
@@ -835,47 +837,34 @@ mod tests {
             })
             .unwrap();
         let revision = write.reference_revision().unwrap();
-        let stable_values = |c: &rusqlite::Connection| {
-            let mut values = atlas_index::test_support::reference_preservation_rows(c).unwrap();
-            for table in [
-                "encounter_participant_adjustments",
-                "encounter_manual_trackers",
-                "encounter_participant_baselines",
-                "encounter_recovery_receipts",
-                "encounter_turn_receipts",
-                "reference_component_digests",
-            ] {
-                if let Some(rows) = values.remove(table) {
-                    assert!(rows.is_empty(), "unexpected rows in {table}");
-                }
-            }
-            values
-        };
-        let mut before = stable_values(write.connection());
-        let sequences = before.get_mut("sqlite_sequence").unwrap();
-        assert!(
-            !sequences.iter().any(|row| row[0]
-                == rusqlite::types::Value::Text("encounter_participant_conditions".into()))
+        let before =
+            atlas_index::test_support::reference_preservation_rows(write.connection()).unwrap();
+        let ledger = crate::test_support::sql_rows(
+            write.connection(),
+            "SELECT version,name,checksum FROM schema_migrations ORDER BY version",
         );
-        sequences.push(vec![
-            rusqlite::types::Value::Text("encounter_participant_conditions".into()),
-            rusqlite::types::Value::Integer(0),
-        ]);
-        sequences.sort_by_key(|row| match &row[0] {
-            rusqlite::types::Value::Text(name) => name.clone(),
-            _ => panic!("SQLite sequence name must remain text"),
-        });
-        let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        // Isolate the Core-only metadata contract from remaster preparation.
+        // A genuine historical publication instead remains blocked until setup,
+        // covered by the released-prefix and remaster upgrade tests.
+        let mut context = input.context.clone();
+        context.core_sections_recipe.clear();
+        write
+            .connection()
+            .execute(
+                "UPDATE artifact_context SET context_json=?,context_hash=?",
+                rusqlite::params![
+                    serde_json::to_string(&context).unwrap(),
+                    context.sha256().unwrap()
+                ],
+            )
+            .unwrap();
+        write
+            .connection()
+            .execute("DELETE FROM core_roots", [])
+            .unwrap();
         assert_eq!(
-            write
-                .connection()
-                .query_row(
-                    "SELECT count(*) FROM encounter_participant_adjustments",
-                    [],
-                    |row| row.get::<_, i64>(0)
-                )
-                .unwrap(),
-            0
+            atlas_index::classify_reference_upgrade(write.connection()).unwrap(),
+            atlas_index::ReferenceUpgrade::CoreProjections
         );
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
@@ -898,7 +887,10 @@ mod tests {
             reader.workspace_session().reference_revision().unwrap(),
             revision + 1
         );
-        let after = stable_values(reader.workspace_session().connection());
+        let after = atlas_index::test_support::reference_preservation_rows(
+            reader.workspace_session().connection(),
+        )
+        .unwrap();
         assert!(
             after == before,
             "unexpected changed logical tables: {:?}",
@@ -908,31 +900,13 @@ mod tests {
                 .filter(|key| before.get(*key) != after.get(*key))
                 .collect::<std::collections::BTreeSet<_>>()
         );
-        for table in [
-            "encounter_participant_baselines",
-            "encounter_recovery_receipts",
-            "encounter_turn_receipts",
-            "reference_component_digests",
-        ] {
-            assert_eq!(
-                reader
-                    .workspace_session()
-                    .connection()
-                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
-                        .get::<_, i64>(0))
-                    .unwrap(),
-                0
-            );
-        }
-        assert!(
-            reader
-                .workspace_session()
-                .connection()
-                .prepare("SELECT * FROM encounter_participant_adjustments")
-                .is_err()
+        assert_eq!(
+            crate::test_support::sql_rows(
+                reader.workspace_session().connection(),
+                "SELECT version,name,checksum FROM schema_migrations ORDER BY version",
+            ),
+            ledger
         );
-        let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-        assert_eq!(actual_ledger, ledger);
         assert_eq!(
             reader
                 .core_selection(

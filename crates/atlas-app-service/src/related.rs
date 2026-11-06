@@ -240,7 +240,10 @@ mod versions_tests {
                 }],
                 explanation_links: vec![RemasterExplanationLinkView {
                     label: "Remaster Changes — Spells".into(),
-                    navigation: selection.clone(),
+                    navigation: RecordNavigationView {
+                        record_key: "journals:cccccccccccccccc".into(),
+                        ..selection.clone()
+                    },
                 }],
                 truncated: false,
             }],

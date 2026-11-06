@@ -46,7 +46,6 @@ pub(crate) fn extract_prepared_aliases(
     capture: &crate::source_fingerprint::SourceCapture,
 ) -> Result<PreparedRemaster, IngestError> {
     let mut contexts = vec![];
-    let mut selected = BTreeMap::new();
     let audience = crate::build::default_audience();
     journals(&mut |record, outcomes| {
         for outcome in outcomes {
@@ -68,10 +67,6 @@ pub(crate) fn extract_prepared_aliases(
             else {
                 continue;
             };
-            selected.insert(
-                serde_json::to_string(&content.locator).map_err(error)?,
-                content.authored_markup_sha256.clone(),
-            );
             contexts.extend(journal_context(&section, content).map_err(error)?);
         }
         Ok(())
@@ -114,13 +109,19 @@ pub(crate) fn extract_prepared_aliases(
         {
             continue;
         }
-        let journal = entry
-            .journal_context
-            .filter(|j| {
-                selected.get(&serde_json::to_string(&j.locator).unwrap_or_default())
-                    == Some(&j.authored_sha256)
+        let journal = entry.journal_context.map(|j| j.locator).filter(|locator| {
+            contexts.iter().any(|c| {
+                c.record == entry.after
+                    && c.owners.is_empty()
+                    && c.journal.as_ref() == Some(locator)
+                    && c.targets.iter().any(|t| {
+                        t.record.as_ref() == Some(&entry.before)
+                            || (t.record.is_none()
+                                && normalize_record_name(&t.name)
+                                    == normalize_record_name(&entry.before_label))
+                    })
             })
-            .map(|j| j.locator);
+        });
         let old = RemasterTarget {
             name: entry.before_label,
             record: Some(entry.before.clone()),
@@ -188,10 +189,15 @@ pub(crate) fn extract_prepared_aliases(
             aliases.insert((
                 pair.remaster.clone(),
                 name.clone(),
-                format!(
-                    "atlas:crates/atlas-record/src/remaster/correspondences.json#{}",
-                    pair.legacy
-                ),
+                match &pair.provenance {
+                    Some(locator) => {
+                        format!("journal:{}", serde_json::to_string(locator).map_err(error)?)
+                    }
+                    None => format!(
+                        "atlas:crates/atlas-record/src/remaster/correspondences.json#{}",
+                        pair.legacy
+                    ),
+                },
             ));
         }
     }

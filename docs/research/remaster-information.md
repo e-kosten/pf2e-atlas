@@ -1,5 +1,9 @@
 # Remaster information: coverage and model review
 
+The model proposal below is a research snapshot, superseded by the compact design
+in [ADR0067](../architecture/decisions/0067-remaster-relationships.md). Its corpus
+findings remain useful; its declaration framework is not an implementation requirement.
+
 Research date: 2026-11-05. Atlas baseline: `344395cf917c840f7b2c10469c19200e2bbf4c16`
 (merged PR #213). Foundry source: `28d9d156f252d084371d994dc359509b49eadf18`,
 PF2e 8.6.1, English. This report separates observed behavior from proposed changes.

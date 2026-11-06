@@ -23,6 +23,10 @@ pub(super) fn database() -> Connection {
     db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
         .unwrap();
     db.execute_batch(crate::REMASTER_SCHEMA_SQL).unwrap();
+    db.execute_batch(crate::REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL)
+        .unwrap();
+    db.execute_batch(crate::COMPACT_REMASTER_SCHEMA_SQL)
+        .unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db
