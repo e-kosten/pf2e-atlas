@@ -448,7 +448,7 @@ it("keeps the document and Add candidate together until a replacement is ready, 
   const preview = screen.getByRole("region", { name: "Record preview" });
   await within(preview).findByRole("heading", { name: "ghoul" });
   const oldTitle = within(preview).getByRole("heading", { name: "ghoul" });
-  const frames: string[] = [];
+  const frames = [oldTitle.textContent?.trim() ?? "blank"];
   const observer = new MutationObserver(() =>
     frames.push(preview.querySelector("h2")?.textContent?.trim() ?? "blank"),
   );
@@ -473,7 +473,7 @@ it("keeps the document and Add candidate together until a replacement is ready, 
     });
     fireEvent.submit(screen.getByLabelText("Note").closest("form")!);
     expect(addSelected).not.toHaveBeenCalled();
-    await within(preview).findByText("Loading Ogre…");
+    await screen.findByText("Loading Ogre…");
     expect(within(preview).getByRole("heading", { name: "ghoul" })).toBe(oldTitle);
     await act(async () =>
       finish({

@@ -7,7 +7,6 @@ import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { type ReferenceReading } from "./useReferenceReading";
 import type { RecordSummaryView } from "../../generated/atlas";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
-import { useBrowseHeaderAlignment } from "./useBrowseHeaderAlignment";
 // The browse host owns layout, scroll and mobile return. Features own rows,
 // queries, selection and mutation semantics; no search DTO is required here.
 export function BrowseReader({
@@ -42,8 +41,6 @@ export function BrowseReader({
   positions?: BrowsePositions;
 }) {
   const narrow = !Grid.useBreakpoint().lg;
-  const root = useRef<HTMLDivElement>(null);
-  useBrowseHeaderAlignment(root, !narrow, Boolean(resultsHeader));
   const [closedRequest, setClosedRequest] = useState<ReferenceReading["request"]>();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
@@ -118,7 +115,7 @@ export function BrowseReader({
           rememberOpener(event.target);
       }}
     >
-      {resultsHeader && (
+      {narrow && resultsHeader && (
         <BrowsePaneHeader className="reference-results__header">
           {resultsHeader}
         </BrowsePaneHeader>
@@ -152,11 +149,33 @@ export function BrowseReader({
       positions={saved}
       onResults={narrow ? closeReader : undefined}
       active={!narrow || readerOpen}
+      renderLayout={
+        narrow
+          ? undefined
+          : (actions, content) => (
+              <>
+                <BrowsePaneHeader className="reference-browser__toolbar">
+                  {resultsHeader}
+                  <div className="reference-browser__reader-actions">{actions}</div>
+                </BrowsePaneHeader>
+                <Splitter
+                  styles={{
+                    root: { flex: 1, minHeight: 0, overflow: "clip" },
+                    panel: { overflow: "clip" },
+                  }}
+                >
+                  <Splitter.Panel defaultSize="35%" min="25%" max="55%">
+                    {results}
+                  </Splitter.Panel>
+                  <Splitter.Panel min="40%">{content}</Splitter.Panel>
+                </Splitter>
+              </>
+            )
+      }
     />
   );
   return (
     <div
-      ref={root}
       className="reference-browser"
       data-reading={narrow && readerOpen ? "true" : undefined}
     >
@@ -170,12 +189,7 @@ export function BrowseReader({
           </div>
         </>
       ) : (
-        <Splitter styles={{ root: { overflow: "clip" }, panel: { overflow: "clip" } }}>
-          <Splitter.Panel defaultSize="35%" min="25%" max="55%">
-            {results}
-          </Splitter.Panel>
-          <Splitter.Panel min="40%">{reader}</Splitter.Panel>
-        </Splitter>
+        reader
       )}
     </div>
   );

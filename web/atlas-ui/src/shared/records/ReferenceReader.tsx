@@ -39,6 +39,7 @@ export function ReferenceReader({
   returnToSelectionLabel = "Return to selection",
   showRelated = true,
   retryLabel,
+  renderLayout,
 }: {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
@@ -54,6 +55,7 @@ export function ReferenceReader({
   returnToSelectionLabel?: string;
   showRelated?: boolean;
   retryLabel?: string;
+  renderLayout?: (actions: ReactNode, reader: ReactNode) => ReactNode;
 }) {
   const preview = useRecordPreview();
   const { mode, tab } = useRecordExploreLocation();
@@ -378,55 +380,62 @@ export function ReferenceReader({
       )}
     </Space>
   );
-  return (
+  const header = (
+    <>
+      <div className="reference-reader__heading">
+        {onResults ? (
+          <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
+            Results
+          </Button>
+        ) : !renderLayout ? (
+          <Typography.Text type="secondary">{label}</Typography.Text>
+        ) : null}
+        {status}
+      </div>
+      <Space wrap>
+        {reading.canGoBack && (
+          <Button
+            onClick={() => {
+              rememberPosition();
+              reading.back();
+            }}
+            icon={<ArrowLeft size={14} />}
+          >
+            Back
+          </Button>
+        )}
+        {selectedRecordKey &&
+          reading.request &&
+          (recordReadingIdentity(
+            reading.request.navigation.record_key,
+            reading.request.navigation,
+          ) !== recordReadingIdentity(selectedRecordKey) ||
+            reading.request.match ||
+            reading.request.landing) && (
+            <Button
+              onClick={() => {
+                rememberPosition();
+                reading.select({ navigation: rootNavigation(selectedRecordKey) });
+              }}
+            >
+              {returnToSelectionLabel}
+            </Button>
+          )}
+        {(!showRelated || !detail) && documentActions}
+        {detail && readerHeaderActions}
+      </Space>
+    </>
+  );
+  const reader = (
     <section
       className={`reference-reader reference-reader--${recordLayout(detail?.presentation)}`}
       aria-label="Record preview"
     >
-      <BrowsePaneHeader className="reference-reader__header">
-        <div className="reference-reader__heading">
-          {onResults ? (
-            <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
-              Results
-            </Button>
-          ) : (
-            <Typography.Text type="secondary">{label}</Typography.Text>
-          )}
-          {status}
-        </div>
-        <Space wrap>
-          {reading.canGoBack && (
-            <Button
-              onClick={() => {
-                rememberPosition();
-                reading.back();
-              }}
-              icon={<ArrowLeft size={14} />}
-            >
-              Back
-            </Button>
-          )}
-          {selectedRecordKey &&
-            reading.request &&
-            (recordReadingIdentity(
-              reading.request.navigation.record_key,
-              reading.request.navigation,
-            ) !== recordReadingIdentity(selectedRecordKey) ||
-              reading.request.match ||
-              reading.request.landing) && (
-              <Button
-                onClick={() => {
-                  rememberPosition();
-                  reading.select({ navigation: rootNavigation(selectedRecordKey) });
-                }}
-              >
-                {returnToSelectionLabel}
-              </Button>
-            )}
-          {(!showRelated || !detail) && documentActions}
-          {detail && readerHeaderActions}
-        </Space>
-      </BrowsePaneHeader>
+      {!renderLayout && (
+        <BrowsePaneHeader className="reference-reader__header">
+          {header}
+        </BrowsePaneHeader>
+      )}
       <section
         className="reference-reader__scroll"
         {...contentFocus}
@@ -497,4 +506,5 @@ export function ReferenceReader({
       )}
     </section>
   );
+  return renderLayout ? renderLayout(header, reader) : reader;
 }

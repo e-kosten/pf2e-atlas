@@ -612,7 +612,7 @@ A single-entity page starts with the entity name and its actions. Do not put a
 generic Reference or Details bar above Allfood's title or a trait definition.
 Keep the action component mounted while the identity arrives or refreshes, so an
 open saved-list dialog survives the read. Use pane labels where they distinguish
-actual regions, such as search results and Preview.
+actual regions, such as encounter roster and turn details.
 
 Standalone record and trait pages use native document scrolling. DocumentPagePane
 and its card grow with the content; do not constrain the card to viewport height
@@ -630,13 +630,13 @@ keeps a long identity reachable while the body scrolls independently. Verify the
 title, close action and computed body/header insets after opening on phone and
 desktop; DOM presence and focus assertions do not establish visible geometry.
 
-Paired browse headers use BrowsePaneHeader. Its inner row owns control spacing
-and padding; BrowseReader owns the common header height through
-useBrowseHeaderAlignment. Measure natural rows so wrapping can grow both headers
-and unwrapping can shrink them again. Do not set independent fixed heights or
-match headers with feature-local padding. On phone only the visible pane needs
-its natural height. The results and Preview separators must align at each split
-width, including multi-row pagination and loading/empty results.
+BrowseReader uses one full-width BrowsePaneHeader above the desktop split.
+Results controls and reader navigation/status share its naturally wrapping row;
+the reader starts directly with its document, without a Preview label or a
+separately measured header. Both panes retain independent scrolling below the
+shared toolbar. On narrow layouts, the visible pane owns its header and the
+reader keeps the Results return control. Verify pagination, reader navigation
+and status through wrapping, pane resizing and loading/empty results.
 
 One action/control group uses one Ant size. Inputs, Selects, text buttons and
 icon buttons in a toolbar align at that size; icon-only and secondary do not imply
