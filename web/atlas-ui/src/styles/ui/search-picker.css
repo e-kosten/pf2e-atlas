@@ -122,3 +122,9 @@
   overflow: auto;
   overscroll-behavior: contain;
 }
+
+/* Expose context and search before scrolling; retain space for the result header
+   and a result row when the connected picker has a taller control stack. */
+.reference-picker .filter-toolbar:has(.link-picker-context) {
+  max-height: max(88px, calc(var(--atlas-modal-height) - 180px));
+}

@@ -7,7 +7,7 @@ import {
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
+import { Button, Form, Popover, Radio, Select, Typography } from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type {
   QueryRelationship,
@@ -38,7 +38,6 @@ export function LinkConditionPicker({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [scopeHelpOpen, setScopeHelpOpen] = useState(false);
   const scopeHelpTrigger = useRef<HTMLButtonElement>(null);
-  const { token } = theme.useToken();
   const [form] = Form.useForm<LinkFilterForm>();
   const [direction, setDirection] = useState<QueryRelationshipDirection>(
     initial?.direction ?? "incoming",
@@ -75,8 +74,7 @@ export function LinkConditionPicker({
   }
   const controls = (
     <>
-      <div>
-        <Typography.Text>Direction</Typography.Text>
+      <div className="link-picker-context__direction">
         <Radio.Group
           aria-label="Link filter direction"
           value={direction}
@@ -91,55 +89,8 @@ export function LinkConditionPicker({
         </Radio.Group>
       </div>
       <div className="link-picker-context__scope">
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: token.marginXXS,
-            maxWidth: "100%",
-          }}
-        >
-          <span>Link scope</span>
-          <Popover
-            trigger="click"
-            placement="top"
-            arrow={false}
-            open={scopeHelpOpen}
-            onOpenChange={setScopeHelpOpen}
-            title="Where Atlas checks for links"
-            styles={{ root: { width: 320, maxWidth: "calc(100vw - 32px)" } }}
-            content={
-              <div>
-                <Typography.Paragraph>
-                  <strong>
-                    {direction === "incoming" ? "Links to" : "Linked from"}
-                  </strong>{" "}
-                  {direction === "incoming"
-                    ? "finds records that contain a link to your selection."
-                    : "finds records that your selection links to."}
-                </Typography.Paragraph>
-                <Typography.Paragraph>
-                  <strong>Main entry only:</strong> {linkScopeCopy[direction].main}
-                </Typography.Paragraph>
-                <Typography.Paragraph style={{ marginBottom: 0 }}>
-                  <strong>Whole entry:</strong> {linkScopeCopy[direction].whole}
-                </Typography.Paragraph>
-              </div>
-            }
-          >
-            <Button
-              ref={scopeHelpTrigger}
-              type="text"
-              size="small"
-              icon={<QuestionCircleOutlined />}
-              aria-label="About link scope"
-              aria-expanded={scopeHelpOpen}
-              onKeyDown={scopeHelpKeyDown}
-              styles={{ root: { flexShrink: 0 } }}
-            />
-          </Popover>
-        </span>
         <Select
+          className="link-picker-context__scope-select"
           aria-label="Link filter scope"
           value={includeContents ? "whole" : "main"}
           onChange={(value) => {
@@ -147,12 +98,46 @@ export function LinkConditionPicker({
             setCandidate(null);
             setFeedback(selection ? "Link scope changed. Choose a record." : null);
           }}
-          style={{ width: "100%" }}
           options={[
             { value: "main", label: "Main entry only" },
             { value: "whole", label: "Whole entry" },
           ]}
         />
+        <Popover
+          trigger="click"
+          placement="top"
+          arrow={false}
+          open={scopeHelpOpen}
+          onOpenChange={setScopeHelpOpen}
+          title="Where Atlas checks for links"
+          styles={{ root: { width: 320, maxWidth: "calc(100vw - 32px)" } }}
+          content={
+            <div>
+              <Typography.Paragraph>
+                <strong>{direction === "incoming" ? "Links to" : "Linked from"}</strong>{" "}
+                {direction === "incoming"
+                  ? "finds records that contain a link to your selection."
+                  : "finds records that your selection links to."}
+              </Typography.Paragraph>
+              <Typography.Paragraph>
+                <strong>Main entry only:</strong> {linkScopeCopy[direction].main}
+              </Typography.Paragraph>
+              <Typography.Paragraph style={{ marginBottom: 0 }}>
+                <strong>Whole entry:</strong> {linkScopeCopy[direction].whole}
+              </Typography.Paragraph>
+            </div>
+          }
+        >
+          <Button
+            ref={scopeHelpTrigger}
+            type="text"
+            icon={<QuestionCircleOutlined />}
+            aria-label="About link scope"
+            aria-expanded={scopeHelpOpen}
+            onKeyDown={scopeHelpKeyDown}
+            styles={{ root: { flexShrink: 0 } }}
+          />
+        </Popover>
       </div>
     </>
   );
@@ -180,10 +165,15 @@ export function LinkConditionPicker({
       })}
       selectionContext={`${direction}:${includeContents}`}
       searchHeader={
-        <div className="link-picker-context" aria-label="Link matching">
+        <div className="link-picker-context" role="group" aria-label="Link matching">
           <div className="link-picker-context__fields">{controls}</div>
-          <Typography.Text type="secondary">
-            Connected to matching records
+          <Typography.Text
+            type="secondary"
+            className="link-picker-context__description"
+          >
+            {direction === "incoming"
+              ? "Choose an entry that matching records link to."
+              : "Choose an entry that links to matching records."}
           </Typography.Text>
         </div>
       }

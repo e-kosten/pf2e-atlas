@@ -2208,7 +2208,11 @@ interaction rather than hide a plain counter action.
 
 The link picker keeps its own search and ordinary filters, within entries connected
 to the parent results. Direction and link scope appear above search because they
-define the candidate corpus. Changing either clears the candidate with a short
+define the candidate corpus. Keep them in a compact row within the same toolbar
+frame, inset and background as search and filters; let the row wrap naturally.
+A quiet direction-specific sentence explains which entries the user is choosing.
+Avoid a separate form section with stacked labels or another inset. Changing
+either clears the candidate with a short
 explanation while retaining target filters. An untouched edit retains its exact
 embedded selection. The parent descriptor includes its complete criteria and any
 saved-list or enclosing picker scope; editing omits only that link occurrence.

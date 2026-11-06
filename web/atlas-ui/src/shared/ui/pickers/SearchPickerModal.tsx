@@ -367,7 +367,6 @@ export function SearchPickerModal<FormValues>({
         open={open}
         title={title}
       >
-        {searchHeader}
         <div
           className="reference-picker__workspace"
           data-initial-loading={initialLoading || undefined}
@@ -439,7 +438,9 @@ export function SearchPickerModal<FormValues>({
               filterDiscoveryLoading: discovery.loading,
               filterDiscoveryError: discovery.errorMessage,
             }}
-          />
+          >
+            {searchHeader}
+          </FilterControls>
           <div className="reference-picker__feedback">
             <SearchProfileNotice />
             {recordResults.error && (

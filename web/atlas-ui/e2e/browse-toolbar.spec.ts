@@ -326,12 +326,31 @@ test("link picker keeps target filters while refreshing its connected corpus and
   } finally {
     release();
   }
-  for (const width of [1440, 768, 390]) {
-    await page.setViewportSize({ width, height: 844 });
+  for (const [width, height] of [
+    [1440, 844],
+    [768, 844],
+    [390, 844],
+    [844, 390],
+    [320, 844],
+  ]) {
+    await page.setViewportSize({ width, height });
     await expect(
       picker.getByRole("combobox", { name: "Link filter scope", exact: true }),
     ).toBeVisible();
     await expect(search).toBeVisible();
+    await expect
+      .poll(() =>
+        picker.locator(".filter-toolbar").evaluate((toolbar) => {
+          const bottom = toolbar.getBoundingClientRect().bottom;
+          return [
+            toolbar.querySelector('[aria-label="Search records"]'),
+            toolbar.querySelector('[aria-label="Advanced filters"]'),
+          ].every(
+            (control) => control && control.getBoundingClientRect().bottom <= bottom,
+          );
+        }),
+      )
+      .toBe(true);
     await expect(
       picker.getByRole("button", { name: "Cancel", exact: true }),
     ).toBeVisible();
