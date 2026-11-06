@@ -164,10 +164,10 @@ export function LinkConditionPicker({
             {scope?.kind === "all_entries"
               ? scope.reason === "incomplete_draft"
                 ? "Searching all entries because some filter edits are incomplete."
-                : "Searching all entries because this condition is inside OR or a compound NOT group."
+                : "Searching all entries · Complex filter"
               : direction === "incoming"
-                ? "Choose an entry that records matching your filters link to."
-                : "Choose an entry that links to records matching your filters."}
+                ? "Entries your filtered records link to"
+                : "Entries that link to your filtered records"}
           </Typography.Text>
         </div>
       )}

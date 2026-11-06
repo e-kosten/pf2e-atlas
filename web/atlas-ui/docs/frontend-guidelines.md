@@ -930,7 +930,10 @@ Search and encounter selection share `ReferenceBrowser` and `useReferenceReading
 A compact common-filter toolbar sits above results and the generous reader. Search
 occupies its own row; common pickers and Advanced/Clear actions share a wrapping,
 top-aligned row underneath, including when selected chips add height. Use
-an icon beside the Advanced label. Clear is an icon with an accessible label and
+an icon beside the Advanced label. When additional applied conditions have no
+chip representation, show a centered dot inside Advanced with the shared soft
+selection treatment. Reserve the dot's space in the inactive state to keep the
+button width stable; describe it as “Additional filters applied.” Clear is an icon with an accessible label and
 tooltip, shown when criteria or unfinished drafts can be cleared; clearing returns
 keyboard focus to the retained Advanced control. Use
 native Ant Splitter on desktop; below the lg breakpoint show results or the reader,

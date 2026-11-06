@@ -422,23 +422,27 @@ export function FilterControls({
         {additionalFilters}
         <div className="filter-panel-actions">
           <Tooltip
-            title={advancedApplied ? "Advanced filters applied" : undefined}
+            title={advancedApplied ? "Additional filters applied" : undefined}
             trigger={["hover", "focus"]}
           >
             <Button
               ref={advancedTrigger}
               className="filter-controls__advanced"
+              data-applied={advancedApplied}
               color="default"
               variant="outlined"
               aria-description={
-                advancedApplied ? "Advanced filters applied" : undefined
+                advancedApplied ? "Additional filters applied" : undefined
               }
               icon={<FilterOutlined aria-hidden="true" />}
               onClick={() => setAdvanced(!advanced)}
               aria-expanded={advanced}
               aria-label="Advanced filters"
             >
-              Advanced{advancedApplied ? " · Applied" : ""}
+              <span className="filter-controls__advanced-label">
+                Advanced
+                <span className="filter-controls__advanced-dot" aria-hidden="true" />
+              </span>
             </Button>
           </Tooltip>
           {(search.filter ||

@@ -604,8 +604,33 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
       },
     ],
   });
+  await page.goto("/search");
+  const trigger = page.getByRole("button", { name: "Advanced filters", exact: true });
+  await expect(trigger).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const idleWidth = (await trigger.boundingBox())!.width;
+  await expect(trigger.locator(".filter-controls__advanced-dot")).toBeHidden();
   await page.goto(`/search?q=cat&filter=${encodeURIComponent(filter)}`);
-  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  await expect(trigger).toHaveAttribute(
+    "aria-description",
+    "Additional filters applied",
+  );
+  expect((await trigger.boundingBox())!.width).toBeCloseTo(idleWidth, 0);
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+    const dot = trigger.locator(".filter-controls__advanced-dot");
+    await expect(dot).toBeVisible();
+    const buttonBox = (await trigger.boundingBox())!;
+    const dotBox = (await dot.boundingBox())!;
+    expect(dotBox.x).toBeGreaterThan(buttonBox.x);
+    expect(dotBox.x + dotBox.width).toBeLessThan(buttonBox.x + buttonBox.width);
+    expect(
+      Math.abs(dotBox.y + dotBox.height / 2 - (buttonBox.y + buttonBox.height / 2)),
+    ).toBeLessThan(1);
+    expect(await renderedContrast(trigger)).toBeGreaterThanOrEqual(4.5);
+  }
+  await trigger.click();
   const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
   const response = page.waitForResponse(
     async (response) =>
@@ -615,9 +640,7 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
   await advanced.getByRole("button", { name: /Wovenwood Shield.*Whole entry/ }).click();
   const picker = page.getByRole("dialog", { name: "Edit link condition", exact: true });
   await expect(
-    picker.getByText(
-      "Searching all entries because this condition is inside OR or a compound NOT group.",
-    ),
+    picker.getByText("Searching all entries · Complex filter"),
   ).toBeVisible();
   const result = await response;
   expect(result.ok()).toBe(true);

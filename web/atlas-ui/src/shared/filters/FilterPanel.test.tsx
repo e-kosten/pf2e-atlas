@@ -276,9 +276,9 @@ describe("shared common and maintained advanced filters", () => {
       { layout: "toolbar" },
     );
     const advanced = screen.getByRole("button", { name: "Advanced filters" });
-    expect(advanced).toHaveAttribute("aria-description", "Advanced filters applied");
+    expect(advanced).toHaveAttribute("aria-description", "Additional filters applied");
     expect(screen.queryByText("Grouped filters")).toBeNull();
-    expect(screen.queryByText("Advanced filters applied")).toBeNull();
+    expect(screen.queryByText("Additional filters applied")).toBeNull();
     fireEvent.click(advanced);
     expect(screen.getByRole("dialog", { name: "Advanced filters" })).toBeVisible();
     expect(change).not.toHaveBeenCalled();

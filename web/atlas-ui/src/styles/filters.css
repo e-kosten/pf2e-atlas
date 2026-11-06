@@ -401,3 +401,25 @@
   justify-content: center;
   gap: var(--space-control);
 }
+
+.filter-controls__advanced-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.filter-controls__advanced-dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  visibility: hidden;
+}
+.filter-controls__advanced[data-applied="true"] {
+  background: var(--selection-bg);
+  color: var(--selection-text);
+  border-color: var(--selection-border);
+}
+.filter-controls__advanced[data-applied="true"] .filter-controls__advanced-dot {
+  visibility: visible;
+}
