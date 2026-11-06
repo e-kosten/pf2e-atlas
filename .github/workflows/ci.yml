@@ -81,7 +81,7 @@ jobs:
           cat selected-checks >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
       - name: Check reviewed embedding dependencies
         run: python3 scripts/validation/embedding-stack.py
       - name: Validation routing regression tests
@@ -165,7 +165,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
       - name: Scan Cargo and npm lockfiles
         run: python3 scripts/validation/dependency-audit.py
 
@@ -180,7 +180,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
       - run: node --test scripts/validation/skill.test.ts
       - run: node scripts/validation/skill.ts
 
@@ -195,7 +195,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
@@ -262,7 +262,7 @@ jobs:
           save-if: 'false'
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
       - uses: actions/download-artifact@v8
         with:
           name: web-bundle
@@ -294,7 +294,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
@@ -345,7 +345,7 @@ jobs:
       - uses: actions/setup-node@v7
         if: needs.changes.outputs.tooling == 'true'
         with:
-          node-version: 22
+          node-version: 26
       - name: Native Windows validation cancellation
         if: needs.changes.outputs.tooling == 'true'
         shell: bash
@@ -386,7 +386,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: web/atlas-ui/package-lock.json
       - name: Web UI verification
@@ -408,7 +408,7 @@ jobs:
           components: rustfmt
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: dev-tools/source-contracts/package-lock.json
       - name: Prepare repository Rust formatter
@@ -438,7 +438,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: dev-tools/release/package-lock.json
       - name: Install release tool dependencies
@@ -472,7 +472,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
       - run: sh scripts/validation/research.sh
 
   validation:

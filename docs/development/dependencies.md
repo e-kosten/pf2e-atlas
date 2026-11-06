@@ -6,6 +6,20 @@ Rust toolchain and `npm ci` for candidate validation. Follow the
 delivery. Release jobs generate notices from locked Cargo metadata and verify
 them in packaged assets. See [release tooling](../../dev-tools/release/README.md).
 
+## JavaScript toolchains
+
+CI and release tooling run on Node 26 LTS. The frontend also supports Node 22.18+
+and Node 24; its `engines` field defines the accepted versions for local commands.
+Use `npm ci` in each maintained package when switching checkouts or lockfiles.
+
+The frontend uses TypeScript 7's `tsc` command through the `@typescript/native`
+alias. Its `typescript` alias supplies Microsoft's TypeScript 6 compatibility
+package for ESLint and other compiler API consumers. Keep both aliases when
+updating the checker; TypeScript 7.0 does not supply that API. The source generator
+retains its separately pinned TypeScript 6 API and `tsc6` command; source-generation
+upgrades also require the identity and generated-model checks in
+[source research](source-research.md).
+
 ## Routine updates and advisories
 
 Dependabot checks Cargo, the three maintained npm packages, GitHub Actions and
