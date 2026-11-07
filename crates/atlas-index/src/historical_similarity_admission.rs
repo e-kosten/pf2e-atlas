@@ -45,6 +45,7 @@ impl Context {
         SourceArtifactBuildContext {
             reference_preparation: None,
             selected_sections_recipe: String::new(),
+            remaster_inputs_identity: String::new(),
             admission: None,
             core_sections_recipe: self.core_sections_recipe,
             trait_policy: self.trait_policy,
@@ -338,6 +339,7 @@ pub(crate) fn schema20_catalog() -> Result<BTreeMap<String, String>, IndexError>
             !matches!(
                 definition.id.as_str(),
                 "has_description"
+                    | "actions"
                     | "senses[].acuity"
                     | "senses[].range"
                     | "armor.group"

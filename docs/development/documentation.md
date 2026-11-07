@@ -103,6 +103,9 @@ triggers to read detailed owners. A link should say when it matters. A nested
 AGENTS file is not assumed loaded from a root-started task; root routing must
 identify it. CONTRIBUTING owns the development sequence. Skills describe how to
 perform a task and link to repository policy, rather than maintaining another copy.
+Keep contributor requirements tied to Atlas technical contracts and review evidence.
+Personal agent preferences, model choices, approval choreography and standing
+permissions belong in the contributor's own configuration, not shared guidance.
 
 State when a rule applies, the preferred action, and any consequential exception.
 Add a brief reason or example where it helps distinguish valid choices. Prefer an

@@ -24,6 +24,14 @@ pub(super) fn render_record(
     let mut out = String::new();
     let presentation = &record.presentation;
     identity(&mut out, &presentation.identity);
+    out.push_str(&crate::commands::remaster_presentation::lines(
+        &record.remaster_relationships,
+    ));
+    if let Some(context) = &record.source_remaster_context {
+        out.push_str(&crate::commands::remaster_presentation::source_context(
+            context,
+        ));
+    }
     if !record.selected.owners.is_empty() {
         line(&mut out, format!("From {}", record.record.title));
     }
@@ -444,6 +452,15 @@ pub(super) fn identity(out: &mut String, identity: &RecordSummaryView) {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
+        );
+    }
+    if let Some(edition) = identity.edition {
+        line(
+            out,
+            match edition {
+                atlas_app_model::RecordEditionView::Legacy => "Legacy",
+                atlas_app_model::RecordEditionView::Remaster => "Remaster",
+            },
         );
     }
     if let Some(publication) = &identity.publication

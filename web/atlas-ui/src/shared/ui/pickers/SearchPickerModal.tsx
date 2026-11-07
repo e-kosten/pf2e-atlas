@@ -323,7 +323,10 @@ export function SearchPickerModal<FormValues>({
   if (open && ready && !openingReady) setOpeningReady(true);
   const initialLoading = open && profileReady && !openingReady && !ready;
   const reset = () => {
-    setSearch({ ...DEFAULT_SEARCH_STATE, ranking: profile.preferences.ranking });
+    setSearch({
+      ...DEFAULT_SEARCH_STATE,
+      ranking: profile.preferences.ranking,
+    });
     setPageNumber(1);
     reading.inspect(null);
     onSelectionChange(null);

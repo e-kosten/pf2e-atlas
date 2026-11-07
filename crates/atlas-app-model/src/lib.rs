@@ -104,6 +104,11 @@ pub use dice::{
 mod embedded_reading;
 mod error;
 mod filter;
+mod remaster;
+pub use remaster::{
+    RemasterExplanationLinkView, RemasterInlinePartView, RemasterRelationshipView,
+    RemasterRelationshipsView, RemasterSourceContextView,
+};
 mod graph;
 mod list;
 mod party;
@@ -168,9 +173,8 @@ pub use filter::{
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
-    RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView, RemasterLinkView,
-    RemasterLinksView, RemasterProvenanceView, SearchResultsView, SimilarRecordsView,
-    VariantEvidenceView, VariantGroupView,
+    RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView, SearchResultsView,
+    SimilarRecordsView, VariantEvidenceView, VariantGroupView,
 };
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
@@ -344,7 +348,6 @@ mod tests {
         RecordRefResolutionView::export_all_to(path).expect("resolution bindings");
         GraphContextViewRequest::export_all_to(path).expect("graph request bindings");
         GraphContextView::export_all_to(path).expect("graph bindings");
-        RemasterLinksView::export_all_to(path).expect("remaster bindings");
         VariantGroupView::export_all_to(path).expect("variants bindings");
         SimilarRecordsView::export_all_to(path).expect("similar bindings");
         AppError::export_all_to(path).expect("AppError bindings should export");

@@ -182,7 +182,7 @@ fn inclusion_at_passage_target(html: &str) -> String {
     {
         element
             .attrs
-            .retain(|(name, _)| name.local.as_ref() != "data-atlas-passage-target");
+            .retain(|(name, _)| &*name.local != "data-atlas-passage-target");
         let mut name = element.name.clone();
         name.prefix = None;
         name.ns = Default::default();

@@ -1,0 +1,389 @@
+{
+  "entries": [
+    {
+      "before": "bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O",
+      "after": "bestiary-ability-glossary-srd:W7SbTykXrNwxDzJc",
+      "before_label": "Attack of Opportunity",
+      "source_type": "action",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary:x23aXeWTo026pMui",
+      "after": "pathfinder-monster-core:4n0nhynklrs2iHUJ",
+      "before_label": "Earth Mephit",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:xqnl2eFzy5H2NZoQ",
+      "after": "pathfinder-monster-core:WDBGcfNArKSpN7z0",
+      "before_label": "Shaitan",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:GyigGu36XLPV72nW",
+      "after": "pathfinder-monster-core:OCZR5r4EBUrt97Ai",
+      "before_label": "Djinni",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:KFf6pJmFmzj7HH9i",
+      "after": "pathfinder-monster-core:Fn5ZKPwiaXm242Np",
+      "before_label": "Water Mephit",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:cuET2PHGcE7eL7DJ",
+      "after": "pathfinder-monster-core:CAEdqhfZDfMLmEyS",
+      "before_label": "Marid",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "equipment-srd:ChIhgRwtnhTukICY",
+      "after": "equipment-srd:vAEQsYQbOYmqfIc0",
+      "before_label": "Liar's Demise",
+      "source_type": "consumable",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "a5XWVMjK5OsZciRi"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "d43cbcc6a8da4f60e95768378284c782535c176728f29b99fb3a1e43d411867d"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:tMxtnGthVV01wNQb",
+      "after": "pathfinder-monster-core:Ccjg08wVRO43YlTf",
+      "before_label": "Janni",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:k9fM0vufbdsDPQul",
+      "after": "pathfinder-monster-core:UwvAf8riRdMaitA4",
+      "before_label": "Fire Mephit",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:HFbZ580RDOG6Rxz2",
+      "after": "pathfinder-monster-core:NAKHn3jzuaZTerir",
+      "before_label": "Sea Devil Baron",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "feats-srd:yAgFDUU8HfVK4KTy",
+      "after": "feats-srd:Bm8votckjbge54bl",
+      "before_label": "Dragging Strike",
+      "source_type": "feat",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "8fgkR236jbcX08qz"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "e3637c563c956abc58fa7087fafd894c6e5ede64834a7806a02d9e4d0fa250d0"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:UrviURGu5o9LkhxN",
+      "after": "pathfinder-monster-core:VzkfSgbtsGV79WZH",
+      "before_label": "Sea Devil Brute",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:c0zqasudrwZU3fdw",
+      "after": "pathfinder-monster-core:oKaewcA4gu3fbSVP",
+      "before_label": "Efreeti",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "feats-srd:3vjOXL9ZD4ibaJL6",
+      "after": "feats-srd:ahyQpMVDIqhvXkQ4",
+      "before_label": "Green Empathy",
+      "source_type": "feat",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "8fgkR236jbcX08qz"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "e3637c563c956abc58fa7087fafd894c6e5ede64834a7806a02d9e4d0fa250d0"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:KDRlxdIUADWHI6Vr",
+      "after": "pathfinder-monster-core:MSm1im7lZA5i82rz",
+      "before_label": "Air Mephit",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary:PXru127aJljwKhSy",
+      "after": "pathfinder-monster-core:qRUezfNovWdrZtdt",
+      "before_label": "Sea Devil Scout",
+      "source_type": "npc",
+      "journal_context": {
+        "locator": {
+          "record": "journals:6L2eweJuM8W7OCf2",
+          "owners": [
+            {
+              "collection": "/pages",
+              "identity": {
+                "Stable": "tDGYzhXG3GV1M0gw"
+              }
+            }
+          ],
+          "field": "/text/content"
+        },
+        "authored_sha256": "3dd5ef9aa43ae38163c18bae028f8fccbe72e242bf835d274d08069e69598b3c"
+      }
+    },
+    {
+      "before": "pathfinder-bestiary-3:xIT2yHlwILLc5hgw",
+      "after": "pathfinder-dark-archive:3Oz62UCZeqwG6BzE",
+      "before_label": "Amalgamite",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary:x4mlZseBP5bWcy4H",
+      "after": "pathfinder-monster-core:8CYHgj4SV2LvlaUs",
+      "before_label": "Barghest",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary:Z7xWkQKCHGyd02B1",
+      "after": "pathfinder-monster-core:KCVKMVYRuq6huXGz",
+      "before_label": "Giant Mantis",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary-2:JgePINrFINmlsvn3",
+      "after": "pathfinder-monster-core-2:QIRi0t71ejowE10b",
+      "before_label": "Hound Of Tindalos",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary-3:LjpOnADaKe9ormfL",
+      "after": "pathfinder-dark-archive:OmN5yYg61HqlTcgW",
+      "before_label": "Kuchisake-Onna",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary-2:hvoIxruNUei1auQT",
+      "after": "pathfinder-monster-core-2:OsBQYnlQxDgVNxWp",
+      "before_label": "Melody On The Wind",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary:Jgh0WGVetNXi5jlM",
+      "after": "pathfinder-monster-core:dfshMY9yEEXOUoMo",
+      "before_label": "Quatoid",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "pathfinder-bestiary:x26dyZZZRvZpzK2X",
+      "after": "pathfinder-monster-core:G5OY8UMEOrbycZZc",
+      "before_label": "Quelaunt",
+      "source_type": "npc",
+      "journal_context": null
+    },
+    {
+      "before": "hazards:1egK7HFAFdHxMS9N",
+      "after": "pathfinder-monster-core-2:iFhJMyHC1nkQVrnb",
+      "before_label": "Sportlebore",
+      "source_type": "hazard",
+      "journal_context": null
+    }
+  ]
+}

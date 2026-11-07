@@ -35,7 +35,7 @@ SQL workers and bounds admission; the mutex releases before SQL ranking.
 
 Source selection and HTML interpretation belong to atlas-record. Artifact rows,
 SQLite vectors and persisted byte layout belong to atlas-index. Root aggregation,
-filter eligibility, ranking and remaster preference belong to atlas-search.
+filter eligibility and ranking belong to atlas-search.
 This crate retains no RichDocument, replacement source DTO or presentation tree.
 
 Run focused tests with `cargo test -p atlas-embedding`. Ignored execution tests

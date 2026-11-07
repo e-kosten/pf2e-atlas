@@ -17,7 +17,7 @@ The implementation supplies generated source evidence, canonical publication,
 offline migration, explicit setup freshness, source-free definition reads and exact
 query/discovery bindings. Rust projections retain raw values beside readable labels,
 communication notes, sense qualifiers, attribution and typed help destinations.
-See [ADR0067](../../architecture/decisions/0067-contextual-reference-definitions.md).
+See [ADR0068](../../architecture/decisions/0068-contextual-reference-definitions.md).
 
 Contextual reading uses the shared Drawer and mixed history with exact native
 destinations. Readable definitions have ordinary publication attribution and use the

@@ -1,9 +1,7 @@
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::AppErrorCode;
 use atlas_domain::{QueryPredicate, RecordKey};
-use atlas_search::{
-    GraphContextRequest, ListRecordsRequest, RemasterLinksRequest, SearchPage, VariantGroupRequest,
-};
+use atlas_search::{GraphContextRequest, ListRecordsRequest, SearchPage, VariantGroupRequest};
 impl AtlasAppService {
     pub fn list_records(
         &self,
@@ -75,18 +73,6 @@ impl AtlasAppService {
     {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             variant_group_view(r, &record_key)
-        })
-    }
-    pub fn remaster_links(
-        &self,
-        record_key: RecordKey,
-    ) -> AppServiceResult<Option<atlas_app_model::RemasterLinksView>> {
-        self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            r.remaster_links(RemasterLinksRequest {
-                record_key: &record_key,
-            })?
-            .map(|result| crate::remaster::links_view(result, r))
-            .transpose()
         })
     }
 }

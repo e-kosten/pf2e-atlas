@@ -108,7 +108,6 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
                     filter: Some(&filter),
                     scope: RecordScope::All,
                     page: SearchPage::new(number, 1).unwrap(),
-                    prefer_remaster: true,
                 })
                 .unwrap();
             assert_eq!(result.records.len(), 1);
@@ -139,7 +138,6 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
             filter: Some(&filter),
             scope: RecordScope::All,
             page: SearchPage::first(10).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap();
     assert_eq!(lexical.page.total, 3);
@@ -162,7 +160,6 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
             filter: Some(&filter),
             scope: RecordScope::All,
             page: SearchPage::first(10).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();

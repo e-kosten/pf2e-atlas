@@ -396,7 +396,7 @@ mod tests {
                 scope: atlas_search::RecordScope::All,
                 page: Default::default(),
                 sort: atlas_domain::ResultSort::Relevance {},
-                prefer_remaster: false,
+
                 cancelled: Some(&cancelled),
             },
             &execution,

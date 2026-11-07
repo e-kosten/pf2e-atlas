@@ -49,6 +49,15 @@ pub(crate) fn print_summary(view: &atlas_app_model::RecordSummaryView) {
             .unwrap_or_default()
     );
     println!("  {}", view.record_key);
+    if let Some(edition) = view.edition {
+        println!(
+            "  {}",
+            match edition {
+                atlas_app_model::RecordEditionView::Legacy => "Legacy",
+                atlas_app_model::RecordEditionView::Remaster => "Remaster",
+            }
+        );
+    }
 }
 pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow]) {
     for r in records {

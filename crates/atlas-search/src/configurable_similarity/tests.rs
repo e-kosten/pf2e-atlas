@@ -92,7 +92,7 @@ fn complete_candidate_union_above_4096_is_scored_when_actual_work_fits() {
         scope: RecordScope::All,
         page: SearchPage::first(10).unwrap(),
         sort: ResultSort::Relevance {},
-        prefer_remaster: false,
+
         cancelled: None,
     };
     let actual = service.configurable_similar(request());
@@ -201,7 +201,7 @@ fn compact_explanations_keep_first_32_rows_but_score_and_rank_all_65_components(
             scope: RecordScope::All,
             page: SearchPage::first(10).unwrap(),
             sort: ResultSort::Relevance {},
-            prefer_remaster: false,
+
             cancelled: None,
         })
         .unwrap()
@@ -522,7 +522,7 @@ fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
             scope: RecordScope::All,
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
-            prefer_remaster: false,
+
             cancelled: None,
         })
         .unwrap()
@@ -610,7 +610,7 @@ fn selecting_a_small_part_of_a_large_seed_reads_only_selected_vectors() {
             scope: RecordScope::All,
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
-            prefer_remaster: false,
+
             cancelled: None,
         })
     };
@@ -647,7 +647,7 @@ fn stale_parts_and_cancellation_are_explicit() {
         scope: RecordScope::All,
         page: SearchPage::default(),
         sort: ResultSort::Relevance {},
-        prefer_remaster: false,
+
         cancelled: None,
     };
     assert_eq!(
@@ -665,7 +665,7 @@ fn stale_parts_and_cancellation_are_explicit() {
         scope: RecordScope::All,
         page: SearchPage::default(),
         sort: ResultSort::Relevance {},
-        prefer_remaster: false,
+
         cancelled: Some(&cancelled),
     };
     assert_eq!(
@@ -687,7 +687,6 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: false,
         })
         .unwrap()
         .unwrap();
@@ -703,7 +702,7 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
             scope: RecordScope::All,
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
-            prefer_remaster: false,
+
             cancelled: None,
         })
         .unwrap()
@@ -780,7 +779,7 @@ fn trait_label_only_parts_use_stored_chunks_without_fabricating_record_navigatio
             scope: RecordScope::All,
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
-            prefer_remaster: false,
+
             cancelled: None,
         })
         .unwrap()
@@ -807,7 +806,7 @@ fn trait_label_only_parts_use_stored_chunks_without_fabricating_record_navigatio
             scope: RecordScope::All,
             page: Default::default(),
             sort: ResultSort::Relevance {},
-            prefer_remaster: false,
+
             cancelled: None,
         })
         .unwrap()
@@ -873,7 +872,7 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
         scope: RecordScope::All,
         page: SearchPage::default(),
         sort: ResultSort::Relevance {},
-        prefer_remaster: false,
+
         cancelled: None,
     };
     service.index.reset_read_metrics();

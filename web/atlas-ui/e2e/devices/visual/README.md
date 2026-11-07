@@ -5,6 +5,33 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Shared reader typography
+
+Reader outline links now inherit the 16px document size alongside other inline
+reader text. The condition checkpoints show those links, or exposed fragments
+behind dialogs. Independent review of all 40 before/candidate pairs per platform
+found no clipping, content, condition-control or modal-geometry regression.
+
+For each OS, 28 references change: all ten desktop Chromium and ten phone WebKit
+frames, plus the source, fallback and two recovery frames for phone Chromium and
+tablet WebKit. The other 12 retain their accepted bytes because they pass the
+existing comparator. Pixel thresholds and interaction assertions are unchanged.
+All 12 capture scenarios passed on each OS; all 12 ordinary macOS comparison
+scenarios passed after adoption. Ordinary hosted comparisons remain required.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.65.0, source
+  `b361c7d1038e98ca06670d9b96f2ca4bc68c61c5`. Authenticated fixture SHA-256:
+  `413f59d50423c501fec6a8c54252e5c5cba28d706e1cf7a99207f31c25a474c6`.
+- Ubuntu 24.04 x64, Playwright 1.65.0,
+  [capture 42290977712](https://github.com/e-kosten/pf2e-atlas/actions/runs/42290977712)
+  using CI 42288811326's authenticated fixture, synthetic merge
+  `008bd1763e89129feb795030283c7556d044ff57` (tree identical to the source above).
+  Fixture SHA-256:
+  `8204718ae4c388cad92b0c343861a43aaac8c8bfe40e54227b85607fbc250d5d`.
+
+Both use frontend index SHA-256:
+`0aa8974fde0e095ef940b09d32b6eacdb4dd5919789cb72b94258604cccbfbec`.
+
 ## Full Chromium headless mode
 
 Chromium projects use the lockfile-pinned full browser in its new headless mode

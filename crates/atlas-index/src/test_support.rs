@@ -215,6 +215,24 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 30,
+        name: "remaster-information",
+        sql: crate::REMASTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 31,
+        name: "remove-remaster-preference",
+        sql: crate::REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 32,
+        name: "compact-remaster-context",
+        sql: crate::COMPACT_REMASTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 33,
         name: "reference-entries",
         sql: crate::REFERENCE_ENTRIES_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -398,6 +416,9 @@ fn spool_input_in(
             },
         })?;
     }
+    for row in &input.remaster_context {
+        spool.remaster_context.push(row)?;
+    }
     for row in &input.aliases {
         spool.aliases.push(row)?;
     }
@@ -508,6 +529,7 @@ pub fn publish_pre_core_fixture(
         }
         context.core_sections_recipe.clear();
         context.selected_sections_recipe.clear();
+        context.remaster_inputs_identity.clear();
         connection.execute(
             "UPDATE artifact_context SET context_hash=?,context_json=?",
             rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
@@ -542,6 +564,7 @@ pub fn publish_pre_section_fixture(
         crate::historical_core_projection::write_core_sections(connection, input)?;
         let mut context = input.context.clone();
         context.selected_sections_recipe.clear();
+        context.remaster_inputs_identity.clear();
         connection.execute(
             "UPDATE artifact_context SET context_hash=?,context_json=?",
             rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
@@ -590,7 +613,8 @@ pub fn publish_historical_record_fixture(
                 connection.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN {column}"))?;
             }
         }
-        let mut context=input.context.clone();context.selected_sections_recipe.clear();context.core_sections_recipe.clear();
+        let mut context=input.context.clone();context.selected_sections_recipe.clear();
+        context.remaster_inputs_identity.clear();context.core_sections_recipe.clear();
         publish_schema20_catalog(connection, &mut context)?;
         connection.execute("UPDATE artifact_context SET context_hash=?,context_json=?",rusqlite::params![context.sha256()?,serde_json::to_string(&context)?])?;
         connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
@@ -831,4 +855,17 @@ pub(crate) fn fixture_native_values<'a>(
         )?;
     }
     Ok(selected.into_values().collect())
+}
+
+pub fn add_remaster_relationship(
+    input: &mut crate::IndexBuildInput,
+    old: &atlas_domain::RecordKey,
+    new: &atlas_domain::RecordKey,
+) -> Result<(), crate::IndexError> {
+    input.remaster_pairs.push(crate::SourceRemasterPairInput {
+        legacy: old.clone(),
+        remaster: new.clone(),
+        provenance: None,
+    });
+    Ok(())
 }

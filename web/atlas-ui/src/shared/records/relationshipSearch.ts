@@ -22,11 +22,16 @@ export function relationshipSearchRoute(
       : search.filter
         ? { kind: "all_of" as const, children: [search.filter, filter] }
         : filter;
-  if (route !== null && next === search.filter) return searchDestination(route);
+  if (route !== null && next === search.filter) {
+    return searchDestination({ ...route, query: `?${params}` });
+  }
   return searchDestination({
     selectedRecordKey: null,
     query: searchStateQueryString(
-      { ...search, filter: next },
+      {
+        ...search,
+        filter: next,
+      },
       profile ?? params.get("search_profile"),
     ),
   });

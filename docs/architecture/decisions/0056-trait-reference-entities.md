@@ -2,7 +2,7 @@
 
 Status: accepted; implemented in [PR93](https://github.com/e-kosten/pf2e-atlas/pull/93).
 The trait-only vocabulary/storage scope is amended by
-[ADR0067](0067-contextual-reference-definitions.md); specialized trait identity,
+[ADR0068](0068-contextual-reference-definitions.md); specialized trait identity,
 membership, references and semantic-seed behavior remain active.
 Date: 2026-10-20
 

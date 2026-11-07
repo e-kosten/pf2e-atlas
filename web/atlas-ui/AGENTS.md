@@ -28,6 +28,7 @@ read the relevant sections below before changing their behavior.
 | Errors, unavailable states, retries or recovery    | [Error feedback and recovery](docs/frontend-guidelines.md#error-feedback-and-recovery)                                                            |
 | Navigation, native links or browser history        | [Routing and navigation](docs/frontend-guidelines.md#routing-and-navigation)                                                                      |
 | Repeated controls, toolbars or destructive actions | [Shared UI layer](docs/frontend-guidelines.md#shared-ui-layer)                                                                                    |
+| Text-adjacent information or help icons            | [Inline context actions](docs/frontend-guidelines.md#inline-context-actions)                                                                      |
 | Inline editing and persistent edit cues            | [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values)                                                              |
 | CSS, scroll containers, insets and content frames  | [Styling](docs/frontend-guidelines.md#styling) and [padding ownership](docs/frontend-guidelines.md#padding-and-control-group-ownership)           |
 | Small tasks, dialogs, popovers or drawers          | [Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface)                                                    |
@@ -38,11 +39,9 @@ read the relevant sections below before changing their behavior.
 
 ## Feedback and validation
 
-For substantive visible UI work, share an early functional preview and obtain
-user feedback before expensive final validation. Minimal UI changes and internal
-refactors can skip that checkpoint or offer a later preview. Keep existing tests
-enabled and disclose unfinished behavior; the checkpoint does not establish final
-acceptance or replace independent review.
+Use a functional preview to review affected browser flows and presentation. Keep
+existing tests enabled and disclose unfinished behavior. Preview feedback does
+not establish final acceptance or replace independent review.
 
 For frontend-only work, reuse a compatible running backend with Vite hot reload.
 Human previews use the full-corpus development workspace and verified query models;
@@ -63,9 +62,9 @@ applicable device/browser matrix by default. Use
 [validation](../../docs/development/validation.md) for selection, commands and
 failure diagnosis. Preserve tracked visual references during refactors.
 
-Obtain independent subagent review and fix confirmed findings before opening the
-PR; local logical commits do not require that review gate. Presentation changes
-also require Astra visual/interaction review with actual browser inspection.
+Obtain independent review and fix confirmed findings before marking the PR ready
+for merge. Presentation changes require visual and interaction review with actual
+browser inspection.
 Report candidate, viewports, input methods and unavailable evidence honestly:
 automated checks, emulation, actual devices, human feedback and hosted CI are
 different evidence.

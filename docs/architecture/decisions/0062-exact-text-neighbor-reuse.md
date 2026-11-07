@@ -25,8 +25,8 @@ Hashes accelerate lookup; complete encoded bytes determine equality.
 
 Each k is independent: a larger native result cannot supply a smaller window by
 slicing, because cutoff ties belong to native selection. Page size/number, result
-ordering and fusion choices are downstream. Preferred-root window stopping and
-final remaster suppression still run for each request. Query inference, token/model
+ordering and fusion choices are downstream. Matching-root window stopping still
+runs for each request. Query inference, token/model
 checks, lexical membership, ranking, hydration, snippets and relationship evidence
 retain their existing owners and validation.
 

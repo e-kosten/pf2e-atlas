@@ -1,11 +1,12 @@
 import { ReferenceHelpLink, ReferenceValue, ReferenceValues } from "./ReferenceHelp";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
+import { InlineContext, InlineIconButton } from "../ui/actions/InlineAction";
 import { ValueExplanation } from "../ui/ValueExplanation";
 import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
-import { Tooltip, Alert, Button, Collapse, Popover, Typography } from "antd";
+import { Alert, Button, Collapse, Popover, Typography } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
@@ -556,38 +557,41 @@ export function ActorSkills({
                   )
                     ? ` · conditional modifiers ${factText(skill.conditional)}`
                     : ""}
-                  {skill.conditional.value?.map((conditional, index) => (
-                    <span key={index}>
-                      {" · "}
-                      <NumberFact fact={conditional.modifier} signed />{" "}
-                      {conditional.label.state === "value" &&
+                  {skill.conditional.value?.map((conditional, index) => {
+                    const label =
+                      conditional.label.state === "value" &&
                       !conditional.label.value?.trim()
                         ? "Unspecified condition"
-                        : factText(conditional.label)}
-                      {!["missing", "not_applicable"].includes(
+                        : factText(conditional.label);
+                    const qualification =
+                      !["missing", "not_applicable"].includes(
                         conditional.qualification.state,
-                      ) &&
-                        hasReadingFact(conditional.qualification) && (
-                          <Popover
-                            title="Condition details"
-                            content={factText(conditional.qualification)}
-                            trigger="click"
-                          >
-                            <Tooltip
-                              title={`${sentenceCase(skill.label)}: condition details`}
-                              trigger={["hover", "focus"]}
-                            >
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={<InfoCircleOutlined />}
-                                aria-label={`${sentenceCase(skill.label)}: condition details`}
-                              />
-                            </Tooltip>
-                          </Popover>
-                        )}
-                    </span>
-                  ))}
+                      ) && hasReadingFact(conditional.qualification);
+                    return (
+                      <span key={index}>
+                        {" · "}
+                        <NumberFact fact={conditional.modifier} signed />{" "}
+                        <InlineContext
+                          actions={
+                            qualification ? (
+                              <Popover
+                                title="Condition details"
+                                content={factText(conditional.qualification)}
+                                trigger="click"
+                              >
+                                <InlineIconButton
+                                  icon={<InfoCircleOutlined />}
+                                  label={`${sentenceCase(skill.label)}: condition details`}
+                                />
+                              </Popover>
+                            ) : null
+                          }
+                        >
+                          {label}
+                        </InlineContext>
+                      </span>
+                    );
+                  })}
                 </FactRow>
               </div>
             ))}

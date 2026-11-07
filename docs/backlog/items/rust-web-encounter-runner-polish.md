@@ -57,7 +57,7 @@ The substantial known follow-ups have their own owners:
 
 Use earlier integration/AO work as feature inspiration, not correctness evidence.
 Discuss material UX changes first, provide an early functional checkpoint, and
-complete Astra browser review and final tests after the direction is accepted.
+complete browser interaction/visual review and final tests after the direction is accepted.
 Keep existing Ant controls and shared family renderers; do not introduce another
 stat block or feature-local overlay design.
 

@@ -25,7 +25,7 @@ pub struct SimilarTraitRequest<'a> {
     pub filter: Option<&'a QueryPredicate>,
     pub scope: RecordScope<'a>,
     pub page: SearchPage,
-    pub prefer_remaster: bool,
+
     pub ranking: SearchRanking,
 }
 pub struct SimilarTraitResult {
@@ -91,8 +91,7 @@ impl AtlasRetrievalService {
             mode: crate::RetrievalMode::Vector,
             query: &predicate,
             scope: request.scope,
-            prefer: request.prefer_remaster,
-            suppress: true,
+
             vector: Some(&vector),
             exclude: None,
         })?;
@@ -168,7 +167,7 @@ mod tests {
                 filter: None,
                 scope: RecordScope::All,
                 page: SearchPage::default(),
-                prefer_remaster: true,
+
                 ranking: SearchRanking::Score,
             })
             .unwrap()
@@ -193,7 +192,7 @@ mod tests {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
+
             ranking: SearchRanking::Score,
         });
         assert_eq!(

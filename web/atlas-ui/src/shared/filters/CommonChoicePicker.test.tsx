@@ -161,7 +161,7 @@ describe("compact common choice picker", () => {
                     { value: "fire", label: "Fire" },
                     { value: "cold", label: "Cold" },
                   ],
-              basis: "product_key_scope_before_edition_preference",
+              basis: "product_key_scope",
             },
           },
     );
@@ -592,7 +592,7 @@ describe("compact common choice picker", () => {
           { value: "fire", label: "Fire" },
           { value: "cold", label: "Cold" },
         ],
-        basis: "product_key_scope_before_edition_preference",
+        basis: "product_key_scope",
       },
     });
     await waitFor(() =>

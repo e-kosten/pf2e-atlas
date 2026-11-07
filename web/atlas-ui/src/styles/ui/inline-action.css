@@ -1,0 +1,50 @@
+.inline-icon-action.ant-btn.ant-btn-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: max(24px, 1.5em);
+  block-size: max(24px, 1.5em);
+  min-inline-size: max(24px, 1.5em);
+  padding: 0;
+  font-size: inherit;
+  line-height: 1;
+  vertical-align: middle;
+}
+.inline-icon-action.ant-btn .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  line-height: 1;
+}
+.inline-icon-action.ant-btn svg {
+  inline-size: 1em;
+  block-size: 1em;
+}
+.inline-context-tail {
+  white-space: nowrap;
+}
+.inline-context-content {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.inline-context-actions {
+  margin-inline-start: var(--space-micro);
+  white-space: nowrap;
+}
+.inline-context-actions > * + * {
+  margin-inline-start: var(--space-micro);
+}
+
+.inline-context-tail--rich {
+  display: inline-flex;
+  align-items: last baseline;
+  max-inline-size: 100%;
+  vertical-align: baseline;
+}
+.inline-context-tail--rich > .inline-context-content {
+  min-inline-size: 0;
+}
+.inline-context-tail--rich > .inline-context-actions {
+  flex: none;
+}

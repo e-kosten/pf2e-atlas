@@ -157,7 +157,7 @@ fn filter_value_pages_distinguish_pagination_from_count_coverage() {
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
     assert!(text.contains("Next page: repeat with --offset 2"), "{text}");
-    assert!(text.contains("before remaster suppression"), "{text}");
+    assert!(text.contains("Source availability (root):"), "{text}");
     let json = f.data(&[
         "filters", "values", "--field", "rarity", "--limit", "2", "--json",
     ]);

@@ -17,6 +17,12 @@ pub(super) struct RecordResponse<'a> {
     pub content: RecordContent<'a>,
     pub relationships: &'a [RecordRelationshipView],
     pub relationships_truncated: bool,
+    pub remaster_relationships:
+        &'a atlas_app_model::RelatedCategoryView<atlas_app_model::RemasterRelationshipsView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_remaster_context: Option<
+        &'a atlas_app_model::RelatedCategoryView<atlas_app_model::RemasterSourceContextView>,
+    >,
 }
 
 #[derive(Serialize)]
@@ -43,6 +49,8 @@ impl<'a> From<&'a RecordDetailView> for RecordResponse<'a> {
             },
             relationships: &detail.relationships,
             relationships_truncated: detail.relationships_truncated,
+            remaster_relationships: &detail.remaster_relationships,
+            source_remaster_context: detail.source_remaster_context.as_ref(),
         }
     }
 }

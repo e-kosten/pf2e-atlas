@@ -158,8 +158,9 @@ export function buildSavedListFilterDiscoveryContext(
   state: SearchFormState,
 ): FilterDiscoveryContext {
   return {
-    ...buildFilterDiscoveryContext({ ...state, searchContent: "all" }),
     kind: "saved_list",
+    filter: state.filter,
+    text: state.query.trim() || null,
     list_ref,
     mode: "lexical",
   };

@@ -31,8 +31,7 @@ correlating conditions on an authored child collection.
 
 Index owns parameterized eligibility over existing resolved relationship occurrences
 and the ordinary expression compiler. This complete expression feeds browse,
-lexical and vector retrieval before candidate admission, verified-edition preference,
-ordering and pagination. Saved-list membership intersects that same eligibility.
+lexical and vector retrieval before candidate admission, ordering and pagination. Saved-list membership intersects that same eligibility.
 There is no parallel relationship request array, capped neighbor-key filter, second
 query evaluator or relationship-specific artifact projection.
 
@@ -56,8 +55,8 @@ it does not establish the absence of unresolved or external references.
 Nonsemantic results are exhaustive distinct product roots. Repeated occurrences,
 multiple owners and multiple matching leaves never inflate root counts. Existing
 semantic/hybrid coverage remains bounded and labelled through its normal contract.
-References do not change ranking or invent semantic matches. Edition preference
-cannot replace an exact destination with a record lacking the matching edge.
+References do not change ranking or invent semantic matches. Exact destination
+eligibility requires the matching edge.
 
 ## Evidence, counts and selection lifetime
 
@@ -88,7 +87,7 @@ Contextual counts, value discovery and field statistics retain the complete
 expression and optional saved-list scope. Existing self-exclusion rules and typed
 unavailability for unsupported OR/compound-negative suggestion contexts remain;
 unsupported suggestions do not weaken the executable query. Option counts retain
-distinct-root and per-option edition-preference semantics. Field statistics retain
+distinct-root and per-option matching eligibility semantics. Field statistics retain
 their existing basis. Count-free vocabulary keeps its independent artifact/list
 scope. Existing text/Similar count availability policies remain unchanged.
 

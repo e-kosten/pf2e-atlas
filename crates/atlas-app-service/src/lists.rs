@@ -4,9 +4,9 @@ use atlas_app_model::{
     AddSavedListItemRequest, AppErrorCode, BatchAddSavedListItemsRequest, BatchSavedListItemInput,
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
-    ImportSavedListView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
-    RemoveSavedListItemRequest, ReorderSavedListItemPlacementView, ReorderSavedListItemRequest,
-    SavedListCreateView, SavedListDetailView, SavedListExportDocumentView, SavedListExportItemView,
+    ImportSavedListView, RecordResolutionAmbiguousView, RemoveSavedListItemRequest,
+    ReorderSavedListItemPlacementView, ReorderSavedListItemRequest, SavedListCreateView,
+    SavedListDetailView, SavedListExportDocumentView, SavedListExportItemView,
     SavedListExportListView, SavedListIndexView, SavedListItemMutationOutcomeView,
     SavedListItemMutationView, SavedListItemNoteView, SavedListItemSnapshotView,
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
@@ -27,7 +27,6 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use crate::error::{AppServiceError, AppServiceResult};
-use crate::projection::record_summary_view;
 use crate::service::AtlasAppService;
 
 impl AtlasAppService {
@@ -859,7 +858,6 @@ fn searched_saved_list_records(
             scope: RecordScope::Keys(&record_keys),
             page,
             mode: RetrievalMode::Fts,
-            prefer_remaster: true,
         })?;
         for record in result.records {
             if scoped_keys.contains(&record.record.key) {
@@ -899,7 +897,11 @@ fn resolve_record_ref(
             ));
         }
         RecordRefResolutionResult::Ambiguous(matches) => {
-            return Err(record_resolution_ambiguous_error(&record_ref, matches));
+            return Err(record_resolution_ambiguous_error(
+                &record_ref,
+                matches,
+                retrieval,
+            ));
         }
     };
     let records = retrieval.get_records(GetRecordsRequest {
@@ -916,12 +918,13 @@ fn resolve_record_ref(
 fn record_resolution_ambiguous_error(
     record_ref: &str,
     matches: Vec<atlas_search::RecordResolutionResult>,
+    retrieval: &atlas_search::AtlasRetrievalService,
 ) -> AppServiceError {
     let details = RecordResolutionAmbiguousView {
         record_ref: record_ref.to_string(),
         matches: matches
             .into_iter()
-            .map(record_resolution_candidate_view)
+            .map(|value| crate::projection::resolution_view(value, retrieval))
             .collect(),
     };
     let details = serde_json::to_value(details).unwrap_or_else(|_| {
@@ -937,24 +940,6 @@ fn record_resolution_ambiguous_error(
         )
         .with_details(details),
     )
-}
-
-fn record_resolution_candidate_view(
-    resolution: atlas_search::RecordResolutionResult,
-) -> RecordResolutionCandidateView {
-    RecordResolutionCandidateView {
-        record: record_summary_view(&resolution.record),
-        query: resolution.query,
-        normalized_query: resolution.normalized_query,
-        match_kind: match resolution.match_kind {
-            atlas_search::RecordResolutionMatchKind::Name => "name",
-            atlas_search::RecordResolutionMatchKind::NormalizedName => "normalized_name",
-            atlas_search::RecordResolutionMatchKind::Alias => "alias",
-        }
-        .into(),
-        matched_text: resolution.matched_text,
-        evidence: resolution.evidence,
-    }
 }
 
 fn saved_list_not_found(list_ref: &str) -> AppServiceError {

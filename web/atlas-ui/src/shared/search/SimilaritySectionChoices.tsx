@@ -69,7 +69,9 @@ export function SimilaritySectionChoices({
                       strong={singleSection}
                       href={destinationHref(
                         seed.kind === "trait"
-                          ? traitDestination({ traitKey: seed.trait_key })
+                          ? traitDestination({
+                              traitKey: seed.trait_key,
+                            })
                           : recordDestination({
                               recordKey: seed.record_key,
                               selection: part.navigation ?? undefined,

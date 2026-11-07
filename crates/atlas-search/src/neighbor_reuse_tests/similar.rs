@@ -25,7 +25,6 @@ fn record_request(key: &RecordKey) -> SimilarRecordRequest<'_> {
         filter: None,
         scope: RecordScope::All,
         page: SearchPage::first(10).unwrap(),
-        prefer_remaster: true,
     }
 }
 
@@ -38,7 +37,7 @@ fn trait_request(key: &TraitKey) -> SimilarTraitRequest<'_> {
         filter: None,
         scope: RecordScope::All,
         page: SearchPage::first(10).unwrap(),
-        prefer_remaster: true,
+
         ranking: SearchRanking::Score,
     }
 }
@@ -109,27 +108,14 @@ fn with_traits() -> atlas_index::IndexBuildInput {
     data
 }
 
-fn transitions() -> Vec<(SearchPage, ResultSort, bool)> {
+fn transitions() -> Vec<(SearchPage, ResultSort)> {
     vec![
-        (
-            SearchPage::first(1).unwrap(),
-            ResultSort::Relevance {},
-            true,
-        ),
-        (
-            SearchPage::first(10).unwrap(),
-            ResultSort::Relevance {},
-            true,
-        ),
-        (
-            SearchPage::new(2, 1).unwrap(),
-            ResultSort::Relevance {},
-            true,
-        ),
+        (SearchPage::first(1).unwrap(), ResultSort::Relevance {}),
+        (SearchPage::first(10).unwrap(), ResultSort::Relevance {}),
+        (SearchPage::new(2, 1).unwrap(), ResultSort::Relevance {}),
         (
             SearchPage::first(3).unwrap(),
             ResultSort::Random { seed: 42 },
-            true,
         ),
         (
             SearchPage::first(2).unwrap(),
@@ -137,7 +123,6 @@ fn transitions() -> Vec<(SearchPage, ResultSort, bool)> {
                 atlas_domain::SortField::Level,
                 atlas_domain::SortDirection::Desc,
             ),
-            false,
         ),
     ]
 }
@@ -150,14 +135,14 @@ fn record_preview_full_page_and_sort_reuse_exact_windows_for_both_profiles_and_c
     let key = "items:0000000000000000".parse().unwrap();
     for profile in ["bge-base", "embeddinggemma"] {
         for content_scope in [SearchContentScope::All, SearchContentScope::Core] {
-            for (i, (page, sort, prefer)) in transitions().into_iter().enumerate() {
+            for (i, (page, sort)) in transitions().into_iter().enumerate() {
                 let cached = open_native(&artifact.path(), Some(&store), profile);
                 let cold = open_native(&artifact.path(), None, profile);
                 let request = || SimilarRecordRequest {
                     content_scope,
                     page,
                     sort: sort.clone(),
-                    prefer_remaster: prefer,
+
                     ..record_request(&key)
                 };
                 let actual = cached.similar_records(request()).unwrap().unwrap();
@@ -231,7 +216,7 @@ fn trait_preview_full_and_paging_reuse_neighbors_with_current_seed_presentation(
     let store = Arc::new(NativeNeighborReuse::default());
     for profile in ["bge-base", "embeddinggemma"] {
         for content_scope in [SearchContentScope::All, SearchContentScope::Core] {
-            for (i, (page, sort, prefer)) in transitions().into_iter().enumerate() {
+            for (i, (page, sort)) in transitions().into_iter().enumerate() {
                 // Fire and Flame intentionally have identical native vectors.
                 let key = TraitKey::new(if i == 0 { "fire" } else { "flame" }).unwrap();
                 let cached = open_native(&artifact.path(), Some(&store), profile);
@@ -240,7 +225,7 @@ fn trait_preview_full_and_paging_reuse_neighbors_with_current_seed_presentation(
                     content_scope,
                     page,
                     sort: sort.clone(),
-                    prefer_remaster: prefer,
+
                     ranking: if i == 2 {
                         SearchRanking::Rrf
                     } else {
@@ -437,7 +422,7 @@ fn advanced_similar_keeps_its_distinct_candidate_path_with_an_empty_or_warm_stor
                     scope: RecordScope::All,
                     page: SearchPage::first(10).unwrap(),
                     sort: ResultSort::Relevance {},
-                    prefer_remaster: true,
+
                     cancelled: None,
                 };
                 let actual = cached.configurable_similar(request()).unwrap().unwrap();

@@ -41,6 +41,7 @@ export function RecordDetailPane({
   onRankChange,
   compact = false,
   showRelated = true,
+  showRemasterNotice = true,
   landing,
   onLandingReady,
   onOwnerReturn,
@@ -77,6 +78,7 @@ export function RecordDetailPane({
   onRankChange?: (rank: number | undefined) => void;
   compact?: boolean;
   showRelated?: boolean;
+  showRemasterNotice?: boolean;
   landing?: import("../../generated/atlas").RecordNavigationView;
   onLandingReady?: (target?: HTMLElement) => void;
   onOwnerReturn?: (
@@ -132,15 +134,18 @@ export function RecordDetailPane({
                 )
               : undefined
           }
+          readingNotice={
+            showRemasterNotice &&
+            detail && (
+              <RecordEditionNotice
+                detail={detail}
+                onReference={onReference}
+                onReload={onReload}
+              />
+            )
+          }
           status={
             <>
-              {detail && (
-                <RecordEditionNotice
-                  detail={detail}
-                  onReference={onReference}
-                  onReload={onReload}
-                />
-              )}
               {detail && loading && (
                 <div className="detail-refresh" aria-label="Updating record">
                   <Spin size="small" delay={500} />
@@ -268,20 +273,28 @@ function RecordReadingContent({
   children,
   identity,
   status,
+  readingNotice,
 }: {
   enabled: boolean;
   explore: ReactNode;
   children: ReactNode;
   identity?: (action: ReactNode) => ReactNode;
   status?: ReactNode;
+  readingNotice?: ReactNode;
 }) {
   return enabled ? (
-    <RecordReadingWorkspace explore={explore} identity={identity} status={status}>
+    <RecordReadingWorkspace
+      explore={explore}
+      identity={identity}
+      status={status}
+      readingNotice={readingNotice}
+    >
       {children}
     </RecordReadingWorkspace>
   ) : (
     <>
       {status}
+      {readingNotice}
       {children}
     </>
   );

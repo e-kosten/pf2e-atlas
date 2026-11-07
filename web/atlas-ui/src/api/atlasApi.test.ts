@@ -173,7 +173,7 @@ describe("source-backed API transport", () => {
         options: [{ value: "fire" }],
         selected_values: ["absent"],
         total_values: 1,
-        basis: "product_artifact_before_edition_preference",
+        basis: "product_artifact",
       },
     });
     const result = await discoverFilterValues(
@@ -760,8 +760,9 @@ describe("source-backed API transport", () => {
       selection: detail.selected,
       artifact_generation: detail.artifact_generation,
       seed: detail.record,
+      show_versions: false,
       references: { kind: "empty" },
-      counterparts: { kind: "empty" },
+      remaster_relationships: { kind: "empty" },
       variants: { kind: "empty" },
     });
     await getRelatedRecords(

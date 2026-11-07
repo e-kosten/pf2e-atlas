@@ -179,6 +179,7 @@ test("variant comparison bounds complete documents on wide screens and stays rea
       response,
       json: {
         ...related,
+        show_versions: true,
         variants: {
           kind: "content",
           content: {
@@ -2057,6 +2058,12 @@ test("record picker saves an optional entry note and brings the changed list fir
     const choices = page.locator(".ant-select-item-option-content");
     await expect(choices.first()).toHaveText(`Alpha ${suffix}`);
     await activate(choices.filter({ hasText: `Zulu ${suffix}` }), info);
+    await expect(dialog.locator(".record-destination-picker__select")).toContainText(
+      `Zulu ${suffix}`,
+    );
+    await expect(
+      dialog.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
     const note = dialog.getByRole("textbox", { name: "Note" });
     const noteText = "  Discuss before the next session.\n\nBring the map.\n";
     await note.fill("  Discuss before the next session.");
@@ -2371,19 +2378,12 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   context,
 }, info) => {
   await page.goto("/records/browser-editions:remaster00000001");
-  await activate(
-    page.getByRole("button", { name: "Explore related records", exact: true }),
-    info,
-  );
-  await activate(page.getByRole("tab", { name: "Versions", exact: true }), info);
-  await expect(
-    page.getByRole("heading", { name: "Other editions", exact: true }),
-  ).toBeVisible();
   const source = page.getByRole("link", {
     name: "Remaster Changes — Class Features",
     exact: true,
   });
   await expect(source).toBeVisible();
+  await expect(source).toHaveText("");
   const href = await source.getAttribute("href");
   const address = readUrl(new URL(href!, page.url()));
   expect(address).toMatchObject({
@@ -2411,13 +2411,34 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   await expect(
     drawer.getByRole("heading", { name: "Class Features", exact: true }).first(),
   ).toBeVisible();
+  const table = drawer.getByRole("table");
   await expect(
-    drawer.getByText("Explicit edition references:", { exact: false }),
+    table.getByRole("columnheader", { name: "Old", exact: true }),
   ).toBeVisible();
-  await activate(
-    drawer.getByRole("link", { name: "Legacy signal", exact: true }),
-    info,
-  );
+  await expect(
+    table.getByRole("columnheader", { name: "Status", exact: true }),
+  ).toBeVisible();
+  await expect(
+    table.getByRole("columnheader", { name: "New", exact: true }),
+  ).toBeVisible();
+  await expect(table.getByRole("cell", { name: "Renamed", exact: true })).toBeVisible();
+  const legacy = table.getByRole("link", { name: "Legacy signal", exact: true });
+  expect(
+    readUrl(new URL((await legacy.getAttribute("href"))!, page.url())),
+  ).toMatchObject({
+    record_key: "browser-editions:legacy0000000001",
+    embedded_path: [],
+    field: null,
+  });
+  const modern = table.getByRole("link", { name: "Modern signal", exact: true });
+  expect(
+    readUrl(new URL((await modern.getAttribute("href"))!, page.url())),
+  ).toMatchObject({
+    record_key: "browser-editions:remaster00000001",
+    embedded_path: [],
+    field: null,
+  });
+  await activate(legacy, info);
   await expect(
     drawer.getByRole("heading", { name: "Legacy signal", exact: true }).first(),
   ).toBeVisible();
@@ -2431,7 +2452,25 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   );
   await expect(drawer).toBeHidden();
   await expect(source).toBeFocused();
-  await activate(page.getByRole("button", { name: "Compare", exact: true }), info);
+  await activate(
+    page.getByRole("button", { name: "Explore related records", exact: true }),
+    info,
+  );
+  await activate(page.getByRole("tab", { name: "Versions", exact: true }), info);
+  await expect(page.locator(".record-edition-notice")).toHaveCount(0);
+  const relationship = page.locator(".remaster-relationship__line");
+  await expect(relationship).toContainText("Legacy signal");
+  await expect(
+    relationship.getByRole("link", { name: "Legacy signal", exact: true }),
+  ).toHaveCount(1);
+  await expect(page.getByText("Sources", { exact: true })).toHaveCount(0);
+  const compare = page
+    .locator(".remaster-relationship__actions")
+    .getByRole("button", { name: "Compare", exact: true });
+  await expect(
+    relationship.getByRole("button", { name: "Compare", exact: true }),
+  ).toHaveCount(0);
+  await activate(compare, info);
   const comparison = page.getByRole("dialog", {
     name: "Variant comparison",
     exact: true,

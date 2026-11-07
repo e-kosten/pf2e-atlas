@@ -359,10 +359,8 @@ impl<'a> LoadedRecordDetail<'a> {
         })?;
         let grants_truncated = relationships.truncated;
         let mut view = RecordDetailView {
-            counterparts: request
-                .owners
-                .is_empty()
-                .then(|| crate::remaster::counterparts_view(&key, r)),
+            remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
+            source_remaster_context: None,
             encounter_adjustment: (request.owners.is_empty()
                 && matches!(
                     detail.summary.record_kind.as_value(),
@@ -417,6 +415,8 @@ impl<'a> LoadedRecordDetail<'a> {
             .collect(),
             relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
         };
+        (view.remaster_relationships, view.source_remaster_context) =
+            crate::remaster::reading_context(&view.selected, r);
         crate::contextual_references::attach_consumable_spell(&mut view, r)?;
         crate::contextual_references::attach_ranked_effects(&mut view, r)?;
         if whole_document {

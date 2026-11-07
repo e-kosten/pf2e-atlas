@@ -1,4 +1,4 @@
-# ADR0067: Source-backed contextual reference definitions
+# ADR0068: Source-backed contextual reference definitions
 
 Status: accepted; amends the trait-only vocabulary/storage scope of
 [ADR0056](0056-trait-reference-entities.md). Its specialized trait filtering and

@@ -36,6 +36,35 @@ one owner per shared failure, reviewed task-specific copy, local persistent acti
 feedback, preserved drafts and truthful save/retry outcomes. Read that policy
 before changing API error rendering or recovery behavior.
 
+## Legacy and remaster context
+
+Show a selected entry's supported remaster relationship as a compact inline
+sentence above its rules, wrapping naturally on narrow screens. Display each name
+once and link only actual available entries. Keep source section qualifiers and
+generic mechanics-change annotations in the linked explanation rather than
+appending them to relationship notices. Combine supporting source statements
+into readable logical relationships without merging different scopes or inventing
+record identity. Place a compact information action beside the reading context to
+open a readable change explanation in the reference drawer, deduplicating repeated
+citations to the same journal page. Use the shared
+[inline context action treatment](../web/atlas-ui/docs/frontend-guidelines.md#inline-context-actions)
+for text-adjacent information controls. Keep software-provider
+labels, internal revisions and diagnostic evidence out of ordinary presentation.
+
+Explore Versions appears for available counterparts or suggested variants, with
+a visible Compare button for supported pairs. A former name or explanation link
+alone does not warrant that tab. Omit the reader notice throughout Explore; each
+tab owns its content. In Versions, place comparison actions below their relationship
+line. Comparison columns retain their own identities and rules without reciprocal
+notices. Technical provenance belongs in developer diagnostics rather than these reader interactions.
+
+Search and discovery show every independently matching legacy and remaster entry.
+Counterpart links explain relationships and enable comparison; they do not hide
+results. Publication-era badges alone do not establish a replacement. Label an owned
+entry's origin information as source context without substituting its rules for
+the selected content. [ADR0067](architecture/decisions/0067-remaster-relationships.md)
+owns relationship authority and consumer policy.
+
 ## Product UI Copy
 
 These rules apply to all user-visible copy, including text projected by Rust into

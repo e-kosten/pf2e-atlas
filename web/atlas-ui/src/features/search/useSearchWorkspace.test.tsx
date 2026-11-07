@@ -136,6 +136,46 @@ describe("useSearchWorkspace", () => {
     expect(apiMocks.searchPage.mock.lastCall?.[0].page.number).toBe(5);
   });
 
+  it("retains both independently returned legacy and remaster matches with the server's total", async () => {
+    history.replaceState(null, "", "/search?q=opportunity");
+    const keys = ["glossary:attack-of-opportunity", "glossary:reactive-strike"];
+    const page = searchResultsPage(keys);
+    page.rows[0].record = {
+      ...page.rows[0].record,
+      title: "Attack of Opportunity",
+      edition: "legacy",
+    };
+    page.rows[1].record = {
+      ...page.rows[1].record,
+      title: "Reactive Strike",
+      edition: "remaster",
+    };
+    apiMocks.searchPage.mockResolvedValue(page);
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() =>
+      expect(
+        result.current.resultPage?.rows.map((row) => row.record.record_key),
+      ).toEqual(keys),
+    );
+    expect(result.current.resultPage?.page.total).toBe(2n);
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toEqual({
+      search_profile: "bge-base",
+      ranking: "score",
+      page: { number: 1, size: 25 },
+      expected_artifact_generation: null,
+      criteria: {
+        kind: "text_search",
+        query: "opportunity",
+        filter: null,
+        mode: "hybrid",
+        search_content: "all",
+      },
+    });
+  });
+
   it("keeps a shared outage distinct from successful empty results", async () => {
     history.replaceState(null, "", "/search?q=fire");
     apiMocks.searchPage.mockRejectedValue(
@@ -609,7 +649,7 @@ describe("useSearchWorkspace", () => {
     { rank: 5, pending: false },
     { rank: 5, pending: true },
   ])(
-    "applies settings while retaining exact match, focus and requested rank $rank (pending=$pending)",
+    "applies version and ranking settings while retaining exact match, focus and requested rank $rank (pending=$pending)",
     async ({ rank, pending }) => {
       const recordKey = "spell:heal";
       history.replaceState(

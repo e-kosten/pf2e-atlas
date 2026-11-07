@@ -169,7 +169,7 @@ describe("shared value control vocabulary", () => {
                 options: request.offset
                   ? [{ value: "second-page", label: "Second-page" }]
                   : [{ value: "fire", label: "Fire" }],
-                basis: "product_key_scope_before_edition_preference",
+                basis: "product_key_scope",
               },
             },
       ),
@@ -360,7 +360,7 @@ it("uses supplied Actions labels and Read while refusing arbitrary manual values
             },
           },
         ],
-        basis: "product_key_scope_before_edition_preference",
+        basis: "product_key_scope",
       },
     };
   });

@@ -139,8 +139,16 @@ atlas graph variants 'Dread Ampoule' --json
 ```
 
 `links` shows references made by an entry and, with `--backlinks`, references to
-it. `uses` finds entries referring to the chosen rule or record. Use `graph remaster
-PACK:ID` for verified counterparts in another edition. Suggested variants are
+it. `uses` finds entries referring to the chosen rule or record. Read the same compact relationship information shown in the record reader:
+
+```bash
+atlas record get spells-srd:gKKqvLohtrSJj3BM
+atlas graph remaster bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O --json
+```
+
+Record reads include former names or replacement links and useful changes-journal
+destinations. Search, Similar and filter discovery retain all independently matching
+legacy and remaster entries. Suggested variants are
 possible alternatives, rather than verified names for the same record. Some
 source links have unresolved targets; graph previews retain those links.
 
@@ -299,10 +307,10 @@ fields, or availability for collections. Fields with a fixed choice list include
 choices with no matches; other fields list values found in the reference data.
 `--text` searches values, not record prose.
 
-Counts respect supplied filters and count each containing record once per value,
-after applying preference for remastered entries. Source-availability statistics
-are measured before that preference. A collection may have several occurrences
-in the same record. Unavailable counts do not mean zero matches.
+Counts respect supplied filters and count each containing record once per value.
+Source-availability statistics describe the applicable artifact or saved-list
+vocabulary. A collection may have several occurrences in the same record.
+Unavailable counts do not mean zero matches.
 
 `--list ID` restricts results to a saved list. `--artifact-generation` requires the
 same reference-data version as an earlier response. Optional `--clause-id` asks

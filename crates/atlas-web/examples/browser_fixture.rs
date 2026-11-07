@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     fixture.remaster_pairs.push(atlas_index::SourceRemasterPairInput {
         legacy: "browser-editions:legacy0000000001".parse()?,
         remaster: "browser-editions:remaster00000001".parse()?,
-        provenance: serde_json::from_value(serde_json::json!({"record":"browser-journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"}))?,
+        provenance: Some(serde_json::from_value(serde_json::json!({"record":"browser-journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"}))?),
     });
     // Explicit short synthetic definitions and seeds keep the normal trait reading
     // and Similar paths available without claiming model inference or ranking quality.

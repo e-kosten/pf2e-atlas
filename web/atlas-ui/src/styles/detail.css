@@ -138,10 +138,6 @@
   margin-block-end: var(--space-group);
 }
 
-.record-edition-source {
-  padding-inline: var(--browse-pane-inset);
-}
-
 .record-grants {
   --browse-pane-inset: var(--space-group);
 }
@@ -162,4 +158,37 @@
 }
 .record-explore__search-summary {
   color: var(--muted);
+}
+
+.remaster-relationship__line {
+  margin: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.remaster-relationship__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  margin-block-start: var(--space-control);
+}
+.remaster-relationship + .remaster-relationship,
+.remaster-source-context {
+  margin-block-start: var(--space-control);
+}
+.remaster-source-context__heading {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-block-end: var(--space-control);
+}
+.remaster-information__context {
+  color: var(--muted);
+}
+.remaster-alias-evidence {
+  padding: 0 var(--browse-pane-inset) var(--space-control);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+.remaster-query-context {
+  margin-block: var(--space-group);
 }

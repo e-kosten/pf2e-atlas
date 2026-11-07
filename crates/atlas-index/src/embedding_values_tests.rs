@@ -577,10 +577,17 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
             .is_err()
     );
     drop(read);
-    assert!(ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    assert!(!ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 1);
+    assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
+    assert!(SqliteIndexReader::from_session(read).is_err());
+    // Source-backed republication activates current projections after the schema-only
+    // upgrade has independently preserved published values and forced recovery.
+    publish_input(&path, &traits).unwrap();
     let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(read.reference_revision().unwrap(), 2);
-    assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
+    assert_eq!(count(read.connection(), "pending_embedding_values"), 0);
     let reader = SqliteIndexReader::from_session(read).unwrap();
     assert_eq!(
         reader

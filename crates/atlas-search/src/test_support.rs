@@ -138,6 +138,7 @@ pub fn context(semantic: bool) -> SourceArtifactBuildContext {
         content_selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
         asset_policy: ASSET_POLICY_VERSION.into(),
         relationship_policy: RELATIONSHIP_POLICY_VERSION.into(),
+        remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
         query_projection_version: SOURCE_PROJECTION_VERSION.into(),
         query_catalog_version: query_capabilities().unwrap().version,
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
@@ -298,6 +299,7 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
         lexical_units,
         semantic_units,
         aliases: vec![],
+        remaster_context: vec![],
         remaster_pairs: vec![],
     }
 }
@@ -328,4 +330,48 @@ pub fn input_with_both_profiles(records: Vec<SourceArtifactRecordInput>) -> Inde
     input.context.search_profiles.push(gemma);
     input.semantic_units.extend(units);
     input
+}
+
+pub fn add_remaster_alias(
+    input: &mut atlas_index::IndexBuildInput,
+    key: &atlas_domain::RecordKey,
+    alias: &str,
+) -> Result<(), atlas_index::IndexError> {
+    input.aliases.push(atlas_index::SourceAliasInput {
+        record: key.clone(),
+        alias: alias.into(),
+        evidence: "fixture".into(),
+    });
+    let aliases = input
+        .aliases
+        .iter()
+        .filter(|a| &a.record == key)
+        .map(|a| a.alias.clone())
+        .collect::<Vec<_>>();
+    let record = input
+        .records
+        .iter()
+        .find(|r| r.record.key() == key)
+        .unwrap();
+    let selection = atlas_record::source_record::select_record_search(
+        &record.record,
+        &record.content,
+        input.context.audience,
+        "fixture",
+        &input.context.used_trait_labels,
+    )
+    .map_err(|e| atlas_index::IndexError::Invalid(e.to_string()))?;
+    input.lexical_units.retain(|u| &u.record != key);
+    input
+        .lexical_units
+        .extend(atlas_index::project_lexical_units(&selection, &aliases));
+    Ok(())
+}
+
+pub fn add_remaster_relationship(
+    input: &mut atlas_index::IndexBuildInput,
+    old: &atlas_domain::RecordKey,
+    new: &atlas_domain::RecordKey,
+) -> Result<(), atlas_index::IndexError> {
+    atlas_index::test_support::add_remaster_relationship(input, old, new)
 }

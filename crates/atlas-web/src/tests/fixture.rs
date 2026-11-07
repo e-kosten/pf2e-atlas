@@ -146,7 +146,7 @@ impl Fixture {
                 .push(atlas_index::SourceRemasterPairInput {
                     legacy: ACTION.parse().unwrap(),
                     remaster: SECOND_ACTION.parse().unwrap(),
-                    provenance: serde_json::from_value(json!({"record":"journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"})).unwrap(),
+                    provenance: Some(serde_json::from_value(json!({"record":"journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"})).unwrap()),
                 });
         }
         let key = TraitKey::new("fire").unwrap();

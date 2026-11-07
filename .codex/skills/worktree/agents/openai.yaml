@@ -1,4 +1,4 @@
 interface:
-  display_name: "Worktree"
-  short_description: "Use isolated task worktrees on request"
-  default_prompt: "Use $worktree to move this task into an isolated repository worktree."
+  display_name: "Atlas worktrees"
+  short_description: "Manage isolated Atlas checkouts and resources"
+  default_prompt: "Use $worktree to create or retire an Atlas checkout with its Cargo configuration and resource dependencies accounted for."

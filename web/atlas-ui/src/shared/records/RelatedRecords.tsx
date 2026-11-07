@@ -3,15 +3,12 @@ import { referenceQueryMeta } from "../queries/referenceQueries";
 import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
-import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
+import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
 import { Button, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { GitCompareArrows } from "lucide-react";
 import { SearchPreviewRows } from "./SearchPreviewRows";
 import { ReferenceResult } from "./ReferenceResult";
 import { useQuery } from "@tanstack/react-query";
@@ -38,9 +35,14 @@ import { linkLeaf } from "../filters/linkPredicates";
 import type {
   RecordDetailView,
   RecordSummaryView,
-  RemasterProvenanceView,
+  RecordNavigationView,
 } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
+import {
+  RemasterInformation,
+  SourceRemasterInformation,
+  type RemasterReferencePart,
+} from "./RemasterInformation";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
@@ -59,7 +61,12 @@ export function RelatedRecords(props: ExploreProps) {
   const incoming = useReferencePreview(props.detail, true);
   const outgoing = useReferencePreview(props.detail, false);
   const related = useRelated(props.detail);
-  const { tab: active, setTab: setActive } = useRecordExploreLocation();
+  const {
+    mode,
+    tab: active,
+    setTab: setActive,
+    resetUnavailableVersions,
+  } = useRecordExploreLocation();
   const graph = related.data?.references;
   const otherReferences =
     graph?.kind === "content" &&
@@ -76,11 +83,16 @@ export function RelatedRecords(props: ExploreProps) {
     !!related.error ||
     graph?.kind === "error" ||
     graph?.kind === "unavailable";
-  const versions =
-    related.data &&
-    [related.data.counterparts, related.data.variants].some(
-      (category) => category.kind !== "empty",
-    );
+  const versions = related.data?.show_versions;
+  useEffect(() => {
+    if (
+      mode === "explore" &&
+      active === "versions" &&
+      related.isSuccess &&
+      versions === false
+    )
+      resetUnavailableVersions();
+  }, [mode, active, related.isSuccess, versions, resetUnavailableVersions]);
   const items = [
     ...(hasIncoming
       ? [
@@ -101,7 +113,7 @@ export function RelatedRecords(props: ExploreProps) {
         ]
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
-    ...(props.detail.selected.embedded_path.length === 0 && (versions || related.error)
+    ...(versions || (related.isPending && active === "versions") || related.error
       ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
       : []),
   ];
@@ -110,6 +122,7 @@ export function RelatedRecords(props: ExploreProps) {
       <Tabs
         activeKey={items.some((item) => item.key === active) ? active : items[0].key}
         onChange={setActive}
+        more={{ trigger: ["click"] }}
         animated={false}
         destroyOnHidden
         items={items}
@@ -200,7 +213,7 @@ function ReferencePreview({
   return (
     <div className="record-explore__task">
       <ExploreSearchAction
-        route={relationshipSearchRoute(filter)}
+        route={relationshipSearchRoute(filter, profile.id)}
         summary={
           data
             ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "record" : "records"}`
@@ -325,13 +338,11 @@ function VersionCard({
   onReference,
   onCompare,
   context,
-  provenance,
 }: {
   record: RecordSummaryView;
   onReference: RecordReferenceHandler;
   onCompare: () => void;
   context?: string;
-  provenance?: RemasterProvenanceView;
 }) {
   return (
     <div role="listitem">
@@ -342,40 +353,15 @@ function VersionCard({
         onPreview={(anchor) => onReference(record.record_key, anchor)}
         context={context}
         actions={
-          <Button size="small" onClick={onCompare}>
+          <Button
+            size="small"
+            icon={<GitCompareArrows size={14} aria-hidden="true" />}
+            onClick={onCompare}
+          >
             Compare
           </Button>
         }
       />
-      {provenance && (
-        <Typography.Paragraph type="secondary" className="record-edition-source">
-          Source:{" "}
-          {provenance.navigation ? (
-            <Typography.Link
-              href={destinationHref(
-                recordDestination({
-                  recordKey: provenance.navigation.record_key,
-                  selection: provenance.navigation,
-                }),
-              )}
-              onClick={(event) => {
-                if (!isPrimaryActivation(event) || !provenance.navigation) return;
-                event.preventDefault();
-                onReference(
-                  provenance.navigation.record_key,
-                  event.currentTarget,
-                  provenance.navigation,
-                );
-              }}
-            >
-              {provenance.attribution}
-            </Typography.Link>
-          ) : (
-            provenance.attribution
-          )}
-          {provenance.unavailable_reason && <> · {provenance.unavailable_reason}</>}
-        </Typography.Paragraph>
-      )}
     </div>
   );
 }
@@ -386,9 +372,40 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
     target: string;
     open: boolean;
   } | null>(null);
-  const counterparts = related.data?.counterparts;
+  const comparableRoot = (target: RecordNavigationView) =>
+    !detail.selected.embedded_path.length &&
+    !detail.selected.field &&
+    !target.embedded_path.length &&
+    !target.field &&
+    target.record_key !== detail.selected.record_key;
+  const direct = related.data?.remaster_relationships;
+  const source = related.data?.source_remaster_context;
+  const sourceRelationships =
+    source?.kind === "content" ? source.content.relationships : undefined;
+  const comparisonTargets = [direct, sourceRelationships]
+    .flatMap((category) =>
+      category?.kind === "content" ? category.content.relationships : [],
+    )
+    .flatMap((relationship) => relationship.parts)
+    .filter((part) => part.kind === "reference" && comparableRoot(part.navigation));
+  const compareReferences = (references: RemasterReferencePart[]) => {
+    const targets = references.filter(({ navigation }) => comparableRoot(navigation));
+    if (!targets.length) return null;
+    return targets.map((target) => (
+      <Button
+        key={JSON.stringify(target.navigation)}
+        size="small"
+        icon={<GitCompareArrows size={14} aria-hidden="true" />}
+        onClick={() =>
+          setComparison({ target: target.navigation.record_key, open: true })
+        }
+      >
+        {comparisonTargets.length > 1 ? `Compare ${target.label}` : "Compare"}
+      </Button>
+    ));
+  };
+  const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
-  const pairs = counterparts?.kind === "content" ? counterparts.content.links : [];
   const choices =
     variants?.kind === "content"
       ? variants.content.variants.filter(
@@ -406,49 +423,36 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           reloadLabel={reloadLabel}
         />
       )}
-      {[counterparts, variants].map((category, index) =>
-        category?.kind === "error" ? (
-          <ErrorNotice
-            error={category.error}
-            compact
-            key={index}
-            title={`${index === 0 ? "Editions" : "Variants"} could not be checked`}
-            action={
-              <Button size="small" onClick={() => void related.refetch()}>
-                Retry
-              </Button>
-            }
-          />
-        ) : category?.kind === "unavailable" ? (
-          <Typography.Paragraph key={index} type="secondary">
-            {category.reason}
-          </Typography.Paragraph>
-        ) : null,
+      {variants?.kind === "error" ? (
+        <ErrorNotice
+          error={variants.error}
+          compact
+          title="Variants could not be checked"
+          action={
+            <Button size="small" onClick={() => void related.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      ) : variants?.kind === "unavailable" ? (
+        <Typography.Paragraph type="secondary">{variants.reason}</Typography.Paragraph>
+      ) : null}
+      {relationships && (
+        <RemasterInformation
+          category={relationships}
+          onReference={onReference}
+          onReload={() => void related.refetch()}
+          referenceActions={compareReferences}
+          showExplanations={false}
+        />
       )}
-      {pairs.length > 0 && (
-        <section>
-          <h3>Other editions</h3>
-          <div className="record-explore__results" role="list">
-            {pairs.map((pair) => {
-              const legacy =
-                pair.remaster_record.record_key === detail.record.record_key;
-              const other = legacy ? pair.legacy_record : pair.remaster_record;
-              return (
-                <VersionCard
-                  key={other.record_key}
-                  record={other}
-                  onReference={onReference}
-                  onCompare={() =>
-                    setComparison({ target: other.record_key, open: true })
-                  }
-                  context={legacy ? "Legacy" : "Remaster"}
-                  provenance={pair.provenance}
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
+      <SourceRemasterInformation
+        category={related.data?.source_remaster_context}
+        onReference={onReference}
+        onReload={() => void related.refetch()}
+        referenceActions={compareReferences}
+        showExplanations={false}
+      />
       {choices.length > 0 && (
         <section>
           <h3>Suggested variants</h3>
@@ -476,12 +480,15 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           )}
         </section>
       )}
-      {counterparts?.kind === "empty" && variants?.kind === "empty" && (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No other editions or suggested variants found."
-        />
-      )}
+      {relationships?.kind === "empty" &&
+        variants?.kind === "empty" &&
+        (!related.data?.source_remaster_context ||
+          related.data.source_remaster_context.kind === "empty") && (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No other editions or suggested variants found."
+          />
+        )}
       {comparison && (
         <Comparison
           source={detail.record.record_key}
@@ -681,6 +688,7 @@ function Comparison({
           }}
           onReference={navigate}
           showRelated={false}
+          showRemasterNotice={false}
         />
         <RecordDetailPane
           detail={right.data}
@@ -691,6 +699,7 @@ function Comparison({
           }}
           onReference={navigate}
           showRelated={false}
+          showRemasterNotice={false}
         />
       </div>
     </Modal>

@@ -90,7 +90,10 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
   expect(navigateDestination).toHaveBeenCalledExactlyOnceWith(
     expect.objectContaining({
       to: "/search",
-      search: { q: "Fire & ice?", search_profile: "embeddinggemma" },
+      search: {
+        q: "Fire & ice?",
+        search_profile: "embeddinggemma",
+      },
     }),
     { dismissReadingOverlays: true },
   );

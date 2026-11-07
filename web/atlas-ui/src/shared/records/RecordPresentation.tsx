@@ -79,9 +79,9 @@ export function ContentFields({
       {prerequisites.length > 0 && (
         <div className="record-fact record-reference__prerequisites">
           <strong>Prerequisites</strong>
-          <div>
+          <ul>
             {prerequisites.map((field) => (
-              <div key={JSON.stringify(field.locator)}>
+              <li key={JSON.stringify(field.locator)}>
                 <PreparedContent
                   content={field}
                   documentNavigation={documentNavigation}
@@ -89,9 +89,9 @@ export function ContentFields({
                   relationships={relationships}
                   onReference={onReference}
                 />
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
       {visibleFields

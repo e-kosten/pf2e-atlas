@@ -2654,6 +2654,9 @@ fn embedded_publication_edition_uses_its_own_source_metadata() {
             Some(atlas_app_model::RecordEditionView::Remaster)
         );
         assert_eq!(selected.presentation.identity.edition, expected);
-        assert!(selected.counterparts.is_none());
+        assert!(matches!(
+            selected.remaster_relationships,
+            atlas_app_model::RelatedCategoryView::Empty
+        ));
     }
 }

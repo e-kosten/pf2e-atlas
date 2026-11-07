@@ -93,7 +93,7 @@ impl AtlasAppService {
                             .as_deref()
                             .map(RecordScope::Keys)
                             .unwrap_or(RecordScope::All),
-                        prefer_remaster: true,
+
                         filter: filter.as_ref(),
                     },
                     text: request.text.as_deref(),
@@ -126,7 +126,7 @@ impl AtlasAppService {
                             .as_deref()
                             .map(RecordScope::Keys)
                             .unwrap_or(RecordScope::All),
-                        prefer_remaster: true,
+
                         filter: filter.as_ref(),
                     },
                 })?,
@@ -179,7 +179,7 @@ impl AtlasAppService {
                                 .as_deref()
                                 .map(RecordScope::Keys)
                                 .unwrap_or(RecordScope::All),
-                            prefer_remaster: true,
+
                             filter: filter.as_ref(),
                         },
                         text: value_text.as_deref(),
@@ -267,7 +267,7 @@ impl AtlasAppService {
                         .as_deref()
                         .map(RecordScope::Keys)
                         .unwrap_or(RecordScope::All),
-                    prefer_remaster: true,
+
                     filter: filter.as_ref(),
                 },
             })?;
@@ -305,7 +305,7 @@ fn editor_values(
                 search_profile: None,
                 text: None,
                 scope: RecordScope::All,
-                prefer_remaster: false,
+
                 filter,
             },
             text: None,

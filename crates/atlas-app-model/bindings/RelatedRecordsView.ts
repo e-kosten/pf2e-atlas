@@ -3,7 +3,8 @@ import type { GraphContextView } from "./GraphContextView";
 import type { RecordNavigationView } from "./RecordNavigationView";
 import type { RecordSummaryView } from "./RecordSummaryView";
 import type { RelatedCategoryView } from "./RelatedCategoryView";
-import type { RemasterLinksView } from "./RemasterLinksView";
+import type { RemasterRelationshipsView } from "./RemasterRelationshipsView";
+import type { RemasterSourceContextView } from "./RemasterSourceContextView";
 import type { VariantGroupView } from "./VariantGroupView";
 
-export type RelatedRecordsView = { selection: RecordNavigationView, artifact_generation: string, seed: RecordSummaryView, references: RelatedCategoryView<GraphContextView>, counterparts: RelatedCategoryView<RemasterLinksView>, variants: RelatedCategoryView<VariantGroupView>, };
+export type RelatedRecordsView = { show_versions: boolean, selection: RecordNavigationView, artifact_generation: string, seed: RecordSummaryView, references: RelatedCategoryView<GraphContextView>, remaster_relationships: RelatedCategoryView<RemasterRelationshipsView>, source_remaster_context?: RelatedCategoryView<RemasterSourceContextView>, variants: RelatedCategoryView<VariantGroupView>, };

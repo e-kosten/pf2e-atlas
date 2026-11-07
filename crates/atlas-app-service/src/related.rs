@@ -112,31 +112,81 @@ impl AtlasAppService {
                     )
                 }),
             );
-            let (counterparts, variants) = if selection.owners.is_empty() {
-                let counterparts = crate::remaster::counterparts_view(&key, r);
-                (
-                    counterparts,
-                    category(crate::retrieval::variant_group_view(r, &key)),
-                )
+            let (remaster_relationships, source_remaster_context) =
+                crate::remaster::reading_context(&selection, r);
+            let variants = if selection.owners.is_empty() {
+                category(crate::retrieval::variant_group_view(r, &key))
             } else {
-                (
-                    RelatedCategoryView::Unavailable {
-                        reason: "Counterparts apply to root records".into(),
-                    },
-                    RelatedCategoryView::Unavailable {
-                        reason: "Variant verification applies to root records".into(),
-                    },
-                )
+                RelatedCategoryView::Unavailable {
+                    reason: "Variant verification applies to root records".into(),
+                }
             };
+            let show_versions = show_versions(
+                &selection,
+                &remaster_relationships,
+                source_remaster_context.as_ref(),
+                &variants,
+            );
             Ok(RelatedRecordsView {
+                show_versions,
                 selection,
                 artifact_generation: generation,
                 seed: crate::projection::localized_summary_view(&seed, r),
                 references,
-                counterparts,
+                remaster_relationships,
+                source_remaster_context,
                 variants,
             })
         })
+    }
+}
+
+fn distinct_address(
+    left: &atlas_app_model::RecordNavigationView,
+    right: &atlas_app_model::RecordNavigationView,
+) -> bool {
+    left.record_key != right.record_key || left.owners != right.owners
+}
+fn relationship_versions(
+    category: &RelatedCategoryView<atlas_app_model::RemasterRelationshipsView>,
+    selection: &atlas_app_model::RecordNavigationView,
+) -> bool {
+    match category {
+        RelatedCategoryView::Content{content}=>content.relationships.iter().flat_map(|relationship|&relationship.parts).any(|part|matches!(part,atlas_app_model::RemasterInlinePartView::Reference{navigation,..} if distinct_address(navigation,selection))),
+        RelatedCategoryView::Error{..}|RelatedCategoryView::Unavailable{..}=>true,
+        RelatedCategoryView::Empty=>false,
+    }
+}
+fn show_versions(
+    selection: &atlas_app_model::RecordNavigationView,
+    direct: &RelatedCategoryView<atlas_app_model::RemasterRelationshipsView>,
+    source: Option<&RelatedCategoryView<atlas_app_model::RemasterSourceContextView>>,
+    variants: &RelatedCategoryView<atlas_app_model::VariantGroupView>,
+) -> bool {
+    if relationship_versions(direct, selection) {
+        return true;
+    }
+    match source {
+        Some(RelatedCategoryView::Content { content }) => {
+            let source_selection = &content.navigation;
+            if relationship_versions(&content.relationships, source_selection) {
+                return true;
+            }
+        }
+        Some(RelatedCategoryView::Error { .. }) => return true,
+        // An unidentified/conflicting origin is not a temporarily failed remaster lookup.
+        Some(RelatedCategoryView::Unavailable { .. } | RelatedCategoryView::Empty) | None => {}
+    }
+    if !selection.owners.is_empty() {
+        return false;
+    }
+    match variants {
+        RelatedCategoryView::Content { content } => content
+            .variants
+            .iter()
+            .any(|record| record.record_key != selection.record_key),
+        RelatedCategoryView::Error { .. } => true,
+        RelatedCategoryView::Empty | RelatedCategoryView::Unavailable { .. } => false,
     }
 }
 
@@ -166,4 +216,60 @@ fn scoped_section(
     atlas_domain::assign_relationship_clause_ids(&mut filter)?;
     section.filter = Some(filter);
     Ok(section)
+}
+
+#[cfg(test)]
+mod versions_tests {
+    use super::*;
+    use atlas_app_model::*;
+    #[test]
+    fn plain_former_name_and_journal_do_not_create_versions_but_an_actual_alternative_does() {
+        let selection = RecordNavigationView {
+            record_key: "items:aaaaaaaaaaaaaaaa".into(),
+            owners: vec![],
+            field: None,
+            passage: None,
+            spell_rank: None,
+            source_fingerprint: None,
+        };
+        let mut content = RemasterRelationshipsView {
+            relationships: vec![RemasterRelationshipView {
+                id: "rename".into(),
+                label: "Former name".into(),
+                parts: vec![RemasterInlinePartView::Text {
+                    text: "Magic Missile".into(),
+                }],
+                explanation_links: vec![RemasterExplanationLinkView {
+                    label: "Remaster Changes — Spells".into(),
+                    navigation: RecordNavigationView {
+                        record_key: "journals:cccccccccccccccc".into(),
+                        ..selection.clone()
+                    },
+                }],
+                truncated: false,
+            }],
+            truncated: false,
+        };
+        assert!(!show_versions(
+            &selection,
+            &RelatedCategoryView::Content {
+                content: content.clone()
+            },
+            None,
+            &RelatedCategoryView::Empty
+        ));
+        content.relationships[0].parts = vec![RemasterInlinePartView::Reference {
+            label: "Other record".into(),
+            navigation: Box::new(RecordNavigationView {
+                record_key: "items:bbbbbbbbbbbbbbbb".into(),
+                ..selection.clone()
+            }),
+        }];
+        assert!(show_versions(
+            &selection,
+            &RelatedCategoryView::Content { content },
+            None,
+            &RelatedCategoryView::Empty
+        ));
+    }
 }

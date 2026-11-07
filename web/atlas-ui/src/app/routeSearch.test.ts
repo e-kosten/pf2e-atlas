@@ -287,3 +287,23 @@ it("normalizes the root to Search without changing supported criteria or native 
   expect(history.length).toBe(1);
   expect(recordDestination({ recordKey: "spells:one" }).search).toEqual({});
 });
+
+it("ignores retired and unknown query keys while retaining exact reader and Versions-tab state", () => {
+  expect(
+    canonicalRouteSearch("search_record", {
+      q: "strike",
+      search_profile: "bge-base",
+      versions: "all",
+      unused: "ignored",
+      rank: "3",
+      record_view: "explore",
+      record_tab: "versions",
+    }),
+  ).toEqual({
+    q: "strike",
+    search_profile: "bge-base",
+    rank: "3",
+    record_view: "explore",
+    record_tab: "versions",
+  });
+});

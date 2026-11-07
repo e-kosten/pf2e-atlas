@@ -34,11 +34,9 @@ impl ReferenceReuseReader {
             Some(context)
                 if context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID
                     && context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
-                    && !matches!(
-                        crate::classify_reference_upgrade(read.connection())?,
-                        crate::ReferenceUpgrade::SourcePreparation
-                            | crate::ReferenceUpgrade::SourceReplacement
-                    ) =>
+                    && (crate::classify_reference_upgrade(read.connection())?
+                        != crate::ReferenceUpgrade::SourceReplacement)
+                    && crate::component_upgrade::source_preparation_is_current(&context) =>
             {
                 Some(context)
             }

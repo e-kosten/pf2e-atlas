@@ -62,3 +62,16 @@ it("ANDs a record-origin condition with the entire previous tree while retaining
     new URLSearchParams(stringifySearchParams(route.search)).get("search_profile"),
   ).toBe("bge-base");
 });
+
+it("opens a filtered Explore search from a record with the current model", () => {
+  history.replaceState(null, "", "/records/items:dagger");
+  const route = relationshipSearchRoute(
+    { kind: "boolean_constant", value: false },
+    "bge-base",
+  );
+  expect(route.search).toEqual({
+    search_profile: "bge-base",
+    ranking: "score",
+    filter: expect.any(String),
+  });
+});

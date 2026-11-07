@@ -79,10 +79,10 @@ attribute rules and accepts `--seed` only with sole Random, generating it when
 omitted. Both adapters lower into the same typed contract.
 
 Candidate admission remains independent of order and page. The existing semantic
-policy tries 1,024/2,048/4,096 unit hits until the preferred-root stopping target
+policy tries 1,024/2,048/4,096 unit hits until the matching-root stopping target
 is met or the largest window is reached. The target of 200 roots is not a result
 cap. Every accepted root contributes; hybrid unions the complete lexical lane
-before final edition preference. Attribute or Random ordering then sorts the entire accepted
+before ordering. Attribute or Random ordering then sorts the entire accepted
 set before paging, retaining its coverage and witnesses. The stateless workflow
 still reruns retrieval and does not promise a cross-request frozen candidate set.
 

@@ -423,7 +423,6 @@ it("carries complete relationship constraints in browse and saved-list discovery
   };
   expect(buildFilterDiscoveryContext(state, "bge-base", "generation-a")).toEqual({
     kind: "filtered",
-
     filter: state.filter,
     text: null,
     mode: "hybrid",

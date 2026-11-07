@@ -188,7 +188,6 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
                         RecordScope::Keys(&keys)
                     },
                     page: SearchPage::new(1, 30).unwrap(),
-                    prefer_remaster: true,
                 })
                 .unwrap();
             let elapsed = started.elapsed().as_millis();

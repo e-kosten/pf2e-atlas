@@ -104,6 +104,7 @@ pub(crate) fn build_context(
         content_selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
         asset_policy: ASSET_POLICY_VERSION.into(),
         relationship_policy: RELATIONSHIP_POLICY_VERSION.into(),
+        remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
         query_projection_version: SOURCE_PROJECTION_VERSION.into(),
         query_catalog_version: atlas_index::query::QUERY_CAPABILITY_VERSION,
         lookup_version: SOURCE_LOOKUP_VERSION.into(),

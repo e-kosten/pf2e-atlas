@@ -69,6 +69,22 @@ fn older_policy(stored: &str, current: &str) -> Result<bool, IndexError> {
     }
 }
 
+/// Metadata authority can require publication while retained source preparation
+/// stays valid. This is only reuse admission; product reads still require current metadata.
+pub(crate) fn source_preparation_is_current(context: &SourceArtifactBuildContext) -> bool {
+    context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
+        && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID
+        && context.trait_policy == "trait-definition-centroid/v1"
+        && context.lookup_version == crate::input::SOURCE_LOOKUP_VERSION
+        && context.content_interpretation_version
+            == atlas_record::source_content::CONTENT_INTERPRETATION_VERSION
+        && context.content_selection_version
+            == atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION
+        && context.localization_policy == crate::input::LOCALIZATION_POLICY_VERSION
+        && context.asset_policy == crate::input::ASSET_POLICY_VERSION
+        && context.relationship_policy == crate::input::RELATIONSHIP_POLICY_VERSION
+}
+
 pub fn classify_reference_upgrade(c: &Connection) -> Result<ReferenceUpgrade, IndexError> {
     Ok(upgrade_plan(c)?.0)
 }
@@ -125,6 +141,9 @@ fn upgrade_plan(
             crate::SELECTED_SECTIONS_RECIPE,
         )?;
     target.selected_sections_recipe = crate::SELECTED_SECTIONS_RECIPE.into();
+    let remaster_changed =
+        target.remaster_inputs_identity != atlas_record::remaster::remaster_inputs_identity();
+    target.remaster_inputs_identity = atlas_record::remaster::remaster_inputs_identity();
     let mut source_changed = match target.trait_policy.as_str() {
         "" => true,
         "trait-definition-centroid/v1" => false,
@@ -134,6 +153,7 @@ fn upgrade_plan(
             )));
         }
     };
+    source_changed |= remaster_changed;
     target.trait_policy = "trait-definition-centroid/v1".into();
     for (stored, current) in [
         (

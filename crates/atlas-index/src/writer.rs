@@ -26,10 +26,14 @@ pub(crate) struct CheckedRootIdentity {
     pub(crate) is_product: bool,
 }
 pub(crate) fn prior_compatible(c: &Connection) -> Result<bool, IndexError> {
-    Ok(!matches!(
-        crate::classify_reference_upgrade(c)?,
-        crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
-    ))
+    let upgrade = crate::classify_reference_upgrade(c)?;
+    Ok(match upgrade {
+        crate::ReferenceUpgrade::SourceReplacement => false,
+        crate::ReferenceUpgrade::SourcePreparation => crate::read_stored_reference_context(c)?
+            .as_ref()
+            .is_some_and(crate::component_upgrade::source_preparation_is_current),
+        _ => true,
+    })
 }
 
 impl SourceSearchProfileIdentity {
@@ -66,6 +70,12 @@ impl SourceSearchProfileIdentity {
     }
 }
 pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), IndexError> {
+    if c.remaster_inputs_identity != atlas_record::remaster::remaster_inputs_identity() {
+        return Err(IndexError::Unsupported(
+            "remaster inputs changed; run atlas setup to prepare current relationship information"
+                .into(),
+        ));
+    }
     if c.core_sections_recipe != atlas_domain::CORE_SECTIONS_RECIPE {
         return Err(IndexError::Unsupported("Core section projection requires an offline metadata update; run atlas setup --offline".into()));
     }

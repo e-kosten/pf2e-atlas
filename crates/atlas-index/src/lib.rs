@@ -187,3 +187,8 @@ mod embedding_values_tests;
 
 #[cfg(test)]
 mod publication_crash_tests;
+
+mod remaster;
+pub use remaster::{
+    COMPACT_REMASTER_SCHEMA_SQL, REMASTER_SCHEMA_SQL, REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
+};

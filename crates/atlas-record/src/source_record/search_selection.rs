@@ -538,7 +538,7 @@ fn annotate_section_nodes(document: &mut Html, sections: Vec<(NodeId, usize)>) {
         {
             element
                 .attrs
-                .retain(|(name, _)| name.local.as_ref() != "data-atlas-source-section");
+                .retain(|(name, _)| &*name.local != "data-atlas-source-section");
         }
     }
     let wrapper = Html::parse_fragment("<span></span>");
@@ -559,7 +559,7 @@ fn annotate_section_nodes(document: &mut Html, sections: Vec<(NodeId, usize)>) {
             element.attrs = element
                 .attrs
                 .iter()
-                .filter(|(key, _)| key.local.as_ref() != "data-atlas-source-section")
+                .filter(|(key, _)| &*key.local != "data-atlas-source-section")
                 .cloned()
                 .chain(std::iter::once((name, ordinal.to_string().into())))
                 .collect();
@@ -682,7 +682,7 @@ pub fn mark_source_html_passage(
         {
             element
                 .attrs
-                .retain(|(name, _)| name.local.as_ref() != "data-atlas-passage-target");
+                .retain(|(name, _)| &*name.local != "data-atlas-passage-target");
             if id == start {
                 let mut name = element.name.clone();
                 name.prefix = None;
