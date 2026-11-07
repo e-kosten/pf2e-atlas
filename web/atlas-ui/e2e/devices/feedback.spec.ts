@@ -92,6 +92,10 @@ test("blocked reference readiness has one notice without false model or empty-re
         ...data,
         status: "blocked",
         message: "SQL secret schema/path",
+        reference_error: {
+          code: "index_unavailable",
+          message: "SQL secret schema/path",
+        },
         search_profiles: data.search_profiles.map((profile: object) => ({
           ...profile,
           usable: false,
@@ -101,7 +105,7 @@ test("blocked reference readiness has one notice without false model or empty-re
   });
   await page.goto("/search?q=signal");
   await expect(
-    page.getByRole("status").filter({ hasText: "Reference unavailable." }),
+    page.getByRole("status").filter({ hasText: "Reference unavailable" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(1);
   await expect(
