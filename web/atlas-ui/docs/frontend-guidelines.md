@@ -474,6 +474,17 @@ Controls and trait badges retain their own scales; do not change Ant's global
 font size to repair reader content. Verify computed label/link sizes in the
 reader and Explore, and check that badges and controls keep their intended size.
 
+Use a persistent solid underline for navigation links embedded in rules prose,
+including sentences in lists. For example, underline a condition named in an
+effect sentence. Structured references such as
+languages, attack effects and spell names, and linked headings such as ability
+titles, use the reference color at rest. Underline them on hover or keyboard
+focus and show a visible keyboard focus indicator.
+
+For a phrase that opens a small context popover, such as a save DC in a sentence,
+keep the original words as the trigger and use a subtle dotted underline. Keep
+the phrase in the flow of the text without adding an icon or button chrome.
+
 `themeDefinitions.ts` owns the authored light/dark anchors and shared semantic
 roles. `atlasTheme.ts` projects them into the Ant configuration and document-level
 CSS variables. Use the root provider so portaled content receives the same colors.
@@ -604,7 +615,7 @@ both authored prose and typed heightening; do not parse or deduplicate one again
 the other.
 
 Use `ValueExplanation` for readable values with optional calculation or source
-context. A thin neutral underline is the persistent cue; hover and keyboard focus
+context. A thin dotted underline is the persistent cue. Hover and keyboard focus
 change the value and line to Ant's semantic link-hover color. Click, tap, Enter or
 Space opens the anchored explanation. Hover and focus alone do not open it.
 Escape closes this explanation before a surrounding Drawer; close returns focus

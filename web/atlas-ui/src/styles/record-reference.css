@@ -636,15 +636,26 @@
 .prepared-content a:visited {
   color: var(--link);
 }
-/* Text links share a visible cue across authored and projected content. */
-.actor-activity__name > a[href],
+/* Prose links mark the words that navigate. Structured links mark interaction. */
+.prepared-content
+  :is(p, li, blockquote)
+  a[href]:not(
+    :is(h1, h2, h3, h4, h5, h6) *,
+    .record-trait-badge *,
+    .effect-reference-link
+  ),
+.prepared-content
+  a[href]:not(.record-trait-badge *, .effect-reference-link):is(:hover, :focus-visible),
+.actor-activity__name > a[href]:is(:hover, :focus-visible),
 :is(.detail-panel, .record-reference, .record-explore__task)
-  a.ant-typography[href]:not(.record-trait-badge *),
-.prepared-content a[href]:not(.record-trait-badge *, .effect-reference-link) {
+  a.ant-typography[href]:not(.record-trait-badge *):is(:hover, :focus-visible) {
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
-.prepared-content a:focus-visible {
+.prepared-content a:focus-visible,
+.actor-activity__name > a[href]:focus-visible,
+:is(.detail-panel, .record-reference, .record-explore__task)
+  a.ant-typography:where([href]:not(.record-trait-badge *)):focus-visible {
   outline: 2px solid var(--selection-border);
   outline-offset: 2px;
 }
@@ -834,9 +845,6 @@
   color: var(--comparison-reference-badge-text);
   background: var(--panel-subtle);
   border-color: var(--line);
-}
-.comparison-source .record-reference a:hover {
-  text-decoration: underline;
 }
 .comparison-source .record-reference a.source-owner-selected {
   color: var(--comparison-normal-link);
