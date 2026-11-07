@@ -2808,12 +2808,11 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
   await expect(selected).toBeVisible();
   const read = page.getByRole("link", { name: "Read Chthonian", exact: true });
   await activate(read, info);
-  const help = page.getByRole("dialog", { name: "Chthonian", exact: true });
+  const help = page.locator(".picker-reference");
   await expect(help.getByText(/Typically spoken by demons/)).toBeVisible();
-  await expectUsefulGlossaryDrawer(help);
   expect(page.url()).toBe(draftUrl);
   await activate(
-    help.getByRole("button", { name: "Close reference preview", exact: true }),
+    help.getByRole("button", { name: "Back to languages choices", exact: true }),
     info,
   );
   await expect(help).toBeHidden();
@@ -2823,7 +2822,7 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
   await expect(read).toBeFocused();
   await activate(read, info);
   await activate(
-    help.getByRole("link", { name: "Open reference full page", exact: true }),
+    help.getByRole("link", { name: "Open full reference", exact: true }),
     info,
   );
   await expect(page).toHaveURL(/\/definitions\/language:chthonian$/);

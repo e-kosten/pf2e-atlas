@@ -46,8 +46,7 @@ describe("combined ability and skill conditions", () => {
   it("offers two families, waits for a complete selection, and retains numeric criteria when changing entity", async () => {
     const change = renderControls(actorMetricCatalog());
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
-    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Filter field" }));
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
     expect(screen.getByRole("option", { name: "Ability" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Skill" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Strength Modifier" })).toBeNull();
@@ -89,8 +88,7 @@ describe("combined ability and skill conditions", () => {
   it("uses a skill/statistic picker and named ranks without sending a UI family field to the query", async () => {
     const change = renderControls(actorMetricCatalog());
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
-    chooseActorMetricOption("Filter field", "Skill");
+    chooseActorMetricOption("Add condition", "Skill");
     chooseActorMetricOption("Skill", "Athletics");
     fireEvent.change(screen.getByRole("textbox", { name: "Athletics Modifier" }), {
       target: { value: "20" },
@@ -426,7 +424,7 @@ describe("shared common and maintained advanced filters", () => {
       editorFixture([fieldFixture("defenses.hp.maximum", "number", "Maximum HP")]),
     );
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
     expect(screen.queryByText("Changes pending")).not.toBeInTheDocument();
   });
   it("composes a search row and common/advanced controls once while preserving the predicate on submit", () => {
@@ -542,8 +540,10 @@ describe("shared common and maintained advanced filters", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     fireEvent.click(screen.getByRole("button", { name: "Add group" }));
-    expect(screen.getAllByRole("button", { name: "Add condition" })).toHaveLength(2);
-    fireEvent.click(screen.getAllByRole("button", { name: "Add condition" })[1]);
+    const choosers = screen.getAllByRole("combobox", { name: "Add condition" });
+    expect(choosers).toHaveLength(2);
+    fireEvent.mouseDown(choosers[1]);
+    fireEvent.click(screen.getAllByText("Maximum HP", { exact: true }).slice(-1)[0]);
     expect(screen.getAllByRole("combobox", { name: "Filter field" })).toHaveLength(2);
   });
   it("shares unfinished common numeric input with Advanced and corrects it there", () => {
@@ -941,17 +941,15 @@ describe("per-value states and the complete query", () => {
     expect(
       within(advanced).getByRole("combobox", { name: "Filter field" }),
     ).toBeInTheDocument();
-    fireEvent.click(within(advanced).getByRole("button", { name: "Add condition" }));
+    fireEvent.mouseDown(
+      within(advanced).getByRole("combobox", { name: "Add condition" }),
+    );
     expect(change).not.toHaveBeenCalled();
     expect(screen.queryByText("Complete this filter")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(
       within(advanced).getAllByRole("combobox", { name: "Filter field" }),
-    ).toHaveLength(2);
-    const field = within(advanced).getAllByRole("combobox", {
-      name: "Filter field",
-    })[1];
-    fireEvent.mouseDown(field);
+    ).toHaveLength(1);
     fireEvent.click(screen.getAllByText("Maximum HP", { exact: true }).slice(-1)[0]);
     fireEvent.change(screen.getByRole("textbox", { name: "Maximum HP" }), {
       target: { value: "12" },
@@ -1003,14 +1001,12 @@ describe("per-value states and the complete query", () => {
     expect(
       within(advanced).getAllByRole("combobox", { name: "Filter field" }),
     ).toHaveLength(1);
-    fireEvent.click(within(advanced).getByRole("button", { name: "Add condition" }));
+    fireEvent.mouseDown(
+      within(advanced).getByRole("combobox", { name: "Add condition" }),
+    );
     expect(
       within(advanced).getAllByRole("combobox", { name: "Filter field" }),
-    ).toHaveLength(2);
-    const field = within(advanced).getAllByRole("combobox", {
-      name: "Filter field",
-    })[1];
-    fireEvent.mouseDown(field);
+    ).toHaveLength(1);
     fireEvent.click(screen.getAllByText("Kind", { exact: true }).slice(-1)[0]);
     await waitFor(() =>
       expect(within(advanced).getAllByRole("combobox", { name: "Kind" })).toHaveLength(
@@ -1133,9 +1129,7 @@ describe("field applicability while editing Boolean groups", () => {
         { kind: "filtered", filter: null, text: null, mode: "hybrid" },
       );
       fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-      fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
-      const field = screen.getAllByRole("combobox", { name: "Filter field" })[2];
-      fireEvent.mouseDown(field);
+      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
       fireEvent.click(screen.getAllByText("Base Type", { exact: true }).slice(-1)[0]);
 
       const kind = screen.getByRole("combobox", { name: "Kind" });
@@ -1204,9 +1198,9 @@ describe("field applicability while editing Boolean groups", () => {
       values: ["creature"],
     });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
-    const [existing, added] = screen.getAllByRole("combobox", { name: "Filter field" });
-    fireEvent.mouseDown(added);
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
+    const existing = screen.getByRole("combobox", { name: "Filter field" });
+    const added = screen.getByRole("combobox", { name: "Add condition" });
     expect(screen.queryByRole("option", { name: "Base Type" })).not.toBeInTheDocument();
     fireEvent.keyDown(added, { key: "Escape", code: "Escape", keyCode: 27 });
     fireEvent.mouseDown(existing);
@@ -1236,9 +1230,7 @@ describe("field applicability while editing Boolean groups", () => {
         { kind: "filtered", filter: null, text: null, mode: "hybrid" },
       );
       fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-      fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
-      const field = screen.getAllByRole("combobox", { name: "Filter field" })[1];
-      fireEvent.mouseDown(field);
+      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
       fireEvent.click(screen.getAllByText("Kind", { exact: true }).slice(-1)[0]);
       const kind = screen.getAllByRole("combobox", { name: "Kind" })[1];
       fireEvent.mouseDown(kind);
@@ -1274,12 +1266,9 @@ describe("field applicability while editing Boolean groups", () => {
         values: ["creature"],
       });
       fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-      fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
       fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match conditions" }));
       fireEvent.click(screen.getAllByText(match, { exact: true }).slice(-1)[0]);
-      fireEvent.mouseDown(
-        screen.getAllByRole("combobox", { name: "Filter field" }).slice(-1)[0],
-      );
+      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
       fireEvent.click(screen.getAllByText("Hardness", { exact: true }).slice(-1)[0]);
       expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
     },

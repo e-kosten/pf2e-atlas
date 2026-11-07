@@ -7,14 +7,12 @@ import {
   MinusOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import { Button, Grid, Input, Popover, Typography, theme } from "antd";
+import { Button, Grid, Input, Popover, Typography } from "antd";
 import type { InputRef } from "antd";
 import {
-  createContext,
-  useContext,
   Fragment,
-  useCallback,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -22,22 +20,6 @@ import {
 import type { KeyboardEvent } from "react";
 export type ChoiceState = "neutral" | "include" | "exclude";
 export type ChoiceOption = { value: string; label: string };
-export type ChoicePickerActionHandoff = (
-  anchor: HTMLElement,
-  start: (finish: (reason: "return" | "navigate") => void) => void,
-) => void;
-const ChoiceActionContext = createContext<ChoicePickerActionHandoff | undefined>(
-  undefined,
-);
-/** Action content consumes its owning picker's event handoff without owning a session. */
-export function ChoicePickerAction({
-  children,
-}: {
-  children: (handoff: ChoicePickerActionHandoff | undefined) => ReactNode;
-}) {
-  return children(useContext(ChoiceActionContext));
-}
-
 /** Shared include/exclude interaction; callers own vocabulary and filter semantics. */
 export function ChoicePicker({
   label,
@@ -59,6 +41,7 @@ export function ChoicePicker({
   valueEditing,
   pageKey,
   optionAction,
+  reading,
   selectionContainer,
 }: {
   label: string;
@@ -77,59 +60,50 @@ export function ChoicePicker({
   emptyMessage?: ReactNode;
   labelForValue?: (value: string) => string;
   counts?: ReadonlyMap<string, bigint>;
-  valueEditing?: { triggerText: string; enterValue?: string; manualValue?: string };
+  valueEditing?: {
+    triggerText: string;
+    scalar?: boolean;
+    enterValue?: string;
+    manualValue?: string;
+  };
   pageKey?: string;
   optionAction?: (option: ChoiceOption) => ReactNode;
+  reading?: {
+    content: ReactNode;
+    origin: HTMLElement | null;
+    onBack: () => void;
+    onDismiss: () => void;
+  };
   selectionContainer?: HTMLElement | null;
 }) {
-  const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
-  const [actionPhase, setActionPhase] = useState<"suspended" | "returning" | null>(
-    null,
-  );
-  const externalAction = useRef<{
-    anchor: HTMLElement;
-    start: Parameters<ChoicePickerActionHandoff>[1];
-    started: boolean;
-    returning: boolean;
-  } | null>(null);
   const input = useRef<InputRef>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const initialFocusPending = useRef(false);
   const menuId = useId();
   const screens = Grid.useBreakpoint();
   const narrow = screens.xs === true && !screens.sm;
-  const visible = open && actionPhase !== "suspended";
-  const handoff = useCallback<ChoicePickerActionHandoff>((anchor, start) => {
-    initialFocusPending.current = false;
-    externalAction.current = { anchor, start, started: false, returning: false };
-    setActionPhase("suspended");
-  }, []);
-  function completeVisibility(next: boolean): boolean {
-    const owner = externalAction.current;
-    if (!owner) return false;
-    if (!next && !owner.started) {
-      owner.started = true;
-      owner.start((reason) => {
-        if (externalAction.current !== owner || owner.returning) return;
-        if (reason === "navigate") {
-          externalAction.current = null;
-          setActionPhase(null);
-          onOpenChange(false);
-        } else {
-          owner.returning = true;
-          setActionPhase("returning");
-        }
-      });
-    } else if (next && owner.returning) {
-      externalAction.current = null;
-      setActionPhase(null);
-      (owner.anchor.isConnected ? owner.anchor : trigger.current)?.focus({
-        preventScroll: true,
-      });
+  const visible = open;
+  const readingView = useRef<HTMLDivElement>(null);
+  const readOrigin = useRef<HTMLElement | null>(null);
+  const isReading = !!reading;
+  const origin = reading?.origin;
+  useLayoutEffect(() => {
+    if (isReading) {
+      readOrigin.current = origin ?? null;
+      readingView.current?.focus({ preventScroll: true });
+    } else if (readOrigin.current) {
+      const origin = readOrigin.current;
+      readOrigin.current = null;
+      const restore = () =>
+        (origin.isConnected ? origin : input.current)?.focus({ preventScroll: true });
+      restore();
+      if (narrow && document.activeElement !== origin) {
+        const frame = requestAnimationFrame(restore);
+        return () => cancelAnimationFrame(frame);
+      }
     }
-    return true;
-  }
+  }, [isReading, origin, narrow]);
   // Retain initial selections and every edited value through this open session.
   // Suggestions always keep server/catalog order, irrespective of selection.
   const options = [
@@ -144,7 +118,10 @@ export function ChoicePicker({
       )
     : options;
   function setMenuOpen(next: boolean) {
-    if (externalAction.current) return;
+    if (!next && reading) {
+      readOrigin.current = null;
+      reading.onDismiss();
+    }
     initialFocusPending.current = next;
     if (next) setSessionValues(selected);
     else {
@@ -167,7 +144,11 @@ export function ChoicePicker({
     }
   }
   function closeOnEscape(event: KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape" && !narrow) {
+    if (event.key !== "Escape") return;
+    if (reading) {
+      event.stopPropagation();
+      reading.onBack();
+    } else if (!narrow) {
       event.stopPropagation();
       setMenuOpen(false);
       trigger.current?.focus();
@@ -202,9 +183,7 @@ export function ChoicePicker({
               ? "neutral"
               : "include"
             : state === "neutral"
-              ? unavailable
-                ? "exclude"
-                : "include"
+              ? "include"
               : state === "include"
                 ? "exclude"
                 : "neutral";
@@ -229,9 +208,7 @@ export function ChoicePicker({
                       ? "var(--filter-include-text)"
                       : state === "exclude"
                         ? "var(--filter-exclude-text)"
-                        : unavailable
-                          ? token.colorTextDisabled
-                          : undefined,
+                        : undefined,
                   backgroundColor:
                     state === "include"
                       ? "var(--filter-include-bg)"
@@ -259,7 +236,9 @@ export function ChoicePicker({
                   type="secondary"
                   aria-label={`${counts.get(option.value)} matching records`}
                 >
-                  {new Intl.NumberFormat().format(counts.get(option.value)!)}
+                  {unavailable
+                    ? "0 matches"
+                    : new Intl.NumberFormat().format(counts.get(option.value)!)}
                 </Typography.Text>
               )}
               {state !== "neutral" && (
@@ -307,20 +286,29 @@ export function ChoicePicker({
   };
   // The mobile Drawer owns Escape; the desktop dialog delegates it from all
   // descendants, including the caller's vocabulary paging and retry actions.
-  const menu = narrow ? (
-    <section {...menuProps} role="group">
-      {menuContent}
-    </section>
-  ) : (
-    <section {...menuProps} role="dialog" onKeyDownCapture={closeOnEscape}>
-      {menuContent}
+  const menu = (
+    <section
+      {...menuProps}
+      role={narrow ? "group" : "dialog"}
+      onKeyDownCapture={closeOnEscape}
+      data-reading={isReading || undefined}
+    >
+      <div hidden={isReading} className="common-choice-view">
+        {menuContent}
+      </div>
+      {reading && (
+        <div ref={readingView} tabIndex={-1} aria-label="Option reference">
+          {reading.content}
+        </div>
+      )}
     </section>
   );
   const button = (
     <Button
       ref={trigger}
       className="common-choice-trigger"
-      block
+      type={valueEditing ? "text" : "default"}
+      block={!valueEditing}
       aria-label={"Edit " + label + (valueEditing ? " values" : " filter")}
       aria-haspopup="dialog"
       aria-expanded={visible}
@@ -350,7 +338,7 @@ export function ChoicePicker({
               size="small"
               color="default"
               variant="filled"
-              className="applied-filter-chip"
+              className={valueEditing ? undefined : "applied-filter-chip"}
               aria-label={
                 "Remove " +
                 (valueEditing
@@ -368,17 +356,19 @@ export function ChoicePicker({
                 change(value, "neutral");
               }}
             >
-              <span
-                className={
-                  state === "exclude"
-                    ? "applied-filter-chip__exclude"
-                    : "applied-filter-chip__include"
-                }
-                aria-hidden="true"
-              >
-                {state === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
-              </span>
-              {valueLabel}
+              {!valueEditing && (
+                <span
+                  className={
+                    state === "exclude"
+                      ? "applied-filter-chip__exclude"
+                      : "applied-filter-chip__include"
+                  }
+                  aria-hidden="true"
+                >
+                  {state === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
+                </span>
+              )}
+              {valueEditing?.scalar ? null : valueLabel}
               <CloseOutlined aria-hidden="true" />
             </Button>
           );
@@ -386,50 +376,54 @@ export function ChoicePicker({
       </div>
     ) : null;
   return (
-    <ChoiceActionContext value={handoff}>
-      <div className="common-choice-picker">
-        {narrow ? (
-          button
-        ) : (
-          <Popover
-            content={menu}
-            open={visible}
-            onOpenChange={setMenuOpen}
-            afterOpenChange={(shown) => {
-              if (completeVisibility(shown)) return;
-              if (shown && open && !narrow && initialFocusPending.current) {
-                initialFocusPending.current = false;
-                input.current?.focus();
-              }
-            }}
-            placement="bottom"
-            trigger="click"
-            arrow={false}
-            destroyOnHidden={actionPhase === null}
-          >
-            {button}
-          </Popover>
-        )}
-        {narrow && (
-          <Drawer
-            title={label}
-            open={visible}
-            placement="bottom"
-            size="min(80vh, 540px)"
-            onClose={() => setMenuOpen(false)}
-            focusable={{ focusTriggerAfterClose: false }}
-            afterOpenChange={(shown) => {
-              if (completeVisibility(shown)) return;
-              if (!shown) trigger.current?.focus();
-            }}
-          >
-            {open && menu}
-          </Drawer>
-        )}
-        {selectionContainer === undefined
+    <div
+      className="common-choice-picker"
+      data-operand={
+        valueEditing ? (valueEditing.scalar ? "scalar" : "list") : undefined
+      }
+    >
+      {valueEditing && selections}
+      {narrow ? (
+        button
+      ) : (
+        <Popover
+          content={menu}
+          open={visible}
+          onOpenChange={setMenuOpen}
+          afterOpenChange={(shown) => {
+            if (shown && open && !narrow && initialFocusPending.current) {
+              initialFocusPending.current = false;
+              input.current?.focus();
+            }
+          }}
+          placement="bottom"
+          trigger="click"
+          arrow={false}
+          destroyOnHidden
+        >
+          {button}
+        </Popover>
+      )}
+      {narrow && (
+        <Drawer
+          title={label}
+          open={visible}
+          placement="bottom"
+          size="min(80vh, 540px)"
+          onClose={() => setMenuOpen(false)}
+          keyboard={!isReading}
+          focusable={{ focusTriggerAfterClose: false }}
+          afterOpenChange={(shown) => {
+            if (!shown) trigger.current?.focus();
+          }}
+        >
+          {open && menu}
+        </Drawer>
+      )}
+      {!valueEditing &&
+        (selectionContainer === undefined
           ? selections
-          : selectionContainer && createPortal(selections, selectionContainer)}
-      </div>
-    </ChoiceActionContext>
+          : selectionContainer && createPortal(selections, selectionContainer))}
+    </div>
   );
 }

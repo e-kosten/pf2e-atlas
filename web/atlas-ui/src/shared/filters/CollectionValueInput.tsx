@@ -117,85 +117,87 @@ export function CollectionValueInput({
         clauseId={categoryRule?.id ?? null}
       />
       {anySense && <Typography.Text type="secondary">Any sense</Typography.Text>}
-      {qualifier && (qualifierRule || acuityChoices?.length) ? (
-        <FilterValueInput
-          field={{ ...qualifier, choices: acuityChoices ?? [] }}
-          operator="eq"
-          value={qualifierRule?.value ?? ""}
-          onChange={(value) =>
-            value === "" || value == null
-              ? onChange({
-                  ...query,
-                  rules: rules.filter((rule) => rule !== qualifierRule),
-                })
-              : replace(qualifier.definition.id, "eq", value)
-          }
-          scope={workspace.vocabularyScope ?? { kind: "artifact" }}
-          countContext={workspace.filterDiscoveryContext}
-          countsEnabled={workspace.filterCountsEnabled !== false}
-          countQueryKey={workspace.filterCountQueryKey}
-          countLimit={editor.limits.literal_list}
-          clauseId={qualifierRule?.id ?? null}
-        />
-      ) : null}
-      {amount && (!qualifier || hasRange || amountRule) && (
-        <div className="filter-collection-amount">
-          {!showAmount && !amountRule ? (
-            <Button
-              className="filter-collection-add-amount"
-              type="text"
-              onClick={() => setShowAmount(true)}
-            >
-              Add {amount.label.toLowerCase()}
-            </Button>
-          ) : (
-            <>
-              <Select
-                aria-label={amount.label + " comparison"}
-                value={amountRule?.operator ?? amountOperator}
-                options={amount.operators
-                  .filter((operator) => operator.operand === "scalar")
-                  .map((operator) => ({
-                    value: operator.operator,
-                    label: operator.label,
-                  }))}
-                onChange={(operator) => {
-                  setAmountOperator(operator);
-                  if (amountRule)
-                    replace(amount.definition.id, operator, amountRule.value);
-                }}
-              />
-              <Form.Item
-                style={{ marginBottom: 0 }}
-                validateStatus={amountError ? "error" : undefined}
-                help={
-                  amountError ? <span role="status">{amountError}</span> : undefined
-                }
+      <div className="filter-collection-details">
+        {qualifier && (qualifierRule || acuityChoices?.length) ? (
+          <FilterValueInput
+            field={{ ...qualifier, choices: acuityChoices ?? [] }}
+            operator="eq"
+            value={qualifierRule?.value ?? ""}
+            onChange={(value) =>
+              value === "" || value == null
+                ? onChange({
+                    ...query,
+                    rules: rules.filter((rule) => rule !== qualifierRule),
+                  })
+                : replace(qualifier.definition.id, "eq", value)
+            }
+            scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+            countContext={workspace.filterDiscoveryContext}
+            countsEnabled={workspace.filterCountsEnabled !== false}
+            countQueryKey={workspace.filterCountQueryKey}
+            countLimit={editor.limits.literal_list}
+            clauseId={qualifierRule?.id ?? null}
+          />
+        ) : null}
+        {amount && (!qualifier || hasRange || amountRule) && (
+          <div className="filter-collection-amount">
+            {!showAmount && !amountRule ? (
+              <Button
+                className="filter-collection-add-amount"
+                type="text"
+                onClick={() => setShowAmount(true)}
               >
-                <Input
-                  aria-label={amount.label}
-                  inputMode="decimal"
-                  suffix={amount.definition.units}
-                  placeholder={"Any " + amount.label.toLowerCase()}
-                  value={amountRule?.value ?? ""}
-                  onChange={(event) =>
-                    event.target.value === ""
-                      ? onChange({
-                          ...query,
-                          rules: rules.filter((rule) => rule !== amountRule),
-                        })
-                      : replace(
-                          amount.definition.id,
-                          amountRule?.operator ?? amountOperator,
-                          event.target.value,
-                        )
-                  }
+                Add {amount.label.toLowerCase()}
+              </Button>
+            ) : (
+              <>
+                <Select
+                  aria-label={amount.label + " comparison"}
+                  value={amountRule?.operator ?? amountOperator}
+                  options={amount.operators
+                    .filter((operator) => operator.operand === "scalar")
+                    .map((operator) => ({
+                      value: operator.operator,
+                      label: operator.label,
+                    }))}
+                  onChange={(operator) => {
+                    setAmountOperator(operator);
+                    if (amountRule)
+                      replace(amount.definition.id, operator, amountRule.value);
+                  }}
                 />
-              </Form.Item>
-            </>
-          )}
-        </div>
-      )}
+                <Form.Item
+                  style={{ marginBottom: 0 }}
+                  validateStatus={amountError ? "error" : undefined}
+                  help={
+                    amountError ? <span role="status">{amountError}</span> : undefined
+                  }
+                >
+                  <Input
+                    aria-label={amount.label}
+                    inputMode="decimal"
+                    suffix={amount.definition.units}
+                    placeholder={"Any " + amount.label.toLowerCase()}
+                    value={amountRule?.value ?? ""}
+                    onChange={(event) =>
+                      event.target.value === ""
+                        ? onChange({
+                            ...query,
+                            rules: rules.filter((rule) => rule !== amountRule),
+                          })
+                        : replace(
+                            amount.definition.id,
+                            amountRule?.operator ?? amountOperator,
+                            event.target.value,
+                          )
+                    }
+                  />
+                </Form.Item>
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

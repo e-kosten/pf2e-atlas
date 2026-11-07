@@ -4,6 +4,7 @@ import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
   Button,
+  ConfigProvider,
   Form,
   Input,
   Popover,
@@ -39,6 +40,7 @@ import {
   RuleGroupBodyComponents,
   type UseRuleGroup,
   useRule,
+  add,
   update,
   type RuleType,
   type RuleProps,
@@ -92,6 +94,7 @@ import { LinkFilterControls } from "./LinkFilterControls";
 import { linkClauses, type LinkLeaf } from "./linkPredicates";
 import { sameRelationship } from "./linkPredicates";
 import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
+import { transitionOperand } from "./operatorTransitions";
 import { ActorMetricPicker } from "./ActorMetricPicker";
 import {
   ACTOR_METRIC_CHOOSERS,
@@ -99,6 +102,9 @@ import {
   isActorMetricChooser,
   type ActorMetricKind,
 } from "./actorMetricFields";
+
+const getAdvancedPopupContainer = (trigger?: HTMLElement) =>
+  trigger?.closest<HTMLElement>(".advanced-filter-drawer-root") ?? document.body;
 
 const LinkEditingContext = createContext<{
   open: (rule: PredicateRule, replace: (next: PredicateRule) => void) => void;
@@ -439,10 +445,7 @@ export function FilterControls({
               aria-expanded={advanced}
               aria-label="Advanced filters"
             >
-              <span className="filter-controls__advanced-label">
-                Advanced
-                <span className="filter-controls__advanced-dot" aria-hidden="true" />
-              </span>
+              Advanced
             </Button>
           </Tooltip>
           {(search.filter ||
@@ -525,7 +528,17 @@ export function FilterControls({
         </div>
         <Drawer
           title="Advanced filters"
+          rootClassName="advanced-filter-drawer-root"
+          styles={{
+            root: { overflow: "hidden", pointerEvents: advanced ? "auto" : undefined },
+          }}
+          drawerRender={(panel) => (
+            <ConfigProvider getPopupContainer={getAdvancedPopupContainer}>
+              {panel}
+            </ConfigProvider>
+          )}
           placement="left"
+          push={false}
           size="min(100vw, 640px)"
           open={advanced}
           onClose={() => setAdvanced(false)}
@@ -774,6 +787,8 @@ type BuilderContext = {
   scope: string | null;
   narrowFields: boolean;
   workspace: FilterPanelState;
+  addCondition: (path: number[], fieldId: string) => void;
+  pendingConditionRef: RefObject<string | null>;
   replaceGroup: (path: number[], group: RuleGroupType) => void;
   replaceRule: (path: number[], rule: RuleType) => void;
 };
@@ -792,6 +807,7 @@ function StructuredBuilder({
   useApplicability?: boolean;
   workspace: FilterPanelState;
 }) {
+  const pendingConditionRef = useRef<string | null>(null);
   const visible = editor.groups
     .flatMap((group) => group.fields)
     .filter(
@@ -864,6 +880,31 @@ function StructuredBuilder({
             scope,
             narrowFields: useApplicability && isPositiveConjunction(query, visible),
             workspace,
+            pendingConditionRef,
+            addCondition: (path, fieldId) => {
+              const operator = visible
+                .find((field) => field.definition.id === fieldId)
+                ?.operators.find((option) => option.operator !== "state");
+              const id = crypto.randomUUID();
+              pendingConditionRef.current = id;
+              onChange(
+                add(
+                  query,
+                  {
+                    id,
+                    field: fieldId,
+                    operator:
+                      fieldId === LINK_CONDITION
+                        ? "incoming"
+                        : (operator?.operator ?? "eq"),
+                    value: operator
+                      ? transitionOperand(null, operator.operand, null)
+                      : "",
+                  },
+                  path,
+                ),
+              );
+            },
             replaceGroup: (path, group) =>
               onChange(
                 update(query, { combinator: group.combinator, not: group.not }, path),
@@ -916,7 +957,24 @@ const RuleEditContext = createContext<{
 } | null>(null);
 function FilterRule(props: RuleProps) {
   const rule = useRule(props);
-  const { replaceRule } = props.context as BuilderContext;
+  const { replaceRule, pendingConditionRef } = props.context as BuilderContext;
+  const row = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (pendingConditionRef.current !== props.rule.id || !row.current) return;
+    pendingConditionRef.current = null;
+    const focusable = "input:not([disabled]), button:not([disabled])";
+    const next =
+      row.current
+        .querySelector(
+          ":scope > .filter-rule-value, :scope > .filter-collection-condition",
+        )
+        ?.querySelector<HTMLElement>(focusable) ??
+      row.current.querySelector<HTMLElement>(
+        ".filter-field-family > :last-child input",
+      ) ??
+      row.current.querySelector<HTMLElement>(focusable);
+    next?.focus();
+  }, [pendingConditionRef, props.rule.id]);
   return (
     <RuleEditContext.Provider
       value={{
@@ -925,6 +983,7 @@ function FilterRule(props: RuleProps) {
       }}
     >
       <div
+        ref={row}
         className={rule.outerClassName}
         data-rule-id={props.rule.id}
         data-link-condition={props.rule.field === LINK_CONDITION || undefined}
@@ -958,13 +1017,17 @@ function isAdditivePath(group: RuleGroupType, path: number[]): boolean {
   const child = group.rules[index];
   return !!child && "rules" in child && isAdditivePath(child, rest);
 }
-function BuilderFieldSelector(props: FieldSelectorProps) {
-  const { editor, scope, narrowFields } = props.context as BuilderContext;
-  const editing = useContext(RuleEditContext);
-  const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
-  const addingCondition = !props.value || props.value === "~";
+function filterFieldGroups(
+  {
+    editor,
+    scope,
+    narrowFields,
+  }: Pick<BuilderContext, "editor" | "scope" | "narrowFields">,
+  addingCondition: boolean,
+  includeConstant = false,
+) {
   const seenKinds = new Set<ActorMetricKind>();
-  const groups = [
+  return [
     ...editor.groups
       .map((group) => ({
         label: group.label,
@@ -1024,7 +1087,7 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
           },
         ]
       : []),
-    ...(props.value === BOOLEAN_CONDITION
+    ...(includeConstant
       ? [
           {
             label: "Technical condition",
@@ -1039,11 +1102,26 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
         ]
       : []),
   ];
+}
+function filterFieldListHeight() {
+  return Math.min(420, Math.max(144, Math.floor(window.innerHeight * 0.56)));
+}
+function BuilderFieldSelector(props: FieldSelectorProps) {
+  const { editor, scope, narrowFields } = props.context as BuilderContext;
+  const editing = useContext(RuleEditContext);
+  const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
+  const addingCondition = !props.value || props.value === "~";
+  const groups = filterFieldGroups(
+    { editor, scope, narrowFields },
+    addingCondition,
+    props.value === BOOLEAN_CONDITION,
+  );
   const chooser = (
     <Select
       className={selectedKind ? undefined : props.className}
       aria-label="Filter field"
       placeholder="Choose a filter…"
+      listHeight={filterFieldListHeight()}
       showSearch={{ optionFilterProp: "searchText" }}
       options={groups}
       value={
@@ -1102,7 +1180,16 @@ function RemoveCondition(props: ActionProps) {
         icon={<CloseOutlined />}
         aria-label={props.title || "Remove condition"}
         disabled={props.disabled}
-        onClick={props.handleOnClick}
+        onClick={(event) => {
+          const control = event.currentTarget;
+          const item = control.closest(".rule") ?? control.closest(".ruleGroup");
+          const group = item?.parentElement?.closest(".ruleGroup");
+          const addControl = group?.querySelector<HTMLElement>(
+            ":scope > .ruleGroup-body > .filter-group-actions [role=combobox]",
+          );
+          restoreOverlayFocus(addControl ?? null, control);
+          props.handleOnClick(event);
+        }}
       />
     </Tooltip>
   );
@@ -1140,19 +1227,34 @@ function hasConfiguredCondition(group: RuleGroupType): boolean {
   );
 }
 function FilterGroupBody(props: UseRuleGroup) {
+  const context = props.context as BuilderContext;
+  const [choosingField, setChoosingField] = useState(false);
   return (
     <>
       <RuleGroupBodyComponents {...props} />
       <Space className="filter-group-actions">
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
+        <Select
+          className="filter-add-condition"
           aria-label="Add condition"
+          placeholder={
+            <>
+              <PlusOutlined aria-hidden="true" /> Add condition
+            </>
+          }
+          variant="borderless"
+          value={null}
+          open={choosingField}
+          onOpenChange={setChoosingField}
+          listHeight={filterFieldListHeight()}
+          popupMatchSelectWidth={280}
+          showSearch={{ optionFilterProp: "searchText" }}
+          options={filterFieldGroups(context, true)}
           disabled={props.disabled}
-          onClick={props.addRule}
-        >
-          Add condition
-        </Button>
+          onChange={(fieldId) => {
+            setChoosingField(false);
+            if (fieldId) context.addCondition(props.path, fieldId);
+          }}
+        />
         {props.schema.maxLevels > props.path.length && (
           <Button type="text" disabled={props.disabled} onClick={props.addGroup}>
             Add group

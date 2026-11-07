@@ -91,7 +91,7 @@ test("imported collection availability becomes a safe nested editor and its orig
     .click();
   await expect(drawer.locator(".ruleGroup")).toHaveCount(2);
   await expect(
-    drawer.getByRole("button", { name: "Add condition", exact: true }).nth(1),
+    drawer.getByRole("combobox", { name: "Add condition", exact: true }).nth(1),
   ).toBeVisible();
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
@@ -394,10 +394,18 @@ test("Advanced starts with the existing Kind and adding Kind creates exactly one
   const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
   const fields = drawer.getByRole("combobox", { name: "Filter field", exact: true });
   await expect(fields).toHaveCount(1);
-  await drawer.getByRole("button", { name: "Add condition", exact: true }).click();
+  const addCondition = drawer.getByRole("combobox", {
+    name: "Add condition",
+    exact: true,
+  });
+  await addCondition.click();
+  await expect(fields).toHaveCount(1);
+  await addCondition.fill("Kind");
+  await page
+    .locator(".ant-select-dropdown:visible")
+    .getByText("Kind", { exact: true })
+    .click();
   await expect(fields).toHaveCount(2);
-  await fields.nth(1).fill("Kind");
-  await fields.nth(1).press("Enter");
   const values = drawer.getByRole("combobox", { name: "Kind", exact: true });
   await values.nth(1).fill("Creature");
   await values.nth(1).press("Enter");

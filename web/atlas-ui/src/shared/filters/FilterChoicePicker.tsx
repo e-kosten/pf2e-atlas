@@ -8,12 +8,10 @@ import type {
   QueryPredicate,
 } from "../../generated/atlas";
 import { sentenceCase } from "../ui/labels";
-import {
-  ChoicePicker,
-  ChoicePickerAction,
-  type ChoiceState,
-} from "../ui/pickers/ChoicePicker";
-import { ReferenceHelpLink } from "../records/ReferenceHelp";
+import { ChoicePicker, type ChoiceState } from "../ui/pickers/ChoicePicker";
+import { ReferenceHelpLink, ReferenceHelpProvider } from "../records/ReferenceHelp";
+import { useRecordPreview } from "../records/useRecordPreview";
+import { PickerReference } from "../records/PickerReference";
 import {
   changeChoiceValue,
   choiceClauses,
@@ -103,7 +101,7 @@ function FilterChoicePicker({
   const [text, setText] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
-  const [showUnavailable, setShowUnavailable] = useState(false);
+  const [fullCatalogKey, setFullCatalogKey] = useState<string | null>(null);
   const closedChoices = field.short_choices;
   const isActions = field.definition.id === "actions";
   const labelScope = JSON.stringify([scope, field.definition.id]);
@@ -136,6 +134,13 @@ function FilterChoicePicker({
           field.definition.path,
           field.definition.scope,
         )[0] ?? null);
+  const narrowingKey = narrowingContext
+    ? JSON.stringify(
+        [scope, field.definition.id, narrowingContext, clauseId],
+        (_, value) => (typeof value === "bigint" ? value.toString() : value),
+      )
+    : null;
+  const showAllValues = narrowingKey !== null && fullCatalogKey === narrowingKey;
   const query = useFilterVocabulary(
     scope,
     field.definition.id,
@@ -143,7 +148,7 @@ function FilterChoicePicker({
     offset,
     selected,
     (open || loadSelectedLabels) && !closedChoices,
-    open && narrowingContext && !showUnavailable
+    open && narrowingContext && !showAllValues
       ? { context: narrowingContext, clauseId }
       : undefined,
   );
@@ -271,133 +276,148 @@ function FilterChoicePicker({
           ? selected.filter((entry) => entry !== value)
           : [...new Set([...selected, value])],
       );
-      if (next !== "neutral") searchValues("");
     }
   }
 
+  const preview = useRecordPreview();
   return (
-    <ChoicePicker
-      optionAction={(option) => {
-        const help = choices.find((choice) => choice.value === option.value)?.help;
-        return help?.destination ? (
-          <ChoicePickerAction>
-            {(handoff) => (
-              <ReferenceHelpLink
-                help={help}
-                generation={countContext?.expected_artifact_generation ?? undefined}
-                handoff={handoff}
-              >
-                Read<span className="sr-only"> {option.label}</span>
-              </ReferenceHelpLink>
-            )}
-          </ChoicePickerAction>
-        ) : null;
-      }}
-      selectionContainer={selectionContainer}
-      labelForValue={labelForValue}
-      id={field.definition.id}
-      label={label}
-      choices={choices}
-      counts={counts}
-      selected={selected}
-      stateOf={(value) =>
-        edit.kind === "condition"
-          ? choiceValueState(edit.clause, value)
-          : selected.includes(value)
-            ? "include"
-            : "neutral"
-      }
-      onChange={activate}
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) {
-          setText("");
-          setSearch("");
-          setOffset(0);
+    <ReferenceHelpProvider onHelp={preview.openHelp} onReference={preview.open}>
+      <ChoicePicker
+        reading={
+          preview.destination
+            ? {
+                origin: preview.anchor,
+                onDismiss: preview.closeForNavigation,
+                onBack: preview.readingHistory.canGoBack
+                  ? preview.readingHistory.onBack
+                  : preview.close,
+                content: <PickerReference preview={preview} label={label} />,
+              }
+            : undefined
         }
-      }}
-      text={text}
-      onTextChange={searchValues}
-      emptyMessage={query.error && !closedChoices ? null : "No matching values"}
-      filterChoices={closedChoices}
-      loading={!closedChoices && query.isFetching}
-      pageKey={query.data?.pageKey}
-      valueEditing={
-        edit.kind === "operand"
-          ? {
-              triggerText: selected.length ? "Edit values" : "Choose a value…",
-              enterValue: enterValue ?? undefined,
-              manualValue: settled ? (exact ?? undefined) : undefined,
-            }
-          : undefined
-      }
-    >
-      {!closedChoices && (
-        <div className="common-choice-footer">
-          {narrowingContext && (
-            <Checkbox
-              checked={showUnavailable}
-              onChange={(event) => {
-                setShowUnavailable(event.target.checked);
-                setOffset(0);
-              }}
+        optionAction={(option) => {
+          const help = choices.find((choice) => choice.value === option.value)?.help;
+          return help?.destination ? (
+            <ReferenceHelpLink
+              help={help}
+              generation={countContext?.expected_artifact_generation ?? undefined}
             >
-              Show unavailable
-            </Checkbox>
-          )}
-          <div className="common-choice-progress">
-            {query.data && (
-              <Typography.Text type="secondary" role="status">
-                {new Intl.NumberFormat().format(total)} values
-                {scope.kind === "saved_list" ? " in this list" : ""}
-                {pages > 1n
-                  ? " · Page " +
-                    (query.data.offset / VOCABULARY_PAGE_SIZE + 1) +
-                    " of " +
-                    pages
-                  : ""}
-              </Typography.Text>
-            )}
-            <Spin
-              size="small"
-              spinning={query.isFetching}
-              delay={500}
-              aria-label="Loading values"
-            />
-          </div>
-          <Space size="small">
-            <Button
-              size="small"
-              aria-label="Previous values"
-              disabled={offset === 0 || query.isFetching}
-              onClick={() => setOffset(Math.max(0, offset - VOCABULARY_PAGE_SIZE))}
-            >
-              Previous
-            </Button>
-            <Button
-              size="small"
-              aria-label="More values"
-              disabled={BigInt(offset) + pageSize >= total || query.isFetching}
-              onClick={() => setOffset(offset + VOCABULARY_PAGE_SIZE)}
-            >
-              Next
-            </Button>
-          </Space>
-        </div>
-      )}
-      {query.error && !closedChoices && (
-        <ErrorNotice
-          error={query.error}
-          compact
-          title="Values could not be loaded"
-          action={
-            <Button size="small" onClick={() => void query.refetch()}>
-              Retry values
-            </Button>
+              Read<span className="sr-only"> {option.label}</span>
+            </ReferenceHelpLink>
+          ) : null;
+        }}
+        selectionContainer={selectionContainer}
+        labelForValue={labelForValue}
+        id={field.definition.id}
+        label={label}
+        choices={choices}
+        counts={counts}
+        selected={selected}
+        stateOf={(value) =>
+          edit.kind === "condition"
+            ? choiceValueState(edit.clause, value)
+            : selected.includes(value)
+              ? "include"
+              : "neutral"
+        }
+        onChange={activate}
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) {
+            setText("");
+            setSearch("");
+            setOffset(0);
           }
-        />
-      )}
-    </ChoicePicker>
+        }}
+        text={text}
+        onTextChange={searchValues}
+        emptyMessage={query.error && !closedChoices ? null : "No matching values"}
+        filterChoices={closedChoices}
+        loading={!closedChoices && query.isFetching}
+        pageKey={query.data?.pageKey}
+        valueEditing={
+          edit.kind === "operand"
+            ? {
+                triggerText:
+                  edit.shape === "scalar" && selected.length
+                    ? labelForValue(selected[0])
+                    : selected.length
+                      ? "Add value"
+                      : "Choose " + label.toLowerCase() + "…",
+                scalar: edit.shape === "scalar",
+                enterValue: enterValue ?? undefined,
+                manualValue: settled ? (exact ?? undefined) : undefined,
+              }
+            : undefined
+        }
+      >
+        {!closedChoices && (
+          <div className="common-choice-footer">
+            {(showAllValues || (query.data?.contextual && !query.error)) && (
+              <Checkbox
+                checked={showAllValues}
+                onChange={(event) => {
+                  setFullCatalogKey(event.target.checked ? narrowingKey : null);
+                  setOffset(0);
+                }}
+              >
+                Show all values
+              </Checkbox>
+            )}
+            <div className="common-choice-progress">
+              {query.data && (
+                <Typography.Text type="secondary" role="status">
+                  {new Intl.NumberFormat().format(total)} values
+                  {scope.kind === "saved_list" ? " in this list" : ""}
+                  {pages > 1n
+                    ? " · Page " +
+                      (query.data.offset / VOCABULARY_PAGE_SIZE + 1) +
+                      " of " +
+                      pages
+                    : ""}
+                </Typography.Text>
+              )}
+              <Spin
+                size="small"
+                spinning={query.isFetching}
+                delay={500}
+                aria-label="Loading values"
+              />
+            </div>
+            <Space size="small">
+              <Button
+                size="small"
+                aria-label="Previous values"
+                disabled={offset === 0 || query.isFetching}
+                onClick={() => setOffset(Math.max(0, offset - VOCABULARY_PAGE_SIZE))}
+              >
+                Previous
+              </Button>
+              <Button
+                size="small"
+                aria-label="More values"
+                disabled={BigInt(offset) + pageSize >= total || query.isFetching}
+                onClick={() => setOffset(offset + VOCABULARY_PAGE_SIZE)}
+              >
+                Next
+              </Button>
+            </Space>
+          </div>
+        )}
+        {query.error && !closedChoices && (
+          <ErrorNotice
+            error={query.error}
+            compact
+            title="Values could not be loaded"
+            action={
+              <Button size="small" onClick={() => void query.refetch()}>
+                Retry values
+              </Button>
+            }
+          />
+        )}
+      </ChoicePicker>
+    </ReferenceHelpProvider>
   );
 }
