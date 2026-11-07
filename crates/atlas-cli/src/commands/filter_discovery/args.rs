@@ -11,8 +11,6 @@ pub(crate) struct FiltersArgs {
 pub(crate) enum FiltersCommand {
     #[command(about = "Discover supported CEL paths, operators, applicability and units")]
     Fields(Box<FiltersFieldsOptions>),
-    #[command(about = "Discover glossary definitions and their exact related filters")]
-    Definitions(Box<crate::commands::definitions::DefinitionFilterOptions>),
     #[command(about = "Discover contextual values, record counts and source availability")]
     Values(Box<FiltersValuesOptions>),
 }

@@ -37,6 +37,9 @@ records the existing typed identity, publication and ownership boundaries.
 
 ## Remaining work
 
+- Revisit CLI glossary reading and cross-glossary discovery together with the
+  existing `record`, `trait` and `filters` command tree. Additional glossary CLI
+  commands are deferred; contextual browser help and Advanced Filters remain in scope.
 - Distinguish same-title choices with concise, readable context. A sense property
   and references to its general rule can both be named Darkvision. Preserve their
   exact identities and predicates; do not expose source keys or merge definitions

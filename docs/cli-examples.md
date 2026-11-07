@@ -36,21 +36,6 @@ included spells keep their own casting details.
 `--detail`. See [source data](#inspect-source-data) for information beyond Atlas's
 usual presentation.
 
-Read glossary help with an exact definition key, including its source and notices:
-
-```bash
-atlas filters definitions --text darkvision --json
-atlas definition get sense:darkvision
-atlas definition get language:chthonian --json
-```
-
-Record-backed help reads the existing record; JSON keeps that exact destination
-rather than copying its body. Standalone definitions include supplied prose and
-attribution. Discovery also includes supported label-only values and values with
-zero matches. Use returned related-filter predicates to retain the intended
-property or reference relationship. Numeric choices identify a field requiring
-an operator and value.
-
 ## Search and browse
 
 ```bash
@@ -383,7 +368,8 @@ atlas search --where '!references_definition("sense:darkvision", "main_entry")' 
 ```
 
 These find explicit references, rather than creatures possessing the sense or
-speaking the language. Use the supplied property filter for those relationships.
+speaking the language. Use `atlas filters fields` and `atlas filters values` to
+discover property filters for those relationships.
 Record-backed definition keys retain their semantic identity while referencing
 the existing record destination. Missing or unavailable targets remain errors,
 including inside negation.

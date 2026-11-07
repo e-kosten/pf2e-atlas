@@ -5,7 +5,6 @@ use clap::{CommandFactory, Parser, Subcommand};
 use crate::commands;
 use crate::commands::agent_skills::args::AgentArgs;
 use crate::commands::completions::args::CompletionsArgs;
-use crate::commands::definitions::{DefinitionArgs, DefinitionCommand};
 use crate::commands::filter_discovery::args::{FiltersArgs, FiltersCommand};
 use crate::commands::graph::args::{GraphArgs, GraphCommand};
 use crate::commands::index::args::{IndexArgs, IndexCommand};
@@ -59,8 +58,6 @@ pub(crate) enum Command {
     Record(RecordArgs),
     #[command(about = "Read Atlas trait definitions")]
     Trait(TraitArgs),
-    #[command(about = "Read source-backed glossary definitions")]
-    Definition(DefinitionArgs),
     #[command(about = "Retrieve local record reference graph context")]
     Graph(GraphArgs),
     #[command(about = "Find records similar to a seed record")]
@@ -135,9 +132,6 @@ impl Command {
                 RecordCommand::Resolve(options) => options.json,
                 RecordCommand::Source(options) => options.json,
             },
-            Self::Definition(args) => match &args.command {
-                DefinitionCommand::Get(options) => options.uses_json(),
-            },
             Self::Trait(args) => match &args.command {
                 TraitCommand::Get(options) => options.json,
             },
@@ -155,7 +149,6 @@ impl Command {
             Self::Filters(filters) => match &filters.command {
                 FiltersCommand::Fields(options) => options.json,
                 FiltersCommand::Values(options) => options.json,
-                FiltersCommand::Definitions(options) => options.uses_json(),
             },
             Self::Encounters(options) => options.json,
             Self::Lists(lists) => match &lists.command {
@@ -198,9 +191,6 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
             RecordCommand::Source(options) => commands::record::source::run_record_source(options),
         },
-        Command::Definition(definitions) => match definitions.command {
-            DefinitionCommand::Get(options) => commands::definitions::run_definition_get(options),
-        },
         Command::Trait(traits) => match traits.command {
             TraitCommand::Get(options) => commands::traits::run_trait_get(options),
         },
@@ -216,9 +206,6 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         #[cfg(feature = "web")]
         Command::Web(args) => commands::web::run_web(args),
         Command::Filters(filters) => match filters.command {
-            FiltersCommand::Definitions(options) => {
-                commands::definitions::run_definition_filters(*options)
-            }
             FiltersCommand::Fields(options) => {
                 commands::filter_discovery::run_filters_fields(*options)
             }

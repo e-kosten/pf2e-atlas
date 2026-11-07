@@ -18,5 +18,4 @@ pub(crate) mod tags;
 #[cfg(feature = "web")]
 pub(crate) mod web;
 
-pub(crate) mod definitions;
 pub(crate) mod traits;
