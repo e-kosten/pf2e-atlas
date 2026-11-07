@@ -5,6 +5,25 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Dotted action-count explanation
+
+The desktop Quickened dialog leaves the action-count explanation visible behind
+it. The resting underline on “4 actions” is now dotted. Only
+`desktop-chromium/quickened-restrictions.png` changes on each OS. All 12 ordinary
+macOS condition-refinement cases passed across the four device projects.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.65.0, source
+  `022ac44b8bf5d951525cf9c2b2bbc478784ced1f`, checkout-local fixture.
+- Ubuntu 24.04 x64, Playwright 1.65.0,
+  [capture 42418881189](https://github.com/e-kosten/pf2e-atlas/actions/runs/42418881189)
+  using CI 42415628031's authenticated fixture, synthetic merge
+  `ac953c8dcb7d0d825db2b923342ae8902a22bbd0`.
+  Fixture SHA-256:
+  `a045fc333b46348605c47eacbb260c8618a72afa9dd402153614b6d3846f8047`.
+
+Both use frontend index SHA-256:
+`7ff03ad56dc404ab9478ec6934a0e47d8d56f7cf88dab3a8501f96e17ab6671e`.
+
 ## Shared reader typography
 
 Reader outline links now inherit the 16px document size alongside other inline

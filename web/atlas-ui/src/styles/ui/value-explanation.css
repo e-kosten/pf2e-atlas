@@ -1,5 +1,5 @@
 .explained-value__label {
-  text-decoration: underline;
+  text-decoration: underline dotted;
   text-decoration-thickness: 1px;
   text-decoration-color: color-mix(in srgb, currentcolor 55%, transparent);
   text-underline-offset: 3px;
@@ -32,7 +32,6 @@
 }
 .prepared-check-label .explained-value__label {
   color: var(--link);
-  text-decoration-color: currentcolor;
 }
 
 .check-details__traits {

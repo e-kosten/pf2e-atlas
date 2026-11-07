@@ -5,7 +5,8 @@
 }
 
 /* Inline typography follows its local fact, heading or metadata context. */
-:is(.detail-panel, .record-reference) :is(a, span, p, div).ant-typography {
+:is(.detail-panel, .record-reference, .record-explore__task)
+  :is(a, span, p, div).ant-typography {
   font-size: inherit;
   line-height: inherit;
 }
@@ -635,10 +636,29 @@
 .prepared-content a:visited {
   color: var(--link);
 }
-.prepared-content a:hover {
-  text-decoration: underline;
+/* Prose links mark the words that navigate. Structured links mark interaction. */
+.prepared-content
+  :is(p, li, blockquote)
+  a[href]:not(
+    :is(h1, h2, h3, h4, h5, h6) *,
+    .record-trait-badge *,
+    .effect-reference-link
+  ) {
+  text-decoration: underline solid color-mix(in srgb, currentcolor 55%, transparent) 1px;
+  text-underline-offset: 0.15em;
 }
-.prepared-content a:focus-visible {
+.prepared-content
+  a[href]:not(.record-trait-badge *, .effect-reference-link):is(:hover, :focus-visible),
+.actor-activity__name > a[href]:is(:hover, :focus-visible),
+:is(.detail-panel, .record-reference, .record-explore__task)
+  a.ant-typography[href]:not(.record-trait-badge *):is(:hover, :focus-visible) {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.prepared-content a:focus-visible,
+.actor-activity__name > a[href]:focus-visible,
+:is(.detail-panel, .record-reference, .record-explore__task)
+  a.ant-typography:where([href]:not(.record-trait-badge *)):focus-visible {
   outline: 2px solid var(--selection-border);
   outline-offset: 2px;
 }
@@ -828,9 +848,6 @@
   color: var(--comparison-reference-badge-text);
   background: var(--panel-subtle);
   border-color: var(--line);
-}
-.comparison-source .record-reference a:hover {
-  text-decoration: underline;
 }
 .comparison-source .record-reference a.source-owner-selected {
   color: var(--comparison-normal-link);

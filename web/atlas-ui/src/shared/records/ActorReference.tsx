@@ -1557,29 +1557,18 @@ function CastingSpells({
                 return (
                   <span key={JSON.stringify(spell.navigation)}>
                     {index > 0 && ", "}
-                    <Button
-                      type="link"
-                      className={[
-                        annotation?.muted ? "actor-casting__spell--expended" : "",
+                    <Typography.Link
+                      className={
                         isSourceOwnerSelected(spell.navigation)
                           ? "source-owner-selected"
-                          : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
+                          : undefined
+                      }
                       aria-label={
                         annotation?.status
                           ? `${spell.title}: ${annotation.status}`
                           : undefined
                       }
-                      size="small"
-                      style={{
-                        color: annotation?.muted ? "var(--muted)" : undefined,
-                        paddingInline: 0,
-                        height: "auto",
-                        whiteSpace: "normal",
-                        textAlign: "left",
-                      }}
+                      style={annotation?.muted ? { color: "var(--muted)" } : undefined}
                       href={destinationHref(
                         recordDestination({
                           recordKey: spell.navigation.record_key,
@@ -1597,7 +1586,7 @@ function CastingSpells({
                       }}
                     >
                       {spell.title}
-                    </Button>
+                    </Typography.Link>
                     {annotation?.suffix && <> {annotation.suffix}</>}
                   </span>
                 );
