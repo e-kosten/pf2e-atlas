@@ -1210,7 +1210,7 @@ describe("field applicability while editing Boolean groups", () => {
     expect(screen.queryByText("Changes pending")).not.toBeInTheDocument();
   });
 
-  it("lets an empty Kind condition in Match any broaden the active filter", () => {
+  it("lets an empty Kind condition in At least one condition matches broaden the active filter", () => {
     const editor = editorFixture([
       {
         ...fieldFixture("kind", "string", "Kind"),
@@ -1252,25 +1252,26 @@ describe("field applicability while editing Boolean groups", () => {
     }
   });
 
-  it.each(["Match any", "Match none", "At least one fails"])(
-    "keeps fields available when %s can broaden the current result",
-    (match) => {
-      const editor = editorFixture([
-        { ...fieldFixture("kind", "string", "Kind"), choices: ["creature"] },
-        fieldFixture("hazard.hardness", "number", "Hardness"),
-      ]);
-      editor.groups[0].fields[1].applicable = false;
-      renderControls(editor, {
-        kind: "in",
-        field: "kind",
-        values: ["creature"],
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match conditions" }));
-      fireEvent.click(screen.getAllByText(match, { exact: true }).slice(-1)[0]);
-      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
-      fireEvent.click(screen.getAllByText("Hardness", { exact: true }).slice(-1)[0]);
-      expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
-    },
-  );
+  it.each([
+    "At least one condition matches",
+    "No conditions match",
+    "At least one condition doesn’t match",
+  ])("keeps fields available when %s can broaden the current result", (match) => {
+    const editor = editorFixture([
+      { ...fieldFixture("kind", "string", "Kind"), choices: ["creature"] },
+      fieldFixture("hazard.hardness", "number", "Hardness"),
+    ]);
+    editor.groups[0].fields[1].applicable = false;
+    renderControls(editor, {
+      kind: "in",
+      field: "kind",
+      values: ["creature"],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match conditions" }));
+    fireEvent.click(screen.getAllByText(match, { exact: true }).slice(-1)[0]);
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
+    fireEvent.click(screen.getAllByText("Hardness", { exact: true }).slice(-1)[0]);
+    expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
+  });
 });

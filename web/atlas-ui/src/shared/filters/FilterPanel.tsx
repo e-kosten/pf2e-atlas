@@ -21,7 +21,6 @@ import {
   DownOutlined,
   CloseOutlined,
   FilterOutlined,
-  PlusOutlined,
 } from "@ant-design/icons";
 import {
   createContext,
@@ -855,8 +854,8 @@ function StructuredBuilder({
             .filter((group) => group.options.length),
         ]}
         combinators={[
-          { name: "and", label: "Match all" },
-          { name: "or", label: "Match any" },
+          { name: "and", label: "All conditions match" },
+          { name: "or", label: "At least one condition matches" },
         ]}
         getOperators={(id) =>
           id === LINK_CONDITION
@@ -1203,25 +1202,33 @@ function GroupMatchSelector(props: CombinatorSelectorProps) {
   const { replaceGroup } = props.context as BuilderContext;
   const group = props.ruleGroup as RuleGroupType;
   return (
-    <Select
-      aria-label="Match conditions"
-      variant="filled"
-      popupMatchSelectWidth={false}
-      value={(group.not ? "not:" : "") + group.combinator}
-      options={[
-        { value: "and", label: "Match all" },
-        { value: "or", label: "Match any" },
-        { value: "not:or", label: "Match none" },
-        { value: "not:and", label: "At least one fails" },
-      ]}
-      onChange={(value) =>
-        replaceGroup(props.path, {
-          ...group,
-          combinator: value.replace("not:", ""),
-          not: value.startsWith("not:"),
-        })
-      }
-    />
+    <div className="filter-group-match">
+      <Typography.Text type="secondary">Keep records where</Typography.Text>
+      <Select
+        aria-label="Match conditions"
+        variant="filled"
+        styles={{
+          root: { maxWidth: "100%" },
+          content: { whiteSpace: "normal" },
+          popup: { listItem: { whiteSpace: "normal" } },
+        }}
+        popupMatchSelectWidth={false}
+        value={(group.not ? "not:" : "") + group.combinator}
+        options={[
+          { value: "and", label: "All conditions match" },
+          { value: "or", label: "At least one condition matches" },
+          { value: "not:or", label: "No conditions match" },
+          { value: "not:and", label: "At least one condition doesn’t match" },
+        ]}
+        onChange={(value) =>
+          replaceGroup(props.path, {
+            ...group,
+            combinator: value.replace("not:", ""),
+            not: value.startsWith("not:"),
+          })
+        }
+      />
+    </div>
   );
 }
 function HiddenGroupAction() {
@@ -1243,11 +1250,7 @@ function FilterGroupBody(props: UseRuleGroup) {
         <Select
           className="filter-add-condition"
           aria-label="Add condition"
-          placeholder={
-            <>
-              <PlusOutlined aria-hidden="true" /> Add condition
-            </>
-          }
+          placeholder="Add condition"
           variant="borderless"
           styles={{
             placeholder: { color: token.colorText },
@@ -1267,12 +1270,7 @@ function FilterGroupBody(props: UseRuleGroup) {
           }}
         />
         {props.schema.maxLevels > props.path.length && (
-          <Button
-            type="text"
-            icon={<PlusOutlined aria-hidden="true" />}
-            disabled={props.disabled}
-            onClick={props.addGroup}
-          >
+          <Button type="text" disabled={props.disabled} onClick={props.addGroup}>
             Add group
           </Button>
         )}

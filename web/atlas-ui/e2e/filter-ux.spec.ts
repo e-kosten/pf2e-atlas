@@ -228,8 +228,10 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
   };
   for (let index = 0; index < 3; index++) {
     await expect(groupMatch).toHaveCount(2);
-    await choose(page, nestedMatch, "At least one fails");
-    await expect(nestedMatch.locator("..")).toContainText("At least one fails");
+    await choose(page, nestedMatch, "At least one condition doesn’t match");
+    await expect(nestedMatch.locator("..")).toContainText(
+      "At least one condition doesn’t match",
+    );
     await drawer
       .getByRole("textbox", { name: "Maximum HP", exact: true })
       .first()
@@ -244,7 +246,7 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
         },
       });
     await expect(groupMatch).toHaveCount(2);
-    await choose(page, nestedMatch, "Match all");
+    await choose(page, nestedMatch, "All conditions match");
     await expect.poll(() => read().children[1].kind).toBe("all_of");
     expect(read().children[0]).toMatchObject({
       kind: "in",
@@ -252,13 +254,15 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
       values: ["creature"],
     });
   }
-  await choose(page, nestedMatch, "At least one fails");
+  await choose(page, nestedMatch, "At least one condition doesn’t match");
   await expect.poll(() => read().children[1].kind).toBe("not");
   const before = read();
   await page.reload();
   await open();
   await expect(groupMatch).toHaveCount(2);
-  await expect(nestedMatch.locator("..")).toContainText("At least one fails");
+  await expect(nestedMatch.locator("..")).toContainText(
+    "At least one condition doesn’t match",
+  );
   expect(read()).toEqual(before);
 });
 
