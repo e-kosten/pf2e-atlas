@@ -88,6 +88,9 @@ export function useFilterDiscovery({
   });
   return {
     filterEditor: editor.data,
+    refreshFilterInformation: async () => {
+      await editor.refetch({ throwOnError: true });
+    },
     filterApplicabilityCurrent:
       enabled && editor.isSuccess && !editor.isPlaceholderData,
     filterCountsEnabled: enabled,
@@ -207,7 +210,7 @@ function discoveryIdentity(value?: {
 export const VOCABULARY_PAGE_SIZE = 40;
 type OptionPage = {
   values: Pick<
-    import("../../generated/atlas").QueryVocabulary,
+    import("../../generated/atlas").FilterVocabularyView,
     "field" | "options" | "selected_values" | "total_values"
   >;
   contextual: boolean;

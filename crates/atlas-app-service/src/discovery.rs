@@ -89,6 +89,7 @@ pub(crate) fn filter_editor_view(
             .choices
             .iter()
             .map(|value| FilterChoiceView {
+                help: None,
                 value: QueryLiteral::String(value.clone()),
                 label: if definition.path == "kind" {
                     crate::projection::kind_label(value)
@@ -99,10 +100,12 @@ pub(crate) fn filter_editor_view(
             .chain(if definition.field_type == QueryFieldType::Boolean {
                 vec![
                     FilterChoiceView {
+                        help: None,
                         value: QueryLiteral::Boolean(true),
                         label: "Yes".into(),
                     },
                     FilterChoiceView {
+                        help: None,
                         value: QueryLiteral::Boolean(false),
                         label: "No".into(),
                     },
@@ -115,6 +118,7 @@ pub(crate) fn filter_editor_view(
             choices = crate::physical_labels::USAGES
                 .iter()
                 .map(|(value, label)| FilterChoiceView {
+                    help: None,
                     value: QueryLiteral::String((*value).into()),
                     label: (*label).into(),
                 })
@@ -136,17 +140,23 @@ pub(crate) fn filter_editor_view(
             "movement.speeds" => Some(FilterCollectionControlView {
                 category_field_id: "movement.speeds[].type".into(),
                 amount_field_id: Some("movement.speeds[].feet".into()),
+                qualifier_field_id: None,
             }),
             "defenses.weaknesses" | "defenses.resistances" => Some(FilterCollectionControlView {
                 category_field_id: format!("{}[].type", definition.id),
                 amount_field_id: Some(format!("{}[].value", definition.id)),
+                qualifier_field_id: None,
             }),
-            "senses" | "defenses.immunities" | "spell.damage" => {
-                Some(FilterCollectionControlView {
-                    category_field_id: format!("{}[].type", definition.id),
-                    amount_field_id: None,
-                })
-            }
+            "senses" => Some(FilterCollectionControlView {
+                category_field_id: "senses[].type".into(),
+                amount_field_id: Some("senses[].range".into()),
+                qualifier_field_id: Some("senses[].acuity".into()),
+            }),
+            "defenses.immunities" | "spell.damage" => Some(FilterCollectionControlView {
+                category_field_id: format!("{}[].type", definition.id),
+                amount_field_id: None,
+                qualifier_field_id: None,
+            }),
             _ => None,
         };
         let unit_fields = if ["rounds", "minutes", "hours", "days"]
@@ -173,6 +183,7 @@ pub(crate) fn filter_editor_view(
             unit_fields,
             short_choices: matches!(definition.id.as_str(), "kind" | "rarity")
                 || (!choices.is_empty() && choices.len() <= 12),
+            allow_custom_values: (definition.id == "actions").then_some(false),
             definition,
             control,
             placement,
@@ -217,6 +228,7 @@ pub(crate) fn filter_editor_view(
         limits: catalog.limits,
         groups: groups.into_values().collect(),
         common_field_ids: COMMON.into_iter().map(str::to_owned).collect(),
+        sense_qualifiers: None,
     })
 }
 fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
@@ -248,7 +260,7 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         return ProductGroup::Defenses;
     }
     match path.split('.').next().unwrap_or("") {
-        "body" | "abilities" | "skills" => ProductGroup::Creatures,
+        "body" | "abilities" | "skills" | "actions" => ProductGroup::Creatures,
         "level" | "has_description" => ProductGroup::Common,
         "hazard" => ProductGroup::Hazards,
         "physical" | "ammo" | "weapon" | "armor" | "shield" | "consumable" | "equipment"
@@ -267,7 +279,7 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         _ => ProductGroup::Other,
     }
 }
-fn words(value: &str) -> String {
+pub(crate) fn words(value: &str) -> String {
     let spaced = value.replace(['_', '-'], " ");
     let mut chars = spaced.chars();
     match chars.next() {

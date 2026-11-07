@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import ts from 'typescript';
 import { conditionSourceInputs } from '../src/generation/condition-definitions.js';
+import { referencePackFolders, referenceSourceFiles, referenceSourceInputs } from '../src/generation/reference-definitions.js';
 import { sourceIdentity } from '../src/discovery/source-identity.js';
 import { assertSourcePin, preparePinnedSource, type SourcePin } from '../src/generation/pinned-source.js';
 
@@ -20,10 +21,20 @@ async function fixture() {
     'packs/pf2e/conditions/fixture.json': '{}',
     'tsconfig.json': '{}', 'system.pf2e.json': '{}', 'static/lang/en.json': '{}',
   })) await writeFile(path.join(source, relative), text);
+  for (const relative of [...referenceSourceFiles,
+    ...referencePackFolders.map(folder => 'packs/pf2e/' + folder + '/fixture.json')]) {
+    const file = path.join(source, relative);
+    await mkdir(path.dirname(file), { recursive: true });
+    try { await readFile(file); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      await writeFile(file, relative.endsWith('.json') ? '{}' : 'export {};');
+    }
+  }
   const identity = await sourceIdentity(source);
   const pin: SourcePin = { repository: 'https://github.com/foundryvtt/pf2e.git', commit: 'a'.repeat(40),
     systemVersion: 'fixture', sourceDigest: identity.source_digest, inputFileCount: identity.input_file_count,
-    conditionSourceDigest: (await conditionSourceInputs(source)).digest, typescriptVersion: ts.version, ruleKeys: [] };
+    conditionSourceDigest: (await conditionSourceInputs(source)).digest,
+    referenceSourceDigest: (await referenceSourceInputs(source)).digest, typescriptVersion: ts.version, ruleKeys: [] };
   return { directory, source, pin, identity };
 }
 
@@ -39,10 +50,10 @@ test('local source is isolated, a warm cache works, and corrupt source never aut
   const { directory, source, pin } = await fixture();
   t.after(() => rm(directory, { recursive: true, force: true }));
   const cache = path.join(directory, 'cache');
-  const exported = await preparePinnedSource(pin, cache, source);
+  const { source: exported } = await preparePinnedSource(pin, cache, source);
   assert.equal((await sourceIdentity(exported)).source_digest, pin.sourceDigest);
   await assert.rejects(readFile(path.join(source, 'node_modules')), /ENOENT/);
-  assert.equal(await preparePinnedSource(pin, cache), exported);
+  assert.equal((await preparePinnedSource(pin, cache)).source, exported);
   await assert.rejects(preparePinnedSource(pin, source, source), /separate/);
   await writeFile(path.join(exported, 'src/example.ts'), 'changed cached declaration');
   await assert.rejects(preparePinnedSource(pin, cache), /do not match/);
@@ -60,10 +71,10 @@ test('cold Git acquisition exports the exact pinned commit and reuses it without
   git('init', '-b', 'main'); git('add', '.'); git('commit', '-m', 'fixture');
   pin.commit = git('rev-parse', 'HEAD'); pin.repository = source;
   const cache = path.join(directory, 'cache');
-  const exported = await preparePinnedSource(pin, cache);
+  const { source: exported } = await preparePinnedSource(pin, cache);
   assert.equal((await sourceIdentity(exported)).source_digest, pin.sourceDigest);
   pin.repository = path.join(directory, 'absent remote');
-  assert.equal(await preparePinnedSource(pin, cache), exported);
+  assert.equal((await preparePinnedSource(pin, cache)).source, exported);
 });
 
 test('condition-pack changes invalidate generation independently of declaration bytes', async t => {
@@ -72,4 +83,21 @@ test('condition-pack changes invalidate generation independently of declaration 
   await writeFile(path.join(source, 'packs/pf2e/conditions/fixture.json'), '{"changed":true}');
   assert.equal((await sourceIdentity(source)).source_digest, identity.source_digest);
   await assert.rejects(preparePinnedSource(pin, path.join(directory,'cache'), source), /Condition pack bytes/);
+});
+
+test('glossary pack changes invalidate only the separate reference-source identity', async t => {
+  const { directory, source, pin, identity } = await fixture();
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const cache = path.join(directory, 'cache');
+  const pack = 'packs/pf2e/bestiary-ability-glossary-srd/fixture.json';
+  const prepared = await preparePinnedSource(pin, cache, source);
+  assert.equal(prepared.referenceInputs.digest, pin.referenceSourceDigest);
+  assert.equal(prepared.referenceInputs.documents.find(entry => entry.file === pack)?.bytes.toString(), '{}');
+  assert.deepEqual((await preparePinnedSource(pin, cache)).referenceInputs, prepared.referenceInputs);
+  await writeFile(path.join(source, pack), '{"changed":true}');
+  assert.equal((await sourceIdentity(source)).source_digest, identity.source_digest);
+  assert.equal((await conditionSourceInputs(source)).digest, pin.conditionSourceDigest);
+  await assert.rejects(preparePinnedSource(pin, cache, source), /Reference pack bytes/);
+  await writeFile(path.join(prepared.source, pack), '{"changed":true}');
+  await assert.rejects(preparePinnedSource(pin, cache), /Reference pack bytes/);
 });

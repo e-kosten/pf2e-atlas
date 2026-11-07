@@ -82,6 +82,45 @@ pub(super) fn identifiers<T: Serialize>(v: SourceFieldView<'_, &Vec<T>>) -> Fact
     }))
 }
 
+pub(super) fn reference_value(value: FactView<String>) -> FactView<ReferenceValueView> {
+    FactView {
+        state: value.state,
+        value: value.value.map(Into::into),
+    }
+}
+
+pub(super) fn reference_values(value: FactView<Vec<String>>) -> FactView<Vec<ReferenceValueView>> {
+    FactView {
+        state: value.state,
+        value: value
+            .value
+            .map(|values| values.into_iter().map(Into::into).collect()),
+    }
+}
+
+pub(super) fn reference_identifier<T: Serialize>(
+    value: SourceFieldView<'_, &T>,
+) -> FactView<ReferenceValueView> {
+    reference_value(identifier(value))
+}
+
+pub(super) fn reference_identifiers<T: Serialize>(
+    value: SourceFieldView<'_, &Vec<T>>,
+) -> FactView<Vec<ReferenceValueView>> {
+    reference_values(identifiers(value))
+}
+
+pub(super) fn reference_size(
+    value: SourceFieldView<'_, &atlas_foundry_model::generated::PhysicalSystemSourceSize>,
+) -> FactView<ReferenceValueView> {
+    let label = value.value().map(size_label);
+    let mut result = reference_identifier(value);
+    if let (Some(value), Some(label)) = (&mut result.value, label) {
+        value.label = label;
+    }
+    result
+}
+
 pub(super) fn size_label(
     size: &atlas_foundry_model::generated::PhysicalSystemSourceSize,
 ) -> String {

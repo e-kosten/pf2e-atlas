@@ -68,6 +68,14 @@ saved list changes the current view while keeping its saved order.
 Use **Random** to explore results in a random order and **Shuffle** to change that
 order. The order stays consistent as you move between pages.
 
+In **Advanced filters**, select **Senses** to combine sense type, acuity and
+range on one sense entry. Choose multiple types with **is any of**, or put
+separate Senses rows in a **Match all** group to require each sense.
+
+Choose **Actions** to find creatures with source-declared reusable abilities
+such as Grab. The picker shows observed values by name. **Read** opens the
+existing ability record and returns to the picker when you close it.
+
 ## Follow references
 
 The header's **Explore** icon opens previews of related entries.

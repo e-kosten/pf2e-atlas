@@ -3,7 +3,7 @@ use crate::{
     AtlasRetrievalService, RecordScope, SearchError, SearchPage, SearchPageInfo, TextSearchResult,
 };
 use atlas_domain::{QueryPredicate, SearchProfileId, SearchRanking, TraitKey};
-pub use atlas_index::{TraitDefinition, TraitMembership, TraitReference, TraitSourceLocation};
+pub use atlas_index::{ReferenceSourceLocation, TraitDefinition, TraitMembership, TraitReference};
 pub struct TraitAssociationRequest<'a> {
     pub trait_key: &'a TraitKey,
     pub page: SearchPage,
@@ -126,6 +126,7 @@ mod tests {
             source_locations: vec![],
             source_revision: fixture.context.source_revision.clone(),
             indexing_locale: fixture.context.indexing_locale.clone(),
+            content_locale: None,
         });
         if vector {
             let mut vector = vec![0.; 768];

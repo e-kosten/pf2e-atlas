@@ -6,5 +6,6 @@ import type { PhysicalBaseTypeView } from "./PhysicalBaseTypeView";
 import type { PhysicalDetailsView } from "./PhysicalDetailsView";
 import type { PhysicalMaterialReferenceView } from "./PhysicalMaterialReferenceView";
 import type { PhysicalPriceView } from "./PhysicalPriceView";
+import type { ReferenceValueView } from "./ReferenceValueView";
 
-export type PhysicalPresentationView = { base_type: FactView<PhysicalBaseTypeView>, details: PhysicalDetailsView | null, quantity: NumberFactView, material: FactView<PhysicalMaterialReferenceView>, size: FactView<string>, consumable: ConsumablePresentationView | null, usage: FactView<string>, bulk: NumberFactView, price: FactView<PhysicalPriceView>, price_per: NumberFactView, };
+export type PhysicalPresentationView = { base_type: FactView<PhysicalBaseTypeView>, details: PhysicalDetailsView | null, quantity: NumberFactView, material: FactView<PhysicalMaterialReferenceView>, size: FactView<ReferenceValueView>, consumable: ConsumablePresentationView | null, usage: FactView<string>, bulk: NumberFactView, price: FactView<PhysicalPriceView>, price_per: NumberFactView, };

@@ -1,3 +1,6 @@
+import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
+import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
+import { LinkNotFound } from "../../app/InvalidUrl";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { traitSimilarPreviewQueryOptions } from "../../shared/search/similarityQueries";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
@@ -7,7 +10,6 @@ import type { TraitPageInput } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
 import { canonicalRouteSearch } from "../../app/routeSearch";
 import { parseSearchParams } from "../../app/urlState";
-import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Button, Empty, Tabs, Typography } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
@@ -22,9 +24,7 @@ import type {
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 import { ReferenceResult } from "../../shared/records/ReferenceResult";
 import { ExploreSearchAction } from "../../shared/records/ExploreSearchAction";
-import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
-import { AddToRecordButton } from "../record-actions/AddToRecordButton";
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
@@ -48,14 +48,24 @@ import {
   retireReferenceQueries,
 } from "../../shared/queries/referenceQueries";
 export function TraitView({ route }: { route: TraitPageInput }) {
+  return (
+    <ReferenceHelpHost>
+      <TraitViewContent route={route} />
+    </ReferenceHelpHost>
+  );
+}
+
+function TraitViewContent({ route }: { route: TraitPageInput }) {
   const query = useTraitDetail(route.traitKey);
-  const preview = useRecordPreview();
-  usePageTitle(query.data?.label ?? "Trait");
+  const onReference = useReferenceRecordNavigation()!;
+  const unavailable = query.data?.content === null;
+  usePageTitle(unavailable ? "Link not found" : (query.data?.label ?? "Trait"));
   const client = useQueryClient();
   const reload = async () => {
     await retireReferenceQueries(client);
     await query.refetch();
   };
+  if (unavailable) return <LinkNotFound />;
   return (
     <>
       <main className="record-view">
@@ -88,23 +98,25 @@ export function TraitView({ route }: { route: TraitPageInput }) {
               />
             )}
             {query.data ? (
-              <article className="record-reference" data-selection-search>
-                <DocumentIdentityHeader
-                  title={query.data.label}
-                  classification="Trait"
-                />
-                <TraitDefinition detail={query.data} onReference={preview.open} />
-                <TraitAssociations
-                  key={JSON.stringify([
-                    query.data.trait_key,
-                    query.data.artifact_generation,
-                  ])}
-                  detail={query.data}
-                  route={route}
-                  onReload={() => void reload()}
-                  onReference={preview.open}
-                />
-              </article>
+              <ReferenceHelpProvider generation={query.data.artifact_generation}>
+                <article className="record-reference" data-selection-search>
+                  <DocumentIdentityHeader
+                    title={query.data.label}
+                    classification="Trait"
+                  />
+                  <TraitDefinition detail={query.data} onReference={onReference} />
+                  <TraitAssociations
+                    key={JSON.stringify([
+                      query.data.trait_key,
+                      query.data.artifact_generation,
+                    ])}
+                    detail={query.data}
+                    route={route}
+                    onReload={() => void reload()}
+                    onReference={onReference}
+                  />
+                </article>
+              </ReferenceHelpProvider>
             ) : query.isLoading ? (
               <div className="detail-empty">
                 <LoadingStatus label="Loading trait…" />
@@ -113,41 +125,6 @@ export function TraitView({ route }: { route: TraitPageInput }) {
           </section>
         </DocumentPagePane>
       </main>
-      {preview.active && (
-        <RecordReferenceDrawer
-          trait={preview.trait}
-          onTraitReference={preview.openTrait}
-          actions={
-            preview.recordKey && (
-              <AddToRecordButton
-                recordKey={preview.recordKey}
-                record={preview.detail?.record}
-              />
-            )
-          }
-          anchor={preview.anchor}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
-      )}
     </>
   );
 }

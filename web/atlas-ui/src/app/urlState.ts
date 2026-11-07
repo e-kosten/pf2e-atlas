@@ -68,7 +68,21 @@ export function validateReadingSearch(search: AtlasSearchParams): AtlasSearchPar
   selectedNavigation(search, "", "at");
   selectedNavigation(search, "", "focus");
   readingView(search);
+  definitionReading(search);
   return search;
+}
+
+export type DefinitionReadingInput = {
+  definitionKey?: string;
+};
+
+export function definitionReading(search: AtlasSearchParams): DefinitionReadingInput {
+  const key = readingParam(search, "definition_key");
+  if (key !== undefined && !key.trim())
+    throw new ReadingUrlError(
+      "This record link contains an invalid definition context.",
+    );
+  return { definitionKey: key };
 }
 
 function rejectLegacyReading(search: AtlasSearchParams) {

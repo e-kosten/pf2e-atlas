@@ -33,7 +33,7 @@ import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { chooseAttributeSort, selectSortOption } from "../../test/sortControls";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { LinkPickerContext } from "../../shared/filters/LinkPickerContext";
-import { ReferencePreviewProvider } from "../../shared/records/ReferencePreviewProvider";
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { LinkConditionPicker } from "../../shared/filters/LinkConditionPicker";
 import { linkClauses } from "../../shared/filters/linkPredicates";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
@@ -79,11 +79,11 @@ function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
       >
         <RouterTestContext>
           <SearchProfileProvider>
-            <ReferencePreviewProvider>
+            <ReferenceHelpHost>
               <LinkPickerContext value={LinkConditionPicker}>
                 <Harness />
               </LinkPickerContext>
-            </ReferencePreviewProvider>
+            </ReferenceHelpHost>
           </SearchProfileProvider>
         </RouterTestContext>
       </QueryClientProvider>

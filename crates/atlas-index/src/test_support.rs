@@ -231,6 +231,16 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: crate::COMPACT_REMASTER_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 33,
+        name: "reference-entries",
+        sql: crate::REFERENCE_ENTRIES_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "reference-entries/v1",
+            apply: crate::backfill_reference_entries,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -249,10 +259,38 @@ pub fn publish_input(path: impl AsRef<Path>, input: &IndexBuildInput) -> Result<
     publish_input_in(&workspace, TEST_WORKSPACE_SCHEMA_VERSION, input)
 }
 
+/// Publish explicit glossary fixtures through the same checked publication owner.
+/// The caller supplies complete inventory/scope evidence in the input context.
+pub fn publish_input_with_references(
+    path: impl AsRef<Path>,
+    input: &IndexBuildInput,
+    entries: &[crate::ReferenceEntry],
+    notices: &[crate::ReferenceNotice],
+) -> Result<(), IndexError> {
+    let workspace = initialize_workspace(path)?;
+    publish_input_in_with_references(
+        &workspace,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        input,
+        entries,
+        notices,
+    )
+}
+
 pub fn publish_input_in(
     workspace: &Workspace,
     schema: u32,
     input: &IndexBuildInput,
+) -> Result<(), IndexError> {
+    publish_input_in_with_references(workspace, schema, input, &[], &[])
+}
+
+fn publish_input_in_with_references(
+    workspace: &Workspace,
+    schema: u32,
+    input: &IndexBuildInput,
+    entries: &[crate::ReferenceEntry],
+    notices: &[crate::ReferenceNotice],
 ) -> Result<(), IndexError> {
     let native = fixture_native_values(input)?;
     let owner = workspace.update_owner()?;
@@ -261,7 +299,39 @@ pub fn publish_input_in(
     let read = workspace.read(schema)?;
     let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
     drop(read);
-    let metadata = spool_input_in(scratch.path(), input, expected)?;
+    let mut metadata = spool_input_in(scratch.path(), input, expected)?;
+    for entry in entries {
+        metadata.reference_entries.push(entry)?;
+    }
+    for notice in notices {
+        metadata.reference_notices.push(notice)?;
+    }
+    let mut abilities = crate::OwnedAbilityCatalog::default();
+    for entry in entries {
+        abilities.add_entry(entry);
+    }
+    for definition in &input.traits {
+        abilities.add_trait(
+            definition.key.clone().into(),
+            definition.label_key.as_deref(),
+            definition.description_key.as_deref(),
+        );
+    }
+    for source in &input.records {
+        if crate::reference_pack_applies(
+            input.context.reference_preparation.as_ref(),
+            "pf2e",
+            source.record.key().pack().as_str(),
+        ) {
+            let occurrences = atlas_record::source_record::owned_action_localizations(
+                &source.record,
+                input.context.audience,
+            );
+            for evidence in abilities.project(occurrences) {
+                metadata.owned_ability_evidence.push(&evidence)?;
+            }
+        }
+    }
     let mut publication =
         crate::PreparedPublication::new_in(&owner, schema, scratch.path(), metadata)?;
     for model in &input.context.search_profiles {
@@ -519,6 +589,29 @@ pub fn publish_pre_section_fixture(
         }
         Ok(())
     })
+}
+
+/// Stage the schema-32 catalog for a fixture with no remaster declarations.
+pub fn stage_pre_glossary_catalog(
+    workspace: &Workspace,
+    remaster_inputs_identity: &str,
+) -> Result<(), IndexError> {
+    let write = workspace.write(32)?;
+    let c = write.connection();
+    let mut context = crate::read_stored_reference_context(c)?
+        .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
+    context.remaster_inputs_identity = remaster_inputs_identity.into();
+    context.query_catalog_version = 9;
+    c.execute(
+        "UPDATE artifact_context SET context_hash=?,context_json=?",
+        rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
+    )?;
+    c.execute_batch(
+        "DELETE FROM query_field_catalog WHERE field IN
+        ('actions','senses[].acuity','senses[].range','armor.group','embedded.equipment[].armor.group');",
+    )?;
+    write.commit()?;
+    Ok(())
 }
 
 /// Seed only the record component of a deliberately historical schema fixture.

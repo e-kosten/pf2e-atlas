@@ -172,6 +172,9 @@ impl AtlasRetrievalService {
             context,
         })?)
     }
+    pub fn sense_qualifiers(&self) -> Result<Vec<(String, Option<String>, bool)>, SearchError> {
+        Ok(self.index.sense_qualifiers()?)
+    }
     pub fn discover_filter_vocabulary(
         &self,
         request: DiscoverFilterVocabularyRequest<'_>,

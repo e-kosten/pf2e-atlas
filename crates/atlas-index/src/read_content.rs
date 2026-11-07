@@ -601,6 +601,18 @@ impl SqliteIndexReader {
     ) -> Result<atlas_domain::QueryFacetOutcome<atlas_domain::QueryValueOptions>, IndexError> {
         crate::discovery::field_value_counts(self.native()?, request)
     }
+    /// Observed qualifier combinations for each sense in the reference corpus.
+    pub fn sense_qualifiers(&self) -> Result<Vec<(String, Option<String>, bool)>, IndexError> {
+        let mut statement = self.native()?.prepare(
+            "SELECT type, acuity, MAX(range_state='value')
+             FROM actor_senses JOIN records USING(record_id)
+             WHERE source_type='npc' AND type_state='value'
+             GROUP BY type, acuity ORDER BY type, acuity",
+        )?;
+        Ok(statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<Result<_, _>>()?)
+    }
     pub fn field_vocabulary(
         &self,
         request: &crate::QueryVocabularyRequest,

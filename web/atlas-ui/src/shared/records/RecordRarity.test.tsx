@@ -10,12 +10,16 @@ describe("RecordRarity", () => {
     [" RARE ", "Rare"],
     ["legendary", "Legendary"],
   ])("renders rarity %s as %s", (rarity, expected) => {
-    render(<RecordRarity rarity={rarity} />);
+    render(<RecordRarity rarity={{ value: rarity, label: expected }} />);
     expect(screen.getByLabelText(`Rarity: ${expected}`)).toBeInTheDocument();
   });
 
   it.each([null, undefined, "", " "])("omits unavailable rarity %s", (rarity) => {
-    const { container } = render(<RecordRarity rarity={rarity} />);
+    const { container } = render(
+      <RecordRarity
+        rarity={rarity == null ? rarity : { value: rarity, label: rarity }}
+      />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 });

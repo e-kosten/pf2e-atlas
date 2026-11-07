@@ -781,8 +781,8 @@ fn trait_definitions_share_localization_sanitization_and_explicit_reference_evid
         include_owner: false,
         implicit_check_dc: ContentVisibilityRule::All,
     };
-    let prepared = prepare_trait_definition(
-        atlas_domain::TraitKey::new("agile").unwrap(),
+    let prepared = prepare_reference_definition(
+        atlas_domain::TraitKey::new("agile").unwrap().into(),
         markup,
         audience,
         Some(&Terms),
@@ -802,8 +802,8 @@ fn trait_definitions_share_localization_sanitization_and_explicit_reference_evid
         reference.resolution,
         ContentReferenceResolution::Resolved(ContentReferenceTarget::Record { .. })
     )));
-    let variant = prepare_trait_definition(
-        atlas_domain::TraitKey::new("other").unwrap(),
+    let variant = prepare_reference_definition(
+        atlas_domain::TraitKey::new("other").unwrap().into(),
         markup,
         audience,
         Some(&Terms),
@@ -819,8 +819,10 @@ fn trait_definitions_share_localization_sanitization_and_explicit_reference_evid
 
 #[test]
 fn trait_reference_markers_validate_only_against_exact_trait_identity() {
-    let key = atlas_domain::TraitKey::new("throneglass").unwrap();
-    let prepared = prepare_trait_definition(
+    let key = "trait:throneglass"
+        .parse::<atlas_domain::DefinitionKey>()
+        .unwrap();
+    let prepared = prepare_reference_definition(
         key.clone(),
         "@UUID[Compendium.pf2e.conditionitems.Item.e1XGnhKNSQIm5IXg]{Stupefied}",
         audience(),
@@ -829,7 +831,7 @@ fn trait_reference_markers_validate_only_against_exact_trait_identity() {
     )
     .unwrap();
     validate_prepared_markers(&prepared.html, &prepared.interactions).unwrap();
-    validate_prepared_trait_reference_bindings(
+    validate_prepared_definition_reference_bindings(
         &prepared.html,
         &key,
         &prepared.authored_markup_sha256,
@@ -837,9 +839,9 @@ fn trait_reference_markers_validate_only_against_exact_trait_identity() {
     )
     .unwrap();
     assert!(
-        validate_prepared_trait_reference_bindings(
+        validate_prepared_definition_reference_bindings(
             &prepared.html,
-            &atlas_domain::TraitKey::new("agile").unwrap(),
+            &"trait:agile".parse().unwrap(),
             &prepared.authored_markup_sha256,
             &prepared.references
         )

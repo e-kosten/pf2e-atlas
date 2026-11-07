@@ -1,21 +1,40 @@
 //! Explicit indexing locale with pinned source-English fallback.
-use crate::IngestError;
+use crate::{
+    IngestError,
+    source_fingerprint::{SourceCapture, VerifiedSourceBytes},
+};
 use atlas_record::source_content::LocalizationResolver;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, btree_map::Entry},
     fs,
     path::{Component, Path, PathBuf},
 };
 #[derive(Debug)]
 pub(crate) struct LocalizationCatalog {
-    entries: BTreeMap<String, String>,
+    english: LoadedCatalogs,
+    selected: Option<LoadedCatalogs>,
     pub(crate) locale: String,
     pub(crate) locale_sha256: String,
     pub(crate) english_sha256: String,
 }
 impl LocalizationCatalog {
+    pub(crate) fn english_source(&self, key: &str) -> Option<(&str, &str)> {
+        let entry = self.english.entries.get(key)?;
+        let (file, hash) = &self.english.origins[entry.origin];
+        Some((file, hash))
+    }
+    pub(crate) fn english_value(&self, key: &str) -> Option<&str> {
+        self.english.value(key)
+    }
+    pub(crate) fn content_locale(&self, key: &str) -> Option<&str> {
+        self.selected
+            .as_ref()
+            .and_then(|catalog| catalog.value(key))
+            .map(|_| self.locale.as_str())
+            .or_else(|| self.english_value(key).map(|_| "en"))
+    }
     pub(crate) fn load(
         source_root: &Path,
         locale: &str,
@@ -27,7 +46,7 @@ impl LocalizationCatalog {
         source_root: &Path,
         locale: &str,
         manifest: Option<&Path>,
-        capture: Option<&crate::source_fingerprint::SourceCapture>,
+        capture: Option<&SourceCapture>,
     ) -> Result<Self, IngestError> {
         if locale.is_empty()
             || !locale
@@ -60,35 +79,44 @@ impl LocalizationCatalog {
             paths
         };
         let mut owned_catalog_bytes = BTreeMap::new();
-        let (mut entries, english_sha256) = load_catalogs(
+        let english = load_catalogs(
             source_root,
             &english_paths,
             capture,
             &mut owned_catalog_bytes,
         )?;
-        let locale_sha256 = if locale == "en" {
-            english_sha256.clone()
+        let selected = if locale == "en" {
+            None
         } else {
-            let (selected, hash) = load_catalogs(
+            Some(load_catalogs(
                 source_root,
                 &[source_root.join(format!("static/lang/{locale}.json"))],
                 capture,
                 &mut owned_catalog_bytes,
-            )?;
-            entries.extend(selected);
-            hash
+            )?)
         };
         Ok(Self {
-            entries,
             locale: locale.into(),
-            locale_sha256,
-            english_sha256,
+            locale_sha256: selected.as_ref().unwrap_or(&english).hash.clone(),
+            english_sha256: english.hash.clone(),
+            english,
+            selected,
         })
     }
 }
+pub(crate) struct EnglishLocalization<'a>(pub(crate) &'a LocalizationCatalog);
+impl LocalizationResolver for EnglishLocalization<'_> {
+    fn localized_value(&self, key: &str) -> Option<&str> {
+        self.0.english_value(key)
+    }
+}
+
 impl LocalizationResolver for LocalizationCatalog {
     fn localized_value(&self, key: &str) -> Option<&str> {
-        self.entries.get(key).map(String::as_str)
+        self.selected
+            .as_ref()
+            .and_then(|catalog| catalog.value(key))
+            .or_else(|| self.english_value(key))
     }
 }
 pub(crate) fn resolve_catalog_path(
@@ -113,28 +141,50 @@ pub(crate) fn resolve_catalog_path(
     })
 }
 
+#[derive(Debug)]
+struct LocalizedEntry {
+    text: String,
+    origin: usize,
+}
+
+#[derive(Debug)]
+struct LoadedCatalogs {
+    entries: BTreeMap<String, LocalizedEntry>,
+    hash: String,
+    origins: Vec<(String, String)>,
+}
+impl LoadedCatalogs {
+    fn value(&self, key: &str) -> Option<&str> {
+        self.entries.get(key).map(|entry| entry.text.as_str())
+    }
+}
+
 fn load_catalogs(
     source_root: &Path,
     paths: &[PathBuf],
-    capture: Option<&crate::source_fingerprint::SourceCapture>,
-    owned: &mut BTreeMap<PathBuf, Vec<u8>>,
-) -> Result<(BTreeMap<String, String>, String), IngestError> {
+    capture: Option<&SourceCapture>,
+    owned: &mut BTreeMap<PathBuf, VerifiedSourceBytes>,
+) -> Result<LoadedCatalogs, IngestError> {
     let mut hasher = Sha256::new();
     let mut entries = BTreeMap::new();
+    let mut origins = Vec::new();
     for path in paths {
-        if !owned.contains_key(path) {
-            let bytes = match capture {
-                Some(c) => c.read(path)?,
-                None => fs::read(path).map_err(|e| {
-                    IngestError::LocalizationFailed(format!("{}: {e}", path.display()))
-                })?,
-            };
-            owned.insert(path.clone(), bytes);
-        }
-        let bytes = owned.get(path).ok_or_else(|| {
-            IngestError::LocalizationFailed("owned catalog bytes are absent".into())
-        })?;
-        let value: Value = serde_json::from_slice(bytes)
+        let source = match owned.entry(path.clone()) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(match capture {
+                Some(capture) => capture.read_verified(path)?,
+                None => {
+                    let bytes = fs::read(path).map_err(|e| {
+                        IngestError::LocalizationFailed(format!("{}: {e}", path.display()))
+                    })?;
+                    VerifiedSourceBytes {
+                        sha256: format!("{:x}", Sha256::digest(&bytes)),
+                        bytes,
+                    }
+                }
+            }),
+        };
+        let value: Value = serde_json::from_slice(&source.bytes)
             .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?;
         if !value.is_object() {
             return Err(IngestError::LocalizationFailed(format!(
@@ -143,19 +193,29 @@ fn load_catalogs(
             )));
         }
         let relative = super::discovery::relative_source_path(source_root, path);
-        for input in [relative.as_bytes(), bytes.as_slice()] {
+        for input in [relative.as_bytes(), source.bytes.as_slice()] {
             hasher.update((input.len() as u64).to_le_bytes());
             hasher.update(input);
         }
-        flatten_entries(None, &value, &mut entries);
+        flatten_entries(None, value, origins.len(), &mut entries);
+        origins.push((relative, source.sha256.clone()));
     }
-    Ok((entries, format!("{:x}", hasher.finalize())))
+    Ok(LoadedCatalogs {
+        entries,
+        hash: format!("{:x}", hasher.finalize()),
+        origins,
+    })
 }
-fn flatten_entries(prefix: Option<&str>, value: &Value, entries: &mut BTreeMap<String, String>) {
+fn flatten_entries(
+    prefix: Option<&str>,
+    value: Value,
+    origin: usize,
+    entries: &mut BTreeMap<String, LocalizedEntry>,
+) {
     match value {
         Value::String(text) => {
             if let Some(key) = prefix {
-                entries.insert(key.into(), text.clone());
+                entries.insert(key.into(), LocalizedEntry { text, origin });
             }
         }
         Value::Object(object) => {
@@ -163,7 +223,7 @@ fn flatten_entries(prefix: Option<&str>, value: &Value, entries: &mut BTreeMap<S
                 let next = prefix
                     .map(|prefix| format!("{prefix}.{key}"))
                     .unwrap_or_else(|| key.clone());
-                flatten_entries(Some(&next), value, entries);
+                flatten_entries(Some(&next), value, origin, entries);
             }
         }
         _ => {}

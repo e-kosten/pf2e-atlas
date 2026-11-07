@@ -21,8 +21,8 @@ pub(super) fn reference_binding(
     reference_binding_origin(Some(locator), None, authored_hash, reference)
 }
 
-pub(super) fn trait_reference_binding(
-    key: &atlas_domain::TraitKey,
+pub(super) fn definition_reference_binding(
+    key: &atlas_domain::DefinitionKey,
     authored_hash: &str,
     reference: &ContentReferenceOccurrence,
 ) -> String {
@@ -31,7 +31,7 @@ pub(super) fn trait_reference_binding(
 
 fn reference_binding_origin(
     locator: Option<&SourceContentLocator>,
-    trait_key: Option<&atlas_domain::TraitKey>,
+    definition_key: Option<&atlas_domain::DefinitionKey>,
     authored_hash: &str,
     reference: &ContentReferenceOccurrence,
 ) -> String {
@@ -61,8 +61,15 @@ fn reference_binding_origin(
         text(&mut hash, &locator.record.to_string());
         owners(&mut hash, &locator.owners);
         text(&mut hash, &locator.field);
-    } else if let Some(key) = trait_key {
-        text(&mut hash, "atlas-trait-reference-binding/v1");
+    } else if let Some(key) = definition_key {
+        text(
+            &mut hash,
+            if key.namespace() == atlas_domain::DefinitionNamespace::Trait {
+                "atlas-trait-reference-binding/v1"
+            } else {
+                "atlas-definition-reference-binding/v1"
+            },
+        );
         text(&mut hash, &key.to_string());
     }
 
@@ -195,14 +202,14 @@ pub fn validate_prepared_reference_bindings(
     })
 }
 
-pub fn validate_prepared_trait_reference_bindings(
+pub fn validate_prepared_definition_reference_bindings(
     html: &str,
-    key: &atlas_domain::TraitKey,
+    key: &atlas_domain::DefinitionKey,
     authored_hash: &str,
     references: &[ContentReferenceOccurrence],
 ) -> Result<(), PreparedMarkerError> {
     validate_reference_bindings(html, references, |reference| {
-        trait_reference_binding(key, authored_hash, reference)
+        definition_reference_binding(key, authored_hash, reference)
     })
 }
 

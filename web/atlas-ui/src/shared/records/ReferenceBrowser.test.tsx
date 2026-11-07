@@ -91,9 +91,9 @@ function Harness({
           ? {
               kind: "all_of",
               children: relationships.map((entry) => ({
-                kind: "relationship",
-                clause_id: entry.clause_id,
+                kind: "relationship" as const,
                 relationship: entry.relationship,
+                clause_id: entry.clause_id,
               })),
             }
           : null
@@ -634,7 +634,12 @@ it("shows text and reference-link evidence in the selected reader without a resu
   };
   const constraint: RelationshipClauseSummaryView = {
     clause_id: "link",
-    relationship: { direction: "incoming", selection: target, include_contents: true },
+    relationship: {
+      direction: "incoming",
+      selection: target,
+      include_contents: true,
+    },
+
     title: "Leather Armor",
     record: summaryFixture("items:armor", "Leather Armor"),
   };
@@ -653,7 +658,11 @@ it("shows text and reference-link evidence in the selected reader without a resu
         },
         occurrences: [
           {
-            source: { record: "actors:ghoul", embedded_path: [], field: "description" },
+            source: {
+              record: "actors:ghoul",
+              embedded_path: [],
+              field: "description",
+            },
             source_navigation: navigation,
             ordinal: 0,
             origin: "prepared_content",

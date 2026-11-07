@@ -11,11 +11,30 @@ import { ConfigProvider, Grid } from "antd";
 import { useState, type ComponentProps, type ReactElement } from "react";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
-import type { FilterVocabularyScope, QueryPredicate } from "../../generated/atlas";
+import type {
+  FilterVocabularyScope,
+  QueryPredicate,
+  DiscoverFilterValuesRequest,
+  FilterValueListView,
+  DiscoverFilterCountsRequest,
+  FilterCountsView,
+} from "../../generated/atlas";
 
 const api = vi.hoisted(() => ({
-  discoverFilterValues: vi.fn(),
-  discoverFilterCounts: vi.fn(),
+  discoverFilterValues:
+    vi.fn<
+      (
+        request: DiscoverFilterValuesRequest,
+        signal?: AbortSignal,
+      ) => Promise<FilterValueListView>
+    >(),
+  discoverFilterCounts:
+    vi.fn<
+      (
+        request: DiscoverFilterCountsRequest,
+        signal?: AbortSignal,
+      ) => Promise<FilterCountsView>
+    >(),
 }));
 const popup = vi.hoisted(() => ({
   deferred: false,
@@ -59,7 +78,9 @@ function picker({
     ...fieldFixture("traits", "set", "Traits"),
     choices: closed ? ["fire", "cold", "magical"] : [],
   };
-  const field = editorFixture([definition]).groups[0].fields[0];
+  const field = editorFixture([definition], {
+    traits: { fire: "Fire", cold: "Cold", magical: "Magical" },
+  }).groups[0].fields[0];
   const onChange = vi.fn();
   function Harness() {
     const [clause, setClause] = useState(initial);
@@ -135,8 +156,11 @@ describe("compact common choice picker", () => {
               selected_values: request.selected_values,
               total_values: 90n,
               options: request.offset
-                ? [{ value: "second-page" }]
-                : [{ value: "fire" }, { value: "cold" }],
+                ? [{ value: "second-page", label: "Second-page" }]
+                : [
+                    { value: "fire", label: "Fire" },
+                    { value: "cold", label: "Cold" },
+                  ],
               basis: "product_key_scope",
             },
           },
@@ -533,10 +557,10 @@ describe("compact common choice picker", () => {
     ).toBeInTheDocument();
   });
   it("preserves mounted suggestion rows and focus while a selection refetch is pending", async () => {
-    let finish: ((value: unknown) => void) | undefined;
+    let finish: ((value: FilterValueListView) => void) | undefined;
     const initialResponse = api.discoverFilterValues.getMockImplementation()!;
     api.discoverFilterValues.mockImplementation((request) =>
-      request.selected_values.length
+      request.kind === "vocabulary" && request.selected_values.length
         ? new Promise((resolve) => {
             finish = resolve;
           })
@@ -564,7 +588,10 @@ describe("compact common choice picker", () => {
         field: "traits",
         selected_values: ["fire"],
         total_values: 90n,
-        options: [{ value: "fire" }, { value: "cold" }],
+        options: [
+          { value: "fire", label: "Fire" },
+          { value: "cold", label: "Cold" },
+        ],
         basis: "product_key_scope",
       },
     });

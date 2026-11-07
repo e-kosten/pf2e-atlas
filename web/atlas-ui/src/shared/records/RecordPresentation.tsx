@@ -25,6 +25,7 @@ import type {
   RecordPresentationView,
   RecordRelationshipView,
   RecordSummaryView,
+  ReferenceHelpView,
   ActionCostView,
   FactView,
 } from "../../generated/atlas";
@@ -162,9 +163,8 @@ export function RecordIdentity({
   selection,
   onOwnerReturn,
   visibleOwnerRecordKey,
-  referenceRecord,
+  referenceHelp,
   referenceTitle,
-  onReference,
   stacked = true,
   headingRef,
   headingId,
@@ -184,9 +184,8 @@ export function RecordIdentity({
   actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
-  referenceRecord?: RecordNavigationView;
+  referenceHelp?: ReferenceHelpView;
   referenceTitle?: string;
-  onReference: RecordReferenceHandler;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
     parent: string,
@@ -195,13 +194,9 @@ export function RecordIdentity({
   ) => void;
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
-  const hasRarity = Boolean(identity?.rarity?.trim());
-  const secondaryActions = referenceRecord ? (
-    <RecordProvenanceAction
-      navigation={referenceRecord}
-      title={referenceTitle}
-      onReference={onReference}
-    />
+  const hasRarity = Boolean(identity?.rarity?.label.trim());
+  const secondaryActions = referenceHelp ? (
+    <RecordProvenanceAction help={referenceHelp} title={referenceTitle} />
   ) : null;
   return (
     <DocumentIdentityHeader
@@ -287,7 +282,6 @@ export function RecordPresentationIdentity({
   root,
   selection,
   relationships = [],
-  onReference,
   onRankChange,
   onOwnerReturn,
   visibleOwnerRecordKey,
@@ -301,7 +295,6 @@ export function RecordPresentationIdentity({
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
   relationships?: RecordRelationshipView[];
-  onReference: RecordReferenceHandler;
   onRankChange?: (rank: number | undefined) => void;
   onOwnerReturn?: (
     parent: string,
@@ -331,6 +324,18 @@ export function RecordPresentationIdentity({
           relationship.status === "resolved_record",
       )
     : undefined;
+  const abilityHelp =
+    selection?.embedded_path.length && body?.kind === "activity"
+      ? body.value.help
+      : undefined;
+  const referenceHelp =
+    abilityHelp ??
+    (provenance?.target
+      ? {
+          definition_key: null,
+          destination: { kind: "record" as const, navigation: provenance.target },
+        }
+      : undefined);
   return (
     <RecordIdentity
       stacked={documentIdentity}
@@ -369,9 +374,8 @@ export function RecordPresentationIdentity({
       root={root}
       selection={selection}
       onOwnerReturn={onOwnerReturn}
-      onReference={onReference}
-      referenceTitle={provenance?.target_title}
-      referenceRecord={provenance?.target ?? undefined}
+      referenceTitle={abilityHelp ? undefined : provenance?.target_title}
+      referenceHelp={referenceHelp}
     />
   );
 }
@@ -504,7 +508,6 @@ export function RecordPresentation({
           root={root}
           selection={selection}
           relationships={relationships}
-          onReference={onReference}
           onRankChange={onRankChange}
           onOwnerReturn={onOwnerReturn}
           visibleOwnerRecordKey={visibleOwnerRecordKey}

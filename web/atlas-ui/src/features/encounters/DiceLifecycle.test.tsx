@@ -226,7 +226,7 @@ function renderStrike() {
           {
             id: "primary",
             formula: knownFact("1d6"),
-            damage_type: knownFact("piercing"),
+            damage_type: knownFact({ value: "piercing", label: "piercing" }),
             kinds: knownFact(["damage"]),
             category: knownFact("normal"),
             materials: knownFact([]),

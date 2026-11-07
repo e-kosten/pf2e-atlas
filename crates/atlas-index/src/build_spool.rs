@@ -292,6 +292,9 @@ pub struct PublicationSpool {
     pub remaster_context: BuildFrameStream<atlas_record::remaster::RecordRemasterContext>,
     pub remaster_pairs: BuildFrameStream<SourceRemasterPairInput>,
     pub traits: BuildFrameStream<TraitDefinition>,
+    pub reference_entries: BuildFrameStream<crate::ReferenceEntry>,
+    pub reference_notices: BuildFrameStream<crate::ReferenceNotice>,
+    pub owned_ability_evidence: BuildFrameStream<crate::OwnedAbilityEvidence>,
     pub trait_seeds: BuildFrameStream<TraitSeedOccurrence>,
     preparation_hash: String,
     root_keys: std::collections::BTreeSet<atlas_domain::RecordKey>,
@@ -321,6 +324,9 @@ impl PublicationSpool {
             remaster_context: BuildFrameStream::new_in(scratch)?,
             remaster_pairs: BuildFrameStream::new_in(scratch)?,
             traits: BuildFrameStream::new_in(scratch)?,
+            reference_entries: BuildFrameStream::new_in(scratch)?,
+            reference_notices: BuildFrameStream::new_in(scratch)?,
+            owned_ability_evidence: BuildFrameStream::new_in(scratch)?,
             trait_seeds: BuildFrameStream::new_in(scratch)?,
         })
     }
@@ -381,6 +387,9 @@ impl PublicationSpool {
             self.remaster_context.file_usage()?,
             self.remaster_pairs.file_usage()?,
             self.traits.file_usage()?,
+            self.reference_entries.file_usage()?,
+            self.reference_notices.file_usage()?,
+            self.owned_ability_evidence.file_usage()?,
             self.trait_seeds.file_usage()?,
         ] {
             usage = usage.combine(next)?;

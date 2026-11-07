@@ -3,11 +3,30 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import { useState } from "react";
 import { FilterValueInput } from "./FilterValueInput";
-import { editorFixture, fieldFixture } from "../../test/fixtures";
+import type {
+  DiscoverFilterValuesRequest,
+  FilterValueListView,
+  DiscoverFilterCountsRequest,
+  FilterCountsView,
+} from "../../generated/atlas";
+import { detailFixture, editorFixture, fieldFixture } from "../../test/fixtures";
+import { RouterTestContext } from "../../test/router";
 
 const api = vi.hoisted(() => ({
-  discoverFilterValues: vi.fn(),
-  discoverFilterCounts: vi.fn(),
+  discoverFilterValues:
+    vi.fn<
+      (
+        request: DiscoverFilterValuesRequest,
+        signal?: AbortSignal,
+      ) => Promise<FilterValueListView>
+    >(),
+  discoverFilterCounts:
+    vi.fn<
+      (
+        request: DiscoverFilterCountsRequest,
+        signal?: AbortSignal,
+      ) => Promise<FilterCountsView>
+    >(),
 }));
 vi.mock("../../api/atlasApi", () => api);
 function renderInput(
@@ -70,6 +89,40 @@ function renderInput(
 function openVocabulary() {
   fireEvent.click(screen.getByRole("button", { name: "Edit Traits values" }));
 }
+it("keeps short choices as normal selection options when supplied help is available", async () => {
+  const field = editorFixture([
+    { ...fieldFixture("traits", "set", "Traits"), choices: ["fire"] },
+  ]).groups[0].fields[0];
+  field.choices[0].help = {
+    definition_key: "trait:fire",
+
+    destination: { kind: "definition", key: "trait:fire" },
+  };
+  const change = vi.fn();
+  render(
+    <RouterTestContext>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <FilterValueInput
+            field={field}
+            operator="includes_any"
+            value={[]}
+            onChange={change}
+            scope={{ kind: "artifact" }}
+            countsEnabled={false}
+          />
+        </QueryClientProvider>
+      </ConfigProvider>
+    </RouterTestContext>,
+  );
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+  const choice = await screen.findByTitle("fire");
+  expect(screen.queryByRole("link", { name: /Read/ })).toBeNull();
+  fireEvent.click(choice);
+  expect(change).toHaveBeenCalledWith(["fire"]);
+});
 describe("shared value control vocabulary", () => {
   it("allows excluding a known-zero choice", async () => {
     const change = vi.fn();
@@ -114,8 +167,8 @@ describe("shared value control vocabulary", () => {
                 selected_values: request.selected_values,
                 total_values: 90n,
                 options: request.offset
-                  ? [{ value: "second-page" }]
-                  : [{ value: "fire" }],
+                  ? [{ value: "second-page", label: "Second-page" }]
+                  : [{ value: "fire", label: "Fire" }],
                 basis: "product_key_scope",
               },
             },
@@ -272,4 +325,167 @@ describe("shared value control vocabulary", () => {
       ),
     );
   });
+});
+
+it("uses supplied Actions labels and Read while refusing arbitrary manual values", async () => {
+  const field = editorFixture([fieldFixture("actions", "set", "Actions")]).groups[0]
+    .fields[0];
+  field.allow_custom_values = false;
+  const key = "bestiary-ability-glossary-srd:grab";
+  const onChange = vi.fn();
+  vi.mocked(api.discoverFilterValues).mockImplementation(async (request) => {
+    if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
+    return {
+      kind: "vocabulary",
+      values: {
+        field: "actions",
+        selected_values: request.selected_values,
+        total_values: 1n,
+        options: [
+          {
+            value: key,
+            label: "Grab",
+            help: {
+              definition_key: null,
+              destination: {
+                kind: "record",
+                navigation: {
+                  record_key: key,
+                  embedded_path: [],
+                  field: null,
+                  passage: null,
+                  source_fingerprint: null,
+                },
+              },
+            },
+          },
+        ],
+        basis: "product_key_scope",
+      },
+    };
+  });
+  render(
+    <RouterTestContext>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <FilterValueInput
+            field={field}
+            operator="includes_any"
+            value={[key]}
+            onChange={onChange}
+            scope={{ kind: "artifact" }}
+            countsEnabled={false}
+          />
+        </QueryClientProvider>
+      </ConfigProvider>
+    </RouterTestContext>,
+  );
+  expect(
+    screen.getByRole("button", {
+      name: "Remove selected Loading action… from Actions",
+    }),
+  ).toBeVisible();
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", {
+        name: "Remove selected Grab from Actions",
+      }),
+    ).toBeVisible(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Edit Actions values" }));
+  expect(await screen.findByRole("link", { name: /^Read/ })).toHaveAttribute(
+    "href",
+    `/records/${key}`,
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "Search actions choices" }), {
+    target: { value: "Invented action" },
+  });
+  await waitFor(() =>
+    expect(api.discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Invented action" }),
+      expect.any(AbortSignal),
+    ),
+  );
+  expect(screen.queryByRole("button", { name: /Use exact value/ })).toBeNull();
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Search actions choices" }), {
+    key: "Enter",
+  });
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+it("retains a chosen action's label while searching and reopening its picker", async () => {
+  const field = editorFixture([fieldFixture("actions", "set", "Actions")]).groups[0]
+    .fields[0];
+  field.allow_custom_values = false;
+  const key = "bestiary-ability-glossary-srd:grab";
+  api.discoverFilterValues.mockClear().mockImplementation(async (request) => {
+    if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
+    if (request.selected_values.length) return new Promise(() => {});
+    return {
+      kind: "vocabulary",
+      scope: request.scope,
+      values: {
+        field: "actions",
+        selected_values: [],
+        total_values: 1n,
+        options: [
+          {
+            value: key,
+            label: "Grab",
+            help: {
+              definition_key: null,
+              destination: { kind: "record", navigation: detailFixture(key).selected },
+            },
+          },
+        ],
+        basis: "product_key_scope",
+      },
+    };
+  });
+  function ControlledInput() {
+    const [value, setValue] = useState<unknown>([]);
+    return (
+      <FilterValueInput
+        field={field}
+        operator="includes_any"
+        value={value}
+        onChange={setValue}
+        scope={{ kind: "artifact" }}
+        countsEnabled={false}
+      />
+    );
+  }
+  render(
+    <RouterTestContext>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider client={new QueryClient()}>
+          <ControlledInput />
+        </QueryClientProvider>
+      </ConfigProvider>
+    </RouterTestContext>,
+  );
+  const trigger = () => screen.getByRole("button", { name: "Edit Actions values" });
+  const search = () => screen.getByRole("textbox", { name: "Search actions choices" });
+  fireEvent.click(trigger());
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Actions: Grab, activate to select" }),
+  );
+  fireEvent.change(search(), { target: { value: "another action" } });
+  await waitFor(() =>
+    expect(api.discoverFilterValues).toHaveBeenCalledWith(
+      expect.objectContaining({ selected_values: [key], text: "another action" }),
+      expect.any(AbortSignal),
+    ),
+  );
+  const selectedRow = () =>
+    screen.getByRole("button", { name: "Actions: Grab, selected; activate to remove" });
+  expect(selectedRow()).toBeVisible();
+  fireEvent.keyDown(search(), { key: "Escape" });
+  expect(
+    screen.getByRole("button", { name: "Remove selected Grab from Actions" }),
+  ).toBeVisible();
+  fireEvent.click(trigger());
+  await waitFor(() => expect(selectedRow()).toBeVisible());
 });

@@ -20,7 +20,7 @@ pub struct RecordSummaryView {
     pub source_type: Option<String>,
     pub level_label: Option<String>,
     pub level_basis: Option<String>,
-    pub rarity: Option<String>,
+    pub rarity: Option<crate::ReferenceValueView>,
     pub traits: Vec<RecordBadgeView>,
     pub publication: Option<String>,
     pub pack: Option<String>,
@@ -34,6 +34,9 @@ pub enum RecordEditionView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordBadgeView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub help: Option<crate::ReferenceHelpView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub trait_key: Option<String>,
@@ -58,6 +61,9 @@ pub struct RecordNavigationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct RecordDetailRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub expected_artifact_generation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     /// Selected casting rank for a spell or its explicitly linked effect preview.

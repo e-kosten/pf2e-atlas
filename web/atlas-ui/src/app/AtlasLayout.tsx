@@ -26,7 +26,8 @@ import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
 import { GlobalFeedbackProvider } from "../shared/feedback/GlobalFeedback";
-import { ReferencePreviewProvider } from "../shared/records/ReferencePreviewProvider";
+import { ReferenceHelpHost } from "../shared/records/ReferenceHelpHost";
+import { AddToRecordButton } from "../features/record-actions/AddToRecordButton";
 import { SelectionSearch } from "../shared/records/SelectionSearch";
 import { LoadingStatus } from "../shared/ui/LoadingStatus";
 
@@ -143,7 +144,11 @@ function AtlasWorkspace({
   });
   return (
     <SearchProfileContext value={searchProfile}>
-      <ReferencePreviewProvider>
+      <ReferenceHelpHost
+        recordActions={(record) => (
+          <AddToRecordButton recordKey={record.record_key} record={record} />
+        )}
+      >
         <LinkPickerContext value={LinkConditionPicker}>
           <AppShell
             activeView={routeError ? "reference" : section}
@@ -187,7 +192,7 @@ function AtlasWorkspace({
             </>
           </AppShell>
         </LinkPickerContext>
-      </ReferencePreviewProvider>
+      </ReferenceHelpHost>
     </SearchProfileContext>
   );
 }

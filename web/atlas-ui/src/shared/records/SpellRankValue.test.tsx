@@ -1,8 +1,18 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render as renderWithContext,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { RouterTestContext } from "../../test/router";
 import { describe, expect, it, vi } from "vitest";
 import { ConfigProvider } from "antd";
+import { ReferenceHelpLink, ReferenceHelpProvider } from "./ReferenceHelp";
 import { SpellRankValue } from "./SpellRankValue";
 import type { SpellRankChangeView } from "../../generated/atlas";
+
+const render = (ui: React.ReactNode) =>
+  renderWithContext(ui, { wrapper: RouterTestContext });
 
 const damageChange: SpellRankChangeView = {
   fact: { kind: "damage", component_id: "main" },
@@ -76,4 +86,44 @@ describe("SpellRankValue", () => {
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+});
+
+it("keeps definition and heightening actions separate for interactive categorical content", async () => {
+  const help = {
+    definition_key: "damage:fire",
+
+    destination: {
+      kind: "record" as const,
+      navigation: {
+        record_key: "actions:fire",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  };
+  const onHelp = vi.fn();
+  const { container } = render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <ReferenceHelpProvider onHelp={onHelp}>
+        <SpellRankValue change={damageChange} label="Damage" interactiveContent>
+          10d6 <ReferenceHelpLink help={help}>fire</ReferenceHelpLink>
+        </SpellRankValue>
+      </ReferenceHelpProvider>
+    </ConfigProvider>,
+  );
+  expect(container.querySelector("button a, a button")).toBeNull();
+  const link = screen.getByRole("link", { name: "fire" });
+  fireEvent.click(link);
+  expect(onHelp).toHaveBeenCalledWith(help, link, undefined);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const explanation = screen.getByRole("button", {
+    name: "Heightening details for Damage",
+  });
+  fireEvent.click(explanation);
+  expect(await screen.findByRole("dialog")).toHaveTextContent("Base rank: 6d6 fire");
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(explanation).toHaveFocus());
 });

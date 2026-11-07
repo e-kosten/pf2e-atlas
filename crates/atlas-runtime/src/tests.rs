@@ -343,7 +343,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             assert_eq!(context.lexical_selection_version, "curated-lexical/v1");
             assert_eq!(
                 read.connection()
-                    .query_row("SELECT count(*) FROM trait_definitions", [], |r| r
+                    .query_row("SELECT count(*) FROM reference_entries", [], |r| r
                         .get::<_, usize>(0))
                     .unwrap(),
                 0
@@ -1521,4 +1521,78 @@ fn explicit_setup_replaces_prior_model_and_preserves_saved_state() {
     );
     drop(read);
     assert!(crate::workspace::open_workspace_index(&paths.index_path).is_ok());
+}
+
+#[test]
+fn setup_check_plans_missing_glossary_coverage_without_publishing() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let mut context = atlas_index::read_stored_reference_context(write.connection())
+        .unwrap()
+        .unwrap();
+    let fingerprint = context.source_fingerprint.clone();
+    context.reference_preparation = None;
+    let json = serde_json::to_string(&context).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_hash=?1,context_json=?2",
+            [atlas_search::test_support::hash(json.as_bytes()), json],
+        )
+        .unwrap();
+    let revision = write.reference_revision().unwrap();
+    write.commit().unwrap();
+
+    let check = crate::setup::ensure_setup(&paths, options(true));
+    assert!(!check.ready);
+    assert!(
+        check
+            .actions
+            .iter()
+            .any(|action| action.kind == SetupActionKind::BuildIndex
+                && action.status == SetupActionStatus::Planned)
+    );
+    assert_eq!(
+        workspace
+            .read(WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        revision
+    );
+
+    let rebuilt = crate::setup::ensure_setup(&paths, options(false));
+    assert!(rebuilt.ready, "{rebuilt:?}");
+    assert!(rebuilt.build.is_some());
+    let reader = open_reader(&paths.index_path).unwrap();
+    assert_eq!(
+        reader.reference_coverage(),
+        atlas_index::ReferenceCoverage::Complete
+    );
+    assert_eq!(reader.context().source_fingerprint, fingerprint);
+    assert!(!paths.embedding_cache_root.exists());
+}
+
+#[test]
+fn setup_uses_bundled_supplement_without_creating_or_reading_a_disk_cache() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    let cache = directory.path().join("reference-supplements");
+    assert!(!crate::setup::ensure_setup(&paths, options(true)).ready);
+    assert!(!cache.exists());
+    let built = crate::setup::ensure_setup(&paths, options(false));
+    assert!(built.ready && built.build.is_some(), "{built:?}");
+    assert!(!cache.exists());
+
+    fs::write(&cache, b"unrelated old cache contents").unwrap();
+    for check in [true, false] {
+        let report = crate::setup::ensure_setup(&paths, options(check));
+        assert!(report.ready && report.build.is_none(), "{report:?}");
+        assert_eq!(fs::read(&cache).unwrap(), b"unrelated old cache contents");
+    }
 }

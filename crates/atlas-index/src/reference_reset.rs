@@ -32,7 +32,9 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM trait_vectors;
          DELETE FROM trait_references;
          DELETE FROM trait_memberships;
-         DELETE FROM trait_definitions;
+         DELETE FROM reference_entries;
+         DELETE FROM reference_notices;
+         DELETE FROM owned_ability_evidence;
          DELETE FROM semantic_units;
          DELETE FROM semantic_locations;
          DELETE FROM lexical_units;

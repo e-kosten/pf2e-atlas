@@ -121,11 +121,14 @@ pub(crate) fn configured_results(
             }
         }
         SimilaritySeed::Trait { trait_key } => {
-            let definition = retrieval.trait_definition(trait_key)?.ok_or_else(|| {
-                AppServiceError::invalid_request("the selected similarity trait is unavailable")
-            })?;
+            let definition = retrieval
+                .reference_summary(&trait_key.clone().into())?
+                .ok_or_else(|| {
+                    AppServiceError::invalid_request("the selected similarity trait is unavailable")
+                })?;
             atlas_app_model::SearchModeSummary::SimilarTraits {
                 trait_key: trait_key.to_string(),
+                help: crate::definitions::summary_help(&definition, retrieval.source_fingerprint()),
                 title: definition.label,
             }
         }

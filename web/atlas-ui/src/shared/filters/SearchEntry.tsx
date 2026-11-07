@@ -1,6 +1,6 @@
 import { Tooltip, Button, Input, Space, Tag, theme, type InputRef } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
-import type { SimilaritySeed } from "../../generated/atlas";
+import type { ReferenceHelpView, SimilaritySeed } from "../../generated/atlas";
 import { SimilaritySeedLink } from "../search/SimilaritySeedLink";
 import { CloseCircleFilled } from "@ant-design/icons";
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
@@ -8,6 +8,8 @@ import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 export type SimilarSearchCriterion = {
   title: string;
   seed: SimilaritySeed;
+  help?: ReferenceHelpView;
+  generation?: string;
   onClear: () => void;
   onSearch: () => void;
 };
@@ -52,7 +54,7 @@ export function SearchEntry({
   }
   if (similar)
     return (
-      <Space.Compact className="reference-search-entry reference-search-entry--similar">
+      <Space.Compact className="reference-search-entry--similar">
         <div
           className="reference-search-entry__criterion"
           style={{
@@ -69,6 +71,8 @@ export function SearchEntry({
               seed={similar.seed}
               title={similar.title}
               disabled={disabled}
+              help={similar.help}
+              generation={similar.generation}
             />
           </span>
           <Tooltip title="Clear similar criterion" trigger={["hover", "focus"]}>

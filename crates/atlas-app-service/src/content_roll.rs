@@ -17,6 +17,7 @@ impl AtlasAppService {
                 ));
             }
             let selection = RecordDetailRequest {
+                expected_artifact_generation: None,
                 record_key: request.source.record.to_string(),
                 owners: request.source.owners.clone(),
                 fields: vec![request.source.field.clone()],

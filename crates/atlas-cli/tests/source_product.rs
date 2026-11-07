@@ -51,6 +51,39 @@ impl Fixture {
         }
         c.output().unwrap()
     }
+    fn isolated_repo_command(&self) -> Command {
+        if !self.root.join(".git").exists() {
+            fs::create_dir_all(self.root.join("crates/atlas-cli")).unwrap();
+            fs::write(self.root.join("Cargo.toml"), "[workspace]\n").unwrap();
+            fs::write(self.root.join("crates/atlas-cli/Cargo.toml"), "").unwrap();
+            let mut git = Command::new("git");
+            git.args(["init", "--quiet"]).arg(&self.root);
+            for name in [
+                "GIT_DIR",
+                "GIT_WORK_TREE",
+                "GIT_INDEX_FILE",
+                "GIT_PREFIX",
+                "GIT_COMMON_DIR",
+            ] {
+                git.env_remove(name);
+            }
+            let initialized = git.output().unwrap();
+            assert!(initialized.status.success(), "{initialized:?}");
+        }
+        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        command.current_dir(&self.root);
+        for name in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_PREFIX",
+            "GIT_COMMON_DIR",
+            "ATLAS_LOG",
+        ] {
+            command.env_remove(name);
+        }
+        command
+    }
     fn data(&self, args: &[&str]) -> Value {
         let o = self.command(args, false);
         assert!(
@@ -859,10 +892,21 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
             .join("onnx/model.onnx")
             .exists()
     );
+    let fingerprint = atlas_ingest::compute_source_fingerprint(&f.root, None)
+        .unwrap()
+        .value;
     let setup = |model_cache: &std::path::Path, profiles: &[&str], mode: &str| {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        let mut command = f.isolated_repo_command();
         command
-            .args(["--progress", mode, "setup", "--offline", "--json"])
+            .args([
+                "--progress",
+                mode,
+                "setup",
+                "--path-mode",
+                "repo",
+                "--offline",
+                "--json",
+            ])
             .arg("--source")
             .arg(&f.root)
             .arg("--index")
@@ -887,6 +931,9 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
         )
     };
     let (first, progress) = setup(&isolated_root, &["embeddinggemma"], "always");
+    assert!(!f.root.join(".cache/reference-supplements").exists());
+    assert_eq!(first["path_mode"], "repo");
+    assert_eq!(first["build"]["source_fingerprint"], fingerprint);
     assert_eq!(first["search_profiles"].as_array().unwrap().len(), 1);
     assert_eq!(first["search_profiles"][0]["profile_id"], "embeddinggemma");
     assert!(first["build"]["inferred_inputs"].as_u64().unwrap() > 0);
@@ -1466,40 +1513,58 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
     let fixture = Fixture::new();
     fixture.data(&["lists", "create", "keep", "--name", "Keep", "--json"]);
     fs::write(fixture.root.join("packs/actions/bad.json"), "{bad").unwrap();
-    let setup = |json: bool| {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+    let fingerprint = atlas_ingest::compute_source_fingerprint(&fixture.root, None)
+        .unwrap()
+        .value;
+    let setup = |json: bool, check: bool| {
+        let mut command = fixture.isolated_repo_command();
         command
             .args([
                 "setup",
+                "--path-mode",
+                "repo",
                 "--no-embeddings",
                 "--offline",
-                "--force",
                 "--source",
             ])
             .arg(&fixture.root)
             .arg("--index")
             .arg(&fixture.index)
             .arg("--embedding-cache-path")
-            .arg(fixture.root.join("models"));
+            .arg(fixture.root.join("models"))
+            .arg(if check { "--check" } else { "--force" });
         if json {
             command.arg("--json");
         }
         command.output().unwrap()
     };
-    let first = setup(true);
+    let first = setup(true, false);
     assert!(
         first.status.success(),
         "{} {}",
         String::from_utf8_lossy(&first.stdout),
         String::from_utf8_lossy(&first.stderr)
     );
+    assert!(!fixture.root.join(".cache/reference-supplements").exists());
     let first: Value = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(first["data"]["path_mode"], "repo");
+    assert_eq!(first["data"]["build"]["source_fingerprint"], fingerprint);
     let admission = &first["data"]["build"]["admission"];
     assert_eq!(admission["discovered_files"], 3);
     assert_eq!(admission["admitted_records"], 2);
     assert_eq!(admission["quarantined_files"], 1);
     assert_eq!(admission["exclusions"][0]["path"], "packs/actions/bad.json");
-    let text = setup(false);
+    let checked = setup(true, true);
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let checked: Value = serde_json::from_slice(&checked.stdout).unwrap();
+    assert_eq!(checked["data"]["ready"], true);
+    assert!(checked["data"]["build"].is_null());
+    assert!(!fixture.root.join(".cache/reference-supplements").exists());
+    let text = setup(false, false);
     assert!(text.status.success());
     assert!(
         String::from_utf8_lossy(&text.stdout)
@@ -1511,7 +1576,7 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
         fixture.root.join("held-macros"),
     )
     .unwrap();
-    let failed = setup(true);
+    let failed = setup(true, false);
     assert!(!failed.status.success());
     let failed: Value = serde_json::from_slice(&failed.stdout).unwrap();
     assert!(
@@ -1540,7 +1605,7 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
     for path in ["packs/actions/heal.json", "packs/macros/tool.json"] {
         fs::write(fixture.root.join(path), "{broken").unwrap();
     }
-    let failed = setup(true);
+    let failed = setup(true, false);
     assert!(!failed.status.success());
     let failed: Value = serde_json::from_slice(&failed.stdout).unwrap();
     assert!(
@@ -1553,7 +1618,7 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
                 .is_some_and(|s| s.contains("no loadable Foundry records"))),
         "{failed}"
     );
-    let text = setup(false);
+    let text = setup(false, false);
     assert!(!text.status.success());
     assert!(String::from_utf8_lossy(&text.stdout).contains("no loadable Foundry records"));
     assert_eq!(
@@ -1705,14 +1770,15 @@ fn index_rebuild_refuses_missing_old_and_maintenance_workspaces() {
     assert!(!missing.root.exists());
 
     let connection = rusqlite::Connection::open(&fixture.index).unwrap();
+    let schema = atlas_runtime::WORKSPACE_SCHEMA_VERSION;
     for (mutation, expected) in [
-        ("PRAGMA user_version=31", "schema"),
+        (format!("PRAGMA user_version={}", schema - 1), "schema"),
         (
-            "PRAGMA user_version=32; UPDATE workspace SET maintenance='fixture'",
+            format!("PRAGMA user_version={schema}; UPDATE workspace SET maintenance='fixture'"),
             "fixture",
         ),
     ] {
-        connection.execute_batch(mutation).unwrap();
+        connection.execute_batch(&mutation).unwrap();
         connection
             .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
             .unwrap();

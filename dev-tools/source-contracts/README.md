@@ -173,6 +173,69 @@ pinned-generation freshness and full-corpus validation remain required; this
 comparison does not assign aliases, content licenses or executable mechanics.
 See the [description provenance review](../../docs/research/trait-description-provenance.md).
 
+### Glossary source evidence
+
+Generation also emits `reference_definitions.rs`: exact non-trait vocabulary,
+localization keys, source locations and reviewed record pointers.
+Localized game prose remains an ingest input. The maintained
+`fixtures/reference-definition-registry.json` owns reviewed associations;
+generation verifies exact record targets before emitting metadata. Reviewed
+family wrappers are explicit record mappings, including Golem Antimagic and
+Wind-Up. Record destinations use their ordinary prepared content.
+
+The current census reconciles 784 traits and 603 other metadata rows. Four rows are explicit exclusions: shared SF2e Hover/No Breath and
+the runtime/default vision/hearing labels. Label-only values keep their exact
+filter tokens without acquiring invented definitions. Deity domain identifiers
+follow the authored lowercase catalog keys, including `airapocryphal`; the runtime
+config's differently hyphenated token is not an alias.
+
+`source-pin.json` binds these inputs with `referenceSourceDigest`, separately from
+the checked DTO contract. The glossary inputs include both PF2e bestiary ability
+packs, the exact Wildsong feature and two SF2e exclusion witnesses. The separate
+condition generator still reads the condition pack. The glossary extractor uses
+the verified JSON bytes. Missing, altered or newly unreviewed glossary source
+fails generation.
+The shared bounded AST reader interprets only supported catalog expressions and
+the explicitly selected PF2e system branch; it never executes upstream code.
+
+### Preparing the supplemental PC1 subset
+
+After acquiring `data/languages.json` and `data/groups.json` from a fixed
+Pf2eTools commit, create a review candidate with local file paths. The placeholders
+below identify those two files; `--out` must be a new review directory.
+
+```sh
+npm --prefix dev-tools/source-contracts run prepare-reference-supplement -- \
+  --languages /path/to/languages.json \
+  --groups /path/to/groups.json \
+  --source-commit 9fab2be36f4e8f036e868b67c055ebee68d2acc9 \
+  --out scratch/reference-supplement-candidate
+```
+
+The command selects the reviewed PC1/remaster speaker fields and four weapon
+specialization paragraphs through `fixtures/reference-supplement-mappings.json`.
+Wildsong keeps its existing Foundry feature. Only identical duplicate Crossbow
+payloads are collapsed; conflicting duplicates, unreviewed language mappings,
+unknown reachable tags, nested non-string payloads and unexpected source pages
+fail. Known tags become literal display text; paragraph markup is escaped and
+later uses the existing Rust content interpreter.
+
+The output contains the normalized payload, manifest, required notices/PDFs and
+`changes.json`/`changes.md`. Review exact text, added/removed mapping targets,
+notice hashes, permission/mapping recipes and source-file hashes before approving
+an asset update. The command uses `crates/atlas-ingest/reference-data` as its
+comparison baseline and its source of curated notices. Output cannot overwrite
+input or tracked product/tool directories, including through symlinked
+ancestors. Source commit/URLs are maintainer-supplied provenance and must be
+checked against the acquired snapshot.
+
+This contributor command performs no download, automatic approval or product
+asset installation. Commit only the reviewed normalized subset and notices.
+Normal setup uses the approved bundled bytes.
+Offline fixtures test selection/rejections and all diff categories; reproducing
+the current five asset files from the recorded source hashes proves the extraction
+recipe without distributing the complete upstream datasets.
+
 The emitter resolves one complete selection and assigns shared value owners globally.
 Outputs include common Item/Actor/physical components, `items/families/*`,
 `actors/families/*`, `documents/*`, `rules/*` and their indexes. Family source and

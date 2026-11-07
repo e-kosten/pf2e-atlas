@@ -1,7 +1,12 @@
 import { routeSearch } from "../app/routeSearch";
 import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { RecordView } from "../features/records/RecordViews";
-import { documentSection, selectedNavigation, readingView } from "../app/urlState";
+import {
+  documentSection,
+  selectedNavigation,
+  readingView,
+  definitionReading,
+} from "../app/urlState";
 export const Route = createFileRoute("/records/$recordKey")({
   ...routeSearch("record"),
   staticData: { section: "reference" },
@@ -19,6 +24,7 @@ function Page() {
         selection: selectedNavigation(search, params.recordKey),
         landing: selectedNavigation(search, params.recordKey, "focus"),
         ...readingView(search),
+        ...definitionReading(search),
         section: section || undefined,
       }}
     />

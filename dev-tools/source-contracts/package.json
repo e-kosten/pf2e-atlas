@@ -32,7 +32,9 @@
     "precompare-portfolio": "npm run build --silent",
     "compare-portfolio": "node dist/src/cli/compare-portfolio.js",
     "precompare-traits": "npm run build --silent",
-    "compare-traits": "node dist/src/cli/compare-traits.js"
+    "compare-traits": "node dist/src/cli/compare-traits.js",
+    "preprepare-reference-supplement": "npm run build --silent",
+    "prepare-reference-supplement": "node dist/src/cli/prepare-reference-supplement.js"
   },
   "dependencies": {
     "typescript": "npm:@typescript/typescript6@6.0.2"

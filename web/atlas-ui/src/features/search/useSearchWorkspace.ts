@@ -117,6 +117,7 @@ export type SearchWorkspaceState = {
   resultPage: SearchResultsPage | undefined;
   resultFilter: QueryPredicate | null;
   filterEditor: FilterEditorView | undefined;
+  refreshFilterInformation?: () => Promise<void>;
   filterApplicabilityCurrent: boolean;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
@@ -769,6 +770,7 @@ export function useSearchWorkspace({
     resultPage: canRunResultSearch ? resultsQuery.data?.page : undefined,
     resultFilter: canRunResultSearch ? (resultsQuery.data?.filter ?? null) : null,
     filterEditor: filterDiscovery.filterEditor,
+    refreshFilterInformation: refreshResults,
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
     filterCountsEnabled:
       filterDiscovery.filterCountsEnabled &&

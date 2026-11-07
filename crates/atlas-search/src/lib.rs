@@ -9,6 +9,11 @@ mod page;
 mod read_metrics;
 mod records;
 mod reference_resolution;
+mod references;
+pub use references::{
+    OwnedAbilityTarget, ReferenceBacking, ReferenceCoverage, ReferenceEntry, ReferenceNotice,
+    ReferenceSummary, ReferenceSummaryBacking,
+};
 mod service;
 pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};
 mod similar;
@@ -63,9 +68,8 @@ mod fusion;
 
 mod traits;
 pub use traits::{
-    SimilarTraitRequest, SimilarTraitResult, TraitAssociationRequest, TraitDefinition,
-    TraitMembership, TraitMembershipResult, TraitReference, TraitReferenceResult,
-    TraitSourceLocation,
+    ReferenceSourceLocation, SimilarTraitRequest, SimilarTraitResult, TraitAssociationRequest,
+    TraitDefinition, TraitMembership, TraitMembershipResult, TraitReference, TraitReferenceResult,
 };
 
 pub use atlas_index::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};

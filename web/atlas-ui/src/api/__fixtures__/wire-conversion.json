@@ -894,7 +894,10 @@
                       },
                       "damage_type": {
                         "state": "value",
-                        "value": "slashing"
+                        "value": {
+                          "label": "slashing",
+                          "value": "slashing"
+                        }
                       },
                       "formula": {
                         "state": "value",

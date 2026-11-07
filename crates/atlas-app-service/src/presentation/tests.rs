@@ -77,7 +77,10 @@ fn equipment_reference_facts_preserve_source_dice_zero_and_table_meaning() {
     let d = w.damage.value.unwrap();
     assert_eq!(d.dice.value.unwrap().as_i64(), Some(1));
     assert_eq!(d.die.value.as_deref(), Some("d8"));
-    assert_eq!(d.damage_type.value.as_deref(), Some("slashing"));
+    assert_eq!(
+        d.damage_type.value.as_ref().map(|v| v.value.as_str()),
+        Some("slashing")
+    );
     assert_eq!(d.modifier.state, QueryFieldState::Missing);
     assert_eq!(w.range_increment.state, QueryFieldState::NotApplicable);
     assert_eq!(w.maximum_range.value, Some(60.into()));
@@ -607,7 +610,10 @@ fn authored_iwr_preserves_qualifiers_zero_and_unavailable_members() {
     assert_eq!(a.immunities.value, Some(vec![]));
     assert_eq!(a.weaknesses.state, QueryFieldState::Null);
     let r = a.resistances.value.unwrap();
-    assert_eq!(r[0].damage_type.value.as_deref(), Some("all-damage"));
+    assert_eq!(
+        r[0].damage_type.value.as_ref().map(|v| v.value.as_str()),
+        Some("all-damage")
+    );
     assert_eq!(r[0].magnitude.value, Some(10.into()));
     assert_eq!(
         r[0].exceptions.value,
@@ -663,7 +669,10 @@ fn spells_preserve_authored_damage_forms_and_interval_without_evaluating() {
     assert_eq!(s.sustained.value, Some(false));
     let damage = &s.damage.value.unwrap()[0];
     assert_eq!(damage.formula.value.as_deref(), Some("1d8"));
-    assert_eq!(damage.damage_type.value.as_deref(), Some("vitality"));
+    assert_eq!(
+        damage.damage_type.value.as_ref().map(|v| v.value.as_str()),
+        Some("vitality")
+    );
     assert_eq!(
         damage.kinds.value,
         Some(vec!["damage".into(), "healing".into()])
@@ -784,6 +793,7 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: local.navigation.record_key.clone(),
             owners: local.navigation.owners.clone(),
@@ -807,6 +817,7 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: entry.navigation.record_key.clone(),
             owners: entry.navigation.owners.clone(),
@@ -821,7 +832,14 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
     assert_eq!(entry.attack.value, Some(23.into()));
     assert_eq!(entry.difficulty_class.value, Some(33.into()));
     assert_eq!(entry.preparation.value.as_deref(), Some("prepared"));
-    assert_eq!(entry.casting_tradition.value.as_deref(), Some("arcane"));
+    assert_eq!(
+        entry
+            .casting_tradition
+            .value
+            .as_ref()
+            .map(|v| v.value.as_str()),
+        Some("arcane")
+    );
     assert_eq!(selected.presentation.identity.kind_label, "Spellcasting");
     let context = entry.casting_context.unwrap();
     assert_eq!(context.parent_title, "Caster");
@@ -1160,6 +1178,7 @@ fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_own
     assert!(activities[2].casting_entry.is_none());
     let navigation = &activities[0].navigation;
     let request = RecordDetailRequest {
+        expected_artifact_generation: None,
         spell_rank: None,
         record_key: navigation.record_key.clone(),
         owners: navigation.owners.clone(),
@@ -1182,6 +1201,7 @@ fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_own
             .is_empty()
     );
     let stale = RecordDetailRequest {
+        expected_artifact_generation: None,
         spell_rank: None,
         source_fingerprint: Some("previous-snapshot".into()),
         ..request
@@ -1253,6 +1273,7 @@ fn reference_details_flag_agrees_with_actual_selected_spell_and_physical_dispatc
         let selected = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),
@@ -1295,6 +1316,7 @@ fn heightened_identity_uses_effective_traits_without_rewriting_source() {
     let projected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             record_key: "spells:aaaaaaaaaaaaaaaa".into(),
             spell_rank: Some(3),
             owners: vec![],
@@ -1304,7 +1326,12 @@ fn heightened_identity_uses_effective_traits_without_rewriting_source() {
         })
         .unwrap();
     assert_eq!(
-        projected.presentation.identity.rarity.as_deref(),
+        projected
+            .presentation
+            .identity
+            .rarity
+            .as_ref()
+            .map(|v| v.value.as_str()),
         Some("rare")
     );
     assert_eq!(
@@ -1340,7 +1367,12 @@ fn heightened_identity_uses_effective_traits_without_rewriting_source() {
     );
     let original = f.worker.record_detail("spells:aaaaaaaaaaaaaaaa").unwrap();
     assert_eq!(
-        original.presentation.identity.rarity.as_deref(),
+        original
+            .presentation
+            .identity
+            .rarity
+            .as_ref()
+            .map(|v| v.value.as_str()),
         Some("common")
     );
     assert_eq!(original.presentation.identity.traits[0].value, "fire");
@@ -1368,6 +1400,7 @@ fn unsupported_heightening_is_visible_and_does_not_claim_effective_rank() {
         let projected = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 record_key: "spells:aaaaaaaaaaaaaaaa".into(),
                 spell_rank: Some(3),
                 owners: vec![],
@@ -1602,7 +1635,10 @@ fn reference_casting_capacity_requires_focus_context_and_ritual_dc_stays_separat
         }),
     );
     let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
-    assert_eq!(body.size.value.as_deref(), Some("Large"));
+    assert_eq!(
+        body.size.value.as_ref().map(|v| v.value.as_str()),
+        Some("lg")
+    );
     assert_eq!(body.hardness.value, Some(0.into()));
     assert_eq!(body.ritual_difficulty_class.value, Some(23.into()));
     let activities = body.activities.value.unwrap();
@@ -1695,6 +1731,7 @@ fn reference_self_effect_navigation_survives_storage_and_selected_activity_readi
     let selected = f
         .worker
         .record_detail_at(atlas_app_model::RecordDetailRequest {
+            expected_artifact_generation: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: activities[0].navigation.owners.clone(),
             spell_rank: None,
@@ -1749,6 +1786,7 @@ fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
             let detail = f
                 .worker
                 .record_detail_at(RecordDetailRequest {
+                    expected_artifact_generation: None,
                     record_key: key.into(),
                     spell_rank: rank,
                     owners: owners.clone(),
@@ -2192,6 +2230,7 @@ fn selected_kind_labels_describe_documents_without_changing_source_identifiers()
         let detail = fixture
             .worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 record_key: key.into(),
                 spell_rank: None,
                 owners: vec![atlas_domain::OwnedContentLocator {
@@ -2239,7 +2278,18 @@ fn reference_profiles_keep_choices_and_unavailable_source_distinct() {
     assert_eq!(v.speed.value.unwrap().as_u64(), Some(0));
     assert_eq!(
         v.boosts.value.unwrap()[0].choices.value,
-        Some(vec!["Constitution".into(), "Wisdom".into()])
+        Some(vec![
+            ReferenceValueView {
+                value: "con".into(),
+                label: "Constitution".into(),
+                help: None,
+            },
+            ReferenceValueView {
+                value: "wis".into(),
+                label: "Wisdom".into(),
+                help: None,
+            },
+        ])
     );
     assert_eq!(v.languages.value, Some(vec![]));
     assert_eq!(v.reach.state, QueryFieldState::Missing);
@@ -2474,6 +2524,7 @@ fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effect
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: activities[7].navigation.owners.clone(),
             spell_rank: None,
@@ -2493,7 +2544,16 @@ fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effect
     };
     assert_eq!(
         character.languages.value,
-        Some(vec!["aklo".into(), "common".into()])
+        Some(
+            ["aklo", "common"]
+                .into_iter()
+                .map(|value| ReferenceValueView {
+                    value: value.into(),
+                    label: value.into(),
+                    help: None,
+                })
+                .collect()
+        )
     );
     assert_eq!(character.maximum_hp.state, QueryFieldState::NotApplicable);
     assert_eq!(character.maximum_hp.value, None);
@@ -2577,6 +2637,7 @@ fn embedded_publication_edition_uses_its_own_source_metadata() {
         let selected = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: "actors:aaaaaaaaaaaaaaaa".into(),
                 owners: vec![OwnedContentLocator {

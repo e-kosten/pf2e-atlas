@@ -4,6 +4,16 @@ use ego_tree::NodeRef;
 use scraper::{ElementRef, Html, Node};
 use std::collections::BTreeMap;
 
+/// Canonical sanitized output escapes this spelling in text and attributes;
+/// only an emitted image element can retain it literally.
+pub const PREPARED_IMAGE_TAG_PREFIX: &str = "<img ";
+
+/// Presence in already prepared, audience-filtered content, never raw markup.
+/// Canonical text has already been trimmed by the shared text projection.
+pub fn has_prepared_reading_content(text: &str, html: &str, visible_interactions: usize) -> bool {
+    !text.is_empty() || visible_interactions > 0 || html.contains(PREPARED_IMAGE_TAG_PREFIX)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RoutineHeader {
     pub actions: String,

@@ -5,7 +5,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AtlasApiError, getRelationshipOccurrences } from "../../api/atlasApi";
 import { summaryFixture } from "../../test/fixtures";
 import { RelationshipEvidence } from "./RelationshipEvidence";
+import { ReferenceHelpProvider } from "./ReferenceHelp";
 import { rootNavigation } from "./useReferenceReading";
+import { RouterTestContext } from "../../test/router";
 import type {
   RecordRelationshipView,
   RelationshipClauseSummaryView,
@@ -17,13 +19,15 @@ vi.mock("../../api/atlasApi", async (original) => ({
   getRelationshipOccurrences: vi.fn(),
 }));
 const api = vi.mocked(getRelationshipOccurrences);
+const relationship = {
+  direction: "incoming" as const,
+  selection: rootNavigation("items:armor"),
+  include_contents: true,
+};
 const constraint: RelationshipClauseSummaryView = {
   clause_id: "link",
-  relationship: {
-    direction: "incoming",
-    selection: rootNavigation("items:armor"),
-    include_contents: true,
-  },
+  relationship: relationship,
+
   title: "Leather Armor",
   record: summaryFixture("items:armor", "Leather Armor"),
 };
@@ -63,20 +67,22 @@ function setup() {
   const refresh = vi.fn(async () => {});
   const view = render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <QueryClientProvider client={client}>
-        <RelationshipEvidence
-          evidence={evidence}
-          filter={{
-            kind: "relationship",
-            clause_id: constraint.clause_id,
-            relationship: constraint.relationship,
-          }}
-          summary={constraint}
-          resultKey="actors:goblin"
-          generation="generation-a"
-          onRefresh={refresh}
-        />
-      </QueryClientProvider>
+      <RouterTestContext>
+        <QueryClientProvider client={client}>
+          <RelationshipEvidence
+            evidence={evidence}
+            filter={{
+              kind: "relationship",
+              clause_id: constraint.clause_id,
+              relationship: relationship,
+            }}
+            summary={constraint}
+            resultKey="actors:goblin"
+            generation="generation-a"
+            onRefresh={refresh}
+          />
+        </QueryClientProvider>
+      </RouterTestContext>
     </ConfigProvider>,
   );
   return { ...view, refresh };
@@ -94,6 +100,7 @@ it("shows bounded provenance on demand and requests further pages with the compl
   const view = setup();
   expect(api).not.toHaveBeenCalled();
   expect(screen.getByText("1 of 2 links")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeVisible();
   const source = screen.getByRole("link", { name: "Goblin" });
   expect(
     selectedNavigation(
@@ -113,7 +120,7 @@ it("shows bounded provenance on demand and requests further pages with the compl
       filter: {
         kind: "relationship",
         clause_id: constraint.clause_id,
-        relationship: constraint.relationship,
+        relationship: relationship,
       },
       result_record_key: "actors:goblin",
       page: { number: 2, size: 1 },
@@ -157,19 +164,21 @@ it("resets evidence paging and retained content when the exact relationship chan
     preview: RelationshipEvidenceView,
   ) => (
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <QueryClientProvider client={client}>
-        <RelationshipEvidence
-          evidence={preview}
-          filter={{
-            kind: "relationship",
-            clause_id: summary.clause_id,
-            relationship: summary.relationship,
-          }}
-          summary={summary}
-          resultKey="actors:goblin"
-          generation="generation-a"
-        />
-      </QueryClientProvider>
+      <RouterTestContext>
+        <QueryClientProvider client={client}>
+          <RelationshipEvidence
+            evidence={preview}
+            filter={{
+              kind: "relationship",
+              clause_id: summary.clause_id,
+              relationship: summary.relationship,
+            }}
+            summary={summary}
+            resultKey="actors:goblin"
+            generation="generation-a"
+          />
+        </QueryClientProvider>
+      </RouterTestContext>
     </ConfigProvider>
   );
   const view = render(content(constraint, evidence));
@@ -179,7 +188,7 @@ it("resets evidence paging and retained content when the exact relationship chan
     ...constraint,
     title: "Stunned",
     relationship: {
-      ...constraint.relationship,
+      ...relationship,
       selection: rootNavigation("conditions:stunned"),
     },
   };
@@ -187,7 +196,11 @@ it("resets evidence paging and retained content when the exact relationship chan
     content(next, {
       ...evidence,
       occurrences: [
-        { ...occurrence, source_title: "New exact evidence", target_title: "Stunned" },
+        {
+          ...occurrence,
+          source_title: "New exact evidence",
+          target_title: "Stunned",
+        },
       ],
     }),
   );
@@ -223,7 +236,7 @@ it.each([
     resultKey: "actors:goblin",
     clause: {
       ...constraint,
-      relationship: { ...constraint.relationship, direction: "outgoing" as const },
+      relationship: { ...relationship, direction: "outgoing" as const },
     },
   },
   {
@@ -231,7 +244,7 @@ it.each([
     resultKey: "actors:goblin",
     clause: {
       ...constraint,
-      relationship: { ...constraint.relationship, include_contents: false },
+      relationship: { ...relationship, include_contents: false },
     },
   },
   {
@@ -240,9 +253,9 @@ it.each([
     clause: {
       ...constraint,
       relationship: {
-        ...constraint.relationship,
+        ...relationship,
         selection: {
-          ...constraint.relationship.selection,
+          ...relationship.selection,
           source_fingerprint: "foreign",
         },
       },
@@ -269,3 +282,38 @@ it.each([
     expect(api).toHaveBeenCalledOnce();
   },
 );
+
+it("keeps ordinary evidence navigation in the current reading host with its exact source address", () => {
+  const globalReference = vi.fn();
+  const localReference = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <RouterTestContext>
+      <QueryClientProvider client={client}>
+        <ReferenceHelpProvider onReference={globalReference}>
+          <ReferenceHelpProvider onHelp={vi.fn()} onReference={localReference}>
+            <RelationshipEvidence
+              evidence={evidence}
+              filter={{ kind: "relationship", clause_id: "link", relationship }}
+              summary={constraint}
+              resultKey="actors:goblin"
+              generation="generation-a"
+            />
+          </ReferenceHelpProvider>
+        </ReferenceHelpProvider>
+      </QueryClientProvider>
+    </RouterTestContext>,
+  );
+  const link = screen.getByRole("link", { name: "Goblin" });
+  fireEvent.click(link, { ctrlKey: true });
+  expect(localReference).not.toHaveBeenCalled();
+  expect(globalReference).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(localReference).toHaveBeenCalledExactlyOnceWith(
+    occurrence.source_navigation.record_key,
+    link,
+    occurrence.source_navigation,
+  );
+  expect(globalReference).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});

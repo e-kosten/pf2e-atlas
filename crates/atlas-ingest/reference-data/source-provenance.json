@@ -1,0 +1,415 @@
+{
+  "schema": 2,
+  "recipe": "foundry-reference-source-policy/v2",
+  "rows": [
+    {
+      "keys": [
+        "domain:abomination"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Adventure Path #165: Eyes of Empty Death",
+          "page": 65,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:air",
+        "domain:ambition",
+        "domain:cities",
+        "domain:confidence",
+        "domain:creation",
+        "domain:darkness",
+        "domain:death",
+        "domain:destruction",
+        "domain:dreams",
+        "domain:earth",
+        "domain:family",
+        "domain:fate",
+        "domain:fire",
+        "domain:freedom",
+        "domain:healing",
+        "domain:indulgence",
+        "domain:knowledge",
+        "domain:luck",
+        "domain:magic",
+        "domain:might",
+        "domain:moon",
+        "domain:nature",
+        "domain:nightmares",
+        "domain:pain",
+        "domain:passion",
+        "domain:perfection",
+        "domain:protection",
+        "domain:secrecy",
+        "domain:sun",
+        "domain:travel",
+        "domain:trickery",
+        "domain:truth",
+        "domain:undeath",
+        "domain:water",
+        "domain:wealth",
+        "domain:zeal"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "keys": [
+        "domain:airapocryphal",
+        "domain:ambitionapocryphal",
+        "domain:confidenceapocryphal",
+        "domain:darknessapocryphal",
+        "domain:deathapocryphal",
+        "domain:fateapocryphal",
+        "domain:fireapocryphal",
+        "domain:indulgenceapocryphal",
+        "domain:knowledgeapocryphal",
+        "domain:mightapocryphal",
+        "domain:secrecyapocryphal",
+        "domain:travelapocryphal",
+        "domain:waterapocryphal"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "keys": [
+        "domain:change",
+        "domain:cold",
+        "domain:decay",
+        "domain:void"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 112,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:delirium"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 113,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:dust",
+        "domain:duty",
+        "domain:glyph"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 114,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:introspection"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Adventure Path #186: Ghost King’s Rage",
+          "page": 73,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:lightning",
+        "domain:plague"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 115,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:metal",
+        "domain:toil",
+        "domain:wood"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Rage of Elements",
+          "page": null,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license"
+      ]
+    },
+    {
+      "keys": [
+        "domain:naga"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Adventure Path #161: Belly of the Black Whale",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a",
+        "CUP"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "community-use"
+      ]
+    },
+    {
+      "keys": [
+        "domain:repose",
+        "domain:sorrow"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 116,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:soul",
+        "domain:star",
+        "domain:swarm"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 117,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:time",
+        "domain:vigil"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 118,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "domain:tyranny"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "keys": [
+        "domain:wyrmkin"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 119,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "keys": [
+        "rule:pf2e:PF2E.NPC.Abilities.Glossary.SneakAttack"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Bestiary",
+          "page": 344,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "bestiary-original-credit"
+      ]
+    },
+    {
+      "keys": [
+        "weapon_group:axe",
+        "weapon_group:bomb",
+        "weapon_group:bow",
+        "weapon_group:brawling",
+        "weapon_group:club",
+        "weapon_group:flail",
+        "weapon_group:hammer",
+        "weapon_group:polearm",
+        "weapon_group:shield",
+        "weapon_group:sling",
+        "weapon_group:spear",
+        "weapon_group:sword"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "keys": [
+        "weapon_group:firearm"
+      ],
+      "publications": [
+        {
+          "title": "Pathfinder Guns & Gears (original)",
+          "page": 152,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    }
+  ]
+}

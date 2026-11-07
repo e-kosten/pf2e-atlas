@@ -11,7 +11,7 @@ import {
   SearchProfileContext,
   useSearchProfileSelection,
 } from "./SearchProfileContext";
-import { ReferencePreviewContext } from "../records/ReferencePreviewContext";
+import { ReferenceHelpProvider } from "../records/ReferenceHelp";
 
 it("keeps both trait destinations exact and native while ordinary clicks open contextual readers", () => {
   const router = createAtlasRouter(
@@ -21,15 +21,19 @@ it("keeps both trait destinations exact and native while ordinary clicks open co
     const profile = useSearchProfileSelection(readinessFixture());
     return <SearchProfileContext value={profile}>{children}</SearchProfileContext>;
   }
-  const openTrait = vi.fn(),
+  const onHelp = vi.fn(),
     onReference = vi.fn();
   render(
     <RouterTestContext router={router}>
       <Owner>
-        <ReferencePreviewContext value={{ open: vi.fn(), openTrait }}>
+        <ReferenceHelpProvider onHelp={onHelp}>
           <SimilaritySeedLink
             seed={{ kind: "trait", trait_key: "trait:fire" }}
             title="Fire seed"
+            help={{
+              definition_key: "trait:fire",
+              destination: { kind: "definition", key: "trait:fire" },
+            }}
           />
           <SimilaritySectionChoices
             seed={{ kind: "trait", trait_key: "trait:fire" }}
@@ -44,7 +48,7 @@ it("keeps both trait destinations exact and native while ordinary clicks open co
             onChange={vi.fn()}
             onReference={onReference}
           />
-        </ReferencePreviewContext>
+        </ReferenceHelpProvider>
       </Owner>
     </RouterTestContext>,
   );
@@ -54,10 +58,17 @@ it("keeps both trait destinations exact and native while ordinary clicks open co
     expect(link).toHaveAttribute("href", "/traits/trait:fire");
     fireEvent.click(link, { metaKey: true });
   }
-  expect(openTrait).not.toHaveBeenCalled();
+  expect(onHelp).not.toHaveBeenCalled();
   expect(onReference).not.toHaveBeenCalled();
   fireEvent.click(seed);
-  expect(openTrait).toHaveBeenCalledWith("trait:fire", seed);
+  expect(onHelp).toHaveBeenCalledWith(
+    {
+      definition_key: "trait:fire",
+      destination: { kind: "definition", key: "trait:fire" },
+    },
+    seed,
+    undefined,
+  );
   fireEvent.click(section);
   expect(onReference).toHaveBeenCalledWith(
     expect.objectContaining({ owner_label: "Fire definition" }),

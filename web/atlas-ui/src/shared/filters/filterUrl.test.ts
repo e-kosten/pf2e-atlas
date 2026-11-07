@@ -319,3 +319,12 @@ it("keeps the version-three wire contract stable for an existing compact link", 
   });
   expect(encodeFilterUrl(decodeFilterUrl(saved))).toBe(saved);
 });
+
+it("rejects removed generic definition-reference URLs", () => {
+  const removed =
+    "3." +
+    compressToEncodedURIComponent(
+      JSON.stringify(["d", ["d", "language:chthonian"]]),
+    ).replace(/\+/g, "_");
+  expect(() => decodeFilterUrl(removed)).toThrow();
+});

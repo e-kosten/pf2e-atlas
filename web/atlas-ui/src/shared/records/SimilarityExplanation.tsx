@@ -1,4 +1,4 @@
-import { useReferencePreview } from "./ReferencePreviewContext";
+import { useReferenceRecordNavigation } from "./ReferenceHelp";
 import { Table, Typography } from "antd";
 import type {
   RecordNavigationView,
@@ -142,7 +142,7 @@ function PassageLink({
   label: string;
   onNavigate?: (navigation: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
-  const reference = useReferencePreview();
+  const reference = useReferenceRecordNavigation();
   return (
     <Typography.Link
       href={destinationHref(
@@ -152,7 +152,7 @@ function PassageLink({
         if ((!onNavigate && !reference) || !isPrimaryActivation(event)) return;
         event.preventDefault();
         if (onNavigate) onNavigate(navigation, event.currentTarget);
-        else reference?.open(navigation.record_key, event.currentTarget, navigation);
+        else reference?.(navigation.record_key, event.currentTarget, navigation);
       }}
     >
       {label}

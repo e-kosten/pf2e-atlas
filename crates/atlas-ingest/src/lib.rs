@@ -10,7 +10,11 @@ mod native_execution;
 #[cfg(test)]
 mod passage_benchmark;
 mod product_preparation;
+mod reference_notices;
+mod reference_supplement;
+mod references;
 mod report;
+pub use reference_supplement::REFERENCE_PREPARATION_RECIPE;
 mod source;
 mod source_aliases;
 mod source_compatibility;

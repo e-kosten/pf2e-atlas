@@ -1,35 +1,30 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
+import { referenceDestination, useReferenceHelpNavigation } from "./ReferenceHelp";
 import { BookCopy } from "lucide-react";
-import type { RecordNavigationView } from "../../generated/atlas";
+import type { ReferenceHelpView } from "../../generated/atlas";
 import { PaneIconLink } from "../ui/actions/PaneAction";
-import type { RecordReferenceHandler } from "./PreparedContent";
 
 export function RecordProvenanceAction({
-  navigation,
+  help,
   title,
-  onReference,
 }: {
-  navigation: RecordNavigationView;
+  help: ReferenceHelpView;
   title?: string;
-  onReference: RecordReferenceHandler;
 }) {
   const label = title ? `Open general entry: ${title}` : "Open general entry";
+  const openHelp = useReferenceHelpNavigation();
   return (
     <PaneIconLink
       outlined
       href={destinationHref(
-        recordDestination({
-          recordKey: navigation.record_key,
-          selection: navigation,
-        }),
+        referenceDestination(help.destination, help.definition_key),
       )}
       label={label}
       icon={<BookCopy size={16} aria-hidden="true" />}
       onClick={(event) => {
         if (!isPrimaryActivation(event)) return;
         event.preventDefault();
-        onReference(navigation.record_key, event.currentTarget, navigation);
+        openHelp(help, event.currentTarget);
       }}
     />
   );

@@ -192,7 +192,7 @@ export function FilterControls({
       return presentation.status === "available"
         ? presentation.title +
             (leaf.relationship.selection.embedded_path.length
-              ? ` · ${presentation.record.title}`
+              ? ` · ${presentation.record?.title ?? presentation.title}`
               : "")
         : "Record unavailable";
     return workspace.filterDiscoveryError ? "Record unavailable" : "Loading record…";

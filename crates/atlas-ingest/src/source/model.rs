@@ -17,6 +17,10 @@ pub(crate) struct ManifestLanguage {
 }
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct ManifestPack {
+    // Keep optional declarations permissive, like root manifest metadata. An
+    // unsupported explicit system affects reference applicability, not admission.
+    #[serde(flatten)]
+    pub(crate) metadata: std::collections::BTreeMap<String, serde_json::Value>,
     pub(crate) name: String,
     pub(crate) label: String,
     #[serde(rename = "type")]

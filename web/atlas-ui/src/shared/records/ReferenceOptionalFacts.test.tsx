@@ -20,7 +20,7 @@ describe("optional reference content", () => {
       {
         id: "0",
         formula: knownFact("10d6"),
-        damage_type: knownFact("fire"),
+        damage_type: knownFact({ value: "fire", label: "fire" }),
         kinds: knownFact(["damage"]),
         category: unavailableFact("null"),
         materials: knownFact([]),

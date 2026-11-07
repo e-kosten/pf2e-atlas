@@ -38,6 +38,11 @@ upstream HEAD. Explicit or persisted user source directories are inspected witho
 mutation. Ingest rejects incompatible PF2e system manifest versions before product
 preparation; developer admission reports remain usable for unsupported sources.
 
+The approved reference supplement is a bundled, normalized subset with its source
+pin, mapping/extraction recipe and complete content notices. Normal setup and
+check mode pass those bytes directly to ingest, which validates the manifest,
+payload and notices and includes their identity in setup freshness.
+
 ## Source loading and checked records
 
 Private TypeScript tooling resolves pinned Foundry declarations and emits modular
@@ -70,9 +75,11 @@ no source admission, defaults or repairs. Original complete source JSON is not
 duplicated in the artifact. Developer source inspection can read the checkout;
 normal runtime reads use the checked codec and work without it.
 
-Trait reference reads likewise use published source evidence and prepared
-definitions without opening Foundry localization files. Their separate typed
-identity, exact source memberships/references and stored semantic seeds follow
+Glossary reference reads use the canonical reference-entry owner, retained evidence,
+prepared definitions and persisted notices without opening Foundry files. A
+record-backed definition points to its existing admitted record; it does not copy
+that record's body or vectors. Traits retain their typed identities, exact source
+memberships/references and stored semantic seeds under
 [ADR0056](./decisions/0056-trait-reference-entities.md). Publication and schema
 upgrades use the same bounded workspace and state-preserving migration owners.
 `atlas record source` explicitly exports a product record's complete checked
@@ -97,10 +104,13 @@ The record itself remains a key and DTO. Content outcomes and resolved relations
 occurrences are separate derived outputs. Original bytes/provenance, admission
 failures and detailed reports remain ingest/developer concerns.
 
-`BuildArtifactOptions` composes source paths, locale, selected profile configurations,
-batching/reuse and output paths. `CapturedBuildInputs` owns those options and their
-source capture. Setup compares its fingerprint for freshness, then consumes that
-same owner if a source build is needed. Direct builds capture once after destination
+`BuildArtifactOptions` composes source paths, locale, selected profile configurations, batching/reuse and output paths.
+`CapturedBuildInputs` owns those options, the source capture and verified supplement
+bytes. Its source fingerprint remains Foundry-only provenance. Setup additionally
+compares the reference preparation recipe, complete coverage and combined input
+identity, which binds generated glossary metadata, bundled supplement
+payload, mappings, notices and locale. It consumes that same owner if a source build is needed.
+Direct builds capture once after destination
 and requested-configuration admission. An empty profile collection builds lexical
 content. Bounded preparation retains compact global resolver/collision evidence,
 including excluded roots; unreadable JSON supplies no guessed identity. Traits
@@ -343,7 +353,7 @@ the selected native tokenizer checks every officially prefixed final input.
 
 The workspace lives in platform application-data storage; source checkouts and
 model assets remain in platform cache storage. Explicit repo mode uses
-`vendor/pf2e`, `.cache/hf-models` and `.atlas/workspace.sqlite`. Source path,
+`.cache/pf2e/<commit>`, `.cache/hf-models` and `.atlas/workspace.sqlite`. Source path,
 manifest, locale and requested profiles are durable configuration independent of
 active reference output. Explicit setup overrides update that intent; omitted
 options preserve it. Adding a profile retains already requested profiles.
@@ -354,6 +364,14 @@ upgrades, and commits migrations, backfills and validation atomically. Supported
 query-catalog changes rebuild typed projections from retained DTOs without source
 admission or inference. Other component changes require their corresponding
 preparation work; physical schema version alone is not an inference invalidation.
+
+The reference-entry migration moves existing trait content/evidence to its canonical
+owner without source acquisition or inference. It leaves existing record and trait
+reads available. The separate reference preparation coverage remains traits-only
+until explicit setup publishes the new definition inventory; startup does not
+silently populate it or claim that a physical schema upgrade supplied new content.
+Missing new coverage therefore invalidates explicit setup freshness without
+invalidating the retained record/trait publication or triggering vector inference.
 
 One update owner serializes configuration/source publication. Normal source
 publication drains cooperating sessions and uses one immediate transaction,
@@ -382,7 +400,12 @@ repair invalidates the witness. Native model loading still verifies package
 bytes independently. This removes repeated hashing within the operation without
 persisting checksum trust across processes.
 
-Explicit setup freshness may compare the source fingerprint. Ordinary lookup,
+Explicit setup freshness compares the source fingerprint and complete reference
+preparation identity. Glossary metadata, scoped role-policy, supplement text,
+notice or recipe changes, and an explicit
+disabled selection require new atomic publication even when Foundry is unchanged.
+A selected asset failure preserves the committed generation and saved state.
+Ordinary lookup,
 search, lists and encounters do not scan the source checkout. Cheap index checks
 validate the executable contract/capability; deep coherence validation is an
 explicit diagnostic operation. Model-free lexical and stored
@@ -472,6 +495,15 @@ checkpoint. This does not introduce native interruption, deadlines, or a promise
 that every browser abort drops its server handler. Durable mutations, transaction
 receipts and their reference reads use the normal uncancellable path under
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).
+
+Contextual definition operations use this same workspace/retrieval composition.
+Bounded metadata batches omit prepared-body decoding while verifying the existing
+canonical-envelope checksum. Exact-owner outgoing occurrences retain field/path
+and visibility; SQL target uniqueness considers the complete selected owner scope.
+App-service supplies typed help destinations, readable labels, query actions and
+scoped attribution/notices. Record backing returns existing navigation and ordinary
+prepared record content, including authored placeholders and controls. Traits-only
+coverage preserves ordinary reads with explicit setup-required nontrait help.
 
 `AtlasRetrievalService` is a concrete service over index, an explicit default
 profile and an optional prepared query embedding. Narrow inherent methods own strict name/key lookup, browse, text search,

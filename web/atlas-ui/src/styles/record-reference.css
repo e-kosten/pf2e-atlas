@@ -40,8 +40,13 @@
   margin-block: 20px 8px;
   text-wrap: pretty;
 }
-.prepared-content > :last-child {
+.prepared-content > :last-child,
+.prepared-content > :has(+ p:empty:last-child) {
   margin-bottom: 0;
+}
+/* Empty source edge paragraphs do not add another reading boundary. */
+.prepared-content > p:empty:is(:first-child, :last-child) {
+  display: none;
 }
 .record-reference__content > .prose:last-child {
   margin-block-end: 0;

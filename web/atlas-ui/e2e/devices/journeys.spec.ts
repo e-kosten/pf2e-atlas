@@ -1,7 +1,8 @@
 import { readUrl } from "../readingUrl";
+import { decodeFilterUrl, encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 import { encodeReadingAddress } from "../../src/app/readingUrl";
 import { expect, test } from "./fixtures";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import {
   activate,
   landedSearch,
@@ -2553,6 +2554,283 @@ test("routine budgets and check trait disclosures retain keyboard and touch read
     exact: true,
   });
   await expect(inheritedPopup.getByText("Visual", { exact: true })).toBeVisible();
+  await noPageOverflow(page);
+});
+
+test("glossary vocabulary labels and communication notes use supplied context @engine", async ({
+  page,
+}) => {
+  await page.goto(`/records/${sentinel}`);
+  await expect(
+    page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Languages", { exact: true }).locator(".."),
+  ).toContainText("Common, Chthonian");
+  await expect(
+    page
+      .getByText("Understands the watchtower's lantern signals.", { exact: true })
+      .first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Chthonian", exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByText(/Darkvision/).first()).toBeVisible();
+  await page.goto("/records/browser-equipment:sword00000000001");
+  await expect(
+    page.getByRole("heading", { name: "Glossary Sword", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Sword", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Large", { exact: true }).first()).toBeVisible();
+});
+
+async function expectUsefulGlossaryDrawer(drawer: Locator) {
+  await expect(drawer.getByRole("button", { name: /Explore|With this/ })).toHaveCount(
+    0,
+  );
+  await expect(drawer.getByRole("link", { name: /^With this/ })).toHaveCount(0);
+  await expect(drawer.getByRole("tab")).toHaveCount(0);
+  await expect(drawer.getByRole("alert")).toHaveCount(0);
+  await expect(
+    drawer.getByRole("heading", { name: /^(Sources|Notices|Source and notices)$/ }),
+  ).toHaveCount(0);
+  await expect(
+    drawer.getByText(
+      /Source and notices|No description available|No readable description|fixtures\/reference-catalog|Synthetic test content created for/,
+    ),
+  ).toHaveCount(0);
+  await expect(
+    drawer.getByRole("link", { name: "Open reference full page", exact: true }),
+  ).toBeVisible();
+}
+
+test("glossary reading keeps useful drawers, native full pages and exact property associations @engine", async ({
+  page,
+}, info) => {
+  await page.goto(`/records/${sentinel}`);
+  await expect(
+    page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Medium", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Medium", exact: true })).toHaveCount(0);
+  const darkvision = page
+    .getByRole("link", { name: "Darkvision", exact: true })
+    .first();
+  const senseHref = await darkvision.getAttribute("href");
+  expect(senseHref).not.toBeNull();
+  const senseUrl = new URL(senseHref!, page.url());
+  expect(decodeURIComponent(senseUrl.pathname)).toBe(
+    "/records/bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6",
+  );
+  expect(senseUrl.searchParams.has("reading_context")).toBe(false);
+  expect(senseUrl.searchParams.get("definition_key")).toBe("sense:darkvision");
+  const actorUrl = page.url();
+  await activate(darkvision, info);
+  const senseDrawer = page.getByRole("dialog", { name: "Darkvision", exact: true });
+  await expect(
+    senseDrawer.getByText("Fixture darkvision reference content.", { exact: true }),
+  ).toBeVisible();
+  expect(page.url()).toBe(actorUrl);
+  await expectUsefulGlossaryDrawer(senseDrawer);
+  const senseFullPage = senseDrawer.getByRole("link", {
+    name: "Open reference full page",
+    exact: true,
+  });
+  const senseFullUrl = new URL((await senseFullPage.getAttribute("href"))!, page.url());
+  expect(decodeURIComponent(senseFullUrl.pathname)).toBe(
+    decodeURIComponent(senseUrl.pathname),
+  );
+  expect(senseFullUrl.searchParams.has("reading_context")).toBe(false);
+  expect(senseFullUrl.searchParams.get("definition_key")).toBe("sense:darkvision");
+  const sensePreview = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/search/page") &&
+      response.request().postDataJSON()?.page?.size === 5 &&
+      response.request().postDataJSON()?.criteria?.filter?.collection === "senses",
+  );
+  await activate(senseFullPage, info);
+  await expect(page).toHaveURL(senseFullUrl.href);
+  const sensePage = await (await sensePreview).json();
+  expect(sensePage.rows).toHaveLength(5);
+  expect(sensePage.page.total).toBeGreaterThan(5);
+  const senseRelations = page.getByRole("region", {
+    name: "With this sense",
+    exact: true,
+  });
+  await expect(
+    page.getByRole("tab", { name: "With this sense", exact: true }),
+  ).toBeVisible();
+  await expect(senseRelations.getByRole("listitem")).toHaveCount(5);
+  await expect(page.getByRole("tab", { name: "Similar", exact: true })).toHaveCount(0);
+  await expect(
+    senseRelations.getByText(`5 of ${sensePage.page.total} entries`, { exact: true }),
+  ).toBeVisible();
+  const senseSearch = senseRelations.getByRole("link", {
+    name: "Search records",
+    exact: true,
+  });
+  const senseFilter = decodeFilterUrl(
+    new URL((await senseSearch.getAttribute("href"))!, page.url()).searchParams.get(
+      "filter",
+    )!,
+  );
+  expect(senseFilter).toMatchObject({
+    kind: "exists",
+    collection: "senses",
+    predicate: { kind: "compare", field: "type", op: "eq", value: "darkvision" },
+  });
+  await activate(senseSearch, info);
+  await expect(page.locator(`[data-record-key="${sentinel}"]`).first()).toBeVisible();
+
+  await page.goto(`/records/${sentinel}`);
+  await activate(
+    page.getByRole("link", { name: "Chthonian", exact: true }).first(),
+    info,
+  );
+  const languageDrawer = page.getByRole("dialog", { name: "Chthonian", exact: true });
+  await expect(languageDrawer.getByText(/Typically spoken by demons/)).toBeVisible();
+  await expectUsefulGlossaryDrawer(languageDrawer);
+  const languageFullPage = languageDrawer.getByRole("link", {
+    name: "Open reference full page",
+    exact: true,
+  });
+  expect(
+    decodeURIComponent(
+      new URL((await languageFullPage.getAttribute("href"))!, page.url()).pathname,
+    ),
+  ).toBe("/definitions/language:chthonian");
+  await activate(languageFullPage, info);
+  await expect(page).toHaveURL(/\/definitions\/language:chthonian$/);
+  await expect(
+    page.getByRole("heading", { name: "Chthonian", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "With this language" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Similar", exact: true })).toHaveCount(0);
+
+  await page.goto(`/records/${sentinel}`);
+  const agile = page.getByRole("link", { name: "Agile", exact: true }).first();
+  await expect(agile).toHaveAttribute("href", "/traits/trait:agile");
+  await activate(agile, info);
+  const traitDrawer = page.getByRole("dialog", { name: "Agile", exact: true });
+  await expect(
+    traitDrawer.locator("header").getByText("Trait", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    traitDrawer.getByText("Fixture agile trait explains nimble follow-up attacks.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expectUsefulGlossaryDrawer(traitDrawer);
+  const traitFullPage = traitDrawer.getByRole("link", {
+    name: "Open reference full page",
+    exact: true,
+  });
+  await expect(traitFullPage).toHaveAttribute("href", "/traits/trait:agile");
+  await activate(traitFullPage, info);
+  await expect(page).toHaveURL(/\/traits\/trait:agile$/);
+  await expect(page.getByRole("heading", { name: "Agile", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("tab", { name: "With this trait", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Similar", exact: true })).toBeVisible();
+
+  await page.goto("/records/browser-equipment:sword00000000001");
+  for (const label of ["Large", "Uncommon"]) {
+    await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: label, exact: true })).toHaveCount(0);
+  }
+  await noPageOverflow(page);
+  for (const key of ["size:lg", "size:med", "rarity:uncommon"]) {
+    await page.goto(`/definitions/${encodeURIComponent(key)}`);
+    await expect(page.getByText("Link not found", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Open Search", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        /No description available|No readable description|Source and notices/,
+      ),
+    ).toHaveCount(0);
+  }
+});
+
+test("field vocabulary Read preserves selected values and unfinished filter drafts @engine", async ({
+  page,
+}, info) => {
+  const initial = {
+    kind: "all_of" as const,
+    children: [
+      {
+        kind: "compare" as const,
+        field: "level_or_rank",
+        op: "gte" as const,
+        value: 0,
+      },
+      {
+        kind: "set_match" as const,
+        field: "languages",
+        op: "includes_any" as const,
+        values: ["chthonian"],
+      },
+    ],
+  };
+  await page.goto(`/search?filter=${encodeFilterUrl(initial)}`);
+  await activate(
+    page.getByRole("button", { name: "Advanced filters", exact: true }),
+    info,
+  );
+  const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const level = advanced.getByRole("textbox", { name: "Level / Rank", exact: true });
+  await level.fill("unfinished");
+  const draftUrl = page.url();
+  await activate(
+    advanced.getByRole("button", { name: "Edit Languages values", exact: true }),
+    info,
+  );
+  const search = page.getByRole("textbox", {
+    name: "Search languages choices",
+    exact: true,
+  });
+  const vocabulary = page.waitForResponse((response) => {
+    if (!response.ok() || !response.url().endsWith("/api/filters/values")) return false;
+    const request = response.request().postDataJSON();
+    return request?.field_id === "languages" && request.text === "Chthonian";
+  });
+  await search.fill("Chthonian");
+  await vocabulary;
+  const selected = page.getByRole("button", {
+    name: "Languages: Chthonian, selected; activate to remove",
+    exact: true,
+  });
+  await expect(
+    page.locator(".common-choice-options").filter({ has: selected }),
+  ).toHaveAttribute("aria-busy", "false");
+  await expect(selected).toBeVisible();
+  const read = page.getByRole("link", { name: "Read Chthonian", exact: true });
+  await activate(read, info);
+  const help = page.getByRole("dialog", { name: "Chthonian", exact: true });
+  await expect(help.getByText(/Typically spoken by demons/)).toBeVisible();
+  await expectUsefulGlossaryDrawer(help);
+  expect(page.url()).toBe(draftUrl);
+  await activate(
+    help.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(help).toBeHidden();
+  await expect(level).toHaveValue("unfinished");
+  await expect(search).toHaveValue("Chthonian");
+  await expect(selected).toBeVisible();
+  await expect(read).toBeFocused();
+  await activate(read, info);
+  await activate(
+    help.getByRole("link", { name: "Open reference full page", exact: true }),
+    info,
+  );
+  await expect(page).toHaveURL(/\/definitions\/language:chthonian$/);
+  await expect(
+    page.getByRole("heading", { name: "Chthonian", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await noPageOverflow(page);
 });
 

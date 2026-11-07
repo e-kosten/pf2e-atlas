@@ -1129,6 +1129,7 @@ describe("list views", () => {
   });
 
   it("preserves selected membership and nested reading while filters hide the selected member", async () => {
+    history.replaceState(null, "", "/lists/research/records/actions:testAction1");
     apiMocks.filterSavedList.mockImplementation(
       async (request: { query?: string }) => ({
         ...savedListDetailFixture(),

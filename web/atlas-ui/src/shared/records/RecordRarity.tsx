@@ -1,16 +1,20 @@
+import { ReferenceHelpLink } from "./ReferenceHelp";
 import { Tag, theme } from "antd";
-import { sentenceCase } from "../ui/labels";
 
-export function RecordRarity({ rarity }: { rarity: string | null | undefined }) {
+export function RecordRarity({
+  rarity,
+}: {
+  rarity: import("../../generated/atlas").ReferenceValueView | null | undefined;
+}) {
   const { token } = theme.useToken();
-  const normalized = rarity?.trim().toLowerCase();
+  const normalized = rarity?.value.trim().toLowerCase();
   if (!normalized) return null;
   const role = ["common", "uncommon", "rare", "unique"].includes(normalized)
     ? normalized
     : null;
   return (
     <Tag
-      aria-label={`Rarity: ${sentenceCase(normalized)}`}
+      aria-label={`Rarity: ${rarity?.label}`}
       styles={{
         root: {
           color: role ? `var(--rarity-${role}-text)` : token.colorTextSecondary,
@@ -20,7 +24,7 @@ export function RecordRarity({ rarity }: { rarity: string | null | undefined }) 
         },
       }}
     >
-      {sentenceCase(normalized)}
+      <ReferenceHelpLink help={rarity?.help}>{rarity?.label}</ReferenceHelpLink>
     </Tag>
   );
 }

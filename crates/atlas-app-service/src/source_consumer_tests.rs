@@ -151,6 +151,7 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
             let selected = f
                 .worker
                 .record_detail_at(RecordDetailRequest {
+                    expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: link.link.navigation.record_key.clone(),
                     owners: link.link.navigation.owners.clone(),
@@ -303,6 +304,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         let detail = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),
@@ -332,6 +334,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: result.link.navigation.record_key.clone(),
             owners: result.link.navigation.owners.clone(),
@@ -356,6 +359,7 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     let detail = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: result.link.navigation.record_key.clone(),
             owners: result.link.navigation.owners.clone(),
@@ -397,6 +401,7 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
     let owned = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: ACTOR.into(),
             owners: activity.navigation.owners.clone(),
@@ -432,6 +437,7 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
         },
     };
     let mut request = RecordDetailRequest {
+        expected_artifact_generation: None,
         spell_rank: None,
         record_key: ACTOR.into(),
         owners: activity.navigation.owners.clone(),
@@ -487,6 +493,7 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
     assert!(
         f.worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: ACTOR.into(),
                 owners: activity.navigation.owners.clone(),
@@ -536,6 +543,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
         assert!(
             f.worker
                 .record_detail_at(RecordDetailRequest {
+                    expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: ACTOR.into(),
                     owners: navigation.owners.clone(),
@@ -551,6 +559,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
     let selected = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: ACTOR.into(),
             owners: navigation.owners.clone(),
@@ -595,6 +604,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
     assert!(
         f.worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 spell_rank: None,
                 record_key: nav.record_key.clone(),
                 owners: nav.owners.clone(),
@@ -793,6 +803,7 @@ fn explicitly_selected_empty_and_null_prose_keep_distinct_availability() {
     let d = f
         .worker
         .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: "actions:empty00000000000".into(),
             owners: vec![],
@@ -865,6 +876,7 @@ fn rebuilt_snapshot_rejects_navigation_to_a_reordered_unstable_child() {
         .clone();
     let after = fixture_worker_with_executor(make(true, 'b'));
     let request = RecordDetailRequest {
+        expected_artifact_generation: None,
         spell_rank: None,
         record_key: nav.record_key,
         owners: nav.owners,
@@ -1214,7 +1226,21 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
         vec![],
     )
     .unwrap();
-    assert_eq!(editor.catalog_version, 9);
+    assert_eq!(editor.catalog_version, 10);
+    let senses = editor
+        .groups
+        .iter()
+        .flat_map(|group| &group.fields)
+        .find(|field| field.definition.id == "senses")
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(senses.collection_control.as_ref().unwrap()).unwrap(),
+        serde_json::json!({
+            "category_field_id": "senses[].type",
+            "amount_field_id": "senses[].range",
+            "qualifier_field_id": "senses[].acuity",
+        })
+    );
     let embedded = editor.groups.iter().find(|g| g.id == "embedded").unwrap();
     assert_eq!(
         embedded

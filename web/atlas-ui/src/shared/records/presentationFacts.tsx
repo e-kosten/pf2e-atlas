@@ -3,12 +3,26 @@ import { CalculationTable } from "../ui/tables/CalculationTable";
 import { ValueExplanation } from "../ui/ValueExplanation";
 import type { ReactNode } from "react";
 import type { FactView, NumberFactView } from "../../generated/atlas";
+import { ReferenceValue } from "./ReferenceHelp";
 
 export type FactValueRenderer = (value: ReactNode) => ReactNode;
+
+/** Scalar facts render the label supplied by Rust; the token remains identity. */
+export function scalarFactText(value: unknown): string {
+  if (value && typeof value === "object" && "label" in value && "value" in value)
+    return String(value.label);
+  return String(value);
+}
 
 export function isEmptyFactValue(value: unknown): boolean {
   return (
     (typeof value === "string" && !value.trim()) ||
+    (!!value &&
+      typeof value === "object" &&
+      "label" in value &&
+      "value" in value &&
+      typeof value.label === "string" &&
+      !value.label.trim()) ||
     (Array.isArray(value) && value.length === 0)
   );
 }
@@ -22,7 +36,7 @@ export function hasReadingFact<T>(
 }
 export function factText<T>(
   fact: FactView<T>,
-  format: (value: T) => string = String,
+  format: (value: T) => string = scalarFactText,
   { patch = false, required = false }: { patch?: boolean; required?: boolean } = {},
 ): string {
   if (patch && fact.state === "null") return "Cleared";
@@ -135,6 +149,16 @@ export function FactLine<T>({
   const value =
     fact.state === "missing" ? (
       <MissingFact label={label} />
+    ) : !format &&
+      !isEmptyFactValue(fact.value) &&
+      fact.state === "value" &&
+      fact.value &&
+      typeof fact.value === "object" &&
+      "label" in fact.value &&
+      "value" in fact.value ? (
+      <ReferenceValue
+        value={fact.value as import("../../generated/atlas").ReferenceValueView}
+      />
     ) : (
       factText(fact, format, { patch, required })
     );
@@ -145,7 +169,13 @@ export function FactLine<T>({
   );
 }
 
-export function FactRow({ label, children }: { label: string; children: ReactNode }) {
+export function FactRow({
+  label,
+  children,
+}: {
+  label: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="record-fact">
       <strong>{label}</strong> <span>{children}</span>

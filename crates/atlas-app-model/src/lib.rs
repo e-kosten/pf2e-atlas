@@ -74,10 +74,16 @@ pub use condition_events::{
     RemoveEncounterParticipantConditionRequest, ResolveDrainedConsequenceRequest,
     SetEncounterLifeSettingsRequest, WakingRuleView,
 };
+mod definitions;
 mod traits;
+pub use definitions::{
+    DefinitionDetailRequest, DefinitionDetailView, DefinitionNoticeView, DefinitionPublicationView,
+    ReferenceContentView, ReferenceDestinationView, ReferenceFilterActionView, ReferenceHelpView,
+    ReferenceValueView,
+};
 pub use traits::{
-    TraitAssociationKind, TraitContentView, TraitDetailRequest, TraitDetailView, TraitRecordView,
-    TraitRecordsPage, TraitRecordsRequest,
+    TraitAssociationKind, TraitDetailRequest, TraitDetailView, TraitRecordView, TraitRecordsPage,
+    TraitRecordsRequest,
 };
 mod table_roll;
 pub use table_roll::{RollTableRequest, TableRollView};
@@ -162,7 +168,8 @@ pub use filter::{
     FilterChoiceView, FilterCollectionControlView, FilterControlView, FilterCountsView,
     FilterDiscoveryContext, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
     FilterFieldPlacement, FilterOperandView, FilterOperatorView, FilterUnitFieldView,
-    FilterValidationResult, FilterValueListView, FilterVocabularyScope,
+    FilterValidationResult, FilterValueListView, FilterValueOptionView, FilterValueOptionsView,
+    FilterVocabularyScope, FilterVocabularyView, SenseQualifierView,
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
@@ -265,6 +272,8 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        DefinitionDetailRequest::export_all_to(path).expect("definition detail request bindings");
+        DefinitionDetailView::export_all_to(path).expect("definition detail bindings");
         SimilarityPartsRequest::export_all_to(path).expect("similarity inventory request bindings");
         SimilarityPartsView::export_all_to(path).expect("similarity inventory bindings");
         SimilarityPartView::export_all_to(path).expect("similarity section bindings");

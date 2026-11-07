@@ -94,6 +94,7 @@ impl AtlasAppService {
     }
     pub fn record_detail(&self, key: &str) -> AppServiceResult<RecordDetailView> {
         self.record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: key.into(),
             owners: vec![],
@@ -157,6 +158,10 @@ impl<'a> LoadedRecordDetail<'a> {
     ) -> AppServiceResult<RecordDetailView> {
         let r = self.retrieval;
         let detail = &self.detail;
+        crate::definitions::check_generation(
+            request.expected_artifact_generation.as_deref(),
+            &r.artifact_generation()?,
+        )?;
         let key = validate_selection(r, &request)?;
         if &key != detail.source.key() {
             return Err(AppServiceError::invalid_request(
@@ -225,6 +230,7 @@ impl<'a> LoadedRecordDetail<'a> {
             &mut presentation,
             r,
         )?;
+        crate::presentation::reference_help::annotate(&mut presentation, r)?;
         let mut context = crate::prepared_content::PreparedContentContext::source(
             r,
             &detail.source,
@@ -330,7 +336,7 @@ impl<'a> LoadedRecordDetail<'a> {
                             &context,
                         );
                     }
-                    crate::prepared_content::project_routine_header(field, r);
+                    crate::prepared_content::project_routine_header(field, r)?;
                 }
             }
         }

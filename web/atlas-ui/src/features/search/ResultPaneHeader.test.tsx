@@ -8,7 +8,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { ReferencePreviewContext } from "../../shared/records/ReferencePreviewContext";
+import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import { summaryFixture } from "../../test/fixtures";
 import type { SearchResultsPage } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
@@ -40,14 +40,14 @@ describe("search pane composition", () => {
     };
     render(
       <SearchProfileProvider>
-        <ReferencePreviewContext value={{ open: vi.fn(), openTrait: vi.fn() }}>
+        <ReferenceHelpProvider onReference={vi.fn()} onHelp={vi.fn()}>
           <SearchView
             workspace={workspace({
               search: { ...DEFAULT_SEARCH_STATE, query: "Attack of Opportunity" },
               resultPage,
             })}
           />
-        </ReferencePreviewContext>
+        </ReferenceHelpProvider>
       </SearchProfileProvider>,
     );
     await act(async () => {});
@@ -400,3 +400,48 @@ function searchResultsPage(): SearchResultsPage {
     coverage: null,
   };
 }
+
+it("withholds cached trait reading after a failed Search refresh and recovers through Search", () => {
+  const state = workspace({
+    search: { ...DEFAULT_SEARCH_STATE, similarSeed: "trait:agile" },
+    resultPage: {
+      ...searchResultsPage(),
+      mode: {
+        kind: "similar_traits",
+        trait_key: "trait:agile",
+        title: "Agile",
+        help: {
+          definition_key: "trait:agile",
+          destination: { kind: "definition", key: "trait:agile" },
+        },
+      },
+    },
+  });
+  const content = (next: SearchWorkspaceState) => (
+    <SearchProfileProvider>
+      <SearchView workspace={next} />
+    </SearchProfileProvider>
+  );
+  const { rerender } = render(content(state));
+  expect(screen.getByRole("link", { name: "Agile" })).toHaveAttribute(
+    "href",
+    "/traits/trait:agile",
+  );
+  rerender(
+    content({
+      ...state,
+      resultsFailed: true,
+      resultsPaused: true,
+      errorMessage: "Reference collection changed",
+    }),
+  );
+  expect(screen.queryByRole("link", { name: "Agile" })).toBeNull();
+  expect(screen.getByText("Agile")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Refresh results" }));
+  expect(state.refreshResults).toHaveBeenCalledOnce();
+  rerender(content(state));
+  expect(screen.getByRole("link", { name: "Agile" })).toHaveAttribute(
+    "href",
+    "/traits/trait:agile",
+  );
+});

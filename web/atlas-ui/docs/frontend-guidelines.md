@@ -1261,14 +1261,17 @@ Reader mode, companion layout or reader route. Search results, saved-list member
 and Add candidates keep their primary selected-record detail pane; following a
 reference does not replace that selection or commit a mutation.
 
-Use `RecordReferenceDrawer` for linked records, trait definitions and Original
-record links on every viewport. Trait badges and trait Similar seeds open a
-contextual definition on primary activation while retaining native typed
-trait-page destinations; never coerce trait identities to record keys. Shared
-preview sessions retain mixed record/trait Back history. `ReferencePreviewProvider`
-owns contextual links outside an existing reader; a mounted Drawer supplies its
-own session through `ReferencePreviewContext` so nested references reuse it.
-It overlays the host
+Use `RecordReferenceDrawer` for linked records, contextual definitions and Original
+record links on every viewport. Trait badges and trait Similar seeds with readable
+definitions open a contextual definition on primary activation while retaining native typed
+trait-page destinations; never coerce definition identities to record keys.
+Shared preview sessions retain mixed record, trait and vocabulary Back history.
+`ReferenceHelpHost` owns contextual links outside an existing reader; a mounted
+Drawer supplies its own session through `ReferenceHelpProvider` so nested
+references reuse it. Selected-record and contextual encounter readers keep their
+source-scoped owner, actions and return affordances. Route both ordinary record
+links and definition help through that reader's handlers; the app-wide fallback
+must not take over a nested read or discard explicit host actions. It overlays the host
 without reserving an empty column or compressing the underlying layout. It is
 full width on narrow screens and has a generous bounded reading width otherwise.
 Nested references replace the document in the same Drawer and keep a bounded
@@ -1281,6 +1284,15 @@ opener without scrolling the host. Browser history remains ordinary page
 navigation. Native full-page links, modified clicks and middle clicks preserve
 browser behavior and exact destinations. Opening a reference does not alter an
 Add candidate, saved-list membership, selected participant or unfinished draft.
+
+When help starts inside a choice overlay, suspend that existing choice session
+before opening the reference Drawer. Preserve its search, page, selections and
+unfinished draft. Dismissal resumes the choice overlay and its exact Read action;
+full-page navigation must not reopen a hidden picker on the destination page. Use
+the existing native overlay close/open lifecycle and shared reading return owner,
+without stacking a higher picker mask over the reader or patching z-index values.
+Short Select options remain selection controls; definition reading is available
+through the shared definition chooser and record facts.
 
 Keep action tooltips within the Drawer's stationary viewport root. The shared
 Drawer supplies Ant's `getPopupContainer` to all its popup descendants, including
@@ -1305,7 +1317,20 @@ to understand embedded storage or an "original record" concept. Neither action
 replaces a customized copy or guesses a destination by name. Unavailable
 references remain explicit inert labels, without invented links.
 
-The Drawer uses the same RecordDetailPane and family renderer as full pages.
+Record destinations use the same RecordDetailPane and family renderer as full
+pages, including authored placeholders and controls in glossary records.
+Standalone definitions reuse prepared content and the shared identity/page
+primitives. Keep ordinary publication attribution; do not fill reading content with
+extraction paths, revisions, declarations or technical provenance. Entries without
+a useful definition stay plain facts and filter choices, without an empty definition
+page or explanatory banner.
+
+Glossary Drawers follow the trait reading surface: definition content without
+Explore or related-filter controls. Put supported related-record sections after the
+body on the standalone page, using the trait count/preview/Search convention. Keep
+property-specific predicates separate from shared backing records and consume the
+supplied relation labels. Numeric configuration belongs in Advanced Filters. Do not
+infer a predicate from a visible name or destination.
 Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
 glyph, trailing classification, document actions, traits, then source attribution.

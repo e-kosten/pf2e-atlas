@@ -5,7 +5,7 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 /// Interpretation identity, independent of source DTO or artifact versions.
-pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v23";
+pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v24";
 
 /// A source field, never an output hash, display label or HTML node ordinal.
 /// Callers establish identity from their admitted source and retain this locator
@@ -114,8 +114,8 @@ pub struct PreparedSourceContent {
 
 /// Prepared localization-backed term content with its exact vocabulary identity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PreparedTraitDefinition {
-    pub key: atlas_domain::TraitKey,
+pub struct PreparedReferenceDefinition {
+    pub key: atlas_domain::DefinitionKey,
     pub interpretation_version: String,
     /// Hash of the exact authored field interpreted by this preparation call.
     pub authored_markup_sha256: String,

@@ -130,6 +130,9 @@ pub enum SearchModeSummary {
     SimilarTraits {
         trait_key: String,
         title: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        help: Option<crate::ReferenceHelpView>,
     },
     TraitReferences {
         trait_key: String,

@@ -84,6 +84,7 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        reference_preparation: None,
         selected_sections_recipe: crate::SELECTED_SECTIONS_RECIPE.into(),
 
         admission: None,

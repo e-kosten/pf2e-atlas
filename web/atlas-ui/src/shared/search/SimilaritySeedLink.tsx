@@ -1,106 +1,49 @@
-import { ConfigProvider, Typography } from "antd";
-import type { SimilaritySeed } from "../../generated/atlas";
-import { recordDestination, traitDestination } from "../../app/destinations";
+import { ConfigProvider } from "antd";
+import type { ReferenceHelpView, SimilaritySeed } from "../../generated/atlas";
+import { AtlasLink } from "../../app/AtlasLink";
+import { recordDestination } from "../../app/destinations";
+import { isPrimaryActivation } from "../../app/navigation";
 import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
-import { useReferencePreview } from "../records/ReferencePreviewContext";
-import { RecordReferenceDrawer } from "../records/RecordReferenceDrawer";
-import { useRecordPreview } from "../records/useRecordPreview";
+  ReferenceHelpLink,
+  useReferenceRecordNavigation,
+} from "../records/ReferenceHelp";
 
-/** A criterion references its source without changing the selected search result. */
+/** The owning Search response supplies the criterion's reading capability. */
 export function SimilaritySeedLink({
   seed,
   title,
   disabled,
+  help,
+  generation,
 }: {
   seed: SimilaritySeed;
   title: string;
   disabled?: boolean;
+  help?: ReferenceHelpView;
+  generation?: string;
 }) {
-  const reference = useReferencePreview();
+  const onReference = useReferenceRecordNavigation();
   const { componentDisabled } = ConfigProvider.useConfig();
   const unavailable = disabled ?? componentDisabled;
   if (seed.kind === "trait")
-    return (
-      <Typography.Link
-        disabled={unavailable}
-        href={destinationHref(
-          traitDestination({
-            traitKey: seed.trait_key,
-          }),
-        )}
-        onClick={(event) => {
-          if (unavailable || !reference || !isPrimaryActivation(event)) return;
-          event.preventDefault();
-          reference.openTrait(seed.trait_key, event.currentTarget);
-        }}
-      >
+    return unavailable ? (
+      title
+    ) : (
+      <ReferenceHelpLink help={help} generation={generation}>
         {title}
-      </Typography.Link>
+      </ReferenceHelpLink>
     );
   return (
-    <RecordSeedLink
-      key={seed.record_key}
-      recordKey={seed.record_key}
-      title={title}
+    <AtlasLink
+      {...recordDestination({ recordKey: seed.record_key })}
       disabled={unavailable}
-    />
-  );
-}
-
-function RecordSeedLink({
-  recordKey,
-  title,
-  disabled,
-}: {
-  recordKey: string;
-  title: string;
-  disabled?: boolean;
-}) {
-  const preview = useRecordPreview();
-  return (
-    <>
-      <Typography.Link
-        href={destinationHref(recordDestination({ recordKey }))}
-        disabled={disabled}
-        onClick={(event) => {
-          if (!isPrimaryActivation(event)) return;
-          event.preventDefault();
-          preview.open(recordKey, event.currentTarget);
-        }}
-      >
-        {title}
-      </Typography.Link>
-      {preview.active && (
-        <RecordReferenceDrawer
-          trait={preview.trait}
-          onTraitReference={preview.openTrait}
-          anchor={preview.anchor}
-          requestedNavigation={preview.selection}
-          readingHistory={preview.readingHistory}
-          landing={preview.landing}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
-      )}
-    </>
+      onClick={(event) => {
+        if (unavailable || !onReference || !isPrimaryActivation(event)) return;
+        event.preventDefault();
+        onReference(seed.record_key, event.currentTarget);
+      }}
+    >
+      {title}
+    </AtlasLink>
   );
 }

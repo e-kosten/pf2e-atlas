@@ -1,3 +1,5 @@
+import { ReferenceHelpProvider, type ReferenceHelpHandler } from "./ReferenceHelp";
+import type { RecordReferenceHandler } from "./PreparedContent";
 import { PaneIconLink } from "../ui/actions/PaneAction";
 import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
 import type { RecordNavigationView, RecordSummaryView } from "../../generated/atlas";
@@ -14,7 +16,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { atlasRouter } from "../../app/router";
 import { useRecordPreview } from "./useRecordPreview";
-import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { activityAnchor } from "./embeddedNavigation";
@@ -24,6 +26,24 @@ import { landReadingTarget } from "./landReadingTarget";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
 import { useRecordExploreLocation } from "./recordExploreLocation";
 import { readingNavigationForUrl } from "./readingUrlNavigation";
+type ReferenceReaderProps = {
+  reading: ReferenceReading;
+  selectedRecordKey?: string | null;
+  readerContext?: ReactNode;
+  recordActions?: (record: RecordSummaryView) => ReactNode;
+  status?: ReactNode;
+  readerFooter?: ReactNode;
+  positions?: BrowsePositions;
+  onResults?: () => void;
+  active?: boolean;
+  label?: string;
+  returnToSelectionLabel?: string;
+  showRelated?: boolean;
+  retryLabel?: string;
+  renderLayout?: (actions: ReactNode, reader: ReactNode) => ReactNode;
+  selectionActions?: ReactNode;
+};
+
 export function ReferenceReader({
   reading,
   selectedRecordKey = null,
@@ -40,23 +60,7 @@ export function ReferenceReader({
   retryLabel,
   renderLayout,
   selectionActions,
-}: {
-  reading: ReferenceReading;
-  selectedRecordKey?: string | null;
-  readerContext?: ReactNode;
-  recordActions?: (record: RecordSummaryView) => ReactNode;
-  status?: ReactNode;
-  readerFooter?: ReactNode;
-  positions?: BrowsePositions;
-  onResults?: () => void;
-  active?: boolean;
-  label?: string;
-  returnToSelectionLabel?: string;
-  showRelated?: boolean;
-  retryLabel?: string;
-  renderLayout?: (actions: ReactNode, reader: ReactNode) => ReactNode;
-  selectionActions?: ReactNode;
-}) {
+}: ReferenceReaderProps) {
   const preview = useRecordPreview();
   const { mode, tab } = useRecordExploreLocation();
   const localPositions = useBrowsePositions();
@@ -137,8 +141,16 @@ export function ReferenceReader({
         if (pendingPosition.current && href) pendingPosition.current.focusHref = href;
       }
     },
-    [active, address, saved],
+    [address, saved],
   );
+  const onReference: RecordReferenceHandler = (key, anchor, selection, landing) => {
+    rememberPosition(anchor);
+    preview.open(key, anchor, selection, landing);
+  };
+  const onHelp: ReferenceHelpHandler = (help, anchor, generation, finishOwner) => {
+    rememberPosition(anchor);
+    preview.openHelp(help, anchor, generation, finishOwner);
+  };
   const inspect = reading.inspect;
   const openReference = preview.open;
   const navigateToMatch = useCallback(
@@ -453,10 +465,7 @@ export function ReferenceReader({
             retryLabel={retryLabel}
             landing={reading.landing}
             onLandingReady={onLandingReady}
-            onReference={(recordKey, anchor, selection) => {
-              rememberPosition(anchor);
-              preview.open(recordKey, anchor, selection);
-            }}
+            onReference={onReference}
             onRankChange={(spell_rank) => {
               if (detail) {
                 rememberPosition();
@@ -471,40 +480,25 @@ export function ReferenceReader({
         </ReaderMatchNavigation.Provider>
       </section>
       {readerFooter}
-      {preview.active && (
-        <RecordReferenceDrawer
-          trait={preview.trait}
-          onTraitReference={preview.openTrait}
-          actions={preview.detail && recordActions?.(preview.detail.record)}
-          anchor={preview.anchor}
-          visibleOwnerRecordKey={
-            detail?.selected.embedded_path.length === 0
-              ? detail.record.record_key
-              : undefined
-          }
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
-      )}
+      <RecordPreviewDrawer
+        preview={preview}
+        actions={preview.detail && recordActions?.(preview.detail.record)}
+        visibleOwnerRecordKey={
+          detail?.selected.embedded_path.length === 0
+            ? detail.record.record_key
+            : undefined
+        }
+        restoreAnchorFocus={false}
+      />
     </section>
   );
-  return renderLayout ? renderLayout(header, reader) : reader;
+  return (
+    <ReferenceHelpProvider
+      onHelp={onHelp}
+      onReference={onReference}
+      generation={detail?.artifact_generation}
+    >
+      {renderLayout ? renderLayout(header, reader) : reader}
+    </ReferenceHelpProvider>
+  );
 }

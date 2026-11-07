@@ -168,12 +168,7 @@ impl RootRelation {
     }
 }
 
-fn set_membership(
-    descriptor: &Descriptor,
-    op: QuerySetMatch,
-    values: &[String],
-    parameters: &mut Vec<Value>,
-) -> Result<Option<String>, crate::IndexError> {
+fn root_set_relation(descriptor: &Descriptor) -> Option<RootRelation> {
     let Binding::Set {
         parent,
         table,
@@ -181,23 +176,47 @@ fn set_membership(
         kind,
     } = &descriptor.binding
     else {
-        return Ok(None);
+        return None;
     };
-    let Some(relation) = RootRelation::for_binding(parent) else {
-        return Ok(None);
-    };
+    let mut relation = RootRelation::for_binding(parent)?;
     let kind = kind
         .map(|kind| format!(" AND t.kind='{kind}'"))
         .unwrap_or_default();
-    let membership = |comparison: &str| {
-        applicable(
-            descriptor,
-            format!(
-                "r.record_id IN (SELECT {} FROM {} JOIN {table} t ON t.{owner}={} WHERE {}='value'{kind} AND ({comparison}))",
-                relation.record, relation.from, relation.owner, relation.state
-            ),
-        )
+    relation.from = format!(
+        "{} JOIN {table} t ON t.{owner}={}{kind}",
+        relation.from, relation.owner,
+    );
+    Some(relation)
+}
+
+pub(crate) fn grouped_root_set_counts(
+    descriptor: &Descriptor,
+    eligible: &str,
+    values_parameter: &str,
+) -> Option<String> {
+    let relation = root_set_relation(descriptor)?;
+    let guard = applicable(descriptor, format!("{}='value'", relation.state));
+    Some(format!(
+        "WITH eligible AS ({eligible})
+         SELECT t.value, COUNT(DISTINCT r.record_id)
+         FROM {} JOIN records r ON r.record_id={}
+         JOIN eligible e ON e.record_id=r.record_id
+         WHERE {guard} AND t.value IN (SELECT value FROM json_each({values_parameter}))
+         GROUP BY t.value",
+        relation.from, relation.record,
+    ))
+}
+
+fn set_membership(
+    descriptor: &Descriptor,
+    op: QuerySetMatch,
+    values: &[String],
+    parameters: &mut Vec<Value>,
+) -> Result<Option<String>, crate::IndexError> {
+    let Some(relation) = root_set_relation(descriptor) else {
+        return Ok(None);
     };
+    let membership = |comparison: &str| applicable(descriptor, relation.membership(comparison));
     if op == QuerySetMatch::IncludesAll {
         let checks = values
             .iter()

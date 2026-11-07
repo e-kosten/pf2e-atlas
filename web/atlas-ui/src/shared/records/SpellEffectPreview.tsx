@@ -1,30 +1,47 @@
+import { InfoCircleOutlined } from "@ant-design/icons";
 import type {
+  ReferenceHelpView,
   SpellEffectPreviewView,
   SpellEffectFactView,
 } from "../../generated/atlas";
+import { ReferenceHelpLink } from "./ReferenceHelp";
 import { ValueExplanation } from "../ui/ValueExplanation";
 import { FactLine, FactRow } from "./presentationFacts";
 import { TraitBadge } from "./TraitBadge";
 
-function EffectFact({ fact }: { fact: SpellEffectFactView }) {
+function EffectFact({
+  fact,
+  help,
+}: {
+  fact: SpellEffectFactView;
+  help?: ReferenceHelpView;
+}) {
   return (
     <div>
       {fact.value.state === "value" && fact.value.value !== null ? (
         <FactLine
           label={fact.label}
           fact={fact.value}
-          renderValue={
-            fact.base_value == null
-              ? undefined
-              : (value) => (
-                  <ValueExplanation
-                    label={`Heightening details for ${fact.label}`}
-                    content={<>Base rank: {fact.base_value}</>}
-                  >
-                    {value}
-                  </ValueExplanation>
-                )
-          }
+          renderValue={(value) => {
+            const content = <ReferenceHelpLink help={help}>{value}</ReferenceHelpLink>;
+            if (fact.base_value == null) return content;
+            const explanation = (
+              <ValueExplanation
+                label={`Heightening details for ${fact.label}`}
+                content={<>Base rank: {fact.base_value}</>}
+                iconOnly={Boolean(help?.destination)}
+              >
+                {help?.destination ? <InfoCircleOutlined /> : value}
+              </ValueExplanation>
+            );
+            return help?.destination ? (
+              <>
+                {content} {explanation}
+              </>
+            ) : (
+              explanation
+            );
+          }}
         />
       ) : fact.value.state !== "not_applicable" ? (
         <FactRow label={fact.label}>
@@ -86,7 +103,14 @@ export function SpellEffectPreview({ view }: { view: SpellEffectPreviewView }) {
                   </div>
                   <div className="spell-effect-preview__facts">
                     <EffectFact fact={strike.attack} />
-                    <EffectFact fact={strike.damage} />
+                    <EffectFact
+                      fact={strike.damage}
+                      help={
+                        strike.damage_type.state === "value"
+                          ? strike.damage_type.value?.help
+                          : undefined
+                      }
+                    />
                   </div>
                 </div>
               ))}

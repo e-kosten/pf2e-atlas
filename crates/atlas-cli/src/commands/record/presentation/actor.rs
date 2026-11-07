@@ -29,7 +29,7 @@ pub(super) fn render(
         senses
             .iter()
             .map(|sense| {
-                let mut parts = vec![fact_string(&sense.sense, Clone::clone)];
+                let mut parts = vec![fact_string(&sense.sense, |value| value.label.clone())];
                 if sense.acuity.state != QueryFieldState::Missing {
                     parts.push(fact_string(&sense.acuity, Clone::clone));
                 }
@@ -430,7 +430,7 @@ pub(super) fn iwr(out: &mut String, label: &str, value: &FactView<Vec<IwrEntryVi
         entries
             .iter()
             .map(|entry| {
-                let mut value = fact_string(&entry.damage_type, Clone::clone);
+                let mut value = fact_string(&entry.damage_type, |value| value.label.clone());
                 if entry.magnitude.state != QueryFieldState::NotApplicable {
                     value.push_str(&format!(" {}", number_text(&entry.magnitude, false, "")));
                 }

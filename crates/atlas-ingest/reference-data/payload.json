@@ -1,0 +1,194 @@
+{
+  "schema": 2,
+  "publication": "Pathfinder Player Core",
+  "language_page": 89,
+  "weapon_group_page": 283,
+  "base_grant": "ORC",
+  "language_speakers": [
+    [
+      "aklo",
+      [
+        "evil fey",
+        "otherworldly monsters"
+      ]
+    ],
+    [
+      "chthonian",
+      [
+        "demons"
+      ]
+    ],
+    [
+      "common",
+      [
+        "humans",
+        "dwarves",
+        "elves",
+        "halflings",
+        "other common ancestries"
+      ]
+    ],
+    [
+      "diabolic",
+      [
+        "devils"
+      ]
+    ],
+    [
+      "draconic",
+      [
+        "dragons",
+        "reptilian humanoids"
+      ]
+    ],
+    [
+      "dwarven",
+      [
+        "dwarves"
+      ]
+    ],
+    [
+      "elven",
+      [
+        "elves",
+        "aiuvarins"
+      ]
+    ],
+    [
+      "empyrean",
+      [
+        "angels",
+        "other celestials"
+      ]
+    ],
+    [
+      "fey",
+      [
+        "fey",
+        "centaurs",
+        "plant",
+        "fungus creatures"
+      ]
+    ],
+    [
+      "gnomish",
+      [
+        "gnomes"
+      ]
+    ],
+    [
+      "goblin",
+      [
+        "goblins",
+        "hobgoblins",
+        "bugbears"
+      ]
+    ],
+    [
+      "halfling",
+      [
+        "halflings"
+      ]
+    ],
+    [
+      "jotun",
+      [
+        "giants",
+        "ogres",
+        "trolls",
+        "cyclopes"
+      ]
+    ],
+    [
+      "kholo",
+      [
+        "the hyena-like kholos"
+      ]
+    ],
+    [
+      "muan",
+      [
+        "wood elemental creatures"
+      ]
+    ],
+    [
+      "necril",
+      [
+        "ghouls",
+        "intelligent undead"
+      ]
+    ],
+    [
+      "orcish",
+      [
+        "orcs",
+        "dromaars"
+      ]
+    ],
+    [
+      "petran",
+      [
+        "earth elemental creatures"
+      ]
+    ],
+    [
+      "pyric",
+      [
+        "fire elemental creatures"
+      ]
+    ],
+    [
+      "sakvroth",
+      [
+        "subterranean civilizations",
+        "serpentfolk"
+      ]
+    ],
+    [
+      "shadowtongue",
+      [
+        "Nidalese",
+        "Netherworld creatures"
+      ]
+    ],
+    [
+      "sussuran",
+      [
+        "air elemental creatures",
+        "flying creatures"
+      ]
+    ],
+    [
+      "talican",
+      [
+        "metal elemental creatures"
+      ]
+    ],
+    [
+      "thalassic",
+      [
+        "aquatic creatures",
+        "water elemental creatures"
+      ]
+    ]
+  ],
+  "weapon_specializations": [
+    [
+      "crossbow",
+      "<p>The target takes 1d8 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
+    ],
+    [
+      "dart",
+      "<p>The target takes 1d6 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
+    ],
+    [
+      "knife",
+      "<p>The target takes 1d6 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
+    ],
+    [
+      "pick",
+      "<p>The weapon viciously pierces the target, who takes 2 additional damage per weapon damage die.</p>"
+    ]
+  ],
+  "cup_language": "shadowtongue"
+}

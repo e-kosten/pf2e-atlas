@@ -1,4 +1,4 @@
-//! Exact authored localization references to uniquely identified trait vocabulary.
+//! Authored localization references and exact trait resolution.
 use atlas_domain::TraitKey;
 #[cfg(test)]
 use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
@@ -31,8 +31,7 @@ pub fn trait_localization_references(
     audience: ContentAudience,
     visibility: ContentVisibilityRule,
 ) -> Vec<TraitLocalizationReference> {
-    static KEYS: std::sync::OnceLock<BTreeMap<&'static str, BTreeSet<&'static str>>> =
-        std::sync::OnceLock::new();
+    static KEYS: std::sync::OnceLock<TraitLocalizationMap> = std::sync::OnceLock::new();
     references_with_keys(
         locator,
         markup,
@@ -42,16 +41,16 @@ pub fn trait_localization_references(
     )
 }
 
-fn definition_keys(
-    definitions: &[FoundryTraitDefinition],
-) -> BTreeMap<&'static str, BTreeSet<&'static str>> {
-    let mut keys: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+fn definition_keys(definitions: &[FoundryTraitDefinition]) -> TraitLocalizationMap {
+    let mut keys = TraitLocalizationMap::new();
     for definition in definitions {
         for key in [definition.label_key, definition.description_key]
             .into_iter()
             .flatten()
         {
-            keys.entry(key).or_default().insert(definition.identifier);
+            if let Ok(key_value) = TraitKey::new(definition.identifier) {
+                keys.entry(key.to_owned()).or_default().insert(key_value);
+            }
         }
     }
     keys
@@ -77,18 +76,47 @@ fn references_with_definitions(
 fn references_with_keys(
     locator: SourceContentLocator,
     markup: &str,
-    keys: &BTreeMap<&str, BTreeSet<&str>>,
+    keys: &TraitLocalizationMap,
     audience: ContentAudience,
     visibility: ContentVisibilityRule,
 ) -> Vec<TraitLocalizationReference> {
+    authored_localization_occurrences(markup, audience, visibility)
+        .into_iter()
+        .filter_map(|reference| {
+            let candidates = keys
+                .get(&reference.localization_key)
+                .filter(|keys| keys.len() == 1)?;
+            Some(TraitLocalizationReference {
+                trait_key: candidates.first()?.clone(),
+                locator: locator.clone(),
+                localization_key: reference.localization_key,
+                path: reference.path,
+                visible: reference.visible,
+            })
+        })
+        .collect()
+}
+
+type TraitLocalizationMap = BTreeMap<String, BTreeSet<TraitKey>>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuthoredLocalizationOccurrence {
+    pub localization_key: String,
+    pub path: String,
+    pub visible: bool,
+}
+
+pub fn authored_localization_occurrences(
+    markup: &str,
+    audience: ContentAudience,
+    visibility: ContentVisibilityRule,
+) -> Vec<AuthoredLocalizationOccurrence> {
     let parsed = parse_foundry_content_with_localization(markup, None);
     let mut references = Vec::new();
     fn visit(
         nodes: &[ParsedNode],
         parent: &str,
-        locator: &SourceContentLocator,
-        keys: &BTreeMap<&str, BTreeSet<&str>>,
-        references: &mut Vec<TraitLocalizationReference>,
+        references: &mut Vec<AuthoredLocalizationOccurrence>,
         audience: ContentAudience,
         visible: bool,
     ) {
@@ -120,19 +148,11 @@ fn references_with_keys(
                 ParsedNode::Foundry { node } => {
                     let label = match node {
                         ParsedMacro::Localize { key, label, .. } => {
-                            if let Some(identifiers) =
-                                keys.get(key.as_str()).filter(|ids| ids.len() == 1)
-                                && let Some(identifier) = identifiers.first()
-                                && let Ok(trait_key) = TraitKey::new(*identifier)
-                            {
-                                references.push(TraitLocalizationReference {
-                                    trait_key,
-                                    locator: locator.clone(),
-                                    localization_key: key.clone(),
-                                    path: path.clone(),
-                                    visible,
-                                });
-                            }
+                            references.push(AuthoredLocalizationOccurrence {
+                                localization_key: key.clone(),
+                                path: path.clone(),
+                                visible,
+                            });
                             visible = false; // Custom Localize labels are ignored by preparation.
                             label
                         }
@@ -152,17 +172,13 @@ fn references_with_keys(
                 ParsedNode::Text { .. } => None,
             };
             if let Some((children, path)) = children {
-                visit(
-                    children, &path, locator, keys, references, audience, visible,
-                );
+                visit(children, &path, references, audience, visible);
             }
         }
     }
     visit(
         &parsed.document.nodes,
         "",
-        &locator,
-        keys,
         &mut references,
         audience,
         audience.permits(visibility),

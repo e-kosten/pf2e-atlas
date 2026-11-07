@@ -4,6 +4,7 @@ import {
   parseSearchParams,
   type AtlasSearchParams,
   type ReadingViewInput,
+  type DefinitionReadingInput,
 } from "./urlState";
 import { encodeReadingAddress } from "./readingUrl";
 import {
@@ -12,12 +13,13 @@ import {
   type EncounterIndexInput,
 } from "./routeSearch";
 
-export type RecordPageInput = ReadingViewInput & {
-  recordKey: string;
-  selection?: RecordNavigationView;
-  landing?: RecordNavigationView;
-  section?: string;
-};
+export type RecordPageInput = ReadingViewInput &
+  DefinitionReadingInput & {
+    recordKey: string;
+    selection?: RecordNavigationView;
+    landing?: RecordNavigationView;
+    section?: string;
+  };
 export type ListPageInput = ReadingViewInput & {
   slug: string;
   query?: string;
@@ -35,12 +37,13 @@ export type SearchPageInput = ReadingViewInput & {
 };
 
 function readingSearch(
-  input: ReadingViewInput & {
-    recordKey?: string | null;
-    query?: string;
-    selection?: RecordNavigationView;
-    landing?: RecordNavigationView;
-  },
+  input: ReadingViewInput &
+    DefinitionReadingInput & {
+      recordKey?: string | null;
+      query?: string;
+      selection?: RecordNavigationView;
+      landing?: RecordNavigationView;
+    },
 ): AtlasSearchParams {
   const search = parseSearchParams(input.query ?? "");
   for (const key of [
@@ -51,6 +54,7 @@ function readingSearch(
     "focus",
     "record_view",
     "record_tab",
+    "definition_key",
   ])
     delete search[key];
   if (!input.recordKey) return search;
@@ -66,6 +70,7 @@ function readingSearch(
   }
   if (input.view === "explore") search.record_view = "explore";
   if (input.tab && input.tab !== "incoming") search.record_tab = input.tab;
+  if (input.definitionKey) search.definition_key = input.definitionKey;
   return search;
 }
 export function recordDestination(input: RecordPageInput) {
@@ -110,6 +115,15 @@ export function traitDestination(input: TraitPageInput) {
     params: { traitKey: input.traitKey },
     search: canonicalRouteSearch("trait", parseSearchParams(input.query ?? "")),
   });
+}
+export function definitionDestination(input: { definitionKey: string }) {
+  return input.definitionKey.startsWith("trait:")
+    ? traitDestination({ traitKey: input.definitionKey })
+    : linkOptions({
+        to: "/definitions/$definitionKey",
+        params: { definitionKey: input.definitionKey },
+        search: canonicalRouteSearch("definition", {}),
+      });
 }
 export function listsDestination(input: ListIndexInput = {}) {
   return linkOptions({

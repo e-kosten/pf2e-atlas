@@ -24,9 +24,7 @@ import {
   unavailableFact,
 } from "../../test/fixtures";
 import { useRecordPreview } from "./useRecordPreview";
-import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
-import { destinationHref } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
+import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { AtlasApiError } from "../../api/atlasApi";
 
 const api = vi.hoisted(() => ({
@@ -123,30 +121,7 @@ function Flow({
       >
         Jaws quick lookup
       </button>
-      {preview.recordKey && (
-        <RecordReferenceDrawer
-          context={context}
-          anchor={preview.anchor}
-          readingHistory={preview.readingHistory}
-          landing={preview.landing}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onReload={preview.reload}
-          reloadLabel={preview.reloadLabel}
-          retryLabel={preview.retryLabel}
-          onClose={preview.close}
-          onOpenFullPage={vi.fn()}
-          onReference={preview.open}
-          fullPageHref={destinationHref(
-            recordDestination({
-              recordKey: jaws.navigation.record_key,
-              selection: preview.selection,
-            }),
-          )}
-        />
-      )}
+      <RecordPreviewDrawer preview={preview} context={context} />
     </>
   );
 }

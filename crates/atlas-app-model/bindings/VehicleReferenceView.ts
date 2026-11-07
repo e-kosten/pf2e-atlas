@@ -2,5 +2,6 @@
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 import type { ObjectDefensesReferenceView } from "./ObjectDefensesReferenceView";
+import type { ReferenceValueView } from "./ReferenceValueView";
 
-export type VehicleReferenceView = { crew: FactView<string>, passengers: FactView<string>, speed: FactView<string>, piloting: FactView<string>, price_gp: NumberFactView, length: NumberFactView, width: NumberFactView, height: NumberFactView, size: FactView<string>, collision_damage: FactView<string>, collision_dc: NumberFactView, fortitude: NumberFactView, defenses: ObjectDefensesReferenceView, };
+export type VehicleReferenceView = { crew: FactView<string>, passengers: FactView<string>, speed: FactView<string>, piloting: FactView<string>, price_gp: NumberFactView, length: NumberFactView, width: NumberFactView, height: NumberFactView, size: FactView<ReferenceValueView>, collision_damage: FactView<string>, collision_dc: NumberFactView, fortitude: NumberFactView, defenses: ObjectDefensesReferenceView, };

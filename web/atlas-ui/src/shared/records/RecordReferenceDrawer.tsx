@@ -1,9 +1,14 @@
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { destinationHref, navigateDestination } from "../../app/navigation";
-import { recordDestination, traitDestination } from "../../app/destinations";
 import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { ConfigProvider } from "antd";
 import { useId, useRef, useState } from "react";
+import { DefinitionDetailPane, DefinitionAttribution } from "./DefinitionDetailPane";
+import {
+  ReferenceHelpProvider,
+  referenceDestination,
+  definitionClassification,
+} from "./ReferenceHelp";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type {
@@ -14,19 +19,17 @@ import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { RecordPresentationIdentity } from "./RecordPresentation";
 import type { RecordNavigationView } from "../../generated/atlas";
 import { SourceSectionSelectionContext } from "./SourceSectionSelectionContext";
-import { ReferencePreviewContext } from "./ReferencePreviewContext";
-import { TraitDefinition } from "./TraitDefinition";
 import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
-import { ErrorNotice } from "../feedback/ErrorNotice";
-import { LoadingStatus } from "../ui/LoadingStatus";
-import { Button } from "antd";
 import { readingNavigationForUrl } from "./readingUrlNavigation";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 const getPopupContainer = (trigger?: HTMLElement) =>
   trigger?.closest<HTMLElement>(".record-preview-drawer-root") ?? document.body;
 export function RecordReferenceDrawer({
+  destination,
+  definition,
+  help,
+  onHelp,
   context = "reference",
-  trait,
-  onTraitReference,
   actions: recordActions,
   detail,
   loading,
@@ -36,10 +39,10 @@ export function RecordReferenceDrawer({
   reloadLabel,
   retryLabel,
   onClose,
-  onOpenFullPage,
+  onNavigateAway,
+  restoreAnchorFocus = true,
   onReference,
   onRankChange,
-  fullPageHref,
   requestedNavigation,
   landing,
   readingHistory,
@@ -48,49 +51,41 @@ export function RecordReferenceDrawer({
 }: {
   anchor: RecordPreviewAnchor | null;
 } & RecordPreviewContentProps) {
-  const traitRoute = trait
-    ? traitDestination({
-        traitKey: trait.key,
-      })
-    : null;
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const [closing, setClosing] = useState(false);
   const open = !closing;
   const close = () => setClosing(true);
+  const unavailable =
+    destination.kind === "definition" && (!help || definition?.help === null);
+  const retryActionLabel =
+    retryLabel ??
+    (isArtifactGenerationChanged(error)
+      ? destination.kind === "definition" || help?.definition_key
+        ? "Refresh definition"
+        : "Refresh record"
+      : "Retry");
   const navigation = detail
     ? readingNavigationForUrl(detail.selected, { navigation: requestedNavigation })
     : undefined;
-  const href =
-    (trait ? destinationHref(traitRoute!) : fullPageHref) ??
-    (detail
-      ? destinationHref(
-          recordDestination({
-            recordKey: detail.selected.record_key,
-            selection: navigation,
-            landing,
-          }),
-        )
-      : undefined);
+  const typedRoute = referenceDestination(
+    destination.kind === "record" && navigation
+      ? { ...destination, navigation }
+      : destination,
+    help?.definition_key,
+    landing,
+  );
+  const href = unavailable ? undefined : destinationHref(typedRoute);
   const openFullPage = () => {
-    if (trait) {
-      navigateDestination(traitRoute!);
-      onClose();
-    } else if (landing && detail)
-      navigateDestination(
-        recordDestination({
-          recordKey: detail.selected.record_key,
-          selection: navigation,
-          landing,
-        }),
-      );
-    else onOpenFullPage();
+    if (unavailable) return;
+    navigateDestination(typedRoute);
+    (onNavigateAway ?? onClose)();
   };
   const readingRef = usePreviewReadingPosition(
-    trait?.detail ?? detail,
+    definition ?? detail,
     readingHistory,
     open,
-    trait ? undefined : landing,
+    landing,
   );
   const contentFocus = usePreviewContentFocus(open, readingRef.ref);
   const headerFocus = usePreviewContentFocus(open, heading);
@@ -122,7 +117,8 @@ export function RecordReferenceDrawer({
             target.focus({ preventScroll: true });
         } else {
           onClose();
-          if (anchor?.isConnected) anchor.focus({ preventScroll: true });
+          if (restoreAnchorFocus && anchor?.isConnected)
+            anchor.focus({ preventScroll: true });
         }
       }}
       focusable={{ focusTriggerAfterClose: false }}
@@ -130,17 +126,15 @@ export function RecordReferenceDrawer({
       className="record-preview-drawer"
       drawerRender={(panel) => (
         <SourceSectionSelectionContext value={null}>
-          <ReferencePreviewContext
-            value={
-              onTraitReference
-                ? { open: onReference, openTrait: onTraitReference }
-                : null
-            }
+          <ReferenceHelpProvider
+            onHelp={onHelp}
+            onReference={onReference}
+            generation={definition?.artifact_generation ?? detail?.artifact_generation}
           >
             <ConfigProvider getPopupContainer={getPopupContainer}>
               {panel}
             </ConfigProvider>
-          </ReferencePreviewContext>
+          </ReferenceHelpProvider>
         </SourceSectionSelectionContext>
       )}
       closable={false}
@@ -151,18 +145,21 @@ export function RecordReferenceDrawer({
           onFocusCapture={headerFocus.onFocusCapture}
           onBlurCapture={headerFocus.onBlurCapture}
         >
-          {trait ? (
+          {destination.kind === "definition" ? (
             <DocumentIdentityHeader
-              title={trait.detail?.label ?? "Trait"}
-              classification="Trait"
+              stacked
               headingRef={heading}
               headingId={headingId}
+              title={definition?.label ?? "Definition"}
+              classification={definitionClassification(destination.key)}
+              attribution={definition && <DefinitionAttribution detail={definition} />}
               actions={
                 <RecordPreviewActions
                   readingHistory={readingHistory}
                   onClose={close}
                   onOpenFullPage={openFullPage}
                   fullPageHref={href}
+                  fullPageDisabled={unavailable}
                 />
               }
             />
@@ -175,7 +172,6 @@ export function RecordReferenceDrawer({
               root={detail?.record}
               selection={detail?.selected}
               relationships={detail?.relationships}
-              onReference={onReference}
               onRankChange={onRankChange}
               onOwnerReturn={returnToOwner}
               visibleOwnerRecordKey={visibleOwnerRecordKey}
@@ -189,6 +185,7 @@ export function RecordReferenceDrawer({
                   onClose={close}
                   onOpenFullPage={openFullPage}
                   fullPageHref={href}
+                  fullPageDisabled={unavailable}
                 />
               )}
             />
@@ -217,49 +214,39 @@ export function RecordReferenceDrawer({
       onClose={close}
     >
       <section {...contentFocus} aria-label="Reference content">
-        {trait ? (
-          <article className="record-reference" data-selection-search>
-            {trait.error && (
-              <ErrorNotice
-                error={trait.error}
-                title={
-                  trait.detail
-                    ? "Unable to refresh this trait"
-                    : "Unable to load this trait"
-                }
-                description={
-                  trait.detail ? "Previously loaded content remains below." : undefined
-                }
-                action={<Button onClick={trait.retry}>Retry</Button>}
-              />
-            )}
-            {trait.detail ? (
-              <TraitDefinition detail={trait.detail} onReference={onReference} />
-            ) : trait.loading ? (
-              <LoadingStatus label="Loading trait…" />
-            ) : null}
-          </article>
-        ) : (
-          <RecordDetailPane
+        {destination.kind === "definition" ? (
+          <DefinitionDetailPane
             identityInHost
-            visibleOwnerRecordKey={visibleOwnerRecordKey}
-            showRelated={false}
-            showOwnerReturn={context !== "encounter"}
-            detail={detail}
+            detail={definition}
             loading={loading}
             error={error}
             onRetry={onRetry}
-            onReload={onReload}
-            reloadLabel={reloadLabel}
-            retryLabel={retryLabel}
-            onBack={close}
-            backLabel="Close preview"
+            retryLabel={retryActionLabel}
             onReference={onReference}
-            onRankChange={onRankChange}
-            landing={landing}
-            onLandingReady={readingRef.onLandingReady}
-            onOwnerReturn={returnToOwner}
           />
+        ) : (
+          <>
+            <RecordDetailPane
+              identityInHost
+              visibleOwnerRecordKey={visibleOwnerRecordKey}
+              showRelated={false}
+              showOwnerReturn={context !== "encounter"}
+              detail={detail}
+              loading={loading}
+              error={error}
+              onRetry={onRetry}
+              onReload={onReload}
+              reloadLabel={reloadLabel}
+              retryLabel={retryActionLabel}
+              onBack={close}
+              backLabel="Close preview"
+              onReference={onReference}
+              onRankChange={onRankChange}
+              landing={landing}
+              onLandingReady={readingRef.onLandingReady}
+              onOwnerReturn={returnToOwner}
+            />
+          </>
         )}
       </section>
     </Drawer>

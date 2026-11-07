@@ -1,6 +1,6 @@
 import { chipLinkClauses } from "./filterControls";
 import { linkScopeCopy } from "./linkScopeCopy";
-import { useReferencePreview } from "../records/ReferencePreviewContext";
+import { useReferenceRecordNavigation } from "../records/ReferenceHelp";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -63,7 +63,7 @@ function LinkChip({
   onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
   onRemove: (leaf: LinkLeaf) => void;
 }) {
-  const reference = useReferencePreview();
+  const reference = useReferenceRecordNavigation();
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -135,7 +135,7 @@ function LinkChip({
                 event.preventDefault();
                 if (reference) {
                   close();
-                  reference.open(
+                  reference(
                     relationship.selection.record_key,
                     trigger.current ?? event.currentTarget,
                     relationship.selection,

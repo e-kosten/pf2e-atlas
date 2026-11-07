@@ -35,7 +35,7 @@ pub(super) fn authored_spell(source: &SpellSource) -> SpellPresentationView {
             s.and_then(|s| (&s.level).into())
                 .and_then(|v| (&v.value).into()),
         ),
-        traditions: identifiers(
+        traditions: reference_identifiers(
             s.and_then(|s| (&s.traits).into())
                 .and_then(|t| (&t.traditions).into()),
         ),
@@ -169,7 +169,7 @@ pub(super) fn damage(
             .map(|(id, c)| DamageComponentView {
                 id: id.clone(),
                 formula: text((&c.formula).into()),
-                damage_type: identifier((&c.r#type).into()),
+                damage_type: reference_identifier((&c.r#type).into()),
                 kinds: identifiers((&c.kinds).into()),
                 category: identifier((&c.category).into()),
                 materials: identifiers((&c.materials).into()),
@@ -241,12 +241,10 @@ macro_rules! changed_facts {
                     .and_then(|v| (&v.sustained).into())
                     .map(|v| *v),
             ),
-            traits: fact(
-                SourceFieldView::from(&$s.traits)
-                    .and_then(|v| (&v.value).into())
-                    .map(Clone::clone),
+            traits: reference_identifiers(
+                SourceFieldView::from(&$s.traits).and_then(|v| (&v.value).into()),
             ),
-            traditions: identifiers(
+            traditions: reference_identifiers(
                 SourceFieldView::from(&$s.traits).and_then(|v| (&v.traditions).into()),
             ),
             damage: damage((&$s.damage).into()),

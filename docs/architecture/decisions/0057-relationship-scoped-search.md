@@ -176,6 +176,8 @@ Similar remains a separate search criterion. Its named, selectable read-only see
 occupies the keyword search shell with identical clear/search affordances. Clearing
 it retains filters and returns focus to keyword entry.
 
+## Definition-reference extension
+
 ## Consequences
 
 The shared query model, CLI grammar, web editor, discovery and evidence readers

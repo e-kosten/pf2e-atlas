@@ -56,11 +56,27 @@ Private TypeScript compiler research/generation lives under `dev-tools`; Rust de
 commands do not dispatch those scripts. Product record identity remains Foundry
 pack plus source ID. Embedded documents stay in one checked parent snapshot.
 
-Trait reference entities use a separate typed `trait:<identifier>` identity over
-the pinned system catalogs. They retain exact variant identifiers, localized
-definitions and attributed memberships/references without fabricating compendium
-documents. Similar uses stored trait seed vectors and the existing eligible
-record corpus. See [ADR0056](./decisions/0056-trait-reference-entities.md).
+Reference vocabulary uses typed definition keys over the pinned system catalogs,
+with one canonical definition store owned by index. Existing `TraitKey` values and
+`trait:<identifier>` identities retain their public meaning. Other namespaces keep
+exact source tokens or package-qualified localization keys. A definition backed by
+a real record retains a checked pointer to that record; its body and vectors stay
+with the record. Standalone definitions use the shared content interpreter.
+Specialized trait memberships and seed vectors remain trait policies; additional
+vocabulary does not automatically receive vectors or Search candidate status.
+See [ADR0056](./decisions/0056-trait-reference-entities.md) and its scoped amendment.
+
+Definition preparation coverage is separate from the physical workspace schema and
+base record/trait readiness. Offline migration retains existing data; explicit
+setup prepares additional definitions and atomically publishes their source,
+mapping, locale and notice identities. Supplemental reference content is an approved
+normalized asset captured and verified directly by ingest, with no upstream polling
+or source-file reads during ordinary reference retrieval.
+
+Contextual help retains raw property identity beside its readable label and typed
+record or definition destination. App-service supplies executable property filters
+for full-page associations. Advanced Filters use the ordinary field catalog and
+value discovery, with Read links for values backed by useful content.
 
 ## Data flow
 

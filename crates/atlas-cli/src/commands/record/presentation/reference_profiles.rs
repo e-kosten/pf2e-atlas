@@ -32,8 +32,8 @@ fn grants(out: &mut String, values: &FactView<Vec<ReferenceGrantView>>, level_la
     }
 }
 
-fn names(out: &mut String, label: &str, value: &FactView<Vec<String>>) {
-    fact(out, label, value, |values| values.join(", "));
+fn names<T: super::TextValue>(out: &mut String, label: &str, value: &FactView<Vec<T>>) {
+    fact(out, label, value, |values| super::list_text(values));
 }
 pub(super) fn render(out: &mut String, body: &RecordBodyView) {
     match body {
@@ -56,7 +56,13 @@ pub(super) fn render(out: &mut String, body: &RecordBodyView) {
                             }
                             slot.choices.value.as_ref().map_or_else(
                                 || "Unavailable".into(),
-                                |choices| choices.join(" or "),
+                                |choices| {
+                                    choices
+                                        .iter()
+                                        .map(|value| value.label.as_str())
+                                        .collect::<Vec<_>>()
+                                        .join(" or ")
+                                },
                             )
                         })
                         .collect::<Vec<_>>()

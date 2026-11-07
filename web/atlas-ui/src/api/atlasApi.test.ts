@@ -8,6 +8,7 @@ import {
   getRecordDetail,
   getRelatedRecords,
   getTraitDetail,
+  getDefinitionDetail,
   getTraitRecords,
   searchPage,
   getRelationshipOccurrences,
@@ -36,10 +37,12 @@ import {
 } from "./atlasApi";
 import type {
   EncounterMutationView,
+  RelationshipOccurrencesPage,
   UpdateEncounterParticipantRequest,
 } from "../generated/atlas";
 import { participantUpdate } from "../features/encounters/participantEdits";
-import { detailFixture } from "../test/fixtures";
+import { detailFixture, summaryFixture } from "../test/fixtures";
+import type { Wire } from "./wire";
 import {
   API_CONTRACT,
   API_CONTRACT_HEADER,
@@ -238,10 +241,15 @@ describe("source-backed API transport", () => {
       clause_id: null,
       values: ["fire"],
     });
-    expect(result.counts).toMatchObject({
-      status: "available",
-      value: { options: [{ value: "fire", distinct_roots: 0n }], total_values: 1n },
+    expect(result).toMatchObject({
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      counts: { status: "available", value: { total_values: 1n } },
     });
+    if (result.counts.status !== "available") throw new Error("Expected option counts");
+    expect(result.counts.value.options).toEqual([
+      { value: "fire", distinct_roots: 0n, selected: false },
+    ]);
   });
   const participantJson = {
     revision: 7,
@@ -1233,18 +1241,20 @@ it("posts exact relationship evidence pages and normalizes occurrence totals", a
     },
     include_contents: true,
   };
-  respond({
+  const response = {
     artifact_generation: "generation-a",
     clause: {
       clause_id: "link",
       relationship: constraint,
-      record: {},
+
+      record: summaryFixture("items:armor", "Leather Armor"),
       title: "Leather Armor",
     },
-    result_record: {},
+    result_record: summaryFixture("actors:goblin", "Goblin"),
     occurrences: [],
     page: { number: 2, size: 3, count: 0, total: 9, has_more: true, next_page: 3 },
-  });
+  } satisfies Wire<RelationshipOccurrencesPage>;
+  respond(response);
   const controller = new AbortController();
   const request = {
     clause_id: "link",
@@ -1579,4 +1589,51 @@ it("requires deliberate intent for non-GET transport requests", () => {
   expectTypeOf<{ method: "POST"; intent: "read" }>().toExtend<AtlasRequestInit>();
   expectTypeOf<{ method: "POST"; intent: "action" }>().toExtend<AtlasRequestInit>();
   expectTypeOf<{ signal: AbortSignal }>().toExtend<AtlasRequestInit>();
+});
+
+it("reads exact definition detail and preserves absent content and the record destination", async () => {
+  const result = {
+    artifact_generation: "generation-a",
+    definition_key: "sense:darkvision",
+    label: "Darkvision",
+    help: {
+      definition_key: "sense:darkvision",
+
+      destination: {
+        kind: "record",
+        navigation: {
+          record_key: "abilities:darkvision",
+          embedded_path: [],
+          field: null,
+          passage: null,
+          source_fingerprint: null,
+        },
+      },
+    },
+    content: null,
+
+    notices: [],
+
+    related_filters: [],
+    publications: [],
+  };
+  respond(result);
+  expect(
+    await getDefinitionDetail({
+      definition_key: "sense:darkvision",
+      expected_artifact_generation: "generation-a",
+    }),
+  ).toEqual(result);
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/definitions/detail");
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    definition_key: "sense:darkvision",
+    expected_artifact_generation: "generation-a",
+  });
+  respond({ ...result, definition_key: "language:common" });
+  await expect(
+    getDefinitionDetail({
+      definition_key: "sense:darkvision",
+      expected_artifact_generation: null,
+    }),
+  ).rejects.toBeInstanceOf(AtlasApiError);
 });

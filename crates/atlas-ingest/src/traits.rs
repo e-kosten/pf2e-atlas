@@ -4,7 +4,7 @@ use atlas_domain::TraitKey;
 use atlas_embedding::{
     PassageSection, PreparedEmbeddingInput, TextEmbeddingTokenizer, prepare_embedding_section,
 };
-use atlas_index::{TraitDefinition, TraitSourceLocation};
+use atlas_index::{ReferenceSourceLocation, TraitDefinition};
 use atlas_record::source_content::LocalizationResolver;
 pub(crate) const TRAIT_SEED_RECIPE: &str = "trait-definition-centroid/v1";
 pub(crate) fn prepare_traits_stream(
@@ -33,8 +33,8 @@ pub(crate) fn prepare_traits_stream(
             .filter(|v| !v.trim().is_empty());
         let prepared = markup
             .map(|markup| {
-                atlas_record::source_content::prepare_trait_definition(
-                    key.clone(),
+                atlas_record::source_content::prepare_reference_definition(
+                    key.clone().into(),
                     markup,
                     context.audience,
                     Some(catalog),
@@ -77,7 +77,7 @@ pub(crate) fn prepare_traits_stream(
                 source_locations: authored
                     .source_locations
                     .iter()
-                    .map(|s| TraitSourceLocation {
+                    .map(|s| ReferenceSourceLocation {
                         file: s.file.into(),
                         line: s.line,
                         column: s.column,
@@ -85,6 +85,11 @@ pub(crate) fn prepare_traits_stream(
                     .collect(),
                 source_revision: context.source_revision.clone(),
                 indexing_locale: context.indexing_locale.clone(),
+                content_locale: authored
+                    .description_key
+                    .or(authored.label_key)
+                    .and_then(|key| catalog.content_locale(key))
+                    .map(str::to_owned),
             },
             pending,
         )?;

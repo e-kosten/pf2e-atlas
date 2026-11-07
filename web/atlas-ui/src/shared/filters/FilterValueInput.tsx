@@ -133,15 +133,17 @@ export function FilterValueInput({
             !selectedChoices.includes(String(choice.value)) &&
             !["neq", "excludes_any"].includes(operator),
         }))}
+        optionRender={(option) => {
+          return (
+            <span>
+              {option.label}
+              {counts.has(String(option.value))
+                ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
+                : ""}
+            </span>
+          );
+        }}
         onOpenChange={setOpen}
-        optionRender={(option) => (
-          <span>
-            {option.label}
-            {counts.has(String(option.value))
-              ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
-              : ""}
-          </span>
-        )}
         onChange={(next) => onChange(next ?? (multiple ? [] : ""))}
       />
     );

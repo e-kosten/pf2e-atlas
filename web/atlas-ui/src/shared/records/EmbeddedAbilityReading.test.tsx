@@ -337,11 +337,11 @@ it.each(["desktop", "narrow", "comparison"])(
             <div className="comparison-test-host">{content}</div>
           ) : (
             <RecordReferenceDrawer
+              destination={{ kind: "record", navigation: detail.selected }}
               anchor={document.createElement("button")}
               detail={detail}
               loading={false}
               onClose={vi.fn()}
-              onOpenFullPage={vi.fn()}
               onReference={vi.fn()}
             />
           )}

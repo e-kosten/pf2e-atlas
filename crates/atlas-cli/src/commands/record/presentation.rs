@@ -438,7 +438,7 @@ pub(super) fn identity(out: &mut String, identity: &RecordSummaryView) {
     );
     line(out, format!("Record: {}", identity.record_key));
     if let Some(rarity) = &identity.rarity {
-        line(out, format!("Rarity: {rarity}"));
+        line(out, format!("Rarity: {}", rarity.label));
     }
     if !identity.traits.is_empty() {
         line(
@@ -504,22 +504,35 @@ fn fact<T>(out: &mut String, label: &str, value: &FactView<T>, format: impl FnOn
     }
     line(out, format!("{label}: {text}"));
 }
-fn text(out: &mut String, label: &str, value: &FactView<String>) {
-    if known_value(value).is_some_and(|v| v.trim().is_empty()) {
+trait TextValue {
+    fn text_value(&self) -> &str;
+}
+impl TextValue for String {
+    fn text_value(&self) -> &str {
+        self
+    }
+}
+impl TextValue for atlas_app_model::ReferenceValueView {
+    fn text_value(&self) -> &str {
+        &self.label
+    }
+}
+fn text<T: TextValue>(out: &mut String, label: &str, value: &FactView<T>) {
+    if known_value(value).is_some_and(|v| v.text_value().trim().is_empty()) {
         return;
     }
-    fact(out, label, value, Clone::clone);
+    fact(out, label, value, |value| value.text_value().to_owned());
 }
-fn required_text(out: &mut String, label: &str, value: &FactView<String>) {
+fn required_text<T: TextValue>(out: &mut String, label: &str, value: &FactView<T>) {
     fact(out, label, value, |value| {
-        if value.trim().is_empty() {
+        if value.text_value().trim().is_empty() {
             "Empty".into()
         } else {
-            value.clone()
+            value.text_value().to_owned()
         }
     });
 }
-fn optional_text(out: &mut String, label: &str, value: &FactView<String>) {
+fn optional_text<T: TextValue>(out: &mut String, label: &str, value: &FactView<T>) {
     if !matches!(
         value.state,
         QueryFieldState::Missing | QueryFieldState::NotApplicable
@@ -527,11 +540,15 @@ fn optional_text(out: &mut String, label: &str, value: &FactView<String>) {
         text(out, label, value);
     }
 }
-fn list_text(items: &[String]) -> String {
+fn list_text<T: TextValue>(items: &[T]) -> String {
     if items.is_empty() {
         String::new()
     } else {
-        items.join(", ")
+        items
+            .iter()
+            .map(TextValue::text_value)
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 fn number_text(value: &NumberFactView, signed: bool, unit: &str) -> String {
@@ -620,28 +637,45 @@ fn damage_components(out: &mut String, value: &FactView<Vec<DamageComponentView>
     }
     for (index, component) in components.iter().enumerate() {
         let mut parts = Vec::new();
-        for (label, value) in [
-            ("formula", &component.formula),
-            ("damage type", &component.damage_type),
+        for (label, state, value) in [
+            (
+                "formula",
+                component.formula.state,
+                component.formula.value.as_deref(),
+            ),
+            (
+                "damage type",
+                component.damage_type.state,
+                component
+                    .damage_type
+                    .value
+                    .as_ref()
+                    .map(|value| value.label.as_str()),
+            ),
         ] {
             if changes
                 && matches!(
-                    value.state,
+                    state,
                     QueryFieldState::Missing | QueryFieldState::NotApplicable
                 )
             {
                 continue;
             }
-            if changes && value.state == QueryFieldState::Null {
+            if changes && state == QueryFieldState::Null {
                 parts.push(format!("{label}: cleared (null)"));
+            } else if state == QueryFieldState::Value {
+                parts.push(value.map_or_else(
+                    || unavailable(state),
+                    |value| {
+                        if value.trim().is_empty() {
+                            format!("{label}: Empty")
+                        } else {
+                            value.to_owned()
+                        }
+                    },
+                ));
             } else {
-                parts.push(fact_string(value, |value| {
-                    if value.trim().is_empty() {
-                        format!("{label}: Empty")
-                    } else {
-                        value.clone()
-                    }
-                }));
+                parts.push(unavailable(state));
             }
         }
         for (label, value) in [

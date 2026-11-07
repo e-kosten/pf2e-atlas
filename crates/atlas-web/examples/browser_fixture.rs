@@ -7,6 +7,8 @@
 
 #[path = "browser_fixture/corpus.rs"]
 mod corpus;
+#[path = "browser_fixture/reference_data.rs"]
+mod reference_data;
 
 use std::{error::Error, fs, io, net::SocketAddr, path::PathBuf};
 
@@ -49,47 +51,79 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
     let index_path = run_directory.join("artifact.sqlite");
-    let mut fixture = input(corpus::records(), true);
-    fixture.remaster_pairs.push(atlas_index::SourceRemasterPairInput{
-        legacy:"browser-editions:legacy0000000001".parse()?,remaster:"browser-editions:remaster00000001".parse()?,
-        provenance:Some(serde_json::from_value(serde_json::json!({"record":"browser-journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"}))?),
+    let mut records = corpus::records();
+    records.push(reference_data::darkvision_record());
+    let mut fixture = input(records, true);
+    fixture.remaster_pairs.push(atlas_index::SourceRemasterPairInput {
+        legacy: "browser-editions:legacy0000000001".parse()?,
+        remaster: "browser-editions:remaster00000001".parse()?,
+        provenance: Some(serde_json::from_value(serde_json::json!({"record":"browser-journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"}))?),
     });
-    let trait_key = TraitKey::new("light")?;
-    fixture.traits.push(TraitDefinition {
-        key: trait_key.clone(),
-        label: "Light".into(),
-        label_key: None,
-        description_key: None,
-        description_html: None,
-        authored_markup: None,
-        prepared: None,
-        catalogs: vec![],
-        source_locations: vec![],
-        source_revision: None,
-        indexing_locale: "en".into(),
-    });
-    let mut vector = vec![0.; 768];
-    vector[0] = 1.;
-    let chunk_hash = hash(b"Light\n");
-    fixture.trait_vectors.push(TraitVectorInput {
-        key: trait_key,
-        profile_id: SearchProfileId::new("bge-base"),
-        input_hash: hash(format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes()),
-        vector: vector.clone(),
-        chunks: vec![TraitSeedChunk {
-            input: "Light\n".into(),
-            input_hash: chunk_hash.clone(),
-            token_count: 2,
-            vector,
-            address: SourcePassageAddress::PlainSection {
-                source_text_sha256: chunk_hash,
-                selection_version: "trait-definition-centroid/v1".into(),
-                section_ordinal: 0,
-                label: Some("Light".into()),
-                chunk_bytes: SourceByteRange { start: 0, end: 6 },
-            },
-        }],
-    });
+    // Explicit short synthetic definitions and seeds keep the normal trait reading
+    // and Similar paths available without claiming model inference or ranking quality.
+    for (token, label, markup) in [
+        (
+            "light",
+            "Light",
+            "<p>Fixture light trait marks bright lantern effects.</p>",
+        ),
+        (
+            "agile",
+            "Agile",
+            "<p>Fixture agile trait explains nimble follow-up attacks.</p>",
+        ),
+    ] {
+        let key = TraitKey::new(token)?;
+        let prepared = atlas_record::source_content::prepare_reference_definition(
+            atlas_domain::DefinitionKey::from(key.clone()),
+            markup,
+            fixture.context.audience,
+            None,
+            None,
+        )?;
+        let seed_input = format!("{label}\n{}", prepared.text);
+        let seed_hash = hash(seed_input.as_bytes());
+        let seed_end = seed_input.len();
+        let mut vector = vec![0.; 768];
+        // Preserve the existing Light seed's normalized first-axis direction.
+        vector[0] = 1.;
+        fixture.traits.push(TraitDefinition {
+            key: key.clone(),
+            label: label.into(),
+            label_key: None,
+            description_key: None,
+            description_html: Some(prepared.html.clone()),
+            authored_markup: Some(markup.into()),
+            prepared: Some(prepared),
+            catalogs: vec![],
+            source_locations: vec![],
+            source_revision: None,
+            indexing_locale: "en".into(),
+            content_locale: Some("en".into()),
+        });
+        fixture.trait_vectors.push(TraitVectorInput {
+            key,
+            profile_id: SearchProfileId::new("bge-base"),
+            input_hash: hash(format!("trait-definition-centroid/v1:{seed_hash}").as_bytes()),
+            vector: vector.clone(),
+            chunks: vec![TraitSeedChunk {
+                input: seed_input,
+                input_hash: seed_hash.clone(),
+                token_count: 8,
+                vector,
+                address: SourcePassageAddress::PlainSection {
+                    source_text_sha256: seed_hash,
+                    selection_version: "trait-definition-centroid/v1".into(),
+                    section_ordinal: 0,
+                    label: Some(label.into()),
+                    chunk_bytes: SourceByteRange {
+                        start: 0,
+                        end: seed_end,
+                    },
+                },
+            }],
+        });
+    }
     // Give distinct roots positive overlap so the default passage comparison
     // exercises result navigation. The shared fixture's orthogonal vectors
     // correctly produce no positive passage matches. These remain structural
@@ -103,7 +137,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             *common = std::f32::consts::FRAC_1_SQRT_2;
         }
     }
-    atlas_search::test_support::publish_input(&index_path, &fixture)?;
+    let glossary = reference_data::attach(&mut fixture)?;
+    atlas_index::test_support::publish_input_with_references(
+        &index_path,
+        &fixture,
+        &glossary.entries,
+        &glossary.notices,
+    )?;
     let service = AtlasAppService::start(AtlasAppServiceOptions {
         default_search_profile: Some(SearchProfileId::new("bge-base")),
         path_mode: AtlasPathMode::Global,

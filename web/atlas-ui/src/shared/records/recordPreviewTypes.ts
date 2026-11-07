@@ -4,14 +4,10 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 export type RecordPreviewAnchor = HTMLElement;
 
 export type RecordPreviewContentProps = {
-  trait?: {
-    key: string;
-    detail: import("../../generated/atlas").TraitDetailView | undefined;
-    loading: boolean;
-    error: Error | null;
-    retry: () => void;
-  };
-  onTraitReference?: (traitKey: string, anchor?: HTMLElement) => void;
+  destination: import("../../generated/atlas").ReferenceDestinationView;
+  definition?: import("../../generated/atlas").DefinitionDetailView;
+  help?: import("../../generated/atlas").ReferenceHelpView;
+  onHelp?: import("./ReferenceHelp").ReferenceHelpHandler;
   actions?: import("react").ReactNode;
   context?: "reference" | "encounter";
   visibleOwnerRecordKey?: string;
@@ -20,9 +16,8 @@ export type RecordPreviewContentProps = {
     restoringHistory: boolean;
     canGoBack: boolean;
     onBack: () => void;
-    restore: { scroll: number; focusHref?: string };
+    restore: { scroll: number; focusHref?: string; focusRegion?: "header" | "body" };
   };
-  fullPageHref?: string;
   requestedNavigation?: import("../../generated/atlas").RecordNavigationView;
   landing?: import("../../generated/atlas").RecordNavigationView;
   detail: RecordDetailView | undefined;
@@ -33,7 +28,8 @@ export type RecordPreviewContentProps = {
   reloadLabel?: string;
   retryLabel?: string;
   onClose: () => void;
-  onOpenFullPage: () => void;
+  onNavigateAway?: () => void;
+  restoreAnchorFocus?: boolean;
   onReference: RecordReferenceHandler;
   onRankChange?: (rank: number | undefined) => void;
 };

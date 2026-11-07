@@ -1,13 +1,9 @@
-import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Button } from "antd";
 import { BookOpen } from "lucide-react";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
-import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "../../shared/records/RecordPreviewDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 export function EncounterOriginalRecord({
   recordKey,
@@ -54,33 +50,7 @@ export function EncounterOriginalRecord({
           }}
         />
       )}
-      {preview.active && (
-        <RecordReferenceDrawer
-          trait={preview.trait}
-          onTraitReference={preview.openTrait}
-          anchor={preview.anchor}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
-      )}
+      <RecordPreviewDrawer preview={preview} />
     </>
   );
 }

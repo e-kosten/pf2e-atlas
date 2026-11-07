@@ -66,9 +66,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Cursebound encounter mechanics](items/encounter-cursebound.md)
   Deferred from CF-07 pending concrete GM encounter demand. Status: deferred.
 
-- [Remaining localization-backed rules terms](items/rust-localization-backed-rules-terms.md)
-  Investigate NPC glossary definitions and verified prose rules destinations;
-  trait reference pages shipped in PR93. Status: proposed.
+- [Contextual glossary references](items/rust-localization-backed-rules-terms.md)
+  Extend source-backed definitions through record context and Advanced Filters.
+  Data publication and offline migration are in progress; retrieval and shared
+  Drawer presentation follow. Status: in_progress.
 
 - [Trait description content rights and attribution](items/trait-description-content-rights.md)
   Establish paragraph-level permission and attribution evidence for localized

@@ -6,11 +6,20 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
 import { StrictMode } from "react";
-import { getEmbeddedReading, getRecordDetail } from "../../api/atlasApi";
-import type { EmbeddedReadingBatchView } from "../../generated/atlas";
+import {
+  getDefinitionDetail,
+  getEmbeddedReading,
+  getRecordDetail,
+} from "../../api/atlasApi";
+import type {
+  DefinitionDetailView,
+  EmbeddedReadingBatchView,
+} from "../../generated/atlas";
+import { RouterTestContext } from "../../test/router";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   activityFixture,
@@ -18,13 +27,14 @@ import {
   detailFixture,
   knownFact,
 } from "../../test/fixtures";
-import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { useRecordPreview } from "./useRecordPreview";
 
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   getRecordDetail: vi.fn(),
   getEmbeddedReading: vi.fn(),
+  getDefinitionDetail: vi.fn(),
 }));
 
 it.each([
@@ -109,20 +119,7 @@ it.each([
           >
             Open landed parent
           </button>
-          {preview.recordKey && (
-            <RecordReferenceDrawer
-              anchor={preview.anchor}
-              detail={preview.detail}
-              landing={preview.landing}
-              readingHistory={preview.readingHistory}
-              loading={preview.loading}
-              error={preview.error}
-              onRetry={preview.retry}
-              onClose={preview.close}
-              onOpenFullPage={vi.fn()}
-              onReference={preview.open}
-            />
-          )}
+          <RecordPreviewDrawer preview={preview} />
         </>
       );
     }
@@ -266,3 +263,138 @@ it.each([
     }
   },
 );
+
+it("restores a header trait trigger and body scroll through mixed history without leaving its Drawer", async () => {
+  const actor = detailFixture(
+    "actors:abrikandilu",
+    "Abrikandilu",
+    "abilities:darkvision",
+  );
+  const darkvision = detailFixture(
+    "abilities:darkvision",
+    "Darkvision",
+    "spells:darkness",
+  );
+  const darkness = detailFixture("spells:darkness", "Darkness", "rules:unused");
+  for (const [detail, label] of [
+    [actor, "Darkvision"],
+    [darkvision, "Darkness"],
+  ] as const) {
+    const body = detail.presentation.content[0].body;
+    if (body.kind === "html")
+      body.html = `<p><a data-atlas-reference="0" href="#">${label}</a></p>`;
+  }
+  darkness.presentation.content[0].body = { kind: "plain", text: "Darkness body." };
+  const help = {
+    definition_key: "trait:concentrate",
+
+    destination: { kind: "definition" as const, key: "trait:concentrate" },
+  };
+  darkness.presentation.identity.traits = [
+    {
+      kind: "trait",
+      trait_key: "trait:concentrate",
+      value: "concentrate",
+      label: "Concentrate",
+      help,
+    },
+  ];
+  const trait: DefinitionDetailView = {
+    artifact_generation: darkness.artifact_generation,
+    definition_key: "trait:concentrate",
+    label: "Concentrate",
+    help,
+    content: {
+      body: { kind: "plain", text: "Concentrate trait body." },
+      references: [],
+    },
+
+    notices: [],
+
+    related_filters: [],
+    publications: [],
+  };
+  const records = new Map(
+    [actor, darkvision, darkness].map((detail) => [detail.record.record_key, detail]),
+  );
+  vi.mocked(getRecordDetail).mockImplementation(async (key) => records.get(key)!);
+  vi.mocked(getDefinitionDetail).mockResolvedValue(trait);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  function Flow() {
+    const preview = useRecordPreview();
+    return (
+      <>
+        <a href="/traits/trait:concentrate">Unrelated host link</a>
+        <button
+          onClick={(event) =>
+            preview.open(actor.record.record_key, event.currentTarget, actor.selected)
+          }
+        >
+          Open Abrikandilu
+        </button>
+        <RecordPreviewDrawer preview={preview} />
+      </>
+    );
+  }
+  render(
+    <RouterTestContext>
+      <QueryClientProvider client={client}>
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <Flow />
+        </ConfigProvider>
+      </QueryClientProvider>
+    </RouterTestContext>,
+  );
+  const opener = screen.getByRole("button", { name: "Open Abrikandilu" });
+  opener.focus();
+  fireEvent.click(opener);
+  let drawer = await screen.findByRole("dialog", { name: "Abrikandilu" });
+  const pane = drawer.querySelector<HTMLElement>(".record-preview-drawer__body")!;
+  pane.scrollTop = 112;
+  const darkvisionLink = within(drawer).getByRole("link", { name: "Darkvision" });
+  darkvisionLink.focus();
+  fireEvent.click(darkvisionLink);
+  drawer = await screen.findByRole("dialog", { name: "Darkvision" });
+  pane.scrollTop = 265;
+  const darknessLink = within(drawer).getByRole("link", { name: "Darkness" });
+  darknessLink.focus();
+  fireEvent.click(darknessLink);
+  drawer = await screen.findByRole("dialog", { name: "Darkness" });
+  pane.scrollTop = 650;
+  const header = within(drawer)
+    .getByRole("heading", { name: "Darkness" })
+    .closest("header")!;
+  const concentrate = within(header).getByRole("link", { name: "Concentrate" });
+  concentrate.focus();
+  fireEvent.click(concentrate);
+  drawer = await screen.findByRole("dialog", { name: "Concentrate" });
+  expect(within(drawer).getByText("Concentrate trait body.")).toBeVisible();
+  fireEvent.click(within(drawer).getByRole("button", { name: "Back" }));
+  drawer = await screen.findByRole("dialog", { name: "Darkness" });
+  const returnedHeader = within(drawer)
+    .getByRole("heading", { name: "Darkness" })
+    .closest("header")!;
+  await waitFor(() =>
+    expect(
+      within(returnedHeader).getByRole("link", { name: "Concentrate" }),
+    ).toHaveFocus(),
+  );
+  expect(pane.scrollTop).toBe(650);
+  expect(screen.getByRole("link", { name: "Unrelated host link" })).not.toHaveFocus();
+  fireEvent.click(within(drawer).getByRole("button", { name: "Back" }));
+  drawer = await screen.findByRole("dialog", { name: "Darkvision" });
+  await waitFor(() =>
+    expect(within(drawer).getByRole("link", { name: "Darkness" })).toHaveFocus(),
+  );
+  expect(pane.scrollTop).toBe(265);
+  fireEvent.click(within(drawer).getByRole("button", { name: "Back" }));
+  drawer = await screen.findByRole("dialog", { name: "Abrikandilu" });
+  await waitFor(() =>
+    expect(within(drawer).getByRole("link", { name: "Darkvision" })).toHaveFocus(),
+  );
+  expect(pane.scrollTop).toBe(112);
+  fireEvent.click(
+    within(drawer).getByRole("button", { name: "Close reference preview" }),
+  );
+  await waitFor(() => expect(opener).toHaveFocus());
+});

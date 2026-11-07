@@ -47,5 +47,6 @@
     "TokenName",
     "Weakness"
   ],
-  "conditionSourceDigest": "54f850828d688f6b87d5815785f31fbb98eecbc768f261b6939586f98428d291"
+  "conditionSourceDigest": "54f850828d688f6b87d5815785f31fbb98eecbc768f261b6939586f98428d291",
+  "referenceSourceDigest": "067144a3d562728b2d7742b80a116424c9296b4ca36f0bbc6590e621d718ec04"
 }

@@ -198,16 +198,19 @@ fn changes(out: &mut String, value: &FactView<SpellChangeView>) {
         ) {
             change_fact(out, "Sustained", &changes.sustained, |v| v.to_string());
         }
-        for (label, value) in [
-            ("Traits", &changes.traits),
-            ("Traditions", &changes.traditions),
-        ] {
-            if !matches!(
-                value.state,
-                QueryFieldState::Missing | QueryFieldState::NotApplicable
-            ) {
-                change_fact(out, label, value, |v| list_text(v));
-            }
+        if !matches!(
+            changes.traits.state,
+            QueryFieldState::Missing | QueryFieldState::NotApplicable
+        ) {
+            change_fact(out, "Traits", &changes.traits, |value| list_text(value));
+        }
+        if !matches!(
+            changes.traditions.state,
+            QueryFieldState::Missing | QueryFieldState::NotApplicable
+        ) {
+            change_fact(out, "Traditions", &changes.traditions, |value| {
+                list_text(value)
+            });
         }
         if !matches!(
             changes.damage.state,
