@@ -118,6 +118,54 @@ impl AtlasRuntime {
         Ok(configuration)
     }
 
+    /// Rebuild generated reference data in an existing configured workspace.
+    pub fn rebuild_reference(&self) -> Result<atlas_ingest::BuildArtifactReport, String> {
+        let paths = self.paths();
+        if !paths.index_path.is_file() {
+            return Err(format!(
+                "workspace does not exist at {}",
+                paths.index_path.display()
+            ));
+        }
+        crate::workspace::register_extensions().map_err(|e| e.to_string())?;
+        let workspace =
+            atlas_storage::Workspace::at(&paths.index_path).map_err(|e| e.to_string())?;
+        let owner = workspace.update_owner().map_err(|e| e.to_string())?;
+        let config = crate::workspace::read_rebuild_configuration(&owner)?;
+        if config.source_root == paths.managed_source_root {
+            crate::source_acquisition::validate(&config.source_root)?;
+        }
+        let search_profiles = config
+            .search_profiles
+            .into_iter()
+            .map(|id| {
+                atlas_embedding::search_profile(&id)
+                    .map(|profile| {
+                        atlas_embedding::EmbeddingRuntimeConfig::new(
+                            profile.model,
+                            &paths.embedding_cache_root,
+                        )
+                    })
+                    .map_err(|e| e.to_string())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        atlas_ingest::rebuild_artifact(
+            &owner,
+            crate::WORKSPACE_SCHEMA_VERSION,
+            atlas_ingest::BuildArtifactOptions {
+                source_root: config.source_root,
+                output_path: paths.index_path.clone(),
+                manifest_path: config.manifest_path,
+                locale: config.indexing_locale,
+                search_profiles,
+                reuse_embeddings: false,
+                reuse_passage_layouts: false,
+                embedding_batch_size: 32,
+            },
+        )
+        .map_err(|e| e.to_string())
+    }
+
     pub fn clean_setup(&self, options: RuntimeSetupCleanOptions) -> RuntimeSetupCleanReport {
         setup_clean::clean_setup(&self.paths, options)
     }

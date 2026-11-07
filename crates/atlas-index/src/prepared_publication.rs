@@ -28,6 +28,7 @@ pub struct PreparedPublication<'owner> {
     previous_layouts: Vec<Option<crate::native_values::NativeModelKey>>,
     cache_bytes: u64,
     cache_limit: u64,
+    rebuild: bool,
 }
 impl<'owner> PreparedPublication<'owner> {
     pub fn new_in(
@@ -36,10 +37,30 @@ impl<'owner> PreparedPublication<'owner> {
         scratch: &Path,
         metadata: PublicationSpool,
     ) -> Result<Self, IndexError> {
+        Self::prepare(owner, schema, scratch, metadata, false)
+    }
+
+    /// Stage a complete rebuild privately, with no published or pending reuse.
+    pub fn new_rebuild(
+        owner: &'owner UpdateOwner,
+        schema: u32,
+        scratch: &Path,
+        metadata: PublicationSpool,
+    ) -> Result<Self, IndexError> {
+        Self::prepare(owner, schema, scratch, metadata, true)
+    }
+
+    fn prepare(
+        owner: &'owner UpdateOwner,
+        schema: u32,
+        scratch: &Path,
+        metadata: PublicationSpool,
+        rebuild: bool,
+    ) -> Result<Self, IndexError> {
         let validation_started = std::time::Instant::now();
         crate::writer::validate_input(&metadata)?;
         tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,"Completed publication input validation");
-        Self::stage(owner, schema, scratch, metadata)
+        Self::stage(owner, schema, scratch, metadata, rebuild)
     }
 
     fn stage(
@@ -47,16 +68,24 @@ impl<'owner> PreparedPublication<'owner> {
         schema: u32,
         scratch: &Path,
         metadata: PublicationSpool,
+        rebuild: bool,
     ) -> Result<Self, IndexError> {
         let workspace = Workspace::at(owner.path())?;
-        let read = workspace.read(schema)?;
-        crate::writer::check_expected(read.connection(), &metadata)?;
-        let cache_bytes = read.connection().query_row(
-            "SELECT coalesce(sum(length(vector)),0) FROM pending_embedding_values",
-            [],
-            |r| r.get(0),
-        )?;
-        let previous = crate::read_stored_reference_context(read.connection())?;
+        let (cache_bytes, previous) = if rebuild {
+            (0, None)
+        } else {
+            let read = workspace.read(schema)?;
+            crate::writer::check_expected(read.connection(), &metadata)?;
+            let bytes = read.connection().query_row(
+                "SELECT coalesce(sum(length(vector)),0) FROM pending_embedding_values",
+                [],
+                |r| r.get(0),
+            )?;
+            (
+                bytes,
+                crate::read_stored_reference_context(read.connection())?,
+            )
+        };
         let previous_layouts = metadata
             .context
             .search_profiles
@@ -75,7 +104,6 @@ impl<'owner> PreparedPublication<'owner> {
                     .transpose()
             })
             .collect::<Result<Vec<_>, _>>()?;
-        drop(read);
         let selected_file = tempfile::NamedTempFile::new_in(scratch).map_err(operation)?;
         let selected = Connection::open(selected_file.path())?;
         selected.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA synchronous=OFF;
@@ -95,8 +123,11 @@ impl<'owner> PreparedPublication<'owner> {
             previous_layouts,
             cache_bytes,
             cache_limit: CACHE_PAYLOAD_LIMIT,
+            rebuild,
         };
-        publication.evict_cache()?;
+        if !rebuild {
+            publication.evict_cache()?;
+        }
         Ok(publication)
     }
     pub fn context(&self) -> &SourceArtifactBuildContext {
@@ -149,6 +180,21 @@ impl<'owner> PreparedPublication<'owner> {
         let ordinal = self.model_key(model)?;
         if inputs.is_empty() {
             return Ok(Vec::new());
+        }
+        if self.rebuild {
+            return inputs
+                .iter()
+                .map(|descriptor| {
+                    let input = NativeInput::new(model, descriptor)?;
+                    Ok(
+                        if selected_checksum(&self.selected, ordinal, &input)?.is_some() {
+                            NativeValueSelection::AlreadySelected
+                        } else {
+                            NativeValueSelection::Missing
+                        },
+                    )
+                })
+                .collect();
         }
         let read = self.workspace.read(self.schema)?;
         crate::writer::check_expected(read.connection(), &self.metadata)?;
@@ -237,27 +283,29 @@ impl<'owner> PreparedPublication<'owner> {
                 checksum,
             });
         }
-        let write = self.workspace.write(self.schema)?;
-        crate::writer::check_expected(write.connection(), &self.metadata)?;
-        let mut next_cache_bytes = self.cache_bytes;
-        {
-            let binding = crate::native_values::NativeModel::bind(
-                write.connection(),
-                &self.models[ordinal],
-                true,
-            )?;
-            for value in &encoded {
-                let id = binding.ensure_input(&value.input)?;
-                let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
-                write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,value.bytes,value.checksum])?;
-                next_cache_bytes = next_cache_bytes
-                    .checked_sub(old)
-                    .and_then(|n| n.checked_add(value.bytes.len() as u64))
-                    .ok_or_else(|| invalid("cache payload accounting mismatch"))?;
+        if !self.rebuild {
+            let write = self.workspace.write(self.schema)?;
+            crate::writer::check_expected(write.connection(), &self.metadata)?;
+            let mut next_cache_bytes = self.cache_bytes;
+            {
+                let binding = crate::native_values::NativeModel::bind(
+                    write.connection(),
+                    &self.models[ordinal],
+                    true,
+                )?;
+                for value in &encoded {
+                    let id = binding.ensure_input(&value.input)?;
+                    let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
+                    write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,value.bytes,value.checksum])?;
+                    next_cache_bytes = next_cache_bytes
+                        .checked_sub(old)
+                        .and_then(|n| n.checked_add(value.bytes.len() as u64))
+                        .ok_or_else(|| invalid("cache payload accounting mismatch"))?;
+                }
             }
+            write.commit()?;
+            self.cache_bytes = next_cache_bytes;
         }
-        write.commit()?;
-        self.cache_bytes = next_cache_bytes;
         let selected_tx = rusqlite::Transaction::new_unchecked(
             &self.selected,
             rusqlite::TransactionBehavior::Immediate,
@@ -266,14 +314,23 @@ impl<'owner> PreparedPublication<'owner> {
             self.remember(ordinal, &value.input, &value.checksum, Some(&value.bytes))?;
         }
         selected_tx.commit()?;
-        self.evict_cache()
+        if !self.rebuild {
+            self.evict_cache()?;
+        }
+        Ok(())
     }
     pub fn publish(self) -> Result<(), IndexError> {
         self.owner.publish(self.schema, |connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
-            crate::writer::check_expected(connection, &self.metadata)?;
-            let reusable = crate::writer::prior_compatible(connection)?;
+            let reusable = if self.rebuild {
+                crate::writer::check_workspace_revision(connection, &self.metadata)?;
+                crate::reference_reset::clear(connection)?;
+                false
+            } else {
+                crate::writer::check_expected(connection, &self.metadata)?;
+                crate::writer::prior_compatible(connection)?
+            };
             let native_started = std::time::Instant::now();
             let delta_started;
             {
@@ -290,6 +347,9 @@ impl<'owner> PreparedPublication<'owner> {
             crate::native_values::prune(connection)?;
             crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
             tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,"Completed reference reconciliation");
+            if self.rebuild {
+                crate::validate_reference(connection)?;
+            }
             Ok(())
         })
     }

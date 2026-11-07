@@ -7,7 +7,7 @@ use atlas_runtime::{
 use std::path::PathBuf;
 use std::process::ExitCode;
 pub(crate) mod args;
-use args::{BuildIndexOptions, CheckIndexOptions, ValidateIndexOptions};
+use args::{BuildIndexOptions, CheckIndexOptions, RebuildIndexOptions, ValidateIndexOptions};
 
 pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
@@ -62,7 +62,30 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     )
     .map_err(|e| e.to_string())?;
     tracing::info!(target:"atlas_progress",complete=true,"Index build finished");
-    if options.json {
+    write_build_report(report, options.json)
+}
+
+pub(crate) fn run_index_rebuild(options: RebuildIndexOptions) -> Result<ExitCode, String> {
+    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: None,
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
+        overrides: AtlasPathOverrides {
+            source_root: None,
+            embedding_cache_root: options.embedding_cache_path,
+            index_path: options.index,
+        },
+    })
+    .map_err(|e| e.to_string())?;
+    let report = runtime.rebuild_reference()?;
+    tracing::info!(target:"atlas_progress",complete=true,"Reference rebuild finished");
+    write_build_report(report, options.json)
+}
+
+fn write_build_report(
+    report: atlas_ingest::BuildArtifactReport,
+    json: bool,
+) -> Result<ExitCode, String> {
+    if json {
         write_json_data(
             serde_json::json!({"admission":report.admission,"output_path":report.output_path,"record_count":report.record_count,"product_record_count":report.product_record_count,"pack_count":report.pack_count,"semantic_unit_count":report.semantic_unit_count,"search_profiles":report.profiles,"inferred_inputs":report.inferred_inputs,"reused_inputs":report.reused_inputs,"context_shortened_sections":report.context_shortened_sections,"source_fingerprint":report.source_fingerprint,"build_duration_ms":report.build_duration_ms}),
         )?;

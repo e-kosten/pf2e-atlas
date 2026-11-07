@@ -424,3 +424,22 @@ Deep validation scans the reference database; ordinary source ingest does not ru
 this complete audit. Use it to investigate problems, rather than before every query.
 For a workspace without models, also add
 `--no-embeddings` to validation.
+
+### Rebuild corrupted reference data
+
+If validation reports damaged reference data, rebuild the Foundry-derived records,
+text indexes, and configured embeddings:
+
+```bash
+atlas index rebuild
+```
+
+The rebuild uses the saved Foundry source, locale, and search profiles. Have the
+configured source checkout and model files available locally. A lexical-only
+workspace stays lexical-only. Use `--index` to select a specific workspace.
+
+Atlas keeps saved lists, encounters, and stable record IDs. It validates the
+replacement before committing, so a failed rebuild leaves the previous
+reference data and saved state in place. This command requires a current-schema
+SQLite workspace with intact saved data and no pending maintenance. Physical
+SQLite damage and saved-data recovery require a separate recovery process.

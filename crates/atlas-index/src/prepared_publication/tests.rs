@@ -119,6 +119,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
+        false,
     )
     .unwrap();
     assert_eq!(
@@ -152,6 +153,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
+        false,
     )
     .unwrap();
     assert_eq!(
@@ -1194,4 +1196,54 @@ fn current_fixture_publication_installs_explicit_values_over_pending_cache() {
             .unwrap(),
         2
     );
+}
+
+#[test]
+fn rebuild_ignores_corrupt_native_registry_and_pending_values() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("rebuild.sqlite");
+    let input = crate::foundation_tests::fixture(true);
+    publish_input(&path, &input).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    let model = &input.context.search_profiles[0];
+    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    write
+        .connection()
+        .execute_batch(
+            "INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at)
+         SELECT input_id,zeroblob(3072),published_hash,0 FROM embedding_inputs LIMIT 1;
+         UPDATE embedding_models SET identity_json='{}';",
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let expected = ReferenceReuseReader::fresh(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let spool = publication_spool_in(scratch.path(), &input, expected.expected().clone()).unwrap();
+    let mut publication = PreparedPublication::new_rebuild(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        spool,
+    )
+    .unwrap();
+    for unit in &input.semantic_units {
+        let desc = descriptor(unit);
+        if publication
+            .select_native(model, std::slice::from_ref(&desc), true)
+            .unwrap()
+            == [NativeValueSelection::Missing]
+        {
+            publication
+                .stage_inferred(model, &[(&desc, &unit.vector)])
+                .unwrap();
+        }
+    }
+    assert_eq!(count(&workspace, "pending_embedding_values"), 1);
+    publication.publish().unwrap();
+    assert_eq!(count(&workspace, "pending_embedding_values"), 0);
+    for unit in &input.semantic_units {
+        assert_eq!(raw_value(&workspace, model, &descriptor(unit)), unit.vector);
+    }
 }

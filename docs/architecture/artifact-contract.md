@@ -14,6 +14,13 @@ without orphan SQLite sidecars, verifies a staged clone/copy, and publishes with
 replacing an existing path. It preserves workspace identity and all saved state.
 `atlas-dev` owns manifests and provenance receipts, not SQL or migration policy.
 
+Explicit `atlas index rebuild` recovery requires a current-schema workspace and
+an authenticated migration ledger. It uses saved reference configuration, stages
+fresh source preparation and numerical results privately, and resets only
+generated data in the ordinary publication transaction. The stable record registry
+and saved tables remain in place. Deep validation runs on the candidate transaction
+before the single reference revision advance.
+
 ## Identity and versions
 
 Record identity is the Foundry pack and source `_id`, serialized as `pack:id`.

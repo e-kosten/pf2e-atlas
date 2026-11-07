@@ -113,7 +113,7 @@ impl CapturedBuildInputs {
     ) -> Result<BuildArtifactReport, IngestError> {
         let started = Instant::now();
         let (owner, scratch) = begin_build(workspace, schema, &self.options)?;
-        finish_build(workspace, schema, owner, scratch, self, started)
+        finish_build(workspace, schema, &owner, scratch, self, started, false)
     }
     pub(crate) fn options(&self) -> &BuildArtifactOptions {
         &self.options
@@ -131,7 +131,21 @@ pub(crate) fn build_artifact(
     let started = Instant::now();
     let (owner, scratch) = begin_build(workspace, schema, &options)?;
     let inputs = CapturedBuildInputs::capture(options)?;
-    finish_build(workspace, schema, owner, scratch, inputs, started)
+    finish_build(workspace, schema, &owner, scratch, inputs, started, false)
+}
+
+pub fn rebuild_artifact(
+    owner: &atlas_storage::UpdateOwner,
+    schema: u32,
+    mut options: BuildArtifactOptions,
+) -> Result<BuildArtifactReport, IngestError> {
+    let started = Instant::now();
+    let workspace = atlas_storage::Workspace::at(owner.path())?;
+    options.reuse_embeddings = false;
+    options.reuse_passage_layouts = false;
+    let scratch = atlas_index::BuildScratch::new(owner).map_err(index_error)?;
+    let inputs = CapturedBuildInputs::capture(options)?;
+    finish_build(&workspace, schema, owner, scratch, inputs, started, true)
 }
 
 fn begin_build(
@@ -176,12 +190,18 @@ fn begin_build(
 fn finish_build(
     workspace: &atlas_storage::Workspace,
     schema: u32,
-    update_owner: atlas_storage::UpdateOwner,
+    update_owner: &atlas_storage::UpdateOwner,
     scratch: atlas_index::BuildScratch,
     inputs: CapturedBuildInputs,
     started: Instant,
+    rebuild: bool,
 ) -> Result<BuildArtifactReport, IngestError> {
-    let reuse = atlas_index::ReferenceReuseReader::new(workspace, schema).map_err(index_error)?;
+    let reuse = if rebuild {
+        atlas_index::ReferenceReuseReader::fresh(workspace, schema)
+    } else {
+        atlas_index::ReferenceReuseReader::new(workspace, schema)
+    }
+    .map_err(index_error)?;
     let phase_started = Instant::now();
     let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
     let CapturedBuildInputs {
@@ -195,12 +215,21 @@ fn finish_build(
     let admission = prepared.spool.context().admission.clone().ok_or_else(|| {
         IngestError::ArtifactWriteFailed("publication admission summary is absent".into())
     })?;
-    let mut publication = atlas_index::PreparedPublication::new_in(
-        &update_owner,
-        schema,
-        scratch.path(),
-        prepared.spool,
-    )
+    let mut publication = if rebuild {
+        atlas_index::PreparedPublication::new_rebuild(
+            update_owner,
+            schema,
+            scratch.path(),
+            prepared.spool,
+        )
+    } else {
+        atlas_index::PreparedPublication::new_in(
+            update_owner,
+            schema,
+            scratch.path(),
+            prepared.spool,
+        )
+    }
     .map_err(index_error)?;
     let product_record_count = publication.product_record_count();
     let mut profiles = Vec::new();
@@ -231,11 +260,13 @@ fn finish_build(
     progress("write_artifact", "Saving and checking search index");
     publication.publish().map_err(index_error)?;
     tracing::info!(target:"atlas_build_diagnostic",stage="exclusive_publication",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
-    let phase_started = Instant::now();
-    let reclaimed = update_owner
-        .reclaim_space(schema)
-        .map_err(|e| IngestError::SpaceReclamationFailed(e.to_string()))?;
-    tracing::info!(target:"atlas_build_diagnostic",stage="physical_reclamation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,reclaimed,"Completed ingest phase");
+    if !rebuild {
+        let phase_started = Instant::now();
+        let reclaimed = update_owner
+            .reclaim_space(schema)
+            .map_err(|e| IngestError::SpaceReclamationFailed(e.to_string()))?;
+        tracing::info!(target:"atlas_build_diagnostic",stage="physical_reclamation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,reclaimed,"Completed ingest phase");
+    }
     Ok(BuildArtifactReport {
         admission,
         profiles,
