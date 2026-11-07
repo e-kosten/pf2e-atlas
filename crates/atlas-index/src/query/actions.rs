@@ -150,11 +150,12 @@ mod tests {
                 );
             }
         }
-        for (id, key, label) in [
-            (1, grab.as_str(), "Grab"),
-            (1, push.as_str(), "Push"),
-            (3, push.as_str(), "Push"),
-            (4, family, "FamilyAbility"),
+        for (id, key, label, occurrence) in [
+            (1, grab.as_str(), "Grab", "/1"),
+            (1, grab.as_str(), "Grab", "/2"),
+            (1, push.as_str(), "Push", "/3"),
+            (3, push.as_str(), "Push", "/1"),
+            (4, family, "FamilyAbility", "/1"),
         ] {
             crate::references::insert_reference(
                 &db,
@@ -169,7 +170,7 @@ mod tests {
                         owners: vec![],
                     },
                     evidence: format!("PF2E.NPC.Abilities.Glossary.{label}"),
-                    occurrence_path: format!("/{label}"),
+                    occurrence_path: occurrence.into(),
                     label: None,
                     visible: true,
                 },
@@ -220,7 +221,45 @@ mod tests {
         )
         .unwrap();
         assert_eq!(values.total_values, 1);
-        assert_eq!(values.options[0].value, QueryLiteral::String(grab));
+        assert_eq!(values.options[0].value, QueryLiteral::String(grab.clone()));
+
+        let mut selected = crate::query::parse_where(&has_grab)
+            .unwrap()
+            .predicate()
+            .clone();
+        selected.clause_id = Some("edited".into());
+        let outcome = crate::discovery::field_value_counts(
+            &db,
+            &crate::QueryValueCountsRequest {
+                field: "actions".into(),
+                clause_id: selected.clause_id.clone(),
+                query: crate::query::validate_query(&selected).unwrap(),
+                context: crate::QueryFacetContext {
+                    eligible_keys: Some(
+                        [1, 3, 4, 7]
+                            .map(|id| RecordKey::parse(&format!("test:{id:016}")).unwrap())
+                            .to_vec(),
+                    ),
+                },
+                values: vec![
+                    QueryLiteral::String(grab),
+                    QueryLiteral::String(push),
+                    QueryLiteral::String(family.into()),
+                ],
+            },
+        )
+        .unwrap();
+        let atlas_domain::QueryFacetOutcome::Available { value } = outcome else {
+            panic!("Expected contextual counts");
+        };
+        assert_eq!(
+            value
+                .options
+                .iter()
+                .map(|o| (o.distinct_roots, o.selected))
+                .collect::<Vec<_>>(),
+            [(1, true), (2, false), (0, false)]
+        );
 
         for (pack_systems, applies) in [
             (json!({"test": "pf2e"}), true),

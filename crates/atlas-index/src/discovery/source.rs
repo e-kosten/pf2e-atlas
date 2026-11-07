@@ -517,9 +517,8 @@ fn count_options(
     } else {
         None
     };
-    let mut options = Vec::new();
-    for value in values {
-        let candidate = candidate_clause(d, &value)?;
+    let with_choice = |value: &QueryLiteral| -> Result<ValidatedQuery, IndexError> {
+        let candidate = candidate_clause(d, value)?;
         let p = if let Some(base) = &root_base {
             QueryPredicate::new(QueryExpression::AllOf {
                 children: vec![base.clone(), candidate],
@@ -540,7 +539,44 @@ fn count_options(
                 children: vec![query.predicate().clone(), candidate],
             })
         };
-        let accepted = validate_query(&p)?;
+        Ok(validate_query(&p)?)
+    };
+    if d.definition.id == "actions" && !values.is_empty() {
+        // Keep the same per-choice validation limits while sharing the database scan.
+        for value in &values {
+            with_choice(value)?;
+        }
+        let base = match root_base {
+            Some(base) => validate_query(&base)?,
+            None => query.clone(),
+        };
+        let (eligible, mut parameters) =
+            crate::read_units::eligible_sql(&base, context.eligible_keys.as_deref())?;
+        let slot = format!("?{}", parameters.len() + 1);
+        parameters.push(Value::Text(serde_json::to_string(&values)?));
+        let sql = crate::query::grouped_root_set_counts(d, &eligible, &slot)
+            .ok_or_else(|| IndexError::Invalid("Actions requires a root set binding".into()))?;
+        let counts = connection
+            .prepare(&sql)?
+            .query_map(params_from_iter(&parameters), |row| {
+                Ok((QueryLiteral::String(row.get(0)?), row.get::<_, u64>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(values
+            .into_iter()
+            .map(|value| QueryValueOption {
+                selected: selected.contains(&value),
+                distinct_roots: counts
+                    .iter()
+                    .find(|(key, _)| key == &value)
+                    .map_or(0, |(_, count)| *count),
+                value,
+            })
+            .collect());
+    }
+    let mut options = Vec::new();
+    for value in values {
+        let accepted = with_choice(&value)?;
         let (eligible, parameters) =
             crate::read_units::eligible_sql(&accepted, context.eligible_keys.as_deref())?;
         let sql = format!("WITH matches AS ({eligible}) SELECT COUNT(*) FROM matches");

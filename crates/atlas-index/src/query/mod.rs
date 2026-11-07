@@ -8,7 +8,7 @@ mod membership;
 pub(crate) mod validation;
 pub use catalog::{QUERY_CAPABILITY_VERSION, query_capabilities};
 pub use cel::parse_where;
-pub(crate) use membership::compile_root_membership;
+pub(crate) use membership::{compile_root_membership, grouped_root_set_counts};
 pub use validation::{ValidatedQuery, validate_query};
 #[cfg(test)]
 mod cel_semantics;
