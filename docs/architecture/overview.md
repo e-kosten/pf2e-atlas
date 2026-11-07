@@ -349,7 +349,7 @@ establish model inference or ranking quality; query assets remain unavailable.
 Fixture-only dependencies and composition stay in the example/dev-dependency
 boundary. Browser tests use normal APIs rather than test-only product endpoints
 or fabricated readiness. Frontend guidance defines the device matrix and the
-separate automated, Astra visual and actual-device evidence requirements.
+separate automated, visual-review and actual-device evidence requirements.
 
 Architectural replacements land with every call site and matching docs updated.
 The persistent workspace upgrades through one composed migration ledger. Reference

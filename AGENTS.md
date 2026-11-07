@@ -10,14 +10,12 @@ matches the task; read those sections before changing that behavior.
 - Complete the agreed scope, integration, tests, documentation and review fixes.
   Ask for unresolved consequential decisions or real blockers.
 - Use logical local commits at coherent, validated boundaries. Independent review
-  is a pre-PR gate, not a commit gate. Do not collect a whole multi-stage task
-  uncommitted or require permission for each authorized local commit.
-- For substantive UI work, provide an early functional preview and get user
-  feedback before expensive final validation. Internal refactors and changes with
-  minimal UI impact may skip that checkpoint or offer a later preview.
-- Finish the feature locally, obtain independent subagent review, fix confirmed
-  findings and complete required local validation before opening a PR.
-  Open an early draft only when the user explicitly requests one.
+  is required before merge readiness, not before each local commit.
+- Obtain independent review, fix confirmed findings and complete required local
+  validation before marking a PR ready for merge. Draft PRs identify remaining
+  implementation, review and validation work.
+- UI changes require browser interaction and visual evidence alongside automated
+  checks; follow the frontend and validation guides for coverage.
 - Full applicable Rust/frontend gates run locally (standalone for developer-only
   tooling); browser checks target affected
   behavior. CI owns the full applicable platform/browser matrix by default.
@@ -68,21 +66,22 @@ incremental strategy. Search for leftover old paths before reporting completion.
 
 ## Workspaces and resources
 
-Use a dedicated linked task worktree and feature branch; reuse it for related
-feedback. Confirm the base from task context and preserve unrelated work.
-Serialize Git mutations, including worktree operations, within the repository.
+Use a task branch and isolate concurrent or unrelated work with a linked worktree
+when needed. Confirm the intended base and preserve unrelated changes and active
+previews. Serialize Git mutations, including worktree operations, within the
+repository.
 
 Protect the real installed Atlas workspace and explicitly retained data. Resolve
-symlinks and configured paths before cleanup. Repo-local task data is disposable
-at task end under the [cleanup policy](docs/development/worktrees-and-cleanup.md);
-that never authorizes deleting uncommitted source or another task's dependencies.
+symlinks and configured paths before cleanup. Follow the
+[cleanup procedure](docs/development/worktrees-and-cleanup.md) to establish resource
+ownership and retention needs before removing task data.
 
 Reuse one task preview URL and its saved state. Refresh deliberately; frontend-only
 work can use Vite with a compatible running backend. Human previews use the
 full-corpus workspace and verified models; automated browser fixtures are separate.
 Do not reset preview state or run setup automatically on compatibility failure.
-Report a stale shared preview baseline to the user and ask permission before
-refreshing it; follow the linked setup guide for evidence and refresh procedure.
+For a stale shared preview baseline, establish compatibility and coordinate a
+shared-default update using the linked setup guide.
 
 Reuse one checkout-local Cargo target; do not share targets across worktrees.
 Preserve active output and shared source/model caches. Follow the linked resource
@@ -90,18 +89,19 @@ policy before expensive builds or additional database copies.
 
 ## Plans and completion
 
-Use one concise current plan for substantial work; routine fixes need no new plan.
-Consult `scratch/plans/README.md` when present. Use the
-[repo-plan skill](.codex/skills/repo-plan/SKILL.md) for lifecycle and provenance.
-Move remaining durable work into the tracked backlog.
+For cross-cutting changes, identify the affected owners, acceptance cases and
+validation obligations before implementation. Preserve the agreed scope and
+explicit non-goals during review. Keep durable design decisions in architecture
+docs and remaining work in the tracked backlog; temporary task notes are not
+contributor documentation.
 
 Respect tracked hooks. Commit hooks check formatting/whitespace; substantive
-validation and independent review are explicit pre-PR responsibilities.
+validation and independent review are required before merge readiness.
 For documentation, follow the [audience and task guidance](docs/development/documentation.md#write-for-the-pages-reader)
 and check the reader's complete task path. Prose-only changes need document checks,
 not unrelated Rust/UI gates.
 Keep local/CI results and any unavailable review evidence explicit.
 
-After an authorized task's PR merges or the task is canceled, follow the cleanup
-guide, including safe main synchronization and retention checks. Keep a preview
-only while it is needed for review or explicitly retained by the user.
+When retiring task resources or synchronizing a checkout after merge, follow the
+cleanup guide's ownership, retention and safe fast-forward checks. Repository
+procedures do not grant permission to modify another contributor's resources.

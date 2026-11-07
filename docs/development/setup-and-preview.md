@@ -53,15 +53,14 @@ developer tool for the thin shell launchers. The selected Atlas app executable
 is a separate choice controlled by `--binary`.
 
 If the shared preview baseline is behind the current required API contract,
-schema or content policy, tell the user what is stale and how it affects the
-preview, then ask permission to update the shared baseline. Use the selected
-binary, seed manifest and actual compatibility/readiness results as evidence;
-an older Git commit alone does not establish incompatibility. Obtain permission
-before rebuilding or publishing the shared default. Authorization already given
-in the current task covers the agreed refresh without another confirmation.
-Preserve existing task databases and the installed workspace.
+schema or content policy, establish what is stale and how it affects the preview.
+Use the selected binary, seed manifest and actual compatibility/readiness results
+as evidence; an older Git commit alone does not establish incompatibility.
+Rebuilding or publishing the shared default affects other checkouts, so coordinate
+the update with its maintainer before proceeding. Preserve existing task databases
+and the installed workspace.
 
-After authorization, run the refresh from a clean, validated merged candidate:
+For an authorized update, run the refresh from a clean, validated merged candidate:
 
 ```sh
 just dev-tool-build
@@ -326,13 +325,12 @@ development and final built-candidate checks.
 
 ## Local Build Review
 
-Substantive UI work gets an early human checkpoint once the core flow works.
+Use a functional preview to inspect UI behavior and discuss product decisions.
 Run the compilation and focused checks needed for a usable preview, identify
-unfinished behavior and validation gaps, then get feedback before broad test
-rewrites and final validation. Keep existing tests intact. Internal refactors,
-backend-only work and minimal UI changes can skip this early checkpoint or share
-a later preview. An unrelated CLI change does not require a browser preview.
-Required final checks and independent pre-PR review still apply.
+unfinished behavior and validation gaps, and keep existing tests intact. Agree
+feedback timing with the people reviewing the change. An unrelated CLI change
+does not require a browser preview. Required final checks and independent review
+still apply before merge readiness.
 
 Use one published localhost URL per active task. Keep that URL across iterations
 and related follow-ups, and tell the user which branch/commit it now serves, including uncommitted
@@ -347,8 +345,8 @@ port and full database copy for each revision is not the default. A backend or
 schema change normally replaces the task backend and uses the supported workspace
 migration; it does not require preserving every earlier version.
 
-Keep an additional frozen build only for an explicitly requested comparison or a
-bounded investigation that needs it. Record its purpose and removal milestone in
+Keep an additional frozen build only for a comparison or bounded investigation
+that needs it. Record its purpose and removal milestone in
 the current task plan, then retire its processes and disposable copies when that
 purpose ends. A preview left running by the agent does not by itself establish an
 active review or a reason to retain it. Automated browser fixtures remain separate,
@@ -363,7 +361,9 @@ the installed personal workspace. Use Vite against the selected backend for hot
 reload. The model-free browser fixture is for automated acceptance and targeted
 fault checks, not the human product preview. See the baseline workflow above.
 
-UI changes require interaction and visual review alongside automated checks. Agents use Astra sub-agents for presentation review, including actual browser inspection. Local validation, hosted CI, and human acceptance are separate outcomes; a passing gate does not establish visual acceptance.
+UI changes require interaction and visual review with actual browser inspection
+alongside automated checks. Local validation, hosted CI and human acceptance are
+separate outcomes; a passing gate does not establish visual acceptance.
 
 ## Running the product locally
 

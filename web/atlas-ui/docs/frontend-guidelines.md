@@ -885,7 +885,7 @@ Resize tests prove layout behavior; touch projects must actually tap controls.
 Viewport reflow and CSS enlargement proxies do not prove actual browser text
 zoom, software-keyboard avoidance, safe-area insets or mobile browser chrome.
 
-For presentation changes, Astra reviews the affected journeys in actual browser
+For presentation changes, independently review the affected journeys in actual browser
 screenshots and interactions across wide/intermediate/phone layouts, both themes
 and the relevant input methods. Review hierarchy, density, readability, action
 reachability and recovery, alongside automated geometry assertions. Report the

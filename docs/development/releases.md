@@ -112,7 +112,8 @@ scripts/prepare-release.sh --open-pr
 # or: just release-open-pr
 ```
 
-Independent review is a pre-PR requirement; this helper does not perform it.
+Independent review is required before merge readiness; this helper does not
+perform it.
 The helper verifies the release-prep branch, checks that the release notes no
 longer contain template text, runs local validation, commits the release-prep
 files, pushes the branch, and opens a PR to `main`.
