@@ -4,7 +4,7 @@ use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas similar 'Brown Mold' --list-parts\n  atlas similar 'Brown Mold' --list-parts --sections core\n  atlas similar 'Lich' --sections core --search-content core --method passages\n  atlas similar 'Brown Mold' --method passages --decay 0.5 --explain\n  atlas similar 'Brown Mold' --method content-average --kind hazard\n  atlas similar trait:fire --method baseline --json\n\nDefaults: Passage matches for records; Trait definition for traits. Source comparison options without --method select Passage matches. --search-content alone keeps the seed method default.\n\nSimilarity uses stored vectors and does not require model weights. Filters constrain candidates, not seed resolution. Candidate coverage is bounded. Copy exact --part selectors and --artifact-generation from --list-parts."
+    after_help = "Examples:\n  atlas similar 'Brown Mold' --list-parts\n  atlas similar 'Brown Mold' --list-parts --sections core\n  atlas similar 'Lich' --sections core --search-content core --method passages\n  atlas similar 'Brown Mold' --method passages --decay 0.5 --explain\n  atlas similar 'Brown Mold' --method content-average --kind hazard\n\nDefaults: Passage matches. Source comparison options without --method select Passage matches. --search-content alone keeps the seed method default.\n\nSimilarity uses stored vectors and does not require model weights. Filters constrain candidates, not seed resolution. Candidate coverage is bounded. Copy exact --part selectors and --artifact-generation from --list-parts."
 )]
 pub(crate) struct SimilarOptions {
     #[arg(
@@ -25,7 +25,7 @@ pub(crate) struct SimilarOptions {
         long,
         value_enum,
         conflicts_with = "list_parts",
-        help = "Comparison method: passages, content-average or baseline (Name and identity for records; Trait definition for traits)"
+        help = "Comparison method: passages, content-average or baseline (Name and identity)"
     )]
     pub(crate) method: Option<CliSimilarityMethod>,
     #[arg(long, value_parser = parse_decay, conflicts_with = "list_parts", help = "Passage match decay, 0 for strongest part through 1 for equal parts (default 0.5)")]
@@ -70,7 +70,7 @@ pub(crate) struct SimilarOptions {
     pub(crate) page: u32,
     #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Stored search profile: bge-base or embeddinggemma; needs stored vectors, not model weights")]
     pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
-    #[arg(help = "Foundry record key, strict name/verified alias, or exact trait:<identifier>")]
+    #[arg(help = "Foundry record key or strict name/verified alias")]
     pub(crate) record_ref: String,
     #[arg(long, help = "Override the SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,

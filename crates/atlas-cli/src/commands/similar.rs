@@ -20,6 +20,9 @@ mod recovery;
 use args::{CliCandidateParts, CliSimilarityMethod, SimilarOptions};
 
 pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
+    if o.record_ref.starts_with("trait:") {
+        return report_app_error(invalid("Similar requires a record seed"), o.json);
+    }
     if let Some(message) = recovery::missing_generation(&o) {
         if o.json {
             write_json_error("invalid_input", message)?;
@@ -59,16 +62,12 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
             Err(error) => return report_app_error(error, o.json),
         }
     };
-    let seed = if o.record_ref.starts_with("trait:") {
-        match o.record_ref.parse() {
-            Ok(trait_key) => SimilaritySeed::Trait { trait_key },
-            Err(error) => return report_app_error(invalid(format!("{error}")), o.json),
-        }
-    } else {
-        match resolve_reference(&service, &o.record_ref) {
-            Ok(record_key) => SimilaritySeed::Record { record_key },
-            Err(error) => return report_app_error(error, o.json),
-        }
+    let record_key = match resolve_reference(&service, &o.record_ref) {
+        Ok(record_key) => record_key,
+        Err(error) => return report_app_error(error, o.json),
+    };
+    let seed = SimilaritySeed::Record {
+        record_key: record_key.clone(),
     };
     let rediscovery = recovery::command(&o, Some(&seed));
     let explicit_parts = !o.parts.is_empty();
@@ -132,21 +131,12 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         }
         return Ok(ExitCode::SUCCESS);
     }
-    let criteria = match seed {
-        SimilaritySeed::Record { record_key } => SearchCriteria::SimilarRecords {
-            source_sections: o.sections.map(Into::into),
-            search_content: o.search_content.map(Into::into),
-            seed_record_key: record_key.to_string(),
-            filter,
-            similarity: Some(options),
-        },
-        SimilaritySeed::Trait { trait_key } => SearchCriteria::SimilarTraits {
-            source_sections: o.sections.map(Into::into),
-            search_content: o.search_content.map(Into::into),
-            seed_trait_key: trait_key.to_string(),
-            filter,
-            similarity: Some(options),
-        },
+    let criteria = SearchCriteria::SimilarRecords {
+        source_sections: o.sections.map(Into::into),
+        search_content: o.search_content.map(Into::into),
+        seed_record_key: record_key.to_string(),
+        filter,
+        similarity: Some(options),
     };
     let result = match app_result(
         service
@@ -253,10 +243,8 @@ fn invalid(message: impl Into<String>) -> AppError {
 }
 
 fn print_results(result: &SearchResultsPage, explain: bool) {
-    match &result.mode {
-        SearchModeSummary::SimilarRecords { seed } => println!("Similar to {}", seed.title),
-        SearchModeSummary::SimilarTraits { title, .. } => println!("Similar to {title}"),
-        _ => {}
+    if let SearchModeSummary::SimilarRecords { seed } = &result.mode {
+        println!("Similar to {}", seed.title);
     }
     if let Some(configuration) = &result.similarity {
         let method = match &configuration.options {
@@ -278,14 +266,7 @@ fn print_results(result: &SearchResultsPage, explain: bool) {
                     candidate_mode_label(*candidate_parts)
                 )
             }
-            SimilarityOptions::Baseline {} => {
-                if matches!(result.mode, SearchModeSummary::SimilarTraits { .. }) {
-                    "Trait definition"
-                } else {
-                    "Name and identity"
-                }
-                .into()
-            }
+            SimilarityOptions::Baseline {} => "Name and identity".into(),
         };
         println!("{method}; model {}\n", result.search_profile);
         if let Some(source) = configuration.source_sections {
@@ -313,14 +294,7 @@ fn print_results(result: &SearchResultsPage, explain: bool) {
         }
         println!();
         if explain && matches!(configuration.options, SimilarityOptions::Baseline {}) {
-            println!(
-                "Seed representation: {}",
-                if matches!(result.mode, SearchModeSummary::SimilarTraits { .. }) {
-                    "stored trait definition average"
-                } else {
-                    "stored name and identity vector"
-                }
-            );
+            println!("Seed representation: stored name and identity vector");
         }
         if configuration.diagnostics.undefined_candidate_centroids > 0 {
             println!(
@@ -516,34 +490,15 @@ mod tests {
     }
 
     #[test]
-    fn bare_trait_uses_its_default_while_content_flags_select_passages() {
-        let seed = SimilaritySeed::Trait {
-            trait_key: "trait:fire".parse().unwrap(),
-        };
-        let bare = parse(&["atlas", "similar", "trait:fire"]);
-        let options = comparison_options(&bare)
-            .unwrap()
-            .unwrap_or_else(|| SimilarityOptions::default_for_seed(&seed));
-        assert_eq!(options, SimilarityOptions::Baseline {});
-        let explicit = parse(&["atlas", "similar", "trait:fire", "--decay", "0.75"]);
-        assert!(matches!(
-            comparison_options(&explicit).unwrap(),
-            Some(SimilarityOptions::Passages { decay, .. }) if decay == 0.75
-        ));
+    fn explicit_trait_seed_is_rejected_before_workspace_access() {
+        let options = parse(&["atlas", "similar", "trait:fire"]);
+        assert_eq!(run_similar(options).unwrap(), ExitCode::from(2));
     }
 
     #[test]
     fn core_source_and_candidate_scope_are_independent_and_discovery_is_strict() {
-        let trait_seed = SimilaritySeed::Trait {
-            trait_key: "trait:fire".parse().unwrap(),
-        };
-        let candidate_only = parse(&["atlas", "similar", "trait:fire", "--search-content", "core"]);
-        assert_eq!(
-            comparison_options(&candidate_only)
-                .unwrap()
-                .unwrap_or_else(|| SimilarityOptions::default_for_seed(&trait_seed)),
-            SimilarityOptions::Baseline {}
-        );
+        let candidate_only = parse(&["atlas", "similar", "Lich", "--search-content", "core"]);
+        assert!(comparison_options(&candidate_only).unwrap().is_none());
         let source = parse(&[
             "atlas",
             "similar",
