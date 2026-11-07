@@ -241,6 +241,15 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> 
     Ok(workspace)
 }
 
+pub(crate) fn read_rebuild_configuration(
+    owner: &atlas_storage::UpdateOwner,
+) -> Result<atlas_index::RequestedReferenceConfig, String> {
+    let read = owner.read_current(MIGRATIONS).map_err(|e| e.to_string())?;
+    atlas_index::read_requested_reference_config(&read)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "workspace has no saved reference build configuration".to_string())
+}
+
 /// Fixed immutable prefix for the opt-in historical numerical-storage probe.
 #[cfg(any(test, feature = "test-support"))]
 pub(crate) fn initialize_historical_embedding_storage_probe(

@@ -62,6 +62,15 @@ INSERT INTO workspace VALUES(1,lower(hex(randomblob(16))),0,NULL);
 CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,name TEXT NOT NULL,checksum TEXT NOT NULL,
 applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP) STRICT;";
 
+impl crate::UpdateOwner {
+    /// Open a current workspace and authenticate its ledger without migrating.
+    pub fn read_current(&self, migrations: &[Migration]) -> StorageResult<crate::ReadSession> {
+        let read = self.workspace.read(migrations.len() as u32)?;
+        inspect_history(read.connection(), migrations)?;
+        Ok(read)
+    }
+}
+
 impl Workspace {
     /// One transaction for pending schema changes/backfills and ledger stamps.
     /// The validator runs on the exact upgraded transaction, or a read-only

@@ -14,7 +14,6 @@ import {
   type ReactPortal,
 } from "react";
 import { createPortal } from "react-dom";
-import { EffectReferenceLink } from "./EffectReferenceLink";
 import { CheckDetails } from "./CheckDetails";
 import { ContentRoll } from "../dice/ContentRoll";
 import type {
@@ -121,7 +120,7 @@ export function PreparedContentBody({
       ? sectionRendering.html
       : undefined;
   const container = useRef<HTMLDivElement>(null);
-  const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
+  const [interactionPortals, setInteractionPortals] = useState<ReactPortal[]>([]);
   const rollHosts = useRef(new Map<string, HTMLElement>());
   const plainCheckText = useRef(new WeakMap<HTMLElement, string>());
   const referenceHandler = useRef(onReference);
@@ -210,7 +209,7 @@ export function PreparedContentBody({
       "[data-atlas-reference],[data-atlas-interaction]",
     );
     const listeners: Array<() => void> = [];
-    const effects: ReactPortal[] = [];
+    const portals: ReactPortal[] = [];
     const activeRolls = new Set<string>();
     markers?.forEach((originalMarker) => {
       let marker = originalMarker;
@@ -279,7 +278,7 @@ export function PreparedContentBody({
             }
             reading.append(host);
           }
-          effects.push(
+          portals.push(
             createPortal(
               <CheckDetails
                 label={label}
@@ -319,7 +318,7 @@ export function PreparedContentBody({
             marker.querySelectorAll<HTMLElement>("[data-atlas-roll-formula]"),
           ).find((node) => node.closest("[data-atlas-interaction]") === marker);
           (formula ?? marker).after(host);
-          effects.push(
+          portals.push(
             createPortal(
               <ContentRoll request={control.roll} presentation={control.literal} />,
               host,
@@ -327,27 +326,6 @@ export function PreparedContentBody({
             ),
           );
         }
-        return;
-      }
-      if (fact?.target && fact.effect_label) {
-        const host = document.createElement("span");
-        host.setAttribute("data-atlas-reference", String(ref));
-        const sourceSection = marker.getAttribute("data-atlas-source-section");
-        if (sourceSection !== null)
-          host.setAttribute("data-atlas-source-section", sourceSection);
-        marker.replaceWith(host);
-        effects.push(
-          createPortal(
-            <EffectReferenceLink
-              label={fact.effect_label}
-              target={fact.contextual_target ?? fact.target}
-              onReference={openReference}
-            />,
-            host,
-            `${namespace ?? "host"}:${ref}`,
-          ),
-        );
-        listeners.push(() => host.replaceWith(originalMarker));
         return;
       }
       if (
@@ -448,7 +426,7 @@ export function PreparedContentBody({
         rollHosts.current.delete(identity);
       }
     }
-    setEffectLinks(effects);
+    setInteractionPortals(portals);
     return () => listeners.forEach((remove) => remove());
   }, [body, references, openReference, html]);
   useLayoutEffect(() => {
@@ -531,7 +509,7 @@ export function PreparedContentBody({
   );
   return (
     <>
-      {effectLinks}
+      {interactionPortals}
       {documentNavigation ? (
         <div
           className={`document-reading${outline.length ? " document-reading--outlined" : ""}`}

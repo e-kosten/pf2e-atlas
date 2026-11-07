@@ -15,10 +15,10 @@ test("Claim Corpse names effect choices across separate paragraphs", async ({
   for (const variant of ["Fleshy", "Skeletal"]) {
     const name = `Claim Corpse - ${variant}`;
     const link = ability.getByRole("link", {
-      name: `Preview Effect: ${name}`,
+      name: `Effect: ${name}`,
       exact: true,
     });
-    await expect(link).toHaveText(name);
+    await expect(link).toHaveText(`Effect: ${name}`);
     await expect(link).toHaveAttribute("href", /\/records\//);
     await link.click();
     const preview = page.getByRole("dialog", { name: `Effect: ${name}`, exact: true });
