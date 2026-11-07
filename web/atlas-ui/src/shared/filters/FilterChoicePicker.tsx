@@ -236,7 +236,23 @@ function FilterChoicePicker({
   const counts = contextualCounts
     ? new Map([...contextualCounts, ...extraCounts])
     : extraCounts;
+  // Contextual pages also carry all selected options, including those outside
+  // the text search. The Advanced operand already displays these in its field.
+  const searchTerm = search.trim().toLowerCase();
+  const offSearch =
+    edit.kind === "operand" && query.data?.contextual && searchTerm
+      ? choices.filter(
+          ({ value, label }) =>
+            selected.includes(value) &&
+            !label.toLowerCase().includes(searchTerm) &&
+            !value.toLowerCase().includes(searchTerm),
+        )
+      : [];
+  const displayedChoices = offSearch.length
+    ? choices.filter((choice) => !offSearch.includes(choice))
+    : choices;
   const total = query.data?.values.total_values ?? 0n;
+  const displayedTotal = total - BigInt(offSearch.length);
   const pageSize = BigInt(VOCABULARY_PAGE_SIZE);
   const pages = (total + pageSize - 1n) / pageSize;
   const literal = text.trim();
@@ -268,14 +284,14 @@ function FilterChoicePicker({
     setOffset(0);
   }
   function activate(value: string, next: ChoiceState): void | "close" {
-    const action =
-      isActions &&
-      next !== "neutral" &&
-      choices.find((choice) => choice.value === value);
-    if (action && retainedLabels?.get(value) !== action.label) {
+    const option =
+      next !== "neutral" && (isActions || edit.kind === "operand")
+        ? choices.find((choice) => choice.value === value)
+        : undefined;
+    if (option && retainedLabels?.get(value) !== option.label) {
       setRetained({
         scope: labelScope,
-        labels: new Map(retainedLabels).set(value, action.label),
+        labels: new Map(retainedLabels).set(value, option.label),
       });
     }
     if (edit.kind === "condition") {
@@ -330,7 +346,7 @@ function FilterChoicePicker({
         labelForValue={labelForValue}
         id={field.definition.id}
         label={label}
-        choices={choices}
+        choices={displayedChoices}
         counts={counts}
         selected={selected}
         stateOf={(value) =>
@@ -368,6 +384,7 @@ function FilterChoicePicker({
                 scalar: edit.shape === "scalar",
                 enterValue: enterValue ?? undefined,
                 manualValue: settled ? (exact ?? undefined) : undefined,
+                onClear: () => edit.onChange(edit.shape === "scalar" ? "" : []),
               }
             : undefined
         }
@@ -388,7 +405,8 @@ function FilterChoicePicker({
             <div className="common-choice-progress">
               {query.data && (
                 <Typography.Text type="secondary" role="status">
-                  {new Intl.NumberFormat().format(total)} values
+                  {new Intl.NumberFormat().format(displayedTotal)}{" "}
+                  {displayedTotal === 1n ? "value" : "values"}
                   {scope.kind === "saved_list" ? " in this list" : ""}
                   {pages > 1n
                     ? " · Page " +

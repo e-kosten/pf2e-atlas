@@ -1299,6 +1299,12 @@ navigation. Native full-page links, modified clicks and middle clicks preserve
 browser behavior and exact destinations. Opening a reference does not alter an
 Add candidate, saved-list membership, selected participant or unfinished draft.
 
+A compact vocabulary field owns one border, hover state and opener focus ring.
+Keep its native opener and the inline Ant chip removal or clear actions as
+siblings. The label, unused field area and chevron open choices. Give each remove
+action an accessible name and independent focus treatment. Preserve the
+field’s control height for one line and let chips wrap inside the same border.
+
 In a compact choice picker, Read opens the verified option reference inside the
 same surface. Reuse the shared reference session and detail renderers. Keep
 selection in the choices view. Back and Escape unwind nested reading first, then

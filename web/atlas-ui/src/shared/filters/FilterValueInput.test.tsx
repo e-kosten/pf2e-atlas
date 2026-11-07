@@ -267,6 +267,55 @@ describe("shared value control vocabulary", () => {
       ),
     );
   });
+  it("keeps off-search contextual selections in chips but out of search results", async () => {
+    api.discoverFilterValues.mockResolvedValue({
+      kind: "contextual",
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      outcome: {
+        status: "available",
+        value: {
+          field: "traits",
+          options: [
+            { value: "acid", label: "Acid", distinct_roots: 4n, selected: true },
+            { value: "cold", label: "Cold", distinct_roots: 2n, selected: true },
+          ],
+          total_values: 2n,
+          exhaustive: true,
+          count_basis: "exact counterfactual displayed roots",
+        },
+      },
+    });
+    renderInput(false, vi.fn(), ["acid", "cold"], true);
+    openVocabulary();
+    expect(await screen.findByText("2 values in this list")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search traits choices" }), {
+      target: { value: "Acid" },
+    });
+    expect(await screen.findByText("1 value in this list")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Traits: Acid, selected/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Traits: Cold, selected/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Remove selected Cold from Traits" }),
+    ).toBeVisible();
+  });
+
+  it("clears a vocabulary operand in one action without opening the picker", async () => {
+    const change = vi.fn();
+    renderInput(false, change, ["acid", "cold"]);
+    const clear = screen.getByRole("button", { name: "Clear all Traits values" });
+    fireEvent.click(clear);
+    expect(change).toHaveBeenCalledExactlyOnceWith([]);
+    const opener = screen.getByRole("button", { name: "Edit Traits values" });
+    expect(opener).toHaveAttribute("aria-expanded", "false");
+    expect(opener).toHaveAccessibleDescription("0 selected");
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
   it("does not reset an already opened suggestion page when the initial debounce settles", async () => {
     vi.useFakeTimers();
     try {
@@ -484,11 +533,24 @@ it("retains a chosen action's label while searching and reopening its picker", a
   );
   const selectedRow = () =>
     screen.getByRole("button", { name: "Actions: Grab, selected; activate to remove" });
-  expect(selectedRow()).toBeVisible();
-  fireEvent.keyDown(search(), { key: "Escape" });
+  expect(
+    screen.queryByRole("button", {
+      name: "Actions: Grab, selected; activate to remove",
+    }),
+  ).toBeNull();
   expect(
     screen.getByRole("button", { name: "Remove selected Grab from Actions" }),
   ).toBeVisible();
+  fireEvent.keyDown(search(), { key: "Escape" });
   fireEvent.click(trigger());
   await waitFor(() => expect(selectedRow()).toBeVisible());
+  fireEvent.keyDown(search(), { key: "Escape" });
+  const remove = screen.getByRole("button", {
+    name: "Remove selected Grab from Actions",
+  });
+  remove.focus();
+  fireEvent.keyDown(remove, { key: "Enter" });
+  expect(remove).not.toBeInTheDocument();
+  await waitFor(() => expect(trigger()).toHaveFocus());
+  expect(trigger()).toHaveAttribute("aria-expanded", "false");
 });
