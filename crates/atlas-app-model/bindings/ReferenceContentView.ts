@@ -3,4 +3,4 @@ import type { PreparedFieldBodyView } from "./PreparedFieldBodyView";
 import type { PreparedReferenceView } from "./PreparedReferenceView";
 import type { PreparedSectionRenderingView } from "./PreparedSectionRenderingView";
 
-export type TraitContentView = { section_rendering?: PreparedSectionRenderingView, body: PreparedFieldBodyView, references: Array<PreparedReferenceView>, };
+export type ReferenceContentView = { section_rendering?: PreparedSectionRenderingView, body: PreparedFieldBodyView, references: Array<PreparedReferenceView>, };

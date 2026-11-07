@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
+import { Route as DefinitionsDefinitionKeyRouteImport } from './routes/definitions.$definitionKey'
 import { Route as EncountersIndexRouteImport } from './routes/encounters.index'
 import { Route as ListsIndexRouteImport } from './routes/lists.index'
 import { Route as ListsSlugRouteImport } from './routes/lists.$slug'
@@ -34,6 +35,12 @@ const SplatRoute = SplatRouteImport.update({
   path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DefinitionsDefinitionKeyRoute =
+  DefinitionsDefinitionKeyRouteImport.update({
+    id: '/definitions/$definitionKey',
+    path: '/definitions/$definitionKey',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const EncountersIndexRoute = EncountersIndexRouteImport.update({
   id: '/encounters/',
   path: '/encounters/',
@@ -99,6 +106,7 @@ const ListsSlugRecordsRecordKeyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
@@ -115,6 +123,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/records/$recordKey': typeof RecordsRecordKeyRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
   '/encounters': typeof EncountersIndexRoute
@@ -131,6 +140,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
+  '/definitions/$definitionKey': typeof DefinitionsDefinitionKeyRoute
   '/lists/$slug': typeof ListsSlugRouteWithChildren
   '/records/$recordKey': typeof RecordsRecordKeyRoute
   '/traits/$traitKey': typeof TraitsTraitKeyRoute
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
+    | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
     | '/traits/$traitKey'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$'
+    | '/definitions/$definitionKey'
     | '/records/$recordKey'
     | '/traits/$traitKey'
     | '/encounters'
@@ -180,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$'
+    | '/definitions/$definitionKey'
     | '/lists/$slug'
     | '/records/$recordKey'
     | '/traits/$traitKey'
@@ -197,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
+  DefinitionsDefinitionKeyRoute: typeof DefinitionsDefinitionKeyRoute
   ListsSlugRoute: typeof ListsSlugRouteWithChildren
   RecordsRecordKeyRoute: typeof RecordsRecordKeyRoute
   TraitsTraitKeyRoute: typeof TraitsTraitKeyRoute
@@ -222,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/$'
       fullPath: '/$'
       preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/definitions/$definitionKey': {
+      id: '/definitions/$definitionKey'
+      path: '/definitions/$definitionKey'
+      fullPath: '/definitions/$definitionKey'
+      preLoaderRoute: typeof DefinitionsDefinitionKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/encounters/': {
@@ -330,6 +351,7 @@ const ListsSlugRouteWithChildren = ListsSlugRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
+  DefinitionsDefinitionKeyRoute: DefinitionsDefinitionKeyRoute,
   ListsSlugRoute: ListsSlugRouteWithChildren,
   RecordsRecordKeyRoute: RecordsRecordKeyRoute,
   TraitsTraitKeyRoute: TraitsTraitKeyRoute,

@@ -9,25 +9,32 @@ import {
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { atlasRouter } from "../../app/router";
-import { getRecordDetail, getTraitDetail } from "../../api/atlasApi";
+import { getRecordDetail, getDefinitionDetail } from "../../api/atlasApi";
 import { detailFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
-import { ReferencePreviewProvider } from "./ReferencePreviewProvider";
+import { ReferenceHelpHost } from "./ReferenceHelpHost";
+import { ReferenceHelpLink } from "./ReferenceHelp";
 import { TraitBadge } from "./TraitBadge";
-import type { TraitDetailView } from "../../generated/atlas";
+import type { DefinitionDetailView } from "../../generated/atlas";
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
-  getTraitDetail: vi.fn(),
+  getDefinitionDetail: vi.fn(),
   getRecordDetail: vi.fn(),
 }));
 const target = detailFixture("rules:condition", "Condition").selected;
-const definition: TraitDetailView = {
-  trait_key: "trait:agile",
+const help = {
+  definition_key: "trait:agile",
+
+  destination: { kind: "definition" as const, key: "trait:agile" },
+};
+const definition: DefinitionDetailView = {
+  definition_key: "trait:agile",
   label: "Agile",
   artifact_generation: "test-generation",
-  catalogs: ["weaponTraits"],
-  source_revision: "pin",
-  indexing_locale: "en",
+  help,
+
+  notices: [],
+
   content: {
     body: {
       kind: "html",
@@ -37,10 +44,12 @@ const definition: TraitDetailView = {
     },
     references: [{ ordinal: 0, target, status: "resolved_record", url: null }],
   },
+  related_filters: [],
+  publications: [],
 };
 function setup() {
   history.replaceState(null, "", "/search");
-  vi.mocked(getTraitDetail).mockResolvedValue(definition);
+  vi.mocked(getDefinitionDetail).mockResolvedValue(definition);
   vi.mocked(getRecordDetail).mockResolvedValue(
     detailFixture("rules:condition", "Condition"),
   );
@@ -50,16 +59,17 @@ function setup() {
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
         <RouterTestContext>
-          <ReferencePreviewProvider>
+          <ReferenceHelpHost>
             <TraitBadge
               trait={{
                 kind: "trait",
                 value: "agile",
                 label: "Agile",
                 trait_key: "trait:agile",
+                help,
               }}
             />
-          </ReferencePreviewProvider>
+          </ReferenceHelpHost>
         </RouterTestContext>
       </QueryClientProvider>
     </ConfigProvider>,
@@ -114,7 +124,7 @@ it("restores record header trait openers and body scroll after Back", async () =
   setup();
   const record = detailFixture("rules:condition", "Condition");
   record.presentation.identity.traits = [
-    { kind: "trait", value: "agile", label: "Agile", trait_key: "trait:agile" },
+    { kind: "trait", value: "agile", label: "Agile", trait_key: "trait:agile", help },
   ];
   vi.mocked(getRecordDetail).mockResolvedValue(record);
   fireEvent.click(screen.getByRole("link", { name: "Agile" }));
@@ -150,4 +160,46 @@ it("closes a global reference on page departure while retaining it through profi
   expect(screen.getByRole("dialog", { name: "Agile" })).toBeInTheDocument();
   act(() => navigate("/lists"));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+it("honors explicit nested host actions while generation-only descendants retain the same scoped session", async () => {
+  history.replaceState(null, "", "/search");
+  vi.mocked(getRecordDetail).mockResolvedValue(
+    detailFixture("rules:condition", "Condition"),
+  );
+  render(
+    <RouterTestContext>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <ReferenceHelpHost recordActions={() => <button>Global action</button>}>
+            <ReferenceHelpHost
+              generation="test-generation"
+              recordActions={(record) => <button>Scoped action {record.title}</button>}
+            >
+              <ReferenceHelpHost generation="test-generation">
+                <ReferenceHelpLink
+                  help={{
+                    definition_key: null,
+
+                    destination: { kind: "record", navigation: target },
+                  }}
+                >
+                  Open scoped record
+                </ReferenceHelpLink>
+              </ReferenceHelpHost>
+            </ReferenceHelpHost>
+          </ReferenceHelpHost>
+        </ConfigProvider>
+      </QueryClientProvider>
+    </RouterTestContext>,
+  );
+  fireEvent.click(screen.getByRole("link", { name: "Open scoped record" }));
+  const drawer = await screen.findByRole("dialog", { name: "Condition" });
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(
+    within(drawer).getByRole("button", { name: "Scoped action Condition" }),
+  ).toBeVisible();
+  expect(within(drawer).queryByRole("button", { name: "Global action" })).toBeNull();
 });

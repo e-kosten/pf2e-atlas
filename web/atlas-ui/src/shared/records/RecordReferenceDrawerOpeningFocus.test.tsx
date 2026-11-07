@@ -27,12 +27,15 @@ function preview() {
   return render(
     <>
       <RecordReferenceDrawer
+        destination={{
+          kind: "record",
+          navigation: detailFixture("spells:fear", "Fear").selected,
+        }}
         anchor={null}
         detail={detailFixture("spells:fear", "Fear")}
         actions={<Button>Add to saved list</Button>}
         loading={false}
         onClose={vi.fn()}
-        onOpenFullPage={vi.fn()}
         onReference={vi.fn()}
       />
       <button>Another action</button>

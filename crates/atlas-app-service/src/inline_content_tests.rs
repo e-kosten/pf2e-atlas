@@ -121,6 +121,7 @@ fn inline_content_preserves_checked_embed_landing_in_body_and_section_sidecar() 
         },
     };
     let mut request = RecordDetailRequest {
+        expected_artifact_generation: None,
         spell_rank: None,
         record_key: "spells:hostSpell1000000".into(),
         owners: vec![],

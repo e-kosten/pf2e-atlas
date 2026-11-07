@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "recipe": "pc1-reference-subset/v1",
+  "permission_recipe": "pc1-functional-orc-cup-descriptive/v1",
+  "source_repository": "https://github.com/Pf2eToolsOrg/Pf2eTools",
+  "source_commit": "9fab2be36f4e8f036e868b67c055ebee68d2acc9",
+  "source_files": {
+    "data/languages.json": {
+      "sha256": "4f5d90cca213300fb84463dfdcc17ab5b8b109030f7689644a68ad97aae24804",
+      "url": "https://raw.githubusercontent.com/Pf2eToolsOrg/Pf2eTools/9fab2be36f4e8f036e868b67c055ebee68d2acc9/data/languages.json"
+    },
+    "data/groups.json": {
+      "sha256": "9d3e0dddeb64f026da05d4d9d3cfcddfd86953d799ae20515d223f39d913fc01",
+      "url": "https://raw.githubusercontent.com/Pf2eToolsOrg/Pf2eTools/9fab2be36f4e8f036e868b67c055ebee68d2acc9/data/groups.json"
+    }
+  },
+  "source_package": "pf2e",
+  "content_locale": "en",
+  "english_fallback": true,
+  "mapping_recipe": "pf2e-reference-tokens/v1",
+  "files": {
+    "community-use-policy.pdf": "0885c6015db8614f6ff4cd52450f675c86cd6928b312d96e4c677c457c30acfc",
+    "notices.json": "d644ea71c7b83a20d892cd8777966972988bfdb9ea559d6e865584f40a41a07d",
+    "orc-license.pdf": "3fffe0fe69781b7115bccbfa0f51489e0a073c211772f5ebcd84d34f88f19b29",
+    "payload.json": "bc8f65e1fc94daf162c5afdf192a4458ff53fb5ff5fbe70d12466a49b8b71b79"
+  },
+  "selection": {
+    "language_contexts": 24,
+    "weapon_groups": 4,
+    "wildsong_existing_record": "classfeatures:RiAGlnnp4S21BAG3"
+  }
+}

@@ -35,6 +35,7 @@ fn worker(effect: Value) -> crate::test_support::FixtureWorker {
 }
 fn request(key: &str, rank: Option<u8>) -> RecordDetailRequest {
     RecordDetailRequest {
+        expected_artifact_generation: None,
         record_key: key.into(),
         spell_rank: rank,
         owners: vec![],
@@ -109,6 +110,9 @@ fn battle_form_brackets_replace_each_other_and_preserve_base_dice_types_and_trai
         let jaws = p.strikes.iter().find(|s| s.id == "jaws").unwrap();
         assert_eq!(jaws.attack.value.value.as_deref(), Some(attack));
         assert_eq!(jaws.damage.value.value.as_deref(), Some(damage));
+        let damage_type = jaws.damage_type.value.as_ref().unwrap();
+        assert_eq!(damage_type.value, "piercing");
+        assert!(damage_type.help.is_none());
         assert!(jaws.traits.iter().any(|t| t.value == "unarmed"));
         assert_eq!(jaws.attack.base_value.is_some(), rank > 2);
         assert!(

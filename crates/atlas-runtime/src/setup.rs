@@ -253,7 +253,7 @@ pub(crate) fn ensure_setup(
             if options.force_rebuild {
                 "source rebuild explicitly requested"
             } else {
-                "source content differs from the indexed fingerprint"
+                "reference inputs or glossary preparation differ from the indexed publication"
             },
         )),
         Err(e) => checks.push(SetupAction::with_reason(

@@ -164,7 +164,6 @@ export function RecordIdentity({
   visibleOwnerRecordKey,
   referenceRecord,
   referenceTitle,
-  onReference,
   stacked = true,
   headingRef,
   headingId,
@@ -186,7 +185,6 @@ export function RecordIdentity({
   selection?: RecordNavigationView;
   referenceRecord?: RecordNavigationView;
   referenceTitle?: string;
-  onReference: RecordReferenceHandler;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
     parent: string,
@@ -195,13 +193,9 @@ export function RecordIdentity({
   ) => void;
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
-  const hasRarity = Boolean(identity?.rarity?.trim());
+  const hasRarity = Boolean(identity?.rarity?.label.trim());
   const secondaryActions = referenceRecord ? (
-    <RecordProvenanceAction
-      navigation={referenceRecord}
-      title={referenceTitle}
-      onReference={onReference}
-    />
+    <RecordProvenanceAction navigation={referenceRecord} title={referenceTitle} />
   ) : null;
   return (
     <DocumentIdentityHeader
@@ -287,7 +281,6 @@ export function RecordPresentationIdentity({
   root,
   selection,
   relationships = [],
-  onReference,
   onRankChange,
   onOwnerReturn,
   visibleOwnerRecordKey,
@@ -301,7 +294,6 @@ export function RecordPresentationIdentity({
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
   relationships?: RecordRelationshipView[];
-  onReference: RecordReferenceHandler;
   onRankChange?: (rank: number | undefined) => void;
   onOwnerReturn?: (
     parent: string,
@@ -369,7 +361,6 @@ export function RecordPresentationIdentity({
       root={root}
       selection={selection}
       onOwnerReturn={onOwnerReturn}
-      onReference={onReference}
       referenceTitle={provenance?.target_title}
       referenceRecord={provenance?.target ?? undefined}
     />
@@ -504,7 +495,6 @@ export function RecordPresentation({
           root={root}
           selection={selection}
           relationships={relationships}
-          onReference={onReference}
           onRankChange={onRankChange}
           onOwnerReturn={onOwnerReturn}
           visibleOwnerRecordKey={visibleOwnerRecordKey}

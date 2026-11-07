@@ -15,13 +15,44 @@ import {
   listDestination,
   listsDestination,
   encountersDestination,
+  definitionDestination,
 } from "./destinations";
+import { definitionReading } from "./urlState";
 
 const filter = encodeFilterUrl({
   kind: "in",
   clause_id: "example",
   field: "kind",
   values: ["spell"],
+});
+
+it("preserves property associations on ordinary record URLs", () => {
+  const route = recordDestination({
+    recordKey: "abilities:darkvision",
+    definitionKey: "sense:darkvision",
+  });
+  const router = createAtlasRouter();
+  expect(router.buildLocation(route).href).toBe(
+    "/records/abilities:darkvision?definition_key=sense%3Adarkvision",
+  );
+  expect(definitionReading(route.search)).toEqual({
+    definitionKey: "sense:darkvision",
+  });
+  expect(() =>
+    canonicalRouteSearch("record", {
+      definition_key: ["sense:darkvision", "sense:scent"],
+    }),
+  ).toThrow("conflicting");
+  expect(() => canonicalRouteSearch("record", { definition_key: " " })).toThrow(
+    "invalid definition context",
+  );
+  expect(
+    router.buildLocation(definitionDestination({ definitionKey: "language:chthonian" }))
+      .href,
+  ).toBe("/definitions/language:chthonian");
+  expect(
+    router.buildLocation(definitionDestination({ definitionKey: "trait:fire" })).href,
+  ).toBe("/traits/trait:fire");
 });
 
 it("normalizes committed values and defaults without dropping explicit ordered sort intent", () => {

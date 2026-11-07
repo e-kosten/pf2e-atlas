@@ -8,6 +8,7 @@ use axum::http::{Method, Request, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 use tower::ServiceExt;
+mod definitions;
 mod fixture;
 mod read_abandonment_tests;
 mod wire_conversion;
@@ -1226,7 +1227,7 @@ async fn similarity_inventory_route_rejects_unknown_seed_fields() {
 #[tokio::test]
 async fn content_roll_reference_roll_transport_checks_the_request_shape() {
     let fixture = Fixture::new();
-    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":"foundry-content/v23","ordinal":0,"authored_formula":"1d6[fire]"}))).await;
+    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":atlas_record::source_content::CONTENT_INTERPRETATION_VERSION,"ordinal":0,"authored_formula":"1d6[fire]"}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert!(body["components"].is_array());
     let (status, body) = fixture

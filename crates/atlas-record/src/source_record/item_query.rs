@@ -321,6 +321,13 @@ impl<'a> ItemSourceView<'a> {
         SourceFieldView::from(&s.system).and_then(|s| (&s.category).into())
     );
     family_field!(
+        armor_group,
+        &'a ArmorSystemSourceGroup,
+        [ArmorSource],
+        s,
+        SourceFieldView::from(&s.system).and_then(|s| (&s.group).into())
+    );
+    family_field!(
         armor_ac_bonus,
         &'a Number,
         [ArmorSource],

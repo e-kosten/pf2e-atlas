@@ -277,12 +277,15 @@ it("keeps the root selection default when a match opens an exact embedded docume
 
 it("inherits lazy contextual counts in Add pickers and leaves text searches count-free", async () => {
   vi.mocked(discoverFilterEditor).mockResolvedValue(
-    editorFixture([
-      {
-        ...fieldFixture("kind", "string", "Kind"),
-        choices: ["creature", "spell"],
-      },
-    ]),
+    editorFixture(
+      [
+        {
+          ...fieldFixture("kind", "string", "Kind"),
+          choices: ["creature", "spell"],
+        },
+      ],
+      { kind: { creature: "Creature", spell: "Spell" } },
+    ),
   );
   vi.mocked(discoverFilterCounts).mockResolvedValue({
     search_profile: "bge-base",
@@ -292,8 +295,8 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
       value: {
         field: "kind",
         options: [
-          { value: "creature", distinct_roots: 4n, selected: false },
-          { value: "spell", distinct_roots: 0n, selected: false },
+          { value: "creature", label: "Creature", distinct_roots: 4n, selected: false },
+          { value: "spell", label: "Spell", distinct_roots: 0n, selected: false },
         ],
         total_values: 2n,
         exhaustive: true,

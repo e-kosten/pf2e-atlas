@@ -1,3 +1,4 @@
+import { ReferenceValue, ReferenceValues } from "./ReferenceHelp";
 import type {
   FactView,
   NumberFactView,
@@ -32,7 +33,12 @@ function BaseDamage({ fact }: { fact: FactView<WeaponDamageReferenceView> }) {
       {dieKnown ? (
         <FactRow label="Base damage">
           <NumberFact fact={d.dice} />
-          {d.die.value} {factText(d.damage_type)}
+          {d.die.value}{" "}
+          {d.damage_type.state === "value" && d.damage_type.value ? (
+            <ReferenceValue value={d.damage_type.value} />
+          ) : (
+            factText(d.damage_type)
+          )}
           {d.modifier.state === "value" && d.modifier.value !== 0 && (
             <>
               {" "}
@@ -62,7 +68,12 @@ function BaseDamage({ fact }: { fact: FactView<WeaponDamageReferenceView> }) {
           {!["value", "null"].includes(d.persistent.value.faces.state) && (
             <> · Die faces {factText(d.persistent.value.faces)}</>
           )}{" "}
-          {factText(d.persistent.value.damage_type)}
+          {d.persistent.value.damage_type.state === "value" &&
+          d.persistent.value.damage_type.value ? (
+            <ReferenceValue value={d.persistent.value.damage_type.value} />
+          ) : (
+            factText(d.persistent.value.damage_type)
+          )}
         </FactRow>
       ) : (
         optional(d.persistent) && (
@@ -111,7 +122,7 @@ export function PhysicalDetails({ details }: { details: PhysicalDetailsView }) {
           </div>
           <div className="record-fact-list">
             <FactLine label="Category" fact={w.category} format={words} />
-            <FactLine label="Group" fact={w.group} format={words} />
+            <FactLine label="Group" fact={w.group} />
             {optional(w.range_increment) && (
               <FactLine
                 label="Range increment"
@@ -190,15 +201,18 @@ export function PhysicalDetails({ details }: { details: PhysicalDetailsView }) {
               <div className="record-fact-list">
                 <FactLine label="Die" fact={w.melee_usage.value.die} />
                 <FactLine label="Damage type" fact={w.melee_usage.value.damage_type} />
-                <FactLine
-                  label="Group"
-                  fact={w.melee_usage.value.group}
-                  format={words}
-                />
+                <FactLine label="Group" fact={w.melee_usage.value.group} />
                 <FactLine
                   label="Traits"
                   fact={w.melee_usage.value.traits}
-                  format={(v) => v.map(words).join(", ")}
+                  renderValue={(value) =>
+                    w.melee_usage.value?.traits.state === "value" &&
+                    w.melee_usage.value.traits.value?.length ? (
+                      <ReferenceValues values={w.melee_usage.value.traits.value} />
+                    ) : (
+                      value
+                    )
+                  }
                 />
               </div>
             </section>
@@ -232,7 +246,7 @@ export function PhysicalDetails({ details }: { details: PhysicalDetailsView }) {
           </div>
           <div className="record-fact-list">
             <FactLine label="Category" fact={a.category} format={words} />
-            <FactLine label="Group" fact={a.group} format={words} />
+            <FactLine label="Group" fact={a.group} />
             {nonzero(a.potency) && (
               <FactRow label="Potency rune">
                 <NumberFact fact={a.potency} signed />

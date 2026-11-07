@@ -76,6 +76,7 @@ fn input(profile_count: usize) -> IndexBuildInput {
             source_locations: vec![],
             source_revision: None,
             indexing_locale: "en".into(),
+            content_locale: None,
         });
         for model in &input.context.search_profiles {
             let mut x = vec![0.; model.dimensions];
@@ -137,10 +138,12 @@ fn input(profile_count: usize) -> IndexBuildInput {
     }
     input
 }
-fn main24(profile_count: usize) -> (tempfile::TempDir, Workspace, IndexBuildInput) {
+pub(super) fn main24(profile_count: usize) -> (tempfile::TempDir, Workspace, IndexBuildInput) {
     main24_input(input(profile_count))
 }
-fn main24_input(input: IndexBuildInput) -> (tempfile::TempDir, Workspace, IndexBuildInput) {
+pub(super) fn main24_input(
+    input: IndexBuildInput,
+) -> (tempfile::TempDir, Workspace, IndexBuildInput) {
     register_extensions().unwrap();
     let dir = tempfile::tempdir().unwrap();
     let workspace = Workspace::at(dir.path().join("main24.sqlite")).unwrap();

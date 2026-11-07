@@ -392,6 +392,7 @@ fn supported_source_detection_options_reach_strike_context_and_contextual_ac() {
                             condition_id: None,
                             artifact_generation: current.artifact_generation.clone().unwrap(),
                             selection: RecordDetailRequest {
+                                expected_artifact_generation: None,
                                 record_key: strike.navigation.record_key.clone(),
                                 owners: strike.navigation.owners.clone(),
                                 source_fingerprint: strike.navigation.source_fingerprint.clone(),

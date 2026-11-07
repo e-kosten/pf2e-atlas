@@ -4,18 +4,38 @@ use atlas_record::source_content::LocalizationResolver;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::{Component, Path, PathBuf},
 };
 #[derive(Debug)]
 pub(crate) struct LocalizationCatalog {
     entries: BTreeMap<String, String>,
+    selected_keys: BTreeSet<String>,
+    english_entries: BTreeMap<String, String>,
+    english_origins: BTreeMap<String, (String, String)>,
     pub(crate) locale: String,
     pub(crate) locale_sha256: String,
     pub(crate) english_sha256: String,
 }
 impl LocalizationCatalog {
+    pub(crate) fn english_source(&self, key: &str) -> Option<(&str, &str)> {
+        self.english_origins
+            .get(key)
+            .map(|(file, hash)| (file.as_str(), hash.as_str()))
+    }
+    pub(crate) fn english_value(&self, key: &str) -> Option<&str> {
+        self.english_entries.get(key).map(String::as_str)
+    }
+    pub(crate) fn content_locale(&self, key: &str) -> Option<&str> {
+        self.entries.contains_key(key).then(|| {
+            if self.selected_keys.contains(key) {
+                self.locale.as_str()
+            } else {
+                "en"
+            }
+        })
+    }
     pub(crate) fn load(
         source_root: &Path,
         locale: &str,
@@ -60,32 +80,48 @@ impl LocalizationCatalog {
             paths
         };
         let mut owned_catalog_bytes = BTreeMap::new();
-        let (mut entries, english_sha256) = load_catalogs(
+        let english = load_catalogs(
             source_root,
             &english_paths,
             capture,
             &mut owned_catalog_bytes,
         )?;
+        let mut entries = english.entries;
+        let english_sha256 = english.hash;
+        let english_origins = english.origins;
+        let english_entries = entries.clone();
+        let mut selected_keys = BTreeSet::new();
         let locale_sha256 = if locale == "en" {
             english_sha256.clone()
         } else {
-            let (selected, hash) = load_catalogs(
+            let selected = load_catalogs(
                 source_root,
                 &[source_root.join(format!("static/lang/{locale}.json"))],
                 capture,
                 &mut owned_catalog_bytes,
             )?;
-            entries.extend(selected);
-            hash
+            selected_keys.extend(selected.entries.keys().cloned());
+            entries.extend(selected.entries);
+            selected.hash
         };
         Ok(Self {
             entries,
+            selected_keys,
+            english_entries,
+            english_origins,
             locale: locale.into(),
             locale_sha256,
             english_sha256,
         })
     }
 }
+pub(crate) struct EnglishLocalization<'a>(pub(crate) &'a LocalizationCatalog);
+impl LocalizationResolver for EnglishLocalization<'_> {
+    fn localized_value(&self, key: &str) -> Option<&str> {
+        self.0.english_value(key)
+    }
+}
+
 impl LocalizationResolver for LocalizationCatalog {
     fn localized_value(&self, key: &str) -> Option<&str> {
         self.entries.get(key).map(String::as_str)
@@ -113,14 +149,21 @@ pub(crate) fn resolve_catalog_path(
     })
 }
 
+struct LoadedCatalogs {
+    entries: BTreeMap<String, String>,
+    hash: String,
+    origins: BTreeMap<String, (String, String)>,
+}
+
 fn load_catalogs(
     source_root: &Path,
     paths: &[PathBuf],
     capture: Option<&crate::source_fingerprint::SourceCapture>,
     owned: &mut BTreeMap<PathBuf, Vec<u8>>,
-) -> Result<(BTreeMap<String, String>, String), IngestError> {
+) -> Result<LoadedCatalogs, IngestError> {
     let mut hasher = Sha256::new();
     let mut entries = BTreeMap::new();
+    let mut origins = BTreeMap::new();
     for path in paths {
         if !owned.contains_key(path) {
             let bytes = match capture {
@@ -147,9 +190,21 @@ fn load_catalogs(
             hasher.update((input.len() as u64).to_le_bytes());
             hasher.update(input);
         }
-        flatten_entries(None, &value, &mut entries);
+        let mut selected = BTreeMap::new();
+        flatten_entries(None, &value, &mut selected);
+        let digest = format!("{:x}", Sha256::digest(bytes));
+        origins.extend(
+            selected
+                .keys()
+                .map(|key| (key.clone(), (relative.clone(), digest.clone()))),
+        );
+        entries.extend(selected);
     }
-    Ok((entries, format!("{:x}", hasher.finalize())))
+    Ok(LoadedCatalogs {
+        entries,
+        hash: format!("{:x}", hasher.finalize()),
+        origins,
+    })
 }
 fn flatten_entries(prefix: Option<&str>, value: &Value, entries: &mut BTreeMap<String, String>) {
     match value {

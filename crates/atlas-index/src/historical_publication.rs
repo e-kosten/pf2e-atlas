@@ -128,7 +128,20 @@ pub(crate) fn records(
             "INSERT INTO projection_allocations(record_id,seed,end_id,input_hash) VALUES(?,?,?,?)",
             params![id, seed, next, root_digest(source, label)?],
         )?;
-        for row in rows {
+        for mut row in rows {
+            // Released fixtures retain schema29's named projection shape; the
+            // current publication path never drops these current columns.
+            let fields: &[&str] = match row.table {
+                "actor_senses" => &["acuity_state", "acuity", "range_state", "range"],
+                "armor_projection" => &["armor_group_state", "armor_group"],
+                _ => &[],
+            };
+            for index in (0..row.columns.len()).rev() {
+                if fields.contains(&row.columns[index].as_str()) {
+                    row.columns.remove(index);
+                    row.values.remove(index);
+                }
+            }
             row.insert(c)?;
         }
         c.execute(

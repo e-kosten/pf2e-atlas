@@ -158,13 +158,89 @@ impl<'a> SourceNodeView<'a> {
     }
 }
 
-/// Explicit authored term references from exactly the same selected HTML fields as preparation.
+/// Explicit authored term references from the selected HTML fields, never expanded prose.
 pub fn trait_record_localization_references(
     record: &SourceBackedRecord,
     audience: ContentAudience,
 ) -> Vec<crate::source_content::TraitLocalizationReference> {
+    selected_localization_references(
+        record,
+        |_, _| true,
+        |locator, text, visibility| {
+            crate::source_content::trait_localization_references(
+                locator, text, audience, visibility,
+            )
+        },
+    )
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecordLocalizationOccurrence {
+    pub locator: SourceContentLocator,
+    pub occurrence: crate::source_content::AuthoredLocalizationOccurrence,
+}
+
+pub fn owned_action_localizations(
+    record: &SourceBackedRecord,
+    audience: ContentAudience,
+) -> Vec<RecordLocalizationOccurrence> {
+    selected_localization_references(
+        record,
+        |owners, source| {
+            !owners.is_empty()
+                && matches!(source, SourceNodeView::Item(item) if item.family() == "action")
+        },
+        |locator, text, visibility| {
+            crate::source_content::authored_localization_occurrences(text, audience, visibility)
+                .into_iter()
+                .map(|occurrence| RecordLocalizationOccurrence {
+                    locator: locator.clone(),
+                    occurrence,
+                })
+                .collect()
+        },
+    )
+}
+
+pub fn root_description_localizations(
+    record: &SourceBackedRecord,
+    audience: ContentAudience,
+) -> impl Iterator<Item = String> + '_ {
+    select_content(SourceNodeView::from(record.source()))
+        .into_iter()
+        .filter(|selection| {
+            selection.field == "/system/description/value"
+                && matches!(
+                    selection.format,
+                    SourceFieldView::Value(SourceContentFormat::Html)
+                )
+        })
+        .filter_map(move |selection| {
+            selection.text.value().map(|text| {
+                crate::source_content::authored_localization_occurrences(
+                    text,
+                    audience,
+                    selection
+                        .visibility
+                        .value()
+                        .unwrap_or(ContentVisibilityRule::None),
+                )
+            })
+        })
+        .flatten()
+        .map(|occurrence| occurrence.localization_key)
+}
+
+fn selected_localization_references<T>(
+    record: &SourceBackedRecord,
+    eligible: impl Fn(&[atlas_domain::OwnedContentLocator], SourceNodeView<'_>) -> bool,
+    mut collect: impl FnMut(SourceContentLocator, &str, ContentVisibilityRule) -> Vec<T>,
+) -> Vec<T> {
     let mut output = Vec::new();
     visit_source_nodes(record.source(), |owners, source| {
+        if !eligible(owners, source) {
+            return;
+        }
         for selection in select_content(source) {
             if !matches!(
                 selection.format,
@@ -184,9 +260,7 @@ pub fn trait_record_localization_references(
                 .visibility
                 .value()
                 .unwrap_or(ContentVisibilityRule::None);
-            output.extend(crate::source_content::trait_localization_references(
-                locator, text, audience, visibility,
-            ));
+            output.extend(collect(locator, text, visibility));
         }
     });
     output

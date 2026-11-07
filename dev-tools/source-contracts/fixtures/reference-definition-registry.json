@@ -1,0 +1,97 @@
+{
+  "schema": "reference-definition-registry/v1",
+  "source_package": "pf2e",
+  "sense_mappings": [
+    {
+      "identifier": "darkvision",
+      "record_key": "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.Darkvision"
+    },
+    {
+      "identifier": "greater-darkvision",
+      "record_key": "bestiary-ability-glossary-srd:4Ho2xMPEC05aSxzr",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.GreaterDarkvision"
+    },
+    {
+      "identifier": "lifesense",
+      "record_key": "bestiary-ability-glossary-srd:sebk9XseMCRkDqRg",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.Lifesense"
+    },
+    {
+      "identifier": "low-light-vision",
+      "record_key": "bestiary-ability-glossary-srd:fFu2sZz4KB01fVRc",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.LowLightVision"
+    },
+    {
+      "identifier": "scent",
+      "record_key": "bestiary-ability-glossary-srd:rqfnQ5VHT5hxm25r",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.Scent"
+    },
+    {
+      "identifier": "thoughtsense",
+      "record_key": "bestiary-ability-glossary-srd:JcaIJLGGmst79f1Y",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.Thoughtsense"
+    },
+    {
+      "identifier": "tremorsense",
+      "record_key": "bestiary-ability-glossary-srd:j2wsK6IsW5yMW1jW",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.Tremorsense"
+    },
+    {
+      "identifier": "wavesense",
+      "record_key": "bestiary-ability-glossary-srd:VdSMQ6yRZ3YXNXHL",
+      "expected_family": "action",
+      "baseline_localization_key": "PF2E.NPC.Abilities.Glossary.Wavesense"
+    }
+  ],
+  "standalone_labels": {
+    "Hover": "Hover",
+    "NoBreath": "No Breath",
+    "SneakAttack": "Sneak Attack"
+  },
+  "pf2e_weapon_groups": [
+    "axe",
+    "bomb",
+    "bow",
+    "brawling",
+    "club",
+    "crossbow",
+    "dart",
+    "firearm",
+    "flail",
+    "hammer",
+    "knife",
+    "pick",
+    "polearm",
+    "shield",
+    "sling",
+    "spear",
+    "sword"
+  ],
+  "wildsong": {
+    "record_key": "classfeatures:RiAGlnnp4S21BAG3",
+    "expected_family": "feat",
+    "source_file": "packs/pf2e/class-features/wildsong.json"
+  },
+  "npc_mappings": [
+    {
+      "localization_key": "PF2E.NPC.Abilities.Glossary.GolemAntimagic",
+      "record_key": "bestiary-family-ability-glossary:r34QDwKiWZoVymJa",
+      "expected_family": "action",
+      "source_file": "packs/pf2e/bestiary-family-ability-glossary/golem/golem-golem-antimagic.json"
+    },
+    {
+      "localization_key": "PF2E.NPC.Abilities.Glossary.WindUp",
+      "record_key": "bestiary-family-ability-glossary:xS8ybzuqPSi3Jb8k",
+      "expected_family": "action",
+      "source_file": "packs/pf2e/bestiary-family-ability-glossary/clockwork-creature/clockwork-creature-wind-up.json"
+    }
+  ]
+}

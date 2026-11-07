@@ -7,6 +7,7 @@ import {
 import { encodeReadingAddress } from "./readingUrl";
 import {
   readingView,
+  definitionReading,
   selectedNavigation,
   stringifySearchParams,
   validateReadingSearch,
@@ -20,6 +21,7 @@ export type RouteSearchKind =
   | "list_record"
   | "record"
   | "trait"
+  | "definition"
   | "lists"
   | "encounters"
   | "empty";
@@ -98,6 +100,8 @@ function readingSearch(search: AtlasSearchParams): AtlasSearchParams {
     if (focus !== undefined) result.focus = focus;
   }
   const view = readingView(search);
+  const definition = definitionReading(search);
+  if (definition.definitionKey) result.definition_key = definition.definitionKey;
   if (view.view === "explore") result.record_view = "explore";
   if (view.tab !== "incoming") result.record_tab = view.tab;
   return result;

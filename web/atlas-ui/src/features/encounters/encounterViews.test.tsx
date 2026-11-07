@@ -1156,8 +1156,8 @@ describe("encounter views", () => {
     expect(within(activitiesSection).getByText("Claw")).toBeInTheDocument();
     expect(
       within(activitiesSection).getByRole("button", { name: "Roll Claw damage" }),
-    ).toHaveTextContent("1d6+2");
-    expect(within(activitiesSection).getByText(/slashing/)).toBeInTheDocument();
+    ).toHaveTextContent("1d6+2 Supplied cutting label");
+    expect(within(activitiesSection).queryByText(/\[object Object\]/)).toBeNull();
   });
 
   it("renders manual PC runtime state without inferred speed rows", async () => {
@@ -3552,7 +3552,10 @@ function participantPresentationFixture({
               {
                 id: "main",
                 formula: knownFact("1d6+2"),
-                damage_type: knownFact("slashing"),
+                damage_type: knownFact({
+                  value: "slashing",
+                  label: "Supplied cutting label",
+                }),
                 kinds: knownFact(["damage"]),
                 category: unavailableFact("not_applicable"),
                 materials: knownFact([]),

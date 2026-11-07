@@ -1426,6 +1426,32 @@ export async function updateSavedListItemNote(
   );
 }
 
+export async function getDefinitionDetail(
+  request: import("../generated/atlas").DefinitionDetailRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").DefinitionDetailView> {
+  const result = await atlasFetch<
+    Wire<import("../generated/atlas").DefinitionDetailView>
+  >("/api/definitions/detail", {
+    intent: "read",
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
+  if (result.definition_key !== request.definition_key)
+    throw new AtlasApiError(200, "Definition response identity mismatch");
+  return {
+    ...result,
+    content:
+      result.content == null
+        ? result.content
+        : {
+            ...result.content,
+            body: convertPreparedFieldBody(result.content.body),
+          },
+  };
+}
+
 export async function getTraitDetail(
   request: import("../generated/atlas").TraitDetailRequest,
   signal?: AbortSignal,

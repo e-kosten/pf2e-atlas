@@ -64,7 +64,7 @@ pub(super) fn apply_forms(
                 let mut changes = changes(view, &current);
                 // Identity traits live outside the family body; compare the checked sources.
                 let traits = |source: &SpellSource| {
-                    identifiers(
+                    reference_identifiers(
                         SourceFieldView::from(&source.system)
                             .and_then(|s| (&s.traits).into())
                             .and_then(|t| (&t.value).into()),

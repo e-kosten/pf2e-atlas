@@ -279,7 +279,7 @@ it("converts nested kit adjustments through physical and recursive item branches
         },
         quantity: numeric(1),
         material: unavailable(),
-        size: known("Medium"),
+        size: known({ value: "med", label: "Medium" }),
         consumable: null,
         usage: known("worn"),
         bulk: numeric(0.1),

@@ -31,7 +31,8 @@ mod text_projection;
 
 pub use literal_damage::{LiteralDamageComponent, LiteralDamageKind, literal_damage};
 pub use marker_validation::{
-    PreparedMarkerError, validate_prepared_markers, validate_prepared_reference_bindings,
+    PreparedMarkerError, validate_prepared_definition_reference_bindings,
+    validate_prepared_markers, validate_prepared_reference_bindings,
     validate_prepared_trait_reference_bindings,
 };
 pub use model::{
@@ -39,16 +40,19 @@ pub use model::{
     ContentInteractionKind, ContentInteractionLabel, ContentInterpretationDiagnostic,
     ContentReferenceKind, ContentReferenceLabel, ContentReferenceLookup,
     ContentReferenceOccurrence, ContentReferenceResolution, ContentReferenceResolver,
-    ContentReferenceTarget, ContentVisibilityRule, PreparedSourceContent, PreparedTraitDefinition,
-    ResolvedContentReference, SourceContentLocator,
+    ContentReferenceTarget, ContentVisibilityRule, PreparedReferenceDefinition,
+    PreparedSourceContent, ResolvedContentReference, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub use parser::LocalizationResolver;
-pub use preparation::{is_safe_content_url, prepare_source_content, prepare_trait_definition};
+pub use preparation::{is_safe_content_url, prepare_reference_definition, prepare_source_content};
 pub use text_projection::plain_text as prepared_plain_text;
 
-mod trait_references;
-pub use trait_references::{TraitLocalizationReference, trait_localization_references};
+mod definition_references;
+pub use definition_references::{
+    AuthoredLocalizationOccurrence, TraitLocalizationReference, authored_localization_occurrences,
+    trait_localization_references,
+};
 
 mod inclusion;
 pub use inclusion::{
@@ -58,5 +62,6 @@ pub use inclusion::{
 
 mod reading_metadata;
 pub use reading_metadata::{
-    RoutineHeader, check_traits, routine_header, standalone_labeled_paragraph,
+    PREPARED_IMAGE_TAG_PREFIX, RoutineHeader, check_traits, has_prepared_reading_content,
+    routine_header, standalone_labeled_paragraph,
 };

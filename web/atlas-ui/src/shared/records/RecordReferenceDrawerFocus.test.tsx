@@ -14,7 +14,10 @@ it("focuses the reference heading on open, preserves action focus during updates
     detail: detailFixture("spells:fear", "Fear"),
     actions: <Button>Add to saved list</Button>,
     onClose,
-    onOpenFullPage: vi.fn(),
+    destination: {
+      kind: "record" as const,
+      navigation: detailFixture("spells:fear", "Fear").selected,
+    },
     onReference: vi.fn(),
   };
   const { rerender, unmount } = render(

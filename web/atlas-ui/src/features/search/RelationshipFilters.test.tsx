@@ -1,10 +1,13 @@
 import { ConfigProvider } from "antd";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { ReferencePreviewContext } from "../../shared/records/ReferencePreviewContext";
 import { LinkFilterControls } from "../../shared/filters/LinkFilterControls";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
+const reference = vi.hoisted(() => ({ open: vi.fn() }));
+vi.mock("../../shared/records/ReferenceHelp", () => ({
+  useReferenceRecordNavigation: () => reference.open,
+}));
 const leaf = linkLeaf(
   {
     direction: "incoming",
@@ -25,16 +28,15 @@ function setup(
 ) {
   const edit = vi.fn().mockReturnValue(null),
     remove = vi.fn();
+  reference.open = openReference;
   const view = render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <ReferencePreviewContext value={{ open: openReference, openTrait: vi.fn() }}>
-        <LinkFilterControls
-          filter={filter}
-          title={() => "Leather Armor"}
-          onEdit={edit}
-          onRemove={remove}
-        />
-      </ReferencePreviewContext>
+      <LinkFilterControls
+        filter={filter}
+        title={() => "Leather Armor"}
+        onEdit={edit}
+        onRemove={remove}
+      />
     </ConfigProvider>,
   );
   return { edit, remove, view };

@@ -54,13 +54,20 @@ pub(super) fn encounter_detail_view(
             },
         );
     }
-    Ok(encounter_detail_from_records(
+    let mut view = encounter_detail_from_records(
         encounter,
         participants,
         artifact_generation,
         records_by_key,
         presentations,
-    ))
+    );
+    crate::presentation::reference_help::annotate_many(
+        view.participants
+            .iter_mut()
+            .filter_map(|participant| participant.presentation.as_mut()),
+        retrieval,
+    )?;
+    Ok(view)
 }
 
 pub(super) fn encounter_detail_from_records(

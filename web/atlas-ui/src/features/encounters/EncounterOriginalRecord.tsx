@@ -1,8 +1,4 @@
-import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Button } from "antd";
 import { BookOpen } from "lucide-react";
@@ -54,31 +50,27 @@ export function EncounterOriginalRecord({
           }}
         />
       )}
-      {preview.active && (
+      {preview.destination && (
         <RecordReferenceDrawer
-          trait={preview.trait}
-          onTraitReference={preview.openTrait}
+          destination={preview.destination}
+          definition={preview.definition}
+          help={preview.help}
+          onHelp={preview.openHelp}
           anchor={preview.anchor}
           detail={preview.detail}
           loading={preview.loading}
           error={preview.error}
           onRetry={preview.retry}
+          onReload={preview.reload}
+          reloadLabel={preview.reloadLabel}
+          retryLabel={preview.retryLabel}
           onClose={preview.close}
+          onNavigateAway={preview.closeForNavigation}
           onReference={preview.open}
           onRankChange={preview.changeRank}
           readingHistory={preview.readingHistory}
           requestedNavigation={preview.selection}
           landing={preview.landing}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
         />
       )}
     </>

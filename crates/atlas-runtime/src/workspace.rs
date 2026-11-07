@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 32;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 33;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -220,6 +220,16 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_index::COMPACT_REMASTER_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 33,
+        name: "reference-entries",
+        sql: atlas_index::REFERENCE_ENTRIES_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "reference-entries/v1",
+            apply: atlas_index::backfill_reference_entries,
+        }),
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -287,6 +297,10 @@ mod native_storage_tests;
 #[cfg(test)]
 #[path = "historical_similarity_tests.rs"]
 mod historical_similarity_tests;
+
+#[cfg(test)]
+#[path = "reference_upgrade_tests.rs"]
+mod reference_upgrade_tests;
 
 #[cfg(test)]
 mod tests {

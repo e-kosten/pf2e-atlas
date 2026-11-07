@@ -10,17 +10,17 @@ pub(super) fn details(item: ItemSourceView<'_>) -> Option<PhysicalDetailsView> {
             let runes = s.and_then(|s| (&s.runes).into());
             PhysicalDetailsView::Weapon(Box::new(WeaponReferenceView {
                 category: identifier(item.weapon_category()),
-                group: identifier(item.weapon_group()),
+                group: reference_identifier(item.weapon_group()),
                 damage: fact(damage.map(|d| WeaponDamageReferenceView {
                     dice: number((&d.dice).into()),
                     die: identifier((&d.die).into()),
-                    damage_type: identifier((&d.damage_type).into()),
+                    damage_type: reference_identifier((&d.damage_type).into()),
                     modifier: number((&d.modifier).into()),
                     persistent: fact(SourceFieldView::from(&d.persistent).map(|p| {
                         WeaponPersistentReferenceView {
                             number: number((&p.number).into()),
                             faces: number((&p.faces).into()),
-                            damage_type: identifier((&p.r#type).into()),
+                            damage_type: reference_identifier((&p.r#type).into()),
                         }
                     })),
                 })),
@@ -63,9 +63,9 @@ pub(super) fn details(item: ItemSourceView<'_>) -> Option<PhysicalDetailsView> {
                     let d = SourceFieldView::from(&m.damage);
                     WeaponMeleeReferenceView {
                         die: identifier(d.and_then(|d| (&d.die).into())),
-                        damage_type: identifier(d.and_then(|d| (&d.r#type).into())),
-                        group: identifier((&m.group).into()),
-                        traits: identifiers((&m.traits).into()),
+                        damage_type: reference_identifier(d.and_then(|d| (&d.r#type).into())),
+                        group: reference_identifier((&m.group).into()),
+                        traits: reference_identifiers((&m.traits).into()),
                     }
                 })),
             }))
@@ -75,7 +75,7 @@ pub(super) fn details(item: ItemSourceView<'_>) -> Option<PhysicalDetailsView> {
             let runes = s.and_then(|s| (&s.runes).into());
             PhysicalDetailsView::Armor(Box::new(ArmorReferenceView {
                 category: identifier(item.armor_category()),
-                group: identifier(s.and_then(|s| (&s.group).into())),
+                group: reference_identifier(s.and_then(|s| (&s.group).into())),
                 ac_bonus: number(item.armor_ac_bonus()),
                 dex_cap: number(item.armor_dex_cap()),
                 check_penalty: number(s.and_then(|s| (&s.check_penalty).into())),

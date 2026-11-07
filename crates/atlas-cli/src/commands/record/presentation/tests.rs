@@ -303,6 +303,8 @@ fn summary(title: &str, family: &str) -> RecordSummaryView {
         level_basis: None,
         rarity: Some("uncommon".into()),
         traits: vec![RecordBadgeView {
+            help: None,
+
             trait_key: Some("trait:fire".into()),
             kind: "trait".into(),
             label: "Fire".into(),
@@ -586,6 +588,8 @@ fn actor() -> ActorPresentationView {
         },
         abilities: known(vec![]),
         skills: known(vec![ActorSkillView {
+            help: None,
+
             key: "athletics".into(),
             label: "Athletics".into(),
             modifier: numeric(14),
@@ -618,6 +622,8 @@ fn actor() -> ActorPresentationView {
         languages: known(vec!["common".into()]),
         language_details: missing(),
         activities: known(vec![ActorActivityView {
+            help: None,
+
             spell_effect: None,
             ability_group: None,
             reading_order: 0,
@@ -780,6 +786,8 @@ fn hazard_uses_known_zero_and_dedicated_detection_structure_facts() {
 fn conditional_skill_summary_is_compact_and_full_detail_retains_the_predicate() {
     let mut actor = actor();
     actor.skills = known(vec![ActorSkillView {
+        help: None,
+
         key: "stealth".into(),
         label: "Stealth".into(),
         modifier: numeric(12),

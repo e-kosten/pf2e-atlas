@@ -13,7 +13,7 @@ pub struct ReferenceGrantView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct AttributeChoiceView {
     pub free_choice: bool,
-    pub choices: FactView<Vec<String>>,
+    pub choices: FactView<Vec<crate::ReferenceValueView>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct HeritageReferenceView {
@@ -23,15 +23,15 @@ pub struct HeritageReferenceView {
 pub struct AncestryReferenceView {
     pub hit_points: NumberFactView,
     pub speed: NumberFactView,
-    pub size: FactView<String>,
-    pub vision: FactView<String>,
+    pub size: FactView<crate::ReferenceValueView>,
+    pub vision: FactView<crate::ReferenceValueView>,
     pub hands: NumberFactView,
     pub reach: NumberFactView,
     pub boosts: FactView<Vec<AttributeChoiceView>>,
     pub flaws: FactView<Vec<AttributeChoiceView>>,
-    pub languages: FactView<Vec<String>>,
+    pub languages: FactView<Vec<crate::ReferenceValueView>>,
     pub language_details: FactView<String>,
-    pub additional_languages: FactView<Vec<String>>,
+    pub additional_languages: FactView<Vec<crate::ReferenceValueView>>,
     pub additional_language_count: NumberFactView,
     pub additional_language_details: FactView<String>,
     pub grants: FactView<Vec<ReferenceGrantView>>,
@@ -39,7 +39,7 @@ pub struct AncestryReferenceView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ClassReferenceView {
     pub hit_points: NumberFactView,
-    pub key_attributes: FactView<Vec<String>>,
+    pub key_attributes: FactView<Vec<crate::ReferenceValueView>>,
     pub perception: FactView<String>,
     pub fortitude: FactView<String>,
     pub reflex: FactView<String>,
@@ -55,7 +55,7 @@ pub struct ClassReferenceView {
     pub medium_armor: FactView<String>,
     pub heavy_armor: FactView<String>,
     pub spellcasting: FactView<String>,
-    pub trained_skills: FactView<Vec<String>>,
+    pub trained_skills: FactView<Vec<crate::ReferenceValueView>>,
     pub additional_skills: NumberFactView,
     pub grants: FactView<Vec<ReferenceGrantView>>,
     pub ancestry_feat_levels: FactView<Vec<u8>>,
@@ -71,12 +71,12 @@ pub struct DeitySanctificationView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DeityReferenceView {
-    pub attributes: FactView<Vec<String>>,
+    pub attributes: FactView<Vec<crate::ReferenceValueView>>,
     pub fonts: FactView<Vec<String>>,
     pub sanctification: FactView<DeitySanctificationView>,
-    pub skills: FactView<Vec<String>>,
-    pub primary_domains: FactView<Vec<String>>,
-    pub alternate_domains: FactView<Vec<String>>,
+    pub skills: FactView<Vec<crate::ReferenceValueView>>,
+    pub primary_domains: FactView<Vec<crate::ReferenceValueView>>,
+    pub alternate_domains: FactView<Vec<crate::ReferenceValueView>>,
     pub favored_weapons: FactView<Vec<String>>,
     pub spells: FactView<Vec<ReferenceGrantView>>,
 }
@@ -99,7 +99,7 @@ pub struct VehicleReferenceView {
     pub length: NumberFactView,
     pub width: NumberFactView,
     pub height: NumberFactView,
-    pub size: FactView<String>,
+    pub size: FactView<crate::ReferenceValueView>,
     pub collision_damage: FactView<String>,
     pub collision_dc: NumberFactView,
     pub fortitude: NumberFactView,

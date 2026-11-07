@@ -2,5 +2,6 @@
 import type { FilterEditorGroupView } from "./FilterEditorGroupView";
 import type { QueryLimits } from "./QueryLimits";
 import type { RelationshipClausePresentationView } from "./RelationshipClausePresentationView";
+import type { SenseQualifierView } from "./SenseQualifierView";
 
-export type FilterEditorView = { artifact_generation: string, relationship_clauses: Array<RelationshipClausePresentationView>, catalog_version: number, limits: QueryLimits, groups: Array<FilterEditorGroupView>, common_field_ids: Array<string>, };
+export type FilterEditorView = { artifact_generation: string, relationship_clauses: Array<RelationshipClausePresentationView>, catalog_version: number, limits: QueryLimits, groups: Array<FilterEditorGroupView>, common_field_ids: Array<string>, sense_qualifiers?: Array<SenseQualifierView>, };

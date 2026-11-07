@@ -35,6 +35,14 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
         ),
         record("browser-spells", "Item", lantern_ward()),
         record(
+            "browser-equipment",
+            "Item",
+            json!({
+                "_id":"sword00000000001", "type":"weapon", "name":"Glossary Sword",
+                "system":{"group":"sword","category":"martial","size":"lg","traits":{"value":[],"rarity":"uncommon"},"description":{"value":"<p>A synthetic sword for glossary presentation checks.</p>"}}
+            }),
+        ),
+        record(
             "browser-hazards",
             "Actor",
             json!({
@@ -144,10 +152,10 @@ fn sentinel() -> Value {
 
 fn actor_system(level: i32, notes: String) -> Value {
     json!({
-        "details":{"level":{"value":level},"publicNotes":notes,"languages":{"value":["common","draconic"],"details":"Understands the watchtower's lantern signals."}},
+        "details":{"level":{"value":level},"publicNotes":notes,"languages":{"value":["common","chthonian"],"details":"Understands the watchtower's lantern signals."}},
         "attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60,"details":"A steady blue light burns behind the breastplate."},"speed":{"value":25,"otherSpeeds":[]}},
         "saves":{"fortitude":{"value":15},"reflex":{"value":12},"will":{"value":12}},
-        "perception":{"mod":13,"details":"Recognizes familiar lantern patterns."},
+        "perception":{"mod":13,"details":"Recognizes familiar lantern patterns.","senses":[{"type":"darkvision","acuity":"precise","range":60}]},
         "abilities":{"str":{"mod":4},"dex":{"mod":3},"con":{"mod":2},"int":{"mod":1},"wis":{"mod":2},"cha":{"mod":0}},
         "skills":{"athletics":{"base":12},"stealth":{"base":10},"arcana":{"base":9}},
         "traits":{"value":["construct","clockwork","fire","earth","magical","mindless"],"rarity":"uncommon","size":{"value":"med"}}

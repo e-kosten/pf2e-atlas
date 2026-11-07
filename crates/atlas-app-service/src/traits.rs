@@ -26,44 +26,23 @@ impl AtlasAppService {
                     artifact_generation: generation,
                     trait_key: definition.key.to_string(),
                     label: definition.label,
-                    content: definition.prepared.map(|prepared| {
-                        atlas_app_model::TraitContentView {
-                            section_rendering: Some(atlas_app_model::PreparedSectionRenderingView {
-                                html: atlas_record::source_record::single_section_annotated_prepared_html(&prepared.html),
-                                selection_version: "trait-definition-centroid/v1".into(),
-                            }),
-                            body: atlas_app_model::PreparedFieldBodyView::Html {
-                                inclusions: vec![],
-                                html: prepared.html,
-                                controls: crate::prepared_content::content_controls(
-                                    &prepared.interactions,
-                                    None,
-                                    retrieval,
-                                ),
-                            },
-                            references: prepared
-                                .references
-                                .into_iter()
-                                .filter(|reference| reference.visible)
-                                .map(|reference| {
-                                    let (status, target, url) =
-                                        crate::projection::content_reference_destination(
-                                            reference.resolution,
-                                            retrieval.source_fingerprint(),
-                                        );
-                                    atlas_app_model::PreparedReferenceView {
-                                        self_action_reference: None,
-                                        ordinal: reference.ordinal,
-                                        status: status.into(),
-                                        target,
-                                        url,
-                                        effect_label: None,
-                                        contextual_target: None,
-                                    }
-                                })
-                                .collect(),
-                        }
-                    }),
+                    content: definition
+                        .prepared
+                        .filter(|prepared| {
+                            atlas_record::source_content::has_prepared_reading_content(
+                                &prepared.text,
+                                &prepared.html,
+                                prepared.interactions.len(),
+                            )
+                        })
+                        .map(|prepared| {
+                            crate::prepared_content::reference_body(
+                                prepared,
+                                retrieval,
+                                "trait-definition-centroid/v1",
+                            )
+                        })
+                        .transpose()?,
                     catalogs: definition.catalogs,
                     source_revision: definition.source_revision,
                     indexing_locale: Some(definition.indexing_locale),

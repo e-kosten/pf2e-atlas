@@ -286,6 +286,10 @@ fn pinned_corpus_item_and_common_projection_oracle() {
         .unwrap();
     db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
         .unwrap();
+    db.execute_batch(crate::TRAIT_SCHEMA_SQL).unwrap();
+    db.execute_batch(crate::REFERENCE_ENTRIES_SCHEMA_SQL)
+        .unwrap();
+    crate::backfill_reference_entries(&db).unwrap();
     let mut families = BTreeMap::new();
     let mut counts = [0; 2];
     let mut roots = 0;

@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 9;
+pub const QUERY_CAPABILITY_VERSION: u32 = 10;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -583,6 +583,19 @@ fn build() -> Result<Vec<Descriptor>, String> {
         choices::<Language>()?,
         None,
     ));
+    fields.push(field(
+        "actions",
+        Set,
+        &["npc"],
+        set(
+            family(super::actions::PARENT, "items"),
+            super::actions::MEMBERS,
+            "record_id",
+            None,
+        ),
+        Vec::new(),
+        None,
+    ));
     for (path, col, table, owner, families, kind) in [
         (
             "movement.speeds",
@@ -877,6 +890,15 @@ fn build() -> Result<Vec<Descriptor>, String> {
             &["weapon"][..],
             Number,
             Vec::new(),
+            None,
+        ),
+        (
+            "armor.group",
+            "armor_projection",
+            "armor_group",
+            &["armor"][..],
+            String,
+            choices::<ArmorSystemSourceGroup>()?,
             None,
         ),
         (
@@ -1221,6 +1243,14 @@ fn build() -> Result<Vec<Descriptor>, String> {
             None,
         ),
         (
+            "senses",
+            "acuity",
+            String,
+            choices::<FeatSystemSourceSubfeaturesSourceFromSchemaSensesPartialBloodsenseSourceFromSchemaAcuity>()?,
+            None,
+        ),
+        ("senses", "range", Number, Vec::new(), Some("feet")),
+        (
             "defenses.immunities",
             "type",
             String,
@@ -1256,7 +1286,12 @@ fn build() -> Result<Vec<Descriptor>, String> {
             ty,
             &[],
             Binding::Member {
-                column: if path == "type" { "type" } else { "value" },
+                column: match path {
+                    "type" => "type",
+                    "acuity" => "acuity",
+                    "range" => "range",
+                    _ => "value",
+                },
             },
             values,
             unit,

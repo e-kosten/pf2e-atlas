@@ -42,6 +42,7 @@ pub(crate) fn authored_actor(
     let mut abilities = vec![];
     a.visit_abilities(|key, v| {
         abilities.push(ActorModifierView {
+            help: None,
             key: key.into(),
             label: key.to_uppercase(),
             modifier: number(v),
@@ -53,6 +54,7 @@ pub(crate) fn authored_actor(
             return;
         }
         skills.push(ActorSkillView {
+            help: None,
             key: key.into(),
             label: key.into(),
             modifier: number(v.and_then(|s| (&s.base).into())),
@@ -92,7 +94,7 @@ pub(crate) fn authored_actor(
                 fact(p.and_then(|p| (&p.senses).into()).map(|s| {
                     s.iter()
                         .map(|s| ActorSenseView {
-                            sense: identifier((&s.r#type).into()),
+                            sense: reference_identifier((&s.r#type).into()),
                             acuity: identifier((&s.acuity).into()),
                             range_feet: number((&s.range).into()),
                         })
@@ -105,7 +107,7 @@ pub(crate) fn authored_actor(
         _ => (unavailable(), unavailable(), unavailable()),
     };
     ActorPresentationView {
-        size: fact(a.size().map(super::facts::size_label)),
+        size: reference_size(a.size()),
         hardness: number(a.creature_hardness()),
         ritual_difficulty_class: number(a.ritual_difficulty_class()),
         defense_notes: ActorDefenseNotesView {
@@ -137,7 +139,7 @@ pub(crate) fn authored_actor(
         perception_details,
         languages: fact(
             a.languages()
-                .map(|languages| languages.iter().filter_map(token).collect()),
+                .map(|languages| languages.iter().filter_map(token).map(Into::into).collect()),
         ),
         language_details,
         activities: authored_activities(record, node, fingerprint),
@@ -281,7 +283,7 @@ pub(super) fn iwr(
                     ),
                 };
                 IwrEntryView {
-                    damage_type: fact(
+                    damage_type: reference_value(fact(
                         e.iwr_type()
                             .and_then(|t| match t {
                                 ActorIwrType::Immunity(t) => SourceFieldView::Value(t).map(token),
@@ -296,7 +298,7 @@ pub(super) fn iwr(
                                     },
                                 )
                             }),
-                    ),
+                    )),
                     magnitude: number(e.value()),
                     exceptions,
                     double_against,
@@ -398,7 +400,7 @@ pub(super) fn authored_activity(
                 .map(|(id, c)| DamageComponentView {
                     id: id.clone(),
                     formula: text((&c.damage).into()),
-                    damage_type: identifier((&c.damage_type).into()),
+                    damage_type: reference_identifier((&c.damage_type).into()),
                     kinds: FactView {
                         state: QueryFieldState::Value,
                         value: Some(vec!["damage".into()]),
@@ -450,6 +452,7 @@ pub(super) fn authored_activity(
         ),
     };
     let mut activity = ActorActivityView {
+        help: None,
         spell_effect: None,
         reading_order: 0,
         ability_group: ability_group(item),
@@ -543,6 +546,7 @@ pub(super) fn authored_activity(
         .into_iter()
         .flatten()
         .map(|t| RecordBadgeView {
+            help: None,
             kind: "trait".into(),
             trait_key: atlas_domain::TraitKey::new(t.clone())
                 .ok()
@@ -556,7 +560,7 @@ pub(super) fn authored_activity(
         lore_modifier: number(item.lore_modifier()),
         damage,
         difficulty_class,
-        casting_tradition,
+        casting_tradition: reference_value(casting_tradition),
         preparation,
         casting_entry: None,
         association: unavailable(),

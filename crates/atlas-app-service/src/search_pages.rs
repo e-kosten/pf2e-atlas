@@ -344,6 +344,10 @@ impl AtlasAppService {
                         });
                 }
             }
+            crate::presentation::reference_help::annotate_summaries(
+                rows.iter_mut().map(|row| &mut row.record),
+                retrieval,
+            )?;
             Ok(SearchResultsPage {
                 connection_scope: connected.map(|scope| scope.view),
                 core_recipe: if matches!(mode, SearchModeSummary::TextSearch { .. })

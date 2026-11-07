@@ -10,6 +10,7 @@ import {
   spellFixture,
 } from "../../test/fixtures";
 import type { EmbeddedReadingContext } from "../../shared/records/EmbeddedAbilityReading";
+import { rootNavigation } from "../../shared/records/useReferenceReading";
 import type { EncounterAbilityStateView } from "../../generated/atlas";
 
 vi.mock("./EncounterActorReading", () => ({
@@ -84,7 +85,12 @@ it("keeps retained spell content read-only after a contextual refresh fails and 
       participant_key: "one",
       participant_kind: "creature",
     }),
-    previewRecordKey: "actors:mage",
+    previewDestination: {
+      kind: "record",
+      navigation: rootNavigation("actors:mage"),
+    } satisfies NonNullable<
+      ComponentProps<typeof EncounterInspectorPane>["previewDestination"]
+    >,
     previewDetail: spell,
     onSpellAction,
   } as unknown as ComponentProps<typeof EncounterInspectorPane>;

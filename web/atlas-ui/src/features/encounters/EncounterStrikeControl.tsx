@@ -96,7 +96,7 @@ export function EncounterStrikeControl({
   const damageText = activity.damage.value
     ?.filter((c) => c.formula.value?.trim())
     .map((c) =>
-      [c.formula.value, c.damage_type.value, c.category.value]
+      [c.formula.value, c.damage_type.value?.label, c.category.value]
         .filter(Boolean)
         .join(" "),
     )

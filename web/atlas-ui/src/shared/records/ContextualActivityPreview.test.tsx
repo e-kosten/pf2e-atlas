@@ -25,8 +25,6 @@ import {
 } from "../../test/fixtures";
 import { useRecordPreview } from "./useRecordPreview";
 import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
-import { destinationHref } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
 import { AtlasApiError } from "../../api/atlasApi";
 
 const api = vi.hoisted(() => ({
@@ -125,6 +123,7 @@ function Flow({
       </button>
       {preview.recordKey && (
         <RecordReferenceDrawer
+          destination={preview.destination!}
           context={context}
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
@@ -137,14 +136,7 @@ function Flow({
           reloadLabel={preview.reloadLabel}
           retryLabel={preview.retryLabel}
           onClose={preview.close}
-          onOpenFullPage={vi.fn()}
           onReference={preview.open}
-          fullPageHref={destinationHref(
-            recordDestination({
-              recordKey: jaws.navigation.record_key,
-              selection: preview.selection,
-            }),
-          )}
         />
       )}
     </>

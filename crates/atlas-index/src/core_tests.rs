@@ -535,6 +535,22 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
         0,
         "schema-only upgrades leave component attestations unknown"
     );
+    for table in [
+        "reference_entries",
+        "reference_notices",
+        "trait_references",
+        "owned_ability_evidence",
+    ] {
+        assert_eq!(
+            read.connection()
+                .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
+                    row.get::<_, usize>(0)
+                })
+                .unwrap(),
+            0,
+            "the historical fixture contains no glossary content to migrate"
+        );
+    }
     drop(read);
     assert!(crate::test_support::open_reader(&path).is_err());
     crate::test_support::publish_input(&path, &input).unwrap();
@@ -646,6 +662,7 @@ fn trait_core_inventory_retains_its_single_label_only_representation() {
         source_locations: vec![],
         source_revision: None,
         indexing_locale: "en".into(),
+        content_locale: None,
     });
     input.trait_vectors.push(TraitVectorInput {
         key: key.clone(),

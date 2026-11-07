@@ -447,6 +447,7 @@ pub(super) fn project(
                 .into_iter()
                 .flatten()
                 .map(|trait_| RecordBadgeView {
+                    help: None,
                     trait_key: atlas_domain::TraitKey::new(trait_.clone())
                         .ok()
                         .map(|k| k.to_string()),
@@ -470,6 +471,10 @@ pub(super) fn project(
                     attack_qualifier(strike),
                 ),
                 damage: rank_fact("Damage", damage(&strike.damage), old_damage.as_ref(), None),
+                damage_type: reference_identifier(
+                    SourceFieldView::from(&strike.damage)
+                        .and_then(|damage| (&damage.damage_type).into()),
+                ),
             });
         }
     }

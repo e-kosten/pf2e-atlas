@@ -95,7 +95,7 @@ pub(super) fn consumable(item: ItemSourceView<'_>) -> Option<ConsumablePresentat
         damage: fact(item.consumable_damage().map(|damage| ConsumableDamageView {
             formula: text((&damage.formula).into()),
             kind: identifier(item.consumable_damage_kind()),
-            damage_type: identifier(item.consumable_damage_type()),
+            damage_type: reference_identifier(item.consumable_damage_type()),
         })),
         maximum_uses: number(uses.and_then(|u| (&u.max).into())),
         source_uses: number(uses.and_then(|u| (&u.value).into())),

@@ -350,11 +350,8 @@ export function builderPredicate(
       });
     } else if (node.operator === "exists") {
       if (scope !== null) throw new Error("Nested collection filters are unavailable");
-      const child = builderPredicate(
-        node.value ?? emptyGroup(),
-        fields,
-        field.path,
-      ) || { kind: "boolean_constant", value: true };
+      const child = builderPredicate(node.value ?? emptyGroup(), fields, field.path);
+      if (!child && field.path === "senses") continue;
       append({
         kind: "exists",
         clause_id,
@@ -363,7 +360,7 @@ export function builderPredicate(
           (node as RuleType & { atlasScopeId?: string }).atlasScopeId ||
           node.id ||
           crypto.randomUUID(),
-        predicate: child,
+        predicate: child ?? { kind: "boolean_constant", value: true },
       });
     } else if (node.operator === "in") {
       const parsed = values(node.value).map((v) => literal(v, field));
@@ -464,7 +461,7 @@ export function predicateBuilder(
   }
   return {
     combinator: "and",
-    rules: [predicateNode(predicate, fields, scope)],
+    rules: [predicateNode(predicate, fields, scope, scope === null)],
     atlasSinglePredicate: true,
   } as PredicateGroup;
 }
@@ -472,6 +469,7 @@ function predicateNode(
   predicate: QueryPredicate,
   fields: QueryFieldDefinition[],
   scope: string | null,
+  standalone = false,
 ): RuleType | RuleGroupType {
   if (
     predicate.kind === "not" &&
@@ -524,12 +522,53 @@ function predicateNode(
       };
     case "state_match":
       return { ...base, operator: "state", value: predicate.state };
-    case "exists":
+    case "exists": {
+      // Older compact Senses rows could select several types. Preserve their
+      // any-of meaning while giving each sense its own row and refinements.
+      const child = predicate.predicate;
+      const members = child.kind === "all_of" ? child.children : [child];
+      const choices = members.find(
+        (member) => member.kind === "in" && member.field === "type",
+      );
+      const senses = choices?.kind === "in" ? [...new Set(choices.values)] : [];
+      if (
+        standalone &&
+        predicate.collection === "senses" &&
+        senses.length > 0 &&
+        senses.length <= 20 &&
+        members.length <= 3 &&
+        members.every((member) => member === choices || member.kind === "compare")
+      ) {
+        // A compact standalone row expands to at most 20 rows of three members.
+        // Leave compound filters in their original form to preserve query limits.
+        const rows = senses.map((value) =>
+          predicateNode(
+            {
+              ...predicate,
+              clause_id: undefined,
+              scope_id: crypto.randomUUID(),
+              predicate: {
+                kind: "all_of",
+                children: members.map((member) =>
+                  member === choices
+                    ? { kind: "compare", field: "type", op: "eq", value }
+                    : { ...member, clause_id: undefined },
+                ),
+              },
+            },
+            fields,
+            scope,
+          ),
+        );
+        if (rows.length === 1) return { ...rows[0], id: predicate.clause_id };
+        return { id: predicate.clause_id, combinator: "or", rules: rows };
+      }
       return {
         ...base,
         atlasScopeId: predicate.scope_id,
         operator: "exists",
         value: predicateBuilder(predicate.predicate, fields, predicate.collection),
       } as RuleType & { atlasScopeId: string };
+    }
   }
 }

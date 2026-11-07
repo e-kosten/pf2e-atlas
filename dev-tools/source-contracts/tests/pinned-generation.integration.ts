@@ -11,7 +11,7 @@ import { artifactFiles } from '../src/generation/generated-files.js';
 
 
 const outputPath = fileURLToPath(new URL('../../../../crates/atlas-foundry-model/src/source_model/generated/', import.meta.url));
-const { input } = await preparePortfolio();
+const { input, source } = await preparePortfolio();
 const rustFiles = (input: GenerationInput) => Object.fromEntries(Object.entries(generateRustModules(input)).map(([file, text]) => [file, formatRust(text)]));
 
 test('pinned modular output is fresh and equipment imports the single physical owner', async () => {
@@ -37,6 +37,39 @@ test('fresh generation input stores nodes once and resolves every reference', ()
   const interleaved = structuredClone(input);
   interleaved.selection.push({...interleaved.selection[0],name:'InterleavedFields'});
   assert.throws(()=>validateInput(interleaved),/group each module/);
+});
+
+test('reference metadata reconciles the full census without changing the checked DTO contract', async () => {
+  const catalog = input.referenceCatalog!;
+  assert.ok(catalog);
+  assert.equal(catalog.definitions.length, 603);
+  assert.equal(input.traitDefinitions!.length, 784);
+  const included = catalog.definitions.filter(definition => !definition.excluded);
+  const rows = (namespace: string) => included.filter(definition => definition.namespace === namespace);
+  assert.equal(rows('language').length, 119);
+  assert.equal(rows('sense').length, 17);
+  assert.equal(rows('domain').length, 74);
+  assert.equal(rows('weapon_group').length, 29);
+  assert.equal(rows('rule').length, 54);
+  assert.equal(rows('rule').filter(definition => definition.recordKey !== null).length, 53);
+  assert.deepEqual(catalog.definitions.filter(definition => definition.excluded).map(definition => definition.identifier).sort(),
+    ['hearing', 'pf2e:PF2E.NPC.Abilities.Glossary.Hover', 'pf2e:PF2E.NPC.Abilities.Glossary.NoBreath', 'vision'].sort());
+  assert.equal(rows('sense').find(definition => definition.identifier === 'darkvision')!.recordKey,
+    'bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6');
+  assert.equal(rows('sense').find(definition => definition.identifier === 'darkvision')!.descriptionKey, null);
+  assert.equal(rows('language').find(definition => definition.identifier === 'wildsong')!.recordKey,
+    'classfeatures:RiAGlnnp4S21BAG3');
+  assert.equal(rows('rule').find(definition => definition.identifier.endsWith('.GolemAntimagic'))!.recordKey, 'bestiary-family-ability-glossary:r34QDwKiWZoVymJa');
+  assert.equal(rows('rule').find(definition => definition.identifier.endsWith('.WindUp'))!.recordKey, 'bestiary-family-ability-glossary:xS8ybzuqPSi3Jb8k');
+  assert.ok(rows('rule').every(definition => Boolean(definition.displayLabel)));
+  assert.ok(rows('domain').some(definition => definition.identifier === 'airapocryphal'));
+  assert.ok(!rows('domain').some(definition => definition.identifier === 'air-apocryphal'));
+  const pin = await readSourcePin();
+  assert.equal(input.source.source_digest, pin.sourceDigest);
+  const en = JSON.parse(await readFile(path.join(source, 'static/lang/en.json'), 'utf8'));
+  const prose = en.PF2E.NPC.Abilities.Glossary.Darkvision;
+  assert.ok(prose.length > 20);
+  assert.ok(!generateRustModules(input)['reference_definitions.rs'].includes(prose));
 });
 
 test('maintained portfolio covers every document, family and specific rule with reserved family owners', () => {

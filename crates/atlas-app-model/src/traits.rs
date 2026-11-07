@@ -16,7 +16,7 @@ pub struct TraitDetailView {
     pub artifact_generation: String,
     pub trait_key: String,
     pub label: String,
-    pub content: Option<TraitContentView>,
+    pub content: Option<crate::ReferenceContentView>,
     pub catalogs: Vec<String>,
     pub source_revision: Option<String>,
     pub indexing_locale: Option<String>,
@@ -62,13 +62,4 @@ pub struct TraitRecordsPage {
     pub rows: Vec<TraitRecordView>,
     pub page: SearchPageView,
     pub coverage: Option<SearchCoverageView>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct TraitContentView {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub section_rendering: Option<crate::PreparedSectionRenderingView>,
-    pub body: crate::PreparedFieldBodyView,
-    pub references: Vec<crate::PreparedReferenceView>,
 }

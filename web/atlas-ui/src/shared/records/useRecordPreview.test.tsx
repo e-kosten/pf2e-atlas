@@ -132,11 +132,11 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
         </button>
         {preview.recordKey && (
           <RecordReferenceDrawer
+            destination={preview.destination!}
             anchor={preview.anchor}
             detail={preview.detail}
             loading={preview.loading}
             onClose={preview.close}
-            onOpenFullPage={vi.fn()}
             onReference={preview.open}
           />
         )}
@@ -182,11 +182,11 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   };
   const host = document.createElement("section");
   host.className = "record-preview-drawer__body";
+  const drawer = document.createElement("div");
+  drawer.className = "record-preview-drawer";
   const source = document.createElement("a");
   source.href = "/records/rules:next";
   host.append(source);
-  const drawer = document.createElement("div");
-  drawer.className = "record-preview-drawer-root";
   drawer.append(host);
   document.body.append(drawer);
   act(() => result.current.open(first.record_key, opener, first, first));
@@ -198,6 +198,7 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   expect(result.current.readingHistory.restore).toEqual({
     scroll: 314,
     focusHref: "/records/rules:next",
+    focusRegion: "body",
   });
   for (let index = 0; index < 30; index++)
     act(() => result.current.open(`rules:${index}`, source));
@@ -278,7 +279,97 @@ it("closes a retained linked preview on an explicit reading departure to the cur
   expect(result.current.selection).toBeUndefined();
 });
 
-it("keeps mixed trait/record history with exact record addresses and opener restoration", () => {
+it("retains the original owner callback through nested record/help reading and returns only once", () => {
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  const firstOwner = vi.fn();
+  const nestedOwner = vi.fn();
+  const anchor = document.createElement("a");
+  const navigation = detailFixture("rules:first").selected;
+  const help = {
+    definition_key: null,
+
+    destination: { kind: "record" as const, navigation },
+  };
+  act(() => result.current.openHelp(help, anchor, undefined, firstOwner));
+  act(() =>
+    result.current.openHelp(
+      {
+        ...help,
+        destination: {
+          kind: "record",
+          navigation: { ...navigation, record_key: "rules:second" },
+        },
+      },
+      anchor,
+      undefined,
+      nestedOwner,
+    ),
+  );
+  act(() => result.current.open("rules:third", anchor));
+  act(() => result.current.close());
+  act(() => result.current.close());
+  expect(firstOwner).toHaveBeenCalledExactlyOnceWith("return");
+  expect(nestedOwner).not.toHaveBeenCalled();
+});
+
+it("abandons a suspended owner on explicit navigation without resuming or focusing its opener", () => {
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  const finish = vi.fn();
+  const anchor = document.createElement("a");
+  const focus = vi.spyOn(anchor, "focus");
+  const navigation = detailFixture("rules:first").selected;
+  act(() =>
+    result.current.openHelp(
+      {
+        definition_key: null,
+
+        destination: { kind: "record", navigation },
+      },
+      anchor,
+      undefined,
+      finish,
+    ),
+  );
+  act(() =>
+    atlasRouter.emit({
+      type: "onBeforeNavigate",
+      fromLocation: atlasRouter.latestLocation,
+      toLocation: {
+        ...atlasRouter.latestLocation,
+        state: {
+          ...atlasRouter.latestLocation.state,
+          atlasReadingDismissal: "leave-owner",
+        },
+      },
+      pathChanged: false,
+      hrefChanged: false,
+      hashChanged: false,
+    }),
+  );
+  expect(finish).toHaveBeenCalledExactlyOnceWith("navigate");
+  expect(focus).not.toHaveBeenCalled();
+  expect(result.current.destination).toBeNull();
+});
+
+it("keeps mixed trait and record history with exact owned addresses and original opener", async () => {
+  const api = await import("../../api/atlasApi");
+  const help = {
+    definition_key: "trait:agile",
+
+    destination: { kind: "definition" as const, key: "trait:agile" },
+  };
+  const read = vi.spyOn(api, "getDefinitionDetail").mockResolvedValue({
+    definition_key: "trait:agile",
+    label: "Agile",
+    artifact_generation: "generation-a",
+    help,
+    content: { body: { kind: "plain", text: "Agile rules." }, references: [] },
+
+    notices: [],
+
+    related_filters: [],
+    publications: [],
+  });
   const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
   const opener = document.createElement("button");
   document.body.append(opener);
@@ -290,22 +381,22 @@ it("keeps mixed trait/record history with exact record addresses and opener rest
   };
   try {
     act(() => result.current.open("actors:ghoul", opener, selection, selection));
-    act(() => result.current.openTrait("trait:agile", opener));
+    act(() => result.current.openHelp(help, opener, "generation-a"));
     expect(result.current.recordKey).toBeNull();
-    expect(result.current.trait?.key).toBe("trait:agile");
+    expect(result.current.destination).toEqual(help.destination);
     act(() => result.current.open("rules:condition", opener));
-    expect(result.current.trait).toBeUndefined();
     act(() => result.current.readingHistory.onBack());
-    expect(result.current.trait?.key).toBe("trait:agile");
+    expect(result.current.destination).toEqual(help.destination);
     act(() => result.current.readingHistory.onBack());
     expect(result.current.recordKey).toBe("actors:ghoul");
     expect(result.current.selection).toEqual(selection);
     expect(result.current.landing).toEqual(selection);
     expect(result.current.readingHistory.canGoBack).toBe(false);
     act(() => result.current.close());
-    expect(result.current.active).toBe(false);
+    expect(result.current.destination).toBeNull();
     expect(opener).toHaveFocus();
   } finally {
     opener.remove();
+    read.mockRestore();
   }
 });

@@ -3,5 +3,6 @@ import type { AttributeChoiceView } from "./AttributeChoiceView";
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 import type { ReferenceGrantView } from "./ReferenceGrantView";
+import type { ReferenceValueView } from "./ReferenceValueView";
 
-export type AncestryReferenceView = { hit_points: NumberFactView, speed: NumberFactView, size: FactView<string>, vision: FactView<string>, hands: NumberFactView, reach: NumberFactView, boosts: FactView<Array<AttributeChoiceView>>, flaws: FactView<Array<AttributeChoiceView>>, languages: FactView<Array<string>>, language_details: FactView<string>, additional_languages: FactView<Array<string>>, additional_language_count: NumberFactView, additional_language_details: FactView<string>, grants: FactView<Array<ReferenceGrantView>>, };
+export type AncestryReferenceView = { hit_points: NumberFactView, speed: NumberFactView, size: FactView<ReferenceValueView>, vision: FactView<ReferenceValueView>, hands: NumberFactView, reach: NumberFactView, boosts: FactView<Array<AttributeChoiceView>>, flaws: FactView<Array<AttributeChoiceView>>, languages: FactView<Array<ReferenceValueView>>, language_details: FactView<string>, additional_languages: FactView<Array<ReferenceValueView>>, additional_language_count: NumberFactView, additional_language_details: FactView<string>, grants: FactView<Array<ReferenceGrantView>>, };

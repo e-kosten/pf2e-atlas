@@ -47,9 +47,45 @@ pub(crate) fn build_context(
             "duplicate search profile".into(),
         ));
     }
+    let mut reference_keys = atlas_foundry_model::generated::trait_definitions()
+        .iter()
+        .map(|entry| {
+            atlas_domain::TraitKey::new(entry.identifier)
+                .map(atlas_domain::DefinitionKey::from)
+                .map_err(|error| IngestError::SourceSelectionFailed(error.to_string()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    for entry in atlas_foundry_model::generated::reference_definitions()
+        .iter()
+        .filter(|entry| !entry.excluded)
+    {
+        reference_keys.push(
+            format!("{}:{}", entry.namespace, entry.identifier)
+                .parse::<atlas_domain::DefinitionKey>()
+                .map_err(|error| IngestError::SourceSelectionFailed(error.to_string()))?,
+        );
+    }
+    let (expected_entry_count, entry_keys_sha256) =
+        atlas_index::reference_inventory_identity(reference_keys).map_err(index_error)?;
     let context = SourceArtifactBuildContext {
         selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
         admission: None,
+        reference_preparation: Some(atlas_index::ReferencePreparation {
+            recipe: crate::REFERENCE_PREPARATION_RECIPE.into(),
+            input_hash: inputs.reference_inputs_identity().into(),
+            coverage: atlas_index::ReferenceCoverage::Complete,
+            expected_entry_count,
+            entry_keys_sha256,
+            source_package: inputs
+                .capture
+                .manifest()
+                .manifest
+                .metadata
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned),
+            pack_systems: inputs.reference_pack_systems(),
+        }),
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         used_trait_labels: BTreeMap::new(),
@@ -82,6 +118,26 @@ pub struct CapturedBuildInputs {
     options: BuildArtifactOptions,
     capture: SourceCapture,
     source_revision: Option<String>,
+    reference_supplement: crate::reference_supplement::ReferenceSupplementCapture,
+    reference_inputs_identity: String,
+    reference_notices: crate::reference_notices::CapturedReferenceNotices,
+}
+fn captured_pack_systems(capture: &SourceCapture) -> BTreeMap<String, Option<String>> {
+    let mut systems = BTreeMap::new();
+    for pack in &capture.manifest().manifest.packs {
+        if let Some(value) = pack.metadata.get("system") {
+            let declared = value.as_str().map(str::to_owned);
+            systems
+                .entry(pack.name.clone())
+                .and_modify(|previous| {
+                    if *previous != declared {
+                        *previous = None;
+                    }
+                })
+                .or_insert(declared);
+        }
+    }
+    systems
 }
 impl CapturedBuildInputs {
     pub fn capture(options: BuildArtifactOptions) -> Result<Self, IngestError> {
@@ -96,12 +152,65 @@ impl CapturedBuildInputs {
             &capture.manifest_path,
             &capture.manifest().manifest,
         )?;
+        let package = capture
+            .manifest()
+            .manifest
+            .metadata
+            .get("id")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("");
+        let reference_supplement =
+            crate::reference_supplement::ReferenceSupplementCapture::capture(&options.locale)?;
+        let reference_notices = crate::reference_notices::CapturedReferenceNotices::capture(
+            &options.source_root,
+            package,
+            source_revision.as_deref(),
+        )?;
+        let reference_inputs_identity = {
+            use sha2::{Digest, Sha256};
+            let mut hash = Sha256::new();
+            let pack_systems = serde_json::to_string(&captured_pack_systems(&capture))
+                .map_err(|error| IngestError::SourceSelectionFailed(error.to_string()))?;
+            for value in [
+                crate::REFERENCE_PREPARATION_RECIPE,
+                atlas_foundry_model::generated::REFERENCE_CATALOG_SHA256,
+                reference_supplement.identity.as_str(),
+                reference_notices.identity.as_str(),
+                options.locale.as_str(),
+                package,
+                pack_systems.as_str(),
+            ] {
+                hash.update((value.len() as u64).to_be_bytes());
+                hash.update(value.as_bytes());
+            }
+            format!("{:x}", hash.finalize())
+        };
         tracing::info!(target:"atlas_build_diagnostic",stage="source_capture",captured_files=capture.fingerprint.file_count,elapsed_ms=started.elapsed().as_secs_f64()*1000.,"Captured source inventory and manifest");
         Ok(Self {
             options,
             capture,
             source_revision,
+            reference_supplement,
+            reference_inputs_identity,
+            reference_notices,
         })
+    }
+    pub(crate) fn reference_pack_systems(&self) -> BTreeMap<String, Option<String>> {
+        captured_pack_systems(&self.capture)
+    }
+    pub(crate) fn source_revision(&self) -> Option<&str> {
+        self.source_revision.as_deref()
+    }
+    pub(crate) fn reference_notices(&self) -> &crate::reference_notices::CapturedReferenceNotices {
+        &self.reference_notices
+    }
+    pub fn reference_inputs_identity(&self) -> &str {
+        &self.reference_inputs_identity
+    }
+    pub(crate) fn reference_supplement(
+        &self,
+    ) -> &crate::reference_supplement::ReferenceSupplementCapture {
+        &self.reference_supplement
     }
     pub fn fingerprint(&self) -> &SourceFingerprint {
         &self.capture.fingerprint

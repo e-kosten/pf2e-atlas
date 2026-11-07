@@ -64,6 +64,18 @@ impl AtlasAppService {
                         field.choices.retain(|choice| matches!(&choice.value, atlas_domain::QueryLiteral::String(value) if kinds.contains(value)));
                     }
                 }
+                crate::definition_values::editor(retrieval, &mut editor)?;
+                editor.sense_qualifiers = Some(retrieval.sense_qualifiers()?.into_iter()
+                    .map(|(sense, mut acuity, mut has_range)| {
+                        if let Some((_, fixed, unlimited)) = atlas_foundry_model::generated::reference_definitions::SENSE_RULES
+                            .iter().find(|(kind, _, _)| *kind == sense)
+                        {
+                            if fixed.is_some() { acuity = None; }
+                            has_range &= !unlimited;
+                        }
+                        atlas_app_model::SenseQualifierView { sense, acuity, has_range }
+                    })
+                    .collect());
                 Ok(editor)
             },
         )
@@ -186,6 +198,14 @@ impl AtlasAppService {
                         limit,
                     })?;
                     projection_execution.check()?;
+                    let outcome = match outcome {
+                        QueryFacetOutcome::Available { value } => QueryFacetOutcome::Available {
+                            value: crate::definition_values::options(retrieval, value)?,
+                        },
+                        QueryFacetOutcome::Unavailable { reason } => {
+                            QueryFacetOutcome::Unavailable { reason }
+                        }
+                    };
                     Ok(FilterValueListView::Contextual {
                         outcome,
                         search_profile: resolved,
@@ -219,7 +239,7 @@ impl AtlasAppService {
                 projection_execution.check()?;
                 Ok(FilterValueListView::Vocabulary {
                     scope: vocabulary_scope,
-                    values,
+                    values: crate::definition_values::vocabulary(retrieval, values)?,
                 })
             }),
         }
@@ -263,6 +283,14 @@ impl AtlasAppService {
                 },
             })?;
             projection_execution.check()?;
+            let counts = match counts {
+                QueryFacetOutcome::Available { value } => QueryFacetOutcome::Available {
+                    value: crate::definition_values::options(retrieval, value)?,
+                },
+                QueryFacetOutcome::Unavailable { reason } => {
+                    QueryFacetOutcome::Unavailable { reason }
+                }
+            };
             Ok(FilterCountsView {
                 counts,
                 search_profile: resolved,

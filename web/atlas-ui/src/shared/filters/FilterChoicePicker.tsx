@@ -8,7 +8,12 @@ import type {
   QueryPredicate,
 } from "../../generated/atlas";
 import { sentenceCase } from "../ui/labels";
-import { ChoicePicker, type ChoiceState } from "../ui/pickers/ChoicePicker";
+import {
+  ChoicePicker,
+  ChoicePickerAction,
+  type ChoiceState,
+} from "../ui/pickers/ChoicePicker";
+import { ReferenceHelpLink } from "../records/ReferenceHelp";
 import {
   changeChoiceValue,
   choiceClauses,
@@ -100,6 +105,7 @@ function FilterChoicePicker({
   const [offset, setOffset] = useState(0);
   const [showUnavailable, setShowUnavailable] = useState(false);
   const closedChoices = field.short_choices;
+  const loadSelectedLabels = field.allow_custom_values === false && selected.length > 0;
   const allowNarrowing = edit.kind === "condition" || edit.allowNarrowing;
   const narrowingContext = countsEnabled && allowNarrowing ? countContext : undefined;
   const clauseId =
@@ -116,8 +122,8 @@ function FilterChoicePicker({
     search,
     offset,
     selected,
-    open && !closedChoices,
-    narrowingContext && !showUnavailable
+    (open || loadSelectedLabels) && !closedChoices,
+    open && narrowingContext && !showUnavailable
       ? { context: narrowingContext, clauseId }
       : undefined,
   );
@@ -127,13 +133,17 @@ function FilterChoicePicker({
   }, [text]);
 
   function labelForValue(value: string) {
-    return sentenceCase(filterValueLabel(field, value));
+    return (
+      query.data?.values.options.find((option) => String(option.value) === value)
+        ?.label ?? sentenceCase(filterValueLabel(field, value))
+    );
   }
   const choices = (
     closedChoices ? field.choices : (query.data?.values.options ?? [])
   ).map((option) => ({
     value: String(option.value),
-    label: labelForValue(String(option.value)),
+    label: option.label,
+    help: option.help,
   }));
   const contextualCounts =
     countsEnabled && !query.error ? query.data?.counts : undefined;
@@ -173,6 +183,7 @@ function FilterChoicePicker({
     );
   const exact =
     edit.kind === "operand" &&
+    field.allow_custom_values !== false &&
     !field.definition.choices.length &&
     literal &&
     !matchingValue
@@ -208,6 +219,22 @@ function FilterChoicePicker({
 
   return (
     <ChoicePicker
+      optionAction={(option) => {
+        const help = choices.find((choice) => choice.value === option.value)?.help;
+        return help?.destination ? (
+          <ChoicePickerAction>
+            {(handoff) => (
+              <ReferenceHelpLink
+                help={help}
+                generation={countContext?.expected_artifact_generation ?? undefined}
+                handoff={handoff}
+              >
+                Read<span className="sr-only"> {option.label}</span>
+              </ReferenceHelpLink>
+            )}
+          </ChoicePickerAction>
+        ) : null;
+      }}
       selectionContainer={selectionContainer}
       labelForValue={labelForValue}
       id={field.definition.id}

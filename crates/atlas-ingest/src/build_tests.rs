@@ -2195,15 +2195,6 @@ fn trait_vocabulary_is_localized_persisted_and_keeps_exact_variants() {
             .unwrap()
             .is_none()
     );
-    assert_eq!(
-        reader
-            .workspace_session()
-            .connection()
-            .query_row("SELECT count(*) FROM trait_definitions", [], |r| r
-                .get::<_, usize>(0))
-            .unwrap(),
-        atlas_foundry_model::generated::trait_definitions().len()
-    );
 }
 
 #[test]

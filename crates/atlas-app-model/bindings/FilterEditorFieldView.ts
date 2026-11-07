@@ -7,4 +7,4 @@ import type { FilterOperatorView } from "./FilterOperatorView";
 import type { FilterUnitFieldView } from "./FilterUnitFieldView";
 import type { QueryFieldDefinition } from "./QueryFieldDefinition";
 
-export type FilterEditorFieldView = { definition: QueryFieldDefinition, control: FilterControlView, placement: FilterFieldPlacement, label: string, help: string | null, choices: Array<FilterChoiceView>, short_choices: boolean, applicable: boolean, unit_fields: Array<FilterUnitFieldView>, operators: Array<FilterOperatorView>, collection_control?: FilterCollectionControlView, };
+export type FilterEditorFieldView = { definition: QueryFieldDefinition, control: FilterControlView, placement: FilterFieldPlacement, label: string, help: string | null, choices: Array<FilterChoiceView>, short_choices: boolean, allow_custom_values?: boolean, applicable: boolean, unit_fields: Array<FilterUnitFieldView>, operators: Array<FilterOperatorView>, collection_control?: FilterCollectionControlView, };

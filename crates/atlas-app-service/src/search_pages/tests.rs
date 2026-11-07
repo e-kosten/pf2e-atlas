@@ -705,6 +705,7 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
         let opened = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
                 spell_rank: navigation.spell_rank,
                 record_key: navigation.record_key.clone(),
                 owners: navigation.owners.clone(),
@@ -752,6 +753,7 @@ fn trait_search_fixture(semantic: bool, reference_count: u32) -> FixtureWorker {
             source_locations: vec![],
             source_revision: fixture.context.source_revision.clone(),
             indexing_locale: fixture.context.indexing_locale.clone(),
+            content_locale: None,
         });
         if semantic {
             let mut vector = vec![0.; 768];
@@ -851,6 +853,7 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
         SearchModeSummary::SimilarTraits {
             trait_key: "trait:agile".into(),
             title: "Agile".into(),
+            help: None,
         }
     );
     assert_eq!(first.rows.len(), 1);
@@ -1143,6 +1146,7 @@ fn core_source_acknowledges_identity_and_prose_and_identity_navigation_opens_the
     let detail = fixture
         .worker
         .record_detail_at(atlas_app_model::RecordDetailRequest {
+            expected_artifact_generation: None,
             spell_rank: None,
             record_key: navigation.record_key.clone(),
             owners: vec![],
@@ -1426,6 +1430,7 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
             let detail = fixture
                 .worker
                 .record_detail_at(atlas_app_model::RecordDetailRequest {
+                    expected_artifact_generation: None,
                     spell_rank: None,
                     record_key: navigation.record_key.clone(),
                     owners: navigation.owners.clone(),

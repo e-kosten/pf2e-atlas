@@ -4,6 +4,8 @@ import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference"
 import { SpellChanges, SpellReference } from "./SpellReference";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { decodeFilterUrl } from "../filters/filterUrl";
+import { ReferenceHelpProvider } from "./ReferenceHelp";
+import { RouterTestContext } from "../../test/router";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   actorFixture,
@@ -25,7 +27,7 @@ function actorPresentation(): RecordPresentationView {
   const actor = actorFixture();
   actor.resistances = knownFact([
     {
-      damage_type: knownFact("all damage"),
+      damage_type: knownFact({ value: "all damage", label: "all damage" }),
       magnitude: numberFact(10),
       exceptions: knownFact(["force", "ghost touch", "vitality"]),
       double_against: knownFact(["non-magical attacks"]),
@@ -41,7 +43,7 @@ function actorPresentation(): RecordPresentationView {
       ...summaryFixture("actors:ghoul", "Ghoul"),
       kind: "creature",
       kind_label: "Creature",
-      rarity: "uncommon",
+      rarity: { value: "uncommon", label: "Uncommon" },
       publication: "Monster Core",
       level_label: "1",
     },
@@ -283,6 +285,7 @@ describe("semantic family presentation", () => {
 
   it("keeps general-entry lookup secondary to the customized item with native navigation", async () => {
     const onReference = vi.fn();
+    const onHelp = vi.fn();
     const detail = detailFixture(
       "actors:caster",
       "Customized staff",
@@ -297,17 +300,19 @@ describe("semantic family presentation", () => {
       target_title: "Staff",
     };
     const view = (available = true) => (
-      <RecordPresentation
-        presentation={detail.presentation}
-        root={summaryFixture("actors:caster", "Caster")}
-        selection={selected}
-        relationships={[
-          available
-            ? relationship
-            : { ...relationship, status: "unresolved", target: null },
-        ]}
-        onReference={onReference}
-      />
+      <ReferenceHelpProvider onHelp={onHelp}>
+        <RecordPresentation
+          presentation={detail.presentation}
+          root={summaryFixture("actors:caster", "Caster")}
+          selection={selected}
+          relationships={[
+            available
+              ? relationship
+              : { ...relationship, status: "unresolved", target: null },
+          ]}
+          onReference={onReference}
+        />
+      </ReferenceHelpProvider>
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
@@ -317,12 +322,20 @@ describe("semantic family presentation", () => {
     expect(destination.search).toBe("");
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
+    expect(onHelp).not.toHaveBeenCalled();
     fireEvent.click(original);
-    expect(onReference).toHaveBeenCalledExactlyOnceWith(
-      "equipment:catalog-staff",
+    expect(onHelp).toHaveBeenCalledExactlyOnceWith(
+      {
+        definition_key: null,
+
+        destination: { kind: "record", navigation: relationship.target },
+      },
       original,
-      relationship.target,
+      undefined,
     );
+    expect(onReference).not.toHaveBeenCalled();
+    expect(onHelp.mock.calls[0][0].destination).not.toHaveProperty("reading_context");
+    expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
     rerender(view(false));
     expect(
       screen.queryByRole("link", { name: "Open general entry: Staff" }),
@@ -358,7 +371,7 @@ describe("semantic family presentation", () => {
       kind: "casting_entry" as const,
       attack: numberFact(23),
       difficulty_class: numberFact(33),
-      casting_tradition: knownFact("arcane"),
+      casting_tradition: knownFact({ value: "arcane", label: "arcane" }),
       preparation: knownFact("prepared"),
     };
     const spell = {
@@ -572,13 +585,13 @@ describe("semantic family presentation", () => {
       if (presentation.body.kind !== "creature") throw new Error("fixture family");
       presentation.body.value.resistances = knownFact([
         {
-          damage_type: knownFact("fire"),
+          damage_type: knownFact({ value: "fire", label: "fire" }),
           magnitude: { state, value: null, adjustment: null },
           exceptions: unavailableFact(state),
           double_against: unavailableFact(state),
         },
         {
-          damage_type: knownFact("cold"),
+          damage_type: knownFact({ value: "cold", label: "cold" }),
           magnitude: numberFact(0),
           exceptions: knownFact([]),
           double_against: unavailableFact("not_applicable"),
@@ -600,7 +613,7 @@ describe("semantic family presentation", () => {
       {
         id: "0",
         formula: knownFact("1d6"),
-        damage_type: knownFact("fire"),
+        damage_type: knownFact({ value: "fire", label: "fire" }),
         kinds: unavailableFact<string[]>("invalid"),
         category: unavailableFact<string>("null"),
         materials: unavailableFact<string[]>("missing"),
@@ -730,7 +743,7 @@ describe("semantic family presentation", () => {
         {
           id: "living",
           formula: knownFact("(1d8+8) + 2 × (1d8+8)"),
-          damage_type: knownFact("vitality"),
+          damage_type: knownFact({ value: "vitality", label: "vitality" }),
           kinds: knownFact(["healing"]),
           category: unavailableFact("null"),
           materials: knownFact([]),
@@ -1152,7 +1165,7 @@ describe("optional authored reference facts", () => {
     const component = (id: string, formula: string, damageType: string) => ({
       id,
       formula: knownFact(formula),
-      damage_type: knownFact(damageType),
+      damage_type: knownFact({ value: damageType, label: damageType }),
       kinds: knownFact([]),
       category: unavailableFact<string>("null"),
       materials: knownFact([]),
@@ -1402,6 +1415,7 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   const onReference = vi.fn();
   const { rerender } = render(
     <RecordPresentation presentation={presentation} onReference={onReference} />,
+    { wrapper: RouterTestContext },
   );
   expect(
     screen
@@ -1425,7 +1439,17 @@ it("presents consumable spell semantics, exact navigation, package prices and so
   expect(screen.queryByText("Contents")).toBeNull();
   expect(screen.getByText("Category").parentElement).toHaveTextContent("wand");
   presentation.identity.traits = [
-    { kind: "trait", value: "wand", label: "Wand", trait_key: "trait:wand" },
+    {
+      kind: "trait",
+      value: "wand",
+      label: "Wand",
+      trait_key: "trait:wand",
+      help: {
+        definition_key: "trait:wand",
+
+        destination: { kind: "definition", key: "trait:wand" },
+      },
+    },
   ];
   consumable.spell_presented_inline = true;
   consumable.source_uses = numberFact(1);

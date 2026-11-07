@@ -2,8 +2,9 @@
 import type { ActionCostView } from "./ActionCostView";
 import type { DamageComponentView } from "./DamageComponentView";
 import type { FactView } from "./FactView";
+import type { ReferenceValueView } from "./ReferenceValueView";
 import type { SpellAreaView } from "./SpellAreaView";
 import type { SpellDefenseView } from "./SpellDefenseView";
 import type { SpellHeighteningChangeView } from "./SpellHeighteningChangeView";
 
-export type SpellChangeView = { cast: FactView<ActionCostView>, range: FactView<string>, target: FactView<string>, area: FactView<SpellAreaView>, defense: FactView<SpellDefenseView>, duration: FactView<string>, sustained: FactView<boolean>, traits: FactView<Array<string>>, traditions: FactView<Array<string>>, damage: FactView<Array<DamageComponentView>>, heightening: FactView<SpellHeighteningChangeView>, };
+export type SpellChangeView = { cast: FactView<ActionCostView>, range: FactView<string>, target: FactView<string>, area: FactView<SpellAreaView>, defense: FactView<SpellDefenseView>, duration: FactView<string>, sustained: FactView<boolean>, traits: FactView<Array<ReferenceValueView>>, traditions: FactView<Array<ReferenceValueView>>, damage: FactView<Array<DamageComponentView>>, heightening: FactView<SpellHeighteningChangeView>, };

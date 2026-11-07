@@ -1,13 +1,14 @@
 import {
   act,
   fireEvent,
-  render,
+  render as rtlRender,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactElement } from "react";
+import { RouterTestContext } from "../../test/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilterControls } from "./FilterPanel";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
@@ -18,7 +19,11 @@ import type {
   QueryPredicate,
 } from "../../generated/atlas";
 import * as atlasApi from "../../api/atlasApi";
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: RouterTestContext });
+}
 
+const kindLabels = { kind: { creature: "Creature", spell: "Spell" } };
 const actorMetricCatalog = () =>
   editorFixture([
     fieldFixture("abilities.str.modifier", "number", "Strength Modifier"),
@@ -464,7 +469,7 @@ describe("shared common and maintained advanced filters", () => {
       ...fieldFixture("kind", "string", "Kind"),
       choices: ["companion"],
     };
-    const change = renderControls(editorFixture([kind]), {
+    const change = renderControls(editorFixture([kind], kindLabels), {
       kind: "not",
       predicate: { kind: "in", field: kind.path, values: ["companion"] },
     });
@@ -486,7 +491,7 @@ describe("shared common and maintained advanced filters", () => {
       ...fieldFixture("kind", "string", "Kind"),
       choices: ["companion"],
     };
-    const change = renderControls(editorFixture([kind]), {
+    const change = renderControls(editorFixture([kind], kindLabels), {
       kind: "in",
       field: kind.path,
       values: ["companion"],
@@ -580,7 +585,7 @@ describe("shared common and maintained advanced filters", () => {
       choices: ["creature", "spell"],
     };
     const hp = fieldFixture("defenses.hp.maximum", "number", "Maximum HP");
-    const change = renderControls(editorFixture([kind, hp]), {
+    const change = renderControls(editorFixture([kind, hp], kindLabels), {
       kind: "all_of",
       children: [
         { kind: "compare", field: kind.path, op: "eq", value: "creature" },
@@ -592,7 +597,7 @@ describe("shared common and maintained advanced filters", () => {
       target: { value: "-" },
     });
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Kind" }));
-    fireEvent.click(screen.getAllByText("spell", { exact: true }).slice(-1)[0]);
+    fireEvent.click(screen.getAllByText("Spell", { exact: true }).slice(-1)[0]);
     expect(change).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
@@ -731,7 +736,7 @@ describe("shared common and maintained advanced filters", () => {
       ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature"],
     };
-    renderControls(editorFixture([kind]), {
+    renderControls(editorFixture([kind], kindLabels), {
       kind: "not",
       predicate: {
         kind: "in",
@@ -861,7 +866,7 @@ describe("per-value states and the complete query", () => {
       ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature", "spell"],
     };
-    const change = renderControls(editorFixture([kind]));
+    const change = renderControls(editorFixture([kind], kindLabels));
     expect(screen.queryByText("creature")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Edit Kind filter" }));
     fireEvent.click(
@@ -930,7 +935,7 @@ describe("per-value states and the complete query", () => {
       field: kind.path,
       values: ["creature"],
     };
-    const change = renderControls(editorFixture([kind, hp]), common);
+    const change = renderControls(editorFixture([kind, hp], kindLabels), common);
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     const advanced = screen.getByRole("region", { name: "Advanced filters" });
     expect(
@@ -992,7 +997,7 @@ describe("per-value states and the complete query", () => {
       field: kind.path,
       values: ["creature"],
     };
-    const change = renderControls(editorFixture([kind]), original);
+    const change = renderControls(editorFixture([kind], kindLabels), original);
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     const advanced = screen.getByRole("region", { name: "Advanced filters" });
     expect(
@@ -1014,7 +1019,7 @@ describe("per-value states and the complete query", () => {
     );
     const value = within(advanced).getAllByRole("combobox", { name: "Kind" })[1];
     fireEvent.mouseDown(value);
-    fireEvent.click(screen.getAllByText("creature", { exact: true }).slice(-1)[0]);
+    fireEvent.click(screen.getAllByText("Creature", { exact: true }).slice(-1)[0]);
     await waitFor(() => expect(change).toHaveBeenCalled());
     expect(
       within(advanced).getAllByRole("combobox", { name: "Filter field" }),
@@ -1054,7 +1059,7 @@ describe("per-value states and the complete query", () => {
         { kind: "compare", clause_id: "hp", field: hp.path, op: "gte", value: 80 },
       ],
     };
-    const change = renderControls(editorFixture([kind, hp]), original);
+    const change = renderControls(editorFixture([kind, hp], kindLabels), original);
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Maximum HP" }), {
       target: { value: "-" },
@@ -1108,9 +1113,11 @@ describe("field applicability while editing Boolean groups", () => {
       op: "eq",
       value: "uncommon",
     };
-    const values = vi
-      .spyOn(atlasApi, "discoverFilterValues")
-      .mockResolvedValue(valuesFixture("physical.base_type", ["chain-mail"]));
+    const values = vi.spyOn(atlasApi, "discoverFilterValues").mockResolvedValue(
+      valuesFixture("physical.base_type", ["chain-mail"], {
+        "chain-mail": "Chain Mail",
+      }),
+    );
     try {
       const change = renderControls(
         editor,

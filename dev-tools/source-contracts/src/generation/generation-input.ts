@@ -2,6 +2,7 @@ import type { UnionOrderRegistry } from './union-order.js';
 import type { ActionDefinition } from './action-definitions.js';
 import type { ConditionCatalog } from './condition-definitions.js';
 import type { TraitDefinition } from './trait-definitions.js';
+import type { ReferenceCatalog } from './reference-definitions.js';
 import type { GraphField, GraphNode, SourceIdentity, TypeGraph } from '../contracts.js';
 
 export interface GenerationRoot {
@@ -12,6 +13,7 @@ export interface GenerationInput {
   unionOrder?: UnionOrderRegistry;
   referenceSource?: { repository: string; commit: string; systemVersion: string };
   traitDefinitions?: TraitDefinition[];
+  referenceCatalog?: ReferenceCatalog;
   actionDefinitions?: ActionDefinition[];
   conditionCatalog?: ConditionCatalog;
   source: SourceIdentity; selection: GenerationRoot[]; nodes: GraphNode[]; openTraitArrays?: string[];

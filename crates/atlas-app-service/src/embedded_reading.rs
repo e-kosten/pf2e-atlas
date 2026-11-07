@@ -308,6 +308,7 @@ impl AtlasAppService {
 
 fn validate_navigation(navigation: &RecordNavigationView) -> AppServiceResult<()> {
     crate::records::validate_request(&RecordDetailRequest {
+        expected_artifact_generation: None,
         spell_rank: None,
         record_key: navigation.record_key.clone(),
         owners: navigation.owners.clone(),

@@ -1,4 +1,4 @@
-import { useReferencePreview as useContextualReference } from "./ReferencePreviewContext";
+import { useReferenceRecordNavigation as useContextualReference } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
@@ -657,7 +657,7 @@ function Comparison({
   const right = useRecordDetail(target);
   const navigate: RecordReferenceHandler = (recordKey, anchor, selection, landing) => {
     if (reference) {
-      reference.open(recordKey, anchor, selection, landing);
+      reference(recordKey, anchor, selection, landing);
       return;
     }
     navigateDestination(

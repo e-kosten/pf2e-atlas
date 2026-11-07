@@ -18,6 +18,7 @@ use atlas_domain::{
     query_discovery::{QueryFieldCounts, QueryStateCount, QueryValueOption, QueryValueOptions},
 };
 use rusqlite::{Connection, params_from_iter, types::Value};
+use std::collections::BTreeSet;
 
 /// Structured discovery may restrict eligibility to an explicit record-key scope.
 #[derive(Debug, Clone, Default)]
@@ -516,9 +517,8 @@ fn count_options(
     } else {
         None
     };
-    let mut options = Vec::new();
-    for value in values {
-        let candidate = candidate_clause(d, &value)?;
+    let with_choice = |value: &QueryLiteral| -> Result<ValidatedQuery, IndexError> {
+        let candidate = candidate_clause(d, value)?;
         let p = if let Some(base) = &root_base {
             QueryPredicate::new(QueryExpression::AllOf {
                 children: vec![base.clone(), candidate],
@@ -539,7 +539,44 @@ fn count_options(
                 children: vec![query.predicate().clone(), candidate],
             })
         };
-        let accepted = validate_query(&p)?;
+        Ok(validate_query(&p)?)
+    };
+    if d.definition.id == "actions" && !values.is_empty() {
+        // Keep the same per-choice validation limits while sharing the database scan.
+        for value in &values {
+            with_choice(value)?;
+        }
+        let base = match root_base {
+            Some(base) => validate_query(&base)?,
+            None => query.clone(),
+        };
+        let (eligible, mut parameters) =
+            crate::read_units::eligible_sql(&base, context.eligible_keys.as_deref())?;
+        let slot = format!("?{}", parameters.len() + 1);
+        parameters.push(Value::Text(serde_json::to_string(&values)?));
+        let sql = crate::query::grouped_root_set_counts(d, &eligible, &slot)
+            .ok_or_else(|| IndexError::Invalid("Actions requires a root set binding".into()))?;
+        let counts = connection
+            .prepare(&sql)?
+            .query_map(params_from_iter(&parameters), |row| {
+                Ok((QueryLiteral::String(row.get(0)?), row.get::<_, u64>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(values
+            .into_iter()
+            .map(|value| QueryValueOption {
+                selected: selected.contains(&value),
+                distinct_roots: counts
+                    .iter()
+                    .find(|(key, _)| key == &value)
+                    .map_or(0, |(_, count)| *count),
+                value,
+            })
+            .collect());
+    }
+    let mut options = Vec::new();
+    for value in values {
+        let accepted = with_choice(&value)?;
         let (eligible, parameters) =
             crate::read_units::eligible_sql(&accepted, context.eligible_keys.as_deref())?;
         let sql = format!("WITH matches AS ({eligible}) SELECT COUNT(*) FROM matches");
@@ -554,9 +591,41 @@ fn count_options(
     Ok(options)
 }
 // Search both the stored identifier and the words shown in the Base Type picker.
-fn matches_value_text(path: &str, value: &QueryLiteral, text: &str) -> bool {
+fn matching_action_names(
+    connection: &Connection,
+    path: &str,
+    text: &str,
+) -> Result<BTreeSet<String>, IndexError> {
+    if path != "actions" {
+        return Ok(BTreeSet::new());
+    }
+    let mut statement = connection.prepare(
+        "SELECT key,name FROM records WHERE pack_id='bestiary-ability-glossary-srd' AND name_state='value'",
+    )?;
+    let names = statement.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut matching = BTreeSet::new();
+    for row in names {
+        let (key, name) = row?;
+        if name.to_lowercase().contains(text) {
+            matching.insert(key);
+        }
+    }
+    Ok(matching)
+}
+
+fn matches_value_text(
+    path: &str,
+    value: &QueryLiteral,
+    text: &str,
+    action_names: &BTreeSet<String>,
+) -> bool {
     match value {
         QueryLiteral::String(value) => {
+            if action_names.contains(value) {
+                return true;
+            }
             let value = value.to_lowercase();
             value.contains(text)
                 || (path == "physical.base_type" && value.replace(['-', '_'], " ").contains(text))
@@ -616,10 +685,11 @@ pub(crate) fn field_values(
     let selected = selected(target.as_ref());
     if let Some(text) = &request.text {
         let text = text.to_lowercase();
+        let action_names = matching_action_names(connection, &d.definition.path, &text)?;
         values.retain(|value| {
             selected.contains(value)
                 || (matches!(value, QueryLiteral::String(_))
-                    && matches_value_text(&d.definition.path, value, &text))
+                    && matches_value_text(&d.definition.path, value, &text, &action_names))
         });
     }
     let total_values = values.len() as u64;
@@ -757,7 +827,8 @@ pub(crate) fn field_vocabulary(
     let mut values = enumerate_values(connection, d, &base, &context, None)?;
     if let Some(text) = &request.text {
         let text = text.to_lowercase();
-        values.retain(|value| matches_value_text(&d.definition.path, value, &text));
+        let action_names = matching_action_names(connection, &d.definition.path, &text)?;
+        values.retain(|value| matches_value_text(&d.definition.path, value, &text, &action_names));
     }
     super::value_order::sort_values(&d.definition.path, &mut values);
     let total_values = values.len() as u64;

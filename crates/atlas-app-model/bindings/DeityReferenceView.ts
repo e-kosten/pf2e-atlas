@@ -2,5 +2,6 @@
 import type { DeitySanctificationView } from "./DeitySanctificationView";
 import type { FactView } from "./FactView";
 import type { ReferenceGrantView } from "./ReferenceGrantView";
+import type { ReferenceValueView } from "./ReferenceValueView";
 
-export type DeityReferenceView = { attributes: FactView<Array<string>>, fonts: FactView<Array<string>>, sanctification: FactView<DeitySanctificationView>, skills: FactView<Array<string>>, primary_domains: FactView<Array<string>>, alternate_domains: FactView<Array<string>>, favored_weapons: FactView<Array<string>>, spells: FactView<Array<ReferenceGrantView>>, };
+export type DeityReferenceView = { attributes: FactView<Array<ReferenceValueView>>, fonts: FactView<Array<string>>, sanctification: FactView<DeitySanctificationView>, skills: FactView<Array<ReferenceValueView>>, primary_domains: FactView<Array<ReferenceValueView>>, alternate_domains: FactView<Array<ReferenceValueView>>, favored_weapons: FactView<Array<string>>, spells: FactView<Array<ReferenceGrantView>>, };

@@ -62,6 +62,8 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         }
         let record = s
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
+
                 spell_rank: o.rank,
                 record_key: key.to_owned(),
                 owners: o
@@ -251,6 +253,8 @@ fn render_selected_record(
             }
             let child = service
                 .record_detail_at(RecordDetailRequest {
+                    expected_artifact_generation: None,
+
                     spell_rank: navigation.spell_rank,
                     record_key: navigation.record_key.clone(),
                     owners: navigation.owners.clone(),

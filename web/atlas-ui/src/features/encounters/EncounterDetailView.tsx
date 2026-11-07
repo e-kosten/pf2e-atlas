@@ -3,7 +3,7 @@ import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocu
 import { EncounterRecoveryModal } from "./EncounterRecoveryModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
-import { recordDestination, encountersDestination } from "../../app/destinations";
+import { encountersDestination } from "../../app/destinations";
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -625,14 +625,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   return result.active && result.refreshed;
                 }}
                 onCloseRecordPreview={recordPreview.close}
-                onOpenRecordFullPage={(recordKey) =>
-                  navigateDestination(
-                    recordDestination({
-                      recordKey,
-                      selection: recordPreview.selection,
-                    }),
-                  )
-                }
+                onNavigateAwayPreview={recordPreview.closeForNavigation}
                 onReference={recordPreview.open}
                 onPreviewRankChange={recordPreview.changeRank}
                 onRemoveCondition={async (
@@ -698,6 +691,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 previewAnchor={recordPreview.anchor}
                 previewReadingHistory={recordPreview.readingHistory}
                 previewLanding={recordPreview.landing}
+                previewDestination={recordPreview.destination}
+                previewDefinition={recordPreview.definition}
+                previewHelp={recordPreview.help}
+                onHelp={recordPreview.openHelp}
                 previewDetail={recordPreview.detail}
                 previewSelection={recordPreview.selection}
                 previewLoading={recordPreview.loading}
@@ -706,9 +703,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 onReloadPreview={recordPreview.reload}
                 reloadPreviewLabel={recordPreview.reloadLabel}
                 retryPreviewLabel={recordPreview.retryLabel}
-                previewTrait={recordPreview.trait}
-                onPreviewTrait={recordPreview.openTrait}
-                previewRecordKey={recordPreview.recordKey}
               />
             }
             collapsiblePanes={[]}

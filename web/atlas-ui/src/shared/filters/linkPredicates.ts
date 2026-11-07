@@ -27,7 +27,7 @@ function samePassage(
   );
 }
 
-function sameSelection(left: RecordNavigationView, right: RecordNavigationView) {
+export function sameSelection(left: RecordNavigationView, right: RecordNavigationView) {
   return (
     left.record_key === right.record_key &&
     (left.field ?? null) === (right.field ?? null) &&

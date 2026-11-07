@@ -5,6 +5,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { TypeGraph, TraitCatalog } from '../contracts.js';
 import { traitDefinitions } from './trait-definitions.js';
+import { referenceDefinitions, type ReferenceRegistry } from './reference-definitions.js';
 import { extract } from '../discovery/extract.js';
 import { sourceIdentity } from '../discovery/source-identity.js';
 import { selectPortfolioInput } from './portfolio-selection.js';
@@ -37,6 +38,9 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   input.unionOrder = unionOrder;
   const catalog = JSON.parse(await readFile(path.join(extraction, 'trait-catalog.json'), 'utf8')) as TraitCatalog;
   input.traitDefinitions = traitDefinitions(catalog);
+  const referenceRegistry = JSON.parse(await readFile(path.join(repositoryRoot,
+    'dev-tools/source-contracts/fixtures/reference-definition-registry.json'), 'utf8')) as ReferenceRegistry;
+  input.referenceCatalog = await referenceDefinitions(source, referenceRegistry, catalog);
   input.actionDefinitions = await actionDefinitions(source);
   const conditionCoverage = JSON.parse(await readFile(path.join(repositoryRoot, 'dev-tools/source-contracts/fixtures/condition-rule-coverage.json'), 'utf8')) as ConditionCoverage;
   input.conditionCatalog = await conditionDefinitions(source, new Set(input.traitDefinitions.map(entry => entry.identifier)), conditionCoverage);

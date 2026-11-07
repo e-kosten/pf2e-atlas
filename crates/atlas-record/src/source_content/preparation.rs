@@ -75,13 +75,13 @@ pub fn prepare_source_content(
 
 /// Prepare a localization-backed definition using the same content interpreter as documents.
 /// The exact term identity binds reference markers without inventing a record locator.
-pub fn prepare_trait_definition(
-    key: atlas_domain::TraitKey,
+pub fn prepare_reference_definition(
+    key: atlas_domain::DefinitionKey,
     markup: &str,
     audience: ContentAudience,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&super::ContentReferenceLookup<'_>>,
-) -> Result<super::PreparedTraitDefinition, html2text::Error> {
+) -> Result<super::PreparedReferenceDefinition, html2text::Error> {
     let authored_hash = format!(
         "{:x}",
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
@@ -89,7 +89,7 @@ pub fn prepare_trait_definition(
     let parsed = parse_foundry_content_with_localization(markup, localization);
     let formula_context = &super::FormulaContext::default();
     let mut projection = Projection {
-        origin: PreparationOrigin::Trait(&key),
+        origin: PreparationOrigin::Definition(&key),
         authored_hash: &authored_hash,
         audience,
         localization,
@@ -103,7 +103,7 @@ pub fn prepare_trait_definition(
     let html = projection.nodes(&parsed.document.nodes, "", &[], true, false);
     let html = sanitizer().clean(&html).to_string();
     let text = super::text_projection::plain_text(&html)?;
-    Ok(super::PreparedTraitDefinition {
+    Ok(super::PreparedReferenceDefinition {
         key: key.clone(),
         interpretation_version: CONTENT_INTERPRETATION_VERSION.to_string(),
         authored_markup_sha256: authored_hash.clone(),
@@ -162,7 +162,7 @@ struct InlineContext<'a> {
 
 enum PreparationOrigin<'a> {
     Record(&'a SourceContentLocator),
-    Trait(&'a atlas_domain::TraitKey),
+    Definition(&'a atlas_domain::DefinitionKey),
 }
 
 impl Projection<'_> {
@@ -173,11 +173,13 @@ impl Projection<'_> {
                 self.authored_hash,
                 &self.references[ordinal],
             ),
-            PreparationOrigin::Trait(key) => super::marker_validation::trait_reference_binding(
-                key,
-                self.authored_hash,
-                &self.references[ordinal],
-            ),
+            PreparationOrigin::Definition(key) => {
+                super::marker_validation::definition_reference_binding(
+                    key,
+                    self.authored_hash,
+                    &self.references[ordinal],
+                )
+            }
         }
     }
 
