@@ -559,8 +559,12 @@ describe("shared common and maintained advanced filters", () => {
     });
     expect(change).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    expect(screen.getByRole("textbox", { name: "Level / rank" })).toHaveValue("-");
-    fireEvent.change(screen.getByRole("textbox", { name: "Level / rank" }), {
+    const advanced = screen.getByRole("dialog", { name: "Advanced filters" });
+    const bound = within(advanced).getByRole("textbox", {
+      name: "Level / rank minimum",
+    });
+    expect(bound).toHaveValue("-");
+    fireEvent.change(bound, {
       target: { value: "2" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
@@ -768,12 +772,14 @@ describe("shared common and maintained advanced filters", () => {
       },
     );
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Creature level" }), {
+    fireEvent.change(screen.getByRole("textbox", { name: "Creature level minimum" }), {
       target: { value: "-" },
     });
     expect(await screen.findByText("Enter a finite numeric value")).toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();
-    expect(screen.getByRole("textbox", { name: "Creature level" })).toHaveValue("-");
+    expect(screen.getByRole("textbox", { name: "Creature level minimum" })).toHaveValue(
+      "-",
+    );
   });
   it("retains match-all trait semantics in the advanced editor without offering a simplified picker", () => {
     const traits = fieldFixture("traits", "set", "Traits");
@@ -794,7 +800,9 @@ describe("shared common and maintained advanced filters", () => {
     expect(
       screen.getByRole("combobox", { name: "Condition for Traits" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("includes_all", { exact: true })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Condition for Traits" }).parentElement,
+    ).toHaveTextContent("includes_all");
     expect(change).not.toHaveBeenCalled();
   });
   it("uses a narrow Ant Drawer and returns focus after closing", async () => {
@@ -1274,4 +1282,65 @@ describe("field applicability while editing Boolean groups", () => {
     fireEvent.click(screen.getAllByText("Hardness", { exact: true }).slice(-1)[0]);
     expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
   });
+});
+
+it("displays a strict level comparison as an inclusive bound and edits only that condition", () => {
+  const change = renderControls(
+    editorFixture([fieldFixture("level_or_rank", "number", "Level / rank")]),
+    { kind: "compare", clause_id: "level", field: "level_or_rank", op: "lt", value: 5 },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+  const advanced = within(screen.getByRole("dialog", { name: "Advanced filters" }));
+  const max = advanced.getByRole("textbox", { name: "Level / rank maximum" });
+  expect(max).toHaveValue("4");
+  expect(change).not.toHaveBeenCalled();
+  fireEvent.change(max, { target: { value: "0" } });
+  expect(change).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      filter: {
+        kind: "compare",
+        clause_id: "level",
+        field: "level_or_rank",
+        op: "lte",
+        value: 0,
+      },
+    }),
+  );
+});
+
+it("shows a negated Boolean comparison as Yes or No and writes a direct comparison on edit", () => {
+  const change = renderControls(
+    editorFixture([fieldFixture("has_description", "boolean", "Has a description")]),
+    {
+      kind: "not",
+      predicate: {
+        kind: "compare",
+        clause_id: "description",
+        field: "has_description",
+        op: "eq",
+        value: true,
+      },
+    },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+  const advanced = within(screen.getByRole("dialog", { name: "Advanced filters" }));
+  const choice = advanced.getByRole("combobox", { name: "Has a description" });
+  expect(choice.parentElement).toHaveTextContent("No");
+  expect(
+    advanced.queryByRole("combobox", { name: "Condition for Has a description" }),
+  ).toBeNull();
+  expect(change).not.toHaveBeenCalled();
+  fireEvent.mouseDown(choice);
+  fireEvent.click(screen.getAllByText("Yes", { exact: true }).slice(-1)[0]);
+  expect(change).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      filter: {
+        kind: "compare",
+        clause_id: "description",
+        field: "has_description",
+        op: "eq",
+        value: true,
+      },
+    }),
+  );
 });

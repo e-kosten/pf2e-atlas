@@ -1,17 +1,9 @@
 import { chipLinkClauses } from "./filterControls";
-import { linkScopeCopy } from "./linkScopeCopy";
-import { useReferenceRecordNavigation } from "../records/ReferenceHelp";
-import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
-import { Button, Popover, Radio, Space, Tooltip, Typography } from "antd";
-import { CloseOutlined, DownOutlined } from "@ant-design/icons";
-import { useRef, useState } from "react";
-import type { QueryPredicate, QueryRelationship } from "../../generated/atlas";
+import { Button, Space, Tooltip, Typography } from "antd";
+import { CloseOutlined } from "@ant-design/icons";
+import type { QueryPredicate } from "../../generated/atlas";
 import { linkClauses, type LinkLeaf } from "./linkPredicates";
+
 export function LinkFilterControls({
   filter,
   title,
@@ -21,7 +13,7 @@ export function LinkFilterControls({
 }: {
   filter: QueryPredicate | null;
   title: (leaf: LinkLeaf) => string;
-  onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
+  onEdit: (leaf: LinkLeaf) => void;
   onRemove: (leaf: LinkLeaf) => void;
   limit?: number;
 }) {
@@ -60,32 +52,11 @@ function LinkChip({
 }: {
   leaf: LinkLeaf;
   title: string;
-  onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
+  onEdit: (leaf: LinkLeaf) => void;
   onRemove: (leaf: LinkLeaf) => void;
 }) {
-  const reference = useReferenceRecordNavigation();
-  const [open, setOpen] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
   const relationship = leaf.relationship;
   const direction = relationship.direction === "incoming" ? "Links to" : "Linked from";
-  function close() {
-    setOpen(false);
-    setFeedback(null);
-    trigger.current?.focus({ preventScroll: true });
-  }
-  function update(next: QueryRelationship) {
-    const error = onEdit(leaf, next);
-    if (error) setFeedback(error);
-    else close();
-  }
-  function keyDown(event: React.KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    }
-  }
   return (
     <Space.Compact
       className="relationship-filter applied-filter-chip-group"
@@ -93,119 +64,19 @@ function LinkChip({
       role="group"
       aria-label="Relationship filter"
     >
-      <Popover
-        destroyOnHidden
-        trigger="click"
-        placement="bottom"
-        arrow={false}
-        open={open}
-        onOpenChange={(value) => {
-          setOpen(value);
-          setFeedback(null);
-        }}
-        styles={{ root: { maxWidth: "calc(100vw - 24px)" } }}
-        title={
-          <Radio.Group
-            aria-label="Relationship direction"
-            value={relationship.direction}
-            onChange={(event) =>
-              update({ ...relationship, direction: event.target.value })
-            }
-          >
-            <Radio.Button onKeyDown={keyDown} value="incoming">
-              Links to
-            </Radio.Button>
-            <Radio.Button onKeyDown={keyDown} value="outgoing">
-              Linked from
-            </Radio.Button>
-          </Radio.Group>
-        }
-        content={
-          <div className="relationship-filter__scope">
-            <Typography.Link
-              href={destinationHref(
-                recordDestination({
-                  recordKey: relationship.selection.record_key,
-                  selection: relationship.selection,
-                }),
-              )}
-              onKeyDown={keyDown}
-              onClick={(event) => {
-                if (!isPrimaryActivation(event)) return;
-                event.preventDefault();
-                if (reference) {
-                  close();
-                  reference(
-                    relationship.selection.record_key,
-                    trigger.current ?? event.currentTarget,
-                    relationship.selection,
-                  );
-                  return;
-                }
-                navigateDestination(
-                  recordDestination({
-                    recordKey: relationship.selection.record_key,
-                    selection: relationship.selection,
-                  }),
-                );
-              }}
-            >
-              Open {title}
-            </Typography.Link>
-            <Typography.Paragraph strong>
-              {relationship.direction === "incoming"
-                ? "Look for links in matching records"
-                : "Look for links in this entry"}
-            </Typography.Paragraph>
-            <Radio.Group
-              aria-label="Relationship scope"
-              value={relationship.include_contents}
-              onChange={(event) =>
-                update({ ...relationship, include_contents: event.target.value })
-              }
-            >
-              <Space orientation="vertical">
-                <Radio onKeyDown={keyDown} value={false}>
-                  Main entry only
-                </Radio>
-                <Radio onKeyDown={keyDown} value={true}>
-                  Whole entry
-                </Radio>
-              </Space>
-            </Radio.Group>
-            <Typography.Paragraph type="secondary">
-              <strong>Whole entry:</strong>{" "}
-              {linkScopeCopy[relationship.direction].whole}
-            </Typography.Paragraph>
-            <Button
-              onClick={() => {
-                close();
-                onEdit(leaf);
-              }}
-            >
-              Change record
-            </Button>
-            {feedback && <Typography.Text role="status">{feedback}</Typography.Text>}
-          </div>
-        }
+      <Button
+        className="relationship-filter__edit applied-filter-chip"
+        title={`${direction} ${title}`}
+        color="default"
+        variant="filled"
+        onClick={() => onEdit(leaf)}
+        aria-haspopup="dialog"
+        aria-label={`${direction} ${title}; ${relationship.include_contents ? "Whole entry" : "Main entry only"}`}
       >
-        <Button
-          ref={trigger}
-          className="relationship-filter__edit applied-filter-chip"
-          title={`${direction} ${title}`}
-          color="default"
-          variant="filled"
-          icon={<DownOutlined aria-hidden="true" />}
-          iconPlacement="end"
-          onKeyDown={keyDown}
-          aria-expanded={open}
-          aria-label={`${direction} ${title}; ${relationship.include_contents ? "Whole entry" : "Main entry only"}`}
-        >
-          <span className="relationship-filter__label">
-            {direction} {title}
-          </span>
-        </Button>
-      </Popover>
+        <span className="relationship-filter__label">
+          {direction} {title}
+        </span>
+      </Button>
       <Tooltip title="Remove relationship filter" trigger={["hover", "focus"]}>
         <Button
           className="applied-filter-chip"
@@ -213,10 +84,7 @@ function LinkChip({
           variant="filled"
           icon={<CloseOutlined />}
           aria-label="Remove relationship filter"
-          onClick={() => {
-            close();
-            onRemove(leaf);
-          }}
+          onClick={() => onRemove(leaf)}
         />
       </Tooltip>
     </Space.Compact>

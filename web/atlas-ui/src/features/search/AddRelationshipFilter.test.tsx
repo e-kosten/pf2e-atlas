@@ -314,7 +314,6 @@ it.each([true, false])(
     });
     const before = current().search;
     fireEvent.click(screen.getByRole("button", { name: /^Linked from/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Change record" }));
     const dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
     fireEvent.click(
       await within(dialog).findByRole("button", { name: "Clear selection" }),
@@ -347,9 +346,7 @@ it("edits an exact embedded selection without rebinding it until a parent row is
   });
   fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
   const drawer = screen.getByRole("dialog", { name: "Advanced filters" });
-  fireEvent.click(
-    within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
-  );
+  fireEvent.click(within(drawer).getByRole("button", { name: "Edit link" }));
   let dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
   await waitFor(() =>
     expect(within(dialog).getByRole("button", { name: "Apply" })).toBeEnabled(),
@@ -357,9 +354,7 @@ it("edits an exact embedded selection without rebinding it until a parent row is
   fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
   await waitFor(() => expect(dialog).not.toBeVisible());
   expect(linkClauses(current().search.filter)[0].relationship).toEqual(existing);
-  fireEvent.click(
-    within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
-  );
+  fireEvent.click(within(drawer).getByRole("button", { name: "Edit link" }));
   dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
   fireEvent.click(within(dialog).getByRole("button", { name: "Clear selection" }));
   fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
@@ -381,8 +376,7 @@ it("composes a nested picker through the same provider and Escape preserves the 
   const outer = await openAndSelect();
   fireEvent.click(within(outer).getByRole("button", { name: "Advanced filters" }));
   const advanced = screen.getByRole("dialog", { name: "Advanced filters" });
-  fireEvent.click(within(advanced).getByRole("button", { name: "Add condition" }));
-  await selectSortOption("Filter field", "Record links");
+  await selectSortOption("Add condition", "Record links");
   const chooseRecord = within(advanced).getByRole("button", { name: "Choose record" });
   act(() => chooseRecord.focus());
   fireEvent.click(chooseRecord);
@@ -442,4 +436,26 @@ it("uses the selected preview as identity and retains the revised direction and 
     include_contents: false,
     selection: rootNavigation(selectedKey),
   });
+});
+
+it("excludes an existing link in the modal without rebinding the exact target", async () => {
+  const current = setup({
+    ...DEFAULT_SEARCH_STATE,
+    filter: linkLeaf(existing, "existing"),
+  });
+  const [original] = linkClauses(current().search.filter);
+  fireEvent.click(screen.getByRole("button", { name: /^Linked from/ }));
+  const dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
+  fireEvent.click(
+    within(dialog).getByRole("checkbox", { name: "Exclude matching records" }),
+  );
+  const apply = within(dialog).getByRole("button", { name: "Apply" });
+  await waitFor(() => expect(apply).toBeEnabled());
+  fireEvent.click(apply);
+  await waitFor(() =>
+    expect(current().search.filter).toMatchObject({
+      kind: "not",
+      predicate: original,
+    }),
+  );
 });

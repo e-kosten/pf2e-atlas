@@ -74,6 +74,7 @@ export function SearchPickerModal<FormValues>({
   emptyResults,
   form,
   onCancel,
+  afterClose,
   onFinish,
   onSelectionChange,
   open,
@@ -97,6 +98,7 @@ export function SearchPickerModal<FormValues>({
   emptyResults: string;
   form: FormInstance<FormValues>;
   onCancel: () => void;
+  afterClose?: () => void;
   onFinish: (values: FormValues) => void;
   onSelectionChange: (selection: PickerSelection | null) => void;
   open: boolean;
@@ -363,6 +365,7 @@ export function SearchPickerModal<FormValues>({
             body: { display: "flex", flexDirection: "column", overflow: "hidden" },
             footer: { containerType: "inline-size", containerName: "picker-footer" },
           }}
+          afterClose={afterClose}
           afterOpenChange={(isOpen) => {
             if (!isOpen) reset();
           }}

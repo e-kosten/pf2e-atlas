@@ -65,29 +65,44 @@ export function linkLeaf(
 } {
   return { kind: "relationship", clause_id, relationship };
 }
+export function linkPredicate(leaf: LinkLeaf, excluded: boolean): QueryPredicate {
+  return excluded ? { kind: "not", predicate: leaf } : leaf;
+}
+
+export function hasLinkCondition(
+  node: QueryPredicate | null,
+  relationship: QueryRelationship,
+  excluded: boolean,
+  exceptClauseId?: string,
+): boolean {
+  if (!node) return false;
+  if (node.kind === "all_of")
+    return node.children.some((child) =>
+      hasLinkCondition(child, relationship, excluded, exceptClauseId),
+    );
+  const leaf = excluded && node.kind === "not" ? node.predicate : node;
+  return (
+    (!excluded || node.kind === "not") &&
+    leaf.kind === "relationship" &&
+    (!exceptClauseId || leaf.clause_id !== exceptClauseId) &&
+    sameRelationship(leaf.relationship, relationship)
+  );
+}
+
 export function appendLink(
-  filter: import("../../generated/atlas").QueryPredicate | null,
-  leaf: Extract<
-    import("../../generated/atlas").QueryPredicate,
-    { kind: "relationship" }
-  >,
-) {
-  const direct = filter?.kind === "all_of" ? filter.children : filter ? [filter] : [];
-  if (
-    direct.some(
-      (node) =>
-        node.kind === "relationship" &&
-        sameRelationship(node.relationship, leaf.relationship),
-    )
-  )
-    return filter;
+  filter: QueryPredicate | null,
+  leaf: LinkLeaf,
+  excluded = false,
+): QueryPredicate {
+  if (filter && hasLinkCondition(filter, leaf.relationship, excluded)) return filter;
+  const condition = linkPredicate(leaf, excluded);
   return filter
     ? {
-        kind: "all_of" as const,
+        kind: "all_of",
         clause_id: crypto.randomUUID(),
-        children: [filter, leaf],
+        children: [filter, condition],
       }
-    : leaf;
+    : condition;
 }
 
 export type LinkLeaf = Extract<

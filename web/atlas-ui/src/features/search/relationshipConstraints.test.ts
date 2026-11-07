@@ -81,7 +81,7 @@ it.each([
   },
 );
 
-it("deduplicates only direct positive AND siblings while preserving OR and NOT meaning", async () => {
+it("deduplicates matching polarity through AND groups while preserving OR and NOT meaning", async () => {
   const { appendLink, linkLeaf } = await import("../../shared/filters/linkPredicates");
   const leaf = linkLeaf(constraint, "original");
   const duplicate = linkLeaf(constraint, "new");
@@ -91,6 +91,16 @@ it("deduplicates only direct positive AND siblings while preserving OR and NOT m
     children: [leaf, { kind: "boolean_constant" as const, value: true }],
   };
   expect(appendLink(conjunction, duplicate)).toBe(conjunction);
+  const nested = {
+    kind: "all_of" as const,
+    children: [conjunction, { kind: "not" as const, predicate: leaf }],
+  };
+  expect(appendLink(nested, duplicate)).toBe(nested);
+  expect(appendLink(nested, duplicate, true)).toBe(nested);
+  expect(appendLink(conjunction, duplicate, true)).toMatchObject({
+    kind: "all_of",
+    children: [conjunction, { kind: "not", predicate: duplicate }],
+  });
   for (const filter of [
     {
       kind: "any_of" as const,

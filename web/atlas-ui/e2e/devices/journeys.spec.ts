@@ -2780,7 +2780,10 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
     info,
   );
   const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
-  const level = advanced.getByRole("textbox", { name: "Level / Rank", exact: true });
+  const level = advanced.getByRole("textbox", {
+    name: "Level / Rank minimum",
+    exact: true,
+  });
   await level.fill("unfinished");
   const draftUrl = page.url();
   await activate(

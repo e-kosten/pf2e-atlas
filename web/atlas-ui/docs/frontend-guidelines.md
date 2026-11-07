@@ -1825,7 +1825,9 @@ common controls and Advanced. Use the existing group AND/OR/NOT owner and a Reco
 links condition choice, not a fabricated catalog field or separate relationship
 array. Links with a chevron is a toolbar shortcut. It belongs to FilterControls/
 useFilterEditor so adding a root conjunction retains unfinished sibling drafts.
-Positive root conjunctions can expose individual editable chips. Mixed or negated
+Positive root conjunctions can expose individual editable chips. A chip, the
+Links shortcut, and the action beside an Advanced link condition open the same
+modal. Direction, exclusion, entry scope, and target are edited together there. Mixed or negated
 expressions use one bounded human summary retaining operators and grouping; clicking
 opens Advanced. Never extract flat link chips from an OR/NOT expression. Clear filters
 clears the complete predicate while retaining text/Similar and result order.
