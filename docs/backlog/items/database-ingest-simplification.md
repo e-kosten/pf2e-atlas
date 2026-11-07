@@ -17,8 +17,8 @@ owns the publication and retrieval decisions. The
 preservation evidence and comparison limits. Ordinary ingest validates its write
 boundaries. `atlas index validate` provides the separate deep audit.
 
-## Deferred reference rebuild
+## Reference rebuild
 
-Consider an explicit command that replaces generated reference data through the
-existing publisher while preserving app data and stable identities. This remains
-separate from the ingest changes in PR184.
+`atlas index rebuild` rebuilds generated reference data from the saved source
+configuration through the existing publisher. It keeps app data and stable
+identities. See [the recovery procedure](../../cli-examples.md#rebuild-corrupted-reference-data).

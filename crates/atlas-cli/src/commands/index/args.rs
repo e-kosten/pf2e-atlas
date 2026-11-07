@@ -15,6 +15,8 @@ pub(crate) struct IndexArgs {
 pub(crate) enum IndexCommand {
     #[command(about = "Update workspace reference data from Foundry source files")]
     Build(BuildIndexOptions),
+    #[command(about = "Rebuild generated reference data while retaining saved app data")]
+    Rebuild(RebuildIndexOptions),
     #[command(about = "Run a fast artifact readiness check")]
     Check(CheckIndexOptions),
     #[command(
@@ -57,6 +59,21 @@ pub(crate) struct BuildIndexOptions {
         help = "Build without requesting additional embedding models; existing models are preserved"
     )]
     pub(crate) no_embeddings: bool,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Use an existing current-schema workspace and its saved source, locale and search profiles. Requires local source and configured model assets. The replacement is committed only after deep validation."
+)]
+pub(crate) struct RebuildIndexOptions {
+    #[arg(long, help = "Override the existing SQLite workspace path")]
+    pub(crate) index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long, help = "Override the embedding model cache root")]
+    pub(crate) embedding_cache_path: Option<PathBuf>,
     #[arg(long, help = "Emit the standard JSON envelope")]
     pub(crate) json: bool,
 }

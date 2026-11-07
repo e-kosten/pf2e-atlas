@@ -273,7 +273,6 @@ pub(crate) fn check_expected(
     c: &Connection,
     input: &crate::PublicationSpool,
 ) -> Result<(), IndexError> {
-    let expected = &input.expected;
     let (key, revision, has_context): (String, u64, bool) = c.query_row(
         "SELECT workspace_key, reference_revision,
                 EXISTS(SELECT 1 FROM artifact_context WHERE singleton=1)
@@ -281,12 +280,36 @@ pub(crate) fn check_expected(
         [],
         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
     )?;
-    if key.is_empty() || has_context != (revision > 0) {
+    if has_context != (revision > 0) {
         return Err(IndexError::Invalid(
             "reference publication has an invalid workspace/revision/context identity".into(),
         ));
     }
-    if key != expected.workspace_key() || revision != expected.reference_revision() {
+    verify_workspace_revision(input, &key, revision)
+}
+
+pub(crate) fn check_workspace_revision(
+    c: &Connection,
+    input: &crate::PublicationSpool,
+) -> Result<(), IndexError> {
+    let (key, revision): (String, u64) = c.query_row(
+        "SELECT workspace_key, reference_revision FROM workspace WHERE id=1",
+        [],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    verify_workspace_revision(input, &key, revision)
+}
+
+fn verify_workspace_revision(
+    input: &crate::PublicationSpool,
+    key: &str,
+    revision: u64,
+) -> Result<(), IndexError> {
+    let expected = &input.expected;
+    if key.is_empty()
+        || key != expected.workspace_key()
+        || revision != expected.reference_revision()
+    {
         return Err(IndexError::Invalid(
             "sealed publication belongs to a stale workspace revision".into(),
         ));

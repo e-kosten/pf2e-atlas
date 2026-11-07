@@ -97,6 +97,7 @@ mod vector_neighbors;
 mod vector_neighbors_tests;
 pub use vector_neighbors::SourceVectorNeighbors;
 mod reader;
+mod reference_reset;
 mod schema;
 mod stream_publication;
 #[cfg(any(test, feature = "test-support"))]

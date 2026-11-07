@@ -124,6 +124,7 @@ impl Command {
             Self::Setup(args) => args.paths.json,
             Self::Index(args) => match &args.command {
                 IndexCommand::Build(options) => options.json,
+                IndexCommand::Rebuild(options) => options.json,
                 IndexCommand::Check(options) => options.json,
                 IndexCommand::Validate(options) => options.json,
             },
@@ -183,6 +184,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         Command::Setup(args) => commands::setup::run_setup(args),
         Command::Index(index) => match index.command {
             IndexCommand::Build(options) => commands::index::run_index_build(options),
+            IndexCommand::Rebuild(options) => commands::index::run_index_rebuild(options),
             IndexCommand::Check(options) => commands::index::run_index_check(options),
             IndexCommand::Validate(options) => commands::index::run_index_validate(options),
         },

@@ -1565,3 +1565,162 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
         "Keep"
     );
 }
+
+#[test]
+fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
+    for missing_context in [false, true] {
+        let fixture = Fixture::new();
+        let connection = rusqlite::Connection::open(&fixture.index).unwrap();
+        connection.execute_batch(
+            "INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at)
+             VALUES(1,'kept','kept','Saved list','now','now');
+             INSERT INTO record_identity(key,last_known_name,availability)
+             VALUES('actions:cccccccccccccccc','Removed record','available');
+             INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
+             VALUES(1,'actions:cccccccccccccccc',0,'Keep this note','Removed record','now','now');
+             INSERT INTO encounters(id,encounter_key,slug,name,status,note,created_at,updated_at)
+             VALUES(1,'fight','fight','Saved encounter','draft','Keep encounter note','now','now');
+             INSERT INTO lexical_fts(lexical_fts) VALUES('delete-all');
+             UPDATE record_bodies SET snapshot=zeroblob(8);
+             UPDATE records SET name='Broken';"
+        ).unwrap();
+        let damage = if missing_context {
+            "DELETE FROM artifact_context"
+        } else {
+            "UPDATE artifact_context SET context_json='{}'"
+        };
+        connection.execute(damage, []).unwrap();
+        let header = || {
+            connection
+                .query_row(
+                    "SELECT workspace_key,reference_revision FROM workspace",
+                    [],
+                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?)),
+                )
+                .unwrap()
+        };
+        let identities = || {
+            connection
+                .prepare("SELECT id,key FROM record_identity ORDER BY id")
+                .unwrap()
+                .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let config = || {
+            connection
+                .query_row(
+                    "SELECT config_json FROM requested_reference_config",
+                    [],
+                    |r| r.get::<_, String>(0),
+                )
+                .unwrap()
+        };
+        let before = (header(), identities(), config());
+        assert!(
+            !fixture
+                .command(&["index", "validate", "--no-embeddings"], false)
+                .status
+                .success()
+        );
+
+        let data = fixture.data(&["index", "rebuild", "--json"]);
+        assert_eq!(data["record_count"], 2);
+        assert_eq!(data["semantic_unit_count"], 0);
+        fixture.data(&["index", "validate", "--no-embeddings", "--json"]);
+        assert_eq!(header(), (before.0.0, before.0.1 + 1));
+        assert_eq!(identities(), before.1);
+        assert_eq!(config(), before.2);
+        let saved: (String, String, String, String) = connection
+            .query_row(
+                "SELECT i.note,e.note,r.last_known_name,r.availability
+             FROM saved_list_items i JOIN record_identity r ON i.record_key=r.key
+             CROSS JOIN encounters e",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            saved,
+            (
+                "Keep this note".into(),
+                "Keep encounter note".into(),
+                "Removed record".into(),
+                "unavailable".into()
+            )
+        );
+    }
+}
+
+#[test]
+fn index_rebuild_rolls_back_reference_reset_when_deep_audit_fails() {
+    let fixture = Fixture::new();
+    let connection = rusqlite::Connection::open(&fixture.index).unwrap();
+    connection.execute_batch(
+        "PRAGMA foreign_keys=OFF;
+         INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at)
+         VALUES(1,'kept','kept','Saved list','now','now');
+         INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
+         VALUES(1,'actions:dddddddddddddddd',0,'Keep broken saved row','Unknown','now','now');
+         UPDATE artifact_context SET context_json='{}';
+         UPDATE records SET name='Prior committed data';"
+    ).unwrap();
+    let output = fixture.command(&["index", "rebuild", "--json"], false);
+    assert!(!output.status.success());
+    let diagnostic = String::from_utf8_lossy(&output.stdout);
+    assert!(diagnostic.contains("foreign key violation"), "{diagnostic}");
+    let retained: (u64, String, String, String) = connection
+        .query_row(
+            "SELECT reference_revision,context_json,name,note FROM workspace
+         CROSS JOIN artifact_context CROSS JOIN records CROSS JOIN saved_list_items LIMIT 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .unwrap();
+    assert_eq!(
+        retained,
+        (
+            1,
+            "{}".into(),
+            "Prior committed data".into(),
+            "Keep broken saved row".into()
+        )
+    );
+}
+
+#[test]
+fn index_rebuild_refuses_missing_old_and_maintenance_workspaces() {
+    let fixture = Fixture::new();
+    let missing = Fixture {
+        root: fixture.root.join("absent"),
+        index: fixture.root.join("absent/workspace.sqlite"),
+    };
+    assert!(
+        !missing
+            .command(&["index", "rebuild"], false)
+            .status
+            .success()
+    );
+    assert!(!missing.root.exists());
+
+    let connection = rusqlite::Connection::open(&fixture.index).unwrap();
+    for (mutation, expected) in [
+        ("PRAGMA user_version=31", "schema"),
+        (
+            "PRAGMA user_version=32; UPDATE workspace SET maintenance='fixture'",
+            "fixture",
+        ),
+    ] {
+        connection.execute_batch(mutation).unwrap();
+        connection
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
+            .unwrap();
+        let before = fs::read(&fixture.index).unwrap();
+        let output = fixture.command(&["index", "rebuild", "--json"], false);
+        assert!(!output.status.success());
+        let diagnostic = String::from_utf8_lossy(&output.stdout);
+        assert!(diagnostic.contains(expected), "{diagnostic}");
+        assert_eq!(fs::read(&fixture.index).unwrap(), before);
+    }
+}
