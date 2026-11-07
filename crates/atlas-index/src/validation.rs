@@ -88,7 +88,6 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
 /// This does not start or commit a transaction or reopen the database by path.
 pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, IndexError> {
     let (context, _) = validate_open(c)?;
-    let mut trait_evidence = crate::traits::validate_trait_definitions(c, &context)?;
     tracing::info!(target:"atlas_progress",phase="artifact_integrity","Checking database integrity");
     let integrity: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     if integrity != "ok" {
@@ -109,7 +108,8 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     // No source bodies or prose survive this first pass; later edge checks use
     // that same source-owner resolver instead of decoding a target per edge.
     let mut reference_index = atlas_record::source_record::SourceReferenceIndex::default();
-    let abilities = crate::references::audit_catalog(c, context.reference_preparation.as_ref())?;
+    let (abilities, mut trait_evidence) = crate::references::audit_catalog(c, &context)?;
+    crate::traits::validate_trait_vectors(c, &context)?;
     let total_roots = count(c, "records")?;
     {
         let mut cursor = root_query.query([])?;

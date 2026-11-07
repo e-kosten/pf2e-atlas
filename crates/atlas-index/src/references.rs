@@ -133,7 +133,6 @@ pub enum ReferencePermissionDisposition {
     ExistingRecordPolicy,
     ApprovedContent,
     MetadataOnlyUnresolved,
-    ExcludedOrWithdrawn,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -202,13 +201,6 @@ pub enum ReferenceSummaryBacking {
     None,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ReferenceSummaryBatch {
-    /// Found entries in first-requested order, without repeated keys.
-    pub entries: Vec<ReferenceSummary>,
-    pub missing: Vec<DefinitionKey>,
-}
-
 impl From<&ReferenceEntry> for ReferenceSummary {
     fn from(entry: &ReferenceEntry) -> Self {
         Self {
@@ -240,10 +232,8 @@ pub enum ReferenceAvailability {
     MissingTarget,
     WrongFamily,
     ConflictingEvidence,
-    AmbiguousMapping,
     SourceInapplicable,
     PermissionUnresolved,
-    Withdrawn,
     UnavailableUnknown,
 }
 
@@ -360,10 +350,6 @@ impl SqliteIndexReader {
             .map_or(ReferenceCoverage::TraitsOnly, |p| p.coverage)
     }
 
-    pub fn reference_preparation(&self) -> Option<&ReferencePreparation> {
-        self.context().reference_preparation.as_ref()
-    }
-
     pub fn reference_entry(
         &self,
         key: &DefinitionKey,
@@ -377,85 +363,46 @@ impl SqliteIndexReader {
         &self,
         key: &DefinitionKey,
     ) -> Result<Option<ReferenceSummary>, IndexError> {
-        self.require_reference_key_coverage(key)?;
-        let row = self
-            .native()?
-            .query_row(
-                &format!(
-                    "SELECT definition_json,definition_hash,{} FROM reference_entries WHERE key=?",
-                    prepared_reading_projection_sql()
-                ),
-                [key.to_string()],
-                |r| {
-                    Ok((
-                        r.get::<_, String>(0)?,
-                        r.get::<_, String>(1)?,
-                        r.get::<_, bool>(2)?,
-                    ))
-                },
-            )
-            .optional()?;
-        row.map(|(json, hash, readable)| {
-            decode_reference_summary(self.native()?, key, &json, &hash, readable)
-        })
-        .transpose()
+        Ok(self.reference_summaries(std::slice::from_ref(key))?.pop())
     }
 
-    /// At most 100 keys. Missing complete-coverage keys remain distinct from a
-    /// workspace which has not prepared the requested namespace.
+    /// At most 100 keys; returned entries need not be in request order.
     pub fn reference_summaries(
         &self,
         keys: &[DefinitionKey],
-    ) -> Result<ReferenceSummaryBatch, IndexError> {
+    ) -> Result<Vec<ReferenceSummary>, IndexError> {
         if keys.len() > 100 {
             return Err(IndexError::Invalid(
                 "reference metadata batch must contain at most 100 keys".into(),
             ));
         }
-        let mut unique = std::collections::BTreeSet::new();
-        let keys: Vec<_> = keys.iter().filter(|key| unique.insert(*key)).collect();
-        for key in &keys {
+        for key in keys {
             self.require_reference_key_coverage(key)?;
         }
-        let mut result = ReferenceSummaryBatch {
-            entries: Vec::new(),
-            missing: Vec::new(),
-        };
         if keys.is_empty() {
-            return Ok(result);
+            return Ok(vec![]);
         }
-        let placeholders = std::iter::repeat_n("?", keys.len())
-            .collect::<Vec<_>>()
-            .join(",");
-        let mut statement = self.native()?.prepare(&format!(
-            "SELECT key,definition_json,definition_hash,{} FROM reference_entries WHERE key IN ({placeholders})", prepared_reading_projection_sql()
+        let c = self.native()?;
+        let mut statement = c.prepare_cached(&format!(
+            "SELECT key,definition_json,definition_hash,{} FROM reference_entries
+             WHERE key IN (SELECT value FROM json_each(?))",
+            prepared_reading_projection_sql(),
         ))?;
-        let mut entries = std::collections::BTreeMap::new();
-        for row in statement.query_map(
-            rusqlite::params_from_iter(keys.iter().map(|key| key.to_string())),
-            |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                    r.get::<_, bool>(3)?,
-                ))
-            },
-        )? {
-            let (key, json, hash, readable) = row?;
-            let key: DefinitionKey = key
-                .parse()
-                .map_err(|e| IndexError::Invalid(format!("invalid stored definition key: {e}")))?;
-            let summary = decode_reference_summary(self.native()?, &key, &json, &hash, readable)?;
-            entries.insert(key, summary);
+        let mut rows = statement.query([serde_json::to_string(keys)?])?;
+        let mut entries = Vec::new();
+        while let Some(row) = rows.next()? {
+            let key: String = row.get(0)?;
+            let json: String = row.get(1)?;
+            let hash: String = row.get(2)?;
+            entries.push(decode_reference_summary(
+                c,
+                &key,
+                &json,
+                &hash,
+                row.get(3)?,
+            )?);
         }
-        for key in keys {
-            match entries.remove(key) {
-                Some(entry) => result.entries.push(entry),
-                None => result.missing.push(key.clone()),
-            }
-        }
-        Ok(result)
+        Ok(entries)
     }
 
     fn require_reference_key_coverage(&self, key: &DefinitionKey) -> Result<(), IndexError> {
@@ -479,14 +426,7 @@ impl SqliteIndexReader {
              ORDER BY requested.key",
         )?;
         statement
-            .query_map([serde_json::to_string(ids)?], |row| {
-                Ok(ReferenceNotice {
-                    id: row.get(0)?,
-                    sha256: row.get(1)?,
-                    text: row.get(2)?,
-                    source_url: row.get(3)?,
-                })
-            })?
+            .query_map([serde_json::to_string(ids)?], read_notice_row)?
             .map(|row| {
                 let notice = row?;
                 validate_notice(&notice)?;
@@ -500,32 +440,51 @@ pub(crate) fn read_entry(
     c: &Connection,
     key: &DefinitionKey,
 ) -> Result<Option<ReferenceEntry>, IndexError> {
+    let key = key.to_string();
     let row: Option<(String, String)> = c
         .query_row(
             "SELECT definition_json,definition_hash FROM reference_entries WHERE key=?",
-            [key.to_string()],
+            [&key],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
         .optional()?;
     row.map(|(json, hash)| {
-        if crate::codec::sha256(json.as_bytes()) != hash {
-            return Err(IndexError::Invalid(
-                "reference definition checksum mismatch".into(),
-            ));
+        let entry = decode_entry(&key, &json, &hash)?;
+        if entry.label.trim().is_empty() {
+            return Err(IndexError::Invalid("empty reference label".into()));
         }
-        let entry: ReferenceEntry = serde_json::from_str(&json)?;
-        if entry.key != *key {
-            return Err(IndexError::Invalid(
-                "reference definition identity mismatch".into(),
-            ));
-        }
-        validate_entry_metadata(c, &entry, None, false)?;
+        validate_backing(c, &entry)?;
         Ok(entry)
     })
     .transpose()
 }
 
-pub(crate) fn validate_notice(notice: &ReferenceNotice) -> Result<(), IndexError> {
+fn decode_entry(key: &str, json: &str, hash: &str) -> Result<ReferenceEntry, IndexError> {
+    check_envelope_hash(json, hash)?;
+    let entry: ReferenceEntry = serde_json::from_str(json)?;
+    check_entry_key(&entry.key, key)?;
+    Ok(entry)
+}
+
+fn check_envelope_hash(json: &str, hash: &str) -> Result<(), IndexError> {
+    if crate::codec::sha256(json.as_bytes()) != hash {
+        return Err(IndexError::Invalid(
+            "reference definition checksum mismatch".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn check_entry_key(entry: &DefinitionKey, stored: &str) -> Result<(), IndexError> {
+    if entry.to_string() != stored {
+        return Err(IndexError::Invalid(
+            "reference definition identity mismatch".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_notice(notice: &ReferenceNotice) -> Result<(), IndexError> {
     if notice.id.trim().is_empty()
         || notice.text.is_empty()
         || crate::codec::sha256(notice.text.as_bytes()) != notice.sha256
@@ -537,12 +496,25 @@ pub(crate) fn validate_notice(notice: &ReferenceNotice) -> Result<(), IndexError
     Ok(())
 }
 
-pub(crate) fn validate_entry(
+fn validate_entry(
     c: &Connection,
     entry: &ReferenceEntry,
     preparation: Option<&ReferencePreparation>,
 ) -> Result<(), IndexError> {
-    validate_entry_metadata(c, entry, preparation, true)
+    validate_reference_metadata(c, entry)?;
+    if let ReferenceBacking::Record { key } = &entry.backing {
+        let mapping = entry.provenance.record_mapping.as_ref().ok_or_else(|| {
+            IndexError::Invalid("record-backed reference lacks mapping evidence".into())
+        })?;
+        if !reference_pack_applies(preparation, &mapping.package, key.pack().as_str()) {
+            return Err(IndexError::Invalid(
+                "reference mapping captured package/pack is inapplicable".into(),
+            ));
+        }
+        validate_record_mapping(c, entry, key, mapping)
+    } else {
+        validate_backing(c, entry)
+    }
 }
 
 /// Equivalent to the record-owned presence predicate over canonical prepared
@@ -556,18 +528,14 @@ fn prepared_reading_projection_sql() -> String {
 
 fn decode_reference_summary(
     c: &Connection,
-    key: &DefinitionKey,
+    key: &str,
     json: &str,
     hash: &str,
     readable: bool,
 ) -> Result<ReferenceSummary, IndexError> {
     // The canonical checksum covers the entire envelope, even though serde skips
     // prepared content. A second persisted metadata copy is unnecessary.
-    if crate::codec::sha256(json.as_bytes()) != hash {
-        return Err(IndexError::Invalid(
-            "reference definition checksum mismatch".into(),
-        ));
-    }
+    check_envelope_hash(json, hash)?;
     let mut summary: ReferenceSummary = serde_json::from_str(json)?;
     if let ReferenceSummaryBacking::Prepared {
         readable: capability,
@@ -575,11 +543,7 @@ fn decode_reference_summary(
     {
         *capability = readable;
     }
-    if &summary.key != key {
-        return Err(IndexError::Invalid(
-            "reference definition identity mismatch".into(),
-        ));
-    }
+    check_entry_key(&summary.key, key)?;
     if summary.label.trim().is_empty() {
         return Err(IndexError::Invalid("empty reference label".into()));
     }
@@ -653,14 +617,13 @@ fn validate_reference_metadata(c: &Connection, entry: &ReferenceEntry) -> Result
         }
     }
     match &entry.backing {
-        ReferenceBacking::Record { key } => {
+        ReferenceBacking::Record { .. } => {
             if entry.permission.disposition != ReferencePermissionDisposition::ExistingRecordPolicy
             {
                 return Err(IndexError::Invalid(
                     "reference record backing has invalid permission".into(),
                 ));
             }
-            validate_record_target(c, key)?;
         }
         ReferenceBacking::Prepared { .. } => {
             if !matches!(
@@ -688,34 +651,10 @@ fn validate_reference_metadata(c: &Connection, entry: &ReferenceEntry) -> Result
     Ok(())
 }
 
-fn validate_entry_metadata(
-    c: &Connection,
-    entry: &ReferenceEntry,
-    preparation: Option<&ReferencePreparation>,
-    inspect_retained_source: bool,
-) -> Result<(), IndexError> {
-    if inspect_retained_source {
-        validate_reference_metadata(c, entry)?;
-    } else if entry.label.trim().is_empty() {
-        return Err(IndexError::Invalid("empty reference label".into()));
-    }
+fn validate_backing(c: &Connection, entry: &ReferenceEntry) -> Result<(), IndexError> {
     match &entry.backing {
         ReferenceBacking::None => {}
-        ReferenceBacking::Record { key } => {
-            if inspect_retained_source {
-                let mapping = entry.provenance.record_mapping.as_ref().ok_or_else(|| {
-                    IndexError::Invalid("record-backed reference lacks mapping evidence".into())
-                })?;
-                if !reference_pack_applies(preparation, &mapping.package, key.pack().as_str()) {
-                    return Err(IndexError::Invalid(
-                        "reference mapping captured package/pack is inapplicable".into(),
-                    ));
-                }
-                validate_record_mapping(c, entry, key)?;
-            } else {
-                validate_record_target(c, key)?;
-            }
-        }
+        ReferenceBacking::Record { key } => validate_record_target(c, key)?,
         ReferenceBacking::Prepared {
             authored_markup,
             content,
@@ -751,20 +690,23 @@ fn validate_record_mapping(
     c: &Connection,
     entry: &ReferenceEntry,
     key: &RecordKey,
+    evidence: &ReferenceRecordMapping,
 ) -> Result<(), IndexError> {
-    let evidence = entry.provenance.record_mapping.as_ref().ok_or_else(|| {
-        IndexError::Invalid("record-backed reference lacks mapping evidence".into())
-    })?;
     if evidence.package != entry.provenance.source_package || evidence.target != *key {
         return Err(IndexError::Invalid(
             "reference mapping package/target differs from source".into(),
         ));
     }
-    let bytes: Vec<u8> = c.query_row(
-        "SELECT b.snapshot FROM record_bodies b JOIN records r USING(record_id) WHERE r.key=?",
-        [key.to_string()],
-        |r| r.get(0),
-    )?;
+    let bytes: Vec<u8> = c
+        .query_row(
+            "SELECT b.snapshot FROM record_bodies b JOIN records r USING(record_id) WHERE r.key=?",
+            [key.to_string()],
+            |r| r.get(0),
+        )
+        .optional()?
+        .ok_or_else(|| {
+            IndexError::Invalid("reference mapping target has no retained snapshot".into())
+        })?;
     let source = atlas_foundry_model::decode_snapshot(&crate::codec::gunzip(&bytes)?)
         .map_err(|e| IndexError::Invalid(e.to_string()))?;
     let record = atlas_record::source_record::SourceBackedRecord::new(key.pack().as_str(), source)
@@ -826,8 +768,6 @@ pub(crate) fn write_notices(
         c.execute("INSERT INTO reference_notices VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET sha256=excluded.sha256,text=excluded.text,source_url=excluded.source_url WHERE sha256 IS NOT excluded.sha256 OR source_url IS NOT excluded.source_url",params![notice.id,notice.sha256,notice.text,notice.source_url])?;
         Ok(())
     })?;
-    // New definitions are validated before obsolete notices are removed. The
-    // selected complete input still must carry every required notice explicitly.
     let old = c
         .prepare("SELECT id FROM reference_notices")?
         .query_map([], |r| r.get::<_, String>(0))?
@@ -845,24 +785,12 @@ pub(crate) fn write_entries(
     input: &crate::PublicationSpool,
 ) -> Result<std::collections::BTreeSet<String>, IndexError> {
     let mut kept = std::collections::BTreeSet::new();
-    let roots = input
-        .identities()
-        .iter()
-        .map(|i| &i.key)
-        .collect::<std::collections::BTreeSet<_>>();
     input.reference_entries.visit(&mut |entry| {
         if entry.key.namespace() == DefinitionNamespace::Trait
             || !kept.insert(entry.key.to_string())
         {
             return Err(IndexError::Invalid(
                 "duplicate or trait-specialized reference entry".into(),
-            ));
-        }
-        if let ReferenceBacking::Record { key } = &entry.backing
-            && !roots.contains(key)
-        {
-            return Err(IndexError::Invalid(
-                "reference mapping target is absent from captured publication".into(),
             ));
         }
         write_reference_entry(c, &entry, input.context.reference_preparation.as_ref())
@@ -881,8 +809,9 @@ pub(crate) fn write_entries(
 
 pub(crate) fn audit_catalog(
     c: &Connection,
-    preparation: Option<&ReferencePreparation>,
-) -> Result<crate::OwnedAbilityCatalog, IndexError> {
+    context: &crate::SourceArtifactBuildContext,
+) -> Result<(crate::OwnedAbilityCatalog, crate::traits::TraitEvidence), IndexError> {
+    let preparation = context.reference_preparation.as_ref();
     if let Some(preparation) = preparation
         && (preparation.recipe.is_empty() || !crate::codec::checked_hash(&preparation.input_hash))
     {
@@ -892,31 +821,7 @@ pub(crate) fn audit_catalog(
     }
     let mut keys = Vec::new();
     let mut catalog = crate::OwnedAbilityCatalog::default();
-    visit_entries(c, preparation, &mut |entry| {
-        keys.push(entry.key.to_string());
-        catalog.add_entry(&entry);
-        Ok(())
-    })?;
-    validate_inventory(preparation, keys)?;
-    let mut notices = c.prepare("SELECT id,sha256,text,source_url FROM reference_notices")?;
-    for row in notices.query_map([], |r| {
-        Ok(ReferenceNotice {
-            id: r.get(0)?,
-            sha256: r.get(1)?,
-            text: r.get(2)?,
-            source_url: r.get(3)?,
-        })
-    })? {
-        validate_notice(&row?)?;
-    }
-    Ok(catalog)
-}
-
-fn visit_entries(
-    c: &Connection,
-    preparation: Option<&crate::ReferencePreparation>,
-    visitor: &mut dyn FnMut(ReferenceEntry) -> Result<(), IndexError>,
-) -> Result<(), IndexError> {
+    let mut traits = crate::traits::TraitEvidence::default();
     let mut statement = c.prepare(
         "SELECT key,definition_json,definition_hash FROM reference_entries ORDER BY key",
     )?;
@@ -925,19 +830,27 @@ fn visit_entries(
         let key: String = row.get(0)?;
         let json: String = row.get(1)?;
         let hash: String = row.get(2)?;
-        if crate::codec::sha256(json.as_bytes()) != hash {
-            return Err(IndexError::Invalid(
-                "reference definition checksum mismatch".into(),
-            ));
+        let entry = decode_entry(&key, &json, &hash)?;
+        validate_entry(c, &entry, preparation)?;
+        if entry.key.namespace() == DefinitionNamespace::Trait {
+            traits.add_published_definition(&entry, context)?;
         }
-        let entry: ReferenceEntry = serde_json::from_str(&json)?;
-        if entry.key.to_string() != key {
-            return Err(IndexError::Invalid(
-                "reference definition identity mismatch".into(),
-            ));
-        }
-        crate::references::validate_entry(c, &entry, preparation)?;
-        visitor(entry)?;
+        keys.push(key);
+        catalog.add_entry(&entry);
     }
-    Ok(())
+    validate_inventory(preparation, keys)?;
+    let mut notices = c.prepare("SELECT id,sha256,text,source_url FROM reference_notices")?;
+    for row in notices.query_map([], read_notice_row)? {
+        validate_notice(&row?)?;
+    }
+    Ok((catalog, traits))
+}
+
+fn read_notice_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReferenceNotice> {
+    Ok(ReferenceNotice {
+        id: row.get(0)?,
+        sha256: row.get(1)?,
+        text: row.get(2)?,
+        source_url: row.get(3)?,
+    })
 }

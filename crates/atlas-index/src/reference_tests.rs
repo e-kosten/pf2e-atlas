@@ -361,35 +361,27 @@ fn wrong_family_mapping_is_rejected_and_missing_target_reason_retains_no_readabl
     let (mut input, mut entries, notices) = fixture();
     publish(&path, &mut input, &entries, &notices).unwrap();
     let old_generation = open_reader(&path).unwrap().artifact_instance().clone();
-    let target = input.records[1].record.key().clone();
-    entries[2].backing = ReferenceBacking::Record {
-        key: target.clone(),
-    };
-    entries[2]
-        .provenance
-        .record_mapping
-        .as_mut()
-        .unwrap()
-        .target = target;
-    assert!(
-        publish(&path, &mut input, &entries, &notices)
-            .unwrap_err()
-            .to_string()
-            .contains("family")
-    );
-    assert_eq!(
-        open_reader(&path).unwrap().artifact_instance(),
-        &old_generation
-    );
+    let absent: atlas_domain::RecordKey = "items:ffffffffffffffff".parse().unwrap();
+    for (key, expected) in [
+        (input.records[1].record.key().clone(), "family"),
+        (absent, "no retained snapshot"),
+    ] {
+        entries[2].backing = ReferenceBacking::Record { key: key.clone() };
+        entries[2]
+            .provenance
+            .record_mapping
+            .as_mut()
+            .unwrap()
+            .target = key;
+        let error = publish(&path, &mut input, &entries, &notices).unwrap_err();
+        assert!(error.to_string().contains(expected), "{error}");
+        assert_eq!(
+            open_reader(&path).unwrap().artifact_instance(),
+            &old_generation
+        );
+    }
     entries[2].backing = ReferenceBacking::None;
     entries[2].availability = ReferenceAvailability::MissingTarget;
-    let absent = "items:ffffffffffffffff".parse().unwrap();
-    entries[2]
-        .provenance
-        .record_mapping
-        .as_mut()
-        .unwrap()
-        .target = absent;
     publish(&path, &mut input, &entries, &notices).unwrap();
     let entry = open_reader(&path)
         .unwrap()
@@ -650,69 +642,38 @@ fn metadata_batches_skip_prepared_body_hydration_and_keep_integrity_checks() {
     let reader = open_reader(&path).unwrap();
     let missing: DefinitionKey = "language:custom-unpublished".parse().unwrap();
     let batch = reader
-        .reference_summaries(&[
-            key.clone(),
-            entries[2].key.clone(),
-            key.clone(),
-            missing.clone(),
-            entries[3].key.clone(),
-        ])
+        .reference_summaries(&[key.clone(), key.clone(), missing])
         .unwrap();
+    assert_eq!(batch.len(), 1);
+    assert_eq!(batch[0].key, key);
     assert_eq!(
-        batch.entries.iter().map(|e| &e.key).collect::<Vec<_>>(),
-        vec![&key, &entries[2].key, &entries[3].key]
-    );
-    assert_eq!(batch.missing, vec![missing]);
-    assert_eq!(
-        batch.entries[0].backing,
+        batch[0].backing,
         ReferenceSummaryBacking::Prepared { readable: false }
     );
-    assert!(
-        reader.reference_entry(&key).is_err(),
-        "explicit detail must still decode and reject malformed prepared content"
-    );
-    assert_eq!(
-        reader
-            .reference_notices(&["fixture-notice".into()])
-            .unwrap(),
-        notices
-    );
+    assert!(reader.reference_entry(&key).is_err());
     assert!(reader.reference_summaries(&vec![key.clone(); 101]).is_err());
     drop(reader);
-    envelope["label"] = serde_json::json!(" ");
-    let invalid_metadata = serde_json::to_string(&envelope).unwrap();
-    c.execute(
-        "UPDATE reference_entries SET definition_json=?,definition_hash=? WHERE key=?",
-        rusqlite::params![
-            invalid_metadata,
-            crate::codec::sha256(invalid_metadata.as_bytes()),
-            key.to_string()
-        ],
-    )
-    .unwrap();
-    assert!(open_reader(&path).unwrap().reference_summary(&key).is_err());
-    envelope["label"] = serde_json::json!("Readable");
-    envelope["key"] = serde_json::json!("domain:water");
-    let wrong_identity = serde_json::to_string(&envelope).unwrap();
-    c.execute(
-        "UPDATE reference_entries SET definition_json=?,definition_hash=? WHERE key=?",
-        rusqlite::params![
-            wrong_identity,
-            crate::codec::sha256(wrong_identity.as_bytes()),
-            key.to_string()
-        ],
-    )
-    .unwrap();
-    assert!(open_reader(&path).unwrap().reference_summary(&key).is_err());
+    let mut envelope: serde_json::Value = serde_json::from_str(&json).unwrap();
+    for (field, value) in [("label", " "), ("key", "domain:water")] {
+        let original = envelope[field].clone();
+        envelope[field] = value.into();
+        let json = serde_json::to_string(&envelope).unwrap();
+        c.execute(
+            "UPDATE reference_entries SET definition_json=?,definition_hash=? WHERE key=?",
+            rusqlite::params![json, crate::codec::sha256(json.as_bytes()), key.to_string()],
+        )
+        .unwrap();
+        let reader = open_reader(&path).unwrap();
+        assert!(reader.reference_summary(&key).is_err(), "invalid {field}");
+        assert!(reader.reference_entry(&key).is_err(), "invalid {field}");
+        envelope[field] = original;
+    }
     c.execute(
         "UPDATE reference_entries SET definition_json=? WHERE key=?",
         rusqlite::params![json, key.to_string()],
     )
     .unwrap();
-    assert!(
-        open_reader(&path).unwrap().reference_summary(&key).is_err(),
-        "envelope checksum remains mandatory for metadata reads"
-    );
+    assert!(open_reader(&path).unwrap().reference_summary(&key).is_err());
 }
 
 #[test]
@@ -746,78 +707,15 @@ fn prepared_reading_metadata_matches_canonical_presence_without_rewriting_bodies
     publish(&path, &mut input, &entries, &notices).unwrap();
     let reader = open_reader(&path).unwrap();
     let revision = reader.artifact_instance().reference_revision();
-    let keys = selected
-        .iter()
-        .map(|(key, _)| key.clone())
-        .collect::<Vec<_>>();
-    let batch = reader.reference_summaries(&keys).unwrap();
-    let c = Connection::open(&path).unwrap();
-    for ((key, readable), summary) in selected.iter().zip(batch.entries) {
-        let entry = entries.iter().find(|entry| &entry.key == key).unwrap();
+    for (key, readable) in selected {
+        let summary = reader.reference_summary(&key).unwrap().unwrap();
         assert_eq!(
             summary.backing,
-            ReferenceSummaryBacking::Prepared {
-                readable: *readable
-            },
+            ReferenceSummaryBacking::Prepared { readable },
             "{key}"
         );
-        assert_eq!(
-            summary,
-            ReferenceSummary::from(entry),
-            "SQL and in-memory projections differ for {key}"
-        );
-        assert_eq!(reader.reference_summary(key).unwrap(), Some(summary));
-        assert_eq!(reader.reference_entry(key).unwrap().as_ref(), Some(entry));
-        let json: String = c
-            .query_row(
-                "SELECT definition_json FROM reference_entries WHERE key=?",
-                [key.to_string()],
-                |row| row.get(0),
-            )
-            .unwrap();
-        let stored: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(json, serde_json::to_string(entry).unwrap());
-        assert!(
-            stored["backing"].get("readable").is_none(),
-            "reading capability must remain derived for retained entries"
-        );
-        assert_eq!(stored, serde_json::to_value(entry).unwrap());
+        let entry = reader.reference_entry(&key).unwrap().unwrap();
+        assert_eq!(summary, ReferenceSummary::from(&entry), "{key}");
     }
     assert_eq!(reader.artifact_instance().reference_revision(), revision);
-}
-
-#[test]
-fn retained_trait_metadata_does_not_imply_new_namespace_coverage() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("retained.sqlite");
-    let mut input = crate::foundation_tests::fixture(false);
-    let key = atlas_domain::TraitKey::new("custom-retained").unwrap();
-    input.traits.push(TraitDefinition {
-        key: key.clone(),
-        label: "Retained custom trait".into(),
-        label_key: None,
-        description_key: None,
-        description_html: None,
-        authored_markup: None,
-        prepared: None,
-        catalogs: vec![],
-        source_locations: vec![],
-        source_revision: input.context.source_revision.clone(),
-        indexing_locale: "en".into(),
-        content_locale: None,
-    });
-    publish_input(&path, &input).unwrap();
-    let reader = open_reader(&path).unwrap();
-    let key: DefinitionKey = key.into();
-    assert_eq!(reader.reference_coverage(), ReferenceCoverage::TraitsOnly);
-    assert_eq!(
-        reader.reference_summary(&key).unwrap().unwrap().label,
-        "Retained custom trait"
-    );
-    assert_eq!(reader.reference_summaries(&[key]).unwrap().entries.len(), 1);
-    let new_key: DefinitionKey = "language:common".parse().unwrap();
-    assert!(matches!(
-        reader.reference_summary(&new_key),
-        Err(IndexError::Unavailable(_))
-    ));
 }

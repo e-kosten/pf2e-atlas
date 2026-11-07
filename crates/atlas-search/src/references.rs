@@ -5,7 +5,7 @@ pub use atlas_index::{
     OwnedAbilityTarget, ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
     ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
     ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
-    ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking, ReferenceSummaryBatch,
+    ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking,
 };
 
 impl AtlasRetrievalService {
@@ -32,7 +32,7 @@ impl AtlasRetrievalService {
     pub fn reference_summaries(
         &self,
         keys: &[DefinitionKey],
-    ) -> Result<ReferenceSummaryBatch, SearchError> {
+    ) -> Result<Vec<ReferenceSummary>, SearchError> {
         Ok(self.index.reference_summaries(keys)?)
     }
 

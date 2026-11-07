@@ -168,8 +168,7 @@ pub use references::{
     ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
     ReferencePermissionDisposition, ReferencePreparation, ReferenceProvenance,
     ReferencePublication, ReferenceRecordMapping, ReferenceSourceLocation, ReferenceSummary,
-    ReferenceSummaryBacking, ReferenceSummaryBatch, reference_inventory_identity,
-    reference_pack_applies,
+    ReferenceSummaryBacking, reference_inventory_identity, reference_pack_applies,
 };
 pub use traits::{
     TRAIT_SCHEMA_SQL, TraitDefinition, TraitMembership, TraitReference, TraitReferenceInput,

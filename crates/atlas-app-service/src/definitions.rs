@@ -237,7 +237,7 @@ impl<'a> HelpContext<'a> {
             .collect::<Vec<_>>();
         let mut summaries = BTreeMap::new();
         for keys in keys.chunks(100) {
-            for summary in r.reference_summaries(keys)?.entries {
+            for summary in r.reference_summaries(keys)? {
                 summaries.insert(summary.key.clone(), summary);
             }
         }

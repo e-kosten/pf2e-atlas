@@ -14,7 +14,7 @@ pub use references::{
     OwnedAbilityTarget, ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
     ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
     ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
-    ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking, ReferenceSummaryBatch,
+    ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking,
 };
 mod service;
 pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};

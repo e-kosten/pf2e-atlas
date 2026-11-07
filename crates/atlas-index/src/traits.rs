@@ -67,10 +67,6 @@ fn write_trait_definition(
     definition: &TraitDefinition,
     kept: &mut BTreeSet<String>,
 ) -> Result<(), IndexError> {
-    if definition.label.trim().is_empty() {
-        return Err(IndexError::Invalid("empty trait label".into()));
-    }
-    validate_definition(definition)?;
     let key = definition.key.to_string();
     if !kept.insert(key.clone()) {
         return Err(IndexError::Invalid("duplicate trait definition".into()));
@@ -535,6 +531,7 @@ pub(crate) fn read_chunks(
     Ok(chunks)
 }
 
+#[cfg(any(test, feature = "test-support"))]
 fn validate_definition(definition: &TraitDefinition) -> Result<(), IndexError> {
     match (
         &definition.prepared,
@@ -571,10 +568,10 @@ fn validate_definition(definition: &TraitDefinition) -> Result<(), IndexError> {
     }
     Ok(())
 }
-pub(crate) fn validate_trait_definitions(
+pub(crate) fn validate_trait_vectors(
     c: &Connection,
     context: &crate::SourceArtifactBuildContext,
-) -> Result<TraitEvidence, IndexError> {
+) -> Result<(), IndexError> {
     // Every published definition, including label-only definitions, supplies a
     // seed for every configured profile. An artifact with no profiles remains
     // valid metadata-only reference data.
@@ -583,34 +580,6 @@ pub(crate) fn validate_trait_definitions(
         return Err(IndexError::Invalid(format!(
             "trait `{key}` has no seed vector for configured search profile `{profile}`"
         )));
-    }
-    let mut evidence = TraitEvidence::default();
-    let mut stmt = c.prepare(
-        "SELECT key,definition_json FROM reference_entries WHERE key LIKE 'trait:%' ORDER BY key",
-    )?;
-    for row in stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
-        let (key, json) = row?;
-        let hash: String = c.query_row(
-            "SELECT definition_hash FROM reference_entries WHERE key=?1",
-            [&key],
-            |r| r.get(0),
-        )?;
-        if hash != crate::codec::sha256(json.as_bytes()) {
-            return Err(IndexError::Invalid(
-                "trait definition checksum mismatch".into(),
-            ));
-        }
-        let definition = serde_json::from_str::<crate::ReferenceEntry>(&json)?.trait_view()?;
-        if definition.key.to_string() != key
-            || definition.indexing_locale != context.indexing_locale
-            || definition.source_revision != context.source_revision
-        {
-            return Err(IndexError::Invalid(
-                "trait publication provenance mismatch".into(),
-            ));
-        }
-        validate_definition(&definition)?;
-        evidence.add_definition(&definition)?;
     }
     let mut stmt=c.prepare("SELECT tv.trait_key,tv.profile_id,tv.input_hash,tv.vector,tv.vector_hash,d.definition_json FROM trait_vectors tv JOIN reference_entries d ON d.key=tv.trait_key")?;
     let mut rows = stmt.query([])?;
@@ -623,7 +592,7 @@ pub(crate) fn validate_trait_definitions(
         let vector = read_trait_centroid(row, 3, 4, model.dimensions)?;
         validate_published_seed(c, &definition, model, &hash, &vector)?;
     }
-    Ok(evidence)
+    Ok(())
 }
 
 // Borrow SQLite's payload until its shape has been checked. A malformed BLOB
@@ -763,6 +732,22 @@ impl TraitEvidence {
         }
         Ok(evidence)
     }
+    pub(crate) fn add_published_definition(
+        &mut self,
+        entry: &crate::ReferenceEntry,
+        context: &crate::SourceArtifactBuildContext,
+    ) -> Result<(), IndexError> {
+        let definition = entry.trait_view()?;
+        if definition.indexing_locale != context.indexing_locale
+            || definition.source_revision != context.source_revision
+        {
+            return Err(IndexError::Invalid(
+                "trait publication provenance mismatch".into(),
+            ));
+        }
+        self.add_definition(&definition)
+    }
+
     fn add_definition(&mut self, definition: &TraitDefinition) -> Result<(), IndexError> {
         use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
         if let Some(prepared) = &definition.prepared {

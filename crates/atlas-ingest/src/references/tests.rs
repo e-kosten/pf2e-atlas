@@ -288,7 +288,7 @@ fn captured_pack_system_controls_only_new_associations_and_restores_on_omission(
                 .unwrap()
                 .contains(&observer)
         );
-        let preparation = reader.reference_preparation().unwrap();
+        let preparation = reader.context().reference_preparation.as_ref().unwrap();
         assert_eq!(preparation.source_package.as_deref(), Some("pf2e"));
         assert_eq!(
             preparation.pack_systems.get("items"),
