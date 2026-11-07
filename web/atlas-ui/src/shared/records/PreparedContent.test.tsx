@@ -44,7 +44,7 @@ it.each(["click", "Enter", " "])(
 );
 
 describe("prepared source HTML", () => {
-  it("renders compact effects with native destinations and refreshes without duplicate controls", () => {
+  it("renders an implicit effect as a named link with its native destination", () => {
     const detail = detailFixture("spells:source", "Source", "effects:target");
     const field = detail.presentation.content[0];
     field.body = {
@@ -65,8 +65,8 @@ describe("prepared source HTML", () => {
         onReference={onReference}
       />,
     );
-    const link = screen.getByRole("link", { name: "Preview Spell Effect: Success" });
-    expect(link).toHaveTextContent("Effect");
+    const link = screen.getByRole("link", { name: "Spell Effect: Success" });
+    expect(link).toHaveTextContent("Spell Effect: Success");
     expect(link).toHaveAttribute(
       "href",
       destinationHref(
@@ -91,9 +91,9 @@ describe("prepared source HTML", () => {
         onReference={onReference}
       />,
     );
-    expect(
-      screen.getAllByRole("link", { name: "Preview Spell Effect: Success" }),
-    ).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: "Spell Effect: Success" })).toHaveLength(
+      1,
+    );
   });
   it("retains semantic inline glyphs and readable text without inventing controls", () => {
     const content = detailFixture("actors:ghoul", "Ghoul", "rules:outer").presentation
@@ -551,14 +551,14 @@ it("binds inclusion links to their own exact targets while checks remain plain t
 });
 
 it.each([false, true])(
-  "preserves ranked effect context for %s compact rendering and native navigation",
-  (compact) => {
+  "preserves ranked effect context for an implicit label (%s) and native navigation",
+  (implicit) => {
     const detail = detailFixture("spells:form", "Form", "effects:bear");
     const field = detail.presentation.content[0];
     field.body = {
       kind: "html",
       inclusions: [],
-      html: '<p><span data-atlas-reference="0">Bear</span></p>',
+      html: `<p><span data-atlas-reference="0">${implicit ? "Animal Form (Bear)" : "Bear"}</span></p>`,
       controls: [],
     };
     const original = structuredClone(detail.relationships[0].target!);
@@ -566,7 +566,7 @@ it.each([false, true])(
     const edge = {
       ...detail.relationships[0],
       contextual_target: contextual,
-      effect_label: compact ? { text: "Bear", title: "Animal Form (Bear)" } : null,
+      effect_label: implicit ? { text: "Effect", title: "Animal Form (Bear)" } : null,
     };
     const onReference = vi.fn();
     render(
@@ -577,7 +577,7 @@ it.each([false, true])(
       />,
     );
     const link = screen.getByRole("link", {
-      name: compact ? "Preview Animal Form (Bear)" : "Bear",
+      name: implicit ? "Animal Form (Bear)" : "Bear",
     });
     expect(link).toHaveAttribute(
       "href",
