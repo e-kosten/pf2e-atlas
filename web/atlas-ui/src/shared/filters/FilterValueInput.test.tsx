@@ -28,7 +28,10 @@ const api = vi.hoisted(() => ({
       ) => Promise<FilterCountsView>
     >(),
 }));
-vi.mock("../../api/atlasApi", () => api);
+vi.mock("../../api/atlasApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/atlasApi")>()),
+  ...api,
+}));
 function renderInput(
   closed = false,
   onChange = vi.fn(),

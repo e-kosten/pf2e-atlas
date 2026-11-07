@@ -276,6 +276,7 @@ function FilterChoicePicker({
           ? selected.filter((entry) => entry !== value)
           : [...new Set([...selected, value])],
       );
+      if (next !== "neutral") searchValues("");
     }
   }
 
