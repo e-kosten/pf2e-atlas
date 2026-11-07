@@ -5,7 +5,8 @@
 }
 
 /* Inline typography follows its local fact, heading or metadata context. */
-:is(.detail-panel, .record-reference) :is(a, span, p, div).ant-typography {
+:is(.detail-panel, .record-reference, .record-explore__task)
+  :is(a, span, p, div).ant-typography {
   font-size: inherit;
   line-height: inherit;
 }
@@ -635,8 +636,13 @@
 .prepared-content a:visited {
   color: var(--link);
 }
-.prepared-content a:hover {
+/* Text links share a visible cue across authored and projected content. */
+.actor-activity__name > a[href],
+:is(.detail-panel, .record-reference, .record-explore__task)
+  a.ant-typography[href]:not(.record-trait-badge *),
+.prepared-content a[href]:not(.record-trait-badge *, .effect-reference-link) {
   text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 .prepared-content a:focus-visible {
   outline: 2px solid var(--selection-border);
