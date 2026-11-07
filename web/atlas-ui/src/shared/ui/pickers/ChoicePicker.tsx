@@ -293,6 +293,7 @@ export function ChoicePicker({
       role={narrow ? "group" : "dialog"}
       onKeyDownCapture={closeOnEscape}
       data-reference-picker={!!optionAction || undefined}
+      data-reading={isReading || undefined}
     >
       <div inert={isReading || undefined} className="common-choice-view">
         {menuContent}
@@ -319,6 +320,9 @@ export function ChoicePicker({
       aria-haspopup="dialog"
       aria-expanded={visible}
       aria-controls={visible ? menuId : undefined}
+      data-affix-only={
+        (valueEditing && !valueEditing.scalar && selected.length > 0) || undefined
+      }
       icon={<DownOutlined aria-hidden="true" />}
       iconPlacement="end"
       styles={valueEditing ? { root: { height: token.controlHeight - 2 } } : undefined}
@@ -346,8 +350,14 @@ export function ChoicePicker({
               key={value}
               size="small"
               color="default"
-              variant="filled"
-              className={valueEditing ? undefined : "applied-filter-chip"}
+              variant={valueEditing?.scalar ? "text" : "filled"}
+              className={
+                valueEditing?.scalar
+                  ? "common-choice-clear"
+                  : valueEditing
+                    ? undefined
+                    : "applied-filter-chip"
+              }
               aria-label={
                 "Remove " +
                 (valueEditing
@@ -361,6 +371,7 @@ export function ChoicePicker({
                 label
               }
               onClick={(event) => {
+                event.stopPropagation();
                 restoreOverlayFocus(trigger.current, event.currentTarget);
                 change(value, "neutral");
               }}
@@ -384,24 +395,28 @@ export function ChoicePicker({
         })}
       </div>
     ) : null;
-  return (
+  const anchor = valueEditing ? (
     <div
-      className="common-choice-picker"
-      data-has-selection={selected.length > 0 || undefined}
-      data-operand={
-        valueEditing ? (valueEditing.scalar ? "scalar" : "list") : undefined
-      }
+      className="common-choice-operand"
+      data-operand={valueEditing.scalar ? "scalar" : "list"}
     >
-      {valueEditing && selections}
+      {valueEditing.scalar ? button : selections}
+      {valueEditing.scalar ? selections : button}
+    </div>
+  ) : (
+    button
+  );
+  return (
+    <div className="common-choice-picker">
       {narrow ? (
-        button
+        anchor
       ) : (
         <Popover
           content={menu}
           open={visible}
           onOpenChange={setMenuOpen}
           afterOpenChange={(shown) => {
-            if (shown && open && !narrow && initialFocusPending.current) {
+            if (shown && open && initialFocusPending.current) {
               initialFocusPending.current = false;
               input.current?.focus();
             }
@@ -411,7 +426,7 @@ export function ChoicePicker({
           arrow={false}
           destroyOnHidden
         >
-          {button}
+          {anchor}
         </Popover>
       )}
       {narrow && (

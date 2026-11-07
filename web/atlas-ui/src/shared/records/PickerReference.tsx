@@ -1,3 +1,4 @@
+import { LeftOutlined } from "@ant-design/icons";
 import { Button } from "antd";
 import { AtlasLink } from "../../app/AtlasLink";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
@@ -37,7 +38,7 @@ export function PickerReference({
   return (
     <div className="picker-reference" data-reference-host>
       <div className="picker-reference__actions" data-reference-header>
-        <Button type="text" onClick={back}>
+        <Button type="text" icon={<LeftOutlined aria-hidden="true" />} onClick={back}>
           {readingHistory.canGoBack
             ? "Back"
             : "Back to " + label.toLowerCase() + " choices"}

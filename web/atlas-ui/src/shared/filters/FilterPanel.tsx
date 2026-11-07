@@ -26,6 +26,7 @@ import {
   createContext,
   useContext,
   useId,
+  type CSSProperties,
   type ReactNode,
   type RefObject,
   useMemo,
@@ -145,6 +146,7 @@ export function FilterControls({
 }) {
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
+  const { token } = theme.useToken();
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -546,7 +548,16 @@ export function FilterControls({
           open={advanced}
           onClose={() => setAdvanced(false)}
         >
-          <section className="advanced-filters" aria-label="Advanced filters">
+          <section
+            className="advanced-filters"
+            aria-label="Advanced filters"
+            style={
+              {
+                "--filter-action-hover": token.colorFillTertiary,
+                "--filter-action-motion": `${token.motionDurationMid} ${token.motionEaseInOut}`,
+              } as CSSProperties
+            }
+          >
             {prepared.error &&
               !search.filterError &&
               search.filter &&
@@ -1279,7 +1290,8 @@ function GroupMatchSelector(props: CombinatorSelectorProps) {
   const { replaceGroup } = props.context as BuilderContext;
   const group = props.ruleGroup as RuleGroupType;
   return (
-    <CompactSelect
+    <Select
+      className="filter-text-select filter-match-mode"
       aria-label="Match conditions"
       variant="borderless"
       styles={{
@@ -1322,7 +1334,7 @@ function FilterGroupBody(props: UseRuleGroup) {
       <RuleGroupBodyComponents {...props} />
       <Space className="filter-group-actions">
         <Select
-          className="filter-add-condition"
+          className="filter-text-select filter-add-condition"
           aria-label="Add condition"
           placeholder="Add condition"
           variant="borderless"
@@ -1417,7 +1429,7 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
   }));
   for (const operator of operators) {
     if (
-      ["in", "includes_all", "exists"].includes(operator.operator) ||
+      ["in", "exists"].includes(operator.operator) ||
       (excluded && operator.operator === props.value)
     ) {
       options.push({
@@ -1434,7 +1446,7 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
                   : operator.operator === "includes"
                     ? "excludes"
                     : operator.operator === "includes_all"
-                      ? "includes fewer than all"
+                      ? "doesn’t include all"
                       : "not " + operator.label,
       });
     }

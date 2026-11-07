@@ -803,6 +803,9 @@ describe("shared common and maintained advanced filters", () => {
     expect(
       screen.getByRole("combobox", { name: "Condition for Traits" }).parentElement,
     ).toHaveTextContent("includes_all");
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Condition for Traits" }));
+    expect(screen.getByRole("option", { name: "includes none" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "doesn’t include all" })).toBeNull();
     expect(change).not.toHaveBeenCalled();
   });
   it("uses a narrow Ant Drawer and returns focus after closing", async () => {
