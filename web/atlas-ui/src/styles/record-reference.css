@@ -639,22 +639,24 @@
 }
 
 .record-reference__prerequisites {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
+  display: grid;
+  gap: var(--space-micro);
 }
-.record-reference__prerequisites > div {
-  min-width: 0;
+.record-reference__prerequisites + .record-reference__content {
+  margin-block-start: var(--space-group);
+}
+.record-reference__prerequisites > ul {
+  margin: 0;
+  padding-inline-start: 1.25em;
+}
+.record-reference__prerequisites > ul > li + li {
+  margin-block-start: var(--space-micro);
+}
+.record-reference__prerequisites > ul > li::marker {
+  color: var(--muted);
 }
 .record-reference__prerequisites .prepared-content > :first-child {
   margin-top: 0;
-}
-.record-reference__prerequisites .prepared-content > :last-child {
-  margin-bottom: 0;
-}
-
-.record-reference__prerequisites > strong {
-  flex-shrink: 0;
 }
 
 .encounter-casting__controls {
