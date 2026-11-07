@@ -399,7 +399,6 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
         "reference_entries",
         "trait_memberships",
         "trait_references",
-        "owned_ability_evidence",
         "reference_component_digests",
     ];
     c.execute_batch(
