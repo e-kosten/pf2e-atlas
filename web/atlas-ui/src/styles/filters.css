@@ -151,6 +151,7 @@
   background: transparent;
   border: 0;
   border-inline-start: 2px solid var(--line);
+  border-radius: var(--radius-sm);
   min-width: 0;
   container-type: inline-size;
 }
@@ -544,12 +545,11 @@
 .advanced-filters :is(.rule, .ruleGroup)::before {
   content: "";
   position: absolute;
-  inset-block: 8px;
+  inset: 0;
   inset-inline-start: -4px;
-  width: 2px;
-  border-radius: var(--radius-pill);
-  background: var(--filter-exclude-border);
-  box-shadow: 0 0 6px var(--filter-exclude-border);
+  border-inline-start: 2px solid var(--filter-exclude-border);
+  border-radius: var(--radius-sm);
+  filter: drop-shadow(0 0 4px var(--filter-exclude-border));
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--filter-action-motion);

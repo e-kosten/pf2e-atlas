@@ -157,12 +157,25 @@ function FilterChoicePicker({
     return () => window.clearTimeout(timeout);
   }, [text]);
 
+  const titleCaseDefense =
+    field.definition.path === "type" &&
+    ["defenses.immunities", "defenses.weaknesses", "defenses.resistances"].includes(
+      field.definition.scope ?? "",
+    );
+  const displayLabel = (label: string) =>
+    titleCaseDefense
+      ? label.replace(
+          /(^|[\s-])(\p{Ll})/gu,
+          (_, prefix: string, letter: string) =>
+            prefix + letter.toLocaleUpperCase("en"),
+        )
+      : label;
   const choices = (closedChoices ? field.choices : (query.data?.values.options ?? []))
     // A stale action ID can be returned as a fallback label without a resolved record.
     .filter((option) => !isActions || option.help?.destination.kind === "record")
     .map((option) => ({
       value: String(option.value),
-      label: option.label,
+      label: displayLabel(option.label),
       help: option.help,
     }));
   // A vocabulary page can disappear when the picker changes search or count scope.
@@ -195,7 +208,7 @@ function FilterChoicePicker({
         ? actionLabels.isPending || actionLabels.isFetching
           ? "Loading action…"
           : "Unavailable action"
-        : sentenceCase(filterValueLabel(field, value)))
+        : displayLabel(sentenceCase(filterValueLabel(field, value))))
     );
   }
   const contextualCounts =

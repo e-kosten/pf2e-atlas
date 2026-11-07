@@ -170,6 +170,8 @@ describe("combined ability and skill conditions", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     chooseActorMetricOption("Condition for Athletics Rank", "between");
+    expect(screen.queryByText("Enter a numeric value")).toBeNull();
+    expect(screen.queryByText("Enter minimum and maximum")).toBeNull();
     chooseActorMetricOption("Athletics Rank minimum", "Expert");
     expect(change).not.toHaveBeenCalled();
     chooseActorMetricOption("Athletics Rank maximum", "Legendary");
@@ -1344,6 +1346,34 @@ it("shows a negated Boolean comparison as Yes or No and writes a direct comparis
         op: "eq",
         value: true,
       },
+    }),
+  );
+});
+
+it("validates a level range after leaving both bounds, without committing an inverted draft", () => {
+  const level = fieldFixture("level_or_rank", "number", "Level / rank");
+  const change = renderControls(editorFixture([level]), {
+    kind: "compare",
+    field: level.path,
+    op: "gte",
+    value: 4,
+  });
+  const min = screen.getByRole("textbox", { name: "Level / rank minimum" });
+  const max = screen.getByRole("textbox", { name: "Level / rank maximum" });
+  fireEvent.focus(max);
+  fireEvent.change(max, { target: { value: "1" } });
+  expect(screen.queryByText("Minimum exceeds maximum")).toBeNull();
+  expect(change).not.toHaveBeenCalled();
+  fireEvent.blur(max, { relatedTarget: min });
+  expect(screen.queryByText("Minimum exceeds maximum")).toBeNull();
+  fireEvent.blur(min, { relatedTarget: document.body });
+  expect(screen.getByText("Minimum exceeds maximum")).toBeVisible();
+  fireEvent.focus(max);
+  fireEvent.change(max, { target: { value: "10" } });
+  expect(screen.queryByText("Minimum exceeds maximum")).toBeNull();
+  expect(change).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      filter: expect.objectContaining({ kind: "all_of" }),
     }),
   );
 });

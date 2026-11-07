@@ -315,7 +315,13 @@ test("common filters retain valid results through drafts and exact URL reload", 
     .toMatch(/\d+ records/);
   const validUrl = page.url();
   const validFilter = new URL(validUrl).searchParams.get("filter");
-  await page.getByRole("textbox", { name: /Level \/ rank minimum/i }).fill("-");
+  const minimum = page.getByRole("textbox", { name: /Level \/ rank minimum/i });
+  await minimum.fill("-");
+  await expect(
+    page.getByText("Enter a finite numeric value", { exact: true }),
+  ).toBeHidden();
+  await minimum.press("Tab");
+  await page.getByRole("textbox", { name: /Level \/ rank maximum/i }).press("Tab");
   await expect(
     page
       .getByText("Enter a finite numeric value", { exact: true })

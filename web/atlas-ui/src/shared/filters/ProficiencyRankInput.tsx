@@ -37,7 +37,6 @@ export function ProficiencyRankInput({
   return (
     <div className="filter-range">
       {select(label + " minimum", bounds[0], (next) => onChange([next, bounds[1]]))}
-      <span>to</span>
       {select(label + " maximum", bounds[1], (next) => onChange([bounds[0], next]))}
     </div>
   );

@@ -177,7 +177,7 @@ export function CollectionValueInput({
                     aria-label={amount.label}
                     inputMode="decimal"
                     suffix={amount.definition.units}
-                    placeholder={"Any " + amount.label.toLowerCase()}
+                    placeholder="Any"
                     value={amountRule?.value ?? ""}
                     onChange={(event) =>
                       event.target.value === ""

@@ -747,6 +747,7 @@ function CommonRange({
   onChange: (range: [string, string]) => void;
 }) {
   const id = useId();
+  const [editingRange, setEditingRange] = useState(false);
   let error: string | null = null;
   try {
     const min = range[0].trim() ? numericLiteral(range[0]) : null;
@@ -756,8 +757,14 @@ function CommonRange({
   } catch (failure) {
     error = failure instanceof Error ? failure.message : String(failure);
   }
+  const message = editingRange ? null : error;
   return (
-    <div>
+    <div
+      onFocus={() => setEditingRange(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setEditingRange(false);
+      }}
+    >
       <div className="filter-range">
         <label className="filter-range__bound" htmlFor={id + "-minimum"}>
           {!compact && <span>Minimum</span>}
@@ -769,11 +776,13 @@ function CommonRange({
               ) : undefined
             }
             aria-label={field.label + " minimum"}
+            aria-invalid={message ? true : undefined}
+            aria-describedby={message ? id + "-error" : undefined}
             name={field.definition.id + "-minimum"}
             inputMode="decimal"
             autoComplete="off"
             placeholder="Any"
-            status={error ? "error" : undefined}
+            status={message ? "error" : undefined}
             value={range[0]}
             onChange={(event) => onChange([event.target.value, range[1]])}
           />
@@ -788,19 +797,21 @@ function CommonRange({
               ) : undefined
             }
             aria-label={field.label + " maximum"}
+            aria-invalid={message ? true : undefined}
+            aria-describedby={message ? id + "-error" : undefined}
             name={field.definition.id + "-maximum"}
             inputMode="decimal"
             autoComplete="off"
             placeholder="Any"
-            status={error ? "error" : undefined}
+            status={message ? "error" : undefined}
             value={range[1]}
             onChange={(event) => onChange([range[0], event.target.value])}
           />
         </label>
       </div>
-      {error && (
-        <Typography.Text type="danger" role="status">
-          {error}
+      {message && (
+        <Typography.Text type="danger" role="status" id={id + "-error"}>
+          {message}
         </Typography.Text>
       )}
     </div>
@@ -1479,6 +1490,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
   const { token } = theme.useToken();
   const editing = useContext(RuleEditContext);
   const { editor, query, scope, workspace } = props.context as BuilderContext;
+  const [editingRange, setEditingRange] = useState(false);
   const links = useContext(LinkEditingContext);
   if (props.field === LINK_CONDITION) {
     const hasSelection = !!props.rule.value?.selection;
@@ -1626,6 +1638,19 @@ function BuilderValueEditor(props: ValueEditorProps) {
     props.value == null ||
     props.value === "" ||
     (Array.isArray(props.value) && !props.value.length);
+  const isRange = props.operator === "between";
+  const range = isRange && Array.isArray(props.value) ? props.value : [];
+  const hasBound = (value: unknown) => value != null && String(value).trim() !== "";
+  const enteredBounds = range.filter(hasBound).length;
+  const message = isRange
+    ? editingRange || enteredBounds === 0
+      ? null
+      : enteredBounds === 1
+        ? "Enter minimum and maximum"
+        : error
+    : incomplete
+      ? null
+      : error;
   const clauseId = props.rule.id ?? null;
   // An unaddressed facet evaluates an added conjunction. That cannot describe
   // inserting a condition beneath OR or group negation.
@@ -1634,11 +1659,22 @@ function BuilderValueEditor(props: ValueEditorProps) {
     (isAdditivePath(query, props.path) ||
       !!existingClauseId(workspace.filterDiscoveryContext, clauseId));
   return (
-    <div className="filter-rule-value">
+    <div
+      className="filter-rule-value"
+      onFocus={isRange ? () => setEditingRange(true) : undefined}
+      onBlur={
+        isRange
+          ? (event) => {
+              if (!event.currentTarget.contains(event.relatedTarget))
+                setEditingRange(false);
+            }
+          : undefined
+      }
+    >
       <Form.Item
         style={{ marginBottom: 0 }}
-        validateStatus={error && !incomplete ? "error" : undefined}
-        help={error && !incomplete ? <span role="status">{error}</span> : undefined}
+        validateStatus={message ? "error" : undefined}
+        help={message ? <span role="status">{message}</span> : undefined}
       >
         <div className={field.unit_fields.length ? "filter-duration-value" : undefined}>
           <FilterValueInput
