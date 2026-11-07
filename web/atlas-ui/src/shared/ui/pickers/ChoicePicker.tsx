@@ -7,7 +7,7 @@ import {
   MinusOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import { Button, Grid, Input, Popover, Typography } from "antd";
+import { Button, Grid, Input, Popover, Typography, theme } from "antd";
 import type { InputRef } from "antd";
 import {
   Fragment,
@@ -76,6 +76,7 @@ export function ChoicePicker({
   };
   selectionContainer?: HTMLElement | null;
 }) {
+  const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
   const input = useRef<InputRef>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -291,13 +292,18 @@ export function ChoicePicker({
       {...menuProps}
       role={narrow ? "group" : "dialog"}
       onKeyDownCapture={closeOnEscape}
-      data-reading={isReading || undefined}
+      data-reference-picker={!!optionAction || undefined}
     >
-      <div hidden={isReading} className="common-choice-view">
+      <div inert={isReading || undefined} className="common-choice-view">
         {menuContent}
       </div>
       {reading && (
-        <div ref={readingView} tabIndex={-1} aria-label="Option reference">
+        <div
+          className="common-choice-reading"
+          ref={readingView}
+          tabIndex={-1}
+          aria-label="Option reference"
+        >
           {reading.content}
         </div>
       )}
@@ -315,10 +321,13 @@ export function ChoicePicker({
       aria-controls={visible ? menuId : undefined}
       icon={<DownOutlined aria-hidden="true" />}
       iconPlacement="end"
+      styles={valueEditing ? { root: { height: token.controlHeight - 2 } } : undefined}
       onClick={narrow ? () => setMenuOpen(true) : undefined}
       onKeyDown={closeOnEscape}
     >
-      {valueEditing?.triggerText ?? label}
+      {valueEditing && !valueEditing.scalar && selected.length
+        ? null
+        : (valueEditing?.triggerText ?? label)}
     </Button>
   );
   const selections =
@@ -378,6 +387,7 @@ export function ChoicePicker({
   return (
     <div
       className="common-choice-picker"
+      data-has-selection={selected.length > 0 || undefined}
       data-operand={
         valueEditing ? (valueEditing.scalar ? "scalar" : "list") : undefined
       }

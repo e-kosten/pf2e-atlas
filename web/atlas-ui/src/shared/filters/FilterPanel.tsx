@@ -728,9 +728,11 @@ function CommonRange({
   field,
   range,
   onChange,
+  compact = false,
 }: {
   field: FilterEditorFieldView;
   range: [string, string];
+  compact?: boolean;
   onChange: (range: [string, string]) => void;
 }) {
   const id = useId();
@@ -747,9 +749,14 @@ function CommonRange({
     <div>
       <div className="filter-range">
         <label className="filter-range__bound" htmlFor={id + "-minimum"}>
-          <span>Minimum</span>
+          {!compact && <span>Minimum</span>}
           <Input
             id={id + "-minimum"}
+            prefix={
+              compact ? (
+                <Typography.Text type="secondary">Min</Typography.Text>
+              ) : undefined
+            }
             aria-label={field.label + " minimum"}
             name={field.definition.id + "-minimum"}
             inputMode="decimal"
@@ -761,9 +768,14 @@ function CommonRange({
           />
         </label>
         <label className="filter-range__bound" htmlFor={id + "-maximum"}>
-          <span>Maximum</span>
+          {!compact && <span>Maximum</span>}
           <Input
             id={id + "-maximum"}
+            prefix={
+              compact ? (
+                <Typography.Text type="secondary">Max</Typography.Text>
+              ) : undefined
+            }
             aria-label={field.label + " maximum"}
             name={field.definition.id + "-maximum"}
             inputMode="decimal"
@@ -1019,13 +1031,13 @@ function FilterRule(props: RuleProps) {
         }
         data-link-condition={props.rule.field === LINK_CONDITION || undefined}
       >
+        <RuleComponents {...rule} />
         {relationship && (
-          <Typography.Text className="filter-link-summary">
+          <Typography.Text type="secondary" className="filter-link-summary">
             {direction} {title ?? "Record unavailable"} ·{" "}
             {relationship.include_contents ? "Whole entry" : "Main entry only"}
           </Typography.Text>
         )}
-        <RuleComponents {...rule} />
       </div>
     </RuleEditContext.Provider>
   );
@@ -1244,6 +1256,7 @@ function RemoveCondition(props: ActionProps) {
     <Tooltip title={props.title || "Remove condition"} trigger={["hover", "focus"]}>
       <Button
         className={props.className}
+        data-filter-remove
         type="text"
         icon={<CloseOutlined />}
         aria-label={props.title || "Remove condition"}
@@ -1268,7 +1281,7 @@ function GroupMatchSelector(props: CombinatorSelectorProps) {
   return (
     <CompactSelect
       aria-label="Match conditions"
-      variant="filled"
+      variant="borderless"
       styles={{
         root: { maxWidth: "100%" },
         content: { whiteSpace: "normal" },
@@ -1395,7 +1408,12 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
     ) ?? [];
   const options = operators.map((operator) => ({
     value: operator.operator,
-    label: operator.operator === "exists" ? "has" : operator.label,
+    label:
+      operator.operator === "exists"
+        ? "has"
+        : operator.operator === "excludes_any"
+          ? "includes none"
+          : operator.label,
   }));
   for (const operator of operators) {
     if (
@@ -1416,7 +1434,7 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
                   : operator.operator === "includes"
                     ? "excludes"
                     : operator.operator === "includes_all"
-                      ? "does not include all"
+                      ? "includes fewer than all"
                       : "not " + operator.label,
       });
     }
@@ -1516,6 +1534,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
         <div className="filter-rule-value">
           <CommonRange
             field={field}
+            compact
             range={bounds}
             onChange={(next) => editing.replace(rangeRule(editing.rule, next), false)}
           />
@@ -1532,7 +1551,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
         <CompactSelect
           className="filter-rule-value"
           aria-label={field.label}
-          placeholder="Choose Yes or No"
+          placeholder="—"
           allowClear
           options={[
             { label: "Yes", value: "true" },

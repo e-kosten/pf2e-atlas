@@ -396,6 +396,9 @@ Choose the control based on how the value is used:
   change amount or an encounter setup form. Group related edits in a form or
   overlay.
 
+Place an editor row’s static detail and validation below its controls. The row
+leads with the field and actions, and the detail describes their current selection.
+
 Preserve keyboard activation, an accessible Edit label for value buttons,
 Enter or blur to commit, and Escape to cancel. Keep validation and mutation
 feedback local and preserve drafts during pending reads. When reviewing a

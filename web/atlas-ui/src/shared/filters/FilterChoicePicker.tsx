@@ -296,17 +296,23 @@ function FilterChoicePicker({
               }
             : undefined
         }
-        optionAction={(option) => {
-          const help = choices.find((choice) => choice.value === option.value)?.help;
-          return help?.destination ? (
-            <ReferenceHelpLink
-              help={help}
-              generation={countContext?.expected_artifact_generation ?? undefined}
-            >
-              Read<span className="sr-only"> {option.label}</span>
-            </ReferenceHelpLink>
-          ) : null;
-        }}
+        optionAction={
+          !closedChoices || choices.some((choice) => choice.help?.destination)
+            ? (option) => {
+                const help = choices.find(
+                  (choice) => choice.value === option.value,
+                )?.help;
+                return help?.destination ? (
+                  <ReferenceHelpLink
+                    help={help}
+                    generation={countContext?.expected_artifact_generation ?? undefined}
+                  >
+                    Read<span className="sr-only"> {option.label}</span>
+                  </ReferenceHelpLink>
+                ) : null;
+              }
+            : undefined
+        }
         selectionContainer={selectionContainer}
         labelForValue={labelForValue}
         id={field.definition.id}
