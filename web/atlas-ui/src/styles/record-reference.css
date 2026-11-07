@@ -643,7 +643,10 @@
     :is(h1, h2, h3, h4, h5, h6) *,
     .record-trait-badge *,
     .effect-reference-link
-  ),
+  ) {
+  text-decoration: underline solid color-mix(in srgb, currentcolor 55%, transparent) 1px;
+  text-underline-offset: 0.15em;
+}
 .prepared-content
   a[href]:not(.record-trait-badge *, .effect-reference-link):is(:hover, :focus-visible),
 .actor-activity__name > a[href]:is(:hover, :focus-visible),

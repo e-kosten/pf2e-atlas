@@ -474,12 +474,12 @@ Controls and trait badges retain their own scales; do not change Ant's global
 font size to repair reader content. Verify computed label/link sizes in the
 reader and Explore, and check that badges and controls keep their intended size.
 
-Use a persistent solid underline for navigation links embedded in rules prose,
-including sentences in lists. For example, underline a condition named in an
-effect sentence. Structured references such as
-languages, attack effects and spell names, and linked headings such as ability
-titles, use the reference color at rest. Underline them on hover or keyboard
-focus and show a visible keyboard focus indicator.
+Use a thin, subdued solid underline for navigation links embedded in rules
+prose, including sentences in lists. Strengthen the underline on hover and
+keyboard focus. Structured references such as languages, attack effects and spell
+names, and linked headings such as ability titles, use the reference color at
+rest. Underline them on hover or keyboard focus and show a visible keyboard focus
+indicator.
 
 For a phrase that opens a small context popover, such as a save DC in a sentence,
 keep the original words as the trigger and use a subtle dotted underline. Keep
