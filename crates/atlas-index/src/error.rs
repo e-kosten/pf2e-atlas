@@ -18,7 +18,12 @@ pub enum IndexError {
 }
 impl From<rusqlite::Error> for IndexError {
     fn from(e: rusqlite::Error) -> Self {
-        Self::Operation(e.to_string())
+        let error = atlas_storage::StorageError::Sqlite(e);
+        if error.is_access_failure() || error.is_contention() {
+            Self::Storage(error)
+        } else {
+            Self::Operation(error.to_string())
+        }
     }
 }
 impl From<serde_json::Error> for IndexError {

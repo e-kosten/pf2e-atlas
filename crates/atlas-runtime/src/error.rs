@@ -17,6 +17,16 @@ impl RuntimeError {
         &self.kind
     }
 
+    pub fn reference_unavailable(&self) -> bool {
+        matches!(
+            self.kind,
+            RuntimeErrorKind::Search(
+                atlas_search::SearchErrorKind::IndexUnavailable
+                    | atlas_search::SearchErrorKind::ArtifactContractViolation
+            )
+        )
+    }
+
     pub fn message(&self) -> &str {
         &self.message
     }
@@ -75,6 +85,8 @@ impl std::error::Error for RuntimeError {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeErrorKind {
     Workspace,
+    WorkspaceMissing,
+    WorkspaceAccess,
     WorkspaceBusy,
     WorkspaceMaintenance,
     WorkspaceIncompatible,
@@ -116,7 +128,9 @@ pub enum RuntimePathTarget {
 impl From<atlas_storage::StorageError> for RuntimeError {
     fn from(error: atlas_storage::StorageError) -> Self {
         let kind = match &error {
-            atlas_storage::StorageError::Busy => RuntimeErrorKind::WorkspaceBusy,
+            atlas_storage::StorageError::Missing(_) => RuntimeErrorKind::WorkspaceMissing,
+            error if error.is_contention() => RuntimeErrorKind::WorkspaceBusy,
+            error if error.is_access_failure() => RuntimeErrorKind::WorkspaceAccess,
             atlas_storage::StorageError::Maintenance(_) => RuntimeErrorKind::WorkspaceMaintenance,
             atlas_storage::StorageError::Schema { .. }
             | atlas_storage::StorageError::Unsupported(_) => {
@@ -134,7 +148,10 @@ impl From<atlas_search::SearchError> for RuntimeError {
 }
 impl From<atlas_index::IndexError> for RuntimeError {
     fn from(error: atlas_index::IndexError) -> Self {
-        Self::from(atlas_search::SearchError::from(error))
+        match error {
+            atlas_index::IndexError::Storage(error) => Self::from(error),
+            error => Self::from(atlas_search::SearchError::from(error)),
+        }
     }
 }
 impl RuntimeError {

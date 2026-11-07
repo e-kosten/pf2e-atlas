@@ -100,7 +100,11 @@ export function ListItemsPane({
           <div className="list-member__unresolved" aria-disabled="true">
             <strong>{title}</strong>
             <span>{item.snapshot.kind}</span>
-            <span>Record unavailable in this reference collection</span>
+            <span>
+              {item.status === "unchecked"
+                ? "Reference details could not be checked"
+                : "Record unavailable in this reference collection"}
+            </span>
           </div>
         )}
         <div className="list-member__actions">

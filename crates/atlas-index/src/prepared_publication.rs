@@ -320,7 +320,7 @@ impl<'owner> PreparedPublication<'owner> {
         Ok(())
     }
     pub fn publish(self) -> Result<(), IndexError> {
-        self.owner.publish(self.schema, |connection| {
+        let apply = |connection: &rusqlite::Connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
             let reusable = if self.rebuild {
@@ -334,14 +334,28 @@ impl<'owner> PreparedPublication<'owner> {
             let native_started = std::time::Instant::now();
             let delta_started;
             {
-                let mut bindings = crate::native_values::NativeBindings::new(connection, &self.models, true)?;
+                let mut bindings =
+                    crate::native_values::NativeBindings::new(connection, &self.models, true)?;
                 bindings.ensure_tables()?;
                 self.install_staged(&mut bindings)?;
                 tracing::info!(target:"atlas_build_diagnostic",stage="native_installation",elapsed_ms=native_started.elapsed().as_secs_f64()*1000.,"Installed selected unpublished values");
-                let values = PublicationValues { selected: &self.selected, bindings: &bindings };
-                let scratch = self.selected_file.path().parent().ok_or_else(|| invalid("publication scratch parent absent"))?;
+                let values = PublicationValues {
+                    selected: &self.selected,
+                    bindings: &bindings,
+                };
+                let scratch = self
+                    .selected_file
+                    .path()
+                    .parent()
+                    .ok_or_else(|| invalid("publication scratch parent absent"))?;
                 delta_started = std::time::Instant::now();
-                crate::stream_publication::write(connection, &self.metadata, &values, reusable, scratch)?;
+                crate::stream_publication::write(
+                    connection,
+                    &self.metadata,
+                    &values,
+                    reusable,
+                    scratch,
+                )?;
             }
             connection.execute("DELETE FROM pending_embedding_values", [])?;
             crate::native_values::prune(connection)?;
@@ -351,7 +365,12 @@ impl<'owner> PreparedPublication<'owner> {
                 crate::validate_reference(connection)?;
             }
             Ok(())
-        })
+        };
+        if self.rebuild {
+            self.owner.publish(self.schema, apply)
+        } else {
+            self.owner.publish_incremental(self.schema, apply)
+        }
     }
     fn model_key(&self, model: &SourceSearchProfileIdentity) -> Result<usize, IndexError> {
         let key = self

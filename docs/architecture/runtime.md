@@ -374,8 +374,11 @@ Missing new coverage therefore invalidates explicit setup freshness without
 invalidating the retained record/trait publication or triggering vector inference.
 
 One update owner serializes configuration/source publication. Normal source
-publication drains cooperating sessions and uses one immediate transaction,
-including reference-revision advancement. It adds no durable maintenance marker:
+publication uses one immediate transaction. Data-only publication admits existing and
+new read snapshots while the writer prepares its commit. A guarded attempt that
+requires structural SQL rolls back before retrying under exclusive admission,
+with reference-revision advancement committed alongside the reference rows. It
+adds no durable maintenance marker:
 rollback or process termination leaves SQLite's old-or-new committed state.
 Pre-existing markers are rejected by this operation. Schema/metadata upgrades and
 physical reclamation retain durable maintenance and validated recovery; a failed

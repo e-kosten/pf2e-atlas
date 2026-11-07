@@ -398,6 +398,7 @@ pub struct UnappliedEffectView {
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum EncounterParticipantStatusView {
+    Unchecked,
     Active,
     Unresolved,
     Manual,
@@ -424,6 +425,9 @@ pub struct EncounterCreateView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterDetailView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reference_error: Option<crate::AppError>,
     pub difficulty: crate::EncounterDifficultyView,
     pub revision: i64,
     pub artifact_generation: Option<String>,

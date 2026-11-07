@@ -1,6 +1,6 @@
 import type { AppError, AppErrorCode } from "../../generated/atlas";
 import { AtlasCompatibilityError } from "../../api/compatibility";
-import { AtlasConnectionError, isReferenceFailure } from "../../api/availability";
+import { AtlasConnectionError, isAvailabilityFailure } from "../../api/availability";
 
 // AppError.message and Error.message are diagnostics, not reviewed display copy.
 // Keep expected product failures specific without exposing response bodies, IDs,
@@ -36,6 +36,12 @@ const explanations: Partial<Record<AppErrorCode, string>> = {
     "This search mode is unavailable. Choose another search mode.",
   embedding_model_unavailable:
     "This search model is unavailable. Choose another model.",
+  workspace_access_failed: "Check access to the Atlas workspace before retrying.",
+  workspace_maintenance_required:
+    "Atlas needs to finish workspace maintenance before you can continue.",
+  setup_required: "Run Atlas setup to create the workspace.",
+  artifact_not_ready: "Build the reference collection in Atlas setup.",
+  artifact_incompatible: "Check the reference collection in Atlas setup.",
   service_busy: "Atlas is busy. Try again shortly.",
   setup_in_progress: "Atlas is updating its reference collection. Try again shortly.",
   operation_timeout:
@@ -57,7 +63,7 @@ export function isSharedFailure(error: unknown): boolean {
   return (
     error instanceof AtlasCompatibilityError ||
     error instanceof AtlasConnectionError ||
-    isReferenceFailure(error)
+    isAvailabilityFailure(error)
   );
 }
 

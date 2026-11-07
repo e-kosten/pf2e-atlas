@@ -96,10 +96,40 @@ impl SqliteIndexReader {
         }
     }
     pub fn from_session(session: atlas_storage::ReadSession) -> Result<Self, IndexError> {
+        let (context, context_hash) = crate::validation::validate_open(session.connection())?;
+        Self::with_context(session, context, context_hash)
+    }
+
+    /// Open rich record detail without admitting filter or vector projections.
+    pub fn from_session_for_record_detail(
+        session: atlas_storage::ReadSession,
+    ) -> Result<Self, IndexError> {
+        let (context, hash) = record_projection_metadata(session.connection())?;
+        if context.content_interpretation_version
+            != atlas_record::source_content::CONTENT_INTERPRETATION_VERSION
+            || context.content_selection_version
+                != atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION
+            || context.selected_sections_recipe != crate::SELECTED_SECTIONS_RECIPE
+            || context.relationship_policy != crate::input::RELATIONSHIP_POLICY_VERSION
+            || context.asset_policy != crate::input::ASSET_POLICY_VERSION
+            || context.remaster_inputs_identity
+                != atlas_record::remaster::remaster_inputs_identity()
+        {
+            return Err(IndexError::Unsupported(
+                "record detail projection contract identity".into(),
+            ));
+        }
+        Self::with_context(session, context, hash)
+    }
+
+    fn with_context(
+        session: atlas_storage::ReadSession,
+        context: SourceArtifactBuildContext,
+        context_hash: String,
+    ) -> Result<Self, IndexError> {
         let vector_error = atlas_sqlite_vec::register_sqlite_vec_auto_extension()
             .err()
             .map(|e| e.to_string());
-        let (context, context_hash) = crate::validation::validate_open(session.connection())?;
         let instance =
             ArtifactInstance::new(session.workspace_key()?, session.reference_revision()?);
         Ok(Self {
@@ -219,58 +249,17 @@ impl SqliteIndexReader {
         keys: &[RecordKey],
         developer: bool,
     ) -> Result<SourceSummaryBatch, IndexError> {
-        if keys.len() > 1024 {
-            return Err(IndexError::Invalid(
-                "summary batch exceeds 1024 keys".into(),
-            ));
-        }
-        if keys.is_empty() {
-            return Ok(SourceSummaryBatch {
-                records: Vec::new(),
-                missing: Vec::new(),
-            });
-        }
-        let sql = format!(
-            "{SUMMARY_SELECT} WHERE {} r.key IN ({})",
-            if developer {
-                ""
-            } else {
-                "r.document_kind<>'Macro' AND"
-            },
-            vec!["?"; keys.len()].join(",")
-        );
-        let parameters = keys.iter().map(ToString::to_string).collect::<Vec<_>>();
-        let rows = self
-            .session
-            .connection()
-            .prepare(&sql)?
-            .query_map(rusqlite::params_from_iter(&parameters), SummaryRow::read)?
-            .collect::<Result<Vec<_>, _>>()?;
-        self.count_statement();
-        #[cfg(any(test, feature = "test-support"))]
-        {
-            let mut m = self.read_metrics.get();
-            m.summary_batches += 1;
-            self.read_metrics.set(m);
-        }
-        let values = rows
-            .into_iter()
-            .map(SummaryRow::summary)
-            .collect::<Result<Vec<_>, _>>()?;
-        let map = values
-            .into_iter()
-            .map(|s| (s.key.clone(), s))
-            .collect::<std::collections::BTreeMap<_, _>>();
-        let mut records = Vec::new();
-        let mut missing = Vec::new();
-        for key in keys {
-            if let Some(s) = map.get(key) {
-                records.push(s.clone());
-            } else {
-                missing.push(key.clone());
+        let batch = read_summaries(self.session.connection(), keys, developer)?;
+        if !keys.is_empty() {
+            self.count_statement();
+            #[cfg(any(test, feature = "test-support"))]
+            {
+                let mut m = self.read_metrics.get();
+                m.summary_batches += 1;
+                self.read_metrics.set(m);
             }
         }
-        Ok(SourceSummaryBatch { records, missing })
+        Ok(batch)
     }
     pub fn read_source_record(
         &self,
@@ -496,4 +485,85 @@ impl SummaryRow {
             content_hash: self.content_hash,
         })
     }
+}
+
+/// Check the exact record projection independently of filter and vector storage.
+pub fn record_projection_context(
+    connection: &rusqlite::Connection,
+) -> Result<SourceArtifactBuildContext, IndexError> {
+    Ok(record_projection_metadata(connection)?.0)
+}
+
+fn record_projection_metadata(
+    connection: &rusqlite::Connection,
+) -> Result<(SourceArtifactBuildContext, String), IndexError> {
+    let (context, hash) = crate::component_upgrade::read_stored_reference_metadata(connection)?
+        .ok_or_else(|| IndexError::Unavailable("reference data has not been built".into()))?;
+    if context.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
+        || context.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID
+        || context.localization_policy != crate::input::LOCALIZATION_POLICY_VERSION
+    {
+        return Err(IndexError::Unsupported(
+            "record projection contract identity".into(),
+        ));
+    }
+    Ok((context, hash))
+}
+
+/// Read product summaries in the caller's already-admitted transaction.
+pub fn read_product_summaries(
+    connection: &rusqlite::Connection,
+    keys: &[RecordKey],
+) -> Result<SourceSummaryBatch, IndexError> {
+    read_summaries(connection, keys, false)
+}
+
+fn read_summaries(
+    connection: &rusqlite::Connection,
+    keys: &[RecordKey],
+    developer: bool,
+) -> Result<SourceSummaryBatch, IndexError> {
+    if keys.len() > 1024 {
+        return Err(IndexError::Invalid(
+            "summary batch exceeds 1024 keys".into(),
+        ));
+    }
+    if keys.is_empty() {
+        return Ok(SourceSummaryBatch {
+            records: Vec::new(),
+            missing: Vec::new(),
+        });
+    }
+    let sql = format!(
+        "{SUMMARY_SELECT} WHERE {} r.key IN ({})",
+        if developer {
+            ""
+        } else {
+            "r.document_kind<>'Macro' AND"
+        },
+        vec!["?"; keys.len()].join(",")
+    );
+    let parameters = keys.iter().map(ToString::to_string).collect::<Vec<_>>();
+    let rows = connection
+        .prepare(&sql)?
+        .query_map(rusqlite::params_from_iter(&parameters), SummaryRow::read)?
+        .collect::<Result<Vec<_>, _>>()?;
+    let values = rows
+        .into_iter()
+        .map(SummaryRow::summary)
+        .collect::<Result<Vec<_>, _>>()?;
+    let map = values
+        .into_iter()
+        .map(|s| (s.key.clone(), s))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let mut records = Vec::new();
+    let mut missing = Vec::new();
+    for key in keys {
+        if let Some(s) = map.get(key) {
+            records.push(s.clone());
+        } else {
+            missing.push(key.clone());
+        }
+    }
+    Ok(SourceSummaryBatch { records, missing })
 }

@@ -588,6 +588,12 @@ function EncounterParticipantSurface({
       {participant.status === "unresolved" && (
         <p>Reference unavailable. Saved participant settings remain editable.</p>
       )}
+      {participant.status === "unchecked" && (
+        <p>
+          Reference details could not be checked. Saved participant settings remain
+          editable.
+        </p>
+      )}
       {!presentation && (
         <ActorEncounterLayout durability={hpControls} runtime={conditionControls} />
       )}

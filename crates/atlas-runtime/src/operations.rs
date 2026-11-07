@@ -30,6 +30,9 @@ pub struct StateRead {
     session: ReadSession,
 }
 impl StateRead {
+    pub fn exact_records(&self) -> Result<ExactRecordRead<'_>, RuntimeError> {
+        ExactRecordRead::open(self.session.connection())
+    }
     pub fn local_state(&self) -> LocalStateRead<'_> {
         LocalStateRead::new(&self.session)
     }
@@ -37,6 +40,38 @@ impl StateRead {
         Ok(self.session.reference_revision()?)
     }
 }
+/// Exact summaries on an admitted snapshot, independent of search admission.
+pub struct ExactRecordRead<'a> {
+    connection: &'a atlas_storage::Connection,
+    context: atlas_index::SourceArtifactBuildContext,
+}
+impl<'a> ExactRecordRead<'a> {
+    fn open(connection: &'a atlas_storage::Connection) -> Result<Self, RuntimeError> {
+        Ok(Self {
+            connection,
+            context: atlas_index::record_projection_context(connection)?,
+        })
+    }
+
+    pub fn trait_label(&self, identifier: &str) -> Option<&str> {
+        self.context
+            .used_trait_labels
+            .get(identifier)
+            .map(String::as_str)
+    }
+
+    pub fn summaries(
+        &self,
+        keys: &[atlas_domain::RecordKey],
+    ) -> Result<Vec<atlas_domain::SourceRecordSummary>, RuntimeError> {
+        let mut records = Vec::with_capacity(keys.len());
+        for chunk in keys.chunks(1024) {
+            records.extend(atlas_index::read_product_summaries(self.connection, chunk)?.records);
+        }
+        Ok(records)
+    }
+}
+
 pub struct WorkspaceWrite {
     session: WriteSession,
 }
@@ -44,6 +79,32 @@ impl WorkspaceWrite {
     pub fn local_state(&self) -> LocalStateWrite<'_> {
         LocalStateWrite::new(&self.session)
     }
+    /// Resolve one product key without opening a separate read transaction.
+    pub fn exact_record(
+        &self,
+        key: &atlas_domain::RecordKey,
+    ) -> Result<Option<atlas_domain::SourceRecordSummary>, RuntimeError> {
+        Ok(ExactRecordRead::open(self.session.connection())?
+            .summaries(std::slice::from_ref(key))?
+            .into_iter()
+            .next())
+    }
+
+    /// Count live product records using the same snapshot as the saved mutation.
+    pub fn resolved_record_count(
+        &self,
+        keys: &[atlas_domain::RecordKey],
+    ) -> Result<Option<usize>, RuntimeError> {
+        if keys.is_empty() {
+            return Ok(Some(0));
+        }
+        match ExactRecordRead::open(self.session.connection()) {
+            Ok(reader) => Ok(Some(reader.summaries(keys)?.len())),
+            Err(error) if error.reference_unavailable() => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
     /// Call after durable receipt recovery, before applying source-derived results.
     pub fn require_reference_revision(&self, expected: u64) -> Result<(), RuntimeError> {
         let actual = self.session.reference_revision()?;
@@ -61,9 +122,35 @@ impl AtlasRuntime {
         &self,
         prepared: Option<PreparedQueryEmbedding>,
     ) -> Result<WorkspaceRead, RuntimeError> {
-        crate::workspace::register_extensions()?;
-        let session = Workspace::at(self.index_path())?.read(WORKSPACE_SCHEMA_VERSION)?;
-        let index = atlas_index::SqliteIndexReader::from_session(session)?;
+        self.reference_read(self.read_state()?, prepared)
+    }
+
+    /// Attach reference capabilities to the saved-state snapshot already admitted.
+    pub fn reference_read(
+        &self,
+        state: StateRead,
+        prepared: Option<PreparedQueryEmbedding>,
+    ) -> Result<WorkspaceRead, RuntimeError> {
+        let index = atlas_index::SqliteIndexReader::from_session(state.session)?;
+        self.retrieval_read(index, prepared)
+    }
+
+    pub fn record_detail_read(&self, state: StateRead) -> Result<WorkspaceRead, RuntimeError> {
+        let index = atlas_index::SqliteIndexReader::from_session_for_record_detail(state.session)?;
+        Ok(WorkspaceRead {
+            retrieval: AtlasRetrievalService::from_index(
+                index,
+                atlas_domain::SearchProfileId::new(atlas_embedding::DEFAULT_SEARCH_PROFILE),
+                None,
+            )?,
+        })
+    }
+
+    fn retrieval_read(
+        &self,
+        index: atlas_index::SqliteIndexReader,
+        prepared: Option<PreparedQueryEmbedding>,
+    ) -> Result<WorkspaceRead, RuntimeError> {
         let default_profile = self.resolve_default_search_profile(index.context())?;
         Ok(WorkspaceRead {
             retrieval: AtlasRetrievalService::from_index(index, default_profile, prepared)?
@@ -73,13 +160,13 @@ impl AtlasRuntime {
     pub fn read_state(&self) -> Result<StateRead, RuntimeError> {
         crate::workspace::register_extensions()?;
         Ok(StateRead {
-            session: Workspace::at(self.index_path())?.read(WORKSPACE_SCHEMA_VERSION)?,
+            session: Workspace::existing(self.index_path())?.read(WORKSPACE_SCHEMA_VERSION)?,
         })
     }
     pub fn write_workspace(&self) -> Result<WorkspaceWrite, RuntimeError> {
         crate::workspace::register_extensions()?;
         Ok(WorkspaceWrite {
-            session: Workspace::at(self.index_path())?.write(WORKSPACE_SCHEMA_VERSION)?,
+            session: Workspace::existing(self.index_path())?.write(WORKSPACE_SCHEMA_VERSION)?,
         })
     }
 }

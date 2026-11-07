@@ -196,6 +196,8 @@ pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
         | ArtifactIncompatible
         | VectorReadinessRequired
         | EmbeddingModelUnavailable
+        | WorkspaceAccessFailed
+        | WorkspaceMaintenanceRequired
         | SetupRequired
         | SetupInProgress
         | ServiceBusy

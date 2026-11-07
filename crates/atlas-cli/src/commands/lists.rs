@@ -15,12 +15,27 @@ use std::{
 pub(crate) mod args;
 use args::*;
 fn client(paths: ListsPathOptions) -> Result<AtlasAppService, atlas_app_model::AppError> {
+    connect_lists(
+        paths,
+        atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
+    )
+}
+fn saved_client(paths: ListsPathOptions) -> Result<AtlasAppService, atlas_app_model::AppError> {
+    connect_lists(
+        paths,
+        atlas_app_service::AppServiceRetrievalMode::OnDemandSavedWorkspace,
+    )
+}
+fn connect_lists(
+    paths: ListsPathOptions,
+    retrieval_mode: atlas_app_service::AppServiceRetrievalMode,
+) -> Result<AtlasAppService, atlas_app_model::AppError> {
     connect(ClientOptions {
         search_profile: None,
         path_mode: crate::cli::runtime_path_mode(paths.path_mode),
         index: paths.index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
+        retrieval_mode,
     })
 }
 pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String> {
@@ -109,7 +124,7 @@ fn emit_batch(
 }
 
 pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
-    let s = match client(o.paths) {
+    let s = match saved_client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
@@ -117,12 +132,24 @@ pub(crate) fn run_lists_ls(o: ListLsOptions) -> Result<ExitCode, String> {
 }
 pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
     let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
-    let s = match client(o.paths) {
+    let connect = if sort
+        .as_ref()
+        .is_some_and(atlas_domain::ResultSort::is_record_order)
+    {
+        client
+    } else {
+        saved_client
+    };
+    let s = match connect(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
     let mut view = match app_result(
-        if sort.is_some() {
+        if (o.keys_only || o.no_records)
+            && matches!(sort, None | Some(atlas_domain::ResultSort::SavedOrder {}))
+        {
+            s.saved_list_snapshot(&o.slug)
+        } else if sort.is_some() {
             s.filter_saved_list(atlas_app_model::FilterSavedListRequest {
                 sort,
                 list_ref: o.slug.clone(),
@@ -166,6 +193,9 @@ pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
 }
 fn print_list(v: &SavedListDetailView) {
     println!("{} — {}", v.list.slug, v.list.name);
+    if let Some(error) = &v.reference_error {
+        eprintln!("Reference records could not be checked. {}", error.message);
+    }
     super::result_order::print_random_seed(&v.sort);
     for i in &v.items {
         let name = i
@@ -207,7 +237,13 @@ pub(crate) fn run_lists_add(mut o: ListAddOptions) -> Result<ExitCode, String> {
     if o.record_refs.is_empty() {
         return Err("provide record references or --stdin".into());
     }
-    let s = match client(o.paths) {
+    let connect = if matches!(o.record_refs.as_slice(), [key] if atlas_domain::RecordKey::parse(key).is_ok())
+    {
+        saved_client
+    } else {
+        client
+    };
+    let s = match connect(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
@@ -286,7 +322,7 @@ pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
     emit(app_result(s.update_saved_list(request), o.json)?, o.json)
 }
 pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String> {
-    let s = match client(o.paths) {
+    let s = match saved_client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, false),
     };
@@ -303,9 +339,13 @@ pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String>
     Ok(ExitCode::SUCCESS)
 }
 pub(crate) fn run_lists_import(o: ListImportOptions) -> Result<ExitCode, String> {
-    let document = serde_json::from_slice(&fs::read(o.input).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
-    let s = match client(o.paths) {
+    let document: atlas_app_model::SavedListExportDocumentView =
+        serde_json::from_slice(&fs::read(o.input).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
+    if let Err(error) = document.validate_format() {
+        return super::product::report_app_error(error, o.json);
+    }
+    let s = match saved_client(o.paths) {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };

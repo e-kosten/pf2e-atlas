@@ -46,6 +46,10 @@ impl AppServiceError {
         Self { error }
     }
 
+    pub(crate) fn app_error(&self) -> &AppError {
+        &self.error
+    }
+
     pub fn into_app_error(self) -> AppError {
         self.error
     }
@@ -61,8 +65,13 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
     fn from(error: atlas_runtime::RuntimeError) -> Self {
         use atlas_runtime::RuntimeErrorKind;
         let code = match error.kind() {
-            RuntimeErrorKind::WorkspaceBusy => return Self::service_busy(error.to_string()),
-            RuntimeErrorKind::WorkspaceMaintenance => AppErrorCode::SetupRequired,
+            RuntimeErrorKind::WorkspaceBusy
+            | RuntimeErrorKind::Search(SearchErrorKind::WorkspaceBusy) => {
+                return Self::service_busy(error.to_string());
+            }
+            RuntimeErrorKind::WorkspaceMissing => AppErrorCode::SetupRequired,
+            RuntimeErrorKind::WorkspaceAccess => AppErrorCode::WorkspaceAccessFailed,
+            RuntimeErrorKind::WorkspaceMaintenance => AppErrorCode::WorkspaceMaintenanceRequired,
             RuntimeErrorKind::WorkspaceIncompatible => AppErrorCode::ArtifactIncompatible,
             RuntimeErrorKind::ReferenceChanged { expected, actual } => {
                 return Self::artifact_generation_changed(
@@ -72,7 +81,14 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
                 );
             }
             RuntimeErrorKind::Search(kind) => search_error_code(*kind),
-            _ => AppErrorCode::SetupRequired,
+            RuntimeErrorKind::UnsupportedSearchProfile
+            | RuntimeErrorKind::RepoModeOutsideCheckout => AppErrorCode::InvalidRequest,
+            RuntimeErrorKind::CurrentDirectoryUnavailable
+            | RuntimeErrorKind::CacheRootUnavailable { .. }
+            | RuntimeErrorKind::PathDefaultUnavailable { .. } => {
+                AppErrorCode::WorkspaceAccessFailed
+            }
+            RuntimeErrorKind::Workspace => AppErrorCode::InternalError,
         };
         Self::new(code, error.to_string())
     }
@@ -149,6 +165,9 @@ impl From<LocalStateError> for AppServiceError {
 
 impl From<SearchError> for AppServiceError {
     fn from(error: SearchError) -> Self {
+        if error.kind() == SearchErrorKind::WorkspaceBusy {
+            return Self::service_busy(error.to_string());
+        }
         let code = search_error_code(error.kind());
         Self::new(code, error.to_string())
     }
@@ -163,6 +182,8 @@ impl From<atlas_domain::QueryError> for AppServiceError {
 fn search_error_code(kind: SearchErrorKind) -> AppErrorCode {
     match kind {
         SearchErrorKind::OperationCancelled => AppErrorCode::OperationCancelled,
+        SearchErrorKind::WorkspaceBusy => AppErrorCode::ServiceBusy,
+        SearchErrorKind::WorkspaceAccessFailed => AppErrorCode::WorkspaceAccessFailed,
         SearchErrorKind::IndexUnavailable => AppErrorCode::IndexUnavailable,
         SearchErrorKind::ArtifactContractViolation => AppErrorCode::ArtifactIncompatible,
         SearchErrorKind::InvalidFilter => AppErrorCode::FilterInvalid,

@@ -111,14 +111,26 @@ impl RetrievalExecutor {
     where
         T: Send + 'static,
     {
-        self.enqueue_prepared(execution, prepared, task)?
-            .recv()
-            .map_err(|error| {
-                AppServiceError::new(
-                    AppErrorCode::InternalError,
-                    format!("retrieval worker dropped response: {error}"),
-                )
-            })?
+        receive(self.enqueue_prepared(execution, prepared, task)?)
+    }
+
+    pub(super) fn submit_operation<T>(
+        &self,
+        execution: ReadExecutionContext,
+        task: impl FnOnce(&AtlasRuntime) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<T>
+    where
+        T: Send + 'static,
+    {
+        receive(self.enqueue_operation(execution, task)?)
+    }
+
+    #[cfg(test)]
+    pub(super) fn track_read(&self, workspace: &WorkspaceRead) {
+        *self
+            .last_read_metrics
+            .lock()
+            .expect("operation read metrics") = workspace.retrieval().read_metrics();
     }
 
     #[cfg(test)]
@@ -142,6 +154,27 @@ impl RetrievalExecutor {
     where
         T: Send + 'static,
     {
+        #[cfg(test)]
+        let executor = self.clone();
+        let running = execution.clone();
+        self.enqueue_operation(execution, move |runtime| {
+            let mut workspace = runtime.read_workspace(prepared)?;
+            running.check()?;
+            let result = task(&mut workspace);
+            #[cfg(test)]
+            executor.track_read(&workspace);
+            result
+        })
+    }
+
+    fn enqueue_operation<T>(
+        &self,
+        execution: ReadExecutionContext,
+        task: impl FnOnce(&AtlasRuntime) -> AppServiceResult<T> + Send + 'static,
+    ) -> AppServiceResult<Receiver<AppServiceResult<T>>>
+    where
+        T: Send + 'static,
+    {
         execution.check()?;
         #[cfg(test)]
         {
@@ -160,20 +193,8 @@ impl RetrievalExecutor {
             }
         }
         let (reply, receiver) = mpsc::channel();
-        #[cfg(test)]
-        let metrics = Arc::clone(&self.last_read_metrics);
         let job = Box::new(move |runtime: &AtlasRuntime| {
-            let result = execution.check().and_then(|()| {
-                let mut workspace = runtime.read_workspace(prepared)?;
-                execution.check()?;
-                let result = task(&mut workspace);
-                #[cfg(test)]
-                {
-                    *metrics.lock().expect("operation read metrics") =
-                        workspace.retrieval().read_metrics();
-                }
-                result
-            });
+            let result = execution.check().and_then(|()| task(runtime));
             let _ = reply.send(result);
         });
 
@@ -291,6 +312,15 @@ fn retrieval_worker(runtime: &AtlasRuntime, receiver: Arc<Mutex<Receiver<Retriev
         };
         job(runtime);
     }
+}
+
+fn receive<T>(receiver: Receiver<AppServiceResult<T>>) -> AppServiceResult<T> {
+    receiver.recv().map_err(|error| {
+        AppServiceError::new(
+            AppErrorCode::InternalError,
+            format!("retrieval worker dropped response: {error}"),
+        )
+    })?
 }
 
 #[cfg(test)]

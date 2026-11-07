@@ -12,6 +12,12 @@ use rusqlite::{Connection, OptionalExtension};
 pub fn read_stored_reference_context(
     c: &Connection,
 ) -> Result<Option<SourceArtifactBuildContext>, IndexError> {
+    Ok(read_stored_reference_metadata(c)?.map(|(context, _)| context))
+}
+
+pub(crate) fn read_stored_reference_metadata(
+    c: &Connection,
+) -> Result<Option<(SourceArtifactBuildContext, String)>, IndexError> {
     let stored: Option<(u32, String, String)> = c
         .query_row(
             "SELECT format_version,context_hash,context_json FROM artifact_context WHERE singleton=1",
@@ -33,7 +39,7 @@ pub fn read_stored_reference_context(
             "stored reference format is unsupported".into(),
         ));
     }
-    Ok(Some(original))
+    Ok(Some((original, hash)))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

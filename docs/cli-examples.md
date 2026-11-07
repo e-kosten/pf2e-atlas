@@ -187,6 +187,9 @@ atlas lists export undead-research --output undead-research.json
 atlas lists import undead-research.json --id undead-copy --json
 ```
 
+The v2 export preserves saved item order, keys, notes, and snapshots. It can be
+written without loading reference records. Import accepts v2 files.
+
 Creation rejects an existing list ID; use `lists add` to extend it. Batches report
 added, already present and failed inputs. Valid entries are saved together; a failed
 input gives a nonzero exit. If every input fails resolution, a new list is empty.

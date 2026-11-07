@@ -93,41 +93,63 @@ impl AtlasAppService {
     }
 
     pub fn encounter(&self, encounter_ref: &str) -> AppServiceResult<EncounterDetailView> {
-        let initial = self.with_state(|session| {
-            let snapshot = session
-                .local_state()
-                .encounters()
-                .get_with_participants(encounter_ref)?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            Ok(snapshot)
-        })?;
-        if !initial.participants.iter().any(|p| {
-            p.record_key
-                .as_deref()
-                .is_some_and(|key| atlas_domain::RecordKey::parse(key).is_ok())
-        }) {
-            return Ok(super::projection::encounter_detail_from_records(
-                initial.encounter,
-                initial.participants,
-                None,
-                Default::default(),
-                Default::default(),
-            ));
-        }
         let encounter_ref = encounter_ref.to_owned();
-        self.with_workspace(
-            &crate::ReadExecutionContext::uncancellable(),
-            move |session| {
-                let detail = session
+        self.with_saved_detail(
+            atlas_runtime::AtlasRuntime::record_detail_read,
+            move |state| {
+                let detail = state
                     .local_state()
                     .encounters()
                     .get_with_participants(&encounter_ref)?
                     .ok_or_else(|| encounter_not_found(&encounter_ref))?;
-                encounter_detail_view(
-                    session.retrieval_mut(),
+                let linked = detail.participants.iter().any(|participant| {
+                    participant
+                        .record_key
+                        .as_deref()
+                        .is_some_and(|key| atlas_domain::RecordKey::parse(key).is_ok())
+                });
+                Ok((detail, linked))
+            },
+            |detail, reference| {
+                let reference_error = match reference {
+                    Ok(Some(session)) => {
+                        return encounter_detail_view(
+                            session.retrieval_mut(),
+                            detail.encounter,
+                            detail.participants,
+                        );
+                    }
+                    Ok(None) => None,
+                    Err(error) if error.reference_unavailable() => {
+                        Some(crate::AppServiceError::from(error).into_app_error())
+                    }
+                    Err(error) => return Err(error.into()),
+                };
+                let mut view = super::projection::encounter_detail_from_records(
                     detail.encounter,
                     detail.participants,
-                )
+                    None,
+                    Default::default(),
+                    Default::default(),
+                );
+                if reference_error.is_some() {
+                    view.difficulty.total_xp = None;
+                    view.difficulty.xp_per_pc = None;
+                    view.difficulty.rating = None;
+                    view.difficulty.award_note = None;
+                    for participant in &mut view.participants {
+                        if participant
+                            .record_key
+                            .as_deref()
+                            .is_some_and(|key| atlas_domain::RecordKey::parse(key).is_ok())
+                        {
+                            participant.status =
+                                atlas_app_model::EncounterParticipantStatusView::Unchecked;
+                        }
+                    }
+                }
+                view.reference_error = reference_error;
+                Ok(view)
             },
         )
     }

@@ -80,14 +80,28 @@ impl AtlasRuntime {
     /// Apply executable-owned schema and projection upgrades before serving
     /// requests. An absent workspace remains a setup concern.
     pub fn upgrade_workspace_if_present(&self) -> Result<bool, RuntimeError> {
-        if !self.index_path().exists() {
+        let Some(workspace) = self.admit_workspace_if_present()? else {
             return Ok(false);
-        }
-        let workspace = crate::initialize_workspace(self.index_path())?;
+        };
         Ok(atlas_index::ensure_reference_projections(
             &workspace,
             crate::WORKSPACE_SCHEMA_VERSION,
         )?)
+    }
+
+    /// Admit and upgrade saved workspace schema without reference projection work.
+    pub fn admit_workspace_if_present(
+        &self,
+    ) -> Result<Option<atlas_storage::Workspace>, RuntimeError> {
+        if self
+            .index_path()
+            .try_exists()
+            .map_err(atlas_storage::StorageError::from)?
+        {
+            Ok(Some(crate::initialize_workspace(self.index_path())?))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn open_index(&self) -> Result<atlas_index::SqliteIndexReader, atlas_index::IndexError> {

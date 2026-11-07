@@ -1040,3 +1040,66 @@ fn atomic_publication_drains_sessions_and_rejects_existing_maintenance() {
         Err(StorageError::Maintenance(_))
     ));
 }
+
+#[test]
+fn incremental_publication_keeps_old_and_new_snapshots_coherent() {
+    let (_directory, workspace) = fixture();
+    let old = workspace.read(1).unwrap();
+    let read_title = |read: &ReadSession| {
+        read.connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap()
+    };
+    let owner = workspace.update_owner().unwrap();
+    owner
+        .publish_incremental(1, |connection| -> StorageResult<()> {
+            connection.execute("UPDATE saved SET title='new'", [])?;
+            let during = workspace.read(1)?;
+            assert_eq!(during.reference_revision()?, 0);
+            assert_eq!(read_title(&during), "retained");
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(old.reference_revision().unwrap(), 0);
+    assert_eq!(read_title(&old), "retained");
+    let new = workspace.read(1).unwrap();
+    assert_eq!(new.reference_revision().unwrap(), 1);
+    assert_eq!(read_title(&new), "new");
+}
+
+#[test]
+fn incremental_schema_change_rolls_back_before_exclusive_replay() {
+    let (_directory, workspace) = fixture();
+    let owner = workspace.update_owner().unwrap();
+    let read = workspace.read(1).unwrap();
+    let apply = |connection: &rusqlite::Connection| -> StorageResult<()> {
+        connection.execute("UPDATE saved SET title=title||' updated'", [])?;
+        connection.execute_batch("CREATE TABLE rebuilt(value TEXT)")?;
+        Ok(())
+    };
+    assert!(matches!(
+        owner.publish_incremental(1, apply),
+        Err(StorageError::Busy)
+    ));
+    drop(read);
+    let after_denial = workspace.read(1).unwrap();
+    assert_eq!(after_denial.reference_revision().unwrap(), 0);
+    assert_eq!(
+        after_denial
+            .connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+    drop(after_denial);
+    owner.publish_incremental(1, apply).unwrap();
+    let committed = workspace.read(1).unwrap();
+    assert_eq!(committed.reference_revision().unwrap(), 1);
+    assert_eq!(
+        committed
+            .connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained updated"
+    );
+}

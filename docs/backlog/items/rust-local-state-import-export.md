@@ -38,7 +38,7 @@ atlas lists import list.json --id new-id
 atlas lists import list.json --id existing-id --replace
 ```
 
-`atlas lists export` writes the raw export document, not the standard command JSON envelope, so it can be redirected directly into a file. Imports use the final target id for conflict handling: by default an existing target fails with `saved_list_already_exists`; `--replace` replaces that target list. Exported items include position, record key, resolved record name, status, optional note, and a snapshot so unresolved rows can round-trip.
+`atlas lists export` writes the raw export document, not the standard command JSON envelope, so it can be redirected directly into a file. Imports use the final target id for conflict handling: by default an existing target fails with `saved_list_already_exists`; `--replace` replaces that target list. List exchange uses version 2. Items retain their array order and carry the record key, optional note, and saved snapshot. Import preserves those snapshots and reports whether local resolution was checked.
 
 ## Constraints
 

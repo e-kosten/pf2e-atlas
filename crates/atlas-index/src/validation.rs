@@ -2,7 +2,6 @@
 use crate::{
     IndexError, SourceArtifactBuildContext, SourceArtifactRecordInput,
     codec::{checked_hash, gunzip, sha256},
-    input::ARTIFACT_FORMAT_VERSION,
     projections::{ProjectionIds, root_rows},
 };
 use atlas_domain::OwnedContentLocator;
@@ -37,16 +36,8 @@ pub struct ArtifactValidationReport {
 pub(crate) fn validate_open(
     c: &Connection,
 ) -> Result<(SourceArtifactBuildContext, String), IndexError> {
-    let (format,hash,json):(i64,String,String)=c.query_row("SELECT format_version,context_hash,context_json FROM artifact_context WHERE singleton=1",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e|IndexError::Invalid(format!("artifact context: {e}")))?;
-    if format != i64::from(ARTIFACT_FORMAT_VERSION)
-        || !checked_hash(&hash)
-        || sha256(json.as_bytes()) != hash
-    {
-        return Err(IndexError::Invalid(
-            "artifact context digest/version mismatch".into(),
-        ));
-    }
-    let context: SourceArtifactBuildContext = serde_json::from_str(&json)?;
+    let (context, hash) = crate::component_upgrade::read_stored_reference_metadata(c)?
+        .ok_or_else(|| IndexError::Unavailable("reference data has not been built".into()))?;
     if context.search_profiles != context.canonical_profiles()? {
         return Err(bad("profile manifest must be canonical and duplicate-free"));
     }

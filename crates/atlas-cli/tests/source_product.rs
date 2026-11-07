@@ -1371,6 +1371,70 @@ fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
 }
 
 #[test]
+fn saved_list_v1_import_is_rejected_before_replacement() {
+    let f = Fixture::new();
+    f.data(&[
+        "lists",
+        "create",
+        "portable",
+        "--name",
+        "Portable",
+        "--record",
+        "Treat Wounds",
+        "--json",
+    ]);
+    f.data(&[
+        "lists",
+        "note",
+        "portable",
+        "actions:aaaaaaaaaaaaaaaa",
+        "--text",
+        "Keep this note",
+        "--json",
+    ]);
+    let before = f.command(&["lists", "export", "portable"], false);
+    let original: Value = serde_json::from_slice(&before.stdout).unwrap();
+    assert_eq!(original["version"], 2);
+    let obsolete = f.root.join("obsolete.json");
+    fs::write(&obsolete, r#"{"format":"pf2e-atlas.saved-list","version":1,"exported_at":"2026-11-07T00:00:00Z","list":{"id":"portable","name":"Wrong list"},"items":[]}"#).unwrap();
+    let rejected = f.command(
+        &[
+            "lists",
+            "import",
+            obsolete.to_str().unwrap(),
+            "--replace",
+            "--json",
+        ],
+        false,
+    );
+    assert_eq!(rejected.status.code(), Some(2));
+    let error: Value = serde_json::from_slice(&rejected.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "invalid_request");
+    assert!(
+        error["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("unsupported saved-list import version")
+    );
+    let after = f.command(&["lists", "export", "portable"], false);
+    let after: Value = serde_json::from_slice(&after.stdout).unwrap();
+    assert_eq!(after["list"], original["list"]);
+    assert_eq!(after["items"], original["items"]);
+}
+
+#[test]
+fn inaccessible_workspace_lock_does_not_report_setup_required() {
+    let f = Fixture::new();
+    let lock = f.index.with_extension("sqlite.access.lock");
+    fs::remove_file(&lock).unwrap();
+    fs::create_dir(&lock).unwrap();
+    let output = f.command(&["lists", "ls", "--json"], false);
+    assert_eq!(output.status.code(), Some(3));
+    let error: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "workspace_access_failed");
+}
+
+#[test]
 fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
     let f = Fixture::new();
     f.data(&[
