@@ -1,16 +1,17 @@
 # Validation
 
 Run focused checks and inspect the scoped diff before logical commits. Independent
-review is a pre-PR gate, not a commit gate. Finish implementation, resolve
-independent subagent review findings, then run the applicable final local gates
-before opening the PR. Open an early draft only when the user explicitly requests
-one. Respect the tracked hooks. Reuse successful checks for unchanged inputs;
+review is required before merge readiness, not before each local commit. Finish
+implementation, resolve independent review findings, then run the applicable
+final local gates before marking the PR ready for merge. Draft PRs identify
+remaining work. Respect the tracked hooks. Reuse successful checks for unchanged
+inputs;
 a commit alone does not invalidate evidence for identical inputs.
 
 ## Early domain and transport checks
 
-Before implementing cross-cutting source-derived rules, use the existing task plan
-to identify actual producers and projection, mutation/admission and event consumers.
+Before implementing cross-cutting source-derived rules, identify actual producers
+and projection, mutation/admission and event consumers.
 Record representative saved, inherited and unknown cases where those distinctions
 apply. For example, an inherited condition must reach both displayed permission
 and Spend admission; a manual known-empty participant differs from unavailable
@@ -21,8 +22,13 @@ HTTP/client decoding boundary early. Cover relevant absent/null/default cases.
 An optional non-null TypeScript field must not silently serialize `None` as null.
 Generated bindings and compatibility fingerprints complement those behavioral
 checks. Run these focused tests before expensive suites and retain them as the
-regressions for the changed boundary. Independent final review still precedes PR
-creation; it does not replace early discovery of domain/transport assumptions.
+regressions for the changed boundary. Independent final review is required before
+merge readiness; it does not replace early discovery of domain/transport assumptions.
+
+Review refactors against the intended end state: inspect callers, tests and docs
+for obsolete paths and mixed ownership. For storage, search or ingest changes,
+account for required migrations, generated artifacts, fixture/index refreshes and
+setup notes. Passing tests do not by themselves prove these obligations complete.
 
 ## Local Rust gate
 
