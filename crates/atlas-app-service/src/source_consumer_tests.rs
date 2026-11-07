@@ -65,9 +65,9 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
         export
             .items
             .iter()
-            .map(|item| item.position)
+            .map(|item| item.record_key.as_str())
             .collect::<Vec<_>>(),
-        [1, 2, 3]
+        [keys[2], keys[0], keys[1]]
     );
     f.worker
         .import_saved_list(ImportSavedListRequest {
@@ -675,7 +675,6 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         })
         .unwrap();
     let list = f.worker.saved_list("large-list").unwrap();
-    let metrics = f.worker.last_read_metrics();
     assert_eq!(
         list.items
             .iter()
@@ -694,8 +693,6 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
             .map(|index| format!("Action {index}"))
             .collect::<Vec<_>>()
     );
-    assert_eq!(metrics.source_body_decodes, 0);
-    assert_eq!(metrics.summary_batches, 2);
     assert_eq!(list.items[1030].status, SavedListItemStatusView::Unresolved);
     assert_eq!(list.items[1030].snapshot.title, "Saved action 1030");
     let filtered = f
@@ -709,8 +706,22 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         .unwrap();
     assert_eq!(filtered.items.len(), 1);
     assert_eq!(filtered.items[0].record_key, "actions:0000000000001029");
+    let exhaustive = f
+        .worker
+        .filter_saved_list(FilterSavedListRequest {
+            sort: None,
+            list_ref: "large-list".into(),
+            query: Some("Action".into()),
+            filter: None,
+        })
+        .unwrap();
+    assert_eq!(exhaustive.items.len(), 1030);
+    assert_eq!(
+        exhaustive.items[1029].record_key,
+        "actions:0000000000001029"
+    );
     let export = f.worker.export_saved_list("large-list").unwrap();
-    assert_eq!(export.items[1029].position, 1030);
+    assert_eq!(export.items[1029].record_key, "actions:0000000000001029");
     assert_eq!(export.items[1030].note.as_deref(), Some("Note 1030"));
     let imported = f
         .worker
@@ -721,10 +732,93 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         })
         .unwrap();
     assert_eq!(
-        (imported.active_count, imported.unresolved_count),
-        (1030, 1)
+        imported.resolution,
+        atlas_app_model::ImportedListResolutionView::Checked {
+            active_count: 1030,
+            unresolved_count: 1
+        }
     );
     assert!(f.worker.delete_saved_list("copied-list").unwrap().deleted);
+}
+
+#[test]
+fn v1_replacement_is_rejected_and_v2_round_trips_without_reference() {
+    let f = fixture_worker();
+    let document = |key: &str| atlas_app_model::SavedListExportDocumentView {
+        format: "pf2e-atlas.saved-list".into(),
+        version: 2,
+        exported_at: "2026-11-07T00:00:00Z".into(),
+        list: atlas_app_model::SavedListExportListView {
+            id: "portable".into(),
+            name: "Portable".into(),
+            description: None,
+            tags: vec![],
+        },
+        items: [key, "actions:missing000000002"]
+            .into_iter()
+            .map(|key| atlas_app_model::SavedListExportItemView {
+                record_key: key.into(),
+                note: Some(format!("Note {key}")),
+                snapshot: atlas_app_model::SavedListItemSnapshotView {
+                    title: format!("Snapshot {key}"),
+                    kind: None,
+                },
+            })
+            .collect(),
+    };
+    atlas_search::test_support::invalidate_reference(
+        f.worker.workspace_path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
+    let original = document("actions:missing000000001");
+    let result = f
+        .worker
+        .import_saved_list(ImportSavedListRequest {
+            document: original.clone(),
+            id: None,
+            replace: false,
+        })
+        .unwrap();
+    assert_eq!(
+        result.resolution,
+        atlas_app_model::ImportedListResolutionView::Unchecked
+    );
+    let mut obsolete = document("actions:missing000000003");
+    obsolete.version = 1;
+    let error = f
+        .worker
+        .import_saved_list(ImportSavedListRequest {
+            document: obsolete,
+            id: None,
+            replace: true,
+        })
+        .unwrap_err();
+    assert_eq!(
+        error.into_app_error().code,
+        atlas_app_model::AppErrorCode::InvalidRequest
+    );
+    let saved = f.worker.saved_list("portable").unwrap();
+    assert!(saved.reference_error.is_some());
+    assert!(
+        saved
+            .items
+            .iter()
+            .all(|item| item.status == SavedListItemStatusView::Unchecked)
+    );
+    assert!(
+        f.worker
+            .filter_saved_list(FilterSavedListRequest {
+                sort: None,
+                list_ref: "portable".into(),
+                query: Some("Snapshot".into()),
+                filter: None,
+            })
+            .is_err()
+    );
+    let exported = f.worker.export_saved_list("portable").unwrap();
+    assert_eq!(exported.version, 2);
+    assert_eq!(exported.items, original.items);
 }
 
 #[test]

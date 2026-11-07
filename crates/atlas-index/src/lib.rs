@@ -136,12 +136,13 @@ pub use read_units::{
     SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,
     SourceLexicalRootHit, SourceRemasterPair, SourceVectorCandidateRequest, SourceVectorHit,
 };
-#[cfg(any(test, feature = "test-support"))]
 pub use reader::SourceReadMetrics;
 pub use reader::{
     SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
     SqliteIndexReader,
 };
+#[cfg(any(test, feature = "test-support"))]
+pub use reader::{read_product_summaries, record_projection_context};
 pub use schema::{
     CONSUMABLE_FILTER_SCHEMA_SQL, PHYSICAL_BASE_TYPE_SCHEMA_SQL,
     REFERENCE_NUMERIC_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL,

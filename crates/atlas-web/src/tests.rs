@@ -1276,8 +1276,8 @@ async fn source_free_saved_state_works_without_reference_readiness() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["encounter"]["slug"], "offline");
     let(status,body)=fixture.json(Method::POST,"/api/search/page",Some(json!({"criteria":{"kind":"list_records","filter":null},"page":{"number":1,"size":10}}))).await;
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
-    assert_eq!(body["code"], "artifact_incompatible");
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert_eq!(body["code"], "index_unavailable");
 }
 
 #[tokio::test]

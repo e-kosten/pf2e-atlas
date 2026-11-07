@@ -118,8 +118,10 @@ before and after capture. The captured content fingerprint remains authoritative
 Missing or unreadable declared packs still fail capture, while existing empty packs
 and deliberate declaration removals remain valid.
 
-Maintain one SQLite workspace and one immediate source-publication transaction
-under exclusive access. Typed construction, identity/binding checks and SQL
+Maintain one SQLite workspace and one immediate source-publication transaction.
+Data-only publication shares admission with readers on committed snapshots.
+Structural SQL requires exclusive admission. A guarded attempt that discovers
+structural work rolls back fully before exclusive replay. Typed construction, identity/binding checks and SQL
 constraints establish the write contract; ordinary ingest trusts untouched
 committed state. Derive each root's related outputs together and reconcile only
 changed components and their dependencies. Keep full consistency checking in the

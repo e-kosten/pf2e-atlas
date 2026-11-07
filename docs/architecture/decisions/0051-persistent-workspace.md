@@ -60,8 +60,11 @@ retained user rows. Domain policy and reconstruction SQL remain with their owner
 The ordinary admission validator remains read-only and never runs backfills. One
 publisher owns source/configuration updates. Preparation can run while ordinary
 operations continue: publisher ownership does not hold the exclusive access lock
-or a long-lived SQLite write transaction. Final activation takes exclusive access.
-Normal source publication uses one immediate transaction and advances the
+or a long-lived SQLite write transaction. Normal source publication uses one
+immediate transaction. Data-only publication admits readers on committed snapshots.
+Main-schema changes require exclusive access. SQLite rejects structural SQL during
+shared admission, and an attempted structural update rolls back before retrying
+under exclusive admission. Recovery and repair use exclusive admission. Publication advances the
 reference revision with its writes. It adds no durable maintenance marker; failure
 restores the prior committed state and permits readers to reopen it. Pre-existing
 markers still block admission. Schema/metadata upgrades and physical reclamation

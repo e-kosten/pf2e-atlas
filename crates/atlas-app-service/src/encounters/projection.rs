@@ -88,6 +88,7 @@ pub(super) fn encounter_detail_from_records(
         });
     let round_seconds = encounter.round_duration_seconds;
     EncounterDetailView {
+        reference_error: None,
         difficulty,
         revision: encounter.revision,
         artifact_generation,

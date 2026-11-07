@@ -537,6 +537,42 @@ fn lexical_hit(row: &rusqlite::Row<'_>, text: &str) -> rusqlite::Result<SourceLe
     })
 }
 impl SqliteIndexReader {
+    /// All matching product keys in a domain-owned relation within this snapshot.
+    pub fn matching_member_keys(
+        &self,
+        query: &ValidatedQuery,
+        membership: &atlas_storage::RecordMembership<'_>,
+        text: Option<&str>,
+    ) -> Result<Vec<RecordKey>, IndexError> {
+        let (mut eligible, mut params) = eligible_sql(query, None)?;
+        let connection = self.native()?;
+        eligible.push_str(" AND ");
+        eligible.push_str(membership.contains_sql(connection)?);
+        let sql = if let Some(text) = text {
+            let expression = literal_fts_query(text)?;
+            if expression.is_empty() {
+                return Ok(vec![]);
+            }
+            params.push(Value::Text(expression));
+            format!(
+                "WITH eligible AS ({eligible})
+                SELECT DISTINCT r.key FROM lexical_fts
+                JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid
+                JOIN records r ON r.record_id=lu.record_id
+                WHERE lexical_fts MATCH ?{} AND r.record_id IN (SELECT record_id FROM eligible)",
+                params.len()
+            )
+        } else {
+            format!("SELECT r.key FROM records r WHERE r.record_id IN ({eligible})")
+        };
+        self.count_statement();
+        let mut statement = connection.prepare(&sql)?;
+        statement
+            .query_map(params_from_iter(&params), |row| row.get::<_, String>(0))?
+            .map(|row| parse_key(row?))
+            .collect()
+    }
+
     /// Exhaustive lexical root membership. Only retained witnesses are bounded.
     pub fn lexical_root_candidates(
         &self,

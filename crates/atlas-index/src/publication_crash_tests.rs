@@ -43,7 +43,7 @@ impl Layer<Registry> for PauseAt {
         }
     }
 }
-fn kill_at_stage(test: &str, stage: &str, path: &Path) {
+fn kill_at_stage(test: &str, stage: &str, path: &Path, while_paused: impl FnOnce()) {
     let signal = path.with_extension("ready");
     let log = path.with_extension("child.log");
     struct OwnedChild(std::process::Child);
@@ -81,6 +81,7 @@ fn kill_at_stage(test: &str, stage: &str, path: &Path) {
         }
         thread::sleep(Duration::from_millis(10));
     }
+    while_paused();
     child.0.kill().unwrap();
     assert!(!child.0.wait().unwrap().success());
 }
@@ -217,14 +218,35 @@ fn publication_crashes_preserve_exact_old_or_new_state_and_allow_the_next_build(
             before, after,
             "the update must change published projections"
         );
-        drop(read);
+        let committed = stage == "publication_after_commit";
         kill_at_stage(
             "publication_crash_tests::publication_crashes_preserve_exact_old_or_new_state_and_allow_the_next_build",
             stage,
             &path,
+            || {
+                assert_eq!(read.reference_revision().unwrap(), 1);
+                assert_eq!(rows(read.connection()), before);
+                assert_eq!(
+                    native_preservation_rows(read.connection()).unwrap(),
+                    old_native
+                );
+                let during = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+                assert_eq!(
+                    during.reference_revision().unwrap(),
+                    if committed { 2 } else { 1 }
+                );
+                assert_eq!(
+                    rows(during.connection()),
+                    if committed {
+                        after.clone()
+                    } else {
+                        before.clone()
+                    }
+                );
+            },
         );
+        drop(read);
         let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        let committed = stage == "publication_after_commit";
         assert_eq!(
             read.reference_revision().unwrap(),
             if committed { 2 } else { 1 }
@@ -314,7 +336,7 @@ fn killed_repack_restores_vector_bytes_allocation_and_reopens_admission() {
         let workspace = Workspace::at(path).unwrap();
         let owner = workspace.update_owner().unwrap();
         owner
-            .publish(1, |c| -> Result<(), IndexError> {
+            .publish_incremental(1, |c| -> Result<(), IndexError> {
                 c.execute("UPDATE built SET value='new'", [])?;
                 c.execute("DELETE FROM pending", [])?;
                 crate::native_allocation::compact_profiles(
@@ -370,6 +392,7 @@ fn killed_repack_restores_vector_bytes_allocation_and_reopens_admission() {
         "publication_crash_tests::killed_repack_restores_vector_bytes_allocation_and_reopens_admission",
         "native_repack_replaced",
         &path,
+        || {},
     );
     let read = workspace.read(1).unwrap();
     assert_eq!(read.reference_revision().unwrap(), 0);

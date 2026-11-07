@@ -28,7 +28,7 @@ pub use setup_model::{
 };
 pub use workspace::{WORKSPACE_SCHEMA_VERSION, initialize_workspace};
 
-pub use operations::{StateRead, WorkspaceRead, WorkspaceWrite};
+pub use operations::{ExactRecordRead, StateRead, WorkspaceRead, WorkspaceWrite};
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;

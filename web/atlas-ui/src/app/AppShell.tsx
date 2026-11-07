@@ -127,16 +127,26 @@ export function AppShell({
     availabilityFailure || readinessError || readiness?.status === "blocked";
   const connectionLost =
     !!connectionFailure || readinessError instanceof AtlasConnectionError;
+  const appAvailabilityError =
+    (availabilityFailure && "appError" in availabilityFailure
+      ? availabilityFailure.appError
+      : undefined) ??
+    readiness?.workspace_error ??
+    readiness?.reference_error;
+  const workspaceUnavailable =
+    readiness?.workspace_error !== undefined ||
+    appAvailabilityError?.code === "workspace_access_failed" ||
+    appAvailabilityError?.code === "workspace_maintenance_required";
   const availabilityTitle = connectionLost
     ? "Unable to connect to Atlas"
-    : readinessError
-      ? "Atlas unavailable"
-      : "Reference unavailable";
+    : workspaceUnavailable
+      ? "Workspace unavailable"
+      : readinessError
+        ? "Atlas unavailable"
+        : "Reference unavailable";
   const availabilityHelp = connectionLost
     ? undefined
-    : availabilityFailure || readiness?.status === "blocked"
-      ? "Check Atlas setup before retrying."
-      : errorExplanation(readinessError);
+    : errorExplanation(appAvailabilityError ?? readinessError);
   return (
     <div
       className={`atlas-app${activeView === "reference" ? " atlas-app--document" : activeView === "search" ? " atlas-app--search" : ""}`}

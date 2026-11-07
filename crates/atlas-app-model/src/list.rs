@@ -65,6 +65,9 @@ pub struct SavedListUpdateView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListDetailView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reference_error: Option<crate::AppError>,
     pub sort: atlas_domain::ResultSort,
     pub list: SavedListSummaryView,
     pub items: Vec<SavedListItemView>,
@@ -227,6 +230,7 @@ pub struct SavedListItemView {
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
 pub enum SavedListItemStatusView {
+    Unchecked,
     Active,
     Unresolved,
 }
@@ -251,6 +255,27 @@ pub struct SavedListExportDocumentView {
     pub items: Vec<SavedListExportItemView>,
 }
 
+impl SavedListExportDocumentView {
+    pub const FORMAT: &str = "pf2e-atlas.saved-list";
+    pub const VERSION: u64 = 2;
+
+    pub fn validate_format(&self) -> Result<(), crate::AppError> {
+        if self.format != Self::FORMAT {
+            return Err(crate::AppError::new(
+                crate::AppErrorCode::InvalidRequest,
+                format!("unsupported saved-list import format `{}`", self.format),
+            ));
+        }
+        if self.version != Self::VERSION {
+            return Err(crate::AppError::new(
+                crate::AppErrorCode::InvalidRequest,
+                format!("unsupported saved-list import version `{}`", self.version),
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListExportListView {
@@ -266,14 +291,7 @@ pub struct SavedListExportListView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListExportItemView {
-    #[ts(type = "number")]
-    pub position: i64,
     pub record_key: String,
-    pub record_name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub kind: Option<String>,
-    pub status: SavedListItemStatusView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub note: Option<String>,
@@ -295,10 +313,19 @@ pub struct ImportSavedListRequest {
 pub struct ImportSavedListView {
     pub list: SavedListSummaryView,
     pub replaced: bool,
-    #[ts(type = "number")]
-    pub active_count: u64,
-    #[ts(type = "number")]
-    pub unresolved_count: u64,
+    pub resolution: ImportedListResolutionView,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum ImportedListResolutionView {
+    Checked {
+        #[ts(type = "number")]
+        active_count: u64,
+        #[ts(type = "number")]
+        unresolved_count: u64,
+    },
+    Unchecked,
 }
 
 #[cfg(test)]
@@ -330,6 +357,7 @@ mod tests {
             record: None,
         };
         let encoded = serde_json::to_string(&SavedListDetailView {
+            reference_error: None,
             sort: atlas_domain::ResultSort::SavedOrder {},
             list: summary.clone(),
             items: vec![item.clone()],
@@ -356,11 +384,10 @@ mod tests {
                 ],
             ),
             (
-                ImportSavedListView::decl(),
+                ImportedListResolutionView::decl(),
                 vec!["active_count", "unresolved_count"],
             ),
             (SavedListExportDocumentView::decl(), vec!["version"]),
-            (SavedListExportItemView::decl(), vec!["position"]),
         ] {
             for field in fields {
                 assert!(
@@ -378,8 +405,8 @@ mod tests {
     #[test]
     fn saved_list_export_and_mutation_counts_are_json_numbers() {
         let document = SavedListExportDocumentView {
-            format: "pf2e-atlas-list".into(),
-            version: 1,
+            format: "pf2e-atlas.saved-list".into(),
+            version: 2,
             exported_at: "2026-10-10".into(),
             list: SavedListExportListView {
                 id: "reference".into(),
@@ -388,11 +415,7 @@ mod tests {
                 tags: vec![],
             },
             items: vec![SavedListExportItemView {
-                position: 3,
                 record_key: "items:retained".into(),
-                record_name: "Retained".into(),
-                kind: None,
-                status: SavedListItemStatusView::Unresolved,
                 note: None,
                 snapshot: SavedListItemSnapshotView {
                     title: "Retained".into(),
@@ -401,8 +424,7 @@ mod tests {
             }],
         };
         let wire = serde_json::to_value(&document).unwrap();
-        assert_eq!(wire["version"], json!(1));
-        assert_eq!(wire["items"][0]["position"], json!(3));
+        assert_eq!(wire["version"], json!(2));
         assert_eq!(
             serde_json::from_value::<SavedListExportDocumentView>(wire).unwrap(),
             document

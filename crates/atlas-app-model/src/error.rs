@@ -64,6 +64,8 @@ pub enum AppErrorCode {
     ArtifactIncompatible,
     VectorReadinessRequired,
     EmbeddingModelUnavailable,
+    WorkspaceAccessFailed,
+    WorkspaceMaintenanceRequired,
     SetupRequired,
     SetupInProgress,
     ServiceBusy,

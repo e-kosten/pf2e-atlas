@@ -67,6 +67,18 @@ impl Workspace {
         };
         Ok(Self { path })
     }
+    /// Resolve an existing workspace without creating parent directories.
+    pub fn existing(path: &Path) -> StorageResult<Self> {
+        let path = path.canonicalize().map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                StorageError::Missing(path.to_path_buf())
+            } else {
+                StorageError::Io(error)
+            }
+        })?;
+        Ok(Self { path })
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }

@@ -207,7 +207,7 @@ fn normalize_tags(tags: Vec<String>) -> Vec<String> {
     normalized
 }
 
-impl SavedListsRead<'_> {
+impl<'a> SavedListsRead<'a> {
     pub fn list(&self) -> LocalStateResult<Vec<SavedList>> {
         let transaction = self.connection;
         let result = storage::list(transaction)?;
@@ -221,6 +221,17 @@ impl SavedListsRead<'_> {
 
         Ok(result)
     }
+    pub fn bind_record_membership(
+        &self,
+        list_key: &str,
+    ) -> atlas_storage::StorageResult<atlas_storage::RecordMembership<'a>> {
+        atlas_storage::RecordMembership::bind(
+            self.connection,
+            "SELECT item.record_key FROM saved_list_items item JOIN saved_lists list ON list.id=item.list_id WHERE list.list_key=?1 AND list.owner_id=1",
+            list_key,
+        )
+    }
+
     pub fn get_with_items(&self, list_ref: &str) -> LocalStateResult<Option<SavedListWithItems>> {
         storage::validate_list_ref(list_ref)?;
         let transaction = self.connection;

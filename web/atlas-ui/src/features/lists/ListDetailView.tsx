@@ -1,5 +1,5 @@
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
-import { Grid } from "antd";
+import { Alert, Grid } from "antd";
 import type { ListPageInput } from "../../app/destinations";
 import { navigateDestination, destinationHref } from "../../app/navigation";
 import { listDestination } from "../../app/destinations";
@@ -134,7 +134,8 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     const previous = selectedRoute.current;
     const changed = previous?.member !== member;
     const addressChanged = previous?.address !== address;
-    const unavailable = selectedItem?.status === "unresolved";
+    const unavailable =
+      selectedItem?.status === "unresolved" || selectedItem?.status === "unchecked";
     const recovered = !changed && previous.blocked && selectedItem?.status === "active";
     const blocked = unavailable || (!changed && previous.blocked && !recovered);
     selectedRoute.current = {
@@ -266,6 +267,9 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           loading={list.isLoading}
           onAddRecords={() => setAddOpen(true)}
         />
+        {list.data?.reference_error && (
+          <Alert type="warning" title="Reference details could not be checked" />
+        )}
         <ListRecordPicker
           key={route.slug}
           list={list.data?.list}

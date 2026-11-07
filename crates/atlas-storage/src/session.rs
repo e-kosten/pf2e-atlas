@@ -4,6 +4,37 @@ use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::fs::File;
 
 /// Read-only connection and snapshot shared by domain readers for one operation.
+/// Transaction-local set of record keys populated by a domain owner.
+pub struct RecordMembership<'a> {
+    connection: &'a Connection,
+}
+
+impl<'a> RecordMembership<'a> {
+    pub fn bind(
+        connection: &'a Connection,
+        select_keys: &str,
+        owner: &str,
+    ) -> crate::StorageResult<Self> {
+        connection.execute_batch(
+            "CREATE TEMP TABLE atlas_record_membership(key TEXT PRIMARY KEY) WITHOUT ROWID",
+        )?;
+        connection.execute(
+            &format!("INSERT INTO temp.atlas_record_membership(key) {select_keys}"),
+            [owner],
+        )?;
+        Ok(Self { connection })
+    }
+
+    pub fn contains_sql(&self, connection: &Connection) -> crate::StorageResult<&'static str> {
+        if !std::ptr::eq(self.connection, connection) {
+            return Err(crate::StorageError::Unsupported(
+                "record membership belongs to a different read snapshot".into(),
+            ));
+        }
+        Ok("r.key IN (SELECT key FROM temp.atlas_record_membership)")
+    }
+}
+
 pub struct ReadSession {
     pub(crate) connection: Connection,
     // Fields drop in declaration order: close/unmap before returning capacity,
@@ -130,8 +161,76 @@ impl UpdateOwner {
     where
         E: From<crate::StorageError>,
     {
-        let _admission = acquire(&self.workspace.path, ".access.lock", true)?;
-        let connection = self.workspace.connect(true, false)?;
+        self.publish_transaction(schema, None, apply)
+    }
+
+    /// Allow old committed snapshots during data-only publication. SQLite rejects
+    /// structural statements before execution; retry from a fresh transaction only
+    /// after releasing shared admission.
+    pub fn publish_incremental<T, E>(
+        &self,
+        schema: u32,
+        apply: impl Fn(&Connection) -> Result<T, E>,
+    ) -> Result<T, E>
+    where
+        E: From<crate::StorageError>,
+    {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        };
+        let structural = Arc::new(AtomicBool::new(false));
+        let result = self.publish_transaction(schema, Some(Arc::clone(&structural)), &apply);
+        if structural.load(Ordering::Relaxed) {
+            self.publish_transaction(schema, None, apply)
+        } else {
+            result
+        }
+    }
+
+    fn publish_transaction<T, E>(
+        &self,
+        schema: u32,
+        structural: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+        apply: impl FnOnce(&Connection) -> Result<T, E>,
+    ) -> Result<T, E>
+    where
+        E: From<crate::StorageError>,
+    {
+        use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
+        use std::sync::atomic::Ordering;
+
+        let _admission = acquire(&self.workspace.path, ".access.lock", structural.is_none())?;
+        let mut connection = self.workspace.connect(true, false)?;
+        if let Some(denied) = structural.clone() {
+            connection
+                .authorizer(Some(move |context: AuthContext<'_>| {
+                    let structure = match context.action {
+                        AuthAction::CreateIndex { .. }
+                        | AuthAction::CreateTable { .. }
+                        | AuthAction::CreateTrigger { .. }
+                        | AuthAction::CreateView { .. }
+                        | AuthAction::CreateVtable { .. }
+                        | AuthAction::DropIndex { .. }
+                        | AuthAction::DropTable { .. }
+                        | AuthAction::DropTrigger { .. }
+                        | AuthAction::DropView { .. }
+                        | AuthAction::DropVtable { .. } => context.database_name != Some("temp"),
+                        AuthAction::AlterTable { database_name, .. } => database_name != "temp",
+                        AuthAction::Attach { .. }
+                        | AuthAction::Detach { .. }
+                        | AuthAction::Unknown { .. } => true,
+                        _ => false,
+                    };
+                    if structure {
+                        denied.store(true, Ordering::Relaxed);
+                        Authorization::Deny
+                    } else {
+                        Authorization::Allow
+                    }
+                }))
+                .map_err(crate::StorageError::from)?;
+        }
         validate(&connection, schema, false)?;
         connection
             .execute_batch("PRAGMA temp_store=FILE")
@@ -139,6 +238,9 @@ impl UpdateOwner {
         let transaction = Transaction::new_unchecked(&connection, TransactionBehavior::Immediate)
             .map_err(crate::StorageError::from)?;
         let value = apply(&transaction)?;
+        if structural.is_some_and(|denied| denied.load(Ordering::Relaxed)) {
+            return Err(crate::StorageError::StructuralPublication.into());
+        }
         transaction
             .execute(
                 "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",

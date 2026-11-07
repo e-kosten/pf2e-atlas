@@ -18,9 +18,12 @@ mod workspace;
 
 pub use error::{StorageError, StorageResult};
 pub use migration::{DataBackfill, Migration};
+pub use session::RecordMembership;
 pub use session::{MaintenanceSession, ReadSession, UpdateOwner, WriteSession};
 pub use snapshot::WorkspaceInitialization;
 pub use workspace::Workspace;
 
 #[cfg(test)]
 mod tests;
+
+pub use rusqlite::Connection;

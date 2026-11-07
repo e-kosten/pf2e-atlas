@@ -418,7 +418,13 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
     )
     .unwrap();
     let worker = &f.worker;
-    assert!(worker.encounter(&encounter.encounter_key).is_err());
+    let degraded = worker.encounter(&encounter.encounter_key).unwrap();
+    assert!(degraded.reference_error.is_some());
+    assert_eq!(
+        degraded.participants[0].status,
+        EncounterParticipantStatusView::Unchecked
+    );
+    assert_eq!(degraded.artifact_generation, None);
     let key = encounter.encounter_key.clone();
     let assert_receipt = |receipt: EncounterMutationView| assert_eq!(receipt.encounter_key, key);
     assert_receipt(
@@ -593,7 +599,9 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         persisted.encounter.current_turn_participant_key,
         Some(initial.participant_key)
     );
-    assert!(worker.encounter(&key).is_err());
+    let degraded = worker.encounter(&key).unwrap();
+    assert_eq!(degraded.participants[0].current_hp, Some(32));
+    assert!(degraded.difficulty.total_xp.is_none());
 }
 
 #[test]
@@ -609,7 +617,7 @@ fn empty_list_import_remains_available_without_reference() {
         .import_saved_list(ImportSavedListRequest {
             document: SavedListExportDocumentView {
                 format: "pf2e-atlas.saved-list".into(),
-                version: 1,
+                version: 2,
                 exported_at: "now".into(),
                 list: SavedListExportListView {
                     id: "empty-import".into(),
@@ -623,7 +631,13 @@ fn empty_list_import_remains_available_without_reference() {
             replace: false,
         })
         .unwrap();
-    assert_eq!((imported.active_count, imported.unresolved_count), (0, 0));
+    assert_eq!(
+        imported.resolution,
+        ImportedListResolutionView::Checked {
+            active_count: 0,
+            unresolved_count: 0
+        }
+    );
     assert!(
         f.worker
             .saved_list("empty-import")
@@ -634,16 +648,16 @@ fn empty_list_import_remains_available_without_reference() {
 }
 
 #[test]
-fn list_import_reuses_precommit_summaries_when_further_retrieval_fails() {
+fn list_import_preserves_exported_snapshots_without_retrieval_workers() {
     let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
     let f = crate::test_support::fixture_worker_with_executor(executor.clone());
-    executor.fail_after_submissions(1);
+    executor.fail_after_submissions(0);
     let imported = f
         .worker
         .import_saved_list(ImportSavedListRequest {
             document: SavedListExportDocumentView {
                 format: "pf2e-atlas.saved-list".into(),
-                version: 1,
+                version: 2,
                 exported_at: "now".into(),
                 list: SavedListExportListView {
                     id: "imported".into(),
@@ -653,13 +667,8 @@ fn list_import_reuses_precommit_summaries_when_further_retrieval_fails() {
                 },
                 items: ["actors:testCreature1000", "actors:missing00000000"]
                     .into_iter()
-                    .enumerate()
-                    .map(|(i, key)| SavedListExportItemView {
-                        position: i as i64 + 1,
+                    .map(|key| SavedListExportItemView {
                         record_key: key.into(),
-                        record_name: "Snapshot".into(),
-                        kind: Some("creature".into()),
-                        status: SavedListItemStatusView::Unresolved,
                         note: None,
                         snapshot: SavedListItemSnapshotView {
                             title: "Snapshot".into(),
@@ -672,7 +681,13 @@ fn list_import_reuses_precommit_summaries_when_further_retrieval_fails() {
             replace: false,
         })
         .unwrap();
-    assert_eq!((imported.active_count, imported.unresolved_count), (1, 1));
+    assert_eq!(
+        imported.resolution,
+        ImportedListResolutionView::Checked {
+            active_count: 1,
+            unresolved_count: 1
+        }
+    );
     let persisted = f
         .worker
         .with_state(|session| {
@@ -683,9 +698,12 @@ fn list_import_reuses_precommit_summaries_when_further_retrieval_fails() {
         })
         .unwrap()
         .unwrap();
-    assert_eq!(persisted.items[0].record_title_snapshot, "Test Creature 1");
+    assert_eq!(persisted.items[0].record_title_snapshot, "Snapshot");
     assert_eq!(persisted.items[1].record_title_snapshot, "Snapshot");
-    assert!(f.worker.saved_list("imported").is_err());
+    assert_eq!(
+        f.worker.export_saved_list("imported").unwrap().items.len(),
+        2
+    );
 }
 
 fn hazard(p: &EncounterParticipantView) -> &HazardPresentationView {

@@ -54,6 +54,7 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::ArtifactGenerationChanged => StatusCode::CONFLICT,
         AppErrorCode::ArtifactNotReady
         | AppErrorCode::ArtifactIncompatible
+        | AppErrorCode::WorkspaceMaintenanceRequired
         | AppErrorCode::SetupRequired
         | AppErrorCode::FilterFieldNotApplicable => StatusCode::UNPROCESSABLE_ENTITY,
         AppErrorCode::IndexUnavailable
@@ -62,8 +63,8 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         AppErrorCode::ServiceBusy => StatusCode::SERVICE_UNAVAILABLE,
         AppErrorCode::OperationCancelled => StatusCode::REQUEST_TIMEOUT,
         AppErrorCode::OperationTimeout => StatusCode::REQUEST_TIMEOUT,
-        AppErrorCode::QueryFailed | AppErrorCode::InternalError => {
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        AppErrorCode::QueryFailed
+        | AppErrorCode::WorkspaceAccessFailed
+        | AppErrorCode::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

@@ -5,6 +5,8 @@ use atlas_index::IndexError;
 pub enum SearchErrorKind {
     OperationCancelled,
     IndexUnavailable,
+    WorkspaceBusy,
+    WorkspaceAccessFailed,
     ArtifactContractViolation,
     InvalidFilter,
     InvalidOptions,
@@ -101,6 +103,12 @@ impl From<QueryError> for SearchError {
 impl From<IndexError> for SearchError {
     fn from(e: IndexError) -> Self {
         match e {
+            IndexError::Storage(error) if error.is_contention() => {
+                Self::new(SearchErrorKind::WorkspaceBusy, error.to_string())
+            }
+            IndexError::Storage(error) if error.is_access_failure() => {
+                Self::new(SearchErrorKind::WorkspaceAccessFailed, error.to_string())
+            }
             IndexError::Limit(message) => Self::invalid_search_options(message),
             IndexError::Query(e) => e.into(),
             IndexError::Unavailable(s) => Self::index_unavailable(s),

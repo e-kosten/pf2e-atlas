@@ -154,6 +154,19 @@ impl AtlasRetrievalService {
     ) -> Result<Option<String>, SearchError> {
         Ok(self.index.recover_passage(location)?)
     }
+    pub fn matching_member_records(
+        &self,
+        membership: &atlas_storage::RecordMembership<'_>,
+        filter: Option<&QueryPredicate>,
+        text: Option<&str>,
+    ) -> Result<Vec<SourceRecordSummary>, SearchError> {
+        let predicate = self.predicate(filter)?;
+        let keys = self
+            .index
+            .matching_member_keys(&predicate, membership, text)?;
+        self.summaries(&keys)
+    }
+
     pub fn list_records(
         &self,
         request: ListRecordsRequest<'_>,

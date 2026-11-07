@@ -10,11 +10,13 @@ export class AtlasConnectionError extends Error {
   }
 }
 
-const referenceCodes = new Set([
+const availabilityCodes = new Set([
   "artifact_incompatible",
   "artifact_not_ready",
   "setup_required",
   "index_unavailable",
+  "workspace_access_failed",
+  "workspace_maintenance_required",
 ]);
 export function isReferenceFailure(error: unknown): error is { appError: AppError } {
   if (!error || typeof error !== "object" || !("appError" in error)) return false;
@@ -24,7 +26,7 @@ export function isReferenceFailure(error: unknown): error is { appError: AppErro
     typeof value === "object" &&
     "code" in value &&
     typeof value.code === "string" &&
-    referenceCodes.has(value.code)
+    availabilityCodes.has(value.code)
   );
 }
 export type AtlasAvailabilityFailure = AtlasConnectionError | { appError: AppError };

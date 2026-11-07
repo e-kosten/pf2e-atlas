@@ -110,6 +110,62 @@ test("blocked reference readiness has one notice without false model or empty-re
   await noPageOverflow(page);
 });
 
+test("saved list entries remain usable when reference details cannot be checked", async ({
+  page,
+}, info) => {
+  const slug = `unchecked-list-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: "Saved reference check" },
+  });
+  expect(created.ok()).toBeTruthy();
+  try {
+    const added = await page.request.post(`/api/lists/${slug}/items`, {
+      data: { list_ref: slug, record_ref: "browser-conditions:offguard00000001" },
+    });
+    expect(added.ok()).toBeTruthy();
+    const { record_name: name } = await added.json();
+    await page.route(new RegExp(`/api/lists/${slug}(?:/filter)?$`), async (route) => {
+      const response = await route.fetch();
+      if (!response.ok() || route.request().method() === "DELETE") {
+        await route.fulfill({ response });
+        return;
+      }
+      const data = await response.json();
+      await route.fulfill({
+        response,
+        json: {
+          ...data,
+          reference_error: {
+            code: "index_unavailable",
+            message: "internal diagnostic",
+          },
+          items: data.items.map((item: object) => ({
+            ...item,
+            record: undefined,
+            status: "unchecked",
+          })),
+        },
+      });
+    });
+    await page.goto(`/lists/${slug}`);
+    const list = page.getByRole("region", { name: "List items" });
+    await expect(list.getByText(name, { exact: true })).toBeVisible();
+    await expect(
+      list.getByText("Reference details could not be checked"),
+    ).toBeVisible();
+    await expect(page.getByText("internal diagnostic")).toHaveCount(0);
+    await info.attach("Saved list with unchecked references", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await list.getByRole("button", { name: `Remove ${name}` }).click();
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(list.getByText(name, { exact: true })).toHaveCount(0);
+  } finally {
+    await page.request.delete(`/api/lists/${slug}`);
+  }
+});
+
 test("a Similarity inventory outage preserves settings and recovers as a read", async ({
   page,
 }, info) => {
