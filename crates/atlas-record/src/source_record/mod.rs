@@ -35,9 +35,8 @@ pub use actor_query::{
 pub use availability::{FieldAvailability, SourceFieldView};
 pub use content::{
     RecordLocalizationOccurrence, SourceContentFormat, SourceContentOutcome, SourceContentRole,
-    SourceContentSelection, SourceContentStatus, authored_record_localization_references,
-    definition_record_localization_references, prepare_record_content,
-    trait_record_localization_references,
+    SourceContentSelection, SourceContentStatus, owned_action_localizations,
+    prepare_record_content, root_description_localizations, trait_record_localization_references,
 };
 pub use core_sections::{CoreSearchSelection, core_search_selection};
 pub use identity::{SourceIdentityError, source_record_key};

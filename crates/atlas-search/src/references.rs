@@ -2,12 +2,10 @@
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_domain::{DefinitionKey, OwnedContentLocator, RecordKey};
 pub use atlas_index::{
-    DefinitionReferenceInput, DefinitionReferenceSource, DefinitionReferenceTarget,
-    ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
-    ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice,
-    ReferencePermission, ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
+    OwnedAbilityTarget, ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
+    ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
+    ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
     ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking, ReferenceSummaryBatch,
-    SourceDefinitionTarget,
 };
 
 impl AtlasRetrievalService {
@@ -38,17 +36,16 @@ impl AtlasRetrievalService {
         Ok(self.index.reference_summaries(keys)?)
     }
 
-    pub fn reference_notice(&self, id: &str) -> Result<Option<ReferenceNotice>, SearchError> {
-        Ok(self.index.reference_notice(id)?)
+    pub fn reference_notices(&self, ids: &[String]) -> Result<Vec<ReferenceNotice>, SearchError> {
+        Ok(self.index.reference_notices(ids)?)
     }
 
-    pub fn source_definition_target(
+    pub fn owned_ability_help(
         &self,
         record: &RecordKey,
         owners: &[OwnedContentLocator],
-        field: Option<&str>,
-    ) -> Result<SourceDefinitionTarget, SearchError> {
-        Ok(self.index.source_definition_target(record, owners, field)?)
+    ) -> Result<Option<OwnedAbilityTarget>, SearchError> {
+        Ok(self.index.owned_ability_help(record, owners)?)
     }
 }
 
@@ -90,6 +87,11 @@ mod tests {
                 .len(),
             1
         );
-        assert!(retrieval.reference_notice("unknown").unwrap().is_none());
+        assert!(
+            retrieval
+                .reference_notices(&["unknown".into()])
+                .unwrap()
+                .is_empty()
+        );
     }
 }

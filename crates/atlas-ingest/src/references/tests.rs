@@ -120,8 +120,7 @@ impl Fixture {
         )
         .unwrap();
         let notices: serde_json::Value =
-            serde_json::from_slice(include_bytes!("../../reference-data/base-notices.json"))
-                .unwrap();
+            serde_json::from_slice(include_bytes!("../../reference-data/notices.json")).unwrap();
         let notice = notices["notices"]
             .as_array()
             .unwrap()
@@ -224,16 +223,6 @@ impl Fixture {
             .unwrap()
             .unwrap()
     }
-    fn edges(&self) -> Vec<DefinitionReferenceInput> {
-        Connection::open(&self.database)
-            .unwrap()
-            .prepare("SELECT evidence FROM definition_reference_occurrences ORDER BY occurrence_id")
-            .unwrap()
-            .query_map([], |row| row.get::<_, String>(0))
-            .unwrap()
-            .map(|row| serde_json::from_str(&row.unwrap()).unwrap())
-            .collect()
-    }
 }
 
 #[test]
@@ -293,31 +282,11 @@ fn captured_pack_system_controls_only_new_associations_and_restores_on_omission(
                 .len(),
             1
         );
-        let edges = fixture.edges();
-        let observer_edge = |edge: &&DefinitionReferenceInput| {
-            matches!(&edge.source,
-            DefinitionReferenceSource::Record { key, .. } if key == &observer)
-        };
         assert!(
-            edges
-                .iter()
-                .filter(observer_edge)
-                .any(|edge| edge.evidence == AGILE),
-            "established exact trait evidence stays readable"
-        );
-        assert_eq!(
-            edges
-                .iter()
-                .filter(observer_edge)
-                .any(|edge| edge.evidence == AIR),
-            applicable
-        );
-        assert_eq!(
-            edges
-                .iter()
-                .filter(observer_edge)
-                .any(|edge| edge.evidence == "PF2E.NPC.Abilities.Glossary.Darkvision"),
-            applicable
+            reader
+                .trait_reference_record_keys(&"trait:agile".parse().unwrap())
+                .unwrap()
+                .contains(&observer)
         );
         let preparation = reader.reference_preparation().unwrap();
         assert_eq!(preparation.source_package.as_deref(), Some("pf2e"));
@@ -433,7 +402,7 @@ fn family_abilities_reuse_the_actual_body_with_authored_placeholders_and_custom_
 }
 
 #[test]
-fn source_free_publication_reuses_actual_record_and_preserves_authored_edge_scope() {
+fn source_free_publication_reuses_actual_record_and_preserves_attribution() {
     let fixture = Fixture::new("pf2e");
     let report = fixture.build().unwrap();
     assert_eq!(report.inferred_inputs, 0);
@@ -493,7 +462,7 @@ fn source_free_publication_reuses_actual_record_and_preserves_authored_edge_scop
             .permission
             .notices
             .iter()
-            .any(|id| id == "reference-subset-manifest")
+            .any(|id| id == "pf2etools-formatting")
     );
     assert_eq!(language.permission.body_grants, grant_uses(&["ORC".into()]));
     assert_eq!(
@@ -519,11 +488,6 @@ fn source_free_publication_reuses_actual_record_and_preserves_authored_edge_scop
                 scope: ReferenceGrantScope::DescriptiveReferences
             })
     );
-    let edges = fixture.edges();
-    assert!(edges.iter().any(|edge| matches!(&edge.source, DefinitionReferenceSource::Record { key, .. } if key.to_string()=="items:aaaaaaaaaaaaaaaa") && matches!(&edge.target,DefinitionReferenceTarget::Record { key, owners } if key.to_string()==DARKVISION && owners.is_empty())));
-    assert!(edges.iter().any(|edge| matches!(&edge.source, DefinitionReferenceSource::Definition { key } if key.to_string()=="trait:agile") && matches!(&edge.target,DefinitionReferenceTarget::Definition { key } if key.to_string()=="domain:air")));
-    assert!(edges.iter().any(|edge| !edge.visible && matches!(&edge.source, DefinitionReferenceSource::Record { key, .. } if key.to_string()=="items:aaaaaaaaaaaaaaaa") && matches!(&edge.target,DefinitionReferenceTarget::Definition { key } if key.to_string()=="domain:air")));
-    assert!(!edges.iter().any(|edge| edge.visible && matches!(&edge.source, DefinitionReferenceSource::Record { key, .. } if key.to_string()=="items:aaaaaaaaaaaaaaaa") && matches!(&edge.target,DefinitionReferenceTarget::Definition { key } if key.to_string()=="domain:air")), "expanded localization prose must not become authored record evidence");
     fs::rename(
         &fixture.source,
         fixture.directory.path().join("source-offline"),
@@ -531,11 +495,11 @@ fn source_free_publication_reuses_actual_record_and_preserves_authored_edge_scop
     .unwrap();
     assert_eq!(fixture.entry("domain:air"), air);
     assert!(
-        test_support::open_reader(&fixture.database)
+        !test_support::open_reader(&fixture.database)
             .unwrap()
-            .reference_notice("foundry-orc")
+            .reference_notices(&["foundry-orc".into()])
             .unwrap()
-            .is_some()
+            .is_empty()
     );
 }
 
@@ -569,13 +533,6 @@ fn unsupported_record_mapping_never_becomes_a_standalone_localization_fallback()
         let rule = fixture.entry("rule:pf2e:PF2E.NPC.Abilities.Glossary.Darkvision");
         assert_eq!(rule.availability, availability, "{case}");
         assert_eq!(rule.backing, ReferenceBacking::None);
-        assert!(
-            !fixture
-                .edges()
-                .iter()
-                .any(|edge| edge.evidence == "PF2E.NPC.Abilities.Glossary.Darkvision"),
-            "{case}: unsupported mapping must not create a synthetic definition target"
-        );
         if case == "wrapper" {
             assert_eq!(
                 fixture.entry("sense:darkvision").availability,
@@ -702,9 +659,9 @@ fn incremental_notice_change_and_removal_update_attribution() {
     assert!(
         test_support::open_reader(&fixture.database)
             .unwrap()
-            .reference_notice("foundry-orc")
+            .reference_notices(&["foundry-orc".into()])
             .unwrap()
-            .unwrap()
+            .remove(0)
             .text
             .ends_with("Updated source attribution.\n")
     );
@@ -777,17 +734,14 @@ fn pinned_source_all_approved_standalone_policies_are_readable() {
             }
         }
     }
-    let mut notices = inputs.reference_notices().notices.clone();
-    for notice in &inputs.reference_supplement().notices {
-        notices.insert(notice.id.clone(), notice.clone());
-    }
+    let notices = &inputs.reference_notices().notices;
     let resolver = SourceReferenceIndex::default();
     let mut prepared = 0;
     for authored in reference_definitions()
         .iter()
         .filter(|entry| !entry.excluded)
     {
-        let entry = builder.entry(authored, &resolver, &notices).unwrap();
+        let entry = builder.entry(authored, &resolver, notices).unwrap();
         if authored.record_key.is_some() {
             assert_eq!(
                 entry.availability,

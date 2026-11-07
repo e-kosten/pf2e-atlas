@@ -20,17 +20,15 @@ pub(super) const PARENT: &str = "(SELECT p.record_id AS id, p.record_id AS root_
 // Anchor declarations at the root so correlated membership can use both index keys.
 pub(super) const MEMBERS: &str = r"(
 SELECT i.record_id, t.key AS value
-FROM records r
-CROSS JOIN definition_reference_occurrences d ON d.source_record_key=r.key
+FROM owned_ability_evidence d
+JOIN records r ON r.key=d.record_key AND r.source_type='npc'
 JOIN actor_items i ON i.record_id=r.record_id
-  AND json_extract(d.evidence,'$.source.owners')=json_array(json(i.owner_selector_json))
-JOIN records t ON t.key=d.target_record_key
-WHERE r.source_type='npc' AND i.source_type='action' AND i.source_type_state='value'
+  AND d.owners_json=json_array(json(i.owner_selector_json))
+CROSS JOIN json_each(d.action_keys_json) a
+JOIN records t ON t.key=a.value
+WHERE i.source_type='action' AND i.source_type_state='value'
   AND t.pack_id='bestiary-ability-glossary-srd' AND t.document_kind='Item'
   AND t.source_type_state='value' AND t.source_type='action'
-  AND d.visible=1 AND json_extract(d.evidence,'$.source.field')='/system/description/value'
-  AND json_extract(d.evidence,'$.evidence') GLOB 'PF2E.NPC.Abilities.Glossary.*'
-  AND json_extract(d.evidence,'$.target.owners')='[]'
 UNION ALL
 SELECT i.record_id, t.key AS value
 FROM actor_items i
@@ -44,11 +42,8 @@ WHERE i.source_type='action' AND i.source_type_state='value'
   AND o.kind='CompendiumProvenance' AND o.origin='structured'
   AND o.resolution='resolved_record' AND coalesce(o.target_owners_json,'[]')='[]'
   AND NOT EXISTS (
-    SELECT 1 FROM definition_reference_occurrences d
-    WHERE d.source_record_key=r.key
-      AND json_extract(d.evidence,'$.source.owners')=o.owners_json
-      AND json_extract(d.evidence,'$.source.field')='/system/description/value'
-      AND json_extract(d.evidence,'$.evidence') GLOB 'PF2E.NPC.Abilities.Glossary.*'
+    SELECT 1 FROM owned_ability_evidence d
+    WHERE d.record_key=r.key AND d.owners_json=o.owners_json AND d.has_declaration=1
   )
   AND NOT EXISTS (
     SELECT 1 FROM relationship_occurrences other
@@ -62,7 +57,6 @@ WHERE i.source_type='action' AND i.source_type_state='value'
 #[cfg(test)]
 mod tests {
     use crate::query::tests::{database, result, root, row, text};
-    use crate::{DefinitionReferenceInput, DefinitionReferenceSource, DefinitionReferenceTarget};
     use atlas_domain::{OwnedContentLocator, QueryLiteral, RecordKey};
     use rusqlite::params;
     use serde_json::json;
@@ -112,7 +106,7 @@ mod tests {
         .unwrap();
         let owners_json = serde_json::to_string(&owners).unwrap();
         let owner_json = serde_json::to_string(&owners[0]).unwrap();
-        for id in 1..=9 {
+        for id in (1..=9).chain([13]) {
             root(&db, id, if id == 7 { "character" } else { "npc" }, "common");
             row(
                 &db,
@@ -150,30 +144,19 @@ mod tests {
                 );
             }
         }
-        for (id, key, label, occurrence) in [
-            (1, grab.as_str(), "Grab", "/1"),
-            (1, grab.as_str(), "Grab", "/2"),
-            (1, push.as_str(), "Push", "/3"),
-            (3, push.as_str(), "Push", "/1"),
-            (4, family, "FamilyAbility", "/1"),
+        for (id, keys) in [
+            (1, vec![grab.as_str(), push.as_str()]),
+            (3, vec![push.as_str()]),
+            (4, vec![]),
+            (13, vec![]),
         ] {
-            crate::references::insert_reference(
-                &db,
-                &DefinitionReferenceInput {
-                    source: DefinitionReferenceSource::Record {
-                        key: RecordKey::parse(&format!("test:{id:016}")).unwrap(),
-                        owners: owners.clone(),
-                        field: Some("/system/description/value".into()),
-                    },
-                    target: DefinitionReferenceTarget::Record {
-                        key: RecordKey::parse(key).unwrap(),
-                        owners: vec![],
-                    },
-                    evidence: format!("PF2E.NPC.Abilities.Glossary.{label}"),
-                    occurrence_path: occurrence.into(),
-                    label: None,
-                    visible: true,
-                },
+            db.execute(
+                "INSERT INTO owned_ability_evidence VALUES(?,?,NULL,1,?)",
+                params![
+                    format!("test:{id:016}"),
+                    owners_json,
+                    serde_json::to_string(&keys).unwrap()
+                ],
             )
             .unwrap();
         }
@@ -185,6 +168,7 @@ mod tests {
             (7, 10),
             (9, 10),
             (9, 11),
+            (13, 10),
         ] {
             db.execute(
                 "INSERT INTO relationship_occurrences(record_id,owners_json,field_path,ordinal,origin,kind,resolution,target_record_id) VALUES(?,?,'/_stats/compendiumSource',0,?,?,'resolved_record',?)",
@@ -206,7 +190,7 @@ mod tests {
             result(&db, &format!("{has_grab} && '{push}' in actions")),
             [1]
         );
-        assert_eq!(result(&db, &format!("!({has_grab})")), [3, 4, 5, 9]);
+        assert_eq!(result(&db, &format!("!({has_grab})")), [3, 4, 5, 9, 13]);
 
         let values = crate::discovery::field_vocabulary(
             &db,

@@ -159,18 +159,8 @@ impl CapturedBuildInputs {
             .get("id")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("");
-        let version = capture
-            .manifest()
-            .manifest
-            .metadata
-            .get("version")
-            .and_then(serde_json::Value::as_str);
         let reference_supplement =
-            crate::reference_supplement::ReferenceSupplementCapture::capture(
-                package,
-                version,
-                &options.locale,
-            )?;
+            crate::reference_supplement::ReferenceSupplementCapture::capture(&options.locale)?;
         let reference_notices = crate::reference_notices::CapturedReferenceNotices::capture(
             &options.source_root,
             package,

@@ -59,12 +59,7 @@ export function SearchView({
       ? "Record unavailable"
       : "Loading record…");
   return (
-    <ReferenceHelpHost
-      generation={workspace.filterEditor?.artifact_generation}
-      recordActions={(record) => (
-        <AddToRecordButton recordKey={record.record_key} record={record} />
-      )}
-    >
+    <ReferenceHelpHost generation={workspace.filterEditor?.artifact_generation}>
       <main className="search-workspace">
         {reset.notice && (
           <Alert

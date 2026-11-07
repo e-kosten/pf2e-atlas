@@ -28,7 +28,6 @@ import type { RecordReferenceHandler } from "../../shared/records/PreparedConten
 import { ReferenceResult } from "../../shared/records/ReferenceResult";
 import { ExploreSearchAction } from "../../shared/records/ExploreSearchAction";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
-import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
@@ -53,11 +52,7 @@ import {
 } from "../../shared/queries/referenceQueries";
 export function TraitView({ route }: { route: TraitPageInput }) {
   return (
-    <ReferenceHelpHost
-      recordActions={(record) => (
-        <AddToRecordButton recordKey={record.record_key} record={record} />
-      )}
-    >
+    <ReferenceHelpHost>
       <TraitViewContent route={route} />
     </ReferenceHelpHost>
   );

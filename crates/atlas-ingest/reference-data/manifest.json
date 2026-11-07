@@ -15,13 +15,12 @@
     }
   },
   "source_package": "pf2e",
-  "system_version": "8.6.1",
   "content_locale": "en",
   "english_fallback": true,
   "mapping_recipe": "pf2e-reference-tokens/v1",
   "files": {
     "community-use-policy.pdf": "0885c6015db8614f6ff4cd52450f675c86cd6928b312d96e4c677c457c30acfc",
-    "notices.json": "b6972c43b1436004e8c653e675d6eb37141b850bd330a9b747367a2ca449288e",
+    "notices.json": "d644ea71c7b83a20d892cd8777966972988bfdb9ea559d6e865584f40a41a07d",
     "orc-license.pdf": "3fffe0fe69781b7115bccbfa0f51489e0a073c211772f5ebcd84d34f88f19b29",
     "payload.json": "bc8f65e1fc94daf162c5afdf192a4458ff53fb5ff5fbe70d12466a49b8b71b79"
   },

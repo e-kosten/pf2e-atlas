@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::Path};
 
 pub(crate) const SOURCE_POLICY: &[u8] = include_bytes!("../reference-data/source-provenance.json");
-const BASE_NOTICES: &[u8] = include_bytes!("../reference-data/base-notices.json");
+pub(crate) const BUNDLED_NOTICES: &[u8] = include_bytes!("../reference-data/notices.json");
 pub(crate) fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -35,9 +35,9 @@ impl CapturedReferenceNotices {
         let mut notices = BTreeMap::new();
         let mut identity = Sha256::new();
         identity.update(SOURCE_POLICY);
-        identity.update(BASE_NOTICES);
+        identity.update(BUNDLED_NOTICES);
         if package == "pf2e" {
-            let base: Base = serde_json::from_slice(BASE_NOTICES)
+            let base: Base = serde_json::from_slice(BUNDLED_NOTICES)
                 .map_err(|error| IngestError::SourceSelectionFailed(error.to_string()))?;
             if base.schema != 1 {
                 return Err(IngestError::SourceSelectionFailed(
@@ -45,15 +45,23 @@ impl CapturedReferenceNotices {
                 ));
             }
             for notice in base.notices {
-                notices.insert(
-                    notice.id.clone(),
-                    ReferenceNotice {
-                        id: notice.id,
-                        sha256: hash(notice.text.as_bytes()),
-                        text: notice.text,
-                        source_url: notice.source_url,
-                    },
-                );
+                if notice.text.trim().is_empty()
+                    || notices
+                        .insert(
+                            notice.id.clone(),
+                            ReferenceNotice {
+                                id: notice.id,
+                                sha256: hash(notice.text.as_bytes()),
+                                text: notice.text,
+                                source_url: notice.source_url,
+                            },
+                        )
+                        .is_some()
+                {
+                    return Err(IngestError::SourceSelectionFailed(
+                        "empty or duplicate bundled reference notice".into(),
+                    ));
+                }
             }
             for (name, id, required) in [
                 ("ORCLicense.md", "foundry-orc", "TX 9-307-067"),

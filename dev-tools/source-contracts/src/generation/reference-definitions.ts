@@ -9,7 +9,7 @@ export interface ReferenceDefinition {
   namespace: string; identifier: string; labelKey: string | null; descriptionKey: string | null;
   displayLabel: string | null; recordKey: string | null; expectedFamily: string | null;
   requiredLocalizationKey: string | null; sourceFile: string; sourceLine: number;
-  excluded: boolean; filterFields: string[];
+  excluded: boolean;
 }
 export interface ReferenceCatalog {
   digest: string; definitions: ReferenceDefinition[];
@@ -124,22 +124,22 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
   const map = (file: ReturnType<typeof reader.load>, name: string) => reader.object(get(file, name));
   const definitions: ReferenceDefinition[] = [];
   const add = (namespace: string, identifier: string, labelKey: string | null, descriptionKey: string | null,
-    file: string, line: number, filterFields: string[], extra: Partial<ReferenceDefinition> = {}) => {
+    file: string, line: number, extra: Partial<ReferenceDefinition> = {}) => {
     if (labelKey !== null && typeof locate(labelKey) !== 'string') throw new Error('Missing reference label: ' + labelKey);
     if (descriptionKey !== null && typeof locate(descriptionKey) !== 'string') throw new Error('Missing reference description: ' + descriptionKey);
     definitions.push({ namespace, identifier, labelKey, descriptionKey, displayLabel: null, recordKey: null,
-      expectedFamily: null, requiredLocalizationKey: null, sourceFile: file, sourceLine: line, excluded: false, filterFields, ...extra });
+      expectedFamily: null, requiredLocalizationKey: null, sourceFile: file, sourceLine: line, excluded: false, ...extra });
   };
-  const labelMap = (namespace: string, entries: Map<string, Member>, filter: (key: string) => string[]) => {
+  const labelMap = (namespace: string, entries: Map<string, Member>) => {
     for (const [identifier, member] of entries) {
       if (typeof member.value !== 'string') throw new Error('Reference label mapping is not a string: ' + identifier);
       const location = reader.location(member.node);
-      add(namespace, identifier, member.value || null, null, location.file, location.line, filter(identifier));
+      add(namespace, identifier, member.value || null, null, location.file, location.line);
     }
   };
   for (const rarity of traits.catalogs.filter(catalog => catalog.namespace === 'rarity')) {
     if (!rarity.complete) throw new Error('Incomplete rarity catalog');
-    for (const entry of rarity.entries) add('rarity', entry.identifier, entry.labelKey, null, entry.source.file, entry.source.line, ['rarity']);
+    for (const entry of rarity.entries) add('rarity', entry.identifier, entry.labelKey, null, entry.source.file, entry.source.line);
   }
   const senses = reader.strings(get(values, 'SENSE_TYPES'));
   const unlimitedRange = reader.strings(get(values, 'SENSES_WITH_UNLIMITED_RANGE'));
@@ -163,14 +163,14 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
       || !record.description.includes(`@Localize[${selectedMapping.baseline_localization_key}]`))) throw new Error('Reviewed sense target changed: ' + token);
     const member = senseLabels.get(token)!, location = reader.location(member.node);
     if (typeof member.value !== 'string') throw new Error('Invalid sense label');
-    add('sense', token, member.value, null, location.file, location.line, ['senses'], selectedMapping ? {
+    add('sense', token, member.value, null, location.file, location.line, selectedMapping ? {
       recordKey: selectedMapping.record_key, expectedFamily: selectedMapping.expected_family,
     } : {});
   }
   if (registry.sense_mappings.some(mapping => !senses.includes(mapping.identifier))) throw new Error('Reviewed sense token removed');
   for (const token of ['vision', 'hearing']) {
     const key = 'PF2E.Actor.Creature.Sense.Type.' + token[0].toUpperCase() + token.slice(1);
-    add('sense', token, key, null, 'static/lang/en.json', localizationLines.get(key)!, [], { excluded: true });
+    add('sense', token, key, null, 'static/lang/en.json', localizationLines.get(key)!, { excluded: true });
   }
   const byRarity = reader.object(map(values, 'LANGUAGES_BY_RARITY').get('pf2e')?.value);
   const languageRecipe = values.declarations.get('LANGUAGES')?.getText(values.file).replace(/\s+/g, '');
@@ -181,7 +181,7 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
   if (new Set(languages).size !== languages.length) throw new Error('Duplicate PF2e language token');
   const languageDeclaration = values.declarations.get('LANGUAGES_BY_RARITY')!;
   for (const token of languages) add('language', token, 'PF2E.Actor.Creature.Language.' + token, null,
-    'src/module/actor/creature/values.ts', reader.location(languageDeclaration).line, ['languages']);
+    'src/module/actor/creature/values.ts', reader.location(languageDeclaration).line);
   const wildsong = registry.wildsong, feature = json(wildsong.source_file), featureSystem = object(feature.system);
   if (feature.type !== wildsong.expected_family || wildsong.record_key !== 'classfeatures:' + feature._id
     || !Array.isArray(object(object(featureSystem.subfeatures).languages).granted)
@@ -217,7 +217,7 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
     const entry = object(value);
     if (typeof entry.Label !== 'string' || typeof entry.Description !== 'string') throw new Error('Incomplete domain definition');
     add('domain', key.toLowerCase(), `PF2E.Item.Deity.Domain.${key}.Label`, `PF2E.Item.Deity.Domain.${key}.Description`,
-      'src/module/item/deity/types.ts', reader.location(domainType).line, ['deity.domains.primary', 'deity.domains.alternate']);
+      'src/module/item/deity/types.ts', reader.location(domainType).line);
   }
   const prefix = 'PF2E.NPC.Abilities.Glossary.';
   const reviewedNpc = new Map(registry.npc_mappings.map(mapping => [mapping.localization_key, mapping]));
@@ -248,28 +248,28 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
     }
     if (!record && !registry.standalone_labels[suffix]) throw new Error('Unreviewed standalone NPC label: ' + suffix);
     if (record && (typeof record.data.name !== 'string' || !record.data.name.trim())) throw new Error('Missing NPC wrapper title');
-    add('rule', 'pf2e:' + key, null, key, 'static/lang/en.json', localizationLines.get(key)!, [], {
+    add('rule', 'pf2e:' + key, null, key, 'static/lang/en.json', localizationLines.get(key)!, {
       displayLabel: record ? record.data.name as string : registry.standalone_labels[suffix], excluded,
       recordKey: record?.key ?? null, expectedFamily: record?.family ?? null,
       requiredLocalizationKey: record ? key : null,
     });
   }
-  for (const [namespace, name, filter] of [
-    ['ability', 'abilities', (key: string) => [`abilities.${key}.modifier`]],
-    ['size', 'sizeTypes', () => ['body.size', 'physical.size', 'ancestry.default_size']],
-    ['armor_group', 'armorGroups', () => ['armor.group']],
-  ] as const) labelMap(namespace, map(config, name), filter);
+  for (const [namespace, name] of [
+    ['ability', 'abilities'],
+    ['size', 'sizeTypes'],
+    ['armor_group', 'armorGroups'],
+  ] as const) labelMap(namespace, map(config, name));
   const skills = map(config, 'skills');
   const skillLabels = new Map([...skills].map(([key, member]) => [key, {
     value: reader.object(member.value).get('label')?.value, node: member.node,
   }]));
-  labelMap('skill', skillLabels, key => [`skills.${key}.modifier`]);
-  labelMap('tradition', map(reader.load('src/scripts/config/traits.ts'), 'magicTraditions'), () => ['spell.traditions']);
-  labelMap('damage_type', map(reader.load('src/scripts/config/damage.ts'), 'damageTypes'), () => ['weapon.damage.type', 'consumable.damage.type']);
-  for (const [namespace, name, field] of [
-    ['immunity_type', 'immunityTypes', 'defenses.immunities'], ['weakness_type', 'weaknessTypes', 'defenses.weaknesses'],
-    ['resistance_type', 'resistanceTypes', 'defenses.resistances'],
-  ]) labelMap(namespace, map(reader.load('src/scripts/config/iwr.ts'), name), () => [field]);
+  labelMap('skill', skillLabels);
+  labelMap('tradition', map(reader.load('src/scripts/config/traits.ts'), 'magicTraditions'));
+  labelMap('damage_type', map(reader.load('src/scripts/config/damage.ts'), 'damageTypes'));
+  for (const [namespace, name] of [
+    ['immunity_type', 'immunityTypes'], ['weakness_type', 'weaknessTypes'],
+    ['resistance_type', 'resistanceTypes'],
+  ]) labelMap(namespace, map(reader.load('src/scripts/config/iwr.ts'), name));
   const groups = map(config, 'weaponGroups');
   const declaredGroups = reader.strings(get(reader.load('src/module/item/weapon/values.ts'), 'WEAPON_GROUPS'));
   if (JSON.stringify([...groups.keys()].sort(compare)) !== JSON.stringify([...declaredGroups].sort(compare)))
@@ -281,7 +281,7 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
     const location = reader.location(member.node), key = 'PF2E.Item.Weapon.CriticalSpecialization.' + token;
     let description: string | null = null;
     if (registry.pf2e_weapon_groups.includes(token) && typeof specializations[token] === 'string') description = key;
-    add('weapon_group', token, member.value, description, location.file, location.line, ['weapon.group']);
+    add('weapon_group', token, member.value, description, location.file, location.line);
   }
   if (reader.diagnostics.some(diagnostic => diagnostic.severity === 'error')) throw new Error('Reference catalog AST extraction is incomplete');
   definitions.sort((a, b) => compare(a.namespace, b.namespace) || compare(a.identifier, b.identifier));

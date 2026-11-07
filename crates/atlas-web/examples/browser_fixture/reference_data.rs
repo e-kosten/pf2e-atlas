@@ -2,9 +2,9 @@
 use atlas_domain::{DefinitionKey, DefinitionNamespace};
 use atlas_index::{
     IndexBuildInput, IndexError, ReferenceAvailability, ReferenceBacking, ReferenceCoverage,
-    ReferenceEntry, ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse,
-    ReferenceNotice, ReferencePermission, ReferencePermissionDisposition, ReferencePreparation,
-    ReferenceProvenance, ReferencePublication, ReferenceRecordMapping,
+    ReferenceEntry, ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
+    ReferencePermissionDisposition, ReferencePreparation, ReferenceProvenance,
+    ReferencePublication, ReferenceRecordMapping,
 };
 use atlas_record::source_content::{
     ContentReferenceKind, ContentReferenceTarget, ResolvedContentReference,
@@ -25,9 +25,8 @@ pub fn darkvision_record() -> atlas_index::SourceArtifactRecordInput {
 pub struct ReferenceFixture {
     pub entries: Vec<ReferenceEntry>,
     pub notices: Vec<ReferenceNotice>,
-    pub occurrences: Vec<atlas_index::DefinitionReferenceInput>,
 }
-fn metadata(key: DefinitionKey, label: &str, field: &str, value: &str) -> ReferenceEntry {
+fn metadata(key: DefinitionKey, label: &str) -> ReferenceEntry {
     ReferenceEntry {
         key,
         label: label.into(),
@@ -55,75 +54,26 @@ fn metadata(key: DefinitionKey, label: &str, field: &str, value: &str) -> Refere
             label_grants: vec![],
             notices: vec![],
         },
-        filter_bindings: vec![ReferenceFilterBinding {
-            field: field.into(),
-            value: value.into(),
-        }],
     }
 }
 pub fn attach(input: &mut IndexBuildInput) -> Result<ReferenceFixture, IndexError> {
     let mut entries = vec![];
-    for (namespace, token, label, field) in [
-        (
-            DefinitionNamespace::Language,
-            "common",
-            "Common",
-            "languages",
-        ),
-        (
-            DefinitionNamespace::Language,
-            "chthonian",
-            "Chthonian",
-            "languages",
-        ),
-        (
-            DefinitionNamespace::Language,
-            "draconic",
-            "Draconic",
-            "languages",
-        ),
-        (
-            DefinitionNamespace::Sense,
-            "darkvision",
-            "Darkvision",
-            "senses",
-        ),
-        (
-            DefinitionNamespace::WeaponGroup,
-            "sword",
-            "Sword",
-            "weapon.group",
-        ),
-        (
-            DefinitionNamespace::ArmorGroup,
-            "plate",
-            "Plate",
-            "armor.group",
-        ),
-        (DefinitionNamespace::Size, "med", "Medium", "body.size"),
-        (DefinitionNamespace::Size, "lg", "Large", "body.size"),
-        (
-            DefinitionNamespace::Rarity,
-            "uncommon",
-            "Uncommon",
-            "rarity",
-        ),
-        (
-            DefinitionNamespace::Tradition,
-            "arcane",
-            "Arcane",
-            "spell.traditions",
-        ),
-        (
-            DefinitionNamespace::DamageType,
-            "fire",
-            "Fire",
-            "weapon.damage.type",
-        ),
+    for (namespace, token, label) in [
+        (DefinitionNamespace::Language, "common", "Common"),
+        (DefinitionNamespace::Language, "chthonian", "Chthonian"),
+        (DefinitionNamespace::Language, "draconic", "Draconic"),
+        (DefinitionNamespace::Sense, "darkvision", "Darkvision"),
+        (DefinitionNamespace::WeaponGroup, "sword", "Sword"),
+        (DefinitionNamespace::ArmorGroup, "plate", "Plate"),
+        (DefinitionNamespace::Size, "med", "Medium"),
+        (DefinitionNamespace::Size, "lg", "Large"),
+        (DefinitionNamespace::Rarity, "uncommon", "Uncommon"),
+        (DefinitionNamespace::Tradition, "arcane", "Arcane"),
+        (DefinitionNamespace::DamageType, "fire", "Fire"),
     ] {
         let key = DefinitionKey::new(namespace, token)
             .map_err(|error| IndexError::Invalid(error.to_string()))?;
-        entries.push(metadata(key, label, field, token));
+        entries.push(metadata(key, label));
     }
     for (key, localization) in [
         ("language:chthonian", "Fixture.Language.Chthonian"),
@@ -225,56 +175,5 @@ pub fn attach(input: &mut IndexBuildInput) -> Result<ReferenceFixture, IndexErro
         expected_entry_count,
         entry_keys_sha256,
     });
-    let mut localizations = atlas_record::source_content::DefinitionLocalizationMap::new();
-    let targets = entries
-        .iter()
-        .map(|entry| {
-            if let Some(key) = &entry.provenance.label_key {
-                localizations
-                    .entry(key.clone())
-                    .or_default()
-                    .insert(entry.key.clone());
-            }
-            let target = match &entry.backing {
-                ReferenceBacking::Record { key } => {
-                    atlas_index::DefinitionReferenceTarget::Record {
-                        key: key.clone(),
-                        owners: vec![],
-                    }
-                }
-                _ => atlas_index::DefinitionReferenceTarget::Definition {
-                    key: entry.key.clone(),
-                },
-            };
-            (entry.key.clone(), target)
-        })
-        .collect::<std::collections::BTreeMap<_, _>>();
-    let occurrences = input
-        .records
-        .iter()
-        .flat_map(|source| {
-            atlas_record::source_record::definition_record_localization_references(
-                &source.record,
-                input.context.audience,
-                &localizations,
-            )
-        })
-        .map(|occurrence| atlas_index::DefinitionReferenceInput {
-            source: atlas_index::DefinitionReferenceSource::Record {
-                key: occurrence.locator.record,
-                owners: occurrence.locator.owners,
-                field: Some(occurrence.locator.field),
-            },
-            target: targets[&occurrence.key].clone(),
-            occurrence_path: occurrence.path,
-            evidence: occurrence.localization_key,
-            label: None,
-            visible: occurrence.visible,
-        })
-        .collect();
-    Ok(ReferenceFixture {
-        entries,
-        notices,
-        occurrences,
-    })
+    Ok(ReferenceFixture { entries, notices })
 }

@@ -54,35 +54,61 @@ function previewBookmark(anchor?: HTMLElement) {
   };
 }
 
+type ReadingFrame = {
+  destination: ReferenceDestinationView;
+  help?: ReferenceHelpView;
+  generation?: string;
+  selection?: RecordNavigationView;
+  landing?: RecordNavigationView;
+  context?: { identity: string; generation: string | null; conditionId?: bigint };
+};
+
+type ReadingBookmark = ReturnType<typeof previewBookmark> & { scroll: number };
+
+function sameDocument(current: ReadingFrame, next: ReadingFrame) {
+  if (
+    current.destination.kind === "definition" &&
+    next.destination.kind === "definition"
+  ) {
+    return (
+      current.destination.key === next.destination.key &&
+      current.help?.definition_key === next.help?.definition_key
+    );
+  }
+  return (
+    current.destination.kind === "record" &&
+    next.destination.kind === "record" &&
+    current.destination.navigation.record_key ===
+      next.destination.navigation.record_key &&
+    JSON.stringify(current.help) === JSON.stringify(next.help) &&
+    JSON.stringify(current.selection) === JSON.stringify(next.selection) &&
+    JSON.stringify(current.landing) === JSON.stringify(next.landing) &&
+    current.context?.conditionId === next.context?.conditionId &&
+    current.context?.identity === next.context?.identity
+  );
+}
+
 export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   const queryClient = useQueryClient();
-  const [destination, setDestination] = useState<ReferenceDestinationView | null>(null);
-  const [help, setHelp] = useState<ReferenceHelpView>();
-  const [generation, setGeneration] = useState<string>();
+  const [frame, setFrame] = useState<ReadingFrame | null>(null);
+  const {
+    help,
+    generation,
+    selection,
+    landing,
+    context: requestedContext,
+  } = frame ?? {};
+  const destination = frame?.destination ?? null;
   const recordKey =
     destination?.kind === "record" ? destination.navigation.record_key : null;
   const [anchor, setAnchor] = useState<RecordPreviewAnchor | null>(null);
-  const [selection, setSelection] = useState<RecordNavigationView>();
-  const [landing, setLanding] = useState<RecordNavigationView>();
-  type PriorDocument = {
-    destination: ReferenceDestinationView;
-    help?: ReferenceHelpView;
-    generation?: string;
-    selection?: RecordNavigationView;
-    landing?: RecordNavigationView;
-    context?: { identity: string; generation: string | null; conditionId?: bigint };
-    scroll: number;
-    focusHref?: string;
-    focusRegion?: "header" | "body";
-  };
-  const [history, setHistory] = useState<PriorDocument[]>([]);
-  const [restore, setRestore] = useState<{
-    scroll: number;
-    focusHref?: string;
-    focusRegion?: "header" | "body";
-  }>({
+  const [history, setHistory] = useState<
+    { frame: ReadingFrame; bookmark: ReadingBookmark }[]
+  >([]);
+  const [restore, setRestore] = useState<ReadingBookmark>({
     scroll: 0,
-    focusHref: undefined as string | undefined,
+    focusHref: undefined,
+    focusRegion: undefined,
   });
   const [restoringHistory, setRestoringHistory] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
@@ -103,11 +129,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   const [reloadState, setReloadState] = useState<
     { kind: "loading" } | { kind: "finished" } | { kind: "failed"; error: Error } | null
   >(null);
-  const [requestedContext, setRequestedContext] = useState<{
-    identity: string;
-    generation: string | null;
-    conditionId?: bigint;
-  }>();
   const contextualError = requestedContext
     ? reloadState?.kind === "finished"
       ? new RecordContextError("refreshed")
@@ -218,30 +239,36 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       if (key) {
         const current = await queryClient.fetchQuery(definitionDetailQueryOptions(key));
         if (session.current !== currentSession) return;
-        setGeneration(current.artifact_generation);
-        setHelp(current.help ?? undefined);
-        setLanding(undefined);
+        const updated = current.help?.destination ?? {
+          kind: "definition" as const,
+          key,
+        };
+        setFrame(
+          (prior) =>
+            prior && {
+              ...prior,
+              destination: updated,
+              help: current.help ?? undefined,
+              generation: current.artifact_generation,
+              landing: undefined,
+              selection: updated.kind === "record" ? updated.navigation : undefined,
+            },
+        );
         if (!current.help) {
-          setDestination({ kind: "definition", key });
-          setSelection(undefined);
           setReloadState({
             kind: "failed",
             error: new RecordContextError("definitionUnavailable"),
           });
           return;
         }
-        setDestination(current.help.destination);
-        setSelection(
-          current.help.destination.kind === "record"
-            ? current.help.destination.navigation
-            : undefined,
-        );
       } else if (recordKey) {
         const current = await queryClient.fetchQuery(
           recordDetailQueryOptions(recordKey, selection),
         );
         if (session.current !== currentSession) return;
-        setGeneration(current.artifact_generation);
+        setFrame(
+          (prior) => prior && { ...prior, generation: current.artifact_generation },
+        );
       }
       setReloadState(null);
     } catch (error) {
@@ -284,13 +311,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     opener.current = null;
     session.current += 1;
     setReloadState(null);
-    setDestination(null);
-    setHelp(undefined);
-    setGeneration(undefined);
+    setFrame(null);
     setAnchor(null);
-    setSelection(undefined);
-    setRequestedContext(undefined);
-    setLanding(undefined);
     setHistory([]);
     setRestoringHistory(false);
     returnOwner?.(reason);
@@ -303,36 +325,14 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
 
   useDismissOnReadingNavigation(destination !== null, closeForNavigation);
 
-  const open = useCallback(
-    (
-      nextRecordKey: string,
-      anchor?: HTMLElement,
-      navigation?: RecordNavigationView,
-      nextLanding?: RecordNavigationView,
-      nextHelp?: ReferenceHelpView,
-      nextGeneration?: string,
-    ) => {
-      if (
-        destination &&
-        (recordKey !== nextRecordKey ||
-          JSON.stringify(help) !== JSON.stringify(nextHelp) ||
-          JSON.stringify(selection) !== JSON.stringify(navigation) ||
-          JSON.stringify(landing) !== JSON.stringify(nextLanding))
-      ) {
+  const openFrame = useCallback(
+    (next: ReadingFrame, anchor?: HTMLElement) => {
+      if (frame && !sameDocument(frame, next)) {
         const bookmark = previewBookmark(anchor);
         setHistory((prior) =>
           [
             ...prior,
-            {
-              destination,
-              help,
-              generation,
-              selection,
-              landing,
-              context: requestedContext,
-              ...bookmark,
-              scroll: bookmark.scroll ?? 0,
-            },
+            { frame, bookmark: { ...bookmark, scroll: bookmark.scroll ?? 0 } },
           ].slice(-24),
         );
       }
@@ -341,117 +341,77 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         (document.activeElement instanceof HTMLElement ? document.activeElement : null);
       session.current += 1;
       setReloadState(null);
-      setDestination({
-        kind: "record",
-        navigation: navigation ?? {
-          record_key: nextRecordKey,
-          embedded_path: [],
-          field: null,
-          passage: null,
-          source_fingerprint: null,
-        },
-      });
-      setHelp(nextHelp);
-      setGeneration(nextGeneration);
+      setFrame(next);
       setAnchor((current) => current ?? anchor ?? null);
+      setRestore({ scroll: 0, focusHref: undefined, focusRegion: undefined });
+      setRestoringHistory(false);
+    },
+    [frame],
+  );
+
+  const open = useCallback(
+    (
+      nextRecordKey: string,
+      anchor?: HTMLElement,
+      navigation?: RecordNavigationView,
+      landing?: RecordNavigationView,
+      help?: ReferenceHelpView,
+      generation?: string,
+    ) => {
       const condition = encounterContext?.conditions?.find(
         (condition) =>
           condition.condition_key === nextRecordKey &&
           condition.condition_id.toString() === anchor?.dataset.atlasConditionId,
       );
-      const addressed =
-        navigation ??
-        (condition
-          ? {
-              record_key: nextRecordKey,
-              embedded_path: [],
-              field: null,
-              passage: null,
-              source_fingerprint: null,
-            }
-          : undefined);
-      setSelection(addressed);
-      setLanding(nextLanding);
-      setRestore({ scroll: 0, focusHref: undefined });
-      setRestoringHistory(false);
+      const destinationNavigation = navigation ?? {
+        record_key: nextRecordKey,
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      };
       const contextual =
-        !nextHelp &&
+        !help &&
         ((encounterContext?.parentRecordKey === nextRecordKey && navigation) ||
           condition);
-      setRequestedContext(
-        contextual
-          ? {
-              identity: encounterContext!.identity,
-              generation: encounterContext!.generation,
-              conditionId: condition?.condition_id,
-            }
-          : undefined,
+      openFrame(
+        {
+          destination: { kind: "record", navigation: destinationNavigation },
+          help,
+          generation,
+          selection: condition ? destinationNavigation : navigation,
+          landing,
+          context:
+            contextual && encounterContext
+              ? {
+                  identity: encounterContext.identity,
+                  generation: encounterContext.generation,
+                  conditionId: condition?.condition_id,
+                }
+              : undefined,
+        },
+        anchor,
       );
     },
-    [
-      encounterContext,
-      destination,
-      recordKey,
-      selection,
-      landing,
-      requestedContext,
-      help,
-      generation,
-    ],
+    [encounterContext, openFrame],
   );
 
   const openHelp: ReferenceHelpHandler = useCallback(
-    (nextHelp, nextAnchor, nextGeneration, finishOwner) => {
-      const next = nextHelp.destination;
-      if (!next) return;
+    (help, anchor, generation, finishOwner) => {
+      const destination = help.destination;
+      if (!destination) return;
       returnToOwner.current ??= finishOwner;
-      if (next.kind === "record") {
-        open(
-          next.navigation.record_key,
-          nextAnchor,
-          next.navigation,
-          undefined,
-          nextHelp,
-          nextGeneration,
-        );
-        return;
-      }
-      if (
-        destination &&
-        (JSON.stringify(destination) !== JSON.stringify(next) ||
-          help?.definition_key !== nextHelp.definition_key)
-      ) {
-        const bookmark = previewBookmark(nextAnchor);
-        setHistory((prior) =>
-          [
-            ...prior,
-            {
-              destination,
-              help,
-              generation,
-              selection,
-              landing,
-              context: requestedContext,
-              ...bookmark,
-              scroll: bookmark.scroll ?? 0,
-            },
-          ].slice(-24),
-        );
-      }
-      opener.current ??= nextAnchor;
-      session.current += 1;
-      setReloadState(null);
-      setDestination(next);
-      setHelp(nextHelp);
-      setGeneration(nextGeneration);
-      setAnchor((current) => current ?? nextAnchor);
-      setSelection(undefined);
-      setLanding(undefined);
-      setRequestedContext(undefined);
-      setRestore({ scroll: 0, focusHref: undefined });
-      setRestoringHistory(false);
+      openFrame(
+        {
+          destination,
+          help,
+          generation,
+          selection: destination.kind === "record" ? destination.navigation : undefined,
+        },
+        anchor,
+      );
     },
-    [open, destination, help, generation, selection, landing, requestedContext],
+    [openFrame],
   );
 
   const standalone = destination?.kind === "definition";
@@ -550,7 +510,10 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       const current =
         selection ??
         (requestedContext ? contextual.data?.selected : detail.data?.selected);
-      if (current) setSelection({ ...current, spell_rank });
+      if (current)
+        setFrame(
+          (prior) => prior && { ...prior, selection: { ...current, spell_rank } },
+        );
     },
     recordKey,
     selection,
@@ -574,17 +537,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         session.current += 1;
         setReloadState(null);
         setHistory(history.slice(0, -1));
-        setDestination(prior.destination);
-        setHelp(prior.help);
-        setGeneration(prior.generation);
-        setSelection(prior.selection);
-        setLanding(prior.landing);
-        setRequestedContext(prior.context);
-        setRestore({
-          scroll: prior.scroll,
-          focusHref: prior.focusHref,
-          focusRegion: prior.focusRegion,
-        });
+        setFrame(prior.frame);
+        setRestore(prior.bookmark);
         setRestoringHistory(true);
       },
     },

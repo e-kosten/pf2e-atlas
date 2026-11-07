@@ -266,7 +266,6 @@ pub fn publish_input_with_references(
     input: &IndexBuildInput,
     entries: &[crate::ReferenceEntry],
     notices: &[crate::ReferenceNotice],
-    occurrences: &[crate::DefinitionReferenceInput],
 ) -> Result<(), IndexError> {
     let workspace = initialize_workspace(path)?;
     publish_input_in_with_references(
@@ -275,7 +274,6 @@ pub fn publish_input_with_references(
         input,
         entries,
         notices,
-        occurrences,
     )
 }
 
@@ -284,7 +282,7 @@ pub fn publish_input_in(
     schema: u32,
     input: &IndexBuildInput,
 ) -> Result<(), IndexError> {
-    publish_input_in_with_references(workspace, schema, input, &[], &[], &[])
+    publish_input_in_with_references(workspace, schema, input, &[], &[])
 }
 
 fn publish_input_in_with_references(
@@ -293,7 +291,6 @@ fn publish_input_in_with_references(
     input: &IndexBuildInput,
     entries: &[crate::ReferenceEntry],
     notices: &[crate::ReferenceNotice],
-    occurrences: &[crate::DefinitionReferenceInput],
 ) -> Result<(), IndexError> {
     let native = fixture_native_values(input)?;
     let owner = workspace.update_owner()?;
@@ -309,8 +306,31 @@ fn publish_input_in_with_references(
     for notice in notices {
         metadata.reference_notices.push(notice)?;
     }
-    for occurrence in occurrences {
-        metadata.definition_references.push(occurrence)?;
+    let mut abilities = crate::OwnedAbilityCatalog::default();
+    for entry in entries {
+        abilities.add_entry(entry);
+    }
+    for definition in &input.traits {
+        abilities.add_trait(
+            definition.key.clone().into(),
+            definition.label_key.as_deref(),
+            definition.description_key.as_deref(),
+        );
+    }
+    for source in &input.records {
+        if crate::reference_pack_applies(
+            input.context.reference_preparation.as_ref(),
+            "pf2e",
+            source.record.key().pack().as_str(),
+        ) {
+            let occurrences = atlas_record::source_record::owned_action_localizations(
+                &source.record,
+                input.context.audience,
+            );
+            for evidence in abilities.project(occurrences) {
+                metadata.owned_ability_evidence.push(&evidence)?;
+            }
+        }
     }
     let mut publication =
         crate::PreparedPublication::new_in(&owner, schema, scratch.path(), metadata)?;
@@ -427,13 +447,6 @@ fn spool_input_in(
     }
     for row in &input.traits {
         spool.traits.push(row)?;
-    }
-    for source in &input.records {
-        for occurrence in
-            crate::traits::record_reference_inputs(&source.record, input.context.audience)?
-        {
-            spool.definition_references.push(&occurrence)?;
-        }
     }
     for seed in &input.trait_vectors {
         spool.trait_seeds.push(&crate::TraitSeedOccurrence {

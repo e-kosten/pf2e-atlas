@@ -1,20 +1,12 @@
 ALTER TABLE trait_definitions RENAME TO reference_entries;
-ALTER TABLE trait_references RENAME TO legacy_trait_references;
-CREATE TABLE definition_reference_occurrences(
-    occurrence_id TEXT PRIMARY KEY,
-    source_record_key TEXT REFERENCES records(key) DEFERRABLE INITIALLY DEFERRED,
-    source_definition_key TEXT REFERENCES reference_entries(key) ON DELETE CASCADE,
-    target_record_key TEXT REFERENCES records(key) DEFERRABLE INITIALLY DEFERRED,
-    target_definition_key TEXT REFERENCES reference_entries(key) ON DELETE CASCADE,
-    visible INTEGER NOT NULL CHECK(visible IN (0,1)),
-    evidence TEXT NOT NULL CHECK(json_valid(evidence)),
-    CHECK((source_record_key IS NULL) != (source_definition_key IS NULL)),
-    CHECK((target_record_key IS NULL) != (target_definition_key IS NULL))
-) STRICT;
-CREATE INDEX definition_references_source_record ON definition_reference_occurrences(source_record_key,target_definition_key);
-CREATE INDEX definition_references_source_definition ON definition_reference_occurrences(source_definition_key,target_record_key);
-CREATE INDEX definition_references_record_target ON definition_reference_occurrences(target_record_key,source_record_key);
-CREATE INDEX definition_references_definition_target ON definition_reference_occurrences(target_definition_key,source_record_key);
+CREATE TABLE owned_ability_evidence(
+    record_key TEXT NOT NULL REFERENCES records(key) ON DELETE CASCADE,
+    owners_json TEXT NOT NULL CHECK(json_type(owners_json)='array'),
+    help_json TEXT CHECK(help_json IS NULL OR json_type(help_json)='object'),
+    has_declaration INTEGER NOT NULL CHECK(has_declaration IN (0,1)),
+    action_keys_json TEXT NOT NULL CHECK(json_type(action_keys_json)='array'),
+    PRIMARY KEY(record_key,owners_json)
+) WITHOUT ROWID, STRICT;
 CREATE TABLE reference_notices(
     id TEXT PRIMARY KEY,
     sha256 TEXT NOT NULL,

@@ -7,29 +7,88 @@ use atlas_domain::{
 use atlas_search::{AtlasRetrievalService, GetRecordsRequest};
 use std::collections::{BTreeMap, BTreeSet};
 
+const ASSOCIATIONS: &[(N, &[(&str, &str)])] = &[
+    (N::Trait, &[("traits", "With this trait")]),
+    (N::Rarity, &[("rarity", "With this rarity")]),
+    (N::Language, &[("languages", "With this language")]),
+    (N::Sense, &[("senses", "With this sense")]),
+    (
+        N::ImmunityType,
+        &[("defenses.immunities", "With this immunity")],
+    ),
+    (
+        N::WeaknessType,
+        &[("defenses.weaknesses", "With this weakness")],
+    ),
+    (
+        N::ResistanceType,
+        &[("defenses.resistances", "With this resistance")],
+    ),
+    (
+        N::DamageType,
+        &[
+            ("weapon.damage.type", "With this weapon damage"),
+            ("consumable.damage.type", "With this consumable damage"),
+        ],
+    ),
+    (
+        N::Domain,
+        &[
+            ("deity.domains.primary", "With this primary domain"),
+            ("deity.domains.alternate", "With this alternate domain"),
+        ],
+    ),
+    (N::WeaponGroup, &[("weapon.group", "In this weapon group")]),
+    (N::ArmorGroup, &[("armor.group", "In this armor group")]),
+    (
+        N::Size,
+        &[
+            ("body.size", "With this body size"),
+            ("physical.size", "With this item size"),
+            ("ancestry.default_size", "With this ancestry size"),
+        ],
+    ),
+    (N::Tradition, &[("spell.traditions", "With this tradition")]),
+];
+
+pub(crate) fn association_fields(namespace: N) -> &'static [(&'static str, &'static str)] {
+    ASSOCIATIONS
+        .iter()
+        .find_map(|(kind, fields)| (*kind == namespace).then_some(*fields))
+        .unwrap_or_default()
+}
+
 fn namespace(catalog: &QueryCapability, field: &str) -> Option<N> {
     let field = catalog.fields.iter().find(|f| f.id == field)?;
-    match (field.scope.as_deref(), field.path.as_str()) {
-        (_, "traits") => Some(N::Trait),
-        (_, "rarity") => Some(N::Rarity),
-        (_, "languages" | "ancestry.languages" | "ancestry.additional_languages") => {
-            Some(N::Language)
-        }
-        (Some("senses"), "type") => Some(N::Sense),
-        (Some("defenses.immunities"), "type" | "exceptions") => Some(N::ImmunityType),
-        (Some("defenses.weaknesses"), "type" | "exceptions") => Some(N::WeaknessType),
-        (Some("defenses.resistances"), "type" | "exceptions" | "double_against") => {
-            Some(N::ResistanceType)
-        }
-        (Some("spell.damage"), "type") => Some(N::DamageType),
-        (_, "weapon.damage.type" | "consumable.damage.type") => Some(N::DamageType),
-        (_, "deity.domains.primary" | "deity.domains.alternate") => Some(N::Domain),
-        (_, "weapon.group") => Some(N::WeaponGroup),
-        (_, "armor.group") => Some(N::ArmorGroup),
-        (_, "body.size" | "physical.size" | "ancestry.default_size") => Some(N::Size),
-        (_, "spell.traditions") => Some(N::Tradition),
-        _ => None,
-    }
+    let path = match (field.scope.as_deref(), field.path.as_str()) {
+        (_, "ancestry.languages" | "ancestry.additional_languages") => "languages",
+        (Some("spell.damage"), "type") => return Some(N::DamageType),
+        (
+            Some(
+                scope @ ("senses"
+                | "defenses.immunities"
+                | "defenses.weaknesses"
+                | "defenses.resistances"),
+            ),
+            "type",
+        ) => scope,
+        (
+            Some(scope @ ("defenses.immunities" | "defenses.weaknesses" | "defenses.resistances")),
+            "exceptions",
+        ) => scope,
+        (Some("defenses.resistances"), "double_against") => "defenses.resistances",
+        (
+            None,
+            "senses" | "defenses.immunities" | "defenses.weaknesses" | "defenses.resistances",
+        ) => return None,
+        (_, path) => path,
+    };
+    ASSOCIATIONS.iter().find_map(|(kind, fields)| {
+        fields
+            .iter()
+            .any(|(candidate, _)| *candidate == path)
+            .then_some(*kind)
+    })
 }
 fn keys<'a>(
     namespace: Option<N>,

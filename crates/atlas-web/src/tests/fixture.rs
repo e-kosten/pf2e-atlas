@@ -194,7 +194,6 @@ impl Fixture {
                 &data,
                 &glossary.entries,
                 &glossary.notices,
-                &glossary.occurrences,
             )
             .unwrap();
         } else {

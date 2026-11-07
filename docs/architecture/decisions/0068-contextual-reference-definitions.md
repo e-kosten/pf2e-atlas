@@ -33,7 +33,7 @@ meanings remain unchanged. They are views and inputs over the canonical owner;
 there is no parallel trait definition store or legacy runtime reader.
 
 An entry retains its selected label, finite availability reason, source evidence,
-locale/fallback, publications, permissions and filter bindings. Its backing is
+locale, fallback, publications and permissions. Its backing is
 prepared standalone content, an existing record pointer, or no supplied body.
 Prepared bodies use one record-owned `PreparedReferenceDefinition` representation
 and the existing content interpreter. A missing or conflicting record mapping
@@ -54,32 +54,25 @@ localization associations use this retained evidence;
 annotation metadata cannot assert its own applicability. Ordinary records and
 legacy trait behavior remain available for conflicting packs.
 
-## Exact reference evidence
+## Trait references and owned abilities
 
-`definition_reference_occurrences` replaces the trait-reference storage owner.
-Both endpoints are checked unions of real record addresses and definition keys.
-Record-side localization declarations support exact owner help. Trait-source
-occurrences supply existing trait reference queries.
-Owners, fields, authored occurrence paths and audience visibility remain explicit.
+The existing trait reference relation supplies visible incoming and outgoing
+associations. Prepared content retains authored links and their precise addresses.
+Ordinary record relationships retain their existing store.
 
-The record-owned authored parser collects exact localization references. Expanded
-prose is not new authored evidence. A reference normalizes to a real record only
-through a verified mapping. Missing, wrong-family, conflicting and inapplicable
-record mappings do not become synthetic definition targets. Distinct properties
-can share a record destination without merging their property identities;
-ambiguous standalone targets remain ambiguous.
+The record-owned parser collects authored localization keys in owned action
+fields. A verified mapping can resolve a key to a real record. Missing or
+inapplicable mappings do not acquire new destinations. Help uses the one visible
+destination for the exact owner when that destination belongs to the reusable
+ability glossary. The stored projection keeps that reading target, the presence
+of a qualifying description declaration, and the visible general ability record
+keys for the Actions filter.
 
-One canonical publication path reconciles these occurrences. Trait APIs project
-their existing visible record/trait subset. Record graph edges retain their
-existing owner and are not copied into this table. Reference membership, an
-explicit mention, and a saved encounter condition remain different facts.
-
-The Actions field uses the ordinary set query over immediate owned NPC actions.
-An exact localization declaration in the action's own description establishes
-its ability identity. With no such declaration, a unique explicit compendium
-origin can establish the identity. Values are existing record keys from the
-general ability glossary. The field derives membership from retained evidence
-and uses the ordinary vocabulary, counts and Read contracts.
+Actions uses the ordinary set query over immediate owned NPC actions. With no
+qualifying authored declaration, the existing record provenance can supply a
+unique explicit compendium origin. Query compilation and grouped counts use the
+same membership relation. App-service derives glossary property predicates from
+typed keys and the compiled query catalog.
 
 ## Publication and upgrade
 
@@ -88,8 +81,8 @@ generation through [ADR0065](0065-input-owned-reference-publication.md)'s owned
 publication. Compact selected-key count/digest evidence binds complete glossary
 coverage. Ordinary publication checks that inventory while writing the selected
 entries; it does not add a whole-database audit or rich-frame replay. Explicit
-deep validation checks stored inventory, body/notice hashes, mappings and exact
-occurrences against retained checked source and the shared authored parser.
+deep validation checks stored inventory, body and notice hashes, mappings and owned-ability facts against retained checked
+source and the shared authored parser.
 
 Runtime's ordered migration moves retained trait definitions into the canonical
 owner offline. Trait memberships, prepared content, exact identities, native
@@ -101,13 +94,10 @@ Physical schema version does not establish new glossary coverage. Missing
 `reference_preparation` means retained traits-only coverage, preserving existing
 record and trait reads. Explicit setup prepares the additional definitions and
 records their separate recipe, combined input identity and selected-key inventory.
-Startup does not fetch sources or run setup. Retained traits-only evidence
-requires the legacy visible incoming and outgoing associations. Hidden authored
-occurrences remain intact in prepared content but do not newly require association
-rows or destinations. Any stored hidden association must still match checked
-source and a valid destination. Complete preparation attests all visible and
-hidden evidence; its audit remains exact. New namespaces gain no automatic
-vectors; existing record and trait numerical policies retain their owners.
+Startup leaves new glossary preparation to explicit setup. Retained and complete
+coverage both use the existing visible trait reference relation. New namespaces
+use the prepared entries or existing records for reading. Existing record and
+trait numerical policies retain their owners.
 
 Named SQL projections retain authored sense acuity and range states and armor group. Offline backfill uses compatible retained snapshots and preserves
 missing, null and invalid values. A retired preparation remains deferred to its
@@ -147,7 +137,7 @@ updates retain the normal source, attribution and generated-contract review.
 
 ## Consumers
 
-Index owns bounded source-free entry, notice and occurrence reads. Runtime owns
+Index owns bounded source-free entry, notice and owned-ability reads. Runtime owns
 acquisition, freshness and migrations. Search and the existing query owner consume
 published evidence; app-service owns semantic labels, help destinations and related
 filter actions. CLI and browser render generated product contracts. Contextual
@@ -159,8 +149,8 @@ Contextual retrieval uses the existing bounded workspace/search service. Metadat
 batches select at most 100 identities and avoid prepared-body deserialization;
 they still read the canonical envelope bytes to verify their checksum. Full detail
 loads the standalone prepared body and required notices, or returns the existing
-record destination. Exact-owner outgoing evidence and complete SQL target
-uniqueness support owned-ability help without guessing from names or capped pages.
+record destination. The owned-ability projection carries the result of exact-owner target resolution
+from the complete set of visible authored evidence.
 
 App-service projects categorical values as raw identity, readable label and optional
 typed help. Record destinations retain `RecordNavigationView` and ordinary authored

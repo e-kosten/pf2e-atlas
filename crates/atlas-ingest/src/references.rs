@@ -8,20 +8,16 @@ use atlas_foundry_model::generated::{
     FoundryReferenceDefinition, reference_definitions, trait_definitions,
 };
 use atlas_index::{
-    BuildFrameStream, DefinitionReferenceInput, DefinitionReferenceSource,
-    DefinitionReferenceTarget, PublicationSpool, ReferenceAvailability, ReferenceBacking,
-    ReferenceEntry, ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse,
-    ReferencePermission, ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
+    BuildFrameStream, OwnedAbilityCatalog, PublicationSpool, ReferenceAvailability,
+    ReferenceBacking, ReferenceEntry, ReferenceGrantScope, ReferenceGrantUse, ReferencePermission,
+    ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
     ReferenceRecordMapping, ReferenceSourceLocation,
 };
 use atlas_record::{
-    source_content::{
-        ContentVisibilityRule, LocalizationResolver, authored_localization_occurrences,
-        escape_content_text, prepare_reference_definition,
-    },
+    source_content::{LocalizationResolver, escape_content_text, prepare_reference_definition},
     source_record::{
         RecordLocalizationOccurrence, SourceBackedRecord, SourceNodeView, SourceReferenceIndex,
-        authored_record_localization_references,
+        owned_action_localizations, root_description_localizations,
     },
 };
 use serde::Deserialize;
@@ -85,10 +81,8 @@ pub(crate) struct ReferenceBuild<'a> {
     declared_item_packs: BTreeSet<String>,
     records: BTreeMap<RecordKey, MappingRecord>,
     expected_records: BTreeSet<RecordKey>,
-    occurrences: BuildFrameStream<RecordLocalizationOccurrence>,
+    occurrences: BuildFrameStream<Vec<RecordLocalizationOccurrence>>,
     policies: BTreeMap<DefinitionKey, SourceAttribution>,
-    targets: BTreeMap<DefinitionKey, DefinitionReferenceTarget>,
-    localization_keys: BTreeMap<String, BTreeSet<DefinitionKey>>,
 }
 
 impl<'a> ReferenceBuild<'a> {
@@ -138,8 +132,6 @@ impl<'a> ReferenceBuild<'a> {
                 .map_err(invalid)?,
             occurrences: BuildFrameStream::new_in(scratch).map_err(index)?,
             policies: selected_policies,
-            targets: BTreeMap::new(),
-            localization_keys: BTreeMap::new(),
         })
     }
 
@@ -149,7 +141,6 @@ impl<'a> ReferenceBuild<'a> {
         &mut self,
         record: &SourceBackedRecord,
     ) -> Result<(), IngestError> {
-        let occurrences = authored_record_localization_references(record, self.audience);
         if self.expected_records.contains(record.key()) {
             let node = SourceNodeView::from(record.source());
             self.records.insert(
@@ -158,19 +149,16 @@ impl<'a> ReferenceBuild<'a> {
                     family: node.source_type().value().map(str::to_owned),
                     kind: node.document_kind().into(),
                     name: node.name().value().cloned(),
-                    root_localizations: occurrences
-                        .iter()
-                        .filter(|occurrence| {
-                            occurrence.locator.owners.is_empty()
-                                && occurrence.locator.field == "/system/description/value"
-                        })
-                        .map(|occurrence| occurrence.occurrence.localization_key.clone())
+                    root_localizations: root_description_localizations(record, self.audience)
                         .collect(),
                 },
             );
         }
-        for occurrence in occurrences {
-            self.occurrences.push(&occurrence).map_err(index)?;
+        if self.pack_applies(record.key().pack().as_str()) {
+            let occurrences = owned_action_localizations(record, self.audience);
+            if !occurrences.is_empty() {
+                self.occurrences.push(&occurrences).map_err(index)?;
+            }
         }
         Ok(())
     }
@@ -184,144 +172,31 @@ impl<'a> ReferenceBuild<'a> {
         spool: &mut PublicationSpool,
         resolver: &SourceReferenceIndex,
     ) -> Result<(), IngestError> {
-        let mut notices = self.inputs.reference_notices().notices.clone();
-        if self.applicable {
-            for notice in &self.inputs.reference_supplement().notices {
-                if let Some(old) = notices.get(&notice.id) {
-                    if old.sha256 != notice.sha256 {
-                        return Err(invalid("conflicting selected reference notices"));
-                    }
-                } else {
-                    notices.insert(notice.id.clone(), notice.clone());
-                }
-            }
-        }
+        let notices = &self.inputs.reference_notices().notices;
         for notice in notices.values() {
             spool.reference_notices.push(notice).map_err(index)?;
         }
+        let mut abilities = OwnedAbilityCatalog::default();
         for authored in reference_definitions()
             .iter()
             .filter(|entry| !entry.excluded)
         {
-            let entry = self.entry(authored, resolver, &notices)?;
-            let target = match &entry.backing {
-                ReferenceBacking::Record { key } => Some(DefinitionReferenceTarget::Record {
-                    key: key.clone(),
-                    owners: vec![],
-                }),
-                _ if self.applicable && entry.provenance.record_mapping.is_none() => {
-                    Some(DefinitionReferenceTarget::Definition {
-                        key: entry.key.clone(),
-                    })
-                }
-                _ => None,
-            };
-            if let Some(target) = target {
-                self.targets.insert(entry.key.clone(), target);
-                for key in [
-                    entry.provenance.label_key.as_ref(),
-                    entry.provenance.description_key.as_ref(),
-                ]
-                .into_iter()
-                .flatten()
-                {
-                    self.localization_keys
-                        .entry(key.clone())
-                        .or_default()
-                        .insert(entry.key.clone());
-                }
-            }
+            let entry = self.entry(authored, resolver, notices)?;
+            abilities.add_entry(&entry);
             spool.reference_entries.push(&entry).map_err(index)?;
         }
-        // Trait identity/seed preparation remains specialized, but exact references
-        // join this same oriented occurrence owner.
         for authored in trait_definitions() {
-            let key: DefinitionKey = atlas_domain::TraitKey::new(authored.identifier)
-                .map_err(invalid)?
-                .into();
-            self.targets.insert(
-                key.clone(),
-                DefinitionReferenceTarget::Definition { key: key.clone() },
-            );
-            for localization in [authored.label_key, authored.description_key]
-                .into_iter()
-                .flatten()
-            {
-                self.localization_keys
-                    .entry(localization.into())
-                    .or_default()
-                    .insert(key.clone());
-            }
+            let key = atlas_domain::TraitKey::new(authored.identifier).map_err(invalid)?;
+            abilities.add_trait(key.into(), authored.label_key, authored.description_key);
         }
-        let mut cursor = self.occurrences.cursor().map_err(index)?;
-        while let Some(occurrence) = cursor.next_frame().map_err(index)? {
-            if let Some(target) = self.resolve_localization(&occurrence.occurrence.localization_key)
-            {
-                if !self.pack_applies(occurrence.locator.record.pack().as_str())
-                    && !matches!(&target, DefinitionReferenceTarget::Definition { key } if key.namespace() == DefinitionNamespace::Trait)
-                {
-                    continue;
+        self.occurrences
+            .visit(&mut |occurrences| {
+                for evidence in abilities.project(occurrences) {
+                    spool.owned_ability_evidence.push(&evidence)?;
                 }
-                spool
-                    .definition_references
-                    .push(&DefinitionReferenceInput {
-                        source: DefinitionReferenceSource::Record {
-                            key: occurrence.locator.record,
-                            owners: occurrence.locator.owners,
-                            field: Some(occurrence.locator.field),
-                        },
-                        target,
-                        occurrence_path: occurrence.occurrence.path,
-                        evidence: occurrence.occurrence.localization_key,
-                        label: occurrence.source_label,
-                        visible: occurrence.occurrence.visible,
-                    })
-                    .map_err(index)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn resolve_localization(&self, key: &str) -> Option<DefinitionReferenceTarget> {
-        let candidates = self.localization_keys.get(key)?;
-        let mut targets = BTreeMap::new();
-        for key in candidates {
-            let target = self.targets.get(key)?;
-            targets.insert(serde_json::to_string(target).ok()?, target);
-        }
-        // Several contextual tokens may point to the exact same real record.
-        // Distinct standalone targets sharing prose remain ambiguous.
-        (targets.len() == 1)
-            .then(|| targets.into_values().next().cloned())
-            .flatten()
-    }
-
-    pub(crate) fn publish_trait_localization_references(
-        &self,
-        key: &atlas_domain::TraitKey,
-        markup: &str,
-        spool: &mut PublicationSpool,
-    ) -> Result<(), IngestError> {
-        for occurrence in
-            authored_localization_occurrences(markup, self.audience, ContentVisibilityRule::All)
-        {
-            if let Some(target) = self.resolve_localization(&occurrence.localization_key) {
-                spool
-                    .definition_references
-                    .push(&DefinitionReferenceInput {
-                        source: DefinitionReferenceSource::Definition {
-                            key: key.clone().into(),
-                        },
-                        target,
-                        occurrence_path: occurrence.path,
-                        evidence: occurrence.localization_key,
-                        label: None,
-                        visible: occurrence.visible,
-                    })
-                    .map_err(index)?;
-            }
-        }
-        Ok(())
+                Ok(())
+            })
+            .map_err(index)
     }
 
     fn entry(
@@ -413,14 +288,6 @@ impl<'a> ReferenceBuild<'a> {
                     vec![]
                 },
             },
-            filter_bindings: authored
-                .filter_fields
-                .iter()
-                .map(|field| ReferenceFilterBinding {
-                    field: (*field).to_owned(),
-                    value: authored.identifier.into(),
-                })
-                .collect(),
         };
         if !self.applicable {
             entry.availability = ReferenceAvailability::SourceInapplicable;
@@ -480,7 +347,6 @@ impl<'a> ReferenceBuild<'a> {
                 "orc-license".into(),
                 "player-core".into(),
                 "pf2etools-formatting".into(),
-                "reference-subset-manifest".into(),
             ]);
             if key.namespace() == DefinitionNamespace::Language {
                 entry.permission.notices.push("community-use".into());

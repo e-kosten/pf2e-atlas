@@ -80,7 +80,6 @@ pub fn open_input_fixture_with_references(
     input: IndexBuildInput,
     entries: &[ReferenceEntry],
     notices: &[ReferenceNotice],
-    occurrences: &[DefinitionReferenceInput],
 ) -> Result<(crate::AtlasRetrievalService, FixtureArtifact), crate::SearchError> {
     let artifact = FixtureArtifact {
         directory: tempfile::tempdir()
@@ -91,7 +90,6 @@ pub fn open_input_fixture_with_references(
         &input,
         entries,
         notices,
-        occurrences,
     )?;
     let reader = atlas_index::test_support::open_reader(artifact.path())?;
     if !input.context.search_profiles.is_empty() {

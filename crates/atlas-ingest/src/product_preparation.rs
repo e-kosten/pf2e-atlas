@@ -724,9 +724,6 @@ pub(crate) fn prepare(
         &resolver,
         &mut |definition, inputs| {
             let key = definition.key.clone();
-            if let Some(markup) = &definition.authored_markup {
-                reference_build.publish_trait_localization_references(&key, markup, &mut spool)?;
-            }
             spool.traits.push(&definition).map_err(index)?;
             for input in inputs {
                 let address = input.address.clone();

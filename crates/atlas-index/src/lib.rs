@@ -153,9 +153,10 @@ mod lexical_projection;
 pub use lexical_projection::project_lexical_units;
 pub use schema::LEXICAL_ALIAS_SCHEMA_SQL;
 
+mod owned_abilities;
 #[cfg(test)]
 mod reference_coverage_tests;
-mod reference_evidence;
+pub use owned_abilities::{OwnedAbilityCatalog, OwnedAbilityEvidence, OwnedAbilityTarget};
 mod reference_migration;
 #[cfg(test)]
 mod reference_tests;
@@ -163,13 +164,12 @@ mod references;
 mod traits;
 pub use reference_migration::{REFERENCE_ENTRIES_SCHEMA_SQL, backfill_reference_entries};
 pub use references::{
-    DefinitionReferenceInput, DefinitionReferenceSource, DefinitionReferenceTarget,
     ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
-    ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice,
-    ReferencePermission, ReferencePermissionDisposition, ReferencePreparation, ReferenceProvenance,
+    ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
+    ReferencePermissionDisposition, ReferencePreparation, ReferenceProvenance,
     ReferencePublication, ReferenceRecordMapping, ReferenceSourceLocation, ReferenceSummary,
-    ReferenceSummaryBacking, ReferenceSummaryBatch, SourceDefinitionTarget,
-    reference_inventory_identity, reference_pack_applies,
+    ReferenceSummaryBacking, ReferenceSummaryBatch, reference_inventory_identity,
+    reference_pack_applies,
 };
 pub use traits::{
     TRAIT_SCHEMA_SQL, TraitDefinition, TraitMembership, TraitReference, TraitReferenceInput,

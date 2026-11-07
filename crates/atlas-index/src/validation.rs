@@ -109,6 +109,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     // No source bodies or prose survive this first pass; later edge checks use
     // that same source-owner resolver instead of decoding a target per edge.
     let mut reference_index = atlas_record::source_record::SourceReferenceIndex::default();
+    let abilities = crate::references::audit_catalog(c, context.reference_preparation.as_ref())?;
     let total_roots = count(c, "records")?;
     {
         let mut cursor = root_query.query([])?;
@@ -116,6 +117,20 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         while let Some(row) = cursor.next()? {
             let record = checked_record_row(row)?;
             trait_evidence.add_record(&record, context.audience)?;
+            let occurrences = if crate::reference_pack_applies(
+                context.reference_preparation.as_ref(),
+                "pf2e",
+                record.key().pack().as_str(),
+            ) {
+                atlas_record::source_record::owned_action_localizations(&record, context.audience)
+            } else {
+                vec![]
+            };
+            crate::owned_abilities::validate_record(
+                c,
+                record.key(),
+                abilities.project(occurrences),
+            )?;
             reference_index.insert_source(record.key(), record.source());
             checked += 1;
             if checked.is_multiple_of(500) || checked == total_roots {
@@ -124,7 +139,6 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         }
     }
     trait_evidence.validate(c)?;
-    crate::reference_evidence::validate(c, &context, &reference_index)?;
     let mut cursor = root_query.query([])?;
     while let Some(row) = cursor.next()? {
         roots += 1;

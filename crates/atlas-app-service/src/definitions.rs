@@ -6,8 +6,8 @@ use atlas_domain::{
     QueryFieldType, QueryLiteral, QueryPredicate, QuerySetMatch, RecordKey,
 };
 use atlas_search::{
-    AtlasRetrievalService, ReferenceBacking, ReferenceCoverage, ReferenceFilterBinding,
-    ReferenceSummary, ReferenceSummaryBacking,
+    AtlasRetrievalService, ReferenceBacking, ReferenceCoverage, ReferenceSummary,
+    ReferenceSummaryBacking,
 };
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -52,11 +52,13 @@ impl AtlasAppService {
             if detail.help.is_none() {
                 return Ok(detail);
             }
-            let catalog = r.discover_filter_fields()?;
-            for binding in &entry.filter_bindings {
-                if let Some(action) = property_action(binding, &catalog)? {
-                    detail.related_filters.push(action);
-                }
+            let fields = crate::definition_values::association_fields(key.namespace());
+            if !fields.is_empty() {
+                let catalog = r.discover_filter_fields()?;
+                detail.related_filters = fields
+                    .iter()
+                    .map(|(field, label)| property_action(field, key.identifier(), label, &catalog))
+                    .collect::<AppServiceResult<_>>()?;
             }
             detail.publications = entry
                 .provenance
@@ -68,19 +70,21 @@ impl AtlasAppService {
                     license: p.license,
                 })
                 .collect();
-            for id in &entry.permission.notices {
-                let notice = r.reference_notice(id)?.ok_or_else(|| {
-                    AppServiceError::new(
-                        AppErrorCode::ArtifactIncompatible,
-                        format!("Definition notice {id} is unavailable"),
-                    )
-                })?;
-                detail.notices.push(DefinitionNoticeView {
+            let notices = r.reference_notices(&entry.permission.notices)?;
+            if notices.len() != entry.permission.notices.len() {
+                return Err(AppServiceError::new(
+                    AppErrorCode::ArtifactIncompatible,
+                    "A required definition notice is unavailable",
+                ));
+            }
+            detail.notices = notices
+                .into_iter()
+                .map(|notice| DefinitionNoticeView {
                     id: notice.id,
                     text: notice.text,
                     source_url: notice.source_url,
-                });
-            }
+                })
+                .collect();
             projection_execution.check()?;
             if let ReferenceBacking::Prepared { content, .. } = entry.backing {
                 detail.content = Some(crate::prepared_content::reference_body(
@@ -151,27 +155,23 @@ pub(crate) fn record_navigation(
     }
 }
 
-/// Published bindings select compiled fields; they never supply executable SQL.
 fn property_action(
-    binding: &ReferenceFilterBinding,
+    path: &str,
+    value: &str,
+    label: &str,
     catalog: &QueryCapability,
-) -> AppServiceResult<Option<ReferenceFilterActionView>> {
-    let path = binding.field.as_str();
+) -> AppServiceResult<ReferenceFilterActionView> {
     let field = catalog
         .fields
         .iter()
-        .find(|f| f.scope.is_none() && (f.id == path || f.path == path))
+        .find(|f| f.scope.is_none() && f.id == path)
         .ok_or_else(|| {
             AppServiceError::new(
                 AppErrorCode::ArtifactIncompatible,
                 format!("Property filter field {path} is unavailable"),
             )
         })?;
-    if field.field_type == QueryFieldType::Number {
-        return Ok(None);
-    }
-    let value = &binding.value;
-    let (predicate, label) = match field.field_type {
+    let expression = match field.field_type {
         QueryFieldType::Collection => {
             let member = catalog
                 .fields
@@ -183,59 +183,26 @@ fn property_action(
                         format!("Property filter member for {path} is unavailable"),
                     )
                 })?;
-            let predicate = QueryPredicate::new(QueryExpression::Exists {
+            QueryExpression::Exists {
                 collection: field.path.clone(),
                 scope_id: "definition_value".into(),
                 predicate: Box::new(QueryPredicate::new(QueryExpression::Compare {
                     field: member.path.clone(),
                     op: QueryCompare::Eq,
-                    value: QueryLiteral::String(value.clone()),
+                    value: QueryLiteral::String(value.into()),
                 })),
-            });
-            (
-                predicate,
-                match path {
-                    "senses" => "With this sense".to_owned(),
-                    "defenses.immunities" => "With this immunity".into(),
-                    "defenses.weaknesses" => "With this weakness".into(),
-                    "defenses.resistances" => "With this resistance".into(),
-                    _ => field.label.clone(),
-                },
-            )
+            }
         }
-        QueryFieldType::Set => (
-            QueryPredicate::new(QueryExpression::SetMatch {
-                field: field.path.clone(),
-                op: QuerySetMatch::Includes,
-                values: vec![value.clone()],
-            }),
-            match path {
-                "languages" => "With this language".into(),
-                "deity.domains.primary" => "With this primary domain".into(),
-                "deity.domains.alternate" => "With this alternate domain".into(),
-                "traits" => "With this trait".into(),
-                "spell.traditions" => "With this tradition".into(),
-                _ => field.label.clone(),
-            },
-        ),
-        QueryFieldType::String => (
-            QueryPredicate::new(QueryExpression::Compare {
-                field: field.path.clone(),
-                op: QueryCompare::Eq,
-                value: QueryLiteral::String(value.clone()),
-            }),
-            match path {
-                "weapon.group" => "In this weapon group".into(),
-                "armor.group" => "In this armor group".into(),
-                "body.size" => "With this body size".into(),
-                "physical.size" => "With this item size".into(),
-                "ancestry.default_size" => "With this ancestry size".into(),
-                "weapon.damage.type" => "With this weapon damage".into(),
-                "consumable.damage.type" => "With this consumable damage".into(),
-                "rarity" => "With this rarity".into(),
-                _ => field.label.clone(),
-            },
-        ),
+        QueryFieldType::Set => QueryExpression::SetMatch {
+            field: field.path.clone(),
+            op: QuerySetMatch::Includes,
+            values: vec![value.into()],
+        },
+        QueryFieldType::String => QueryExpression::Compare {
+            field: field.path.clone(),
+            op: QueryCompare::Eq,
+            value: QueryLiteral::String(value.into()),
+        },
         QueryFieldType::Boolean | QueryFieldType::Number => {
             return Err(AppServiceError::new(
                 AppErrorCode::ArtifactIncompatible,
@@ -243,7 +210,10 @@ fn property_action(
             ));
         }
     };
-    Ok(Some(ReferenceFilterActionView { label, predicate }))
+    Ok(ReferenceFilterActionView {
+        label: label.into(),
+        predicate: QueryPredicate::new(expression),
+    })
 }
 
 /// One body-free metadata batch per selected presentation (split only at the
@@ -371,48 +341,53 @@ mod tests {
     fn related_property_actions_are_executable_and_exclude_numeric_fields() {
         let (retrieval, _artifact) = crate::test_support::fixture_retrieval().unwrap();
         let catalog = retrieval.discover_filter_fields().unwrap();
-        let binding = |field: &str, value: &str| ReferenceFilterBinding {
-            field: field.into(),
-            value: value.into(),
-        };
-        for (field, value, expected_label) in [
-            ("languages", "common", "With this language"),
-            ("senses", "darkvision", "With this sense"),
-            ("defenses.immunities", "fire", "With this immunity"),
-            ("defenses.weaknesses", "fire", "With this weakness"),
-            ("defenses.resistances", "fire", "With this resistance"),
-            ("deity.domains.primary", "air", "With this primary domain"),
+        for (definition, expected_labels) in [
+            ("language:common", &["With this language"][..]),
+            ("sense:darkvision", &["With this sense"]),
+            ("immunity_type:fire", &["With this immunity"]),
+            ("weakness_type:fire", &["With this weakness"]),
+            ("resistance_type:fire", &["With this resistance"]),
             (
-                "deity.domains.alternate",
-                "air",
-                "With this alternate domain",
+                "domain:air",
+                &["With this primary domain", "With this alternate domain"],
             ),
-            ("traits", "fire", "With this trait"),
-            ("weapon.group", "sword", "In this weapon group"),
-            ("armor.group", "chain", "In this armor group"),
-            ("body.size", "med", "With this body size"),
-            ("physical.size", "med", "With this item size"),
-            ("ancestry.default_size", "med", "With this ancestry size"),
-            ("weapon.damage.type", "fire", "With this weapon damage"),
+            ("trait:fire", &["With this trait"]),
+            ("weapon_group:sword", &["In this weapon group"]),
+            ("armor_group:chain", &["In this armor group"]),
             (
-                "consumable.damage.type",
-                "fire",
-                "With this consumable damage",
+                "size:med",
+                &[
+                    "With this body size",
+                    "With this item size",
+                    "With this ancestry size",
+                ],
             ),
-            ("rarity", "uncommon", "With this rarity"),
-            ("spell.traditions", "arcane", "With this tradition"),
+            (
+                "damage_type:fire",
+                &["With this weapon damage", "With this consumable damage"],
+            ),
+            ("rarity:uncommon", &["With this rarity"]),
+            ("tradition:arcane", &["With this tradition"]),
+            ("ability:str", &[]),
         ] {
-            let action = property_action(&binding(field, value), &catalog)
-                .unwrap()
-                .unwrap();
-            retrieval.validate_filter(&action.predicate).unwrap();
-            assert_eq!(action.label, expected_label);
+            let key: DefinitionKey = definition.parse().unwrap();
+            let actions = crate::definition_values::association_fields(key.namespace())
+                .iter()
+                .map(|(field, label)| {
+                    property_action(field, key.identifier(), label, &catalog).unwrap()
+                })
+                .collect::<Vec<_>>();
+            for action in &actions {
+                retrieval.validate_filter(&action.predicate).unwrap();
+            }
+            assert_eq!(
+                actions
+                    .iter()
+                    .map(|action| action.label.as_str())
+                    .collect::<Vec<_>>(),
+                expected_labels
+            );
         }
-        assert!(
-            property_action(&binding("abilities.str.modifier", "str"), &catalog)
-                .unwrap()
-                .is_none()
-        );
-        assert!(property_action(&binding("invented.field", "x"), &catalog).is_err());
+        assert!(property_action("invented.field", "x", "", &catalog).is_err());
     }
 }

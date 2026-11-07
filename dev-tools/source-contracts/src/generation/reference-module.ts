@@ -5,6 +5,18 @@ export function generateReferenceModule(catalog: ReferenceCatalog, header: strin
   source: { repository: string; commit: string }): string {
   const quote = (value: string) => JSON.stringify(value).replace(/\\u([0-9a-f]{4})/gi, '\\u{$1}');
   const optional = (value: string | null) => value === null ? 'None' : `Some(${quote(value)})`;
+  const row = (entry: ReferenceCatalog['definitions'][number]) => {
+    const { namespace, identifier, labelKey, sourceFile, sourceLine } = entry;
+    let value = `    FoundryReferenceDefinition::new(${quote(namespace)}, ${quote(identifier)}, ${optional(labelKey)}, ${quote(sourceFile)}, ${sourceLine})`;
+    if (entry.descriptionKey !== null) value += `.described_by(${quote(entry.descriptionKey)})`;
+    if (entry.displayLabel !== null) value += `.labeled(${quote(entry.displayLabel)})`;
+    if (entry.recordKey !== null) {
+      if (entry.expectedFamily === null) throw new Error('Mapped reference has no expected family: ' + identifier);
+      value += `.mapped_to(${quote(entry.recordKey)}, ${quote(entry.expectedFamily)}, ${optional(entry.requiredLocalizationKey)})`;
+    }
+    if (entry.excluded) value += '.excluded()';
+    return value + ',';
+  };
   return `${header}
 // Exact reference vocabulary and record pointers.
 // ${source.repository.replace(/\.git$/, '')}/tree/${source.commit}
@@ -30,23 +42,43 @@ pub struct FoundryReferenceDefinition {
     pub source_file: &'static str,
     pub source_line: u32,
     pub excluded: bool,
-    pub filter_fields: &'static [&'static str],
 }
+impl FoundryReferenceDefinition {
+    const fn new(
+        namespace: &'static str,
+        identifier: &'static str,
+        label_key: Option<&'static str>,
+        source_file: &'static str,
+        source_line: u32,
+    ) -> Self {
+        Self {
+            namespace, identifier, label_key, source_file, source_line,
+            description_key: None, display_label: None, record_key: None,
+            expected_family: None, required_localization_key: None, excluded: false,
+        }
+    }
+    const fn described_by(mut self, key: &'static str) -> Self {
+        self.description_key = Some(key);
+        self
+    }
+    const fn labeled(mut self, label: &'static str) -> Self {
+        self.display_label = Some(label);
+        self
+    }
+    const fn mapped_to(mut self, key: &'static str, family: &'static str, required: Option<&'static str>) -> Self {
+        self.record_key = Some(key);
+        self.expected_family = Some(family);
+        self.required_localization_key = required;
+        self
+    }
+    const fn excluded(mut self) -> Self {
+        self.excluded = true;
+        self
+    }
+}
+#[rustfmt::skip]
 static DEFINITIONS: &[FoundryReferenceDefinition] = &[
-${catalog.definitions.map(definition => `    FoundryReferenceDefinition {
-        namespace: ${quote(definition.namespace)},
-        identifier: ${quote(definition.identifier)},
-        label_key: ${optional(definition.labelKey)},
-        description_key: ${optional(definition.descriptionKey)},
-        display_label: ${optional(definition.displayLabel)},
-        record_key: ${optional(definition.recordKey)},
-        expected_family: ${optional(definition.expectedFamily)},
-        required_localization_key: ${optional(definition.requiredLocalizationKey)},
-        source_file: ${quote(definition.sourceFile)},
-        source_line: ${definition.sourceLine},
-        excluded: ${definition.excluded},
-        filter_fields: &[${definition.filterFields.map(quote).join(', ')}],
-    },`).join('\n')}
+${catalog.definitions.map(row).join('\n')}
 ];
 pub fn reference_definitions() -> &'static [FoundryReferenceDefinition] { DEFINITIONS }
 

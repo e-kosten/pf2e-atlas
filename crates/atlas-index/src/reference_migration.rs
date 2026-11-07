@@ -38,16 +38,5 @@ fn backfill(c: &Connection) -> Result<(), IndexError> {
             params![json, crate::codec::sha256(json.as_bytes()), key],
         )?;
     }
-    let rows = c
-        .prepare(
-            "SELECT evidence FROM legacy_trait_references ORDER BY trait_key,record_key,evidence",
-        )?
-        .query_map([], |r| r.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    for json in rows {
-        let reference: crate::TraitReferenceInput = serde_json::from_str(&json)?;
-        crate::references::insert_reference(c, &reference.into())?;
-    }
-    c.execute_batch("DROP TABLE legacy_trait_references;")?;
     Ok(())
 }

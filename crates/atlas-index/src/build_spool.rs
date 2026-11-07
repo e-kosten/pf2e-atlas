@@ -294,7 +294,7 @@ pub struct PublicationSpool {
     pub traits: BuildFrameStream<TraitDefinition>,
     pub reference_entries: BuildFrameStream<crate::ReferenceEntry>,
     pub reference_notices: BuildFrameStream<crate::ReferenceNotice>,
-    pub definition_references: BuildFrameStream<crate::DefinitionReferenceInput>,
+    pub owned_ability_evidence: BuildFrameStream<crate::OwnedAbilityEvidence>,
     pub trait_seeds: BuildFrameStream<TraitSeedOccurrence>,
     preparation_hash: String,
     root_keys: std::collections::BTreeSet<atlas_domain::RecordKey>,
@@ -326,7 +326,7 @@ impl PublicationSpool {
             traits: BuildFrameStream::new_in(scratch)?,
             reference_entries: BuildFrameStream::new_in(scratch)?,
             reference_notices: BuildFrameStream::new_in(scratch)?,
-            definition_references: BuildFrameStream::new_in(scratch)?,
+            owned_ability_evidence: BuildFrameStream::new_in(scratch)?,
             trait_seeds: BuildFrameStream::new_in(scratch)?,
         })
     }
@@ -389,7 +389,7 @@ impl PublicationSpool {
             self.traits.file_usage()?,
             self.reference_entries.file_usage()?,
             self.reference_notices.file_usage()?,
-            self.definition_references.file_usage()?,
+            self.owned_ability_evidence.file_usage()?,
             self.trait_seeds.file_usage()?,
         ] {
             usage = usage.combine(next)?;

@@ -11,12 +11,10 @@ mod records;
 mod reference_resolution;
 mod references;
 pub use references::{
-    DefinitionReferenceInput, DefinitionReferenceSource, DefinitionReferenceTarget,
-    ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
-    ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice,
-    ReferencePermission, ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
+    OwnedAbilityTarget, ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
+    ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
+    ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
     ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking, ReferenceSummaryBatch,
-    SourceDefinitionTarget,
 };
 mod service;
 pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};

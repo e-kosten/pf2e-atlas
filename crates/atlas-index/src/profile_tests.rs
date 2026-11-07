@@ -398,7 +398,8 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
         "lexical_units",
         "reference_entries",
         "trait_memberships",
-        "definition_reference_occurrences",
+        "trait_references",
+        "owned_ability_evidence",
         "reference_component_digests",
     ];
     c.execute_batch(

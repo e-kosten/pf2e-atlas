@@ -1,6 +1,6 @@
 //! Canonical vocabulary content and exact source evidence, without record copies.
 use crate::{IndexError, SqliteIndexReader};
-use atlas_domain::{DefinitionKey, DefinitionNamespace, OwnedContentLocator, RecordKey};
+use atlas_domain::{DefinitionKey, DefinitionNamespace, RecordKey};
 use atlas_record::source_content::PreparedReferenceDefinition;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -157,13 +157,6 @@ pub enum ReferenceGrantScope {
     DescriptiveReferences,
 }
 
-/// Discovery metadata. Query construction and execution remain query-owned.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ReferenceFilterBinding {
-    pub field: String,
-    pub value: String,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ReferenceBacking {
@@ -185,7 +178,6 @@ pub struct ReferenceEntry {
     pub backing: ReferenceBacking,
     pub provenance: ReferenceProvenance,
     pub permission: ReferencePermission,
-    pub filter_bindings: Vec<ReferenceFilterBinding>,
 }
 
 /// Metadata-only view of a canonical entry. The prepared body is not decoded.
@@ -193,11 +185,7 @@ pub struct ReferenceEntry {
 pub struct ReferenceSummary {
     pub key: DefinitionKey,
     pub label: String,
-    pub availability: ReferenceAvailability,
     pub backing: ReferenceSummaryBacking,
-    pub provenance: ReferenceProvenance,
-    pub permission: ReferencePermission,
-    pub filter_bindings: Vec<ReferenceFilterBinding>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -221,20 +209,11 @@ pub struct ReferenceSummaryBatch {
     pub missing: Vec<DefinitionKey>,
 }
 
-/// Uniqueness is decided over the complete indexed source, not a preview page.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SourceDefinitionTarget {
-    None,
-    Unique { target: DefinitionReferenceTarget },
-    Ambiguous,
-}
-
 impl From<&ReferenceEntry> for ReferenceSummary {
     fn from(entry: &ReferenceEntry) -> Self {
         Self {
             key: entry.key.clone(),
             label: entry.label.clone(),
-            availability: entry.availability,
             backing: match &entry.backing {
                 ReferenceBacking::Prepared { content, .. } => ReferenceSummaryBacking::Prepared {
                     readable: atlas_record::source_content::has_prepared_reading_content(
@@ -248,9 +227,6 @@ impl From<&ReferenceEntry> for ReferenceSummary {
                 }
                 ReferenceBacking::None => ReferenceSummaryBacking::None,
             },
-            provenance: entry.provenance.clone(),
-            permission: entry.permission.clone(),
-            filter_bindings: entry.filter_bindings.clone(),
         }
     }
 }
@@ -277,41 +253,6 @@ pub struct ReferenceNotice {
     pub sha256: String,
     pub text: String,
     pub source_url: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum DefinitionReferenceSource {
-    Record {
-        key: RecordKey,
-        owners: Vec<OwnedContentLocator>,
-        field: Option<String>,
-    },
-    Definition {
-        key: DefinitionKey,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum DefinitionReferenceTarget {
-    Record {
-        key: RecordKey,
-        owners: Vec<OwnedContentLocator>,
-    },
-    Definition {
-        key: DefinitionKey,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DefinitionReferenceInput {
-    pub source: DefinitionReferenceSource,
-    pub target: DefinitionReferenceTarget,
-    pub occurrence_path: String,
-    pub evidence: String,
-    pub label: Option<String>,
-    pub visible: bool,
 }
 
 impl ReferenceEntry {
@@ -370,10 +311,6 @@ impl ReferenceEntry {
                 label_grants: vec![],
                 notices: vec![],
             },
-            filter_bindings: vec![ReferenceFilterBinding {
-                field: "traits".into(),
-                value: definition.key.identifier().into(),
-            }],
         })
     }
 
@@ -411,73 +348,6 @@ impl ReferenceEntry {
             source_revision: self.provenance.source_revision.clone(),
             indexing_locale: self.provenance.indexing_locale.clone(),
             content_locale: self.provenance.content_locale.clone(),
-        })
-    }
-}
-
-impl From<crate::TraitReferenceInput> for DefinitionReferenceInput {
-    fn from(reference: crate::TraitReferenceInput) -> Self {
-        let key = DefinitionKey::from(reference.key);
-        let (source, target) = if reference.direction == "outgoing" {
-            (
-                DefinitionReferenceSource::Definition { key },
-                DefinitionReferenceTarget::Record {
-                    key: reference.record,
-                    owners: reference.owners,
-                },
-            )
-        } else {
-            (
-                DefinitionReferenceSource::Record {
-                    key: reference.record,
-                    owners: reference.owners,
-                    field: reference.field,
-                },
-                DefinitionReferenceTarget::Definition { key },
-            )
-        };
-        Self {
-            source,
-            target,
-            occurrence_path: reference.occurrence_path,
-            evidence: reference.evidence,
-            label: reference.source_label,
-            visible: true,
-        }
-    }
-}
-
-impl DefinitionReferenceInput {
-    pub(crate) fn trait_view(
-        &self,
-        key: &atlas_domain::TraitKey,
-    ) -> Option<crate::TraitReferenceInput> {
-        if !self.visible {
-            return None;
-        }
-        let definition_key = DefinitionKey::from(key.clone());
-        let (record, owners, field, direction) = match (&self.source, &self.target) {
-            (
-                DefinitionReferenceSource::Record { key, owners, field },
-                DefinitionReferenceTarget::Definition { key: target },
-            ) if target == &definition_key => {
-                (key.clone(), owners.clone(), field.clone(), "incoming")
-            }
-            (
-                DefinitionReferenceSource::Definition { key: source },
-                DefinitionReferenceTarget::Record { key, owners },
-            ) if source == &definition_key => (key.clone(), owners.clone(), None, "outgoing"),
-            _ => return None,
-        };
-        Some(crate::TraitReferenceInput {
-            source_label: self.label.clone(),
-            owners,
-            field,
-            direction: direction.into(),
-            occurrence_path: self.occurrence_path.clone(),
-            key: key.clone(),
-            record,
-            evidence: self.evidence.clone(),
         })
     }
 }
@@ -599,106 +469,31 @@ impl SqliteIndexReader {
         Ok(())
     }
 
-    pub fn reference_notice(&self, id: &str) -> Result<Option<ReferenceNotice>, IndexError> {
-        let notice = self
-            .native()?
-            .query_row(
-                "SELECT id,sha256,text,source_url FROM reference_notices WHERE id=?",
-                [id],
-                |r| {
-                    Ok(ReferenceNotice {
-                        id: r.get(0)?,
-                        sha256: r.get(1)?,
-                        text: r.get(2)?,
-                        source_url: r.get(3)?,
-                    })
-                },
-            )
-            .optional()?;
-        if let Some(notice) = &notice {
-            validate_notice(notice)?;
+    pub fn reference_notices(&self, ids: &[String]) -> Result<Vec<ReferenceNotice>, IndexError> {
+        if ids.is_empty() {
+            return Ok(vec![]);
         }
-        Ok(notice)
-    }
-
-    /// Resolve a general-help target using every visible occurrence on the exact
-    /// owner. Two distinct destinations remain ambiguous even beyond page one.
-    pub fn source_definition_target(
-        &self,
-        record: &RecordKey,
-        owners: &[OwnedContentLocator],
-        field: Option<&str>,
-    ) -> Result<SourceDefinitionTarget, IndexError> {
-        self.require_complete_reference_evidence()?;
-        let source = DefinitionReferenceSource::Record {
-            key: record.clone(),
-            owners: owners.to_vec(),
-            field: field.map(str::to_owned),
-        };
-        let mut statement = self.native()?.prepare(
-            "SELECT min(occurrence_id), evidence FROM definition_reference_occurrences
-             WHERE visible=1 AND source_record_key=?1
-               AND json_extract(evidence,'$.source.owners')=?2
-               AND (?3 IS NULL OR json_extract(evidence,'$.source.field')=?3)
-             GROUP BY json_extract(evidence,'$.target') ORDER BY min(occurrence_id) LIMIT 2",
+        let mut statement = self.native()?.prepare_cached(
+            "SELECT n.id,n.sha256,n.text,n.source_url
+             FROM json_each(?) requested JOIN reference_notices n ON n.id=requested.value
+             ORDER BY requested.key",
         )?;
-        let key = record.to_string();
-        let owners = serde_json::to_string(owners)?;
-        let mut targets = Vec::new();
-        for row in statement.query_map(params![key, owners, field], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-        })? {
-            let (id, json) = row?;
-            targets.push(decode_source_occurrence(&source, &id, &json)?.target);
-        }
-        Ok(match targets.as_slice() {
-            [] => SourceDefinitionTarget::None,
-            [target] => SourceDefinitionTarget::Unique {
-                target: target.clone(),
-            },
-            _ => SourceDefinitionTarget::Ambiguous,
-        })
+        statement
+            .query_map([serde_json::to_string(ids)?], |row| {
+                Ok(ReferenceNotice {
+                    id: row.get(0)?,
+                    sha256: row.get(1)?,
+                    text: row.get(2)?,
+                    source_url: row.get(3)?,
+                })
+            })?
+            .map(|row| {
+                let notice = row?;
+                validate_notice(&notice)?;
+                Ok(notice)
+            })
+            .collect()
     }
-
-    fn require_complete_reference_evidence(&self) -> Result<(), IndexError> {
-        if self.reference_coverage() != ReferenceCoverage::Complete {
-            return Err(IndexError::Unavailable(
-                "glossary occurrence coverage requires explicit atlas setup".into(),
-            ));
-        }
-        Ok(())
-    }
-}
-
-fn decode_source_occurrence(
-    source: &DefinitionReferenceSource,
-    id: &str,
-    json: &str,
-) -> Result<DefinitionReferenceInput, IndexError> {
-    let occurrence: DefinitionReferenceInput = serde_json::from_str(json)?;
-    let matches_source = match (source, &occurrence.source) {
-        (
-            DefinitionReferenceSource::Record { key, owners, field },
-            DefinitionReferenceSource::Record {
-                key: actual_key,
-                owners: actual_owners,
-                field: actual_field,
-            },
-        ) => {
-            key == actual_key
-                && owners == actual_owners
-                && field
-                    .as_ref()
-                    .is_none_or(|field| actual_field.as_ref() == Some(field))
-        }
-        _ => source == &occurrence.source,
-    };
-    if reference_id(&occurrence)? != id || !occurrence.visible || !matches_source {
-        return Err(IndexError::Invalid(
-            "definition occurrence identity/source mismatch".into(),
-        ));
-    }
-    Ok(occurrence)
 }
 
 pub(crate) fn read_entry(
@@ -785,11 +580,30 @@ fn decode_reference_summary(
             "reference definition identity mismatch".into(),
         ));
     }
-    validate_reference_summary(c, &summary)?;
+    if summary.label.trim().is_empty() {
+        return Err(IndexError::Invalid("empty reference label".into()));
+    }
+    if let ReferenceSummaryBacking::Record { key } = &summary.backing {
+        validate_record_target(c, key)?;
+    }
     Ok(summary)
 }
 
-fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Result<(), IndexError> {
+fn validate_record_target(c: &Connection, key: &RecordKey) -> Result<(), IndexError> {
+    let exists = c.query_row(
+        "SELECT EXISTS(SELECT 1 FROM records WHERE key=?)",
+        [key.to_string()],
+        |r| r.get::<_, bool>(0),
+    )?;
+    if !exists {
+        return Err(IndexError::Invalid(
+            "reference record backing is unavailable".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_reference_metadata(c: &Connection, entry: &ReferenceEntry) -> Result<(), IndexError> {
     if entry.label.trim().is_empty()
         || entry.provenance.indexing_locale.is_empty()
         || entry.provenance.source_package.is_empty()
@@ -798,7 +612,7 @@ fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Resul
         return Err(IndexError::Invalid("incomplete reference metadata".into()));
     }
     if (entry.availability == ReferenceAvailability::Available)
-        == matches!(&entry.backing, ReferenceSummaryBacking::None)
+        == matches!(&entry.backing, ReferenceBacking::None)
     {
         return Err(IndexError::Invalid(
             "reference availability differs from its backing".into(),
@@ -813,17 +627,6 @@ fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Resul
         return Err(IndexError::Invalid(
             "invalid reference source checksum".into(),
         ));
-    }
-    let mut bindings = std::collections::BTreeSet::new();
-    for binding in &entry.filter_bindings {
-        if binding.field.is_empty()
-            || binding.value.is_empty()
-            || !bindings.insert((&binding.field, &binding.value))
-        {
-            return Err(IndexError::Invalid(
-                "invalid or duplicate reference filter binding".into(),
-            ));
-        }
     }
     for grants in [
         &entry.permission.body_grants,
@@ -850,20 +653,16 @@ fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Resul
         }
     }
     match &entry.backing {
-        ReferenceSummaryBacking::Record { key } => {
+        ReferenceBacking::Record { key } => {
             if entry.permission.disposition != ReferencePermissionDisposition::ExistingRecordPolicy
-                || !c.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM records WHERE key=?)",
-                    [key.to_string()],
-                    |r| r.get::<_, bool>(0),
-                )?
             {
                 return Err(IndexError::Invalid(
-                    "reference record backing is unavailable or has invalid permission".into(),
+                    "reference record backing has invalid permission".into(),
                 ));
             }
+            validate_record_target(c, key)?;
         }
-        ReferenceSummaryBacking::Prepared { .. } => {
+        ReferenceBacking::Prepared { .. } => {
             if !matches!(
                 entry.permission.disposition,
                 ReferencePermissionDisposition::ApprovedContent
@@ -884,7 +683,7 @@ fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Resul
                 ));
             }
         }
-        ReferenceSummaryBacking::None => {}
+        ReferenceBacking::None => {}
     }
     Ok(())
 }
@@ -895,7 +694,11 @@ fn validate_entry_metadata(
     preparation: Option<&ReferencePreparation>,
     inspect_retained_source: bool,
 ) -> Result<(), IndexError> {
-    validate_reference_summary(c, &ReferenceSummary::from(entry))?;
+    if inspect_retained_source {
+        validate_reference_metadata(c, entry)?;
+    } else if entry.label.trim().is_empty() {
+        return Err(IndexError::Invalid("empty reference label".into()));
+    }
     match &entry.backing {
         ReferenceBacking::None => {}
         ReferenceBacking::Record { key } => {
@@ -909,6 +712,8 @@ fn validate_entry_metadata(
                     ));
                 }
                 validate_record_mapping(c, entry, key)?;
+            } else {
+                validate_record_target(c, key)?;
             }
         }
         ReferenceBacking::Prepared {
@@ -983,51 +788,19 @@ fn validate_record_mapping(
         ));
     }
     if let Some(required) = &evidence.required_localization_key {
-        let mut map = atlas_record::source_content::DefinitionLocalizationMap::new();
-        map.entry(required.clone())
-            .or_default()
-            .insert(entry.key.clone());
         let audience = atlas_record::source_content::ContentAudience {
             include_gm: true,
             include_owner: true,
             implicit_check_dc: atlas_record::source_content::ContentVisibilityRule::All,
         };
-        if !atlas_record::source_record::definition_record_localization_references(
-            &record, audience, &map,
-        )
-        .iter()
-        .any(|r| r.locator.owners.is_empty() && r.locator.field == "/system/description/value")
+        if !atlas_record::source_record::root_description_localizations(&record, audience)
+            .any(|key| key == *required)
         {
             return Err(IndexError::Invalid(
                 "reference mapping required localization evidence differs".into(),
             ));
         }
     }
-    Ok(())
-}
-
-pub(crate) fn reference_id(reference: &DefinitionReferenceInput) -> Result<String, IndexError> {
-    Ok(crate::codec::sha256(&serde_json::to_vec(reference)?))
-}
-
-pub(crate) fn insert_reference(
-    c: &Connection,
-    reference: &DefinitionReferenceInput,
-) -> Result<(), IndexError> {
-    if reference.occurrence_path.is_empty() || reference.evidence.is_empty() {
-        return Err(IndexError::Invalid(
-            "invalid definition reference occurrence".into(),
-        ));
-    }
-    let (source_record, source_definition) = match &reference.source {
-        DefinitionReferenceSource::Record { key, .. } => (Some(key.to_string()), None),
-        DefinitionReferenceSource::Definition { key } => (None, Some(key.to_string())),
-    };
-    let (target_record, target_definition) = match &reference.target {
-        DefinitionReferenceTarget::Record { key, .. } => (Some(key.to_string()), None),
-        DefinitionReferenceTarget::Definition { key } => (None, Some(key.to_string())),
-    };
-    c.execute("INSERT INTO definition_reference_occurrences VALUES(?,?,?,?,?,?,?) ON CONFLICT(occurrence_id) DO NOTHING",params![reference_id(reference)?,source_record,source_definition,target_record,target_definition,reference.visible,serde_json::to_string(reference)?])?;
     Ok(())
 }
 
@@ -1106,105 +879,65 @@ pub(crate) fn write_entries(
     Ok(kept)
 }
 
-pub(crate) fn write_occurrences(
+pub(crate) fn audit_catalog(
     c: &Connection,
-    input: &crate::PublicationSpool,
-    outgoing: Vec<DefinitionReferenceInput>,
-) -> Result<(), IndexError> {
-    let mut desired = std::collections::BTreeMap::new();
-    input.definition_references.visit(&mut |reference| {
-        validate_reference(c, &reference, input.context.reference_preparation.as_ref())?;
-        let id = reference_id(&reference)?;
-        if desired.insert(id, reference).is_some() {
-            return Err(IndexError::Invalid(
-                "duplicate definition reference occurrence".into(),
-            ));
-        }
+    preparation: Option<&ReferencePreparation>,
+) -> Result<crate::OwnedAbilityCatalog, IndexError> {
+    if let Some(preparation) = preparation
+        && (preparation.recipe.is_empty() || !crate::codec::checked_hash(&preparation.input_hash))
+    {
+        return Err(IndexError::Invalid(
+            "invalid reference preparation identity".into(),
+        ));
+    }
+    let mut keys = Vec::new();
+    let mut catalog = crate::OwnedAbilityCatalog::default();
+    visit_entries(c, preparation, &mut |entry| {
+        keys.push(entry.key.to_string());
+        catalog.add_entry(&entry);
         Ok(())
     })?;
-    for reference in outgoing {
-        validate_reference(c, &reference, input.context.reference_preparation.as_ref())?;
-        desired.insert(reference_id(&reference)?, reference);
+    validate_inventory(preparation, keys)?;
+    let mut notices = c.prepare("SELECT id,sha256,text,source_url FROM reference_notices")?;
+    for row in notices.query_map([], |r| {
+        Ok(ReferenceNotice {
+            id: r.get(0)?,
+            sha256: r.get(1)?,
+            text: r.get(2)?,
+            source_url: r.get(3)?,
+        })
+    })? {
+        validate_notice(&row?)?;
     }
-    let mut old = c
-        .prepare("SELECT occurrence_id FROM definition_reference_occurrences")?
-        .query_map([], |r| r.get::<_, String>(0))?
-        .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
-    for (id, reference) in desired {
-        if !old.remove(&id) {
-            insert_reference(c, &reference)?;
-        }
-    }
-    for id in old {
-        c.execute(
-            "DELETE FROM definition_reference_occurrences WHERE occurrence_id=?",
-            [id],
-        )?;
-    }
-    Ok(())
+    Ok(catalog)
 }
 
-fn validate_reference(
+fn visit_entries(
     c: &Connection,
-    reference: &DefinitionReferenceInput,
-    preparation: Option<&ReferencePreparation>,
+    preparation: Option<&crate::ReferencePreparation>,
+    visitor: &mut dyn FnMut(ReferenceEntry) -> Result<(), IndexError>,
 ) -> Result<(), IndexError> {
-    if let DefinitionReferenceSource::Record { key, .. } = &reference.source {
-        let is_trait = matches!(&reference.target, DefinitionReferenceTarget::Definition { key }
-            if key.namespace() == DefinitionNamespace::Trait);
-        if !is_trait && !reference_pack_applies(preparation, "pf2e", key.pack().as_str()) {
+    let mut statement = c.prepare(
+        "SELECT key,definition_json,definition_hash FROM reference_entries ORDER BY key",
+    )?;
+    let mut rows = statement.query([])?;
+    while let Some(row) = rows.next()? {
+        let key: String = row.get(0)?;
+        let json: String = row.get(1)?;
+        let hash: String = row.get(2)?;
+        if crate::codec::sha256(json.as_bytes()) != hash {
             return Err(IndexError::Invalid(
-                "definition occurrence source package/pack is inapplicable".into(),
+                "reference definition checksum mismatch".into(),
             ));
         }
-    }
-    match &reference.source {
-        DefinitionReferenceSource::Definition { key } => {
-            if !c.query_row(
-                "SELECT EXISTS(SELECT 1 FROM reference_entries WHERE key=?)",
-                [key.to_string()],
-                |r| r.get::<_, bool>(0),
-            )? {
-                return Err(IndexError::Invalid(
-                    "reference source definition is absent".into(),
-                ));
-            }
+        let entry: ReferenceEntry = serde_json::from_str(&json)?;
+        if entry.key.to_string() != key {
+            return Err(IndexError::Invalid(
+                "reference definition identity mismatch".into(),
+            ));
         }
-        DefinitionReferenceSource::Record { key, .. } => {
-            if !c.query_row(
-                "SELECT EXISTS(SELECT 1 FROM records WHERE key=?)",
-                [key.to_string()],
-                |r| r.get::<_, bool>(0),
-            )? {
-                return Err(IndexError::Invalid(
-                    "reference source record is absent".into(),
-                ));
-            }
-        }
-    }
-    match &reference.target {
-        DefinitionReferenceTarget::Definition { key } => {
-            if !c.query_row(
-                "SELECT EXISTS(SELECT 1 FROM reference_entries WHERE key=?)",
-                [key.to_string()],
-                |r| r.get::<_, bool>(0),
-            )? {
-                return Err(IndexError::Invalid(
-                    "reference target definition is absent".into(),
-                ));
-            }
-        }
-        DefinitionReferenceTarget::Record { key, .. } => {
-            if !c.query_row(
-                "SELECT EXISTS(SELECT 1 FROM records WHERE key=?)",
-                [key.to_string()],
-                |r| r.get::<_, bool>(0),
-            )? {
-                return Err(IndexError::Invalid(
-                    "reference target record is absent".into(),
-                ));
-            }
-        }
+        crate::references::validate_entry(c, &entry, preparation)?;
+        visitor(entry)?;
     }
     Ok(())
 }

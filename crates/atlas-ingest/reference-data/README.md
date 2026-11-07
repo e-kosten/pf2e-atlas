@@ -27,7 +27,7 @@ current Foundry-declared ORC selection for Metal, Toil and Wood, the wholly OGL
 CRB/Dark Archive apocryphal source components, and an unknown original page for
 Naga. It does not rename tokens or select a different content locale.
 
-`base-notices.json` supplies the registered license, original publication credits,
+`notices.json` supplies the formatting credit, the registered license, original publication credits,
 bounded Monster Core 2 creator attribution and CUP notice. Ingest also captures the selected
 Foundry source's actual OGL/ORC notice files. Their presence, absence and exact
 bytes participate in reference freshness separately from record provenance.
@@ -41,6 +41,5 @@ applicable notices; later app/CLI presentation exposes that stored attribution.
 
 Supplemental entry provenance names the original `data/languages.json` or
 `data/groups.json` file and its raw SHA-256. The prepared markup hash identifies
-the normalized selected field. The stored `reference-subset-manifest` provenance
-notice retains the extraction/mapping recipes and payload checksum alongside the
-content for source-free attribution.
+the normalized selected field. The bundled manifest retains the extraction
+recipe and payload checksum used for preparation freshness.

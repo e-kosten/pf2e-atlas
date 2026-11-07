@@ -1,20 +1,18 @@
 //! The approved, normalized reference subset bundled with Atlas.
 use crate::IngestError;
 use atlas_domain::{DefinitionKey, DefinitionNamespace};
-use atlas_index::ReferenceNotice;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
-pub const REFERENCE_PREPARATION_RECIPE: &str = "reference-definitions/v4";
+pub const REFERENCE_PREPARATION_RECIPE: &str = "reference-definitions/v5";
 
 const MANIFEST: &[u8] = include_bytes!("../reference-data/manifest.json");
 const PAYLOAD: &[u8] = include_bytes!("../reference-data/payload.json");
-const NOTICES: &[u8] = include_bytes!("../reference-data/notices.json");
 
 const BUNDLED_FILES: &[(&str, &[u8])] = &[
     ("payload.json", PAYLOAD),
-    ("notices.json", NOTICES),
+    ("notices.json", crate::reference_notices::BUNDLED_NOTICES),
     (
         "orc-license.pdf",
         include_bytes!("../reference-data/orc-license.pdf"),
@@ -42,7 +40,6 @@ struct Manifest {
     source_commit: String,
     source_files: BTreeMap<String, SourceFile>,
     source_package: String,
-    system_version: String,
     content_locale: String,
     english_fallback: bool,
     mapping_recipe: String,
@@ -81,24 +78,8 @@ pub(crate) struct SupplementEntry {
     pub(crate) speakers: Vec<String>,
     pub(crate) markup: Option<String>,
 }
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Notices {
-    schema: u32,
-    notices: Vec<Notice>,
-}
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Notice {
-    id: String,
-    text: String,
-    source_url: Option<String>,
-}
-
-/// The validated payload and notices belong to the same captured build inputs.
 pub(crate) struct ReferenceSupplementCapture {
     pub(crate) entries: BTreeMap<DefinitionKey, SupplementEntry>,
-    pub(crate) notices: Vec<ReferenceNotice>,
     pub(crate) source_commit: String,
     pub(crate) identity: String,
     source_files: BTreeMap<String, SourceFile>,
@@ -116,11 +97,7 @@ impl ReferenceSupplementCapture {
             .get_key_value(path)
             .map(|(path, source)| (path.as_str(), source.sha256.as_str()))
     }
-    pub(crate) fn capture(
-        package: &str,
-        version: Option<&str>,
-        locale: &str,
-    ) -> Result<Self, IngestError> {
+    pub(crate) fn capture(locale: &str) -> Result<Self, IngestError> {
         let manifest: Manifest = serde_json::from_slice(MANIFEST)
             .map_err(|error| invalid(format!("reference manifest: {error}")))?;
         if manifest.schema != 1
@@ -133,11 +110,6 @@ impl ReferenceSupplementCapture {
         {
             return Err(invalid(
                 "unsupported reference manifest recipe or locale policy",
-            ));
-        }
-        if package == "pf2e" && version != Some(manifest.system_version.as_str()) {
-            return Err(invalid(
-                "reference supplement does not support the selected PF2e version",
             ));
         }
         if locale.is_empty()
@@ -173,10 +145,7 @@ impl ReferenceSupplementCapture {
         }
         let payload: Payload = serde_json::from_slice(PAYLOAD)
             .map_err(|error| invalid(format!("reference payload: {error}")))?;
-        let notices: Notices = serde_json::from_slice(NOTICES)
-            .map_err(|error| invalid(format!("reference notices: {error}")))?;
         if payload.schema != 1
-            || notices.schema != 1
             || manifest.selection.language_contexts != 24
             || manifest.selection.weapon_groups != 4
             || manifest.selection.wildsong_existing_record != "classfeatures:RiAGlnnp4S21BAG3"
@@ -232,52 +201,10 @@ impl ReferenceSupplementCapture {
         {
             return Err(invalid("incomplete selected reference subset"));
         }
-        let mut ids = std::collections::BTreeSet::new();
-        let mut notices = notices
-            .notices
-            .into_iter()
-            .map(|notice| {
-                if notice.text.trim().is_empty() || !ids.insert(notice.id.clone()) {
-                    return Err(invalid("empty or duplicate reference notice"));
-                }
-                Ok(ReferenceNotice {
-                    id: notice.id,
-                    sha256: hash(notice.text.as_bytes()),
-                    text: notice.text,
-                    source_url: notice.source_url,
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        if [
-            "orc-license",
-            "player-core",
-            "community-use",
-            "pf2etools-formatting",
-        ]
-        .iter()
-        .any(|id| !ids.contains(*id))
-        {
-            return Err(invalid("reference subset lacks required notices"));
-        }
-        // Retain the compact extraction/mapping recipe, raw-file identities and
-        // normalized payload identity for source-free attribution/export.
-        if ids.contains("reference-subset-manifest") {
-            return Err(invalid("reserved reference provenance notice identity"));
-        }
-        let identity = hash(MANIFEST);
-        notices.push(ReferenceNotice {
-            id: "reference-subset-manifest".into(),
-            sha256: identity.clone(),
-            text: std::str::from_utf8(MANIFEST)
-                .map_err(|error| invalid(error.to_string()))?
-                .to_owned(),
-            source_url: None,
-        });
         Ok(Self {
             entries,
-            notices,
             source_commit: manifest.source_commit,
-            identity,
+            identity: hash(MANIFEST),
             source_files: manifest.source_files,
         })
     }
@@ -289,7 +216,7 @@ mod tests {
 
     #[test]
     fn approved_subset_preserves_context_and_prose_without_a_second_wildsong_body() {
-        let captured = ReferenceSupplementCapture::capture("pf2e", Some("8.6.1"), "en").unwrap();
+        let captured = ReferenceSupplementCapture::capture("en").unwrap();
         let chthonian = &captured.entries[&"language:chthonian".parse().unwrap()];
         assert_eq!(chthonian.speakers, ["Demons"]);
         assert_eq!(chthonian.content_locale, "en");
@@ -308,17 +235,5 @@ mod tests {
         assert!(prose.contains("item bonus to attack rolls"));
         assert!(!prose.contains("{@"));
         assert_eq!(captured.entries.len(), 28);
-        assert!(
-            captured
-                .notices
-                .iter()
-                .any(|notice| notice.id == "player-core" && notice.text.contains("Carlos Cabrera"))
-        );
-    }
-
-    #[test]
-    fn bundled_supplement_rejects_an_incompatible_pf2e_version() {
-        assert!(ReferenceSupplementCapture::capture("pf2e", Some("0.0.0"), "en").is_err());
-        assert!(ReferenceSupplementCapture::capture("custom-module", Some("0.0.0"), "en").is_ok());
     }
 }

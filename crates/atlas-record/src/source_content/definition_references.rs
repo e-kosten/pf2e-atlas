@@ -1,5 +1,5 @@
-//! Exact authored localization references to uniquely identified definition vocabulary.
-use atlas_domain::{DefinitionKey, TraitKey};
+//! Authored localization references and exact trait resolution.
+use atlas_domain::TraitKey;
 #[cfg(test)]
 use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_foundry_model::generated::{FoundryTraitDefinition, trait_definitions};
@@ -31,7 +31,7 @@ pub fn trait_localization_references(
     audience: ContentAudience,
     visibility: ContentVisibilityRule,
 ) -> Vec<TraitLocalizationReference> {
-    static KEYS: std::sync::OnceLock<DefinitionLocalizationMap> = std::sync::OnceLock::new();
+    static KEYS: std::sync::OnceLock<TraitLocalizationMap> = std::sync::OnceLock::new();
     references_with_keys(
         locator,
         markup,
@@ -41,17 +41,15 @@ pub fn trait_localization_references(
     )
 }
 
-fn definition_keys(definitions: &[FoundryTraitDefinition]) -> DefinitionLocalizationMap {
-    let mut keys = DefinitionLocalizationMap::new();
+fn definition_keys(definitions: &[FoundryTraitDefinition]) -> TraitLocalizationMap {
+    let mut keys = TraitLocalizationMap::new();
     for definition in definitions {
         for key in [definition.label_key, definition.description_key]
             .into_iter()
             .flatten()
         {
             if let Ok(key_value) = TraitKey::new(definition.identifier) {
-                keys.entry(key.to_owned())
-                    .or_default()
-                    .insert(key_value.into());
+                keys.entry(key.to_owned()).or_default().insert(key_value);
             }
         }
     }
@@ -78,95 +76,34 @@ fn references_with_definitions(
 fn references_with_keys(
     locator: SourceContentLocator,
     markup: &str,
-    keys: &DefinitionLocalizationMap,
+    keys: &TraitLocalizationMap,
     audience: ContentAudience,
     visibility: ContentVisibilityRule,
 ) -> Vec<TraitLocalizationReference> {
-    definition_localization_references(locator, markup, keys, audience, visibility)
-        .into_iter()
-        .filter_map(|reference| {
-            reference
-                .key
-                .trait_key()
-                .map(|trait_key| TraitLocalizationReference {
-                    trait_key,
-                    locator: reference.locator,
-                    localization_key: reference.localization_key,
-                    path: reference.path,
-                    visible: reference.visible,
-                })
-        })
-        .collect()
-}
-
-/// Exact authored localization keys supplied by the selected definition catalog.
-pub type DefinitionLocalizationMap = BTreeMap<String, BTreeSet<DefinitionKey>>;
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DefinitionLocalizationReference {
-    pub key: DefinitionKey,
-    pub locator: SourceContentLocator,
-    pub localization_key: String,
-    pub path: String,
-    pub visible: bool,
-}
-
-/// Source-neutral evidence for standalone definition bodies, without synthetic records.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DefinitionLocalizationOccurrence {
-    pub key: DefinitionKey,
-    pub localization_key: String,
-    pub path: String,
-    pub visible: bool,
-}
-
-/// The existing authored parser owns traversal; expanded prose is not authored evidence.
-pub fn definition_localization_references(
-    locator: SourceContentLocator,
-    markup: &str,
-    keys: &DefinitionLocalizationMap,
-    audience: ContentAudience,
-    visibility: ContentVisibilityRule,
-) -> Vec<DefinitionLocalizationReference> {
-    definition_body_localization_references(markup, keys, audience, visibility)
-        .into_iter()
-        .map(|reference| DefinitionLocalizationReference {
-            key: reference.key,
-            locator: locator.clone(),
-            localization_key: reference.localization_key,
-            path: reference.path,
-            visible: reference.visible,
-        })
-        .collect()
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AuthoredLocalizationOccurrence {
-    pub localization_key: String,
-    pub path: String,
-    pub visible: bool,
-}
-
-pub fn definition_body_localization_references(
-    markup: &str,
-    keys: &DefinitionLocalizationMap,
-    audience: ContentAudience,
-    visibility: ContentVisibilityRule,
-) -> Vec<DefinitionLocalizationOccurrence> {
     authored_localization_occurrences(markup, audience, visibility)
         .into_iter()
         .filter_map(|reference| {
-            let identifiers = keys
+            let candidates = keys
                 .get(&reference.localization_key)
                 .filter(|keys| keys.len() == 1)?;
-            Some(DefinitionLocalizationOccurrence {
-                key: identifiers.first()?.clone(),
+            Some(TraitLocalizationReference {
+                trait_key: candidates.first()?.clone(),
+                locator: locator.clone(),
                 localization_key: reference.localization_key,
                 path: reference.path,
                 visible: reference.visible,
             })
         })
         .collect()
+}
+
+type TraitLocalizationMap = BTreeMap<String, BTreeSet<TraitKey>>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AuthoredLocalizationOccurrence {
+    pub localization_key: String,
+    pub path: String,
+    pub visible: bool,
 }
 
 pub fn authored_localization_occurrences(

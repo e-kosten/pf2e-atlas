@@ -143,7 +143,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &fixture,
         &glossary.entries,
         &glossary.notices,
-        &glossary.occurrences,
     )?;
     let service = AtlasAppService::start(AtlasAppServiceOptions {
         default_search_profile: Some(SearchProfileId::new("bge-base")),

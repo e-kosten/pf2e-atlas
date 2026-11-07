@@ -1,6 +1,6 @@
 use crate::{test_support::*, *};
-use atlas_domain::{DefinitionKey, DefinitionNamespace};
-use atlas_record::source_content::{DefinitionLocalizationMap, LocalizationResolver};
+use atlas_domain::DefinitionKey;
+use atlas_record::source_content::LocalizationResolver;
 use rusqlite::Connection;
 
 struct Locale;
@@ -66,7 +66,6 @@ fn prepared(
             label_grants: vec![],
             notices: vec!["fixture-notice".into()],
         },
-        filter_bindings: vec![],
     }
 }
 
@@ -195,84 +194,7 @@ fn publish(
         expected_entry_count,
         entry_keys_sha256,
     });
-    let workspace = initialize_workspace(path)?;
-    let owner = workspace.update_owner()?;
-    let scratch = BuildScratch::new(&owner)?;
-    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION)?;
-    let expected = ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
-    drop(read);
-    let mut spool = publication_spool_in(scratch.path(), input, expected)?;
-    let mut keys = DefinitionLocalizationMap::new();
-    let targets = entries
-        .iter()
-        .filter(|e| {
-            e.availability != ReferenceAvailability::SourceInapplicable
-                && !(e.provenance.record_mapping.is_some()
-                    && matches!(&e.backing, ReferenceBacking::None))
-        })
-        .map(|entry| {
-            for key in [
-                &entry.provenance.label_key,
-                &entry.provenance.description_key,
-            ]
-            .into_iter()
-            .flatten()
-            {
-                keys.entry(key.clone())
-                    .or_default()
-                    .insert(entry.key.clone());
-            }
-            let target = match &entry.backing {
-                ReferenceBacking::Record { key } => DefinitionReferenceTarget::Record {
-                    key: key.clone(),
-                    owners: vec![],
-                },
-                _ => DefinitionReferenceTarget::Definition {
-                    key: entry.key.clone(),
-                },
-            };
-            (entry.key.clone(), target)
-        })
-        .collect::<std::collections::BTreeMap<_, _>>();
-    for entry in entries {
-        spool.reference_entries.push(entry)?;
-    }
-    for source in &input.records {
-        for occurrence in atlas_record::source_record::definition_record_localization_references(
-            &source.record,
-            input.context.audience,
-            &keys,
-        ) {
-            if occurrence.key.namespace() != DefinitionNamespace::Trait
-                && !reference_pack_applies(
-                    input.context.reference_preparation.as_ref(),
-                    "pf2e",
-                    source.record.key().pack().as_str(),
-                )
-            {
-                continue;
-            }
-            spool
-                .definition_references
-                .push(&DefinitionReferenceInput {
-                    source: DefinitionReferenceSource::Record {
-                        key: occurrence.locator.record,
-                        owners: occurrence.locator.owners,
-                        field: Some(occurrence.locator.field),
-                    },
-                    target: targets[&occurrence.key].clone(),
-                    occurrence_path: occurrence.path,
-                    evidence: occurrence.localization_key,
-                    label: None,
-                    visible: occurrence.visible,
-                })?;
-        }
-    }
-    for notice in notices {
-        spool.reference_notices.push(notice)?;
-    }
-    PreparedPublication::new_in(&owner, TEST_WORKSPACE_SCHEMA_VERSION, scratch.path(), spool)?
-        .publish()
+    publish_input_with_references(path, input, entries, notices)
 }
 
 #[test]
@@ -304,7 +226,10 @@ fn standalone_and_record_backed_definitions_read_without_source_or_copied_record
         ReferenceAvailability::LabelOnly
     );
     assert_eq!(
-        reader.reference_notice("fixture-notice").unwrap().unwrap(),
+        reader
+            .reference_notices(&["fixture-notice".into()])
+            .unwrap()
+            .remove(0),
         notices[0]
     );
     let mapped = reader
@@ -322,8 +247,6 @@ fn standalone_and_record_backed_definitions_read_without_source_or_copied_record
             .unwrap(),
         input.records.len()
     );
-    assert_eq!(c.query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_definition_key='domain:air'",[],|r|r.get::<_,usize>(0)).unwrap(),0);
-    assert_eq!(c.query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_record_key='items:bbbbbbbbbbbbbbbb' AND target_record_key='items:eeeeeeeeeeeeeeee' AND source_definition_key IS NULL AND target_definition_key IS NULL",[],|r|r.get::<_,usize>(0)).unwrap(),1);
     validate_artifact(&path).unwrap();
     let retained: Vec<u8> = c.query_row("SELECT snapshot FROM record_bodies WHERE record_id=(SELECT record_id FROM records WHERE key='items:eeeeeeeeeeeeeeee')", [], |r| r.get(0)).unwrap();
     c.execute("UPDATE record_bodies SET snapshot=x'00' WHERE record_id=(SELECT record_id FROM records WHERE key='items:eeeeeeeeeeeeeeee')", []).unwrap();
@@ -365,7 +288,7 @@ fn unchanged_reference_publication_is_quiet_and_failed_notice_update_preserves_c
     for table in [
         "reference_entries",
         "reference_notices",
-        "definition_reference_occurrences",
+        "owned_ability_evidence",
     ] {
         for event in ["INSERT", "UPDATE", "DELETE"] {
             c.execute_batch(&format!("CREATE TRIGGER audit_{table}_{event} AFTER {event} ON {table} BEGIN INSERT INTO reference_write_audit VALUES('{table}'); END;")).unwrap();
@@ -401,9 +324,9 @@ fn unchanged_reference_publication_is_quiet_and_failed_notice_update_preserves_c
     assert_eq!(
         open_reader(&path)
             .unwrap()
-            .reference_notice("fixture-notice")
+            .reference_notices(&["fixture-notice".into()])
             .unwrap()
-            .unwrap(),
+            .remove(0),
         notices[0]
     );
     validate_artifact(&path).unwrap();
@@ -415,11 +338,10 @@ fn unchanged_reference_publication_is_quiet_and_failed_notice_update_preserves_c
         0
     );
     assert_eq!(
-        c.query_row(
-            "SELECT count(*) FROM definition_reference_occurrences",
-            [],
-            |r| r.get::<_, usize>(0)
-        )
+        c.query_row("SELECT count(*) FROM owned_ability_evidence", [], |r| r
+            .get::<_, usize>(
+            0
+        ))
         .unwrap(),
         0
     );
@@ -476,7 +398,6 @@ fn wrong_family_mapping_is_rejected_and_missing_target_reason_retains_no_readabl
         .unwrap();
     assert_eq!(entry.availability, ReferenceAvailability::MissingTarget);
     assert!(matches!(entry.backing, ReferenceBacking::None));
-    assert_eq!(Connection::open(&path).unwrap().query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_record_key IS NOT NULL",[],|r|r.get::<_,usize>(0)).unwrap(),0);
     validate_artifact(&path).unwrap();
 }
 
@@ -682,7 +603,6 @@ fn conflicting_pack_scope_rejects_record_backing_and_excludes_new_source_associa
     publish(&path, &mut input, &entries, &notices).unwrap();
     validate_artifact(&path).unwrap();
     let c = Connection::open(&path).unwrap();
-    assert_eq!(c.query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_record_key IS NOT NULL", [], |r| r.get::<_, usize>(0)).unwrap(), 0);
     assert_eq!(
         c.query_row(
             "SELECT count(*) FROM trait_memberships WHERE trait_key='trait:dragon'",
@@ -692,33 +612,11 @@ fn conflicting_pack_scope_rejects_record_backing_and_excludes_new_source_associa
         .unwrap(),
         1
     );
-    let mut lookup = DefinitionLocalizationMap::new();
-    lookup.insert(
-        "Fixture.Sense".into(),
-        [entries[1].key.clone()].into_iter().collect(),
-    );
-    let occurrence = atlas_record::source_record::definition_record_localization_references(
-        &input.records[1].record,
-        input.context.audience,
-        &lookup,
+    c.execute(
+        "INSERT INTO owned_ability_evidence VALUES('items:bbbbbbbbbbbbbbbb','[]',NULL,1,'[]')",
+        [],
     )
-    .pop()
     .unwrap();
-    let forged = DefinitionReferenceInput {
-        source: DefinitionReferenceSource::Record {
-            key: occurrence.locator.record,
-            owners: occurrence.locator.owners,
-            field: Some(occurrence.locator.field),
-        },
-        target: DefinitionReferenceTarget::Definition {
-            key: occurrence.key,
-        },
-        occurrence_path: occurrence.path,
-        evidence: occurrence.localization_key,
-        label: None,
-        visible: occurrence.visible,
-    };
-    crate::references::insert_reference(&c, &forged).unwrap();
     assert!(validate_reference(&c).is_err());
 }
 
@@ -774,8 +672,10 @@ fn metadata_batches_skip_prepared_body_hydration_and_keep_integrity_checks() {
         "explicit detail must still decode and reject malformed prepared content"
     );
     assert_eq!(
-        reader.reference_notice("fixture-notice").unwrap(),
-        Some(notices[0].clone())
+        reader
+            .reference_notices(&["fixture-notice".into()])
+            .unwrap(),
+        notices
     );
     assert!(reader.reference_summaries(&vec![key.clone(); 101]).is_err());
     drop(reader);
@@ -887,97 +787,6 @@ fn prepared_reading_metadata_matches_canonical_presence_without_rewriting_bodies
 }
 
 #[test]
-fn outbound_evidence_retains_exact_source_owner_and_complete_target_uniqueness() {
-    use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("references.sqlite");
-    let (mut input, entries, notices) = fixture();
-    let repeated = format!(
-        "{} @Localize[Fixture.Other]",
-        "@Localize[Fixture.Sense] ".repeat(121)
-    );
-    let mut actor = crate::foundation_tests::record(
-        "actors",
-        "Actor",
-        serde_json::json!({
-            "_id":"aaaaaaaaaaaaaaaa","name":"Dragon Guard","type":"npc",
-            "system":{"details":{"publicNotes":"@Localize[Fixture.First]"}},
-            "items":[
-                {"_id":"1111111111111111","name":"Ambiguous ability","type":"action","system":{"description":{"value":repeated}}},
-                {"_id":"2222222222222222","name":"Exact ability","type":"action","system":{"description":{"value":"@Localize[Fixture.Sense]<span data-visibility=\"none\">@Localize[Fixture.First]</span>"}}},
-                {"_id":"3333333333333333","name":"Hidden ability","type":"action","system":{"description":{"value":"<span data-visibility=\"none\">@Localize[Fixture.First]</span>"}}}
-            ]
-        }),
-    );
-    actor.preparation_context_hash = input.context.preparation_sha256().unwrap();
-    input
-        .lexical_units
-        .retain(|unit| unit.record != *actor.record.key());
-    let selection = atlas_record::source_record::select_record_search(
-        &actor.record,
-        &actor.content,
-        input.context.audience,
-        "Actors",
-        &input.context.used_trait_labels,
-    )
-    .unwrap();
-    input
-        .lexical_units
-        .extend(crate::project_lexical_units(&selection, &[]));
-    input.records[0] = actor;
-    publish(&path, &mut input, &entries, &notices).unwrap();
-    let reader = open_reader(&path).unwrap();
-    let record: atlas_domain::RecordKey = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
-    let owner = |id: &str| {
-        vec![OwnedContentLocator {
-            collection: "/items".into(),
-            identity: OwnedContentIdentity::Stable(id.into()),
-        }]
-    };
-    let field = Some("/system/description/value");
-    assert_eq!(
-        reader
-            .source_definition_target(&record, &owner("1111111111111111"), field)
-            .unwrap(),
-        SourceDefinitionTarget::Ambiguous
-    );
-    let expected = DefinitionReferenceTarget::Record {
-        key: "items:eeeeeeeeeeeeeeee".parse().unwrap(),
-        owners: vec![],
-    };
-    assert_eq!(
-        reader
-            .source_definition_target(&record, &owner("2222222222222222"), field)
-            .unwrap(),
-        SourceDefinitionTarget::Unique { target: expected }
-    );
-    assert_eq!(
-        reader
-            .source_definition_target(&record, &owner("3333333333333333"), field)
-            .unwrap(),
-        SourceDefinitionTarget::None
-    );
-    assert_eq!(
-        reader.source_definition_target(&record, &[], None).unwrap(),
-        SourceDefinitionTarget::Unique {
-            target: DefinitionReferenceTarget::Definition {
-                key: "domain:air".parse().unwrap()
-            }
-        }
-    );
-    assert_eq!(
-        reader
-            .source_definition_target(
-                &record,
-                &owner("2222222222222222"),
-                Some("/system/description/gm")
-            )
-            .unwrap(),
-        SourceDefinitionTarget::None
-    );
-}
-
-#[test]
 fn retained_trait_metadata_does_not_imply_new_namespace_coverage() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("retained.sqlite");
@@ -1009,10 +818,6 @@ fn retained_trait_metadata_does_not_imply_new_namespace_coverage() {
     let new_key: DefinitionKey = "language:common".parse().unwrap();
     assert!(matches!(
         reader.reference_summary(&new_key),
-        Err(IndexError::Unavailable(_))
-    ));
-    assert!(matches!(
-        reader.source_definition_target(&"actors:aaaaaaaaaaaaaaaa".parse().unwrap(), &[], None,),
         Err(IndexError::Unavailable(_))
     ));
 }

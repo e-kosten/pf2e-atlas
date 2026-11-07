@@ -538,7 +538,8 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
     for table in [
         "reference_entries",
         "reference_notices",
-        "definition_reference_occurrences",
+        "trait_references",
+        "owned_ability_evidence",
     ] {
         assert_eq!(
             read.connection()

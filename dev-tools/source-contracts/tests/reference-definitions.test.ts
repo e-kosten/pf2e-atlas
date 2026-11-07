@@ -11,10 +11,10 @@ test('reference metadata output retains real record pointers without copying pro
     senseRules: [],
     definitions: [{ namespace: 'sense', identifier: 'darkvision', labelKey: 'PF2E.Darkvision', descriptionKey: null,
       displayLabel: null, recordKey: 'general:aaaaaaaaaaaaaaaa', expectedFamily: 'action', requiredLocalizationKey: null,
-      sourceFile: 'src/values.ts', sourceLine: 7, excluded: false, filterFields: ['senses'] }] },
+      sourceFile: 'src/values.ts', sourceLine: 7, excluded: false }] },
     '// fixture', { repository: 'https://example.invalid/source.git', commit: 'b'.repeat(40) });
-  assert.match(output, /record_key: Some\("general:aaaaaaaaaaaaaaaa"\)/);
-  assert.match(output, /description_key: None/);
+  assert.match(output, /\.mapped_to\("general:aaaaaaaaaaaaaaaa", "action", None\)/);
+  assert.doesNotMatch(output, /\.described_by\(/);
   assert.doesNotMatch(output, /<p>|@Check\[|@Localize\[/);
 });
 

@@ -130,17 +130,14 @@ deep audit independently reconstructs and checks present hashes. Metadata-only
 upgrades refresh existing hashes after their dependent projections change. Saved state,
 source/native recipes and historical migration callbacks retain their owners.
 
-The glossary workspace migration generalizes retained trait definitions into the single
-`reference_entries` owner and trait reference evidence into oriented
-`definition_reference_occurrences`. Both occurrence endpoints are checked unions
-of record addresses and definition keys. The migration preserves numerical bytes,
-trait membership, identities and saved state without acquiring source or models.
-It backfills authored sense acuity and range states and armor group from
-compatible retained snapshots. Retired or otherwise deferred source preparation
-keeps its existing setup requirement and is not decoded by this backfill.
-Missing `reference_preparation` remains explicit traits-only coverage; migration
-does not claim new definition completeness. See
-[ADR0068](./decisions/0068-contextual-reference-definitions.md).
+The glossary workspace migration moves retained trait definitions into the single
+`reference_entries` owner. It preserves the existing trait references, membership,
+numerical bytes, identities and saved state without acquiring source or models.
+The projection upgrade backfills authored sense acuity and range states and armor
+group from compatible retained snapshots. Retired or otherwise deferred source
+preparation follows its existing setup requirement. Explicit setup prepares new
+glossary coverage and owned-ability facts. Missing `reference_preparation` marks
+retained traits-only coverage. See [ADR0068](./decisions/0068-contextual-reference-definitions.md).
 
 One owned prepared publication binds workspace/revision, context, complete source
 inventory, metadata and selected values. Its private files are disposable attempt
@@ -184,8 +181,8 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Query accelerators | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
 | Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
-| Contextual definitions | `reference_entries`: one canonical vocabulary/source-rule owner with typed key, readable label, finite availability, checked prepared body or record pointer, source/locale/publication evidence, separate body/label grants and exact filter bindings. Record pointers contain no copied body or vector. `reference_notices` retains deduplicated required notice text and hashes. |
-| Definition references | `definition_reference_occurrences`: exact authored localization and trait reference occurrences with record-or-definition endpoints, owners, field, path and visibility. Trait reference APIs project their existing subset; existing record graph rows are not copied here. |
+| Contextual definitions | `reference_entries`: one canonical vocabulary/source-rule owner with typed key, readable label, finite availability, checked prepared body or record pointer, source/locale/publication evidence, separate body and label grants. Record pointers contain no copied body or vector. `reference_notices` retains deduplicated required notice text and hashes. |
+| Trait references and owned abilities | `trait_references` retains visible trait associations. `owned_ability_evidence` records the reading target, declaration presence and matching general ability keys for an exact owner. |
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Remaster context | `verified_aliases`, `remaster_pairs`, `record_remaster_context`: lookup aliases, explicit counterparts and compact per-record relationship/journal context. |

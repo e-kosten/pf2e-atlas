@@ -1,7 +1,7 @@
 //! Explicit semantic fact decoration, independent of layout or gameplay evaluation.
 use super::*;
 use atlas_domain::{DefinitionKey, DefinitionNamespace as N, RecordKey};
-use atlas_search::{AtlasRetrievalService, DefinitionReferenceTarget, SourceDefinitionTarget};
+use atlas_search::{AtlasRetrievalService, OwnedAbilityTarget};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn annotate_summaries<'a>(
@@ -78,38 +78,11 @@ pub(crate) fn annotate_many<'a>(
                 return Ok(());
             }
             if retrieval.reference_coverage() == atlas_search::ReferenceCoverage::Complete {
-                let target =
-                    match retrieval.source_definition_target(&key, &navigation.owners, None)? {
-                        SourceDefinitionTarget::Unique {
-                            target: DefinitionReferenceTarget::Definition { key },
-                        } if key.namespace() != N::Rule
-                            || !key
-                                .identifier()
-                                .starts_with("pf2e:PF2E.NPC.Abilities.Glossary.") =>
-                        {
-                            SourceDefinitionTarget::None
-                        }
-                        SourceDefinitionTarget::Unique {
-                            target: DefinitionReferenceTarget::Record { key, .. },
-                        } if !matches!(
-                            key.pack().as_str(),
-                            "bestiary-ability-glossary-srd" | "bestiary-family-ability-glossary"
-                        ) =>
-                        {
-                            SourceDefinitionTarget::None
-                        }
-                        target => target,
-                    };
-                if let SourceDefinitionTarget::Unique {
-                    target: DefinitionReferenceTarget::Definition { key },
-                } = &target
-                {
+                let target = retrieval.owned_ability_help(&key, &navigation.owners)?;
+                if let Some(OwnedAbilityTarget::Definition(key)) = &target {
                     keys.insert(key.clone());
                 }
-                general.insert(
-                    (navigation.record_key.clone(), navigation.owners.clone()),
-                    target,
-                );
+                general.insert(identity, target);
             }
             Ok(())
         })?;
@@ -128,9 +101,7 @@ pub(crate) fn annotate_many<'a>(
                 activity.navigation.owners.clone(),
             );
             activity.help = match general.get(&identity) {
-                Some(SourceDefinitionTarget::Unique {
-                    target: DefinitionReferenceTarget::Definition { key },
-                }) => {
+                Some(Some(OwnedAbilityTarget::Definition(key))) => {
                     let mut value = ReferenceValueView {
                         value: key.identifier().into(),
                         label: activity.title.clone(),
@@ -139,14 +110,12 @@ pub(crate) fn annotate_many<'a>(
                     context.value(key.namespace(), &mut value)?;
                     value.help
                 }
-                Some(SourceDefinitionTarget::Unique {
-                    target: DefinitionReferenceTarget::Record { key, owners },
-                }) => Some(ReferenceHelpView {
+                Some(Some(OwnedAbilityTarget::Record(key))) => Some(ReferenceHelpView {
                     definition_key: None,
                     destination: ReferenceDestinationView::Record {
                         navigation: crate::definitions::record_navigation(
                             key.clone(),
-                            owners.clone(),
+                            vec![],
                             retrieval.source_fingerprint(),
                         )
                         .into(),

@@ -3,23 +3,16 @@ use super::*;
 use atlas_domain::{DefinitionKey, DefinitionNamespace as N};
 use atlas_search::test_support::{hash, input, record};
 use atlas_search::{
-    DefinitionReferenceInput, DefinitionReferenceSource, DefinitionReferenceTarget,
     ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
-    ReferenceFilterBinding, ReferencePermission, ReferencePermissionDisposition,
-    ReferenceProvenance, ReferenceRecordMapping,
+    ReferencePermission, ReferencePermissionDisposition, ReferenceProvenance,
+    ReferenceRecordMapping,
 };
 use serde_json::json;
 
 const HOLDER: &str = "actors:holder0000000001";
 const GENERAL: &str = "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6";
 
-fn metadata(
-    namespace: N,
-    token: &str,
-    label: &str,
-    localization: Option<&str>,
-    field: &str,
-) -> ReferenceEntry {
+fn metadata(namespace: N, token: &str, label: &str, localization: Option<&str>) -> ReferenceEntry {
     ReferenceEntry {
         key: DefinitionKey::new(namespace, token).unwrap(),
         label: label.into(),
@@ -47,10 +40,6 @@ fn metadata(
             label_grants: vec![],
             notices: vec![],
         },
-        filter_bindings: vec![ReferenceFilterBinding {
-            field: field.into(),
-            value: token.into(),
-        }],
     }
 }
 
@@ -64,7 +53,7 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                     json!({"_id":"holder0000000001","type":"npc","name":"Holder","system":{"details":{"publication":{"remaster":true}},"description":{"value":"<p>@UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6] @Localize[Fixture.Sense.Darkvision] @Localize[Fixture.Rule.Hidden]</p>"},"traits":{"value":["fire","empty-fixture"],"rarity":"uncommon","size":{"value":"lg"}}},"items":[
                         {"_id":"trait00000000001","type":"action","name":"Trait mention","system":{"description":{"value":"<p>@Localize[Fixture.Trait.Fire]</p>"}}},
                         {"_id":"domain0000000001","type":"action","name":"Domain mention","system":{"description":{"value":"<p>@Localize[Fixture.Domain.Air]</p>"}}},
-                        {"_id":"ambig00000000001","type":"action","name":"Ambiguous mention","system":{"description":{"value":"<p>@Localize[Fixture.Trait.Fire] @Localize[Fixture.Domain.Air]</p>"}}},
+                        {"_id":"ambig00000000001","type":"action","name":"Ambiguous mention","system":{"description":{"value":"<p>@Localize[Fixture.Trait.Fire] @Localize[Fixture.Sense.Darkvision]</p>"}}},
                         {"_id":"general000000001","type":"action","name":"General vision 23","system":{"description":{"value":"<p>@Localize[Fixture.Sense.Darkvision] Actual DC 23. @Damage[0[fire]] @UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6]</p>"}}},
                         {"_id":"missing000000001","type":"action","name":"No general reference","system":{"description":{"value":"<p>Own actual values remain. @Localize[Fixture.Rule.Hidden]</p>"}}}
                     ]}),
@@ -117,7 +106,7 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 record(
                     "hazards",
                     "Actor",
-                    json!({"_id":"hazard0000000001","type":"hazard","name":"Trait routine","system":{"details":{"isComplex":true,"routine":"<p>(7 actions; illusion, fire, homebrew-trait) @Check[will|dc:21|traits:illusion,fire,homebrew-trait] save. Keep the authored routine.</p>"}}}),
+                    json!({"_id":"hazard0000000001","type":"hazard","name":"Trait routine","system":{"details":{"isComplex":true,"routine":"<p>(7 actions; illusion, fire, homebrew-trait) @Check[will|dc:21|traits:illusion,fire,homebrew-trait] save. Keep the authored routine.</p>"}},"items":[{"_id":"hazardact0000001","type":"action","name":"Hazard vision","system":{"description":{"value":"<p>@Localize[Fixture.Sense.Darkvision]</p>"}}}]}),
                 ),
             ];
             let mut data = input(records, false);
@@ -149,48 +138,17 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 return Ok(atlas_search::test_support::open_input_fixture(data)?);
             }
             let mut entries = vec![
-                metadata(
-                    N::Trait,
-                    "fire",
-                    "Fire",
-                    Some("Fixture.Trait.Fire"),
-                    "traits",
-                ),
-                metadata(
-                    N::Domain,
-                    "air",
-                    "Air",
-                    Some("Fixture.Domain.Air"),
-                    "deity.domains.primary",
-                ),
+                metadata(N::Trait, "fire", "Fire", Some("Fixture.Trait.Fire")),
+                metadata(N::Domain, "air", "Air", Some("Fixture.Domain.Air")),
                 metadata(
                     N::Sense,
                     "darkvision",
                     "Darkvision",
                     Some("Fixture.Sense.Darkvision"),
-                    "senses",
                 ),
-                metadata(
-                    N::ImmunityType,
-                    "fire",
-                    "Fire immunity",
-                    None,
-                    "defenses.immunities",
-                ),
-                metadata(
-                    N::WeaknessType,
-                    "fire",
-                    "Fire weakness",
-                    None,
-                    "defenses.weaknesses",
-                ),
-                metadata(
-                    N::ResistanceType,
-                    "fire",
-                    "Fire resistance",
-                    None,
-                    "defenses.resistances",
-                ),
+                metadata(N::ImmunityType, "fire", "Fire immunity", None),
+                metadata(N::WeaknessType, "fire", "Fire weakness", None),
+                metadata(N::ResistanceType, "fire", "Fire resistance", None),
             ];
             entries[2].backing = ReferenceBacking::Record {
                 key: GENERAL.parse().unwrap(),
@@ -224,31 +182,14 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 scope: atlas_search::ReferenceGrantScope::FunctionalContent,
             }];
             air.permission.notices = vec!["fixture-empty-content".into()];
-            entries.push(metadata(
-                N::Rarity,
-                "uncommon",
-                "Uncommon supplied",
-                None,
-                "rarity",
-            ));
-            let mut size = metadata(N::Size, "med", "Medium", None, "body.size");
-            size.filter_bindings
-                .extend(["physical.size", "ancestry.default_size"].map(|field| {
-                    ReferenceFilterBinding {
-                        field: field.into(),
-                        value: "med".into(),
-                    }
-                }));
+            entries.push(metadata(N::Rarity, "uncommon", "Uncommon supplied", None));
+            let size = metadata(N::Size, "med", "Medium", None);
             let mut large = size.clone();
             large.key = DefinitionKey::new(N::Size, "lg").unwrap();
             large.label = "Large".into();
-            for binding in &mut large.filter_bindings {
-                binding.value = "lg".into();
-            }
             entries.push(size);
             entries.push(large);
-            let mut missing_language =
-                metadata(N::Language, "draconic", "Draconic", None, "languages");
+            let mut missing_language = metadata(N::Language, "draconic", "Draconic", None);
             missing_language.availability = ReferenceAvailability::MissingLocalizedBody;
             entries.push(missing_language);
             let mut hidden = metadata(
@@ -256,11 +197,9 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 "pf2e:Fixture.Rule.Hidden",
                 "Hidden rule",
                 Some("Fixture.Rule.Hidden"),
-                "unused",
             );
             hidden.availability = ReferenceAvailability::PermissionUnresolved;
             hidden.permission.disposition = ReferencePermissionDisposition::MetadataOnlyUnresolved;
-            hidden.filter_bindings.clear();
             entries.push(hidden);
             let trait_entry = entries.remove(0);
             data.traits
@@ -324,67 +263,6 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                     expected_entry_count,
                     entry_keys_sha256,
                 });
-            let mut localizations = atlas_record::source_content::DefinitionLocalizationMap::new();
-            for entry in &entries {
-                if let Some(key) = &entry.provenance.label_key {
-                    localizations
-                        .entry(key.clone())
-                        .or_default()
-                        .insert(entry.key.clone());
-                }
-            }
-            for entry in &data.traits {
-                if let Some(key) = &entry.label_key {
-                    localizations
-                        .entry(key.clone())
-                        .or_default()
-                        .insert(DefinitionKey::from(entry.key.clone()));
-                }
-            }
-            let mut targets = entries
-                .iter()
-                .map(|entry| {
-                    (
-                        entry.key.clone(),
-                        match &entry.backing {
-                            ReferenceBacking::Record { key } => DefinitionReferenceTarget::Record {
-                                key: key.clone(),
-                                owners: vec![],
-                            },
-                            _ => DefinitionReferenceTarget::Definition {
-                                key: entry.key.clone(),
-                            },
-                        },
-                    )
-                })
-                .collect::<std::collections::BTreeMap<_, _>>();
-            for entry in &data.traits {
-                let key = DefinitionKey::from(entry.key.clone());
-                targets.insert(key.clone(), DefinitionReferenceTarget::Definition { key });
-            }
-            let occurrences = data
-                .records
-                .iter()
-                .flat_map(|source| {
-                    atlas_record::source_record::definition_record_localization_references(
-                        &source.record,
-                        data.context.audience,
-                        &localizations,
-                    )
-                })
-                .map(|reference| DefinitionReferenceInput {
-                    source: DefinitionReferenceSource::Record {
-                        key: reference.locator.record,
-                        owners: reference.locator.owners,
-                        field: Some(reference.locator.field),
-                    },
-                    target: targets[&reference.key].clone(),
-                    occurrence_path: reference.path,
-                    evidence: reference.localization_key,
-                    label: None,
-                    visible: reference.visible,
-                })
-                .collect::<Vec<_>>();
             Ok(
                 atlas_search::test_support::open_input_fixture_with_references(
                     data,
@@ -395,7 +273,6 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                         text: "Synthetic empty glossary fixture.".into(),
                         source_url: None,
                     }],
-                    &occurrences,
                 )?,
             )
         }),
@@ -441,6 +318,27 @@ fn exact_owned_general_help_rejects_unrelated_traits_domains_and_ambiguity() {
     assert!(
         !general.navigation.owners.is_empty(),
         "the actual owned entry stays primary"
+    );
+    let hazard = fixture
+        .worker
+        .record_detail("hazards:hazard0000000001")
+        .unwrap();
+    let RecordBodyView::Hazard(hazard) = hazard.presentation.body else {
+        panic!("hazard presentation");
+    };
+    assert!(
+        hazard
+            .actor
+            .activities
+            .value
+            .unwrap()
+            .iter()
+            .any(|activity| {
+                activity.title == "Hazard vision"
+                    && matches!(&activity.help, Some(ReferenceHelpView {
+                destination: ReferenceDestinationView::Record { navigation }, ..
+            }) if navigation.record_key == GENERAL)
+            })
     );
     let badge = detail
         .record
@@ -727,71 +625,6 @@ fn browse_summary_uses_rust_fallback_then_canonical_rarity_help() {
         assert_eq!(rarity.label, label);
         assert!(rarity.help.is_none());
     }
-}
-
-#[test]
-fn dynamic_filter_values_and_vocabulary_supply_existing_base_type_labels() {
-    let fixture = fixture(true);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let response = fixture
-        .worker
-        .discover_filter_values(
-            DiscoverFilterValuesRequest::Vocabulary {
-                scope: FilterVocabularyScope::Artifact,
-                field_id: "physical.base_type".into(),
-                text: None,
-                offset: 0,
-                limit: 100,
-                selected_values: vec![],
-            },
-            &execution,
-        )
-        .unwrap();
-    let FilterValueListView::Vocabulary { values, .. } = response else {
-        panic!("vocabulary")
-    };
-    let option = values
-        .options
-        .iter()
-        .find(|option| option.value == atlas_domain::QueryLiteral::String("chain-mail".into()))
-        .unwrap();
-    assert_eq!(option.label, "Chain Mail");
-    let response = fixture
-        .worker
-        .discover_filter_values(
-            DiscoverFilterValuesRequest::Contextual {
-                only_matching: false,
-                context: Box::new(FilterDiscoveryContext::Filtered {
-                    connection_scope: None,
-                    search_content: None,
-                    search_profile: None,
-                    expected_artifact_generation: None,
-                    filter: None,
-                    text: None,
-                    mode: RetrievalModeView::Lexical,
-                }),
-                field_id: "physical.base_type".into(),
-                clause_id: None,
-                text: None,
-                offset: 0,
-                limit: 100,
-            },
-            &execution,
-        )
-        .unwrap();
-    let FilterValueListView::Contextual {
-        outcome: atlas_domain::QueryFacetOutcome::Available { value: values },
-        ..
-    } = response
-    else {
-        panic!("contextual values")
-    };
-    let option = values
-        .options
-        .iter()
-        .find(|option| option.value == atlas_domain::QueryLiteral::String("chain-mail".into()))
-        .unwrap();
-    assert_eq!(option.label, "Chain Mail");
 }
 
 #[test]
