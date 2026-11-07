@@ -285,3 +285,28 @@ async fn non_glossary_filter_values_and_vocabulary_keep_readable_backend_labels(
         );
     }
 }
+
+#[tokio::test]
+async fn selected_action_keeps_its_record_label_outside_the_vocabulary_page() {
+    let fixture = Fixture::with_glossary();
+    let key = "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6";
+    let (status, values) = fixture
+        .json(
+            Method::POST,
+            "/api/filters/values",
+            Some(json!({
+                "kind":"vocabulary", "scope":{"kind":"artifact"}, "field_id":"actions",
+                "text":"missing page", "limit":1, "selected_values":[key]
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{values}");
+    let values = &values["values"];
+    assert_eq!(values["total_values"], 0);
+    assert_eq!(values["options"][0]["value"], key);
+    assert_eq!(values["options"][0]["label"], "Darkvision");
+    assert_eq!(
+        values["options"][0]["help"]["destination"]["navigation"]["record_key"],
+        key
+    );
+}

@@ -202,25 +202,44 @@ pub(crate) fn vocabulary(
     let catalog = r.discover_filter_fields()?;
     let namespace = namespace(&catalog, &values.field);
     let context = HelpContext::load(r, keys(namespace, values.options.iter().map(|o| &o.value)))?;
-    let actions = action_choices(r, &values.field, values.options.iter().map(|o| &o.value))?;
+    let mut actions = action_choices(
+        r,
+        &values.field,
+        values
+            .options
+            .iter()
+            .map(|o| &o.value)
+            .chain(&values.selected_values),
+    )?;
+    let mut options = values
+        .options
+        .into_iter()
+        .map(|o| {
+            if let QueryLiteral::String(key) = &o.value
+                && let Some(choice) = actions.remove(key)
+            {
+                return Ok(choice);
+            }
+            let label = fallback_label(&catalog, &values.field, &o.value);
+            decorate(&context, namespace, o.value, label)
+        })
+        .collect::<AppServiceResult<Vec<_>>>()?;
+    // Existing Actions selections need readable labels even outside this page or scope.
+    options.extend(
+        values
+            .selected_values
+            .iter()
+            .filter_map(|value| match value {
+                QueryLiteral::String(key) => actions.remove(key),
+                _ => None,
+            }),
+    );
     Ok(FilterVocabularyView {
         field: values.field.clone(),
         selected_values: values.selected_values,
         total_values: values.total_values,
         basis: values.basis,
-        options: values
-            .options
-            .into_iter()
-            .map(|o| {
-                if let QueryLiteral::String(key) = &o.value
-                    && let Some(choice) = actions.get(key)
-                {
-                    return Ok(choice.clone());
-                }
-                let label = fallback_label(&catalog, &values.field, &o.value);
-                decorate(&context, namespace, o.value, label)
-            })
-            .collect::<AppServiceResult<Vec<_>>>()?,
+        options,
     })
 }
 pub(crate) fn editor(
