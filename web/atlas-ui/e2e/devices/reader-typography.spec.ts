@@ -98,12 +98,11 @@ test("reader links follow prose and badge links retain the badge scale", async (
   ).toBe(bodySize);
   const trait = page
     .locator(".record-trait-badge")
-    .filter({ hasText: "Concentrate" })
+    .filter({ has: page.getByRole("link", { name: "Light", exact: true }) })
     .first();
-  await expect(trait).toBeVisible();
+  const traitLink = trait.getByRole("link", { name: "Light", exact: true });
+  await expect(traitLink).toBeVisible();
   const badgeSize = await fontSize(trait);
-  expect(
-    await fontSize(trait.getByRole("link", { name: "Concentrate", exact: true })),
-  ).toBe(badgeSize);
+  expect(await fontSize(traitLink)).toBe(badgeSize);
   expect(badgeSize).toBeLessThan(bodySize);
 });
