@@ -196,11 +196,10 @@ export function canonicalRouteSearch(
 }
 
 function retiredSimilaritySearch(kind: RouteSearchKind, search: AtlasSearchParams) {
-  return (
-    (kind === "search" || kind === "search_record") &&
-    typeof search.similar === "string" &&
-    search.similar.trim().startsWith("trait:")
-  );
+  if (kind !== "search" && kind !== "search_record") return false;
+  const value = search.similar;
+  if (Array.isArray(value) && value.some((entry) => entry !== value[0])) return false;
+  return singleton(search, "similar")?.trim().startsWith("trait:") ?? false;
 }
 
 export function failedFilterTransport(

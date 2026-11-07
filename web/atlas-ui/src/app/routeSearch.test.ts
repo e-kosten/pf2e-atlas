@@ -319,5 +319,11 @@ it("drops stale trait Similar state instead of running a filtered search", () =>
       similarity_sections: "custom",
     }),
   ).toEqual({});
+  expect(
+    canonicalRouteSearch("search", {
+      similar: ["trait:fire", "trait:fire"],
+      filter: "invalid",
+    }),
+  ).toEqual({});
   expect(canonicalRouteSearch("trait", { tab: "similar" })).toEqual({});
 });

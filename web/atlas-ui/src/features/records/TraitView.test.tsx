@@ -322,9 +322,7 @@ it("hides known-empty associations", async () => {
   }));
   setup();
   await screen.findByText("Multiple attack penalty is reduced.");
-  await waitFor(() =>
-    expect(screen.queryByLabelText("Loading connections…")).toBeNull(),
-  );
+  await waitFor(() => expect(screen.queryByText("Loading connections…")).toBeNull());
   expect(screen.queryByRole("tab", { name: "Similar" })).toBeNull();
   expect(screen.queryByRole("tab", { name: "References" })).toBeNull();
   expect(screen.queryByRole("tab", { name: "With this trait" })).toBeNull();
