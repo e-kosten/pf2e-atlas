@@ -619,14 +619,6 @@
   .advanced-filters .rule[data-wide-field] > .rule-fields {
     grid-column: 1 / -2;
   }
-  .advanced-filters .rule[data-wide-field] > .rule-operators {
-    grid-column: 1 / 3;
-    grid-row: 2;
-    width: fit-content;
-  }
-  .advanced-filters .rule[data-wide-field] > .filter-rule-value {
-    grid-row: 2;
-  }
 }
 
 .filter-link-summary {
@@ -676,15 +668,20 @@
   .filter-link-summary {
     grid-row: 2;
   }
-  .advanced-filters .rule:has(> .filter-field-family) {
+  .advanced-filters
+    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family)) {
     grid-template-columns: fit-content(36%) minmax(0, 1fr) auto;
   }
-  .advanced-filters .rule:has(> .filter-field-family) > .rule-operators {
+  .advanced-filters
+    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family))
+    > .rule-operators {
     grid-column: 1;
     grid-row: 2;
     width: fit-content;
   }
-  .advanced-filters .rule:has(> .filter-field-family) > .filter-rule-value {
+  .advanced-filters
+    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family))
+    > .filter-rule-value {
     grid-column: 2 / -2;
     grid-row: 2;
   }

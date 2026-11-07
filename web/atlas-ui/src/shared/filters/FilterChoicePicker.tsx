@@ -171,6 +171,13 @@ function FilterChoicePicker({
         )
       : label;
   const choices = (closedChoices ? field.choices : (query.data?.values.options ?? []))
+    // An empty string clears an Advanced operand, so it cannot be a choice.
+    .filter(
+      (option) =>
+        edit.kind !== "operand" ||
+        typeof option.value !== "string" ||
+        option.value.trim() !== "",
+    )
     // A stale action ID can be returned as a fallback label without a resolved record.
     .filter((option) => !isActions || option.help?.destination.kind === "record")
     .map((option) => ({
@@ -380,7 +387,9 @@ function FilterChoicePicker({
                     ? labelForValue(selected[0])
                     : selected.length
                       ? "Add value"
-                      : "Choose " + label.toLowerCase() + "…",
+                      : field.definition.path === "consumable.damage.type"
+                        ? "Choose type…"
+                        : "Choose " + label.toLowerCase() + "…",
                 scalar: edit.shape === "scalar",
                 enterValue: enterValue ?? undefined,
                 manualValue: settled ? (exact ?? undefined) : undefined,

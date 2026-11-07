@@ -183,6 +183,32 @@ describe("shared value control vocabulary", () => {
     expect(screen.getByRole("combobox", { name: "Traits" })).toBeInTheDocument();
     expect(api.discoverFilterValues).not.toHaveBeenCalled();
   });
+  it("omits blank catalog values that would clear an Advanced operand", async () => {
+    api.discoverFilterValues.mockResolvedValue({
+      kind: "vocabulary",
+      scope: { kind: "saved_list", list_ref: "research" },
+      values: {
+        field: "traits",
+        selected_values: [],
+        total_values: 3n,
+        options: [
+          { value: "", label: "" },
+          { value: " ", label: "" },
+          { value: "fire", label: "Fire" },
+        ],
+        basis: "product_key_scope",
+      },
+    });
+    const change = vi.fn();
+    renderInput(false, change, []);
+    openVocabulary();
+    const fire = await screen.findByRole("button", {
+      name: "Traits: Fire, activate to select",
+    });
+    expect(screen.getAllByRole("button", { name: /^Traits:/ })).toEqual([fire]);
+    fireEvent.click(fire);
+    expect(change).toHaveBeenCalledExactlyOnceWith(["fire"]);
+  });
   it("counts closed choices only when the advanced selector opens", async () => {
     renderInput(true, vi.fn(), ["fire"], true);
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
