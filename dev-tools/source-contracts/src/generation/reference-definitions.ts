@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
-import { createCatalogReader, type Member, type Value } from '../discovery/catalog-values.js';
+import { createCatalogReader, type Member } from '../discovery/catalog-values.js';
 import type { TraitCatalog } from '../contracts.js';
 
 export interface ReferenceDefinition {
@@ -71,9 +71,8 @@ export async function referenceSourceInputs(source: string) {
 }
 
 /** Exact declarations and reviewed associations, without compiling localized prose. */
-export async function referenceDefinitions(source: string, registry: ReferenceRegistry, traits: TraitCatalog,
-  inputs?: Awaited<ReturnType<typeof referenceSourceInputs>>): Promise<ReferenceCatalog> {
-  inputs ??= await referenceSourceInputs(source);
+export function referenceDefinitions(source: string, registry: ReferenceRegistry, traits: TraitCatalog,
+  inputs: Awaited<ReturnType<typeof referenceSourceInputs>>): ReferenceCatalog {
   if (registry.schema !== 'reference-definition-registry/v1' || registry.source_package !== 'pf2e')
     throw new Error('Unsupported reference registry');
   const documents = new Map(inputs.documents.map(document => [document.file, document.bytes]));

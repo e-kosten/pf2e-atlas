@@ -1,7 +1,7 @@
 //! Selected reference catalog preparation; records retain their existing content authority.
 use crate::{
     CapturedBuildInputs, IngestError, REFERENCE_PREPARATION_RECIPE,
-    source::localization::LocalizationCatalog,
+    reference_supplement::SupplementBody, source::localization::LocalizationCatalog,
 };
 use atlas_domain::{DefinitionKey, DefinitionNamespace, RecordKey};
 use atlas_foundry_model::generated::{
@@ -338,7 +338,7 @@ impl<'a> ReferenceBuild<'a> {
                 entry.provenance.source_sha256 = Some(hash.into());
             }
             entry.provenance.publications = vec![ReferencePublication {
-                title: Some(supplemental.publication.clone()),
+                title: Some(self.inputs.reference_supplement().publication.clone()),
                 page: Some(supplemental.page),
                 license: Some("ORC".into()),
             }];
@@ -348,16 +348,10 @@ impl<'a> ReferenceBuild<'a> {
                 "player-core".into(),
                 "pf2etools-formatting".into(),
             ]);
-            if key.namespace() == DefinitionNamespace::Language {
-                entry.permission.notices.push("community-use".into());
+            match &supplemental.body {
+                SupplementBody::Speakers(speakers) => language_speaker_markup(speakers),
+                SupplementBody::Specialization(markup) => Some(markup.clone()),
             }
-            supplemental.markup.clone().or_else(|| {
-                if key.namespace() == DefinitionNamespace::Language {
-                    language_speaker_markup(&supplemental.speakers)
-                } else {
-                    None
-                }
-            })
         } else if let Some(description_key) = authored.description_key {
             let Some(markup) = self
                 .catalog
@@ -431,38 +425,6 @@ impl<'a> ReferenceBuild<'a> {
 }
 
 fn language_speaker_markup(speakers: &[String]) -> Option<String> {
-    let mut speakers = speakers.to_vec();
-    let first = speakers.first_mut()?;
-    // The captured table capitalizes its first cell. Only reviewed common-noun
-    // phrases change case; proper names and new source wording stay verbatim.
-    if matches!(
-        first.as_str(),
-        "Evil fey"
-            | "Demons"
-            | "Humans"
-            | "Devils"
-            | "Dragons"
-            | "Dwarves"
-            | "Elves"
-            | "Angels"
-            | "Fey"
-            | "Gnomes"
-            | "Goblins"
-            | "Halflings"
-            | "Giants"
-            | "The hyena-like kholos"
-            | "Wood elemental creatures"
-            | "Ghouls"
-            | "Orcs"
-            | "Earth elemental creatures"
-            | "Fire elemental creatures"
-            | "Subterranean civilizations"
-            | "Air elemental creatures"
-            | "Metal elemental creatures"
-            | "Aquatic creatures"
-    ) {
-        first.make_ascii_lowercase();
-    }
     let (last, leading) = speakers.split_last()?;
     let text = if leading.is_empty() {
         last.clone()

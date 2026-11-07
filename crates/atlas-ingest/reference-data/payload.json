@@ -1,440 +1,194 @@
 {
-  "schema": 1,
-  "entries": [
-    {
-      "namespace": "language",
-      "identifier": "aklo",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Evil fey",
+  "schema": 2,
+  "publication": "Pathfinder Player Core",
+  "language_page": 89,
+  "weapon_group_page": 283,
+  "base_grant": "ORC",
+  "language_speakers": [
+    [
+      "aklo",
+      [
+        "evil fey",
         "otherworldly monsters"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "chthonian",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Demons"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "common",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Humans",
+      ]
+    ],
+    [
+      "chthonian",
+      [
+        "demons"
+      ]
+    ],
+    [
+      "common",
+      [
+        "humans",
         "dwarves",
         "elves",
         "halflings",
         "other common ancestries"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "diabolic",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Devils"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "draconic",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Dragons",
+      ]
+    ],
+    [
+      "diabolic",
+      [
+        "devils"
+      ]
+    ],
+    [
+      "draconic",
+      [
+        "dragons",
         "reptilian humanoids"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "dwarven",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Dwarves"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "elven",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Elves",
+      ]
+    ],
+    [
+      "dwarven",
+      [
+        "dwarves"
+      ]
+    ],
+    [
+      "elven",
+      [
+        "elves",
         "aiuvarins"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "empyrean",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Angels",
+      ]
+    ],
+    [
+      "empyrean",
+      [
+        "angels",
         "other celestials"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "fey",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Fey",
+      ]
+    ],
+    [
+      "fey",
+      [
+        "fey",
         "centaurs",
         "plant",
         "fungus creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "gnomish",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Gnomes"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "goblin",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Goblins",
+      ]
+    ],
+    [
+      "gnomish",
+      [
+        "gnomes"
+      ]
+    ],
+    [
+      "goblin",
+      [
+        "goblins",
         "hobgoblins",
         "bugbears"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "halfling",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Halflings"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "jotun",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Giants",
+      ]
+    ],
+    [
+      "halfling",
+      [
+        "halflings"
+      ]
+    ],
+    [
+      "jotun",
+      [
+        "giants",
         "ogres",
         "trolls",
         "cyclopes"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "kholo",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "The hyena-like kholos"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "muan",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Wood elemental creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "necril",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Ghouls",
+      ]
+    ],
+    [
+      "kholo",
+      [
+        "the hyena-like kholos"
+      ]
+    ],
+    [
+      "muan",
+      [
+        "wood elemental creatures"
+      ]
+    ],
+    [
+      "necril",
+      [
+        "ghouls",
         "intelligent undead"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "orcish",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Orcs",
+      ]
+    ],
+    [
+      "orcish",
+      [
+        "orcs",
         "dromaars"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "petran",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Earth elemental creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "pyric",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Fire elemental creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "sakvroth",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Subterranean civilizations",
+      ]
+    ],
+    [
+      "petran",
+      [
+        "earth elemental creatures"
+      ]
+    ],
+    [
+      "pyric",
+      [
+        "fire elemental creatures"
+      ]
+    ],
+    [
+      "sakvroth",
+      [
+        "subterranean civilizations",
         "serpentfolk"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "shadowtongue",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC",
-        "CUP"
-      ],
-      "speakers": [
+      ]
+    ],
+    [
+      "shadowtongue",
+      [
         "Nidalese",
         "Netherworld creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "sussuran",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Air elemental creatures",
+      ]
+    ],
+    [
+      "sussuran",
+      [
+        "air elemental creatures",
         "flying creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "talican",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Metal elemental creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "language",
-      "identifier": "thalassic",
-      "source_field": "typicalSpeakers",
-      "publication": "Pathfinder Player Core",
-      "page": 89,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [
-        "Aquatic creatures",
+      ]
+    ],
+    [
+      "talican",
+      [
+        "metal elemental creatures"
+      ]
+    ],
+    [
+      "thalassic",
+      [
+        "aquatic creatures",
         "water elemental creatures"
-      ],
-      "markup": null
-    },
-    {
-      "namespace": "weapon_group",
-      "identifier": "crossbow",
-      "source_field": "specialization",
-      "publication": "Pathfinder Player Core",
-      "page": 283,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [],
-      "markup": "<p>The target takes 1d8 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
-    },
-    {
-      "namespace": "weapon_group",
-      "identifier": "dart",
-      "source_field": "specialization",
-      "publication": "Pathfinder Player Core",
-      "page": 283,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [],
-      "markup": "<p>The target takes 1d6 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
-    },
-    {
-      "namespace": "weapon_group",
-      "identifier": "knife",
-      "source_field": "specialization",
-      "publication": "Pathfinder Player Core",
-      "page": 283,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [],
-      "markup": "<p>The target takes 1d6 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
-    },
-    {
-      "namespace": "weapon_group",
-      "identifier": "pick",
-      "source_field": "specialization",
-      "publication": "Pathfinder Player Core",
-      "page": 283,
-      "content_locale": "en",
-      "grants": [
-        "ORC"
-      ],
-      "speakers": [],
-      "markup": "<p>The weapon viciously pierces the target, who takes 2 additional damage per weapon damage die.</p>"
-    }
-  ]
+      ]
+    ]
+  ],
+  "weapon_specializations": [
+    [
+      "crossbow",
+      "<p>The target takes 1d8 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
+    ],
+    [
+      "dart",
+      "<p>The target takes 1d6 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
+    ],
+    [
+      "knife",
+      "<p>The target takes 1d6 persistent bleed damage. You gain an item bonus to this bleed damage equal to the weapon's item bonus to attack rolls.</p>"
+    ],
+    [
+      "pick",
+      "<p>The weapon viciously pierces the target, who takes 2 additional damage per weapon damage die.</p>"
+    ]
+  ],
+  "cup_language": "shadowtongue"
 }

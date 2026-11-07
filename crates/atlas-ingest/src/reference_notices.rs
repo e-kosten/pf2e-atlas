@@ -72,9 +72,10 @@ impl CapturedReferenceNotices {
                 // Missing/unreadable optional notice disables its new standalone prose,
                 // not ordinary record admission. The exact absent state is still input.
                 if let Ok(text) = fs::read_to_string(&path) {
-                    identity.update(hash(text.as_bytes()).as_bytes());
+                    let sha256 = hash(text.as_bytes());
+                    identity.update(sha256.as_bytes());
                     if text.to_uppercase().contains(&required.to_uppercase()) {
-                        notices.insert(id.into(), ReferenceNotice { id: id.into(), sha256: hash(text.as_bytes()), text, source_url: revision.map(|revision| format!("https://github.com/foundryvtt/pf2e/blob/{revision}/static/licenses/{name}")) });
+                        notices.insert(id.into(), ReferenceNotice { id: id.into(), sha256, text, source_url: revision.map(|revision| format!("https://github.com/foundryvtt/pf2e/blob/{revision}/static/licenses/{name}")) });
                     }
                 } else {
                     identity.update(b"unavailable");

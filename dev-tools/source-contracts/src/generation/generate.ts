@@ -25,7 +25,7 @@ export function formatRust(text: string): string {
 /** Fresh extraction is deliberate: cached graphs never authorize generated output. */
 export async function preparePortfolio(args: { source?: string; cacheDir?: string } = {}) {
   const pin = await readSourcePin(), cacheDir = args.cacheDir ?? defaultCache;
-  const source = await preparePinnedSource(pin, cacheDir, args.source);
+  const { source, referenceInputs } = await preparePinnedSource(pin, cacheDir, args.source);
   const extraction = path.join(cacheDir, pin.commit, 'extraction');
   const { summary } = await extract(source, extraction, { strict: true });
   assertSourcePin(summary.source, pin);
@@ -40,7 +40,7 @@ export async function preparePortfolio(args: { source?: string; cacheDir?: strin
   input.traitDefinitions = traitDefinitions(catalog);
   const referenceRegistry = JSON.parse(await readFile(path.join(repositoryRoot,
     'dev-tools/source-contracts/fixtures/reference-definition-registry.json'), 'utf8')) as ReferenceRegistry;
-  input.referenceCatalog = await referenceDefinitions(source, referenceRegistry, catalog);
+  input.referenceCatalog = referenceDefinitions(source, referenceRegistry, catalog, referenceInputs);
   input.actionDefinitions = await actionDefinitions(source);
   const conditionCoverage = JSON.parse(await readFile(path.join(repositoryRoot, 'dev-tools/source-contracts/fixtures/condition-rule-coverage.json'), 'utf8')) as ConditionCoverage;
   input.conditionCatalog = await conditionDefinitions(source, new Set(input.traitDefinitions.map(entry => entry.identifier)), conditionCoverage);

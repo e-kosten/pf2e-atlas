@@ -23,7 +23,7 @@ fn fixture() -> tempfile::TempDir {
     for (name, values) in [
         (
             "en",
-            json!({"Shared":"Base", "OnlyEnglish":"English fallback"}),
+            json!({"Shared":"Base", "OnlyEnglish":"English fallback", "Blank":"English body"}),
         ),
         (
             "action-en",
@@ -33,7 +33,7 @@ fn fixture() -> tempfile::TempDir {
             "re-en",
             json!({"Rule":"Complete English rules.","Shared":"Later declaration"}),
         ),
-        ("fr", json!({"Shared":"French"})),
+        ("fr", json!({"Shared":"French", "Blank":""})),
         ("sf2e-overrides-en", json!({"Shared":"Undeclared override"})),
     ] {
         fs::write(
@@ -50,6 +50,15 @@ fn declared_english_catalogs_expand_nested_content_in_manifest_order() {
     let root = fixture();
     let catalog = LocalizationCatalog::load(root.path(), "en", None).unwrap();
     assert_eq!(catalog.localized_value("Shared"), Some("Later declaration"));
+    let source = "static/lang/re-en.json";
+    let hash = format!(
+        "{:x}",
+        Sha256::digest(fs::read(root.path().join(source)).unwrap())
+    );
+    assert_eq!(
+        catalog.english_source("Shared"),
+        Some((source, hash.as_str()))
+    );
     let content = prepare_source_content(
         SourceContentLocator {
             record: "items:aaaaaaaaaaaaaaaa".parse().unwrap(),
@@ -79,6 +88,9 @@ fn composed_english_remains_the_selected_locale_fallback() {
     let root = fixture();
     let catalog = LocalizationCatalog::load(root.path(), "fr", None).unwrap();
     assert_eq!(catalog.localized_value("Shared"), Some("French"));
+    assert_eq!(catalog.english_value("Shared"), Some("Later declaration"));
+    assert_eq!(catalog.localized_value("Blank"), Some(""));
+    assert_eq!(catalog.content_locale("Blank"), Some("fr"));
     assert_eq!(
         catalog.localized_value("Rule"),
         Some("Complete English rules.")
@@ -87,6 +99,7 @@ fn composed_english_remains_the_selected_locale_fallback() {
         catalog.localized_value("OnlyEnglish"),
         Some("English fallback")
     );
+    assert_eq!(catalog.content_locale("OnlyEnglish"), Some("en"));
 }
 
 #[test]

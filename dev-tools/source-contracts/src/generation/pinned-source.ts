@@ -42,22 +42,28 @@ async function exists(file: string): Promise<boolean> {
     throw error;
   }
 }
+async function verifyPinnedExport(source: string, pin: SourcePin) {
+  assertSourcePin(await sourceIdentity(source), pin);
+  if ((await conditionSourceInputs(source)).digest !== pin.conditionSourceDigest)
+    throw new Error('Condition pack bytes do not match source-pin.json: ' + source);
+  const referenceInputs = await referenceSourceInputs(source);
+  if (referenceInputs.digest !== pin.referenceSourceDigest)
+    throw new Error('Reference pack bytes do not match source-pin.json: ' + source);
+  return referenceInputs;
+}
 /** Use an isolated export with this package's locked declarations, never mutate a caller's checkout. */
-export async function preparePinnedSource(pin: SourcePin, cache = defaultCache, suppliedSource?: string): Promise<string> {
+export async function preparePinnedSource(pin: SourcePin, cache = defaultCache, suppliedSource?: string) {
   for (const code of ['crates', 'dev-tools', 'scripts', 'docs', '.git'])
     if (contains(path.join(repositoryRoot, code), cache) || contains(cache, path.join(repositoryRoot, code)))
       throw new Error('Source cache must be separate from tracked code');
   if (suppliedSource && (contains(cache, suppliedSource) || contains(suppliedSource, cache)))
     throw new Error('Source cache must be separate from the supplied source');
-  if (suppliedSource) {
-    assertSourcePin(await sourceIdentity(suppliedSource), pin);
-    if ((await conditionSourceInputs(suppliedSource)).digest !== pin.conditionSourceDigest) throw new Error('Condition pack bytes do not match source-pin.json');
-    if ((await referenceSourceInputs(suppliedSource)).digest !== pin.referenceSourceDigest) throw new Error('Reference pack bytes do not match source-pin.json');
-  }
+  if (suppliedSource) await verifyPinnedExport(suppliedSource, pin);
   await mkdir(cache, { recursive: true });
   if ((await lstat(cache)).isSymbolicLink()) throw new Error('Source cache must not be a symlink');
   const source = path.join(cache, pin.commit, 'source');
   await mkdir(path.dirname(source), { recursive: true });
+  let referenceInputs: Awaited<ReturnType<typeof referenceSourceInputs>> | undefined;
   if (!await exists(source)) {
     const stage = await mkdtemp(path.join(cache, 'export-'));
     try {
@@ -80,22 +86,19 @@ export async function preparePinnedSource(pin: SourcePin, cache = defaultCache, 
         const unpack = spawnSync('tar', ['-xf', '-', '-C', stage], { input: stdout, encoding: 'utf8', timeout: 60_000 });
         if (unpack.error || unpack.status !== 0) throw new Error('Cannot export pinned source: ' + (unpack.error?.message ?? unpack.stderr));
       }
-      assertSourcePin(await sourceIdentity(stage), pin);
-      if ((await conditionSourceInputs(stage)).digest !== pin.conditionSourceDigest) throw new Error('Exported condition bytes do not match source pin');
-      if ((await referenceSourceInputs(stage)).digest !== pin.referenceSourceDigest) throw new Error('Exported reference bytes do not match source pin');
+      referenceInputs = await verifyPinnedExport(stage, pin);
       await rename(stage, source);
     } finally { await rm(stage, { recursive: true, force: true }); }
   }
   if ((await lstat(source)).isSymbolicLink()) throw new Error('Cached source must not be a symlink');
-  assertSourcePin(await sourceIdentity(source), pin);
-  if ((await conditionSourceInputs(source)).digest !== pin.conditionSourceDigest) throw new Error('Cached condition bytes do not match source pin; regenerate the private source export');
-  if ((await referenceSourceInputs(source)).digest !== pin.referenceSourceDigest) throw new Error('Cached reference bytes do not match source pin; regenerate the private source export');
+  referenceInputs ??= await verifyPinnedExport(source, pin);
+  const prepared = { source, referenceInputs };
   const dependencies = path.join(source, 'node_modules'), lockedDependencies = await realpath(path.join(packageRoot, 'node_modules'));
   if (await exists(dependencies)) {
     if (!(await lstat(dependencies)).isSymbolicLink()) throw new Error('Cached dependency path must be a tool-owned symlink');
-    if (await realpath(dependencies) === lockedDependencies) return source;
+    if (await realpath(dependencies) === lockedDependencies) return prepared;
     await rm(dependencies);
   }
   await symlink(lockedDependencies, dependencies, process.platform === 'win32' ? 'junction' : 'dir');
-  return source;
+  return prepared;
 }

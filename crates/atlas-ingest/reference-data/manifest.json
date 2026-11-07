@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "recipe": "pc1-reference-subset/v1",
+  "recipe": "pc1-reference-subset/v2",
   "permission_recipe": "pc1-functional-orc-cup-descriptive/v1",
   "source_repository": "https://github.com/Pf2eToolsOrg/Pf2eTools",
   "source_commit": "9fab2be36f4e8f036e868b67c055ebee68d2acc9",
@@ -22,7 +22,7 @@
     "community-use-policy.pdf": "0885c6015db8614f6ff4cd52450f675c86cd6928b312d96e4c677c457c30acfc",
     "notices.json": "d644ea71c7b83a20d892cd8777966972988bfdb9ea559d6e865584f40a41a07d",
     "orc-license.pdf": "3fffe0fe69781b7115bccbfa0f51489e0a073c211772f5ebcd84d34f88f19b29",
-    "payload.json": "bc8f65e1fc94daf162c5afdf192a4458ff53fb5ff5fbe70d12466a49b8b71b79"
+    "payload.json": "c73b0e9917ca47d9258ad032410443ac6a97bb0fb4cab8b53e88984fc30c82a4"
   },
   "selection": {
     "language_contexts": 24,

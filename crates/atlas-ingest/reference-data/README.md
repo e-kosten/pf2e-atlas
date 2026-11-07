@@ -6,7 +6,9 @@ the pristine registered ORC PDF and the Community Use Policy PDF by checksum.
 Normal setup and check mode consume these bundled bytes directly through ingest.
 
 The payload contains 24 Player Core typical-speaker fields and four Player Core
-weapon specialization paragraphs from the pinned Pf2eTools source. Wildsong uses
+weapon specialization paragraphs from the pinned Pf2eTools source. The payload
+groups them by source table, with one shared publication and an explicit
+Community Use exception for Shadowtongue. Wildsong uses
 the existing Foundry class-feature record instead. The original complete language
 and group datasets, regional lore and legacy variants are not distributed here.
 Known display tags were flattened without adding executable rules or inferred

@@ -136,7 +136,7 @@ export function createCatalogReader(sourceRoot: string,
         } else if (ts.isShorthandPropertyAssignment(member)) {
           result.set(member.name.text, { value: variable(member.name.text, context, locals), node: member });
         } else if (ts.isPropertyAssignment(member)) {
-          const name = ts.isComputedPropertyName(member.name) ? evaluate(member.name.expression, context, locals) : ts.isComputedPropertyName(member.name) ? undefined : member.name.text;
+          const name = ts.isComputedPropertyName(member.name) ? evaluate(member.name.expression, context, locals) : member.name.text;
           if (typeof name !== "string") fail("computed-key", "Computed key is not a string", member.name);
           result.set(name, { value: evaluate(member.initializer, context, locals), node: member });
         } else fail("unsupported-member", `Unsupported catalog member: ${ts.SyntaxKind[member.kind]}`, member);

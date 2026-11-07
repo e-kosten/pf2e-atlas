@@ -5,7 +5,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
-pub const REFERENCE_PREPARATION_RECIPE: &str = "reference-definitions/v5";
+pub const REFERENCE_PREPARATION_RECIPE: &str = "reference-definitions/v6";
 
 const MANIFEST: &[u8] = include_bytes!("../reference-data/manifest.json");
 const PAYLOAD: &[u8] = include_bytes!("../reference-data/payload.json");
@@ -63,23 +63,26 @@ struct Selection {
 #[serde(deny_unknown_fields)]
 struct Payload {
     schema: u32,
-    entries: Vec<SupplementEntry>,
+    publication: String,
+    language_page: u32,
+    weapon_group_page: u32,
+    base_grant: String,
+    language_speakers: Vec<(String, Vec<String>)>,
+    weapon_specializations: Vec<(String, String)>,
+    cup_language: Option<String>,
 }
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
+pub(crate) enum SupplementBody {
+    Speakers(Vec<String>),
+    Specialization(String),
+}
 pub(crate) struct SupplementEntry {
-    pub(crate) namespace: DefinitionNamespace,
-    pub(crate) identifier: String,
-    pub(crate) source_field: String,
-    pub(crate) publication: String,
     pub(crate) page: u32,
-    pub(crate) content_locale: String,
     pub(crate) grants: Vec<String>,
-    pub(crate) speakers: Vec<String>,
-    pub(crate) markup: Option<String>,
+    pub(crate) body: SupplementBody,
 }
 pub(crate) struct ReferenceSupplementCapture {
     pub(crate) entries: BTreeMap<DefinitionKey, SupplementEntry>,
+    pub(crate) publication: String,
     pub(crate) source_commit: String,
     pub(crate) identity: String,
     source_files: BTreeMap<String, SourceFile>,
@@ -101,7 +104,7 @@ impl ReferenceSupplementCapture {
         let manifest: Manifest = serde_json::from_slice(MANIFEST)
             .map_err(|error| invalid(format!("reference manifest: {error}")))?;
         if manifest.schema != 1
-            || manifest.recipe != "pc1-reference-subset/v1"
+            || manifest.recipe != "pc1-reference-subset/v2"
             || manifest.permission_recipe != "pc1-functional-orc-cup-descriptive/v1"
             || manifest.mapping_recipe != "pf2e-reference-tokens/v1"
             || manifest.source_package != "pf2e"
@@ -145,64 +148,82 @@ impl ReferenceSupplementCapture {
         }
         let payload: Payload = serde_json::from_slice(PAYLOAD)
             .map_err(|error| invalid(format!("reference payload: {error}")))?;
-        if payload.schema != 1
-            || manifest.selection.language_contexts != 24
-            || manifest.selection.weapon_groups != 4
-            || manifest.selection.wildsong_existing_record != "classfeatures:RiAGlnnp4S21BAG3"
+        let wildsong = atlas_foundry_model::generated::reference_definitions()
+            .iter()
+            .find(|entry| entry.namespace == "language" && entry.identifier == "wildsong")
+            .and_then(|entry| entry.record_key);
+        let cup_language = payload
+            .language_speakers
+            .iter()
+            .any(|(identifier, _)| identifier == "shadowtongue")
+            .then_some("shadowtongue");
+        if payload.schema != 2
+            || payload.publication != "Pathfinder Player Core"
+            || payload.language_page == 0
+            || payload.weapon_group_page == 0
+            || payload.base_grant != "ORC"
+            || payload.language_speakers.len() != manifest.selection.language_contexts
+            || payload.weapon_specializations.len() != manifest.selection.weapon_groups
+            || payload.cup_language.as_deref() != cup_language
+            || wildsong != Some(manifest.selection.wildsong_existing_record.as_str())
         {
-            return Err(invalid("unsupported reference subset selection"));
+            return Err(invalid(
+                "unsupported or incomplete reference subset selection",
+            ));
         }
+
         let mut entries = BTreeMap::new();
-        for entry in payload.entries {
-            let key = DefinitionKey::new(entry.namespace, &entry.identifier)
+        let mut insert = |namespace, identifier: String, entry| {
+            let key = DefinitionKey::new(namespace, identifier)
                 .map_err(|error| invalid(error.to_string()))?;
-            let valid = match entry.namespace {
-                DefinitionNamespace::Language => {
-                    entry.source_field == "typicalSpeakers"
-                        && !entry.speakers.is_empty()
-                        && entry.markup.is_none()
-                        && entry.identifier != "wildsong"
-                }
-                DefinitionNamespace::WeaponGroup => {
-                    entry.source_field == "specialization"
-                        && entry.speakers.is_empty()
-                        && entry
-                            .markup
-                            .as_ref()
-                            .is_some_and(|markup| !markup.trim().is_empty())
-                        && ["crossbow", "dart", "knife", "pick"]
-                            .contains(&entry.identifier.as_str())
-                }
-                _ => false,
-            };
-            if !valid
-                || entry.publication != "Pathfinder Player Core"
-                || entry.content_locale != "en"
-                || entry.grants.is_empty()
-                || entry
-                    .grants
-                    .iter()
-                    .any(|grant| !["ORC", "CUP"].contains(&grant.as_str()))
-                || entry
-                    .speakers
+            if entries.insert(key, entry).is_some() {
+                return Err(invalid("duplicate selected reference entry"));
+            }
+            Ok(())
+        };
+        for (identifier, speakers) in payload.language_speakers {
+            if identifier == "wildsong"
+                || speakers.is_empty()
+                || speakers
                     .iter()
                     .any(|speaker| speaker.is_empty() || speaker.contains("{@"))
-                || entries.insert(key, entry).is_some()
             {
-                return Err(invalid("invalid or conflicting selected reference entry"));
+                return Err(invalid("invalid selected language speakers"));
             }
+            let grants = if Some(identifier.as_str()) == cup_language {
+                vec![payload.base_grant.clone(), "CUP".into()]
+            } else {
+                vec![payload.base_grant.clone()]
+            };
+            insert(
+                DefinitionNamespace::Language,
+                identifier,
+                SupplementEntry {
+                    page: payload.language_page,
+                    grants,
+                    body: SupplementBody::Speakers(speakers),
+                },
+            )?;
         }
-        if entries.len() != 28
-            || entries
-                .keys()
-                .filter(|key| key.namespace() == DefinitionNamespace::Language)
-                .count()
-                != 24
-        {
-            return Err(invalid("incomplete selected reference subset"));
+        for (identifier, markup) in payload.weapon_specializations {
+            if !["crossbow", "dart", "knife", "pick"].contains(&identifier.as_str())
+                || markup.trim().is_empty()
+            {
+                return Err(invalid("invalid selected weapon specialization"));
+            }
+            insert(
+                DefinitionNamespace::WeaponGroup,
+                identifier,
+                SupplementEntry {
+                    page: payload.weapon_group_page,
+                    grants: vec![payload.base_grant.clone()],
+                    body: SupplementBody::Specialization(markup),
+                },
+            )?;
         }
         Ok(Self {
             entries,
+            publication: payload.publication,
             source_commit: manifest.source_commit,
             identity: hash(MANIFEST),
             source_files: manifest.source_files,
@@ -218,22 +239,35 @@ mod tests {
     fn approved_subset_preserves_context_and_prose_without_a_second_wildsong_body() {
         let captured = ReferenceSupplementCapture::capture("en").unwrap();
         let chthonian = &captured.entries[&"language:chthonian".parse().unwrap()];
-        assert_eq!(chthonian.speakers, ["Demons"]);
-        assert_eq!(chthonian.content_locale, "en");
-        assert!(chthonian.markup.is_none());
+        assert!(
+            matches!(&chthonian.body, SupplementBody::Speakers(speakers) if speakers == &["demons"])
+        );
+        assert_eq!(chthonian.page, 89);
         assert!(
             !captured
                 .entries
                 .contains_key(&"language:wildsong".parse().unwrap())
         );
         let shadowtongue = &captured.entries[&"language:shadowtongue".parse().unwrap()];
-        assert_eq!(shadowtongue.speakers, ["Nidalese", "Netherworld creatures"]);
+        assert!(
+            matches!(&shadowtongue.body, SupplementBody::Speakers(speakers) if speakers == &["Nidalese", "Netherworld creatures"])
+        );
         assert!(shadowtongue.grants.contains(&"CUP".into()));
         let crossbow = &captured.entries[&"weapon_group:crossbow".parse().unwrap()];
-        let prose = crossbow.markup.as_deref().unwrap();
+        let SupplementBody::Specialization(prose) = &crossbow.body else {
+            panic!("crossbow specialization");
+        };
         assert!(prose.contains("1d8 persistent bleed damage"));
         assert!(prose.contains("item bonus to attack rolls"));
         assert!(!prose.contains("{@"));
         assert_eq!(captured.entries.len(), 28);
+        assert_eq!(
+            captured
+                .entries
+                .keys()
+                .filter(|key| key.namespace() == DefinitionNamespace::Language)
+                .count(),
+            24
+        );
     }
 }

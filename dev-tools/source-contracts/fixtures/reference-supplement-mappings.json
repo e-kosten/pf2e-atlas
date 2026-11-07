@@ -33,5 +33,30 @@
     "Knife": "knife",
     "Pick": "pick"
   },
-  "wildsong_existing_record": "classfeatures:RiAGlnnp4S21BAG3"
+  "wildsong_existing_record": "classfeatures:RiAGlnnp4S21BAG3",
+  "lowercase_first_speakers": [
+    "Evil fey",
+    "Demons",
+    "Humans",
+    "Devils",
+    "Dragons",
+    "Dwarves",
+    "Elves",
+    "Angels",
+    "Fey",
+    "Gnomes",
+    "Goblins",
+    "Halflings",
+    "Giants",
+    "The hyena-like kholos",
+    "Wood elemental creatures",
+    "Ghouls",
+    "Orcs",
+    "Earth elemental creatures",
+    "Fire elemental creatures",
+    "Subterranean civilizations",
+    "Air elemental creatures",
+    "Metal elemental creatures",
+    "Aquatic creatures"
+  ]
 }

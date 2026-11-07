@@ -192,8 +192,9 @@ config's differently hyphenated token is not an alias.
 `source-pin.json` binds these inputs with `referenceSourceDigest`, separately from
 the checked DTO contract. The glossary inputs include both PF2e bestiary ability
 packs, the exact Wildsong feature and two SF2e exclusion witnesses. The separate
-condition generator still reads the condition pack. Missing, altered or newly
-unreviewed glossary source fails generation.
+condition generator still reads the condition pack. The glossary extractor uses
+the verified JSON bytes. Missing, altered or newly unreviewed glossary source
+fails generation.
 The shared bounded AST reader interprets only supported catalog expressions and
 the explicitly selected PF2e system branch; it never executes upstream code.
 
@@ -222,16 +223,15 @@ later uses the existing Rust content interpreter.
 The output contains the normalized payload, manifest, required notices/PDFs and
 `changes.json`/`changes.md`. Review exact text, added/removed mapping targets,
 notice hashes, permission/mapping recipes and source-file hashes before approving
-an asset update. `--before` selects the comparison baseline; `--assets` supplies
-the curated notice/compatibility metadata when those change; both default to
-`crates/atlas-ingest/reference-data`. `--mappings` supplies a deliberately revised
-reviewed mapping file. Output cannot overwrite input or tracked product/tool
-directories, including through symlinked ancestors. Source commit/URLs are
-maintainer-supplied provenance and must be checked against the acquired snapshot.
+an asset update. The command uses `crates/atlas-ingest/reference-data` as its
+comparison baseline and its source of curated notices. Output cannot overwrite
+input or tracked product/tool directories, including through symlinked
+ancestors. Source commit/URLs are maintainer-supplied provenance and must be
+checked against the acquired snapshot.
 
 This contributor command performs no download, automatic approval or product
 asset installation. Commit only the reviewed normalized subset and notices.
-Normal setup uses the approved bundled/cache bytes and never polls for updates.
+Normal setup uses the approved bundled bytes.
 Offline fixtures test selection/rejections and all diff categories; reproducing
 the current five asset files from the recorded source hashes proves the extraction
 recipe without distributing the complete upstream datasets.
