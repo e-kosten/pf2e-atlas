@@ -88,22 +88,12 @@ save roll through that information control. Unknown identifiers remain visible.
 Renderers format those values independently, including signs and units. Neither
 renderer parses source DTOs or prose to recover mechanics.
 
-Effect-reference formatting uses exact source facts. Content preparation retains
-explicit-label presence, the nearest parsed block path, and resolved destination
-name/item family. App-service supplies compact labels for unlabeled effect
-references: “Effect” for one distinct destination in an exact source field,
-shortened names for multiple destinations across that field, including separate
-paragraphs. Claim Corpse therefore retains its Fleshy and Skeletal choice names;
-other fields and owned abilities do not affect those labels. Repeated references
-to the same destination remain compact. Explicit labels (including HTML anchor
-contents) are untouched.
-Names are never used to classify a destination, and no semantic role, redundancy,
-or application behavior is inferred. No reference is removed or relocated.
-The browser renders shared in-place previews with full-name hover/focus tooltips
-and native destinations; terminal prose retains full reference names. Stored
-HTML and search text retain their complete labels. Interpretation version 7
-binds label facts alongside each reference's identity; old prepared artifacts
-require regeneration rather than guessing missing facts from rendered text.
+The browser renders effect references in prepared content as ordinary links in
+their authored positions. Prepared content uses the explicit label when supplied
+and the resolved destination name for implicit references. Contextual destinations
+retain their selection, including a verified spell rank. App-service still
+supplies the compact `effect_label` wire field for compatibility with existing
+readers.
 
 Authored action and casting costs carry a readable label and an optional typed
 glyph for one, two or three actions, reaction and free action. Variable, timed
