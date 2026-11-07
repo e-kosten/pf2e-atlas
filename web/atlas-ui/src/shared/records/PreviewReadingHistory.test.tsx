@@ -27,7 +27,7 @@ import {
   detailFixture,
   knownFact,
 } from "../../test/fixtures";
-import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { useRecordPreview } from "./useRecordPreview";
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -119,20 +119,7 @@ it.each([
           >
             Open landed parent
           </button>
-          {preview.recordKey && (
-            <RecordReferenceDrawer
-              destination={preview.destination!}
-              anchor={preview.anchor}
-              detail={preview.detail}
-              landing={preview.landing}
-              readingHistory={preview.readingHistory}
-              loading={preview.loading}
-              error={preview.error}
-              onRetry={preview.retry}
-              onClose={preview.close}
-              onReference={preview.open}
-            />
-          )}
+          <RecordPreviewDrawer preview={preview} />
         </>
       );
     }
@@ -345,24 +332,7 @@ it("restores a header trait trigger and body scroll through mixed history withou
         >
           Open Abrikandilu
         </button>
-        {preview.destination && (
-          <RecordReferenceDrawer
-            destination={preview.destination}
-            definition={preview.definition}
-            help={preview.help}
-            onHelp={preview.openHelp}
-            anchor={preview.anchor}
-            detail={preview.detail}
-            loading={preview.loading}
-            error={preview.error}
-            onRetry={preview.retry}
-            onClose={preview.close}
-            onReference={preview.open}
-            requestedNavigation={preview.selection}
-            landing={preview.landing}
-            readingHistory={preview.readingHistory}
-          />
-        )}
+        <RecordPreviewDrawer preview={preview} />
       </>
     );
   }

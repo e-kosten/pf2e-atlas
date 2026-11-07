@@ -283,14 +283,6 @@ impl AtlasAppService {
                 },
             })?;
             projection_execution.check()?;
-            let counts = match counts {
-                QueryFacetOutcome::Available { value } => QueryFacetOutcome::Available {
-                    value: crate::definition_values::options(retrieval, value)?,
-                },
-                QueryFacetOutcome::Unavailable { reason } => {
-                    QueryFacetOutcome::Unavailable { reason }
-                }
-            };
             Ok(FilterCountsView {
                 counts,
                 search_profile: resolved,

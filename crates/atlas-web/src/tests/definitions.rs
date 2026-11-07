@@ -191,6 +191,29 @@ async fn glossary_unknown_and_legacy_coverage_remain_distinct_without_breaking_r
         .await;
     assert!(status.is_client_error(), "{error}");
     assert_eq!(error["code"], "setup_required");
+    let (status, stale) = legacy
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(
+                json!({"definition_key":"language:chthonian","expected_artifact_generation":"old"}),
+            ),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{stale}");
+    assert_eq!(stale["code"], "artifact_generation_changed");
+    assert_eq!(stale["recoverable_action"], "reload_record");
+    let (status, trait_detail) = legacy
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(json!({"definition_key":"trait:atlas-custom"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{trait_detail}");
+    assert_eq!(trait_detail["definition_key"], "trait:atlas-custom");
+    assert!(trait_detail["help"].is_null());
+    assert!(trait_detail["content"].is_null());
 }
 
 #[tokio::test]

@@ -2,7 +2,7 @@
 use crate::{AppServiceResult, definitions::HelpContext};
 use atlas_app_model::*;
 use atlas_domain::{
-    DefinitionKey, DefinitionNamespace as N, QueryCapability, QueryLiteral, RecordKey,
+    DefinitionKey, DefinitionNamespace as N, QueryFieldDefinition, QueryLiteral, RecordKey,
 };
 use atlas_search::{AtlasRetrievalService, GetRecordsRequest};
 use std::collections::{BTreeMap, BTreeSet};
@@ -58,8 +58,7 @@ pub(crate) fn association_fields(namespace: N) -> &'static [(&'static str, &'sta
         .unwrap_or_default()
 }
 
-fn namespace(catalog: &QueryCapability, field: &str) -> Option<N> {
-    let field = catalog.fields.iter().find(|f| f.id == field)?;
+fn namespace(field: &QueryFieldDefinition) -> Option<N> {
     let path = match (field.scope.as_deref(), field.path.as_str()) {
         (_, "ancestry.languages" | "ancestry.additional_languages") => "languages",
         (Some("spell.damage"), "type") => return Some(N::DamageType),
@@ -109,36 +108,20 @@ fn decorate(
     namespace: Option<N>,
     value: QueryLiteral,
     label: Option<String>,
-) -> AppServiceResult<FilterChoiceView> {
-    let fallback = label.unwrap_or_else(|| match &value {
+) -> FilterChoiceView {
+    let mut label = label.unwrap_or_else(|| match &value {
         QueryLiteral::String(v) => v.clone(),
         QueryLiteral::Boolean(true) => "Yes".into(),
         QueryLiteral::Boolean(false) => "No".into(),
         QueryLiteral::Number(n) => n.to_string(),
     });
-    let mut reference = match &value {
-        QueryLiteral::String(value) => ReferenceValueView {
-            value: value.clone(),
-            label: fallback,
-            help: None,
-        },
-        _ => {
-            return Ok(FilterChoiceView {
-                value,
-                label: fallback,
-                help: None,
-            });
-        }
-    };
-    if let Some(namespace) = namespace {
-        context.value(namespace, &mut reference)?;
+    let mut help = None;
+    if let (Some(namespace), QueryLiteral::String(token)) = (namespace, &value) {
+        context.keyed(namespace, token, &mut label, &mut help);
     }
-    Ok(FilterChoiceView {
-        value,
-        label: reference.label,
-        help: reference.help,
-    })
+    FilterChoiceView { value, label, help }
 }
+
 fn action_choices<'a>(
     r: &AtlasRetrievalService,
     field: &str,
@@ -188,14 +171,10 @@ fn action_choices<'a>(
         })
         .collect())
 }
-fn fallback_label(catalog: &QueryCapability, field: &str, value: &QueryLiteral) -> Option<String> {
+fn fallback_label(definition: &QueryFieldDefinition, value: &QueryLiteral) -> Option<String> {
     let QueryLiteral::String(value) = value else {
         return None;
     };
-    let definition = catalog
-        .fields
-        .iter()
-        .find(|definition| definition.id == field)?;
     if definition.path == "physical.base_type" {
         return Some(crate::physical_labels::base_type(value));
     }
@@ -223,7 +202,8 @@ pub(crate) fn options(
     options: atlas_domain::QueryValueOptions,
 ) -> AppServiceResult<FilterValueOptionsView> {
     let catalog = r.discover_filter_fields()?;
-    let namespace = namespace(&catalog, &options.field);
+    let field = catalog.fields.iter().find(|f| f.id == options.field);
+    let namespace = field.and_then(namespace);
     let context = HelpContext::load(r, keys(namespace, options.options.iter().map(|o| &o.value)))?;
     let actions = action_choices(r, &options.field, options.options.iter().map(|o| &o.value))?;
     Ok(FilterValueOptionsView {
@@ -240,18 +220,18 @@ pub(crate) fn options(
                 {
                     choice.clone()
                 } else {
-                    let label = fallback_label(&catalog, &options.field, &o.value);
-                    decorate(&context, namespace, o.value, label)?
+                    let label = field.and_then(|field| fallback_label(field, &o.value));
+                    decorate(&context, namespace, o.value, label)
                 };
-                Ok(FilterValueOptionView {
+                FilterValueOptionView {
                     value: value.value,
                     label: value.label,
                     help: value.help,
                     distinct_roots: o.distinct_roots,
                     selected: o.selected,
-                })
+                }
             })
-            .collect::<AppServiceResult<Vec<_>>>()?,
+            .collect(),
     })
 }
 pub(crate) fn vocabulary(
@@ -259,7 +239,8 @@ pub(crate) fn vocabulary(
     values: atlas_domain::QueryVocabulary,
 ) -> AppServiceResult<FilterVocabularyView> {
     let catalog = r.discover_filter_fields()?;
-    let namespace = namespace(&catalog, &values.field);
+    let field = catalog.fields.iter().find(|f| f.id == values.field);
+    let namespace = field.and_then(namespace);
     let context = HelpContext::load(r, keys(namespace, values.options.iter().map(|o| &o.value)))?;
     let mut actions = action_choices(
         r,
@@ -277,12 +258,12 @@ pub(crate) fn vocabulary(
             if let QueryLiteral::String(key) = &o.value
                 && let Some(choice) = actions.remove(key)
             {
-                return Ok(choice);
+                return choice;
             }
-            let label = fallback_label(&catalog, &values.field, &o.value);
+            let label = field.and_then(|field| fallback_label(field, &o.value));
             decorate(&context, namespace, o.value, label)
         })
-        .collect::<AppServiceResult<Vec<_>>>()?;
+        .collect::<Vec<_>>();
     // Existing Actions selections need readable labels even outside this page or scope.
     options.extend(
         values
@@ -305,24 +286,23 @@ pub(crate) fn editor(
     r: &AtlasRetrievalService,
     editor: &mut FilterEditorView,
 ) -> AppServiceResult<()> {
-    let catalog = r.discover_filter_fields()?;
     let mut all_keys = BTreeSet::new();
     for field in editor.groups.iter().flat_map(|g| &g.fields) {
         all_keys.extend(keys(
-            namespace(&catalog, &field.definition.id),
+            namespace(&field.definition),
             field.choices.iter().map(|o| &o.value),
         ));
     }
     let context = HelpContext::load(r, all_keys)?;
     for field in editor.groups.iter_mut().flat_map(|g| &mut g.fields) {
-        let namespace = namespace(&catalog, &field.definition.id);
+        let namespace = namespace(&field.definition);
         for option in &mut field.choices {
             *option = decorate(
                 &context,
                 namespace,
                 option.value.clone(),
                 Some(option.label.clone()),
-            )?;
+            );
         }
     }
     Ok(())

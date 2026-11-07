@@ -7,15 +7,9 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { RouterTestContext } from "../../test/router";
-import {
-  actorFixture,
-  knownFact,
-  unavailableFact,
-  numberFact,
-} from "../../test/fixtures";
+import { knownFact, unavailableFact, numberFact } from "../../test/fixtures";
 import { ReferenceHelpProvider } from "./ReferenceHelp";
 import { ReferenceProfiles } from "./ReferenceProfiles";
-import { ActorLanguages } from "./ActorReference";
 import { FactLine } from "./presentationFacts";
 import { RecordRarity } from "./RecordRarity";
 import { SpellChanges } from "./SpellReference";
@@ -24,21 +18,6 @@ import type { SpellChangeView, ReferenceHelpView } from "../../generated/atlas";
 const render = (ui: React.ReactNode) =>
   renderWithContext(ui, { wrapper: RouterTestContext });
 
-it("renders supplied language labels with communication notes while preserving raw tokens", () => {
-  const actor = actorFixture();
-  actor.languages = knownFact([
-    { value: "common", label: "Common" },
-    { value: "chthonian", label: "Chthonian" },
-  ]);
-  actor.language_details = knownFact("Communicates by signing.");
-  render(<ActorLanguages actor={actor} />);
-  expect(screen.getByText("Common, Chthonian")).toBeVisible();
-  expect(screen.getByText("Communicates by signing.")).toBeVisible();
-  expect(actor.languages.value?.map((value) => value.value)).toEqual([
-    "common",
-    "chthonian",
-  ]);
-});
 it("uses backend labels for scalar facts and rarity without deriving them from tokens", () => {
   render(
     <>

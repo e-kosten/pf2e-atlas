@@ -3,7 +3,7 @@ import { recordDestination } from "../../app/destinations";
 import { Button } from "antd";
 import { BookOpen } from "lucide-react";
 import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
-import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "../../shared/records/RecordPreviewDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 export function EncounterOriginalRecord({
   recordKey,
@@ -50,29 +50,7 @@ export function EncounterOriginalRecord({
           }}
         />
       )}
-      {preview.destination && (
-        <RecordReferenceDrawer
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          anchor={preview.anchor}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onReload={preview.reload}
-          reloadLabel={preview.reloadLabel}
-          retryLabel={preview.retryLabel}
-          onClose={preview.close}
-          onNavigateAway={preview.closeForNavigation}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-        />
-      )}
+      <RecordPreviewDrawer preview={preview} />
     </>
   );
 }

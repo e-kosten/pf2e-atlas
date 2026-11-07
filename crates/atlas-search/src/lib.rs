@@ -11,10 +11,8 @@ mod records;
 mod reference_resolution;
 mod references;
 pub use references::{
-    OwnedAbilityTarget, ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
-    ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
-    ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
-    ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking,
+    OwnedAbilityTarget, ReferenceBacking, ReferenceCoverage, ReferenceEntry, ReferenceNotice,
+    ReferenceSummary, ReferenceSummaryBacking,
 };
 mod service;
 pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};

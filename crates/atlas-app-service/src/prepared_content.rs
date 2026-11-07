@@ -532,7 +532,7 @@ fn annotate_trait_badges<'a>(
             &badge.value,
             &mut badge.label,
             &mut badge.help,
-        )?;
+        );
     }
     Ok(())
 }

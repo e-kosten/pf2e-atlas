@@ -5,7 +5,11 @@ use atlas_foundry_model::{
 };
 pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
-pub use atlas_index::{ReferencePreparation, reference_inventory_identity};
+pub use atlas_index::{
+    ReferenceAvailability, ReferenceGrantScope, ReferenceGrantUse, ReferencePermission,
+    ReferencePermissionDisposition, ReferencePreparation, ReferenceProvenance,
+    ReferenceRecordMapping, reference_inventory_identity,
+};
 pub use atlas_index::{TraitDefinition, TraitSeedChunk, TraitVectorInput};
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},

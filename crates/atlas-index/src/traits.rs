@@ -552,9 +552,9 @@ fn validate_definition(definition: &TraitDefinition) -> Result<(), IndexError> {
             }
             atlas_record::source_content::validate_prepared_markers(html, &prepared.interactions)
                 .map_err(|e| IndexError::Invalid(e.to_string()))?;
-            atlas_record::source_content::validate_prepared_trait_reference_bindings(
+            atlas_record::source_content::validate_prepared_definition_reference_bindings(
                 html,
-                &definition.key,
+                &prepared.key,
                 &prepared.authored_markup_sha256,
                 &prepared.references,
             )

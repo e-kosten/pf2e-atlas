@@ -241,10 +241,15 @@ describe("source-backed API transport", () => {
       clause_id: null,
       values: ["fire"],
     });
-    expect(result.counts).toMatchObject({
-      status: "available",
-      value: { options: [{ value: "fire", distinct_roots: 0n }], total_values: 1n },
+    expect(result).toMatchObject({
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      counts: { status: "available", value: { total_values: 1n } },
     });
+    if (result.counts.status !== "available") throw new Error("Expected option counts");
+    expect(result.counts.value.options).toEqual([
+      { value: "fire", distinct_roots: 0n, selected: false },
+    ]);
   });
   const participantJson = {
     revision: 7,

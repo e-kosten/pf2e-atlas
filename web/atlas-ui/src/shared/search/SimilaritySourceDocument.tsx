@@ -1,7 +1,4 @@
-import {
-  useReferenceHelpHandler,
-  useReferenceRecordNavigation,
-} from "../records/ReferenceHelp";
+import { useReferenceRecordNavigation } from "../records/ReferenceHelp";
 import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Spin } from "antd";
@@ -204,7 +201,6 @@ function TraitSourceDocument({
     query.data,
     query.error,
   );
-  const onHelp = useReferenceHelpHandler();
   const onReference = useReferenceRecordNavigation()!;
   const heading = useRef<HTMLHeadingElement>(null);
   const focusedVisit = useRef<number | null>(null);
@@ -248,11 +244,7 @@ function TraitSourceDocument({
         />
       )}
       {detail ? (
-        <ReferenceHelpProvider
-          onHelp={onHelp}
-          onReference={onReference}
-          generation={detail.artifact_generation}
-        >
+        <ReferenceHelpProvider generation={detail.artifact_generation}>
           <article className="record-reference">
             <DocumentIdentityHeader
               title={detail.label}

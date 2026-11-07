@@ -1,7 +1,4 @@
-import {
-  ReferenceHelpProvider,
-  type ReferenceHelpHandler,
-} from "../../shared/records/ReferenceHelp";
+import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import type { EncounterMutationCommand } from "./useEncounterMutations";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import {
@@ -28,7 +25,6 @@ import { HazardDefenses, hasHazardDefenses } from "../../shared/records/HazardDe
 import { ActorDefenses } from "../../shared/records/ActorReference";
 import { RecordRarity } from "../../shared/records/RecordRarity";
 import { TraitBadge } from "../../shared/records/TraitBadge";
-import type { getRecordDetail } from "../../api/atlasApi";
 import type {
   AddEncounterParticipantConditionRequest,
   EncounterHpAction,
@@ -42,10 +38,10 @@ import {
   encounterCastingAnnotations,
 } from "./EncounterSpellControls";
 import { participantUpdate } from "./participantEdits";
-import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "../../shared/records/RecordPreviewDrawer";
 import { recordClassification } from "../../shared/records/RecordPresentation";
 import { EncounterActorReading } from "./EncounterActorReading";
-import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
+import type { useRecordPreview } from "../../shared/records/useRecordPreview";
 import { EncounterParticipantName } from "./EncounterParticipantName";
 import { EncounterParticipantSettings } from "./EncounterParticipantSettings";
 import { EncounterConditionControls } from "./EncounterConditionControls";
@@ -64,9 +60,6 @@ export function EncounterInspectorPane({
   error,
   errorKind,
   spellError,
-  onCloseRecordPreview,
-  onNavigateAwayPreview,
-  onReference,
   onAddCondition,
   onRemoveCondition,
   onUpdateCondition,
@@ -92,22 +85,7 @@ export function EncounterInspectorPane({
   conditionDefinitions,
   damageTypes,
   standardRecoveryDc,
-  previewDestination,
-  previewDefinition,
-  previewHelp,
-  onHelp,
-  previewDetail,
-  previewLoading,
-  previewError,
-  onRetryPreview,
-  onReloadPreview,
-  reloadPreviewLabel,
-  retryPreviewLabel,
-  previewAnchor,
-  previewReadingHistory,
-  previewLanding,
-  previewSelection,
-  onPreviewRankChange,
+  preview,
 }: {
   onReset?: () => void;
   onAbilityState?: AbilityStateHandler;
@@ -125,9 +103,6 @@ export function EncounterInspectorPane({
   error?: string;
   errorKind?: EncounterMutationCommand["kind"];
   spellError?: string;
-  onCloseRecordPreview: () => void;
-  onNavigateAwayPreview?: () => void;
-  onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onAddCondition: (
     condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
   ) => Promise<boolean>;
@@ -193,22 +168,7 @@ export function EncounterInspectorPane({
     label: string;
   }>;
   standardRecoveryDc?: bigint;
-  onPreviewRankChange?: (rank: number | undefined) => void;
-  previewDestination?: import("../../generated/atlas").ReferenceDestinationView | null;
-  previewDefinition?: import("../../generated/atlas").DefinitionDetailView;
-  previewHelp?: import("../../generated/atlas").ReferenceHelpView;
-  onHelp?: ReferenceHelpHandler;
-  previewSelection?: import("../../generated/atlas").RecordNavigationView;
-  previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
-  previewLoading: boolean;
-  previewError?: Error | null;
-  onRetryPreview?: () => void;
-  onReloadPreview?: () => void;
-  reloadPreviewLabel?: string;
-  retryPreviewLabel?: string;
-  previewAnchor: RecordPreviewAnchor | null;
-  previewReadingHistory?: import("../../shared/records/recordPreviewTypes").RecordPreviewContentProps["readingHistory"];
-  previewLanding?: import("../../generated/atlas").RecordNavigationView;
+  preview: ReturnType<typeof useRecordPreview>;
 }) {
   if (!participant) {
     return (
@@ -217,8 +177,8 @@ export function EncounterInspectorPane({
   }
   return (
     <ReferenceHelpProvider
-      onHelp={onHelp}
-      onReference={onReference}
+      onHelp={preview.openHelp}
+      onReference={preview.open}
       generation={artifactGeneration ?? undefined}
     >
       <section
@@ -253,7 +213,7 @@ export function EncounterInspectorPane({
             damageTypes={damageTypes}
             standardRecoveryDc={standardRecoveryDc}
             onAddCondition={onAddCondition}
-            onReference={onReference}
+            onReference={preview.open}
             onRemoveCondition={onRemoveCondition}
             onUpdate={onUpdate}
             onReset={onReset}
@@ -276,48 +236,28 @@ export function EncounterInspectorPane({
             participants={participants}
           />
         </EncounterConditionRecovery>
-        {previewDestination && (
-          <RecordReferenceDrawer
-            destination={previewDestination}
-            definition={previewDefinition}
-            help={previewHelp}
-            onHelp={onHelp}
-            actions={
-              previewDetail?.presentation.body.kind === "spell" && (
-                <EncounterSpellControls
-                  encounterRevision={encounterRevision}
-                  participant={participant}
-                  detail={previewDetail}
-                  disabled={disabled || previewLoading || !!previewError}
-                  pending={pending}
-                  error={spellError}
-                  recovery={recovery}
-                  encounterRef={encounterKey}
-                  onAction={(action, expectedRevision) =>
-                    onSpellAction(participant, action, expectedRevision)
-                  }
-                />
-              )
-            }
-            context="encounter"
-            onRankChange={onPreviewRankChange}
-            visibleOwnerRecordKey={participant.record_key}
-            anchor={previewAnchor}
-            readingHistory={previewReadingHistory}
-            requestedNavigation={previewSelection}
-            landing={previewLanding}
-            detail={previewDetail}
-            loading={previewLoading}
-            error={previewError}
-            onRetry={onRetryPreview}
-            onReload={onReloadPreview}
-            reloadLabel={reloadPreviewLabel}
-            retryLabel={retryPreviewLabel}
-            onClose={onCloseRecordPreview}
-            onNavigateAway={onNavigateAwayPreview}
-            onReference={onReference}
-          />
-        )}
+        <RecordPreviewDrawer
+          preview={preview}
+          context="encounter"
+          visibleOwnerRecordKey={participant.record_key}
+          actions={
+            preview.detail?.presentation.body.kind === "spell" && (
+              <EncounterSpellControls
+                encounterRevision={encounterRevision}
+                participant={participant}
+                detail={preview.detail}
+                disabled={disabled || preview.loading || !!preview.error}
+                pending={pending}
+                error={spellError}
+                recovery={recovery}
+                encounterRef={encounterKey}
+                onAction={(action, expectedRevision) =>
+                  onSpellAction(participant, action, expectedRevision)
+                }
+              />
+            )
+          }
+        />
       </section>
     </ReferenceHelpProvider>
   );

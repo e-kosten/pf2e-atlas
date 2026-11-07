@@ -2559,7 +2559,6 @@ test("routine budgets and check trait disclosures retain keyboard and touch read
 
 test("glossary vocabulary labels and communication notes use supplied context @engine", async ({
   page,
-  request,
 }) => {
   await page.goto(`/records/${sentinel}`);
   await expect(
@@ -2583,26 +2582,6 @@ test("glossary vocabulary labels and communication notes use supplied context @e
   ).toBeVisible();
   await expect(page.getByText("Sword", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Large", { exact: true }).first()).toBeVisible();
-  const detail = await request.post("/api/definitions/detail", {
-    data: { definition_key: "sense:darkvision" },
-  });
-  expect(detail.ok()).toBeTruthy();
-  const value = await detail.json();
-  expect(value.content).toBeNull();
-  expect(value.help.destination).toMatchObject({
-    kind: "record",
-    navigation: { record_key: "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6" },
-  });
-  const language = await request.post("/api/definitions/detail", {
-    data: {
-      definition_key: "language:chthonian",
-      expected_artifact_generation: value.artifact_generation,
-    },
-  });
-  expect(language.ok()).toBeTruthy();
-  expect((await language.json()).content.body.html).toContain(
-    "Typically spoken by demons",
-  );
 });
 
 async function expectUsefulGlossaryDrawer(drawer: Locator) {

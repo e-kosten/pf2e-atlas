@@ -504,7 +504,10 @@ async fn record_and_filter_routes_use_real_router_wiring() {
     );
     let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":context,"field_id":"source.pack.id","clause_id":null,"values":["actions"]}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body["counts"]["value"]["options"][0]["distinct_roots"], 2);
+    assert_eq!(
+        body["counts"]["value"]["options"],
+        json!([{"value":"actions","distinct_roots":2,"selected":false}])
+    );
     let (status, body) = fixture
         .json(
             Method::POST,

@@ -130,8 +130,8 @@ describe("compact common choice picker", () => {
         value: {
           field: "traits",
           options: [
-            { value: "fire", label: "Fire", distinct_roots: 4n, selected: false },
-            { value: "cold", label: "Cold", distinct_roots: 0n, selected: false },
+            { value: "fire", distinct_roots: 4n, selected: false },
+            { value: "cold", distinct_roots: 0n, selected: false },
           ],
           total_values: 2n,
           exhaustive: true,

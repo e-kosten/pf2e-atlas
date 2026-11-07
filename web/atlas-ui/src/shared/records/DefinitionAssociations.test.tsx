@@ -114,7 +114,10 @@ it("uses the supplied exact predicate for a five-row preview, count, and full Se
   expect(onReference).toHaveBeenCalledWith("actors:speaker-0", expect.any(HTMLElement));
 });
 
-it("hides confirmed zero relations from mixed tabs while retaining nonempty supplied relations", async () => {
+it.each([
+  { description: "one populated relation", count: 5 },
+  { description: "no populated relations", count: 0 },
+])("hides confirmed zero relations with $description", async ({ count }) => {
   const alternate: typeof action = {
     ...action,
     label: "With this alternate domain",
@@ -129,36 +132,25 @@ it("hides confirmed zero relations from mixed tabs while retaining nonempty supp
     page(
       request,
       JSON.stringify(request.criteria) ===
-        JSON.stringify({ kind: "list_records", filter: action.predicate })
-        ? 0
-        : 5,
+        JSON.stringify({ kind: "list_records", filter: alternate.predicate })
+        ? count
+        : 0,
     ),
   );
   setup([action, alternate]);
-  expect(await screen.findByText("5 of 88 entries")).toBeVisible();
-  await waitFor(() =>
-    expect(api).toHaveBeenCalledWith(
-      expect.objectContaining({
-        criteria: { kind: "list_records", filter: alternate.predicate },
-      }),
-      expect.any(AbortSignal),
-    ),
-  );
+  if (count) {
+    expect(await screen.findByText("5 of 88 entries")).toBeVisible();
+    expect(screen.getByRole("tab", { name: alternate.label })).toBeVisible();
+  } else {
+    await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Related records" })).toBeNull(),
+    );
+    expect(screen.queryByRole("link", { name: "Search records" })).toBeNull();
+  }
   expect(screen.queryByRole("tab", { name: action.label })).toBeNull();
-  expect(screen.getByRole("tab", { name: alternate.label })).toBeVisible();
   expect(screen.queryByText("0 of 0 entries")).toBeNull();
   expect(screen.queryByText("No matching records")).toBeNull();
-});
-
-it("hides the entire association block only after all relations confirm zero results", async () => {
-  api.mockImplementation(async (request) => page(request, 0));
-  setup();
-  await waitFor(() => expect(api).toHaveBeenCalledOnce());
-  await waitFor(() =>
-    expect(screen.queryByRole("region", { name: "Related records" })).toBeNull(),
-  );
-  expect(screen.queryByRole("link", { name: "Search records" })).toBeNull();
-  expect(screen.queryByText("0 of 0 entries")).toBeNull();
 });
 
 it("keeps unknown and failed availability visible with recovery instead of treating it as zero", async () => {

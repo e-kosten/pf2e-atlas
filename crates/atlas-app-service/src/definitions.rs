@@ -243,19 +243,22 @@ impl<'a> HelpContext<'a> {
         }
         Ok(Self { r, summaries })
     }
-    pub(crate) fn value(
-        &self,
-        namespace: DefinitionNamespace,
-        value: &mut ReferenceValueView,
-    ) -> AppServiceResult<()> {
-        let Ok(key) = DefinitionKey::new(namespace, value.value.clone()) else {
-            return Ok(());
-        };
-        if let Some(summary) = self.summaries.get(&key) {
+    fn summary(&self, namespace: DefinitionNamespace, value: &str) -> Option<&ReferenceSummary> {
+        let key = DefinitionKey::new(namespace, value.to_owned()).ok()?;
+        self.summaries.get(&key)
+    }
+    pub(crate) fn label(&self, namespace: DefinitionNamespace, value: &str) -> Option<&str> {
+        self.summary(namespace, value)
+            .map(|summary| summary.label.as_str())
+    }
+    pub(crate) fn help(&self, key: &DefinitionKey) -> Option<ReferenceHelpView> {
+        summary_help(self.summaries.get(key)?, self.r.source_fingerprint())
+    }
+    pub(crate) fn value(&self, namespace: DefinitionNamespace, value: &mut ReferenceValueView) {
+        if let Some(summary) = self.summary(namespace, &value.value) {
             value.label = summary.label.clone();
             value.help = summary_help(summary, self.r.source_fingerprint());
         }
-        Ok(())
     }
     pub(crate) fn keyed(
         &self,
@@ -263,79 +266,17 @@ impl<'a> HelpContext<'a> {
         value: &str,
         label: &mut String,
         help: &mut Option<ReferenceHelpView>,
-    ) -> AppServiceResult<()> {
-        let mut reference = ReferenceValueView {
-            value: value.into(),
-            label: label.clone(),
-            help: None,
-        };
-        self.value(namespace, &mut reference)?;
-        *label = reference.label;
-        *help = reference.help;
-        Ok(())
+    ) {
+        *help = self.summary(namespace, value).and_then(|summary| {
+            *label = summary.label.clone();
+            summary_help(summary, self.r.source_fingerprint())
+        });
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn retained_reads_keep_unknown_and_setup_required_distinct_and_guard_generation() {
-        let fixture = crate::test_support::fixture_worker();
-        let execution = ReadExecutionContext::uncancellable();
-        let unknown = fixture
-            .worker
-            .definition_detail(
-                DefinitionDetailRequest {
-                    definition_key: "trait:atlas-custom".into(),
-                    expected_artifact_generation: None,
-                },
-                &execution,
-            )
-            .unwrap();
-        assert!(unknown.help.is_none());
-        assert!(unknown.content.is_none());
-        let error = fixture
-            .worker
-            .definition_detail(
-                DefinitionDetailRequest {
-                    definition_key: "language:common".into(),
-                    expected_artifact_generation: None,
-                },
-                &execution,
-            )
-            .unwrap_err()
-            .into_app_error();
-        assert_eq!(error.code, AppErrorCode::SetupRequired);
-        let error = fixture
-            .worker
-            .definition_detail(
-                DefinitionDetailRequest {
-                    definition_key: "language:common".into(),
-                    expected_artifact_generation: Some("old-generation".into()),
-                },
-                &execution,
-            )
-            .unwrap_err()
-            .into_app_error();
-        assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
-        let actor = fixture
-            .worker
-            .record_detail("actors:testCreature1000")
-            .unwrap();
-        let RecordBodyView::Creature(actor) = actor.presentation.body else {
-            panic!("actor");
-        };
-        let skill = actor
-            .skills
-            .value
-            .unwrap()
-            .into_iter()
-            .find(|s| s.key == "athletics")
-            .unwrap();
-        assert!(skill.help.is_none());
-    }
 
     #[test]
     fn related_property_actions_are_executable_and_exclude_numeric_fields() {

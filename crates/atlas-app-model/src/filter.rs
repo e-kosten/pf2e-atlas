@@ -2,7 +2,7 @@
 use crate::RetrievalModeView;
 use atlas_domain::{
     QueryError, QueryFacetOutcome, QueryFieldDefinition, QueryLimits, QueryLiteral, QueryPredicate,
-    QueryVocabularyBasis,
+    QueryValueOptions, QueryVocabularyBasis,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -212,7 +212,7 @@ pub enum FilterValueListView {
 pub struct FilterCountsView {
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
-    pub counts: QueryFacetOutcome<FilterValueOptionsView>,
+    pub counts: QueryFacetOutcome<QueryValueOptions>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

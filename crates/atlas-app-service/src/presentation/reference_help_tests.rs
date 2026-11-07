@@ -1,12 +1,12 @@
 //! Application reads over canonical, checked-source glossary fixtures.
 use super::*;
 use atlas_domain::{DefinitionKey, DefinitionNamespace as N};
-use atlas_search::test_support::{hash, input, record};
-use atlas_search::{
-    ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
-    ReferencePermission, ReferencePermissionDisposition, ReferenceProvenance,
-    ReferenceRecordMapping,
+use atlas_search::test_support::{
+    ReferenceAvailability, ReferenceGrantScope, ReferenceGrantUse, ReferencePermission,
+    ReferencePermissionDisposition, ReferenceProvenance, ReferenceRecordMapping, hash, input,
+    record,
 };
+use atlas_search::{ReferenceBacking, ReferenceCoverage, ReferenceEntry};
 use serde_json::json;
 
 const HOLDER: &str = "actors:holder0000000001";
@@ -50,12 +50,12 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 record(
                     "actors",
                     "Actor",
-                    json!({"_id":"holder0000000001","type":"npc","name":"Holder","system":{"details":{"publication":{"remaster":true}},"description":{"value":"<p>@UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6] @Localize[Fixture.Sense.Darkvision] @Localize[Fixture.Rule.Hidden]</p>"},"traits":{"value":["fire","empty-fixture"],"rarity":"uncommon","size":{"value":"lg"}}},"items":[
+                    json!({"_id":"holder0000000001","type":"npc","name":"Holder","system":{"details":{"publication":{"remaster":true}},"description":{"value":"<p>@UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6] @Localize[Fixture.Sense.Darkvision] @Localize[PF2E.NPC.Abilities.Glossary.FixtureHidden]</p>"},"traits":{"value":["fire","empty-fixture","illusion"],"rarity":"uncommon","size":{"value":"lg"}}},"items":[
                         {"_id":"trait00000000001","type":"action","name":"Trait mention","system":{"description":{"value":"<p>@Localize[Fixture.Trait.Fire]</p>"}}},
                         {"_id":"domain0000000001","type":"action","name":"Domain mention","system":{"description":{"value":"<p>@Localize[Fixture.Domain.Air]</p>"}}},
                         {"_id":"ambig00000000001","type":"action","name":"Ambiguous mention","system":{"description":{"value":"<p>@Localize[Fixture.Trait.Fire] @Localize[Fixture.Sense.Darkvision]</p>"}}},
                         {"_id":"general000000001","type":"action","name":"General vision 23","system":{"description":{"value":"<p>@Localize[Fixture.Sense.Darkvision] Actual DC 23. @Damage[0[fire]] @UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6]</p>"}}},
-                        {"_id":"missing000000001","type":"action","name":"No general reference","system":{"description":{"value":"<p>Own actual values remain. @Localize[Fixture.Rule.Hidden]</p>"}}}
+                        {"_id":"missing000000001","type":"action","name":"No general reference","system":{"description":{"value":"<p>Own actual values remain. @Localize[PF2E.NPC.Abilities.Glossary.FixtureHidden]</p>"}}}
                     ]}),
                 ),
                 record(
@@ -106,7 +106,7 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 record(
                     "hazards",
                     "Actor",
-                    json!({"_id":"hazard0000000001","type":"hazard","name":"Trait routine","system":{"details":{"isComplex":true,"routine":"<p>(7 actions; illusion, fire, homebrew-trait) @Check[will|dc:21|traits:illusion,fire,homebrew-trait] save. Keep the authored routine.</p>"}},"items":[{"_id":"hazardact0000001","type":"action","name":"Hazard vision","system":{"description":{"value":"<p>@Localize[Fixture.Sense.Darkvision]</p>"}}}]}),
+                    json!({"_id":"hazard0000000001","type":"hazard","name":"Trait routine","system":{"details":{"isComplex":true,"routine":"<p>(7 actions; illusion, fire, homebrew-trait) @Check[will|dc:21|traits:illusion,fire,homebrew-trait] save. Keep the authored routine.</p>"}},"items":[{"_id":"hazardact0000001","type":"action","name":"Hazard vision","system":{"description":{"value":"<p>@Localize[PF2E.NPC.Abilities.Glossary.FixtureVision]</p>"}}}]}),
                 ),
             ];
             let mut data = input(records, false);
@@ -128,6 +128,30 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                     description_html: Some(empty_prepared.html.clone()),
                     authored_markup: Some(empty_markup.into()),
                     prepared: Some(empty_prepared),
+                    catalogs: vec!["fixture".into()],
+                    source_locations: vec![],
+                    source_revision: None,
+                    indexing_locale: "en".into(),
+                    content_locale: Some("en".into()),
+                });
+            let prose = "<p>Fixture illusion definition.</p>";
+            let prepared = atlas_record::source_content::prepare_reference_definition(
+                DefinitionKey::new(N::Trait, "illusion").unwrap(),
+                prose,
+                data.context.audience,
+                None,
+                None,
+            )
+            .unwrap();
+            data.traits
+                .push(atlas_search::test_support::TraitDefinition {
+                    key: atlas_domain::TraitKey::new("illusion").unwrap(),
+                    label: "Illusion supplied".into(),
+                    label_key: None,
+                    description_key: None,
+                    description_html: Some(prepared.html.clone()),
+                    authored_markup: Some(prose.into()),
+                    prepared: Some(prepared),
                     catalogs: vec!["fixture".into()],
                     source_locations: vec![],
                     source_revision: None,
@@ -177,16 +201,35 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
             };
             air.availability = ReferenceAvailability::Available;
             air.provenance.source_sha256 = Some(hash(empty_markup.as_bytes()));
-            air.permission.body_grants = vec![atlas_search::ReferenceGrantUse {
+            air.permission.body_grants = vec![ReferenceGrantUse {
                 license: "CC0-1.0".into(),
-                scope: atlas_search::ReferenceGrantScope::FunctionalContent,
+                scope: ReferenceGrantScope::FunctionalContent,
             }];
             air.permission.notices = vec!["fixture-empty-content".into()];
+            let localization = "PF2E.NPC.Abilities.Glossary.FixtureVision";
+            let markup = "<p>Fixture hazard vision rule.</p>";
+            let mut rule = air.clone();
+            rule.key = DefinitionKey::new(N::Rule, format!("pf2e:{localization}")).unwrap();
+            rule.label = "Fixture vision".into();
+            rule.provenance.label_key = Some(localization.into());
+            rule.provenance.source_sha256 = Some(hash(markup.as_bytes()));
+            rule.backing = ReferenceBacking::Prepared {
+                authored_markup: markup.into(),
+                content: atlas_record::source_content::prepare_reference_definition(
+                    rule.key.clone(),
+                    markup,
+                    data.context.audience,
+                    None,
+                    None,
+                )
+                .unwrap(),
+            };
+            entries.push(rule);
             entries.push(metadata(N::Rarity, "uncommon", "Uncommon supplied", None));
             let size = metadata(N::Size, "med", "Medium", None);
             let mut large = size.clone();
             large.key = DefinitionKey::new(N::Size, "lg").unwrap();
-            large.label = "Large".into();
+            large.label = "Large supplied".into();
             entries.push(size);
             entries.push(large);
             let mut missing_language = metadata(N::Language, "draconic", "Draconic", None);
@@ -194,9 +237,9 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
             entries.push(missing_language);
             let mut hidden = metadata(
                 N::Rule,
-                "pf2e:Fixture.Rule.Hidden",
+                "pf2e:PF2E.NPC.Abilities.Glossary.FixtureHidden",
                 "Hidden rule",
-                Some("Fixture.Rule.Hidden"),
+                Some("PF2E.NPC.Abilities.Glossary.FixtureHidden"),
             );
             hidden.availability = ReferenceAvailability::PermissionUnresolved;
             hidden.permission.disposition = ReferencePermissionDisposition::MetadataOnlyUnresolved;
@@ -211,30 +254,6 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                     description_html: None,
                     authored_markup: None,
                     prepared: None,
-                    catalogs: vec!["fixture".into()],
-                    source_locations: vec![],
-                    source_revision: None,
-                    indexing_locale: "en".into(),
-                    content_locale: Some("en".into()),
-                });
-            let prose = "<p>Fixture illusion definition.</p>";
-            let prepared = atlas_record::source_content::prepare_reference_definition(
-                DefinitionKey::new(N::Trait, "illusion").unwrap(),
-                prose,
-                data.context.audience,
-                None,
-                None,
-            )
-            .unwrap();
-            data.traits
-                .push(atlas_search::test_support::TraitDefinition {
-                    key: atlas_domain::TraitKey::new("illusion").unwrap(),
-                    label: "Illusion".into(),
-                    label_key: None,
-                    description_key: None,
-                    description_html: Some(prepared.html.clone()),
-                    authored_markup: Some(prose.into()),
-                    prepared: Some(prepared),
                     catalogs: vec!["fixture".into()],
                     source_locations: vec![],
                     source_revision: None,
@@ -279,74 +298,73 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
     )
 }
 
+fn selected_activity_detail(
+    fixture: &crate::test_support::FixtureWorker,
+    navigation: RecordNavigationView,
+) -> RecordDetailView {
+    fixture
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            record_key: navigation.record_key,
+            owners: navigation.owners,
+            expected_artifact_generation: None,
+            spell_rank: navigation.spell_rank,
+            fields: vec![],
+            passage: navigation.passage,
+            source_fingerprint: navigation.source_fingerprint,
+        })
+        .unwrap()
+}
+
 #[test]
-fn exact_owned_general_help_rejects_unrelated_traits_domains_and_ambiguity() {
+fn general_help_is_only_projected_for_the_exact_selected_activity() {
     let fixture = fixture(true);
-    let detail = fixture.worker.record_detail(HOLDER).unwrap();
-    let RecordBodyView::Creature(actor) = detail.presentation.body else {
-        panic!("actor");
-    };
-    let activities = actor.activities.value.unwrap();
-    for title in [
-        "Trait mention",
-        "Domain mention",
-        "Ambiguous mention",
-        "No general reference",
-    ] {
-        assert!(
-            activities
-                .iter()
-                .find(|a| a.title == title)
-                .unwrap()
-                .help
-                .is_none(),
-            "{title}"
-        );
-    }
-    let general = activities
-        .iter()
-        .find(|a| a.title == "General vision 23")
-        .unwrap();
-    let Some(ReferenceHelpView {
-        destination: ReferenceDestinationView::Record { navigation, .. },
-        ..
-    }) = &general.help
-    else {
-        panic!("verified general record");
-    };
-    assert_eq!(navigation.record_key, GENERAL);
-    assert!(
-        !general.navigation.owners.is_empty(),
-        "the actual owned entry stays primary"
-    );
+    let actor = fixture.worker.record_detail(HOLDER).unwrap();
     let hazard = fixture
         .worker
         .record_detail("hazards:hazard0000000001")
         .unwrap();
-    let RecordBodyView::Hazard(hazard) = hazard.presentation.body else {
-        panic!("hazard presentation");
+    let RecordBodyView::Creature(actor) = actor.presentation.body else {
+        panic!("actor");
     };
-    assert!(
-        hazard
-            .actor
-            .activities
-            .value
-            .unwrap()
-            .iter()
-            .any(|activity| {
-                activity.title == "Hazard vision"
-                    && matches!(&activity.help, Some(ReferenceHelpView {
-                destination: ReferenceDestinationView::Record { navigation }, ..
-            }) if navigation.record_key == GENERAL)
-            })
-    );
-    let badge = detail
-        .record
-        .traits
-        .iter()
-        .find(|badge| badge.value == "fire")
-        .unwrap();
-    assert_eq!(badge.value, "fire");
+    let RecordBodyView::Hazard(hazard) = hazard.presentation.body else {
+        panic!("hazard");
+    };
+    let actor_activities = actor.activities.value.unwrap();
+    let hazard_activities = hazard.actor.activities.value.unwrap();
+    assert_eq!(actor_activities.len(), 5);
+    assert_eq!(hazard_activities.len(), 1);
+    for activity in actor_activities.into_iter().chain(hazard_activities) {
+        let wire = serde_json::to_value(&activity).unwrap();
+        assert!(wire.get("help").is_none(), "{}", activity.title);
+        let navigation = activity.navigation;
+        assert!(!navigation.owners.is_empty());
+        let selected = selected_activity_detail(&fixture, navigation.clone());
+        assert_eq!(selected.selected.owners, navigation.owners);
+        let RecordBodyView::Activity(selected) = selected.presentation.body else {
+            panic!("selected activity");
+        };
+        match activity.title.as_str() {
+            "General vision 23" => assert!(matches!(
+                &selected.help,
+                Some(ReferenceHelpView {
+                    destination: ReferenceDestinationView::Record { navigation },
+                    ..
+                }) if navigation.record_key == GENERAL && navigation.owners.is_empty()
+            )),
+            "Hazard vision" => assert!(matches!(
+                &selected.help,
+                Some(ReferenceHelpView {
+                    definition_key: Some(key),
+                    destination: ReferenceDestinationView::Definition { key: destination },
+                }) if key == "rule:pf2e:PF2E.NPC.Abilities.Glossary.FixtureVision" && key == destination
+            )),
+            "Trait mention" | "Domain mention" | "Ambiguous mention" | "No general reference" => {
+                assert!(selected.help.is_none(), "{}", activity.title);
+            }
+            title => panic!("unexpected fixture activity {title}"),
+        }
+    }
 }
 
 #[test]
@@ -533,7 +551,7 @@ fn prepared_check_and_routine_badges_use_canonical_trait_reading_capabilities() 
         for badge in badges {
             match badge.value.as_str() {
                 "illusion" => {
-                    assert_eq!(badge.label, "Illusion");
+                    assert_eq!(badge.label, "Illusion supplied");
                     assert!(matches!(
                         badge.help.as_ref().map(|help| &help.destination),
                         Some(ReferenceDestinationView::Definition { key }) if key == "trait:illusion"
@@ -605,7 +623,7 @@ fn prepared_check_and_routine_badges_use_canonical_trait_reading_capabilities() 
 }
 
 #[test]
-fn browse_summary_uses_rust_fallback_then_canonical_rarity_help() {
+fn browse_summary_keeps_canonical_trait_labels_and_rarity_fallback() {
     let execution = crate::ReadExecutionContext::uncancellable();
     for (complete, label) in [(false, "Uncommon"), (true, "Uncommon supplied")] {
         let fixture = fixture(complete);
@@ -620,6 +638,22 @@ fn browse_summary_uses_rust_fallback_then_canonical_rarity_help() {
             .unwrap()
             .record;
         assert_eq!(record.edition, Some(RecordEditionView::Remaster));
+        let badge = record
+            .traits
+            .iter()
+            .find(|badge| badge.value == "illusion")
+            .unwrap();
+        assert_eq!(badge.label, "Illusion supplied");
+        assert!(badge.help.is_none());
+        let detail = fixture.worker.record_detail(HOLDER).unwrap();
+        assert!(
+            detail
+                .presentation
+                .identity
+                .traits
+                .iter()
+                .any(|badge| { badge.value == "illusion" && badge.help.is_some() })
+        );
         let rarity = record.rarity.as_ref().unwrap();
         assert_eq!(rarity.value, "uncommon");
         assert_eq!(rarity.label, label);
@@ -628,10 +662,12 @@ fn browse_summary_uses_rust_fallback_then_canonical_rarity_help() {
 }
 
 #[test]
-fn all_size_filter_paths_use_canonical_labels_and_truthful_help_across_surfaces() {
-    let execution = crate::ReadExecutionContext::uncancellable();
-    for complete in [false, true] {
-        let fixture = fixture(complete);
+fn size_aliases_share_label_only_editor_metadata_and_value_transport() {
+    use atlas_domain::{QueryFacetOutcome, QueryLiteral};
+
+    let retained = fixture(false);
+    let complete = fixture(true);
+    for (fixture, expected) in [(&retained, "Lg"), (&complete, "Large supplied")] {
         let editor = fixture
             .worker
             .discover_filter_editor(DiscoverFilterEditorRequest {
@@ -640,96 +676,87 @@ fn all_size_filter_paths_use_canonical_labels_and_truthful_help_across_surfaces(
                 selected_field_ids: vec![],
             })
             .unwrap();
-        for (field, token, label) in [
-            ("body.size", "lg", "Large"),
-            ("physical.size", "lg", "Large"),
-            ("ancestry.default_size", "med", "Medium"),
-        ] {
-            let editor_field = editor
+        for field in ["body.size", "physical.size", "ancestry.default_size"] {
+            let choice = editor
                 .groups
                 .iter()
                 .flat_map(|group| &group.fields)
                 .find(|option| option.definition.id == field)
-                .unwrap();
-            for (value, canonical_label) in [("lg", "Large"), ("med", "Medium"), ("sm", "Sm")] {
-                let choice = editor_field
-                    .choices
-                    .iter()
-                    .find(|choice| choice.value == atlas_domain::QueryLiteral::String(value.into()))
-                    .unwrap();
-                assert!(choice.help.is_none());
-                if complete && value != "sm" {
-                    assert_eq!(choice.label, canonical_label);
-                }
-            }
-            let vocabulary = fixture
-                .worker
-                .discover_filter_values(
-                    DiscoverFilterValuesRequest::Vocabulary {
-                        scope: FilterVocabularyScope::Artifact,
-                        field_id: field.into(),
-                        text: None,
-                        offset: 0,
-                        limit: 100,
-                        selected_values: vec![],
-                    },
-                    &execution,
-                )
-                .unwrap();
-            let FilterValueListView::Vocabulary { values, .. } = vocabulary else {
-                panic!("vocabulary")
-            };
-            let choice = values
-                .options
+                .unwrap()
+                .choices
                 .iter()
-                .find(|choice| choice.value == atlas_domain::QueryLiteral::String(token.into()))
+                .find(|choice| choice.value == QueryLiteral::String("lg".into()))
                 .unwrap();
-            assert!(choice.help.is_none());
-            if complete {
-                assert_eq!(choice.label, label);
-            }
-            let contextual = fixture
-                .worker
-                .discover_filter_values(
-                    DiscoverFilterValuesRequest::Contextual {
-                        only_matching: false,
-                        context: Box::new(FilterDiscoveryContext::Filtered {
-                            connection_scope: None,
-                            search_content: None,
-                            search_profile: None,
-                            expected_artifact_generation: None,
-                            filter: None,
-                            text: None,
-                            mode: RetrievalModeView::Lexical,
-                        }),
-                        field_id: field.into(),
-                        clause_id: None,
-                        text: None,
-                        offset: 0,
-                        limit: 100,
-                    },
-                    &execution,
-                )
-                .unwrap();
-            let FilterValueListView::Contextual {
-                outcome: atlas_domain::QueryFacetOutcome::Available { value: values },
-                ..
-            } = contextual
-            else {
-                panic!("contextual counts")
-            };
-            let choice = values
-                .options
-                .iter()
-                .find(|choice| choice.value == atlas_domain::QueryLiteral::String(token.into()))
-                .unwrap();
-            assert_eq!(choice.distinct_roots, 1);
-            assert!(choice.help.is_none());
-            if complete {
-                assert_eq!(choice.label, label);
-            }
+            assert_eq!(choice.label, expected, "{field}");
+            assert!(choice.help.is_none(), "{field}");
         }
     }
+
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let vocabulary = complete
+        .worker
+        .discover_filter_values(
+            DiscoverFilterValuesRequest::Vocabulary {
+                scope: FilterVocabularyScope::Artifact,
+                field_id: "body.size".into(),
+                text: None,
+                offset: 0,
+                limit: 100,
+                selected_values: vec![],
+            },
+            &execution,
+        )
+        .unwrap();
+    let FilterValueListView::Vocabulary { values, .. } = vocabulary else {
+        panic!("vocabulary");
+    };
+    let large = QueryLiteral::String("lg".into());
+    let choice = values
+        .options
+        .iter()
+        .find(|choice| choice.value == large)
+        .unwrap();
+    assert_eq!(choice.label, "Large supplied");
+    assert!(choice.help.is_none());
+
+    let contextual = complete
+        .worker
+        .discover_filter_values(
+            DiscoverFilterValuesRequest::Contextual {
+                only_matching: false,
+                context: Box::new(FilterDiscoveryContext::Filtered {
+                    connection_scope: None,
+                    search_content: None,
+                    search_profile: None,
+                    expected_artifact_generation: None,
+                    filter: None,
+                    text: None,
+                    mode: RetrievalModeView::Lexical,
+                }),
+                field_id: "body.size".into(),
+                clause_id: None,
+                text: None,
+                offset: 0,
+                limit: 100,
+            },
+            &execution,
+        )
+        .unwrap();
+    let FilterValueListView::Contextual {
+        outcome: QueryFacetOutcome::Available { value: values },
+        ..
+    } = contextual
+    else {
+        panic!("contextual values");
+    };
+    let choice = values
+        .options
+        .iter()
+        .find(|choice| choice.value == large)
+        .unwrap();
+    assert_eq!(choice.label, "Large supplied");
+    assert!(choice.help.is_none());
+    assert_eq!(choice.distinct_roots, 1);
 }
 
 #[test]
@@ -802,7 +829,9 @@ fn retained_profile_labels_and_normal_vision_preserve_readability_and_raw_identi
             panic!("class");
         };
         assert_eq!(class.key_attributes.value.unwrap()[0].label, "Strength");
-        assert_eq!(class.trained_skills.value.unwrap()[0].label, "Arcana");
+        let skills = class.trained_skills.value.unwrap();
+        assert_eq!(skills[0].label, "Arcana");
+        assert!(skills[0].help.is_none());
         let detail = fixture
             .worker
             .record_detail("deities:deity00000000001")
@@ -839,18 +868,7 @@ fn record_backed_help_keeps_ordinary_custom_and_owned_content() {
         .find(|a| a.title == "General vision 23")
         .unwrap()
         .navigation;
-    let owned = fixture
-        .worker
-        .record_detail_at(RecordDetailRequest {
-            record_key: navigation.record_key,
-            owners: navigation.owners,
-            expected_artifact_generation: None,
-            spell_rank: None,
-            fields: vec![],
-            passage: None,
-            source_fingerprint: navigation.source_fingerprint,
-        })
-        .unwrap();
+    let owned = selected_activity_detail(&fixture, navigation);
     assert!(owned.presentation.content.iter().any(|field| matches!(&field.body,
         PreparedFieldBodyView::Html { html, controls, .. } if html.contains("Actual DC 23") && !controls.is_empty())));
 }

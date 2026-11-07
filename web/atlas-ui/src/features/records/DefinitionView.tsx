@@ -1,7 +1,4 @@
-import {
-  useReferenceHelpHandler,
-  useReferenceRecordNavigation,
-} from "../../shared/records/ReferenceHelp";
+import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LinkNotFound } from "../../app/InvalidUrl";
@@ -29,13 +26,10 @@ export function DefinitionView({ definitionKey }: { definitionKey: string }) {
 
 function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
   const query = useDefinitionDetail(definitionKey);
-  const onHelp = useReferenceHelpHandler();
   const onReference = useReferenceRecordNavigation()!;
   const client = useQueryClient();
-  const recordTarget =
-    query.data?.help?.destination?.kind === "record"
-      ? query.data.help!.destination
-      : undefined;
+  const destination = query.data?.help?.destination;
+  const recordTarget = destination?.kind === "record" ? destination : undefined;
   const canonical = definitionDestination({ definitionKey });
   const traitTarget = canonical.to === "/traits/$traitKey";
   useEffect(() => {
@@ -52,9 +46,9 @@ function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
   }, [definitionKey, recordTarget, traitTarget]);
   const readable =
     !traitTarget &&
-    query.data?.help?.destination?.kind === "definition" &&
-    query.data.help!.destination.key === definitionKey &&
-    query.data.content !== null;
+    destination?.kind === "definition" &&
+    destination.key === definitionKey &&
+    query.data?.content != null;
   const reload = async () => {
     await retireReferenceQueries(client);
     await query.refetch();
@@ -63,11 +57,7 @@ function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
   usePageTitle(unavailable ? "Link not found" : (query.data?.label ?? "Definition"));
   if (unavailable) return <LinkNotFound />;
   return (
-    <ReferenceHelpProvider
-      onHelp={onHelp}
-      onReference={onReference}
-      generation={query.data?.artifact_generation}
-    >
+    <ReferenceHelpProvider generation={query.data?.artifact_generation}>
       <main className="record-view">
         <DocumentPagePane>
           <DefinitionDetailPane

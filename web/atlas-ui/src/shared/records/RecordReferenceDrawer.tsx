@@ -61,7 +61,7 @@ export function RecordReferenceDrawer({
   const retryActionLabel =
     retryLabel ??
     (isArtifactGenerationChanged(error)
-      ? destination?.kind === "definition" || help?.definition_key
+      ? destination.kind === "definition" || help?.definition_key
         ? "Refresh definition"
         : "Refresh record"
       : "Retry");
@@ -145,7 +145,7 @@ export function RecordReferenceDrawer({
           onFocusCapture={headerFocus.onFocusCapture}
           onBlurCapture={headerFocus.onBlurCapture}
         >
-          {destination?.kind === "definition" ? (
+          {destination.kind === "definition" ? (
             <DocumentIdentityHeader
               stacked
               headingRef={heading}
@@ -214,7 +214,7 @@ export function RecordReferenceDrawer({
       onClose={close}
     >
       <section {...contentFocus} aria-label="Reference content">
-        {destination?.kind === "definition" ? (
+        {destination.kind === "definition" ? (
           <DefinitionDetailPane
             identityInHost
             detail={definition}
@@ -241,7 +241,6 @@ export function RecordReferenceDrawer({
               onBack={close}
               backLabel="Close preview"
               onReference={onReference}
-              onHelp={onHelp}
               onRankChange={onRankChange}
               landing={landing}
               onLandingReady={readingRef.onLandingReady}

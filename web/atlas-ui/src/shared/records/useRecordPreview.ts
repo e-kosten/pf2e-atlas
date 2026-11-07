@@ -355,8 +355,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       anchor?: HTMLElement,
       navigation?: RecordNavigationView,
       landing?: RecordNavigationView,
-      help?: ReferenceHelpView,
-      generation?: string,
     ) => {
       const condition = encounterContext?.conditions?.find(
         (condition) =>
@@ -371,14 +369,11 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         source_fingerprint: null,
       };
       const contextual =
-        !help &&
-        ((encounterContext?.parentRecordKey === nextRecordKey && navigation) ||
-          condition);
+        (encounterContext?.parentRecordKey === nextRecordKey && navigation) ||
+        condition;
       openFrame(
         {
           destination: { kind: "record", navigation: destinationNavigation },
-          help,
-          generation,
           selection: condition ? destinationNavigation : navigation,
           landing,
           context:
@@ -399,7 +394,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   const openHelp: ReferenceHelpHandler = useCallback(
     (help, anchor, generation, finishOwner) => {
       const destination = help.destination;
-      if (!destination) return;
       returnToOwner.current ??= finishOwner;
       openFrame(
         {
@@ -515,7 +509,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           (prior) => prior && { ...prior, selection: { ...current, spell_rank } },
         );
     },
-    recordKey,
     selection,
     landing,
     readingHistory: {

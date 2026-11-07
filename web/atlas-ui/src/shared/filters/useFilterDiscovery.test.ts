@@ -570,12 +570,19 @@ it("does not accept an abandoned unscoped count response after a relationship is
 });
 
 it("drops contextual vocabulary and counts across relationship scope changes", async () => {
+  const counts = response().counts.value;
   api.discoverFilterValues
     .mockResolvedValueOnce({
       kind: "contextual",
       search_profile: "bge-base",
       artifact_generation: "generation-a",
-      outcome: { status: "available", value: response().counts.value },
+      outcome: {
+        status: "available",
+        value: {
+          ...counts,
+          options: counts.options.map((option) => ({ ...option, label: option.value })),
+        },
+      },
     })
     .mockImplementation(() => new Promise(() => {}));
   const { result, rerender } = renderHook(

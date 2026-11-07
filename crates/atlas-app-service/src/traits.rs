@@ -1,8 +1,11 @@
 //! Bounded vocabulary reading workflows. Retrieval and ranking stay in search.
-use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
+use crate::{
+    AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext,
+    definitions::check_generation,
+};
 use atlas_app_model::{
-    AppRecoverableAction, RecordNavigationView, TraitAssociationKind, TraitDetailRequest,
-    TraitDetailView, TraitRecordView, TraitRecordsPage, TraitRecordsRequest,
+    RecordNavigationView, TraitAssociationKind, TraitDetailRequest, TraitDetailView,
+    TraitRecordView, TraitRecordsPage, TraitRecordsRequest,
 };
 use atlas_domain::TraitKey;
 use atlas_search::{RecordScope, SearchPage, SimilarTraitRequest, TraitAssociationRequest};
@@ -235,18 +238,6 @@ fn parse_key(value: &str) -> AppServiceResult<TraitKey> {
         .map_err(|e: atlas_domain::TraitKeyParseError| {
             AppServiceError::invalid_request(e.to_string())
         })
-}
-fn check_generation(expected: Option<&str>, actual: &str) -> AppServiceResult<()> {
-    if let Some(expected) = expected
-        && expected != actual
-    {
-        return Err(AppServiceError::artifact_generation_changed(
-            expected,
-            actual,
-            AppRecoverableAction::ReloadRecord,
-        ));
-    }
-    Ok(())
 }
 fn root_navigation(record_key: String) -> RecordNavigationView {
     RecordNavigationView {

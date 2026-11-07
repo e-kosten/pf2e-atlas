@@ -120,28 +120,6 @@ it("keeps modified trait activation native", () => {
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
-it("restores record header trait openers and body scroll after Back", async () => {
-  setup();
-  const record = detailFixture("rules:condition", "Condition");
-  record.presentation.identity.traits = [
-    { kind: "trait", value: "agile", label: "Agile", trait_key: "trait:agile", help },
-  ];
-  vi.mocked(getRecordDetail).mockResolvedValue(record);
-  fireEvent.click(screen.getByRole("link", { name: "Agile" }));
-  fireEvent.click(await screen.findByRole("link", { name: "Condition reference" }));
-  const drawer = await screen.findByRole("dialog", { name: "Condition" });
-  const badge = within(drawer).getByRole("link", { name: "Agile" });
-  const scroll = drawer.querySelector<HTMLElement>(".record-preview-drawer__body")!;
-  scroll.scrollTop = 90;
-  fireEvent.click(badge);
-  expect(await screen.findByRole("dialog", { name: "Agile" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  await screen.findByRole("dialog", { name: "Condition" });
-  expect(scroll.scrollTop).toBe(90);
-  expect(within(drawer).getByRole("link", { name: "Agile" })).toHaveFocus();
-  expect(screen.getAllByRole("dialog")).toHaveLength(1);
-});
-
 it("closes a global reference on page departure while retaining it through profile-only navigation", async () => {
   setup();
   fireEvent.click(screen.getByRole("link", { name: "Agile" }));

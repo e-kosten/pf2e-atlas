@@ -89,7 +89,6 @@ export function useReferenceHelpNavigation() {
     generation?: string,
     returnToOwner?: ReferenceHelpReturn,
   ) => {
-    if (!help.destination) return;
     if (host.onHelp) {
       if (returnToOwner)
         host.onHelp(help, anchor, generation ?? host.generation, returnToOwner);
@@ -104,22 +103,19 @@ export function ReferenceHelpLink({
   help,
   children,
   generation,
-  className,
   handoff,
 }: {
   help: ReferenceHelpView | null | undefined;
   children: ReactNode;
   generation?: string;
-  className?: string;
   handoff?: ReferenceHelpHandoff;
 }) {
   const open = useReferenceHelpNavigation();
-  if (!help?.destination) return <>{children}</>;
+  if (!help) return <>{children}</>;
   const route = referenceDestination(help.destination, help.definition_key);
   return (
     <AtlasLink
       {...route}
-      className={className}
       onClick={(event) => {
         event.stopPropagation();
         if (!isPrimaryActivation(event)) return;

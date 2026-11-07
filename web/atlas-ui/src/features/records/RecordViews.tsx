@@ -1,7 +1,4 @@
-import {
-  useReferenceHelpHandler,
-  useReferenceRecordNavigation,
-} from "../../shared/records/ReferenceHelp";
+import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import {
   useDefinitionDetail,
   definitionHelpMatchesRecord,
@@ -52,12 +49,12 @@ function RecordViewContent({
   detail,
 }: RecordViewProps & { detail: ReturnType<typeof useRecordDetail> }) {
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
-  const onHelp = useReferenceHelpHandler();
   const onReference = useReferenceRecordNavigation()!;
   const client = useQueryClient();
+  const generation = detail.data?.artifact_generation;
   const property = useDefinitionDetail(
-    route.definitionKey ?? null,
-    detail.data?.artifact_generation,
+    generation === undefined ? null : (route.definitionKey ?? null),
+    generation,
   );
   const propertyHelp =
     property.data &&
@@ -90,7 +87,6 @@ function RecordViewContent({
       <main className="record-view">
         <DocumentPagePane layout={recordLayout(detail.data?.presentation)}>
           <RecordDetailPane
-            onHelp={onHelp}
             sectionLanding={route.section}
             identityActions={
               <AddToRecordButton
@@ -134,7 +130,7 @@ function RecordViewContent({
                       onReload={() => void reload()}
                     />
                   )}
-                  {route.definitionKey && property.data && !propertyHelp && (
+                  {property.data && !propertyHelp && (
                     <p className="muted">
                       This definition no longer points to this entry.
                     </p>

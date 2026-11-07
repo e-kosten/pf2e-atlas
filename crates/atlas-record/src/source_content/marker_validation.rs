@@ -21,14 +21,6 @@ pub(super) fn reference_binding(
     reference_binding_origin(Some(locator), None, authored_hash, reference)
 }
 
-pub(super) fn trait_reference_binding(
-    key: &atlas_domain::TraitKey,
-    authored_hash: &str,
-    reference: &ContentReferenceOccurrence,
-) -> String {
-    definition_reference_binding(&key.clone().into(), authored_hash, reference)
-}
-
 pub(super) fn definition_reference_binding(
     key: &atlas_domain::DefinitionKey,
     authored_hash: &str,
@@ -207,17 +199,6 @@ pub fn validate_prepared_reference_bindings(
 ) -> Result<(), PreparedMarkerError> {
     validate_reference_bindings(html, references, |reference| {
         reference_binding(locator, authored_hash, reference)
-    })
-}
-
-pub fn validate_prepared_trait_reference_bindings(
-    html: &str,
-    key: &atlas_domain::TraitKey,
-    authored_hash: &str,
-    references: &[ContentReferenceOccurrence],
-) -> Result<(), PreparedMarkerError> {
-    validate_reference_bindings(html, references, |reference| {
-        trait_reference_binding(key, authored_hash, reference)
     })
 }
 

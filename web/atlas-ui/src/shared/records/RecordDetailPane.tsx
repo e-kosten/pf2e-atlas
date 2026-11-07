@@ -15,7 +15,7 @@ import { RecordPresentation, RecordPresentationIdentity } from "./RecordPresenta
 import { RecordReadingWorkspace } from "./RecordReadingWorkspace";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { ReferenceHelpProvider, type ReferenceHelpHandler } from "./ReferenceHelp";
+import { ReferenceHelpProvider } from "./ReferenceHelp";
 import { RelatedRecords } from "./RelatedRecords";
 type RecordDetailPaneError =
   | Error
@@ -37,7 +37,6 @@ export function RecordDetailPane({
   onBack,
   backLabel = "Back to search",
   onReference,
-  onHelp,
   onRankChange,
   compact = false,
   showRelated = true,
@@ -74,7 +73,6 @@ export function RecordDetailPane({
   onBack?: () => void;
   backLabel?: string;
   onReference: RecordReferenceHandler;
-  onHelp?: ReferenceHelpHandler;
   onRankChange?: (rank: number | undefined) => void;
   compact?: boolean;
   showRelated?: boolean;
@@ -92,7 +90,6 @@ export function RecordDetailPane({
   const notFound = code === "record_not_found";
   return (
     <ReferenceHelpProvider
-      onHelp={onHelp}
       onReference={onReference}
       generation={detail?.artifact_generation}
     >

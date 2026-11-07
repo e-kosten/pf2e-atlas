@@ -77,7 +77,6 @@ it("keeps retained spell content read-only after a contextual refresh fails and 
   spell.presentation.body = { kind: "spell", value: spellFixture() };
   const props = {
     disabled: false,
-    previewLoading: false,
     encounterKey: "encounter",
     encounterRevision: 1n,
     participants: [],
@@ -85,27 +84,33 @@ it("keeps retained spell content read-only after a contextual refresh fails and 
       participant_key: "one",
       participant_kind: "creature",
     }),
-    previewDestination: {
-      kind: "record",
-      navigation: rootNavigation("actors:mage"),
-    } satisfies NonNullable<
-      ComponentProps<typeof EncounterInspectorPane>["previewDestination"]
-    >,
-    previewDetail: spell,
+    preview: {
+      destination: { kind: "record", navigation: rootNavigation("actors:mage") },
+      detail: spell,
+      loading: false,
+    } satisfies Partial<ComponentProps<typeof EncounterInspectorPane>["preview"]>,
     onSpellAction,
   } as unknown as ComponentProps<typeof EncounterInspectorPane>;
   const { rerender } = renderEncounter(
-    <EncounterInspectorPane {...props} previewError={new Error("Refresh failed")} />,
+    <EncounterInspectorPane
+      {...props}
+      preview={{ ...props.preview, error: new Error("Refresh failed") }}
+    />,
   );
   expect(screen.getByRole("button", { name: "Cast" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Cast" }));
   expect(onSpellAction).not.toHaveBeenCalled();
-  rerender(<EncounterInspectorPane {...props} previewLoading />);
+  rerender(
+    <EncounterInspectorPane {...props} preview={{ ...props.preview, loading: true }} />,
+  );
   expect(screen.getByRole("button", { name: "Cast" })).toBeDisabled();
   rerender(<EncounterInspectorPane {...props} />);
   expect(screen.getByRole("button", { name: "Cast" })).toBeEnabled();
   rerender(
-    <EncounterInspectorPane {...props} previewDetail={detailFixture("actors:mage")} />,
+    <EncounterInspectorPane
+      {...props}
+      preview={{ ...props.preview, detail: detailFixture("actors:mage") }}
+    />,
   );
   expect(screen.queryByRole("button", { name: "Cast" })).toBeNull();
 });
@@ -146,14 +151,13 @@ it("labels multiple inline options and keeps a single option beside its existing
   });
   const props = {
     disabled: false,
-    previewLoading: false,
     encounterKey: "encounter",
     encounterRevision: 1n,
     artifactGeneration: "test-generation",
     participants: [participant],
     participant,
     onAbilityState: vi.fn().mockResolvedValue(true),
-    onReference: vi.fn(),
+    preview: { open: vi.fn(), destination: null },
   } as unknown as ComponentProps<typeof EncounterInspectorPane>;
   const { rerender } = renderEncounter(<EncounterInspectorPane {...props} />);
   const inline = within(screen.getByRole("region", { name: "Inline ability" }));
@@ -197,12 +201,11 @@ it("omits the encounter durability section when a hazard has no HP controls or d
   });
   const props = {
     disabled: false,
-    previewLoading: false,
     encounterKey: "encounter",
     encounterRevision: 1n,
     participants: [participant],
     participant,
-    onReference: vi.fn(),
+    preview: { open: vi.fn(), destination: null },
   } as unknown as ComponentProps<typeof EncounterInspectorPane>;
   const { rerender } = renderEncounter(<EncounterInspectorPane {...props} />);
   expect(screen.queryByRole("region", { name: "HP and defenses" })).toBeNull();

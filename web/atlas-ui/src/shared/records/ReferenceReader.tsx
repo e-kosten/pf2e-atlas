@@ -16,7 +16,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { atlasRouter } from "../../app/router";
 import { useRecordPreview } from "./useRecordPreview";
-import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { activityAnchor } from "./embeddedNavigation";
@@ -455,7 +455,6 @@ export function ReferenceReader({
       >
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
-            onHelp={onHelp}
             showRelated={showRelated}
             identityActions={showRelated && detail ? documentActions : undefined}
             detail={detail}
@@ -481,36 +480,16 @@ export function ReferenceReader({
         </ReaderMatchNavigation.Provider>
       </section>
       {readerFooter}
-      {preview.destination && (
-        <RecordReferenceDrawer
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          actions={preview.detail && recordActions?.(preview.detail.record)}
-          anchor={preview.anchor}
-          visibleOwnerRecordKey={
-            detail?.selected.embedded_path.length === 0
-              ? detail.record.record_key
-              : undefined
-          }
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onReload={preview.reload}
-          retryLabel={preview.retryLabel}
-          reloadLabel={preview.reloadLabel}
-          onNavigateAway={preview.closeForNavigation}
-          restoreAnchorFocus={false}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-        />
-      )}
+      <RecordPreviewDrawer
+        preview={preview}
+        actions={preview.detail && recordActions?.(preview.detail.record)}
+        visibleOwnerRecordKey={
+          detail?.selected.embedded_path.length === 0
+            ? detail.record.record_key
+            : undefined
+        }
+        restoreAnchorFocus={false}
+      />
     </section>
   );
   return (

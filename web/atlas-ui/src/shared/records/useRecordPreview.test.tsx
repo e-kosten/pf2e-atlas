@@ -11,7 +11,7 @@ import { ConfigProvider, Grid } from "antd";
 import { useRecordPreview } from "./useRecordPreview";
 import { EffectReferenceLink } from "./EffectReferenceLink";
 import { detailFixture } from "../../test/fixtures";
-import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 function queryWrapper({ children }: { children: import("react").ReactNode }) {
   return (
@@ -40,7 +40,7 @@ function PreviewFlow() {
       >
         Original reference
       </button>
-      {preview.recordKey && (
+      {preview.destination && (
         <>
           <button
             onClick={(event) =>
@@ -69,7 +69,7 @@ it("suppresses effect tooltips while reading and restores them after closing", a
           target={detailFixture("effects:success").selected}
           onReference={preview.open}
         />
-        {preview.recordKey && <button onClick={preview.close}>Close preview</button>}
+        {preview.destination && <button onClick={preview.close}>Close preview</button>}
       </>
     );
   }
@@ -130,16 +130,7 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
         <button onClick={(event) => preview.open("actors:ghoul", event.currentTarget)}>
           Ghoul reference
         </button>
-        {preview.recordKey && (
-          <RecordReferenceDrawer
-            destination={preview.destination!}
-            anchor={preview.anchor}
-            detail={preview.detail}
-            loading={preview.loading}
-            onClose={preview.close}
-            onReference={preview.open}
-          />
-        )}
+        <RecordPreviewDrawer preview={preview} />
       </>
     );
   }
@@ -204,7 +195,10 @@ it("bounds preview history and restores exact selected copy, landing, source lin
     act(() => result.current.open(`rules:${index}`, source));
   for (let index = 0; index < 24; index++)
     act(() => result.current.readingHistory.onBack());
-  expect(result.current.recordKey).toBe("rules:5");
+  expect(result.current.destination).toMatchObject({
+    kind: "record",
+    navigation: { record_key: "rules:5" },
+  });
   expect(result.current.readingHistory.canGoBack).toBe(false);
   act(() => result.current.close());
   expect(opener).toHaveFocus();
@@ -258,7 +252,10 @@ it("retains an exact contextual document during canonical refresh, replaces fres
 it("closes a retained linked preview on an explicit reading departure to the current href", () => {
   const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
   act(() => result.current.open("actors:ghoul"));
-  expect(result.current.recordKey).toBe("actors:ghoul");
+  expect(result.current.destination).toMatchObject({
+    kind: "record",
+    navigation: { record_key: "actors:ghoul" },
+  });
   act(() =>
     atlasRouter.emit({
       type: "onBeforeNavigate",
@@ -275,7 +272,7 @@ it("closes a retained linked preview on an explicit reading departure to the cur
       hashChanged: false,
     }),
   );
-  expect(result.current.recordKey).toBeNull();
+  expect(result.current.destination).toBeNull();
   expect(result.current.selection).toBeUndefined();
 });
 
@@ -382,13 +379,15 @@ it("keeps mixed trait and record history with exact owned addresses and original
   try {
     act(() => result.current.open("actors:ghoul", opener, selection, selection));
     act(() => result.current.openHelp(help, opener, "generation-a"));
-    expect(result.current.recordKey).toBeNull();
     expect(result.current.destination).toEqual(help.destination);
     act(() => result.current.open("rules:condition", opener));
     act(() => result.current.readingHistory.onBack());
     expect(result.current.destination).toEqual(help.destination);
     act(() => result.current.readingHistory.onBack());
-    expect(result.current.recordKey).toBe("actors:ghoul");
+    expect(result.current.destination).toMatchObject({
+      kind: "record",
+      navigation: { record_key: "actors:ghoul" },
+    });
     expect(result.current.selection).toEqual(selection);
     expect(result.current.landing).toEqual(selection);
     expect(result.current.readingHistory.canGoBack).toBe(false);

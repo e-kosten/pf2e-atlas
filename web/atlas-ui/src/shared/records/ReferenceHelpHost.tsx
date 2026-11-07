@@ -5,7 +5,7 @@ import {
   useReferenceHelpHandler,
   useReferenceRecordNavigation,
 } from "./ReferenceHelp";
-import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
+import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { useRecordPreview } from "./useRecordPreview";
 
 type HelpHostProps = {
@@ -63,32 +63,12 @@ function LocalReferenceHelpHost({
       generation={generation}
     >
       {children}
-      {preview.destination && (
-        <RecordReferenceDrawer
-          actions={preview.detail && recordActions?.(preview.detail.record)}
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          anchor={preview.anchor}
-          visibleOwnerRecordKey={visibleOwnerRecordKey}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onReload={preview.reload}
-          retryLabel={preview.retryLabel}
-          reloadLabel={preview.reloadLabel}
-          onClose={preview.close}
-          onNavigateAway={preview.closeForNavigation}
-          restoreAnchorFocus={false}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-        />
-      )}
+      <RecordPreviewDrawer
+        preview={preview}
+        actions={preview.detail && recordActions?.(preview.detail.record)}
+        visibleOwnerRecordKey={visibleOwnerRecordKey}
+        restoreAnchorFocus={false}
+      />
     </ReferenceHelpProvider>
   );
 }

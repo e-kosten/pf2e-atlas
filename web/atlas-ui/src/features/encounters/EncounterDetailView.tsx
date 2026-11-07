@@ -624,10 +624,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   });
                   return result.active && result.refreshed;
                 }}
-                onCloseRecordPreview={recordPreview.close}
-                onNavigateAwayPreview={recordPreview.closeForNavigation}
-                onReference={recordPreview.open}
-                onPreviewRankChange={recordPreview.changeRank}
                 onRemoveCondition={async (
                   participantKey,
                   conditionId,
@@ -688,21 +684,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 standardRecoveryDc={
                   conditionDefinitions.data?.standard_persistent_recovery_dc
                 }
-                previewAnchor={recordPreview.anchor}
-                previewReadingHistory={recordPreview.readingHistory}
-                previewLanding={recordPreview.landing}
-                previewDestination={recordPreview.destination}
-                previewDefinition={recordPreview.definition}
-                previewHelp={recordPreview.help}
-                onHelp={recordPreview.openHelp}
-                previewDetail={recordPreview.detail}
-                previewSelection={recordPreview.selection}
-                previewLoading={recordPreview.loading}
-                previewError={recordPreview.error}
-                onRetryPreview={recordPreview.retry}
-                onReloadPreview={recordPreview.reload}
-                reloadPreviewLabel={recordPreview.reloadLabel}
-                retryPreviewLabel={recordPreview.retryLabel}
+                preview={recordPreview}
               />
             }
             collapsiblePanes={[]}

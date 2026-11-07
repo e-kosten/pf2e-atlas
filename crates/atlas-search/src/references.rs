@@ -2,10 +2,8 @@
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_domain::{DefinitionKey, OwnedContentLocator, RecordKey};
 pub use atlas_index::{
-    OwnedAbilityTarget, ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
-    ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
-    ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
-    ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking,
+    OwnedAbilityTarget, ReferenceBacking, ReferenceCoverage, ReferenceEntry, ReferenceNotice,
+    ReferenceSummary, ReferenceSummaryBacking,
 };
 
 impl AtlasRetrievalService {

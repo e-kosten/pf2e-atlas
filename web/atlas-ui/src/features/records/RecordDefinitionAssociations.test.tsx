@@ -129,6 +129,12 @@ it("adds matched property associations after the actual record body and preserve
   const { container } = setup();
   expect(await screen.findByText("Actual existing ability rules.")).toBeVisible();
   expect(await screen.findByRole("tab", { name: "With this sense" })).toBeVisible();
+  expect(definitionApi.mock.calls.map(([request]) => request)).toEqual([
+    {
+      definition_key: "sense:darkvision",
+      expected_artifact_generation: "test-generation",
+    },
+  ]);
   expect(container.textContent!.indexOf("Actual existing ability rules.")).toBeLessThan(
     container.textContent!.indexOf("With this sense"),
   );

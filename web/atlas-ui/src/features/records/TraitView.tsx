@@ -1,7 +1,4 @@
-import {
-  useReferenceHelpHandler,
-  useReferenceRecordNavigation,
-} from "../../shared/records/ReferenceHelp";
+import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import { LinkNotFound } from "../../app/InvalidUrl";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
@@ -60,7 +57,6 @@ export function TraitView({ route }: { route: TraitPageInput }) {
 
 function TraitViewContent({ route }: { route: TraitPageInput }) {
   const query = useTraitDetail(route.traitKey);
-  const onHelp = useReferenceHelpHandler();
   const onReference = useReferenceRecordNavigation()!;
   const unavailable = query.data?.content === null;
   usePageTitle(unavailable ? "Link not found" : (query.data?.label ?? "Trait"));
@@ -102,11 +98,7 @@ function TraitViewContent({ route }: { route: TraitPageInput }) {
               />
             )}
             {query.data ? (
-              <ReferenceHelpProvider
-                onHelp={onHelp}
-                onReference={onReference}
-                generation={query.data.artifact_generation}
-              >
+              <ReferenceHelpProvider generation={query.data.artifact_generation}>
                 <article className="record-reference" data-selection-search>
                   <DocumentIdentityHeader
                     title={query.data.label}
