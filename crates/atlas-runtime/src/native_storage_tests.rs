@@ -941,3 +941,76 @@ fn valid_signed_zero_centroids_keep_their_original_bytes_during_upgrade() {
         before
     );
 }
+
+#[test]
+fn trait_similarity_retirement_preserves_document_values_on_historical_upgrade() {
+    for intermediate_upgrade in [false, true] {
+        let (_dir, workspace, input) = main24(2);
+        legacy_cache(&workspace, &input);
+        let read = workspace.read(24).unwrap();
+        let key = read.workspace_key().unwrap();
+        let revision = read.reference_revision().unwrap();
+        let saved = rows(read.connection(), "SELECT * FROM saved_lists ORDER BY id");
+        let document_ids = read
+            .connection()
+            .prepare("SELECT DISTINCT input_id FROM semantic_units")
+            .unwrap()
+            .query_map([], |row| row.get::<_, i64>(0))
+            .unwrap()
+            .collect::<Result<std::collections::BTreeSet<_>, _>>()
+            .unwrap();
+        let mut document_values = published_values(read.connection(), &input, false);
+        document_values.retain(|(_, id), _| document_ids.contains(id));
+        let pending = rows(
+            read.connection(),
+            "SELECT input_id,vector,vector_hash FROM pending_embedding_values ORDER BY input_id",
+        );
+        drop(read);
+
+        let historical = &MIGRATIONS[..33];
+        if intermediate_upgrade {
+            workspace.migrate(historical, |_| Ok(())).unwrap();
+        }
+        let migrations = historical
+            .iter()
+            .copied()
+            .chain([Migration {
+                version: 34,
+                name: "retire-trait-similarity",
+                sql: "",
+                backfill: Some(atlas_storage::DataBackfill {
+                    reconstruct_tables: false,
+                    id: "retire-trait-similarity/v1",
+                    apply: atlas_index::retire_trait_similarity,
+                }),
+            }])
+            .collect::<Vec<_>>();
+        workspace.migrate(&migrations, |_| Ok(())).unwrap();
+        let read = workspace.read(34).unwrap();
+        assert_eq!(read.workspace_key().unwrap(), key);
+        assert_eq!(read.reference_revision().unwrap(), revision + 1);
+        assert_eq!(
+            published_values(read.connection(), &input, true),
+            document_values
+        );
+        assert_eq!(
+            rows(read.connection(), "SELECT * FROM saved_lists ORDER BY id"),
+            saved
+        );
+        assert_eq!(
+            rows(
+                read.connection(),
+                "SELECT input_id,vector,vector_hash FROM pending_embedding_values ORDER BY input_id"
+            ),
+            pending
+        );
+        assert_eq!(
+            rows(
+                read.connection(),
+                "SELECT name FROM sqlite_schema WHERE name IN ('trait_seed_chunks','trait_vectors')"
+            ),
+            Vec::<Vec<Value>>::new()
+        );
+        assert!(rows(read.connection(), "PRAGMA foreign_key_check").is_empty());
+    }
+}
