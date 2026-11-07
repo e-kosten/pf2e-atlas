@@ -4,7 +4,6 @@ import type {
   TraitDetailView,
   TraitRecordsPage,
   RecordNavigationView,
-  SearchResultsPage,
 } from "../src/generated/atlas";
 
 // Every POST in this file is an ordinary read API. The caller supplies the real
@@ -190,64 +189,19 @@ test("trait membership opens the exact embedded source", async ({
   });
 });
 
-for (const profile of ["embeddinggemma", "bge-base"]) {
-  test(`stored trait Similar uses ${profile} and reports bounded coverage`, async ({
-    page,
-    request,
-  }) => {
-    const readiness = await (await request.get("/api/readiness")).json();
-    expect(
-      readiness.search_profiles.some(
-        (entry: { id: string; stored_vectors: boolean }) =>
-          entry.id === profile && entry.stored_vectors,
-      ),
-      `Preview must contain stored ${profile} vectors`,
-    ).toBeTruthy();
-    await page.goto(`/traits/trait:agile?search_profile=${profile}`);
-    await expect(
-      page.getByRole("heading", { name: "Agile", exact: true }),
-    ).toBeVisible();
-    const response = page.waitForResponse(
-      (response) =>
-        response.url().endsWith("/api/search/page") &&
-        response.request().postDataJSON()?.criteria?.kind === "similar_traits",
-    );
-    await page.getByRole("tab", { name: "Similar", exact: true }).click();
-    const result = await response;
-    expect(result.ok(), await result.text()).toBeTruthy();
-    const data = (await result.json()) as SearchResultsPage;
-    expect(data.search_profile).toBe(profile);
-    expect(data.coverage).not.toBeNull();
-    expect(data.rows.length).toBeGreaterThan(0);
-    const region = page.getByRole("region", { name: "Similar records", exact: true });
-    await expect(region.locator("[data-record-key]").first()).toBeVisible();
-    if (!data.coverage!.exhaustive)
-      await expect(region.getByText("Top matches", { exact: true })).toBeVisible();
-    await expect(region.locator("[data-record-key]").first()).toHaveAttribute(
-      "href",
-      /^\/records\//,
-    );
-    expect(data.page.size).toBe(5);
-    await expect(region.locator(".reference-result")).toHaveCount(data.rows.length);
-    const searchRequest = page.waitForResponse(
-      (response) =>
-        response.url().endsWith("/api/search/page") &&
-        response.request().postDataJSON()?.criteria?.kind === "similar_traits",
-    );
-    await region
-      .getByRole("link", { name: "Search similar records", exact: true })
-      .click();
-    const resultPage = await (await searchRequest).json();
-    expect(resultPage.mode).toMatchObject({
-      kind: "similar_traits",
-      trait_key: "trait:agile",
-      title: "Agile",
-    });
-    expect(resultPage.search_profile).toBe(profile);
-    await expect(
-      page
-        .locator(".reference-search-entry--similar")
-        .getByRole("link", { name: "Agile", exact: true }),
-    ).toHaveAttribute("href", "/traits/trait:agile");
-  });
-}
+test("stale trait Similar links open empty Search or the default trait tab", async ({
+  page,
+}) => {
+  await page.goto(
+    "/search?similar=trait:agile&similarity_method=passages&search_profile=bge-base",
+  );
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(page.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+
+  await page.goto("/traits/trait:agile?tab=similar");
+  await expect(page.getByRole("heading", { name: "Agile", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("tab", { name: "With this trait", selected: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Similar", exact: true })).toHaveCount(0);
+});
