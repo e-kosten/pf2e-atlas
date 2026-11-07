@@ -6,29 +6,11 @@ use crate::test_support::{occurrence_vector_bits, sql_rows};
 fn glossary_upgrade_is_atomic_and_keeps_source_free_trait_and_record_reads() {
     let (_directory, workspace, input) = super::native_storage_tests::main24(1);
     workspace.migrate(&MIGRATIONS[..32], |_| Ok(())).unwrap();
-    // The fixture's records have no remaster declarations. Give the schema-32
-    // artifact the corresponding prepared identity and its pre-glossary catalog.
-    let write = workspace.write(32).unwrap();
-    let c = write.connection();
-    let mut context = atlas_index::read_stored_reference_context(c)
-        .unwrap()
-        .unwrap();
-    context.remaster_inputs_identity = input.context.remaster_inputs_identity.clone();
-    context.query_catalog_version = 9;
-    c.execute(
-        "UPDATE artifact_context SET context_hash=?,context_json=?",
-        rusqlite::params![
-            context.sha256().unwrap(),
-            serde_json::to_string(&context).unwrap()
-        ],
+    atlas_index::test_support::stage_pre_glossary_catalog(
+        &workspace,
+        &input.context.remaster_inputs_identity,
     )
     .unwrap();
-    c.execute_batch(
-        "DELETE FROM query_field_catalog WHERE field IN
-        ('actions','senses[].acuity','senses[].range','armor.group','embedded.equipment[].armor.group');",
-    )
-    .unwrap();
-    write.commit().unwrap();
     let read = workspace.read(32).unwrap();
     let before_traits = sql_rows(
         read.connection(),

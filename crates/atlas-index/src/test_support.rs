@@ -578,6 +578,29 @@ pub fn publish_pre_section_fixture(
     })
 }
 
+/// Stage the schema-32 catalog for a fixture with no remaster declarations.
+pub fn stage_pre_glossary_catalog(
+    workspace: &Workspace,
+    remaster_inputs_identity: &str,
+) -> Result<(), IndexError> {
+    let write = workspace.write(32)?;
+    let c = write.connection();
+    let mut context = crate::read_stored_reference_context(c)?
+        .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
+    context.remaster_inputs_identity = remaster_inputs_identity.into();
+    context.query_catalog_version = 9;
+    c.execute(
+        "UPDATE artifact_context SET context_hash=?,context_json=?",
+        rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
+    )?;
+    c.execute_batch(
+        "DELETE FROM query_field_catalog WHERE field IN
+        ('actions','senses[].acuity','senses[].range','armor.group','embedded.equipment[].armor.group');",
+    )?;
+    write.commit()?;
+    Ok(())
+}
+
 /// Seed only the record component of a deliberately historical schema fixture.
 /// This does not produce a current readable artifact: ordinary publication must
 /// use `publish_input` after the complete migration ledger is applied.

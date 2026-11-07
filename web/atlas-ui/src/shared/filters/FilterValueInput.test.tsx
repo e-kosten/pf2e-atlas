@@ -382,14 +382,14 @@ it("uses supplied Actions labels and Read while refusing arbitrary manual values
       </ConfigProvider>
     </RouterTestContext>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Edit Actions values" }));
   await waitFor(() =>
     expect(
       screen.getByRole("button", {
-        name: "Actions: Grab, selected; activate to remove",
+        name: "Remove selected Grab from Actions",
       }),
     ).toBeVisible(),
   );
+  fireEvent.click(screen.getByRole("button", { name: "Edit Actions values" }));
   expect(await screen.findByRole("link", { name: /^Read/ })).toHaveAttribute(
     "href",
     `/records/${key}`,

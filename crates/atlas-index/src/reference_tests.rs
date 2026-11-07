@@ -481,7 +481,7 @@ fn wrong_family_mapping_is_rejected_and_missing_target_reason_retains_no_readabl
 }
 
 #[test]
-fn offline_migration_backfills_authored_sense_qualifiers_and_armor_group_without_defaults() {
+fn offline_projection_upgrade_recovers_authored_sense_qualifiers_and_armor_group() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("facts.sqlite");
     let mut input = crate::foundation_tests::fixture(false);
@@ -528,9 +528,14 @@ fn offline_migration_backfills_authored_sense_qualifiers_and_armor_group_without
         publish_pre_section_fixture(&maintenance, &input).unwrap();
     }
     workspace
-        .migrate(&TEST_MIGRATIONS[..29], |_| Ok(()))
+        .migrate(&TEST_MIGRATIONS[..32], |_| Ok(()))
         .unwrap();
-    let read = workspace.read(29).unwrap();
+    crate::test_support::stage_pre_glossary_catalog(
+        &workspace,
+        &input.context.remaster_inputs_identity,
+    )
+    .unwrap();
+    let read = workspace.read(32).unwrap();
     let original_bodies = read
         .connection()
         .prepare("SELECT snapshot FROM record_bodies ORDER BY record_id")
@@ -542,8 +547,9 @@ fn offline_migration_backfills_authored_sense_qualifiers_and_armor_group_without
     let revision = read.reference_revision().unwrap();
     drop(read);
     workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
+    assert!(ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(read.reference_revision().unwrap(), revision + 1);
     assert_eq!(
         read.connection()
             .prepare("SELECT snapshot FROM record_bodies ORDER BY record_id")
@@ -593,7 +599,6 @@ fn offline_migration_backfills_authored_sense_qualifiers_and_armor_group_without
         ("value".into(), Some("chain".into()))
     );
     drop(read);
-    ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(
         open_reader(&path).unwrap().reference_coverage(),
         ReferenceCoverage::TraitsOnly

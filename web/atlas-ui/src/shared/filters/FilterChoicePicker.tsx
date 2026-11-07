@@ -105,6 +105,7 @@ function FilterChoicePicker({
   const [offset, setOffset] = useState(0);
   const [showUnavailable, setShowUnavailable] = useState(false);
   const closedChoices = field.short_choices;
+  const loadSelectedLabels = field.allow_custom_values === false && selected.length > 0;
   const allowNarrowing = edit.kind === "condition" || edit.allowNarrowing;
   const narrowingContext = countsEnabled && allowNarrowing ? countContext : undefined;
   const clauseId =
@@ -121,8 +122,8 @@ function FilterChoicePicker({
     search,
     offset,
     selected,
-    open && !closedChoices,
-    narrowingContext && !showUnavailable
+    (open || loadSelectedLabels) && !closedChoices,
+    open && narrowingContext && !showUnavailable
       ? { context: narrowingContext, clauseId }
       : undefined,
   );
