@@ -1,6 +1,6 @@
 import type { AppError, AppErrorCode } from "../../generated/atlas";
 import { AtlasCompatibilityError } from "../../api/compatibility";
-import { AtlasConnectionError, isReferenceFailure } from "../../api/availability";
+import { AtlasConnectionError, isAvailabilityFailure } from "../../api/availability";
 
 // AppError.message and Error.message are diagnostics, not reviewed display copy.
 // Keep expected product failures specific without exposing response bodies, IDs,
@@ -63,7 +63,7 @@ export function isSharedFailure(error: unknown): boolean {
   return (
     error instanceof AtlasCompatibilityError ||
     error instanceof AtlasConnectionError ||
-    isReferenceFailure(error)
+    isAvailabilityFailure(error)
   );
 }
 

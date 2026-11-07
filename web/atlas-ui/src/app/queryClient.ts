@@ -2,7 +2,8 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import {
   AtlasConnectionError,
   getAvailabilityFailure,
-  isReferenceFailure,
+  isAvailabilityFailure,
+  isWorkspaceFailure,
   clearAvailabilityFailure,
   reportAvailabilityFailure,
 } from "../api/availability";
@@ -15,20 +16,32 @@ export function createAtlasQueryClient() {
       onError: reportAvailabilityFailure,
       onSuccess: (data, query) => {
         const failure = getAvailabilityFailure();
-        const ready =
+        const readiness =
           query.queryKey[0] === "readiness" &&
           typeof data === "object" &&
           data &&
-          "status" in data &&
-          data.status === "ready";
-        if (!failure || (!(failure instanceof AtlasConnectionError) && !ready)) return;
+          "status" in data
+            ? data
+            : null;
+        const ready = readiness?.status === "ready";
+        const workspaceReady =
+          ready ||
+          !!(readiness && "reference_error" in readiness && readiness.reference_error);
+        if (
+          !failure ||
+          (!(failure instanceof AtlasConnectionError) &&
+            !ready &&
+            !(workspaceReady && isWorkspaceFailure(failure)))
+        )
+          return;
         clearAvailabilityFailure();
         // A successful read proves reconnection. Refresh active failed reads;
         // inactive reads become stale for their next mount. Never replay writes.
         void client.invalidateQueries({
           predicate: (entry) =>
             entry.state.error instanceof AtlasConnectionError ||
-            isReferenceFailure(entry.state.error),
+            (ready && isAvailabilityFailure(entry.state.error)) ||
+            (workspaceReady && isWorkspaceFailure(entry.state.error)),
         });
       },
     }),

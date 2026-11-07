@@ -18,7 +18,7 @@ const availabilityCodes = new Set([
   "workspace_access_failed",
   "workspace_maintenance_required",
 ]);
-export function isReferenceFailure(error: unknown): error is { appError: AppError } {
+export function isAvailabilityFailure(error: unknown): error is { appError: AppError } {
   if (!error || typeof error !== "object" || !("appError" in error)) return false;
   const value = error.appError;
   return (
@@ -27,6 +27,14 @@ export function isReferenceFailure(error: unknown): error is { appError: AppErro
     "code" in value &&
     typeof value.code === "string" &&
     availabilityCodes.has(value.code)
+  );
+}
+export function isWorkspaceFailure(error: unknown): boolean {
+  return (
+    isAvailabilityFailure(error) &&
+    (error.appError.code === "workspace_access_failed" ||
+      error.appError.code === "workspace_maintenance_required" ||
+      error.appError.code === "setup_required")
   );
 }
 export type AtlasAvailabilityFailure = AtlasConnectionError | { appError: AppError };
@@ -41,7 +49,7 @@ export function subscribeAvailabilityFailures(listener: () => void) {
 }
 // QueryCache reports after bounded read retries, MutationCache after a failed write.
 export function reportAvailabilityFailure(error: unknown) {
-  if (!(error instanceof AtlasConnectionError) && !isReferenceFailure(error)) return;
+  if (!(error instanceof AtlasConnectionError) && !isAvailabilityFailure(error)) return;
   // Later failed reads must not erase an unconfirmed write outcome.
   if (
     failure instanceof AtlasConnectionError &&

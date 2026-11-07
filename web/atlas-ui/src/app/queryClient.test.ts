@@ -95,6 +95,33 @@ it("keeps reference unavailability shared until the collection is ready", async 
   client.clear();
 });
 
+it("clears a workspace failure when only reference data remains blocked", async () => {
+  const client = createAtlasQueryClient();
+  const access = new AtlasApiError(500, "denied", {
+    code: "workspace_access_failed",
+    message: "denied",
+  });
+  await expect(
+    client.fetchQuery({
+      queryKey: ["saved-list"],
+      queryFn: async () => {
+        throw access;
+      },
+      retry: false,
+    }),
+  ).rejects.toBe(access);
+  expect(getAvailabilityFailure()).toBe(access);
+  await client.fetchQuery({
+    queryKey: ["readiness"],
+    queryFn: async () => ({
+      status: "blocked",
+      reference_error: { code: "index_unavailable", message: "unbuilt" },
+    }),
+  });
+  expect(getAvailabilityFailure()).toBeNull();
+  client.clear();
+});
+
 it("recovers visible failed reads when another read proves reconnection", async () => {
   const client = createAtlasQueryClient();
   const error = new AtlasConnectionError(false, "offline");
