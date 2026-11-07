@@ -51,7 +51,8 @@ export function CollectionValueInput({
   );
   const hasRange = observed.some(
     (entry) =>
-      entry.has_range && (!qualifierRule || entry.acuity === qualifierRule.value),
+      entry.has_range &&
+      (!qualifierRule || entry.acuity === null || entry.acuity === qualifierRule.value),
   );
   let amountError: string | null = null;
   if (amountRule?.value != null && String(amountRule.value).trim()) {
