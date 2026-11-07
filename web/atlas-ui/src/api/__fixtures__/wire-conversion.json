@@ -895,12 +895,6 @@
                       "damage_type": {
                         "state": "value",
                         "value": {
-                          "help": {
-                            "availability": "setup_required",
-                            "definition_key": "damage_type:slashing",
-                            "destination": null,
-                            "related_filters": []
-                          },
                           "label": "slashing",
                           "value": "slashing"
                         }
@@ -988,12 +982,6 @@
                 "title": "Claw",
                 "traits": [
                   {
-                    "help": {
-                      "availability": "unavailable_unknown",
-                      "definition_key": "trait:agile",
-                      "destination": null,
-                      "related_filters": []
-                    },
                     "kind": "trait",
                     "label": "agile",
                     "trait_key": "trait:agile",

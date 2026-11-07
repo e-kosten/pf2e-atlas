@@ -187,6 +187,10 @@ fn retained_traits_only_migration_keeps_visible_contract_without_requiring_hidde
     let prepared = serde_json::to_vec(input.traits[0].prepared.as_ref().unwrap()).unwrap();
     let revision = before.reference_revision().unwrap();
     drop(before);
+    workspace
+        .migrate(&TEST_MIGRATIONS[..32], |_| Ok(()))
+        .unwrap();
+    stage_pre_glossary_catalog(&workspace, &input.context.remaster_inputs_identity).unwrap();
     workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
     assert_eq!(
         workspace
