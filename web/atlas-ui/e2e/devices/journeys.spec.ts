@@ -2822,11 +2822,20 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
     name: "Search languages choices",
     exact: true,
   });
+  const vocabulary = page.waitForResponse((response) => {
+    if (!response.ok() || !response.url().endsWith("/api/filters/values")) return false;
+    const request = response.request().postDataJSON();
+    return request?.field_id === "languages" && request.text === "Chthonian";
+  });
   await search.fill("Chthonian");
+  await vocabulary;
   const selected = page.getByRole("button", {
     name: "Languages: Chthonian, selected; activate to remove",
     exact: true,
   });
+  await expect(
+    page.locator(".common-choice-options").filter({ has: selected }),
+  ).toHaveAttribute("aria-busy", "false");
   await expect(selected).toBeVisible();
   const read = page.getByRole("link", { name: "Read Chthonian", exact: true });
   await activate(read, info);
