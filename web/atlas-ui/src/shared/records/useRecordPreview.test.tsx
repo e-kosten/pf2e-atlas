@@ -132,11 +132,11 @@ it("returns focus to the original trigger after dismissing a narrow reference dr
         </button>
         {preview.recordKey && (
           <RecordReferenceDrawer
+            destination={preview.destination!}
             anchor={preview.anchor}
             detail={preview.detail}
             loading={preview.loading}
             onClose={preview.close}
-            onOpenFullPage={vi.fn()}
             onReference={preview.open}
           />
         )}
@@ -287,9 +287,8 @@ it("retains the original owner callback through nested record/help reading and r
   const navigation = detailFixture("rules:first").selected;
   const help = {
     definition_key: null,
-    availability: "available" as const,
+
     destination: { kind: "record" as const, navigation },
-    related_filters: [],
   };
   act(() => result.current.openHelp(help, anchor, undefined, firstOwner));
   act(() =>
@@ -323,9 +322,8 @@ it("abandons a suspended owner on explicit navigation without resuming or focusi
     result.current.openHelp(
       {
         definition_key: null,
-        availability: "available",
+
         destination: { kind: "record", navigation },
-        related_filters: [],
       },
       anchor,
       undefined,
@@ -357,9 +355,8 @@ it("keeps mixed trait and record history with exact owned addresses and original
   const api = await import("../../api/atlasApi");
   const help = {
     definition_key: "trait:agile",
-    availability: "available" as const,
+
     destination: { kind: "definition" as const, key: "trait:agile" },
-    related_filters: [],
   };
   const read = vi.spyOn(api, "getDefinitionDetail").mockResolvedValue({
     definition_key: "trait:agile",
@@ -367,11 +364,11 @@ it("keeps mixed trait and record history with exact owned addresses and original
     artifact_generation: "generation-a",
     help,
     content: { body: { kind: "plain", text: "Agile rules." }, references: [] },
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    related_filters: [],
+    publications: [],
   });
   const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
   const opener = document.createElement("button");

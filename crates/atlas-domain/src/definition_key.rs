@@ -88,16 +88,6 @@ impl DefinitionKey {
         })
     }
 
-    pub fn source_rule(
-        package: &str,
-        localization_key: &str,
-    ) -> Result<Self, DefinitionKeyParseError> {
-        Self::new(
-            DefinitionNamespace::Rule,
-            format!("{package}:{localization_key}"),
-        )
-    }
-
     pub fn namespace(&self) -> DefinitionNamespace {
         self.namespace
     }

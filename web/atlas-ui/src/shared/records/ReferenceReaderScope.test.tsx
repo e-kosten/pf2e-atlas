@@ -23,9 +23,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
 }));
 const traitHelp: ReferenceHelpView = {
   definition_key: "trait:agile",
-  availability: "available",
+
   destination: { kind: "definition", key: "trait:agile" },
-  related_filters: [],
 };
 const trait: DefinitionDetailView = {
   artifact_generation: "test-generation",
@@ -33,11 +32,11 @@ const trait: DefinitionDetailView = {
   label: "Agile",
   help: traitHelp,
   content: { body: { kind: "plain", text: "Agile rules." }, references: [] },
-  attribution: null,
+
   notices: [],
-  references: [],
-  references_availability: "available",
-  references_truncated: false,
+
+  related_filters: [],
+  publications: [],
 };
 function child(key: string): RecordNavigationView {
   return {

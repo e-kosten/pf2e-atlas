@@ -18,6 +18,7 @@ use atlas_domain::{
     query_discovery::{QueryFieldCounts, QueryStateCount, QueryValueOption, QueryValueOptions},
 };
 use rusqlite::{Connection, params_from_iter, types::Value};
+use std::collections::BTreeSet;
 
 /// Structured discovery may restrict eligibility to an explicit record-key scope.
 #[derive(Debug, Clone, Default)]
@@ -562,9 +563,41 @@ fn count_options(
     Ok(options)
 }
 // Search both the stored identifier and the words shown in the Base Type picker.
-fn matches_value_text(path: &str, value: &QueryLiteral, text: &str) -> bool {
+fn matching_action_names(
+    connection: &Connection,
+    path: &str,
+    text: &str,
+) -> Result<BTreeSet<String>, IndexError> {
+    if path != "actions" {
+        return Ok(BTreeSet::new());
+    }
+    let mut statement = connection.prepare(
+        "SELECT key,name FROM records WHERE pack_id='bestiary-ability-glossary-srd' AND name_state='value'",
+    )?;
+    let names = statement.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut matching = BTreeSet::new();
+    for row in names {
+        let (key, name) = row?;
+        if name.to_lowercase().contains(text) {
+            matching.insert(key);
+        }
+    }
+    Ok(matching)
+}
+
+fn matches_value_text(
+    path: &str,
+    value: &QueryLiteral,
+    text: &str,
+    action_names: &BTreeSet<String>,
+) -> bool {
     match value {
         QueryLiteral::String(value) => {
+            if action_names.contains(value) {
+                return true;
+            }
             let value = value.to_lowercase();
             value.contains(text)
                 || (path == "physical.base_type" && value.replace(['-', '_'], " ").contains(text))
@@ -624,10 +657,11 @@ pub(crate) fn field_values(
     let selected = selected(target.as_ref());
     if let Some(text) = &request.text {
         let text = text.to_lowercase();
+        let action_names = matching_action_names(connection, &d.definition.path, &text)?;
         values.retain(|value| {
             selected.contains(value)
                 || (matches!(value, QueryLiteral::String(_))
-                    && matches_value_text(&d.definition.path, value, &text))
+                    && matches_value_text(&d.definition.path, value, &text, &action_names))
         });
     }
     let total_values = values.len() as u64;
@@ -767,7 +801,8 @@ pub(crate) fn field_vocabulary(
     let mut values = enumerate_values(connection, d, &base, &context, None)?;
     if let Some(text) = &request.text {
         let text = text.to_lowercase();
-        values.retain(|value| matches_value_text(&d.definition.path, value, &text));
+        let action_names = matching_action_names(connection, &d.definition.path, &text)?;
+        values.retain(|value| matches_value_text(&d.definition.path, value, &text, &action_names));
     }
     super::value_order::sort_values(&d.definition.path, &mut values);
     let total_values = values.len() as u64;

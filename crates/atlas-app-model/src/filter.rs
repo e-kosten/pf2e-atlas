@@ -117,6 +117,9 @@ pub struct FilterEditorFieldView {
     pub choices: Vec<FilterChoiceView>,
     // Short lists retain zero-match choices; searchable lists narrow before paging.
     pub short_choices: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub allow_custom_values: Option<bool>,
     pub applicable: bool,
     pub unit_fields: Vec<FilterUnitFieldView>,
     pub operators: Vec<FilterOperatorView>,
@@ -134,6 +137,9 @@ pub struct FilterUnitFieldView {
 pub struct FilterCollectionControlView {
     pub category_field_id: String,
     pub amount_field_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub qualifier_field_id: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterChoiceView {

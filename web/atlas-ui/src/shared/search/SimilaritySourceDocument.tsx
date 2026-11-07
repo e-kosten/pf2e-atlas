@@ -1,3 +1,7 @@
+import {
+  useReferenceHelpHandler,
+  useReferenceRecordNavigation,
+} from "../records/ReferenceHelp";
 import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Spin } from "antd";
@@ -8,10 +12,7 @@ import { rootNavigation, useReferenceReading } from "../records/useReferenceRead
 import { ReferenceReader } from "../records/ReferenceReader";
 import { DocumentIdentityHeader } from "../records/DocumentIdentityHeader";
 import { PreparedContentBody } from "../records/PreparedContent";
-import {
-  ReferenceHelpHost,
-  useReferenceHelpSession,
-} from "../records/ReferenceHelpHost";
+import { ReferenceHelpHost } from "../records/ReferenceHelpHost";
 import { ReferenceHelpProvider } from "../records/ReferenceHelp";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { recordReadingIdentity, useRetainedRecord } from "../records/useRetainedRecord";
@@ -203,7 +204,8 @@ function TraitSourceDocument({
     query.data,
     query.error,
   );
-  const preview = useReferenceHelpSession()!;
+  const onHelp = useReferenceHelpHandler();
+  const onReference = useReferenceRecordNavigation()!;
   const heading = useRef<HTMLHeadingElement>(null);
   const focusedVisit = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -247,8 +249,8 @@ function TraitSourceDocument({
       )}
       {detail ? (
         <ReferenceHelpProvider
-          onHelp={preview.openHelp}
-          onReference={preview.open}
+          onHelp={onHelp}
+          onReference={onReference}
           generation={detail.artifact_generation}
         >
           <article className="record-reference">
@@ -275,7 +277,7 @@ function TraitSourceDocument({
                   sourceLocation={{ trait_key: traitKey }}
                   sectionRendering={detail.content.section_rendering}
                   references={detail.content.references}
-                  onReference={preview.open}
+                  onReference={onReference}
                 />
               </SourceSectionSelectionContext>
             ) : (

@@ -2,10 +2,7 @@ import { Button, Tabs } from "antd";
 import { queryOptions, useQueries, type UseQueryResult } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
 import { searchDestination } from "../../app/destinations";
-import type {
-  ReferenceFilterActionView,
-  SearchResultsPage,
-} from "../../generated/atlas";
+import type { DefinitionDetailView, SearchResultsPage } from "../../generated/atlas";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
 import {
@@ -20,7 +17,7 @@ import { ExploreSearchAction } from "./ExploreSearchAction";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { SearchPreviewRows } from "./SearchPreviewRows";
 
-type SearchAction = Extract<ReferenceFilterActionView, { kind: "search" }>;
+type SearchAction = DefinitionDetailView["related_filters"][number];
 
 /** Standalone reading follows the trait page's bounded association previews. */
 export function DefinitionAssociations({
@@ -29,25 +26,21 @@ export function DefinitionAssociations({
   onReference,
   onReload,
 }: {
-  actions: ReferenceFilterActionView[];
+  actions: SearchAction[];
   generation: string;
   onReference: RecordReferenceHandler;
   onReload: () => void;
 }) {
-  const searches = actions.filter(
-    (action): action is SearchAction => action.kind === "search",
-  );
   const profile = useSearchProfile();
   const availability = useQueries({
-    queries: searches.map((action) =>
+    queries: actions.map((action) =>
       associationPreviewQueryOptions(action, generation, profile.id, profile.loading),
     ),
   });
-  const visible = searches
+  const visible = actions
     .map((action, index) => ({ action, query: availability[index], index }))
     .filter(
-      ({ action, query }) =>
-        action.artifact_generation !== generation ||
+      ({ query }) =>
         query.error ||
         query.isFetching ||
         !query.data ||
@@ -67,7 +60,6 @@ export function DefinitionAssociations({
             <DefinitionAssociatedRecords
               action={action}
               query={query}
-              generation={generation}
               onReference={onReference}
               onReload={onReload}
             />
@@ -81,19 +73,16 @@ export function DefinitionAssociations({
 function DefinitionAssociatedRecords({
   action,
   query,
-  generation,
   onReference,
   onReload,
 }: {
   action: SearchAction;
   query: UseQueryResult<SearchResultsPage, Error>;
-  generation: string;
   onReference: RecordReferenceHandler;
   onReload: () => void;
 }) {
   const profile = useSearchProfile();
-  const staleAction = action.artifact_generation !== generation;
-  const changed = staleAction || isArtifactGenerationChanged(query.error);
+  const changed = isArtifactGenerationChanged(query.error);
   const data = changed ? undefined : query.data;
   const route = searchDestination({
     query: searchStateQueryString(
@@ -115,7 +104,7 @@ function DefinitionAssociatedRecords({
         Search records
       </ExploreSearchAction>
       {profile.error && <SearchProfileNotice />}
-      {(query.error || staleAction) && (
+      {query.error && (
         <ErrorNotice
           error={query.error ?? "The reference collection changed."}
           type={changed ? "warning" : "error"}
@@ -164,10 +153,7 @@ function associationPreviewQueryOptions(
     ],
     staleTime: Infinity,
     retryOnMount: false,
-    enabled:
-      action.artifact_generation === generation &&
-      !profileLoading &&
-      profileId !== null,
+    enabled: !profileLoading && profileId !== null,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         {

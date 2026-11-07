@@ -228,7 +228,7 @@ function renderControls(
   filterError: string | null = null,
   presentation: Pick<
     ComponentProps<typeof FilterControls>,
-    "layout" | "includeSearch" | "configureField" | "onConfigured"
+    "layout" | "includeSearch"
   > = {},
   discoveryContext?: FilterDiscoveryContext,
 ) {
@@ -273,42 +273,6 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
-  it("consumes a numeric configuration once and opens the existing blank editor without executing it", async () => {
-    const consumed = vi.fn();
-    const change = renderControls(
-      editorFixture([fieldFixture("level", "number", "Level")]),
-      null,
-      null,
-      { configureField: "level", onConfigured: consumed },
-    );
-    expect(await screen.findByRole("textbox", { name: "Level" })).toHaveValue("");
-    expect(consumed).toHaveBeenCalledOnce();
-    expect(change).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByRole("textbox", { name: "Level" }), {
-      target: { value: "4" },
-    });
-    expect(change).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        filter: expect.objectContaining({ field: "level", value: 4 }),
-      }),
-    );
-    expect(consumed).toHaveBeenCalledOnce();
-  });
-  it("reports an unavailable numeric intent without executing or resetting filters", async () => {
-    const consumed = vi.fn();
-    const change = renderControls(
-      editorFixture([fieldFixture("level", "number", "Level")]),
-      { kind: "compare", field: "level", op: "gte", value: 7 },
-      null,
-      { configureField: "removed.field", onConfigured: consumed },
-    );
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "This numeric filter is unavailable",
-    );
-    expect(screen.getByRole("textbox", { name: "Level" })).toHaveValue("7");
-    expect(change).not.toHaveBeenCalled();
-    expect(consumed).toHaveBeenCalledOnce();
-  });
   it("marks Advanced when applied conditions have no chip, without adding an expression to the selections row", () => {
     const change = renderControls(
       editorFixture([fieldFixture("level", "number", "Level")]),
@@ -1320,104 +1284,4 @@ describe("field applicability while editing Boolean groups", () => {
       expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
     },
   );
-});
-
-it("refreshes a stale loaded definition label through its host without discarding an unfinished advanced draft", async () => {
-  const target = { kind: "definition" as const, key: "language:chthonian" };
-  const change = vi.fn();
-  const refresh = vi.fn();
-  const values = vi
-    .spyOn(atlasApi, "getDefinitionFilterOptions")
-    .mockImplementation(async (request) => {
-      if (request.expected_artifact_generation === "generation-a")
-        throw new atlasApi.AtlasApiError(409, "Changed", {
-          code: "artifact_generation_changed",
-          message: "Changed",
-          recoverable_action: "refresh_results",
-        });
-      return {
-        artifact_generation: "generation-b",
-        options: [],
-        selected: [
-          {
-            target,
-            label: "Updated Chthonian",
-            help: {
-              definition_key: target.key,
-              availability: "available",
-              destination: { kind: "definition", key: target.key },
-              related_filters: [],
-            },
-          },
-        ],
-        total: 0n,
-      };
-    });
-  const original: QueryPredicate = {
-    kind: "any_of",
-    clause_id: "or",
-    children: [
-      {
-        kind: "not",
-        clause_id: "negation",
-        predicate: {
-          kind: "definition_reference",
-          clause_id: "definition",
-          reference: { target, include_contents: false },
-        },
-      },
-      { kind: "compare", clause_id: "level", field: "level", op: "gte", value: 3 },
-    ],
-  };
-  function Host() {
-    const [generation, setGeneration] = useState("generation-a");
-    const [search, setSearch] = useState<SearchFormState>({
-      ...DEFAULT_SEARCH_STATE,
-      filter: original,
-    });
-    return (
-      <FilterControls
-        includeSearch={false}
-        filterState={{
-          search,
-          setSearch: (next) => {
-            change(next);
-            setSearch(next);
-          },
-          filterEditor: {
-            ...editorFixture([fieldFixture("level", "number", "Level")]),
-            artifact_generation: generation,
-          },
-          refreshFilterInformation: async () => {
-            refresh();
-            setGeneration("generation-b");
-          },
-        }}
-      />
-    );
-  }
-  try {
-    render(
-      <ConfigProvider theme={{ token: { motion: false } }}>
-        <QueryClientProvider
-          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-        >
-          <Host />
-        </QueryClientProvider>
-      </ConfigProvider>,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    const input = screen.getByRole("textbox", { name: "Level" });
-    fireEvent.change(input, { target: { value: "unfinished" } });
-    fireEvent.click(await screen.findByRole("button", { name: "Refresh filters" }));
-    expect(await screen.findByText("Updated Chthonian")).toBeVisible();
-    expect(screen.getByRole("textbox", { name: "Level" })).toHaveValue("unfinished");
-    expect(refresh).toHaveBeenCalledOnce();
-    expect(change).not.toHaveBeenCalled();
-    expect(
-      values.mock.calls.map(([request]) => request.expected_artifact_generation),
-    ).toEqual(["generation-a", "generation-b"]);
-  } finally {
-    values.mockRestore();
-  }
 });

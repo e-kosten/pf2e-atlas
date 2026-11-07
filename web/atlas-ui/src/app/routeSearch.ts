@@ -142,11 +142,6 @@ export function canonicalRouteSearch(
     if (profile) result.search_profile = profile;
   }
   if (isSearch) {
-    const configureField = singleton(search, "configure_field");
-    if (configureField !== undefined) {
-      if (!configureField.trim()) throw new RouteSearchError("configure_field");
-      result.configure_field = configureField;
-    }
     // Explicit settings remain authoritative over remembered browser preferences.
     for (const key of [
       "ranking",

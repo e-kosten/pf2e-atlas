@@ -121,6 +121,7 @@ it.each([
           </button>
           {preview.recordKey && (
             <RecordReferenceDrawer
+              destination={preview.destination!}
               anchor={preview.anchor}
               detail={preview.detail}
               landing={preview.landing}
@@ -129,7 +130,6 @@ it.each([
               error={preview.error}
               onRetry={preview.retry}
               onClose={preview.close}
-              onOpenFullPage={vi.fn()}
               onReference={preview.open}
             />
           )}
@@ -300,9 +300,8 @@ it("restores a header trait trigger and body scroll through mixed history withou
   darkness.presentation.content[0].body = { kind: "plain", text: "Darkness body." };
   const help = {
     definition_key: "trait:concentrate",
-    availability: "available" as const,
+
     destination: { kind: "definition" as const, key: "trait:concentrate" },
-    related_filters: [],
   };
   darkness.presentation.identity.traits = [
     {
@@ -322,11 +321,11 @@ it("restores a header trait trigger and body scroll through mixed history withou
       body: { kind: "plain", text: "Concentrate trait body." },
       references: [],
     },
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    related_filters: [],
+    publications: [],
   };
   const records = new Map(
     [actor, darkvision, darkness].map((detail) => [detail.record.record_key, detail]),
@@ -358,7 +357,6 @@ it("restores a header trait trigger and body scroll through mixed history withou
             error={preview.error}
             onRetry={preview.retry}
             onClose={preview.close}
-            onOpenFullPage={vi.fn()}
             onReference={preview.open}
             requestedNavigation={preview.selection}
             landing={preview.landing}

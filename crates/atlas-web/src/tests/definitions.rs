@@ -2,7 +2,7 @@
 use super::*;
 
 #[tokio::test]
-async fn glossary_detail_discovery_and_existing_record_reads_share_generation_and_identity() {
+async fn glossary_reading_and_typed_associations_share_generation_and_identity() {
     let fixture = Fixture::with_glossary();
     let (status, detail) = fixture
         .json(
@@ -26,12 +26,30 @@ async fn glossary_detail_discovery_and_existing_record_reads_share_generation_an
             .unwrap()
             .contains("Synthetic test content")
     );
-    assert!(
-        detail["attribution"]["body_grants"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|grant| grant["license"] == "CC0-1.0")
+    assert_eq!(
+        detail["publications"][0],
+        json!({
+            "title": "Fixture rulebook", "page": 89, "license": "CC0-1.0"
+        })
+    );
+    for removed in [
+        "attribution",
+        "references",
+        "references_availability",
+        "references_truncated",
+    ] {
+        assert!(detail.get(removed).is_none(), "{removed}");
+    }
+    assert!(detail["notices"][0].get("sha256").is_none());
+    assert_eq!(
+        detail["content"]["section_rendering"]["selection_version"],
+        "reference-definition/v1"
+    );
+    let inline = &detail["content"]["references"][0];
+    assert_eq!(inline["status"], "resolved_record");
+    assert_eq!(
+        inline["target"]["record_key"],
+        "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6"
     );
     let generation = detail["artifact_generation"].clone();
     let (status, sense) = fixture.json(Method::POST, "/api/definitions/detail", Some(json!({"definition_key":"sense:darkvision","expected_artifact_generation":generation}))).await;
@@ -88,24 +106,32 @@ async fn glossary_detail_discovery_and_existing_record_reads_share_generation_an
         actor["language_details"]["value"],
         "Communicates by signing."
     );
-    let (status, options) = fixture.json(Method::POST, "/api/filters/definitions", Some(json!({"text":"Chthonian","offset":0,"limit":1,"expected_artifact_generation":generation}))).await;
-    assert_eq!(status, StatusCode::OK, "{options}");
-    assert_eq!(options["total"], 1);
+    assert_eq!(actor["languages"]["value"][1]["help"], detail["help"]);
     assert_eq!(
-        options["options"][0]["target"],
-        json!({"kind":"definition","key":"language:chthonian"})
+        detail["related_filters"][0],
+        json!({
+            "label":"With this language",
+            "predicate":{"kind":"set_match","field":"languages","op":"includes","values":["chthonian"]}
+        })
     );
-    assert_eq!(options["options"][0]["label"], "Chthonian");
-    for path in ["/api/definitions/detail", "/api/filters/definitions"] {
-        let request = if path.ends_with("detail") {
-            json!({"definition_key":"language:chthonian","expected_artifact_generation":"old"})
-        } else {
-            json!({"offset":0,"limit":10,"expected_artifact_generation":"old"})
-        };
-        let (status, error) = fixture.json(Method::POST, path, Some(request)).await;
-        assert_eq!(status, StatusCode::CONFLICT, "{error}");
-        assert_eq!(error["code"], "artifact_generation_changed");
-    }
+    let (status, page) = fixture.json(Method::POST, "/api/search/page", Some(json!({
+        "criteria":{"kind":"list_records","filter":detail["related_filters"][0]["predicate"]},
+        "page":{"number":1,"size":20},
+        "expected_artifact_generation":generation
+    }))).await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert_eq!(page["rows"][0]["record"]["record_key"], ACTOR);
+    let (status, error) = fixture
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(
+                json!({"definition_key":"language:chthonian","expected_artifact_generation":"old"}),
+            ),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{error}");
+    assert_eq!(error["code"], "artifact_generation_changed");
 }
 
 #[tokio::test]
@@ -119,8 +145,19 @@ async fn glossary_unknown_and_legacy_coverage_remain_distinct_without_breaking_r
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{unknown}");
-    assert_eq!(unknown["help"]["availability"], "unavailable_unknown");
-    assert!(unknown["help"]["destination"].is_null());
+    assert_eq!(unknown.get("help"), Some(&serde_json::Value::Null));
+    assert!(unknown["content"].is_null());
+    let (status, bodyless) = fixture
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(json!({"definition_key":"language:draconic"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{bodyless}");
+    assert_eq!(bodyless["label"], "Draconic");
+    assert_eq!(bodyless.get("help"), Some(&serde_json::Value::Null));
+    assert_eq!(bodyless["related_filters"], json!([]));
     let legacy = Fixture::with_legacy_glossary();
     let (status, record) = legacy
         .json(
@@ -132,8 +169,16 @@ async fn glossary_unknown_and_legacy_coverage_remain_distinct_without_breaking_r
     assert_eq!(status, StatusCode::OK, "{record}");
     let language = &record["presentation"]["body"]["value"]["languages"]["value"][0];
     assert_eq!(language["value"], "common");
-    assert_eq!(language["help"]["availability"], "setup_required");
-    assert!(language["help"]["destination"].is_null());
+    assert!(language.get("help").is_none());
+    let (status, error) = legacy
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(json!({"definition_key":"language:chthonian"})),
+        )
+        .await;
+    assert!(status.is_client_error(), "{error}");
+    assert_eq!(error["code"], "setup_required");
 }
 
 #[tokio::test]
@@ -166,10 +211,6 @@ async fn glossary_http_requests_distinguish_omitted_null_defaults_and_unknown_fi
             json!({"definition_key":"language:chthonian","unknown":true}),
         ),
         (
-            "/api/filters/definitions",
-            json!({"offset":0,"limit":10,"unknown":true}),
-        ),
-        (
             "/api/records/detail",
             json!({"record_key":ACTOR,"reading_context":"invented"}),
         ),
@@ -180,281 +221,38 @@ async fn glossary_http_requests_distinguish_omitted_null_defaults_and_unknown_fi
 }
 
 #[tokio::test]
-async fn mixed_glossary_boolean_clauses_keep_typed_destinations_and_exact_proof_pages() {
+async fn removed_generic_reference_conditions_are_rejected() {
     let fixture = Fixture::with_glossary();
-    let definition = |id: &str, key: &str| json!({"kind":"definition_reference","clause_id":id,"reference":{"target":{"kind":"definition","key":key},"include_contents":true}});
-    let filter = json!({"kind":"all_of","clause_id":"root","children":[
-        {"kind":"any_of","clause_id":"choice","children":[
-            {"kind":"relationship","clause_id":"native","relationship":{"direction":"incoming","selection":{"record_key":"bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6","embedded_path":[]},"include_contents":true}},
-            definition("mapped", "sense:darkvision"),
-            definition("standalone", "language:chthonian"),
-            definition("zero", "language:draconic")
-        ]},
-        {"kind":"not","clause_id":"negative","predicate":definition("excluded", "language:common")}
-    ]});
-    let (status, page) = fixture.json(Method::POST, "/api/search/page", Some(json!({"criteria":{"kind":"list_records","filter":filter},"page":{"number":1,"size":20}}))).await;
-    assert_eq!(status, StatusCode::OK, "{page}");
-    let clauses = page["relationship_clauses"].as_array().unwrap();
-    assert_eq!(
-        clauses.len(),
-        5,
-        "all clauses retain presentation, including unmatched and negative leaves"
-    );
-    let clause = |id: &str| {
-        clauses
-            .iter()
-            .find(|value| value["clause_id"] == id)
-            .unwrap()
-    };
-    assert_eq!(clause("standalone")["condition"]["kind"], "definition");
-    assert_eq!(
-        clause("standalone")["destination"],
-        json!({"kind":"definition","key":"language:chthonian"})
-    );
-    assert!(clause("standalone").get("record").is_none());
-    assert_eq!(clause("mapped")["destination"]["kind"], "record");
-    assert!(
-        clause("mapped")["destination"]
-            .get("reading_context")
-            .is_none()
-    );
-    assert_eq!(
-        clause("mapped")["record"]["record_key"],
-        "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6"
-    );
-    let rows = page["rows"].as_array().unwrap();
-    assert_eq!(rows.len(), 2, "{page}");
-    let action = rows
-        .iter()
-        .find(|row| row["record"]["record_key"] == ACTION)
+    let response = fixture
+        .router()
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/filters/definitions")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
         .unwrap();
-    let evidence = action["relationship_evidence"].as_array().unwrap();
-    assert!(
-        evidence
-            .iter()
-            .any(|entry| entry["clause_id"] == "native"
-                && entry["occurrences"][0]["kind"] == "record")
-    );
-    assert!(
-        evidence.iter().any(|entry| entry["clause_id"] == "mapped"
-            && entry["occurrences"][0]["kind"] == "definition")
-    );
-    assert!(
-        evidence
-            .iter()
-            .all(|entry| entry["clause_id"] != "zero" && entry["clause_id"] != "excluded")
-    );
-    let native = evidence
-        .iter()
-        .find(|entry| entry["clause_id"] == "native")
-        .unwrap();
-    assert_eq!(native["occurrences"][0]["destination"]["kind"], "record");
-    assert!(
-        native["occurrences"][0]["destination"]
-            .get("reading_context")
-            .is_none(),
-        "ordinary relationship navigation retains its ordinary purpose"
-    );
-    let (status, mapped_proof) = fixture.json(Method::POST, "/api/search/relationship-occurrences", Some(json!({"filter":filter,"clause_id":"mapped","result_record_key":ACTION,"page":{"number":1,"size":100},"expected_artifact_generation":page["artifact_generation"]}))).await;
-    assert_eq!(status, StatusCode::OK, "{mapped_proof}");
-    let graph = mapped_proof["occurrences"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|entry| entry["kind"] == "record")
-        .expect("definition reference proofs retain the existing authored UUID graph evidence");
-    assert!(graph["destination"].get("reading_context").is_none());
-    assert_eq!(
-        graph["destination"]["navigation"]["record_key"],
-        "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6"
-    );
-    let generation = &page["artifact_generation"];
-    let request = |clause: &str| json!({"filter":filter,"clause_id":clause,"result_record_key":ACTOR,"page":{"number":1,"size":1},"expected_artifact_generation":generation});
-    let (status, proof) = fixture
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    let (status, error) = fixture
         .json(
             Method::POST,
-            "/api/search/relationship-occurrences",
-            Some(request("standalone")),
+            "/api/search/page",
+            Some(json!({
+                "criteria": {"kind": "list_records", "filter": {
+                    "kind": "definition_reference",
+                    "reference": {
+                        "target": {"kind": "definition", "key": "sense:darkvision"},
+                        "include_contents": true
+                    }
+                }},
+                "page": {"number": 1, "size": 20}
+            })),
         )
         .await;
-    assert_eq!(status, StatusCode::OK, "{proof}");
-    assert_eq!(proof["clause"]["destination"]["kind"], "definition");
-    assert_eq!(proof["occurrences"][0]["kind"], "definition");
-    let occurrence = &proof["occurrences"][0]["occurrence"];
-    assert_eq!(occurrence["source"]["selection"]["record_key"], ACTOR);
-    assert_eq!(
-        occurrence["source"]["selection"]["embedded_path"][0]["collection"],
-        "/items"
-    );
-    assert_eq!(occurrence["source_field"], "/system/description/value");
-    assert_eq!(
-        occurrence["source"]["selection"]["field"],
-        occurrence["source_field"]
-    );
-    assert_eq!(
-        occurrence["source_destination"]["navigation"]["record_key"],
-        ACTOR
-    );
-    assert!(
-        occurrence["source_destination"]
-            .get("reading_context")
-            .is_none()
-    );
-    assert!(occurrence["occurrence_path"].is_string());
-    assert_eq!(
-        occurrence["target"],
-        json!({"kind":"definition","key":"language:chthonian"})
-    );
-    assert_eq!(
-        occurrence["target_destination"],
-        json!({"kind":"definition","key":"language:chthonian"})
-    );
-    assert!(clause("zero")["destination"].is_null());
-    for id in ["zero", "excluded"] {
-        let (status, _) = fixture
-            .json(
-                Method::POST,
-                "/api/search/relationship-occurrences",
-                Some(request(id)),
-            )
-            .await;
-        assert!(status.is_client_error(), "{id}: {status}");
-    }
-}
-
-#[tokio::test]
-async fn bodyless_reference_identity_survives_http_without_reading_destinations() {
-    let fixture = Fixture::with_bodyless_glossary_reference();
-    let key = "rule:pf2e:Fixture.Rule.Hidden";
-    let (status, hidden) = fixture
-        .json(
-            Method::POST,
-            "/api/definitions/detail",
-            Some(json!({"definition_key":key})),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK, "{hidden}");
-    assert_eq!(hidden["help"]["availability"], "permission_unresolved");
-    assert_eq!(
-        hidden["help"].get("destination"),
-        Some(&serde_json::Value::Null)
-    );
-    let predicate = &hidden["help"]["related_filters"][0]["predicate"];
-    let (status, source) = fixture
-        .json(
-            Method::POST,
-            "/api/definitions/detail",
-            Some(json!({"definition_key":"language:chthonian"})),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK, "{source}");
-    assert_eq!(
-        source["help"]["destination"],
-        json!({"kind":"definition","key":"language:chthonian"})
-    );
-    assert!(
-        source["content"]["body"]["html"]
-            .as_str()
-            .unwrap()
-            .contains("Typically spoken")
-    );
-    assert_eq!(
-        source["references"][0]["target"],
-        json!({"kind":"definition","key":key})
-    );
-    assert_eq!(
-        source["references"][0].get("destination"),
-        Some(&serde_json::Value::Null)
-    );
-    let (status, page) = fixture.json(Method::POST, "/api/search/page", Some(json!({"criteria":{"kind":"list_records","filter":predicate},"page":{"number":1,"size":20},"expected_artifact_generation":hidden["artifact_generation"]}))).await;
-    assert_eq!(status, StatusCode::OK, "{page}");
-    assert_eq!(page["rows"].as_array().unwrap().len(), 1);
-    assert_eq!(page["rows"][0]["record"]["record_key"], ACTOR);
-    assert_eq!(
-        page["relationship_clauses"][0].get("destination"),
-        Some(&serde_json::Value::Null)
-    );
-    assert_eq!(
-        page["relationship_clauses"][0]["condition"]["reference"]["target"],
-        json!({"kind":"definition","key":key})
-    );
-    let (status, proof) = fixture.json(Method::POST, "/api/search/relationship-occurrences", Some(json!({"filter":predicate,"clause_id":predicate["clause_id"],"result_record_key":ACTOR,"page":{"number":1,"size":1},"expected_artifact_generation":page["artifact_generation"]}))).await;
-    assert_eq!(status, StatusCode::OK, "{proof}");
-    let occurrence = &proof["occurrences"][0]["occurrence"];
-    assert_eq!(occurrence["target"], json!({"kind":"definition","key":key}));
-    assert_eq!(
-        occurrence.get("target_destination"),
-        Some(&serde_json::Value::Null)
-    );
-    assert_eq!(occurrence["target_title"], "Hidden rule");
-    assert_eq!(occurrence["source"]["kind"], "record");
-    assert_eq!(occurrence["source"]["selection"]["record_key"], ACTOR);
-    assert_eq!(
-        occurrence["source"]["selection"]["field"],
-        "/system/description/value"
-    );
-    assert_eq!(
-        occurrence["source"]["selection"]["embedded_path"],
-        occurrence["source_destination"]["navigation"]["embedded_path"]
-    );
-    assert!(occurrence["source"]["selection"]["source_fingerprint"].is_string());
-    assert_eq!(
-        occurrence["source"]["selection"]["source_fingerprint"],
-        occurrence["source_destination"]["navigation"]["source_fingerprint"]
-    );
-    assert_eq!(
-        occurrence["source_destination"]["navigation"]["field"],
-        occurrence["source_field"]
-    );
-    assert!(
-        occurrence["source_destination"]
-            .get("reading_context")
-            .is_none()
-    );
-}
-
-#[tokio::test]
-async fn selected_non_catalog_records_keep_exact_identity_and_label_without_glossary_purpose() {
-    let fixture = Fixture::with_glossary();
-    let targets = [
-        (
-            json!({"kind":"record","selection":{"record_key":ACTOR,"embedded_path":[],"field":null,"passage":null,"source_fingerprint":null}}),
-            "Test Creature",
-        ),
-        (
-            json!({"kind":"record","selection":{"record_key":ACTOR,"embedded_path":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"field":"/system/description/value","passage":null,"source_fingerprint":fixture.source_fingerprint}}),
-            "Claw",
-        ),
-    ];
-    let (status, response) = fixture.json(Method::POST, "/api/filters/definitions", Some(json!({"text":"Chthonian","limit":1,"selected":targets.iter().map(|(target, _)| target).collect::<Vec<_>>()}))).await;
-    assert_eq!(status, StatusCode::OK, "{response}");
-    let selected = response["selected"].as_array().unwrap();
-    assert_eq!(selected.len(), targets.len());
-    for ((target, label), selection) in targets.iter().zip(selected) {
-        assert_eq!(
-            &selection["target"], target,
-            "selected identity must retain owners, field and fingerprint"
-        );
-        assert_eq!(selection["label"], *label);
-        assert_ne!(selection["label"], ACTOR);
-        assert_eq!(selection["help"]["availability"], "not_in_catalog");
-        assert!(selection["help"]["destination"].is_null());
-        assert_eq!(selection["help"]["related_filters"], json!([]));
-        assert!(
-            !response["options"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|option| option["target"] == *target),
-            "retained selections are not promoted into the catalog"
-        );
-        let (status, page) = fixture.json(Method::POST, "/api/search/page", Some(json!({"criteria":{"kind":"list_records","filter":{"kind":"definition_reference","clause_id":"selected","reference":{"target":target,"include_contents":true}}},"page":{"number":1,"size":10},"expected_artifact_generation":response["artifact_generation"]}))).await;
-        assert_eq!(
-            status,
-            StatusCode::OK,
-            "valid exact-record query admission is independent of glossary catalog membership: {page}"
-        );
-    }
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{error}");
+    assert_eq!(error["code"], "invalid_request");
 }
 
 #[tokio::test]

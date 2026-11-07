@@ -23,156 +23,32 @@ pub(crate) fn query_selection(
         spell_rank: selection.spell_rank,
     })
 }
-pub(crate) fn record_destination(
-    r: &AtlasRetrievalService,
-    selection: &atlas_domain::QueryRecordSelection,
-) -> atlas_app_model::ReferenceDestinationView {
-    atlas_app_model::ReferenceDestinationView::Record {
-        navigation: Box::new(atlas_app_model::RecordNavigationView {
-            record_key: selection.record_key.to_string(),
-            owners: selection.owners.clone(),
-            field: selection.field.clone(),
-            passage: selection.passage.clone(),
-            source_fingerprint: crate::projection::navigation_fingerprint(
-                &selection.owners,
-                r.source_fingerprint(),
-            ),
-            spell_rank: selection.spell_rank,
-        }),
-    }
-}
-fn root_selection(
-    key: RecordKey,
-    owners: Vec<atlas_domain::OwnedContentLocator>,
-) -> atlas_domain::QueryRecordSelection {
-    atlas_domain::QueryRecordSelection {
-        record_key: key,
-        owners,
-        field: None,
-        passage: None,
-        source_fingerprint: None,
-        spell_rank: None,
-    }
-}
-pub(crate) fn clause_summary(
+fn clause_summary(
     r: &AtlasRetrievalService,
     id: &str,
-    condition: &atlas_app_model::ReferenceClauseConditionView,
+    relationship: &atlas_domain::QueryRelationship,
 ) -> AppServiceResult<atlas_app_model::RelationshipClauseSummaryView> {
-    use atlas_app_model::ReferenceClauseConditionView as Condition;
-    let (record, title, destination) = match condition {
-        Condition::Record { relationship } => {
-            let checked = r.checked_relationship_selection(&relationship.selection)?;
-            let record = crate::projection::localized_summary_view(&checked.record, r);
-            let title = checked
-                .selected_name
-                .filter(|title| !title.trim().is_empty())
-                .unwrap_or_else(|| {
-                    if relationship.selection.owners.is_empty() {
-                        "Unnamed record".into()
-                    } else {
-                        "Unnamed entry".into()
-                    }
-                });
-            (
-                Some(Box::new(record)),
-                title,
-                Some(record_destination(r, &relationship.selection)),
-            )
-        }
-        Condition::Definition { reference } => {
-            match r.checked_definition_reference_target(&reference.target)? {
-                atlas_search::CheckedDefinitionReferenceTarget::Record {
-                    record,
-                    selected_name,
-                } => {
-                    let atlas_domain::QueryDefinitionReferenceTarget::Record { selection } =
-                        &reference.target
-                    else {
-                        return Err(AppServiceError::new(
-                            AppErrorCode::InternalError,
-                            "Definition target metadata disagrees with its identity",
-                        ));
-                    };
-                    let title = selected_name
-                        .filter(|title| !title.trim().is_empty())
-                        .unwrap_or_else(|| {
-                            if selection.owners.is_empty() {
-                                "Unnamed record".into()
-                            } else {
-                                "Unnamed entry".into()
-                            }
-                        });
-                    (
-                        Some(Box::new(crate::projection::localized_summary_view(
-                            &record, r,
-                        ))),
-                        title,
-                        Some(record_destination(r, selection)),
-                    )
-                }
-                atlas_search::CheckedDefinitionReferenceTarget::Definition { definition } => {
-                    let destination = crate::definitions::definition_reading_destination(
-                        &definition,
-                        r.source_fingerprint(),
-                    );
-                    let record = match &definition.backing {
-                        atlas_search::ReferenceSummaryBacking::Record { key } => {
-                            let summary = r
-                                .get_records(GetRecordsRequest {
-                                    record_keys: std::slice::from_ref(key),
-                                })?
-                                .records
-                                .into_iter()
-                                .next()
-                                .ok_or_else(|| {
-                                    AppServiceError::new(
-                                        AppErrorCode::RecordNotFound,
-                                        "The definition record is unavailable",
-                                    )
-                                })?;
-                            Some(Box::new(crate::projection::localized_summary_view(
-                                &summary, r,
-                            )))
-                        }
-                        _ => None,
-                    };
-                    (record, definition.label, destination)
-                }
+    let checked = r.checked_relationship_selection(&relationship.selection)?;
+    let mut record = crate::projection::localized_summary_view(&checked.record, r);
+    if record.title.trim().is_empty() {
+        record.title = "Unnamed record".into();
+    }
+    let title = checked
+        .selected_name
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| {
+            if relationship.selection.owners.is_empty() {
+                "Unnamed record".into()
+            } else {
+                "Unnamed entry".into()
             }
-        }
-    };
+        });
     Ok(atlas_app_model::RelationshipClauseSummaryView {
         clause_id: id.into(),
-        condition: condition.clone(),
-        destination,
+        relationship: relationship.clone(),
         record,
         title,
     })
-}
-fn conditions(
-    filter: &atlas_domain::QueryPredicate,
-) -> AppServiceResult<Vec<(&str, atlas_app_model::ReferenceClauseConditionView)>> {
-    Ok(atlas_domain::reference_clauses(filter)?
-        .into_iter()
-        .map(|(id, clause)| {
-            (
-                id,
-                match clause {
-                    atlas_domain::QueryReferenceClause::Record(relationship) => {
-                        atlas_app_model::ReferenceClauseConditionView::Record {
-                            relationship: Box::new(relationship.clone()),
-                        }
-                    }
-                    atlas_domain::QueryReferenceClause::Definition(reference) => {
-                        atlas_app_model::ReferenceClauseConditionView::Definition {
-                            reference: reference.clone(),
-                        }
-                    }
-                },
-            )
-        })
-        .collect())
 }
 pub(crate) fn prepare_filter(
     r: &AtlasRetrievalService,
@@ -182,9 +58,9 @@ pub(crate) fn prepare_filter(
         return Ok(vec![]);
     };
     r.validate_filter(filter)?;
-    conditions(filter)?
+    atlas_domain::relationship_clauses(filter)?
         .into_iter()
-        .map(|(id, condition)| clause_summary(r, id, &condition))
+        .map(|(id, relationship)| clause_summary(r, id, relationship))
         .collect()
 }
 pub(crate) fn presentations(
@@ -195,37 +71,35 @@ pub(crate) fn presentations(
     let Some(filter) = filter else {
         return Ok(vec![]);
     };
-    conditions(filter)?
+    atlas_domain::relationship_clauses(filter)?
         .into_iter()
-        .map(|(id, condition)| match clause_summary(r, id, &condition) {
-            Ok(summary) => Ok(View::Available {
-                clause_id: summary.clause_id,
-                condition: summary.condition,
-                destination: summary.destination,
-                record: summary.record,
-                title: summary.title,
-            }),
-            Err(error) => unavailable_clause(id, &condition, error),
-        })
+        .map(
+            |(id, relationship)| match clause_summary(r, id, relationship) {
+                Ok(summary) => Ok(View::Available {
+                    clause_id: summary.clause_id,
+                    relationship: summary.relationship,
+                    record: Box::new(summary.record),
+                    title: summary.title,
+                }),
+                Err(error) => unavailable_clause(id, relationship, error),
+            },
+        )
         .collect()
 }
+
 fn unavailable_clause(
     id: &str,
-    condition: &atlas_app_model::ReferenceClauseConditionView,
+    relationship: &atlas_domain::QueryRelationship,
     error: AppServiceError,
 ) -> AppServiceResult<atlas_app_model::RelationshipClausePresentationView> {
     let error = error.into_app_error();
     match error.code {
-        AppErrorCode::InvalidRequest
-        | AppErrorCode::InvalidRecordKey
-        | AppErrorCode::RecordNotFound => Ok(
-            atlas_app_model::RelationshipClausePresentationView::Unavailable {
+        AppErrorCode::InvalidRequest | AppErrorCode::InvalidRecordKey | AppErrorCode::RecordNotFound =>
+            Ok(atlas_app_model::RelationshipClausePresentationView::Unavailable {
                 clause_id: id.into(),
-                condition: condition.clone(),
-                message: "This reference is unavailable. Open it again or remove this condition."
-                    .into(),
-            },
-        ),
+                relationship: relationship.clone(),
+                message: "This linked entry is unavailable. Open the entry again or remove this condition.".into(),
+            }),
         _ => Err(error.into()),
     }
 }
@@ -295,208 +169,20 @@ pub(crate) fn evidence_views(
     )
 }
 
-fn canonical_evidence_views(
-    r: &AtlasRetrievalService,
-    occurrences: Vec<atlas_search::DefinitionReferenceInput>,
-) -> AppServiceResult<Vec<atlas_app_model::ReferenceOccurrenceView>> {
-    use atlas_search::{DefinitionReferenceSource as Source, DefinitionReferenceTarget as Target};
-    let mut locations = Vec::new();
-    let mut definitions = std::collections::BTreeSet::new();
-    for occurrence in &occurrences {
-        match &occurrence.source {
-            Source::Record { key, owners, .. } => {
-                locations.push(location(key.clone(), owners.clone()))
-            }
-            Source::Definition { key } => {
-                definitions.insert(key.clone());
-            }
-        }
-        match &occurrence.target {
-            Target::Record { key, owners } => locations.push(location(key.clone(), owners.clone())),
-            Target::Definition { key } => {
-                definitions.insert(key.clone());
-            }
-        }
-    }
-    let keys = locations
-        .iter()
-        .map(|location| location.record.clone())
-        .collect::<std::collections::BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>();
-    let records = r
-        .get_records(GetRecordsRequest { record_keys: &keys })?
-        .records;
-    let owned = r.owned_search_labels(&locations)?;
-    let mut definitions_by_key = std::collections::BTreeMap::new();
-    for chunk in definitions.into_iter().collect::<Vec<_>>().chunks(100) {
-        for summary in r.reference_summaries(chunk)?.entries {
-            definitions_by_key.insert(summary.key.clone(), summary);
-        }
-    }
-    let title = |target: &atlas_domain::QueryDefinitionReferenceTarget| match target {
-        atlas_domain::QueryDefinitionReferenceTarget::Definition { key } => definitions_by_key
-            .get(key)
-            .map(|summary| summary.label.clone())
-            .unwrap_or_else(|| "Unavailable definition".into()),
-        atlas_domain::QueryDefinitionReferenceTarget::Record { selection } => {
-            if !selection.owners.is_empty() {
-                owned
-                    .iter()
-                    .find(|(key, owners, _)| {
-                        key == &selection.record_key && owners == &selection.owners
-                    })
-                    .map(|(_, _, name)| name.clone())
-                    .unwrap_or_else(|| "Unnamed entry".into())
-            } else {
-                records
-                    .iter()
-                    .find(|record| record.key == selection.record_key)
-                    .and_then(|record| record.name.as_value())
-                    .filter(|name| !name.trim().is_empty())
-                    .cloned()
-                    .unwrap_or_else(|| "Unavailable record".into())
-            }
-        }
-    };
-    Ok(occurrences
-        .into_iter()
-        .map(|occurrence| {
-            let (source, source_field, source_destination) = match occurrence.source {
-                Source::Record { key, owners, field } => {
-                    let mut selection = root_selection(key, owners);
-                    selection.field = field.clone();
-                    selection.source_fingerprint = crate::projection::navigation_fingerprint(
-                        &selection.owners,
-                        r.source_fingerprint(),
-                    );
-                    let destination = record_destination(r, &selection);
-                    (
-                        atlas_domain::QueryDefinitionReferenceTarget::Record {
-                            selection: Box::new(selection),
-                        },
-                        field,
-                        Some(destination),
-                    )
-                }
-                Source::Definition { key } => {
-                    let destination = definitions_by_key.get(&key).and_then(|summary| {
-                        crate::definitions::definition_reading_destination(
-                            summary,
-                            r.source_fingerprint(),
-                        )
-                    });
-                    (
-                        atlas_domain::QueryDefinitionReferenceTarget::Definition { key },
-                        None,
-                        destination,
-                    )
-                }
-            };
-            let target =
-                crate::definitions::reference_target(occurrence.target, r.source_fingerprint());
-            let target_destination =
-                crate::definitions::reference_reading_destination(&target, &definitions_by_key, r);
-            atlas_app_model::ReferenceOccurrenceView::Definition {
-                occurrence: Box::new(atlas_app_model::DefinitionReferenceEvidenceView {
-                    source_title: title(&source),
-                    source,
-                    source_destination,
-                    source_field,
-                    target_title: title(&target),
-                    target,
-                    target_destination,
-                    occurrence_path: occurrence.occurrence_path,
-                    evidence: occurrence.evidence,
-                    label: occurrence.label,
-                    visible: occurrence.visible,
-                }),
-            }
-        })
-        .collect())
-}
-
 pub(crate) fn evidence_page(
     r: &AtlasRetrievalService,
-    filter: &atlas_domain::QueryPredicate,
-    summary: &atlas_app_model::RelationshipClauseSummaryView,
+    relationship: &atlas_domain::QueryRelationship,
     result: &RecordKey,
     page: SearchPage,
 ) -> AppServiceResult<(
-    Vec<atlas_app_model::ReferenceOccurrenceView>,
+    Vec<atlas_app_model::RecordRelationshipView>,
     atlas_app_model::SearchPageView,
 )> {
-    match &summary.condition {
-        atlas_app_model::ReferenceClauseConditionView::Record { relationship } => {
-            let (occurrences, info) = r.relationship_occurrence_page(relationship, result, page)?;
-            Ok((
-                evidence_views(r, occurrences)?
-                    .into_iter()
-                    .map(graph_evidence)
-                    .collect::<AppServiceResult<Vec<_>>>()?,
-                crate::projection::search_page_view(info),
-            ))
-        }
-        atlas_app_model::ReferenceClauseConditionView::Definition { .. } => {
-            let (occurrences, info) =
-                r.definition_reference_evidence(filter, &summary.clause_id, result, page)?;
-            let mut ordered = Vec::new();
-            let mut graphs = Vec::new();
-            let mut canonical = Vec::new();
-            for occurrence in occurrences {
-                match occurrence {
-                    atlas_search::DefinitionReferenceOccurrence::Record { occurrence } => {
-                        ordered.push(false);
-                        graphs.push(*occurrence);
-                    }
-                    atlas_search::DefinitionReferenceOccurrence::Definition { occurrence } => {
-                        ordered.push(true);
-                        canonical.push(*occurrence);
-                    }
-                }
-            }
-            let mut graphs = evidence_views(r, graphs)?.into_iter();
-            let mut canonical = canonical_evidence_views(r, canonical)?.into_iter();
-            let occurrences = ordered
-                .into_iter()
-                .map(|definition| {
-                    if definition {
-                        canonical.next().ok_or_else(|| {
-                            AppServiceError::new(
-                                AppErrorCode::InternalError,
-                                "Definition evidence projection is incomplete",
-                            )
-                        })
-                    } else {
-                        graphs.next().map(graph_evidence).ok_or_else(|| {
-                            AppServiceError::new(
-                                AppErrorCode::InternalError,
-                                "Record evidence projection is incomplete",
-                            )
-                        })?
-                    }
-                })
-                .collect::<AppServiceResult<Vec<_>>>()?;
-            Ok((occurrences, crate::projection::search_page_view(info)))
-        }
-    }
-}
-
-fn graph_evidence(
-    occurrence: atlas_app_model::RecordRelationshipView,
-) -> AppServiceResult<atlas_app_model::ReferenceOccurrenceView> {
-    let navigation = occurrence.target.clone().ok_or_else(|| {
-        AppServiceError::new(
-            AppErrorCode::InternalError,
-            "Resolved reference evidence has no record destination",
-        )
-    })?;
-    Ok(atlas_app_model::ReferenceOccurrenceView::Record {
-        occurrence: Box::new(occurrence),
-        destination: Box::new(atlas_app_model::ReferenceDestinationView::Record {
-            navigation: navigation.into(),
-        }),
-    })
+    let (occurrences, info) = r.relationship_occurrence_page(relationship, result, page)?;
+    Ok((
+        evidence_views(r, occurrences)?,
+        crate::projection::search_page_view(info),
+    ))
 }
 
 impl AtlasAppService {
@@ -560,7 +246,7 @@ impl AtlasAppService {
                     "This condition does not provide a matching link for this record",
                 ));
             }
-            let (occurrences, page) = evidence_page(r, &request.filter, &summary, &key, page)?;
+            let (occurrences, page) = evidence_page(r, &summary.relationship, &key, page)?;
             Ok(RelationshipOccurrencesPage {
                 artifact_generation: generation,
                 clause: summary,
@@ -596,9 +282,7 @@ mod tests {
         ] {
             let error = unavailable_clause(
                 "link",
-                &atlas_app_model::ReferenceClauseConditionView::Record {
-                    relationship: Box::new(relationship.clone()),
-                },
+                &relationship,
                 AppServiceError::new(code, "workspace failure"),
             )
             .unwrap_err()

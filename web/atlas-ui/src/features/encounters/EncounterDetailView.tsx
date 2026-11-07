@@ -3,7 +3,7 @@ import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocu
 import { EncounterRecoveryModal } from "./EncounterRecoveryModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
-import { recordDestination, encountersDestination } from "../../app/destinations";
+import { encountersDestination } from "../../app/destinations";
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -626,14 +626,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 }}
                 onCloseRecordPreview={recordPreview.close}
                 onNavigateAwayPreview={recordPreview.closeForNavigation}
-                onOpenRecordFullPage={(recordKey) =>
-                  navigateDestination(
-                    recordDestination({
-                      recordKey,
-                      selection: recordPreview.selection,
-                    }),
-                  )
-                }
                 onReference={recordPreview.open}
                 onPreviewRankChange={recordPreview.changeRank}
                 onRemoveCondition={async (
@@ -711,7 +703,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 onReloadPreview={recordPreview.reload}
                 reloadPreviewLabel={recordPreview.reloadLabel}
                 retryPreviewLabel={recordPreview.retryLabel}
-                previewRecordKey={recordPreview.recordKey}
               />
             }
             collapsiblePanes={[]}

@@ -46,11 +46,11 @@ export function useDefinitionDetail(key: string | null, generation?: string | nu
 
 /** Actions are recovered only through the current backend's exact destination. */
 export function definitionHelpMatchesRecord(
-  help: ReferenceHelpView,
+  help: ReferenceHelpView | null,
   navigation: RecordNavigationView,
 ): boolean {
   return (
-    help.destination?.kind === "record" &&
+    help?.destination.kind === "record" &&
     recordNavigationIdentity(
       help.destination.navigation.record_key,
       help.destination.navigation,

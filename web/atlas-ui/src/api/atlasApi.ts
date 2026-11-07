@@ -1452,21 +1452,6 @@ export async function getDefinitionDetail(
   };
 }
 
-export async function getDefinitionFilterOptions(
-  request: import("../generated/atlas").DefinitionFilterOptionsRequest,
-  signal?: AbortSignal,
-): Promise<import("../generated/atlas").DefinitionFilterOptionsView> {
-  const result = await atlasFetch<
-    Wire<import("../generated/atlas").DefinitionFilterOptionsView>
-  >("/api/filters/definitions", {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-    signal,
-  });
-  return { ...result, total: toBigInt(result.total) };
-}
-
 export async function getTraitDetail(
   request: import("../generated/atlas").TraitDetailRequest,
   signal?: AbortSignal,

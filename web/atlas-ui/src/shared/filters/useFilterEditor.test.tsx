@@ -23,71 +23,6 @@ function harness(start: SearchFormState = initial) {
 }
 
 describe("persistent filter editing lifecycle", () => {
-  it("adds a supplied collection predicate intact while retaining unrelated invalid edits", () => {
-    const senses = fieldFixture("senses", "collection", "Senses");
-    const type = {
-      ...fieldFixture("senses[].type", "string", "Sense"),
-      scope: "senses",
-      path: "type",
-    };
-    const range = {
-      ...fieldFixture("senses[].range", "number", "Range"),
-      scope: "senses",
-      path: "range",
-    };
-    const catalog = editorFixture([hp, senses, type, range]).groups[0].fields;
-    const { result } = renderHook(() => {
-      const [search, setSearch] = useState<SearchFormState>(initial);
-      return { search, editor: useFilterEditor(search, catalog, setSearch) };
-    });
-    act(() =>
-      result.current.editor.change({
-        combinator: "and",
-        rules: [{ id: "draft", field: hp.id, operator: "gte", value: "unfinished" }],
-      }),
-    );
-    const predicate: QueryPredicate = {
-      kind: "exists",
-      collection: "senses",
-      scope_id: "sense",
-      predicate: {
-        kind: "all_of",
-        children: [
-          { kind: "compare", field: "type", op: "eq", value: "darkvision" },
-          { kind: "compare", field: "range", op: "gte", value: 60 },
-        ],
-      },
-    };
-    act(() => expect(result.current.editor.addPredicate(predicate)).toBeNull());
-    expect(result.current.search.filter).toMatchObject({
-      kind: "all_of",
-      children: [
-        initial.filter,
-        { kind: "exists", collection: "senses", predicate: predicate.predicate },
-      ],
-    });
-    expect(result.current.editor.query?.rules[0]).toMatchObject({
-      value: "unfinished",
-    });
-    expect(result.current.editor.error).toBe("Enter a finite numeric value");
-  });
-  it("configures a numeric field as an unfinished rule without changing executed criteria", () => {
-    const { result } = harness();
-    act(() => expect(result.current.editor.addFieldDraft(hp.id)).toBeNull());
-    expect(result.current.search.filter).toEqual(initial.filter);
-    const rules = result.current.editor.query?.rules ?? [];
-    expect(rules[rules.length - 1]).toMatchObject({
-      field: hp.id,
-      operator: "eq",
-      value: "",
-    });
-    act(() =>
-      expect(result.current.editor.addFieldDraft("missing-number")).toMatch(
-        /unavailable/,
-      ),
-    );
-    expect(result.current.editor.query?.rules).toHaveLength(2);
-  });
   it("commits a Kind change or removal while retaining an unused condition row", () => {
     const { result } = harness({
       ...DEFAULT_SEARCH_STATE,
@@ -481,58 +416,6 @@ it("marks unprojectable sibling edits as incomplete without removing them", () =
   act(() => result.current.editor.change(draft));
   expect(result.current.editor.linkDiscoveryContext("new-link", true)).toEqual({
     filter: initial.filter,
-    exclude_clause_id: null,
-    incomplete: true,
-  });
-  expect(result.current.editor.query).toBe(draft);
-});
-
-it("preserves a glossary reference in the static link parent and never self-excludes it as a graph link", () => {
-  const glossary: QueryPredicate = {
-    kind: "definition_reference",
-    clause_id: "glossary",
-    reference: {
-      target: { kind: "definition", key: "language:chthonian" },
-      include_contents: false,
-    },
-  };
-  const link: QueryPredicate = {
-    kind: "relationship",
-    clause_id: "editing",
-    relationship: {
-      direction: "incoming",
-      include_contents: true,
-      selection: {
-        record_key: "items:reference",
-        embedded_path: [],
-        field: null,
-        passage: null,
-        source_fingerprint: null,
-      },
-    },
-  };
-  const filter: QueryPredicate = { kind: "all_of", children: [glossary, link] };
-  const { result } = harness({ ...DEFAULT_SEARCH_STATE, filter });
-  expect(result.current.editor.linkDiscoveryContext("editing", false)).toEqual({
-    filter,
-    exclude_clause_id: "editing",
-    incomplete: false,
-  });
-  expect(result.current.editor.linkDiscoveryContext("glossary", false)).toEqual({
-    filter,
-    exclude_clause_id: null,
-    incomplete: false,
-  });
-  const draft = {
-    ...result.current.editor.query!,
-    rules: [
-      ...result.current.editor.query!.rules,
-      { id: "invalid", field: hp.id, operator: "gte", value: "unfinished" },
-    ],
-  };
-  act(() => result.current.editor.change(draft));
-  expect(result.current.editor.linkDiscoveryContext("editing", true)).toEqual({
-    filter,
     exclude_clause_id: null,
     incomplete: true,
   });

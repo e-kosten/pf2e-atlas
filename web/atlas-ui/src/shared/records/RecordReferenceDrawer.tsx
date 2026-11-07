@@ -1,6 +1,5 @@
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { destinationHref, navigateDestination } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
 import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { ConfigProvider } from "antd";
 import { useId, useRef, useState } from "react";
@@ -42,10 +41,8 @@ export function RecordReferenceDrawer({
   onClose,
   onNavigateAway,
   restoreAnchorFocus = true,
-  onOpenFullPage,
   onReference,
   onRankChange,
-  fullPageHref,
   requestedNavigation,
   landing,
   readingHistory,
@@ -59,7 +56,8 @@ export function RecordReferenceDrawer({
   const [closing, setClosing] = useState(false);
   const open = !closing;
   const close = () => setClosing(true);
-  const unavailable = help?.destination === null;
+  const unavailable =
+    destination.kind === "definition" && (!help || definition?.help === null);
   const retryActionLabel =
     retryLabel ??
     (isArtifactGenerationChanged(error)
@@ -70,44 +68,18 @@ export function RecordReferenceDrawer({
   const navigation = detail
     ? readingNavigationForUrl(detail.selected, { navigation: requestedNavigation })
     : undefined;
-  const typedRoute = destination
-    ? referenceDestination(
-        destination.kind === "record" && navigation
-          ? { ...destination, navigation }
-          : destination,
-        help?.definition_key,
-        landing,
-      )
-    : undefined;
-  const href = unavailable
-    ? undefined
-    : ((typedRoute ? destinationHref(typedRoute) : undefined) ??
-      fullPageHref ??
-      (detail
-        ? destinationHref(
-            recordDestination({
-              recordKey: detail.selected.record_key,
-              selection: navigation,
-              landing,
-            }),
-          )
-        : undefined));
+  const typedRoute = referenceDestination(
+    destination.kind === "record" && navigation
+      ? { ...destination, navigation }
+      : destination,
+    help?.definition_key,
+    landing,
+  );
+  const href = unavailable ? undefined : destinationHref(typedRoute);
   const openFullPage = () => {
     if (unavailable) return;
-    if (typedRoute) {
-      navigateDestination(typedRoute);
-      (onNavigateAway ?? onClose)();
-      return;
-    }
-    if (landing && detail)
-      navigateDestination(
-        recordDestination({
-          recordKey: detail.selected.record_key,
-          selection: navigation,
-          landing,
-        }),
-      );
-    else onOpenFullPage();
+    navigateDestination(typedRoute);
+    (onNavigateAway ?? onClose)();
   };
   const readingRef = usePreviewReadingPosition(
     definition ?? detail,

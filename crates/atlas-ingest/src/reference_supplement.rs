@@ -1,53 +1,28 @@
-//! One approved, normalized reference subset captured from bundled or explicit input bytes.
+//! The approved, normalized reference subset bundled with Atlas.
 use crate::IngestError;
 use atlas_domain::{DefinitionKey, DefinitionNamespace};
 use atlas_index::ReferenceNotice;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::collections::BTreeMap;
 
 pub const REFERENCE_PREPARATION_RECIPE: &str = "reference-definitions/v4";
 
-#[derive(Debug, Clone, Default)]
-pub enum ReferenceSupplementSelection {
-    /// Verified embedded bytes are available offline and need no network access.
-    #[default]
-    Bundled,
-    /// Explicit removal is an input revision, never a missing-file fallback.
-    Absent {
-        revision: String,
-    },
-    Directory {
-        path: PathBuf,
-    },
-}
+const MANIFEST: &[u8] = include_bytes!("../reference-data/manifest.json");
+const PAYLOAD: &[u8] = include_bytes!("../reference-data/payload.json");
+const NOTICES: &[u8] = include_bytes!("../reference-data/notices.json");
 
-struct BundledReferenceFile {
-    name: &'static str,
-    bytes: &'static [u8],
-}
-
-static BUNDLED: &[BundledReferenceFile] = &[
-    BundledReferenceFile {
-        name: "manifest.json",
-        bytes: include_bytes!("../reference-data/manifest.json"),
-    },
-    BundledReferenceFile {
-        name: "payload.json",
-        bytes: include_bytes!("../reference-data/payload.json"),
-    },
-    BundledReferenceFile {
-        name: "notices.json",
-        bytes: include_bytes!("../reference-data/notices.json"),
-    },
-    BundledReferenceFile {
-        name: "orc-license.pdf",
-        bytes: include_bytes!("../reference-data/orc-license.pdf"),
-    },
-    BundledReferenceFile {
-        name: "community-use-policy.pdf",
-        bytes: include_bytes!("../reference-data/community-use-policy.pdf"),
-    },
+const BUNDLED_FILES: &[(&str, &[u8])] = &[
+    ("payload.json", PAYLOAD),
+    ("notices.json", NOTICES),
+    (
+        "orc-license.pdf",
+        include_bytes!("../reference-data/orc-license.pdf"),
+    ),
+    (
+        "community-use-policy.pdf",
+        include_bytes!("../reference-data/community-use-policy.pdf"),
+    ),
 ];
 
 fn hash(bytes: &[u8]) -> String {
@@ -120,11 +95,11 @@ struct Notice {
     source_url: Option<String>,
 }
 
-/// Small assets are consumed into owned bytes at capture; originals are never rescanned.
+/// The validated payload and notices belong to the same captured build inputs.
 pub(crate) struct ReferenceSupplementCapture {
     pub(crate) entries: BTreeMap<DefinitionKey, SupplementEntry>,
     pub(crate) notices: Vec<ReferenceNotice>,
-    pub(crate) source_commit: Option<String>,
+    pub(crate) source_commit: String,
     pub(crate) identity: String,
     source_files: BTreeMap<String, SourceFile>,
 }
@@ -142,45 +117,11 @@ impl ReferenceSupplementCapture {
             .map(|(path, source)| (path.as_str(), source.sha256.as_str()))
     }
     pub(crate) fn capture(
-        selection: &ReferenceSupplementSelection,
         package: &str,
         version: Option<&str>,
         locale: &str,
     ) -> Result<Self, IngestError> {
-        if let ReferenceSupplementSelection::Absent { revision } = selection {
-            if revision.trim().is_empty() {
-                return Err(invalid(
-                    "reference supplement absence needs an explicit revision",
-                ));
-            }
-            return Ok(Self {
-                entries: BTreeMap::new(),
-                notices: Vec::new(),
-                source_commit: None,
-                identity: hash(format!("absent:{revision}").as_bytes()),
-                source_files: BTreeMap::new(),
-            });
-        }
-        let read = |name: &str| -> Result<Vec<u8>, IngestError> {
-            match selection {
-                ReferenceSupplementSelection::Bundled => BUNDLED
-                    .iter()
-                    .find(|file| file.name == name)
-                    .map(|file| file.bytes.to_vec())
-                    .ok_or_else(|| invalid("unrecognized bundled reference file")),
-                ReferenceSupplementSelection::Directory { path } => fs::read(path.join(name))
-                    .map_err(|error| {
-                        invalid(format!(
-                            "required reference file {name} unavailable: {error}"
-                        ))
-                    }),
-                ReferenceSupplementSelection::Absent { .. } => {
-                    Err(invalid("absent reference supplement has no files"))
-                }
-            }
-        };
-        let manifest_bytes = read("manifest.json")?;
-        let manifest: Manifest = serde_json::from_slice(&manifest_bytes)
+        let manifest: Manifest = serde_json::from_slice(MANIFEST)
             .map_err(|error| invalid(format!("reference manifest: {error}")))?;
         if manifest.schema != 1
             || manifest.recipe != "pc1-reference-subset/v1"
@@ -222,23 +163,17 @@ impl ReferenceSupplementCapture {
                 return Err(invalid("invalid reference source-file identity"));
             }
         }
-        if manifest.source_files.len() != 2 || manifest.files.len() != BUNDLED.len() - 1 {
+        if manifest.source_files.len() != 2 || manifest.files.len() != BUNDLED_FILES.len() {
             return Err(invalid("incomplete reference source/file manifest"));
         }
-        let mut owned = BTreeMap::new();
-        for file in BUNDLED.iter().filter(|file| file.name != "manifest.json") {
-            let bytes = read(file.name)?;
-            if manifest.files.get(file.name) != Some(&hash(&bytes)) {
-                return Err(invalid(format!(
-                    "reference file checksum mismatch: {}",
-                    file.name
-                )));
+        for (name, bytes) in BUNDLED_FILES {
+            if manifest.files.get(*name) != Some(&hash(bytes)) {
+                return Err(invalid(format!("reference file checksum mismatch: {name}")));
             }
-            owned.insert(file.name, bytes);
         }
-        let payload: Payload = serde_json::from_slice(&owned["payload.json"])
+        let payload: Payload = serde_json::from_slice(PAYLOAD)
             .map_err(|error| invalid(format!("reference payload: {error}")))?;
-        let notices: Notices = serde_json::from_slice(&owned["notices.json"])
+        let notices: Notices = serde_json::from_slice(NOTICES)
             .map_err(|error| invalid(format!("reference notices: {error}")))?;
         if payload.schema != 1
             || notices.schema != 1
@@ -329,18 +264,20 @@ impl ReferenceSupplementCapture {
         if ids.contains("reference-subset-manifest") {
             return Err(invalid("reserved reference provenance notice identity"));
         }
+        let identity = hash(MANIFEST);
         notices.push(ReferenceNotice {
             id: "reference-subset-manifest".into(),
-            sha256: hash(&manifest_bytes),
-            text: String::from_utf8(manifest_bytes.clone())
-                .map_err(|error| invalid(error.to_string()))?,
+            sha256: identity.clone(),
+            text: std::str::from_utf8(MANIFEST)
+                .map_err(|error| invalid(error.to_string()))?
+                .to_owned(),
             source_url: None,
         });
         Ok(Self {
             entries,
             notices,
-            source_commit: Some(manifest.source_commit),
-            identity: hash(&manifest_bytes),
+            source_commit: manifest.source_commit,
+            identity,
             source_files: manifest.source_files,
         })
     }
@@ -350,23 +287,9 @@ impl ReferenceSupplementCapture {
 mod tests {
     use super::*;
 
-    fn directory() -> tempfile::TempDir {
-        let directory = tempfile::tempdir().unwrap();
-        for file in BUNDLED {
-            fs::write(directory.path().join(file.name), file.bytes).unwrap();
-        }
-        directory
-    }
-
-    fn capture(
-        selection: &ReferenceSupplementSelection,
-    ) -> Result<ReferenceSupplementCapture, IngestError> {
-        ReferenceSupplementCapture::capture(selection, "pf2e", Some("8.6.1"), "en")
-    }
-
     #[test]
     fn approved_subset_preserves_context_and_prose_without_a_second_wildsong_body() {
-        let captured = capture(&ReferenceSupplementSelection::Bundled).unwrap();
+        let captured = ReferenceSupplementCapture::capture("pf2e", Some("8.6.1"), "en").unwrap();
         let chthonian = &captured.entries[&"language:chthonian".parse().unwrap()];
         assert_eq!(chthonian.speakers, ["Demons"]);
         assert_eq!(chthonian.content_locale, "en");
@@ -394,134 +317,8 @@ mod tests {
     }
 
     #[test]
-    fn bundled_and_directory_assets_have_one_path_independent_owned_identity() {
-        let first = directory();
-        let second = directory();
-        let selection = ReferenceSupplementSelection::Directory {
-            path: first.path().into(),
-        };
-        let captured = capture(&selection).unwrap();
-        assert_eq!(
-            captured.identity,
-            capture(&ReferenceSupplementSelection::Bundled)
-                .unwrap()
-                .identity
-        );
-        assert_eq!(
-            captured.identity,
-            capture(&ReferenceSupplementSelection::Directory {
-                path: second.path().into()
-            })
-            .unwrap()
-            .identity
-        );
-        // Capture consumed the small asset. Later mutations belong to the next attempt.
-        fs::write(first.path().join("payload.json"), b"corrupt").unwrap();
-        assert_eq!(
-            captured.entries[&"language:chthonian".parse().unwrap()].speakers,
-            ["Demons"]
-        );
-        assert!(capture(&selection).is_err());
-    }
-
-    #[test]
-    fn selected_missing_corrupt_and_incompatible_assets_do_not_become_absent() {
-        let directory = directory();
-        let selection = ReferenceSupplementSelection::Directory {
-            path: directory.path().into(),
-        };
-        fs::remove_file(directory.path().join("notices.json")).unwrap();
-        assert!(capture(&selection).is_err());
-        assert!(
-            ReferenceSupplementCapture::capture(
-                &ReferenceSupplementSelection::Bundled,
-                "pf2e",
-                Some("0.0.0"),
-                "en"
-            )
-            .is_err()
-        );
-        assert!(
-            ReferenceSupplementCapture::capture(
-                &ReferenceSupplementSelection::Bundled,
-                "custom-module",
-                Some("0.0.0"),
-                "en"
-            )
-            .is_ok()
-        );
-        let absent = capture(&ReferenceSupplementSelection::Absent {
-            revision: "disabled/v2".into(),
-        })
-        .unwrap();
-        assert!(absent.entries.is_empty());
-        assert_ne!(
-            absent.identity,
-            capture(&ReferenceSupplementSelection::Bundled)
-                .unwrap()
-                .identity
-        );
-        assert!(
-            capture(&ReferenceSupplementSelection::Absent {
-                revision: "".into()
-            })
-            .is_err()
-        );
-    }
-
-    #[test]
-    fn approved_notice_only_change_changes_the_input_identity() {
-        let directory = directory();
-        let selection = ReferenceSupplementSelection::Directory {
-            path: directory.path().into(),
-        };
-        let before = capture(&selection).unwrap();
-        let mut notices: serde_json::Value =
-            serde_json::from_slice(&fs::read(directory.path().join("notices.json")).unwrap())
-                .unwrap();
-        let row = notices["notices"]
-            .as_array_mut()
-            .unwrap()
-            .iter_mut()
-            .find(|row| row["id"] == "pf2etools-formatting")
-            .unwrap();
-        row["text"] = format!(
-            "{}\nUpdated contributor credit.",
-            row["text"].as_str().unwrap()
-        )
-        .into();
-        let bytes = serde_json::to_vec(&notices).unwrap();
-        fs::write(directory.path().join("notices.json"), &bytes).unwrap();
-        let mut manifest: serde_json::Value =
-            serde_json::from_slice(&fs::read(directory.path().join("manifest.json")).unwrap())
-                .unwrap();
-        manifest["files"]["notices.json"] = hash(&bytes).into();
-        fs::write(
-            directory.path().join("manifest.json"),
-            serde_json::to_vec(&manifest).unwrap(),
-        )
-        .unwrap();
-        let after = capture(&selection).unwrap();
-        assert_ne!(before.identity, after.identity);
-        assert_eq!(before.entries.len(), after.entries.len());
-        let provenance = |capture: &ReferenceSupplementCapture| -> serde_json::Value {
-            serde_json::from_str(
-                &capture
-                    .notices
-                    .iter()
-                    .find(|notice| notice.id == "reference-subset-manifest")
-                    .unwrap()
-                    .text,
-            )
-            .unwrap()
-        };
-        assert_eq!(
-            provenance(&before)["files"]["payload.json"],
-            provenance(&after)["files"]["payload.json"]
-        );
-        assert_ne!(
-            before.notices.last().unwrap().sha256,
-            after.notices.last().unwrap().sha256
-        );
+    fn bundled_supplement_rejects_an_incompatible_pf2e_version() {
+        assert!(ReferenceSupplementCapture::capture("pf2e", Some("0.0.0"), "en").is_err());
+        assert!(ReferenceSupplementCapture::capture("custom-module", Some("0.0.0"), "en").is_ok());
     }
 }

@@ -29,7 +29,6 @@ export type ListPageInput = ReadingViewInput & {
 };
 export type TraitPageInput = { traitKey: string; query?: string };
 export type SearchPageInput = ReadingViewInput & {
-  configureField?: string;
   selectedRecordKey?: string | null;
   query?: string;
   selection?: RecordNavigationView;
@@ -84,7 +83,6 @@ export function recordDestination(input: RecordPageInput) {
 }
 export function searchDestination(input: SearchPageInput = {}) {
   const params = readingSearch({ ...input, recordKey: input.selectedRecordKey });
-  if (input.configureField !== undefined) params.configure_field = input.configureField;
   if (input.page !== undefined) params.page = String(input.page);
   const search = canonicalRouteSearch(
     input.selectedRecordKey ? "search_record" : "search",

@@ -1,3 +1,7 @@
+import {
+  useReferenceHelpHandler,
+  useReferenceRecordNavigation,
+} from "../../shared/records/ReferenceHelp";
 import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import { LinkNotFound } from "../../app/InvalidUrl";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
@@ -23,10 +27,7 @@ import type {
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 import { ReferenceResult } from "../../shared/records/ReferenceResult";
 import { ExploreSearchAction } from "../../shared/records/ExploreSearchAction";
-import {
-  ReferenceHelpHost,
-  useReferenceHelpSession,
-} from "../../shared/records/ReferenceHelpHost";
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
@@ -64,7 +65,8 @@ export function TraitView({ route }: { route: TraitPageInput }) {
 
 function TraitViewContent({ route }: { route: TraitPageInput }) {
   const query = useTraitDetail(route.traitKey);
-  const preview = useReferenceHelpSession()!;
+  const onHelp = useReferenceHelpHandler();
+  const onReference = useReferenceRecordNavigation()!;
   const unavailable = query.data?.content === null;
   usePageTitle(unavailable ? "Link not found" : (query.data?.label ?? "Trait"));
   const client = useQueryClient();
@@ -106,8 +108,8 @@ function TraitViewContent({ route }: { route: TraitPageInput }) {
             )}
             {query.data ? (
               <ReferenceHelpProvider
-                onHelp={preview.openHelp}
-                onReference={preview.open}
+                onHelp={onHelp}
+                onReference={onReference}
                 generation={query.data.artifact_generation}
               >
                 <article className="record-reference" data-selection-search>
@@ -115,7 +117,7 @@ function TraitViewContent({ route }: { route: TraitPageInput }) {
                     title={query.data.label}
                     classification="Trait"
                   />
-                  <TraitDefinition detail={query.data} onReference={preview.open} />
+                  <TraitDefinition detail={query.data} onReference={onReference} />
                   <TraitAssociations
                     key={JSON.stringify([
                       query.data.trait_key,
@@ -124,7 +126,7 @@ function TraitViewContent({ route }: { route: TraitPageInput }) {
                     detail={query.data}
                     route={route}
                     onReload={() => void reload()}
-                    onReference={preview.open}
+                    onReference={onReference}
                   />
                 </article>
               </ReferenceHelpProvider>

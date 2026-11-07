@@ -14,12 +14,12 @@ it.each([undefined, 0, 3, 8])(
     detail.selected = { ...detail.selected, spell_rank: 3 };
     render(
       <RecordReferenceDrawer
+        destination={{ kind: "record", navigation: detail.selected }}
         anchor={document.createElement("button")}
         detail={detail}
         requestedNavigation={{ ...detail.selected, spell_rank: rank }}
         loading={false}
         onClose={vi.fn()}
-        onOpenFullPage={vi.fn()}
         onReference={vi.fn()}
       />,
       { wrapper },
@@ -69,11 +69,11 @@ it("groups identity facts in the Drawer header without duplicating the title or 
   ];
   render(
     <RecordReferenceDrawer
+      destination={{ kind: "record", navigation: detail.selected }}
       anchor={null}
       detail={detail}
       loading={false}
       onClose={vi.fn()}
-      onOpenFullPage={vi.fn()}
       onReference={vi.fn()}
     />,
     { wrapper },
@@ -101,11 +101,19 @@ it("retains the focused heading when an initially pending document arrives", asy
   const props = {
     anchor: null,
     onClose: vi.fn(),
-    onOpenFullPage: vi.fn(),
+    destination: {
+      kind: "record" as const,
+      navigation: detailFixture("spells:fear", "Fear").selected,
+    },
     onReference: vi.fn(),
   };
   const { rerender } = render(
-    <RecordReferenceDrawer {...props} detail={undefined} loading />,
+    <RecordReferenceDrawer
+      {...props}
+      destination={props.destination}
+      detail={undefined}
+      loading
+    />,
     { wrapper },
   );
   const heading = screen.getByRole("heading", { name: "Reference" });
@@ -113,6 +121,10 @@ it("retains the focused heading when an initially pending document arrives", asy
   rerender(
     <RecordReferenceDrawer
       {...props}
+      destination={{
+        kind: "record",
+        navigation: detailFixture("spells:fear", "Fear").selected,
+      }}
       detail={detailFixture("spells:fear", "Fear")}
       loading={false}
     />,

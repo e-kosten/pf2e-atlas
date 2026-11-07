@@ -214,58 +214,6 @@ pub(super) fn lower(name: &str, args: &[IdedExpr]) -> Result<QueryRelationship, 
     })
 }
 
-pub(super) fn lower_definition(
-    args: &[IdedExpr],
-) -> Result<atlas_domain::QueryDefinitionReference, QueryError> {
-    if !(1..=2).contains(&args.len()) {
-        return Err(invalid());
-    }
-    let target = match &args[0].expr {
-        Expr::Literal(LiteralValue::String(_)) => {
-            let value = string(&args[0])?;
-            if let Ok(key) = value.parse::<atlas_domain::DefinitionKey>() {
-                atlas_domain::QueryDefinitionReferenceTarget::Definition { key }
-            } else {
-                atlas_domain::QueryDefinitionReferenceTarget::Record {
-                    selection: Box::new(selection(&args[0])?),
-                }
-            }
-        }
-        Expr::Map(_) => {
-            let m = map(&args[0], &["kind", "selection", "key"])?;
-            match string(required(&m, "kind")?)?.as_str() {
-                "record" if m.len() == 2 => atlas_domain::QueryDefinitionReferenceTarget::Record {
-                    selection: Box::new(selection(required(&m, "selection")?)?),
-                },
-                "definition" if m.len() == 2 => {
-                    atlas_domain::QueryDefinitionReferenceTarget::Definition {
-                        key: string(required(&m, "key")?)?
-                            .parse()
-                            .map_err(|_| invalid())?,
-                    }
-                }
-                _ => return Err(invalid()),
-            }
-        }
-        _ => return Err(invalid()),
-    };
-    let include_contents = match args.get(1).map(string).transpose()?.as_deref() {
-        None | Some("whole_entry") => true,
-        Some("main_entry") => false,
-        _ => {
-            return Err(error(
-                "relationship_scope",
-                "Use whole_entry or main_entry for reference scope",
-                None,
-            ));
-        }
-    };
-    Ok(atlas_domain::QueryDefinitionReference {
-        target,
-        include_contents,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use atlas_domain::{QueryExpression, QueryRelationshipDirection};

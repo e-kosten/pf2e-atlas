@@ -172,12 +172,12 @@ pub(crate) fn validate(
     let mut expected = BTreeSet::new();
     let mut optional_hidden = BTreeSet::new();
     visit_entries(c, context.reference_preparation.as_ref(), &mut |entry| {
+        if entry.key.namespace() != atlas_domain::DefinitionNamespace::Trait {
+            return Ok(());
+        }
         for reference in prepared_record_references(&entry) {
             let id = crate::references::reference_id(&reference)?;
-            if !complete
-                && entry.key.namespace() == atlas_domain::DefinitionNamespace::Trait
-                && !reference.visible
-            {
+            if !complete && !reference.visible {
                 // Retained trait coverage attests visible associations only. A
                 // stored hidden edge is still permitted only when its retained
                 // occurrence resolves to that same checked current destination.

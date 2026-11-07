@@ -141,30 +141,17 @@ pub(crate) fn annotate_many<'a>(
                 }
                 Some(SourceDefinitionTarget::Unique {
                     target: DefinitionReferenceTarget::Record { key, owners },
-                }) => {
-                    let selection = crate::relationship_search::query_selection(
-                        &crate::definitions::record_navigation(
+                }) => Some(ReferenceHelpView {
+                    definition_key: None,
+                    destination: ReferenceDestinationView::Record {
+                        navigation: crate::definitions::record_navigation(
                             key.clone(),
                             owners.clone(),
                             retrieval.source_fingerprint(),
-                        ),
-                    )?;
-                    let destination =
-                        crate::relationship_search::record_destination(retrieval, &selection);
-                    let target = atlas_domain::QueryDefinitionReferenceTarget::Record {
-                        selection: Box::new(selection),
-                    };
-                    Some(ReferenceHelpView {
-                        definition_key: None,
-                        availability: DefinitionAvailabilityView::Available,
-                        destination: Some(destination),
-                        related_filters: vec![crate::definitions::definition_reference_action(
-                            target,
-                            &retrieval.artifact_generation()?,
-                            "References to this ability",
-                        )?],
-                    })
-                }
+                        )
+                        .into(),
+                    },
+                }),
                 _ => None,
             };
             Ok(())

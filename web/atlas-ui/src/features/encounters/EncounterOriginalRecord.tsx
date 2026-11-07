@@ -1,8 +1,4 @@
-import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
+import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Button } from "antd";
 import { BookOpen } from "lucide-react";
@@ -75,16 +71,6 @@ export function EncounterOriginalRecord({
           readingHistory={preview.readingHistory}
           requestedNavigation={preview.selection}
           landing={preview.landing}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
         />
       )}
     </>

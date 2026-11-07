@@ -1,28 +1,23 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { prepareReferenceSupplementCandidate } from '../comparison/reference-supplement.js';
-import { repositoryRoot } from '../generation/pinned-source.js';
 
 try {
   const { values } = parseArgs({ options: {
     languages: { type: 'string' }, groups: { type: 'string' }, 'source-commit': { type: 'string' },
-    assets: { type: 'string' }, before: { type: 'string' }, mappings: { type: 'string' },
     out: { type: 'string' }, help: { type: 'boolean', short: 'h' },
   } });
   if (values.help) {
-    console.log('Usage: npm --prefix dev-tools/source-contracts run prepare-reference-supplement -- --languages PATH --groups PATH --source-commit HASH --out SCRATCH [--assets PATH] [--before PATH] [--mappings PATH]');
+    console.log('Usage: npm --prefix dev-tools/source-contracts run prepare-reference-supplement -- --languages PATH --groups PATH --source-commit HASH --out SCRATCH');
     console.log('Read local fixed-source JSON and curated notices; emit a review candidate plus text/mapping/removal/notice diffs. Never fetches or updates approved assets.');
   } else {
     if (!values.languages || !values.groups || !values['source-commit'] || !values.out)
       throw new Error('--languages, --groups, --source-commit and --out are required');
     const cwd = process.env.INIT_CWD ?? process.cwd();
     const resolve = (value: string) => path.resolve(cwd, value);
-    const approved = path.join(repositoryRoot, 'crates/atlas-ingest/reference-data');
     console.log(JSON.stringify(await prepareReferenceSupplementCandidate({
       languages: resolve(values.languages), groups: resolve(values.groups), sourceCommit: values['source-commit'],
-      assets: values.assets ? resolve(values.assets) : approved,
-      before: values.before ? resolve(values.before) : approved, out: resolve(values.out),
-      mappings: values.mappings ? resolve(values.mappings) : undefined,
+      out: resolve(values.out),
     }), null, 2));
   }
 } catch (error) {

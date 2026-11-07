@@ -1,6 +1,6 @@
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { atlasRouter } from "../../app/router";
-import { useRouterState, type HistoryState } from "@tanstack/react-router";
+import { type HistoryState } from "@tanstack/react-router";
 import {
   FILTER_URL_RESET_NOTICE,
   useFilterUrlRecovery,
@@ -26,13 +26,6 @@ export function SearchView({
   historyState?: Pick<HistoryState, "atlasSearchReset" | "atlasFilterResetNotice">;
 }) {
   usePageTitle("Search");
-  const configureField = useRouterState({
-    select: (state) =>
-      state.location.pathname.startsWith("/search") &&
-      typeof state.location.search.configure_field === "string"
-        ? state.location.search.configure_field
-        : undefined,
-  });
   useFilterUrlRecovery(workspace.search, workspace.recoverFilterUrl);
   const reset = {
     token: historyState.atlasSearchReset,
@@ -94,23 +87,18 @@ export function SearchView({
           key={reset.token ?? "search"}
           filterState={workspace}
           layout="toolbar"
-          configureField={configureField}
-          onConfigured={() => {
-            void atlasRouter.navigate({
-              to: ".",
-              search: (previous) => {
-                const { configure_field: _configured, ...retained } = previous;
-                void _configured;
-                return retained;
-              },
-              replace: true,
-              resetScroll: false,
-            });
-          }}
           similarSearch={
             workspace.search.similarSeed
               ? {
                   title: similarTitle,
+                  help:
+                    !workspace.resultsFailed &&
+                    !workspace.errorMessage &&
+                    mode?.kind === "similar_traits" &&
+                    mode.trait_key === workspace.search.similarSeed
+                      ? mode.help
+                      : undefined,
+                  generation: workspace.resultPage?.artifact_generation,
                   seed: workspace.search.similarSeed.startsWith("trait:")
                     ? { kind: "trait", trait_key: workspace.search.similarSeed }
                     : { kind: "record", record_key: workspace.search.similarSeed },

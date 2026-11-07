@@ -32,30 +32,16 @@ vi.mock("../../api/atlasApi", async (original) => ({
 
 const propertyHelp: ReferenceHelpView = {
   definition_key: "sense:darkvision",
-  availability: "available",
+
   destination: {
     kind: "record",
     navigation: rootNavigation("abilities:darkvision"),
   },
-  related_filters: [
-    {
-      kind: "search",
-      label: "Creatures with this sense",
-      artifact_generation: "generation-a",
-      predicate: {
-        kind: "in",
-        clause_id: "sense",
-        field: "senses.type",
-        values: ["darkvision"],
-      },
-    },
-  ],
 };
 const languageHelp: ReferenceHelpView = {
   definition_key: "language:chthonian",
-  availability: "available",
+
   destination: { kind: "definition", key: "language:chthonian" },
-  related_filters: [],
 };
 const standalone: DefinitionDetailView = {
   artifact_generation: "generation-a",
@@ -63,11 +49,11 @@ const standalone: DefinitionDetailView = {
   label: "Chthonian",
   help: languageHelp,
   content: { body: { kind: "plain", text: "Language context." }, references: [] },
-  attribution: null,
+
   notices: [],
-  references: [],
-  references_availability: "available",
-  references_truncated: false,
+
+  related_filters: [],
+  publications: [],
 };
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -87,9 +73,7 @@ it("retains real record identity, property context and native activation", () =>
   render(
     <ReferenceHelpProvider onHelp={open} generation="generation-a">
       <ReferenceHelpLink help={propertyHelp}>Darkvision</ReferenceHelpLink>
-      <ReferenceHelpLink help={{ ...languageHelp, destination: null }}>
-        Unknown language
-      </ReferenceHelpLink>
+      <ReferenceHelpLink help={undefined}>Unknown language</ReferenceHelpLink>
     </ReferenceHelpProvider>,
     { wrapper },
   );
@@ -123,6 +107,8 @@ it("uses one mixed Drawer session through nested hosts while preserving the draf
           label: "Darkvision",
           help: propertyHelp,
           content: null,
+          related_filters: [],
+          publications: [],
         }
       : standalone,
   );
@@ -235,6 +221,8 @@ it.each(["return", "navigate"] as const)(
             label: "Darkvision",
             help: propertyHelp,
             content: null,
+            related_filters: [],
+            publications: [],
           }
         : standalone,
     );

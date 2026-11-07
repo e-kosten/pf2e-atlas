@@ -55,21 +55,6 @@ it("preserves property associations on ordinary record URLs", () => {
   ).toBe("/traits/trait:fire");
 });
 
-it("preserves a nonexecuting numeric-field intent independently of criteria", () => {
-  const route = searchDestination({ query: "?q=dragon", configureField: "level" });
-  expect(route.search).toEqual({ configure_field: "level", q: "dragon" });
-  expect(
-    canonicalRouteSearch("search", { configure_field: ["level", "level"] }),
-  ).toEqual({ configure_field: "level" });
-  expect(() =>
-    canonicalRouteSearch("search", { configure_field: ["level", "hp"] }),
-  ).toThrow("configure_field");
-  expect(() => canonicalRouteSearch("search", { configure_field: "" })).toThrow(
-    "configure_field",
-  );
-  expect(canonicalRouteSearch("list", { configure_field: "level" })).toEqual({});
-});
-
 it("normalizes committed values and defaults without dropping explicit ordered sort intent", () => {
   const result = canonicalRouteSearch(
     "search",

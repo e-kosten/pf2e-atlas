@@ -320,42 +320,11 @@ it("keeps the version-three wire contract stable for an existing compact link", 
   expect(encodeFilterUrl(decodeFilterUrl(saved))).toBe(saved);
 });
 
-describe("definition-reference URL transport", () => {
-  it.each([
-    { kind: "definition" as const, key: "language:chthonian" },
-    {
-      kind: "record" as const,
-      selection: {
-        record_key: "abilities:darkvision",
-        embedded_path: [{ collection: "/items", identity: { Stable: "owned" } }],
-        field: null,
-        passage: null,
-        source_fingerprint: null,
-      },
-    },
-  ])(
-    "preserves target, negation, contents and regenerated clause identities",
-    (target) => {
-      const predicate: QueryPredicate = {
-        kind: "not",
-        clause_id: "not-original",
-        predicate: {
-          kind: "definition_reference",
-          clause_id: "definition-original",
-          reference: { target, include_contents: false },
-        },
-      };
-      const encoded = encodeFilterUrl(predicate);
-      const restored = decodeFilterUrl(encoded);
-      expect(encodeFilterUrl(restored)).toBe(encoded);
-      expect(restored).toMatchObject({
-        kind: "not",
-        predicate: {
-          kind: "definition_reference",
-          reference: { target, include_contents: false },
-        },
-      });
-      expect(restored.clause_id).not.toBe("not-original");
-    },
-  );
+it("rejects removed generic definition-reference URLs", () => {
+  const removed =
+    "3." +
+    compressToEncodedURIComponent(
+      JSON.stringify(["d", ["d", "language:chthonian"]]),
+    ).replace(/\+/g, "_");
+  expect(() => decodeFilterUrl(removed)).toThrow();
 });

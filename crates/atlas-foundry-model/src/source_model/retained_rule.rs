@@ -13,7 +13,7 @@ impl RuleElementSource {
 
     /// Reconstruct the complete retained authored rule without interpreting or defaulting it.
     /// Missing and null fields, repeated unknown members and their values remain distinct.
-    pub fn authored_value(&self) -> Result<SourceValue, SourceDiagnostic> {
+    fn authored_value(&self) -> Result<SourceValue, SourceDiagnostic> {
         let mut fields = self.additional_fields.fields().to_vec();
         for (key, value) in [
             ("key", &self.key),

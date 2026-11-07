@@ -1,5 +1,4 @@
 //! Canonical vocabulary content and exact source evidence, without record copies.
-use crate::reference_evidence::prepared_record_references;
 use crate::{IndexError, SqliteIndexReader};
 use atlas_domain::{DefinitionKey, DefinitionNamespace, OwnedContentLocator, RecordKey};
 use atlas_record::source_content::PreparedReferenceDefinition;
@@ -373,20 +372,12 @@ impl ReferenceEntry {
                 label_grants: vec![],
                 notices: vec![],
             },
-            filter_bindings: vec![
-                ReferenceFilterBinding {
-                    id: "membership".into(),
-                    relation: "trait_membership".into(),
-                    field: Some("traits".into()),
-                    value: Some(definition.key.identifier().into()),
-                },
-                ReferenceFilterBinding {
-                    id: "references".into(),
-                    relation: "definition_reference".into(),
-                    field: None,
-                    value: Some(definition.key.to_string()),
-                },
-            ],
+            filter_bindings: vec![ReferenceFilterBinding {
+                id: "membership".into(),
+                relation: "trait_membership".into(),
+                field: Some("traits".into()),
+                value: Some(definition.key.identifier().into()),
+            }],
         })
     }
 
@@ -612,45 +603,6 @@ impl SqliteIndexReader {
         Ok(())
     }
 
-    pub fn reference_entries(
-        &self,
-        namespace: DefinitionNamespace,
-        limit: u32,
-        offset: u32,
-    ) -> Result<(Vec<ReferenceEntry>, u64), IndexError> {
-        if !(1..=100).contains(&limit) {
-            return Err(IndexError::Invalid(
-                "reference page size must be 1..100".into(),
-            ));
-        }
-        if namespace != DefinitionNamespace::Trait
-            && self.reference_coverage() != ReferenceCoverage::Complete
-        {
-            return Err(IndexError::Unavailable(
-                "glossary coverage requires explicit atlas setup".into(),
-            ));
-        }
-        let prefix = format!("{}:", namespace.as_str());
-        let total = self.native()?.query_row(
-            "SELECT count(*) FROM reference_entries WHERE substr(key,1,length(?))=?",
-            params![prefix, prefix],
-            |r| r.get(0),
-        )?;
-        let keys = self.native()?.prepare("SELECT key FROM reference_entries WHERE substr(key,1,length(?1))=?1 ORDER BY key LIMIT ?2 OFFSET ?3")?.query_map(params![prefix,limit,offset], |r| r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
-        let entries = keys
-            .into_iter()
-            .map(|k| {
-                let key = k.parse().map_err(|e| {
-                    IndexError::Invalid(format!("invalid stored definition key: {e}"))
-                })?;
-                read_entry(self.native()?, &key)?.ok_or_else(|| {
-                    IndexError::Invalid("missing reference entry in selected snapshot".into())
-                })
-            })
-            .collect::<Result<_, _>>()?;
-        Ok((entries, total))
-    }
-
     pub fn reference_notice(&self, id: &str) -> Result<Option<ReferenceNotice>, IndexError> {
         let notice = self
             .native()?
@@ -673,45 +625,6 @@ impl SqliteIndexReader {
         Ok(notice)
     }
 
-    /// Visible authored evidence from one exact source owner. A record source's
-    /// absent field selects all fields of that owner, never descendants/siblings.
-    pub fn definition_references_from_source(
-        &self,
-        source: &DefinitionReferenceSource,
-        limit: u32,
-        offset: u32,
-    ) -> Result<(Vec<DefinitionReferenceInput>, u64), IndexError> {
-        if !(1..=100).contains(&limit) {
-            return Err(IndexError::Invalid(
-                "definition occurrence page size must be 1..100".into(),
-            ));
-        }
-        self.require_complete_reference_evidence()?;
-        if let DefinitionReferenceSource::Definition { key } = source
-            && self.reference_summary(key)?.is_none()
-        {
-            return Err(IndexError::Unavailable(
-                "definition occurrence source is unavailable".into(),
-            ));
-        }
-        let (predicate, key, owners, field) = source_occurrence_selection(source)?;
-        let total = self.native()?.query_row(
-            &format!("SELECT count(*) FROM definition_reference_occurrences WHERE visible=1 AND {predicate}"),
-            params![key,owners,field], |r| r.get(0),
-        )?;
-        let mut statement = self.native()?.prepare(&format!(
-            "SELECT occurrence_id,evidence FROM definition_reference_occurrences WHERE visible=1 AND {predicate} ORDER BY occurrence_id LIMIT ?4 OFFSET ?5"
-        ))?;
-        let mut entries = Vec::new();
-        for row in statement.query_map(params![key, owners, field, limit, offset], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-        })? {
-            let (id, json) = row?;
-            entries.push(decode_source_occurrence(source, &id, &json)?);
-        }
-        Ok((entries, total))
-    }
-
     /// Resolve a general-help target using every visible occurrence on the exact
     /// owner. Two distinct destinations remain ambiguous even beyond page one.
     pub fn source_definition_target(
@@ -726,10 +639,15 @@ impl SqliteIndexReader {
             owners: owners.to_vec(),
             field: field.map(str::to_owned),
         };
-        let (predicate, key, owners, field) = source_occurrence_selection(&source)?;
-        let mut statement = self.native()?.prepare(&format!(
-            "SELECT min(occurrence_id),evidence FROM definition_reference_occurrences WHERE visible=1 AND {predicate} GROUP BY json_extract(evidence,'$.target') ORDER BY min(occurrence_id) LIMIT 2"
-        ))?;
+        let mut statement = self.native()?.prepare(
+            "SELECT min(occurrence_id), evidence FROM definition_reference_occurrences
+             WHERE visible=1 AND source_record_key=?1
+               AND json_extract(evidence,'$.source.owners')=?2
+               AND (?3 IS NULL OR json_extract(evidence,'$.source.field')=?3)
+             GROUP BY json_extract(evidence,'$.target') ORDER BY min(occurrence_id) LIMIT 2",
+        )?;
+        let key = record.to_string();
+        let owners = serde_json::to_string(owners)?;
         let mut targets = Vec::new();
         for row in statement.query_map(params![key, owners, field], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
@@ -754,79 +672,6 @@ impl SqliteIndexReader {
         }
         Ok(())
     }
-
-    /// Exact indexed occurrence evidence. Record graph edges retain their own
-    /// existing owner and are not copied into this page.
-    pub fn definition_reference_occurrences(
-        &self,
-        target: &DefinitionReferenceTarget,
-        limit: u32,
-        offset: u32,
-    ) -> Result<(Vec<DefinitionReferenceInput>, u64), IndexError> {
-        if !(1..=100).contains(&limit) {
-            return Err(IndexError::Invalid(
-                "definition occurrence page size must be 1..100".into(),
-            ));
-        }
-        self.require_complete_reference_evidence()?;
-        let (predicate, value, owners) = match target {
-            DefinitionReferenceTarget::Record { key, owners } => (
-                "target_record_key=?1 AND json_extract(evidence,'$.target.owners')=?2",
-                key.to_string(),
-                serde_json::to_string(owners)?,
-            ),
-            DefinitionReferenceTarget::Definition { key } => {
-                if self.reference_entry(key)?.is_none() {
-                    return Err(IndexError::Unavailable(
-                        "definition occurrence target is unavailable".into(),
-                    ));
-                }
-                (
-                    "target_definition_key=?1 AND ?2=''",
-                    key.to_string(),
-                    String::new(),
-                )
-            }
-        };
-        let total=self.native()?.query_row(&format!("SELECT count(*) FROM definition_reference_occurrences WHERE visible=1 AND {predicate}"),params![value,owners],|r|r.get(0))?;
-        let mut statement=self.native()?.prepare(&format!("SELECT occurrence_id,evidence FROM definition_reference_occurrences WHERE visible=1 AND {predicate} ORDER BY occurrence_id LIMIT ?3 OFFSET ?4"))?;
-        let mut result = Vec::new();
-        for row in statement.query_map(params![value, owners, limit, offset], |r| {
-            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-        })? {
-            let (id, json) = row?;
-            let occurrence: DefinitionReferenceInput = serde_json::from_str(&json)?;
-            if reference_id(&occurrence)? != id
-                || occurrence.target != *target
-                || !occurrence.visible
-            {
-                return Err(IndexError::Invalid(
-                    "definition occurrence identity/target mismatch".into(),
-                ));
-            }
-            result.push(occurrence);
-        }
-        Ok((result, total))
-    }
-}
-
-fn source_occurrence_selection(
-    source: &DefinitionReferenceSource,
-) -> Result<(&'static str, String, String, Option<String>), IndexError> {
-    Ok(match source {
-        DefinitionReferenceSource::Record { key, owners, field } => (
-            "source_record_key=?1 AND json_extract(evidence,'$.source.owners')=?2 AND (?3 IS NULL OR json_extract(evidence,'$.source.field')=?3)",
-            key.to_string(),
-            serde_json::to_string(owners)?,
-            field.clone(),
-        ),
-        DefinitionReferenceSource::Definition { key } => (
-            "source_definition_key=?1 AND ?2='' AND ?3 IS NULL",
-            key.to_string(),
-            String::new(),
-            None,
-        ),
-    })
 }
 
 fn decode_source_occurrence(
@@ -953,7 +798,6 @@ fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Resul
         || entry.provenance.indexing_locale.is_empty()
         || entry.provenance.source_package.is_empty()
         || entry.provenance.recipe.is_empty()
-        || entry.filter_bindings.is_empty()
     {
         return Err(IndexError::Invalid("incomplete reference metadata".into()));
     }
@@ -1227,7 +1071,6 @@ pub(crate) fn write_notices(
 pub(crate) fn write_entries(
     c: &Connection,
     input: &crate::PublicationSpool,
-    outgoing: &mut Vec<DefinitionReferenceInput>,
 ) -> Result<std::collections::BTreeSet<String>, IndexError> {
     let mut kept = std::collections::BTreeSet::new();
     let roots = input
@@ -1250,7 +1093,6 @@ pub(crate) fn write_entries(
                 "reference mapping target is absent from captured publication".into(),
             ));
         }
-        outgoing.extend(prepared_record_references(&entry));
         write_reference_entry(c, &entry, input.context.reference_preparation.as_ref())
     })?;
     let old = c

@@ -2566,35 +2566,6 @@ test("glossary vocabulary labels and communication notes use supplied context @e
   );
 });
 
-test("glossary reference filters keep loaded exact criteria and readable labels @engine", async ({
-  page,
-}) => {
-  const filter = {
-    kind: "definition_reference" as const,
-    reference: {
-      target: { kind: "definition" as const, key: "language:chthonian" },
-      include_contents: false,
-    },
-  };
-  const response = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/search/page") &&
-      response.request().postDataJSON()?.criteria?.filter?.kind ===
-        "definition_reference",
-  );
-  await page.goto(`/?filter=${encodeFilterUrl(filter)}`);
-  expect((await response).ok()).toBeTruthy();
-  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
-  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
-  await expect(drawer.getByText("Chthonian", { exact: true })).toBeVisible();
-  await expect(
-    drawer.getByRole("combobox", { name: "Definition reference scope" }),
-  ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(drawer).toBeHidden();
-  expect(new URL(page.url()).searchParams.get("filter")).toBe(encodeFilterUrl(filter));
-});
-
 async function expectUsefulGlossaryDrawer(drawer: Locator) {
   await expect(drawer.getByRole("button", { name: /Explore|With this/ })).toHaveCount(
     0,
@@ -2796,14 +2767,25 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
   }
 });
 
-test("definition discovery preserves drafts while reading help and applies supplied property filters @engine", async ({
+test("field vocabulary Read preserves selected values and unfinished filter drafts @engine", async ({
   page,
 }, info) => {
   const initial = {
-    kind: "compare" as const,
-    field: "level_or_rank",
-    op: "gte" as const,
-    value: 0,
+    kind: "all_of" as const,
+    children: [
+      {
+        kind: "compare" as const,
+        field: "level_or_rank",
+        op: "gte" as const,
+        value: 0,
+      },
+      {
+        kind: "set_match" as const,
+        field: "languages",
+        op: "includes_any" as const,
+        values: ["chthonian"],
+      },
+    ],
   };
   await page.goto(`/search?filter=${encodeFilterUrl(initial)}`);
   await activate(
@@ -2815,21 +2797,16 @@ test("definition discovery preserves drafts while reading help and applies suppl
   await level.fill("unfinished");
   const draftUrl = page.url();
   await activate(
-    advanced.getByRole("button", { name: "Edit Definition values", exact: true }),
+    advanced.getByRole("button", { name: "Edit Languages values", exact: true }),
     info,
   );
-  const definitionSearch = page.getByRole("textbox", {
-    name: "Search definition choices",
+  const search = page.getByRole("textbox", {
+    name: "Search languages choices",
     exact: true,
   });
-  await definitionSearch.fill("Chthonian");
-  const choice = page.getByRole("button", {
-    name: "Definition: Chthonian, activate to select",
-    exact: true,
-  });
-  await activate(choice, info);
+  await search.fill("Chthonian");
   const selected = page.getByRole("button", {
-    name: "Definition: Chthonian, selected; activate to remove",
+    name: "Languages: Chthonian, selected; activate to remove",
     exact: true,
   });
   await expect(selected).toBeVisible();
@@ -2845,93 +2822,19 @@ test("definition discovery preserves drafts while reading help and applies suppl
   );
   await expect(help).toBeHidden();
   await expect(level).toHaveValue("unfinished");
-  await expect(definitionSearch).toHaveValue("Chthonian");
+  await expect(search).toHaveValue("Chthonian");
   await expect(selected).toBeVisible();
   await expect(read).toBeFocused();
-  await definitionSearch.press("Escape");
-  await level.fill("0");
+  await activate(read, info);
   await activate(
-    advanced.getByRole("button", { name: "Edit Definition values", exact: true }),
+    help.getByRole("link", { name: "Open reference full page", exact: true }),
     info,
   );
-  await expect(selected).toBeVisible();
-  const languageResults = page.waitForResponse((response) => {
-    if (!response.url().endsWith("/api/search/page")) return false;
-    const filter = response.request().postDataJSON()?.criteria?.filter;
-    return (
-      filter?.kind === "all_of" &&
-      filter.children.some(
-        (node: { kind: string; field?: string }) =>
-          node.kind === "set_match" && node.field === "languages",
-      )
-    );
-  });
-  await activate(
-    page
-      .getByRole("region", { name: "Filters for Chthonian", exact: true })
-      .getByRole("button", { name: "With this language", exact: true }),
-    info,
-  );
-  const languageResponse = await languageResults;
-  expect(languageResponse.ok()).toBeTruthy();
-  const languagePage = await languageResponse.json();
-  expect(languagePage.page.total).toBeGreaterThan(0);
-  expect(
-    languagePage.rows.map(
-      (row: { record: { record_key: string } }) => row.record.record_key,
-    ),
-  ).toContain(sentinel);
-  const languageFilter = decodeFilterUrl(
-    new URL(page.url()).searchParams.get("filter")!,
-  );
-  expect(languageFilter).toMatchObject({
-    kind: "all_of",
-    children: [
-      { kind: "compare", field: "level_or_rank", op: "gte", value: 0 },
-      { kind: "set_match", field: "languages", op: "includes", values: ["chthonian"] },
-    ],
-  });
-  expect(JSON.stringify(languageFilter)).not.toContain("definition_reference");
-  await definitionSearch.fill("Large");
-  const large = page.getByRole("button", {
-    name: "Definition: Large, activate to select",
-    exact: true,
-  });
-  await activate(large, info);
-  await expect(page.getByRole("link", { name: "Read Large", exact: true })).toHaveCount(
-    0,
-  );
-  const largeResults = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/search/page") &&
-      JSON.stringify(response.request().postDataJSON()?.criteria?.filter).includes(
-        '"body.size"',
-      ),
-  );
-  await activate(
-    page
-      .getByRole("region", { name: "Filters for Large", exact: true })
-      .getByRole("button", { name: "With this body size", exact: true }),
-    info,
-  );
-  const largePage = await (await largeResults).json();
-  expect(largePage.page.total).toBe(0);
-  expect(largePage.rows).toHaveLength(0);
-  expect(
-    JSON.stringify(decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!)),
-  ).not.toContain("definition_reference");
-  await definitionSearch.press("Escape");
-  await activate(advanced.getByRole("button", { name: "Close", exact: true }), info);
-  const emptyResults = page.getByRole("region", {
-    name: "Search results",
-    exact: true,
-  });
-  await expect(page.getByText("0 records", { exact: true })).toBeVisible();
-  await expect(emptyResults.locator("[data-record-key]")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/definitions\/language:chthonian$/);
   await expect(
-    page.getByRole("group", { name: "Result pages", exact: true }),
-  ).toHaveCount(0);
-
+    page.getByRole("heading", { name: "Chthonian", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await noPageOverflow(page);
 });
 

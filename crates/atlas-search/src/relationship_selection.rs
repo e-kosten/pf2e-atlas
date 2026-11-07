@@ -117,9 +117,6 @@ impl AtlasRetrievalService {
             QueryExpression::Relationship { relationship } => {
                 self.checked_relationship_selection(&relationship.selection)?;
             }
-            QueryExpression::DefinitionReference { reference } => {
-                self.checked_definition_reference_target(&reference.target)?;
-            }
             QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
                 for child in children {
                     self.check_relationship_leaves(child)?;

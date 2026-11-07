@@ -130,6 +130,9 @@ pub enum SearchModeSummary {
     SimilarTraits {
         trait_key: String,
         title: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        help: Option<crate::ReferenceHelpView>,
     },
     TraitReferences {
         trait_key: String,
@@ -205,26 +208,11 @@ pub struct SearchCoverageView {
     pub count_basis: String,
 }
 
-/// Executable reference condition, independent of its human label and reading destination.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ReferenceClauseConditionView {
-    Record {
-        relationship: Box<atlas_domain::QueryRelationship>,
-    },
-    Definition {
-        reference: atlas_domain::QueryDefinitionReference,
-    },
-}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipClauseSummaryView {
     pub clause_id: String,
-    pub condition: ReferenceClauseConditionView,
-    pub destination: Option<crate::ReferenceDestinationView>,
-    /// Supplemental actual-record metadata; never an identity or navigation fallback.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub record: Option<Box<RecordSummaryView>>,
+    pub relationship: atlas_domain::QueryRelationship,
+    pub record: RecordSummaryView,
     pub title: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -232,48 +220,20 @@ pub struct RelationshipClauseSummaryView {
 pub enum RelationshipClausePresentationView {
     Available {
         clause_id: String,
-        condition: ReferenceClauseConditionView,
-        destination: Option<crate::ReferenceDestinationView>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        record: Option<Box<RecordSummaryView>>,
+        relationship: atlas_domain::QueryRelationship,
+        record: Box<RecordSummaryView>,
         title: String,
     },
     Unavailable {
         clause_id: String,
-        condition: ReferenceClauseConditionView,
+        relationship: atlas_domain::QueryRelationship,
         message: String,
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ReferenceOccurrenceView {
-    Record {
-        occurrence: Box<crate::RecordRelationshipView>,
-        destination: Box<crate::ReferenceDestinationView>,
-    },
-    Definition {
-        occurrence: Box<DefinitionReferenceEvidenceView>,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct DefinitionReferenceEvidenceView {
-    pub source: atlas_domain::QueryDefinitionReferenceTarget,
-    pub source_destination: Option<crate::ReferenceDestinationView>,
-    pub source_title: String,
-    pub source_field: Option<String>,
-    pub target: atlas_domain::QueryDefinitionReferenceTarget,
-    pub target_destination: Option<crate::ReferenceDestinationView>,
-    pub target_title: String,
-    pub occurrence_path: String,
-    pub evidence: String,
-    pub label: Option<String>,
-    pub visible: bool,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipEvidenceView {
     pub clause_id: String,
-    pub occurrences: Vec<ReferenceOccurrenceView>,
+    pub occurrences: Vec<crate::RecordRelationshipView>,
     pub page: SearchPageView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -289,52 +249,8 @@ pub struct RelationshipOccurrencesPage {
     pub artifact_generation: String,
     pub clause: RelationshipClauseSummaryView,
     pub result_record: RecordSummaryView,
-    pub occurrences: Vec<ReferenceOccurrenceView>,
+    pub occurrences: Vec<crate::RecordRelationshipView>,
     pub page: SearchPageView,
-}
-
-#[cfg(test)]
-mod reference_reading_contract_tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn queryable_clause_and_evidence_keep_identity_with_explicit_null_reading() {
-        let identity = json!({"kind":"definition","key":"rule:pf2e:Fixture.Rule.Hidden"});
-        let condition =
-            json!({"kind":"definition","reference":{"target":identity,"include_contents":true}});
-        let clause: RelationshipClauseSummaryView = serde_json::from_value(json!({
-            "clause_id":"hidden", "condition":condition, "destination":null, "title":"Hidden rule"
-        }))
-        .unwrap();
-        let encoded = serde_json::to_value(clause).unwrap();
-        assert_eq!(encoded["condition"], condition);
-        assert_eq!(encoded.get("destination"), Some(&serde_json::Value::Null));
-        let presentation: RelationshipClausePresentationView = serde_json::from_value(json!({
-            "status":"available", "clause_id":"hidden", "condition":condition, "destination":null, "title":"Hidden rule"
-        })).unwrap();
-        assert_eq!(
-            serde_json::to_value(presentation)
-                .unwrap()
-                .get("destination"),
-            Some(&serde_json::Value::Null)
-        );
-        let evidence: DefinitionReferenceEvidenceView = serde_json::from_value(json!({
-            "source":identity, "source_destination":null, "source_title":"Hidden rule", "source_field":null,
-            "target":identity, "target_destination":null, "target_title":"Hidden rule", "occurrence_path":"/0", "evidence":"Fixture.Rule.Hidden", "label":null, "visible":true
-        })).unwrap();
-        let encoded = serde_json::to_value(evidence).unwrap();
-        assert_eq!(encoded["source"], identity);
-        assert_eq!(encoded["target"], identity);
-        assert_eq!(
-            encoded.get("source_destination"),
-            Some(&serde_json::Value::Null)
-        );
-        assert_eq!(
-            encoded.get("target_destination"),
-            Some(&serde_json::Value::Null)
-        );
-    }
 }
 
 #[cfg(test)]

@@ -24,20 +24,17 @@ vi.mock("../../api/atlasApi", async (original) => ({
 const target = detailFixture("rules:condition", "Condition").selected;
 const help = {
   definition_key: "trait:agile",
-  availability: "available" as const,
+
   destination: { kind: "definition" as const, key: "trait:agile" },
-  related_filters: [],
 };
 const definition: DefinitionDetailView = {
   definition_key: "trait:agile",
   label: "Agile",
   artifact_generation: "test-generation",
   help,
-  attribution: null,
+
   notices: [],
-  references: [],
-  references_availability: "available",
-  references_truncated: false,
+
   content: {
     body: {
       kind: "html",
@@ -47,6 +44,8 @@ const definition: DefinitionDetailView = {
     },
     references: [{ ordinal: 0, target, status: "resolved_record", url: null }],
   },
+  related_filters: [],
+  publications: [],
 };
 function setup() {
   history.replaceState(null, "", "/search");
@@ -183,9 +182,8 @@ it("honors explicit nested host actions while generation-only descendants retain
                 <ReferenceHelpLink
                   help={{
                     definition_key: null,
-                    availability: "available",
+
                     destination: { kind: "record", navigation: target },
-                    related_filters: [],
                   }}
                 >
                   Open scoped record

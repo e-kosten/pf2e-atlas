@@ -1,5 +1,5 @@
 use super::*;
-use crate::{BuildArtifactOptions, ReferenceSupplementSelection};
+use crate::BuildArtifactOptions;
 use atlas_index::{ReferenceCoverage, test_support};
 use rusqlite::Connection;
 use std::{fs, path::PathBuf};
@@ -42,9 +42,7 @@ fn structured_language_speakers_have_context_and_preserve_source_names() {
 #[test]
 fn prepared_language_speaker_context_is_readable_without_changing_other_prose() {
     let fixture = Fixture::new("pf2e");
-    fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
+    fixture.build().unwrap();
     for (key, expected) in [
         ("language:chthonian", "Spoken by demons"),
         (
@@ -180,13 +178,12 @@ impl Fixture {
         }
         fs::write(catalog_path, catalog.to_string()).unwrap();
     }
-    fn options(&self, selection: ReferenceSupplementSelection) -> BuildArtifactOptions {
+    fn options(&self) -> BuildArtifactOptions {
         BuildArtifactOptions {
             source_root: self.source.clone(),
             output_path: self.database.clone(),
             manifest_path: None,
             locale: "en".into(),
-            reference_supplement: selection,
             search_profiles: vec![],
             reuse_embeddings: true,
             reuse_passage_layouts: true,
@@ -212,15 +209,12 @@ impl Fixture {
         }
         fs::write(path, manifest.to_string()).unwrap();
     }
-    fn build(
-        &self,
-        selection: ReferenceSupplementSelection,
-    ) -> Result<crate::BuildArtifactReport, IngestError> {
+    fn build(&self) -> Result<crate::BuildArtifactReport, IngestError> {
         let workspace = test_support::initialize_workspace(&self.database).unwrap();
         crate::build_artifact(
             &workspace,
             test_support::TEST_WORKSPACE_SCHEMA_VERSION,
-            self.options(selection),
+            self.options(),
         )
     }
     fn entry(&self, key: &str) -> ReferenceEntry {
@@ -264,9 +258,7 @@ fn captured_pack_system_controls_only_new_associations_and_restores_on_omission(
         ] {
             fixture.pack_system(pack, system.clone());
         }
-        fixture
-            .build(ReferenceSupplementSelection::Bundled)
-            .unwrap();
+        fixture.build().unwrap();
         let reader = test_support::open_reader(&fixture.database).unwrap();
         assert_eq!(
             fixture.entry("sense:darkvision").availability,
@@ -343,13 +335,9 @@ fn captured_pack_system_controls_only_new_associations_and_restores_on_omission(
 #[test]
 fn pack_system_scope_is_owned_by_capture_without_tightening_manifest_admission() {
     let fixture = Fixture::new("pf2e");
-    let captured =
-        CapturedBuildInputs::capture(fixture.options(ReferenceSupplementSelection::Bundled))
-            .unwrap();
+    let captured = CapturedBuildInputs::capture(fixture.options()).unwrap();
     fixture.pack_system("items", Some(serde_json::json!("sf2e")));
-    let later =
-        CapturedBuildInputs::capture(fixture.options(ReferenceSupplementSelection::Bundled))
-            .unwrap();
+    let later = CapturedBuildInputs::capture(fixture.options()).unwrap();
     assert!(!captured.reference_pack_systems().contains_key("items"));
     assert_eq!(
         later.reference_pack_systems().get("items"),
@@ -372,9 +360,7 @@ fn pack_system_scope_is_owned_by_capture_without_tightening_manifest_admission()
 fn family_abilities_reuse_the_actual_body_with_authored_placeholders_and_custom_values() {
     let fixture = Fixture::new("pf2e");
     fixture.family_abilities();
-    fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
+    fixture.build().unwrap();
     for (id, name) in FAMILY_ABILITIES {
         let target: RecordKey = format!("bestiary-family-ability-glossary:{id}")
             .parse()
@@ -416,9 +402,7 @@ fn family_abilities_reuse_the_actual_body_with_authored_placeholders_and_custom_
     );
     fs::write(path, item.to_string()).unwrap();
     fs::remove_file(fixture.source.join("packs/family/WindUp.json")).unwrap();
-    fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
+    fixture.build().unwrap();
     let target: RecordKey = "bestiary-family-ability-glossary:r34QDwKiWZoVymJa"
         .parse()
         .unwrap();
@@ -451,21 +435,22 @@ fn family_abilities_reuse_the_actual_body_with_authored_placeholders_and_custom_
 #[test]
 fn source_free_publication_reuses_actual_record_and_preserves_authored_edge_scope() {
     let fixture = Fixture::new("pf2e");
-    let report = fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
+    let report = fixture.build().unwrap();
     assert_eq!(report.inferred_inputs, 0);
     atlas_index::validate_artifact(&fixture.database).unwrap();
     let reader = test_support::open_reader(&fixture.database).unwrap();
     assert_eq!(reader.reference_coverage(), ReferenceCoverage::Complete);
-    let (_, languages) = reader
-        .reference_entries(DefinitionNamespace::Language, 100, 100)
-        .unwrap();
-    assert_eq!(
-        languages, 119,
-        "supported zero-match vocabulary remains discoverable"
-    );
     drop(reader);
+    let connection = Connection::open(&fixture.database).unwrap();
+    let languages: usize = connection
+        .query_row(
+            "SELECT count(*) FROM reference_entries WHERE key LIKE 'language:%'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(languages, 119, "zero-match language entries are retained");
+    drop(connection);
     let sense = fixture.entry("sense:darkvision");
     assert_eq!(sense.availability, ReferenceAvailability::Available);
     assert_eq!(
@@ -580,9 +565,7 @@ fn unsupported_record_mapping_never_becomes_a_standalone_localization_fallback()
             }
             _ => (),
         }
-        fixture
-            .build(ReferenceSupplementSelection::Bundled)
-            .unwrap();
+        fixture.build().unwrap();
         let rule = fixture.entry("rule:pf2e:PF2E.NPC.Abilities.Glossary.Darkvision");
         assert_eq!(rule.availability, availability, "{case}");
         assert_eq!(rule.backing, ReferenceBacking::None);
@@ -611,9 +594,7 @@ fn known_source_attribution_does_not_withhold_updated_description() {
     let mut catalog: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
     catalog[AIR] = serde_json::json!("Updated source wording for the Air domain.");
     fs::write(path, catalog.to_string()).unwrap();
-    fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
+    fixture.build().unwrap();
     let entry = fixture.entry("domain:air");
     assert_eq!(entry.availability, ReferenceAvailability::Available);
     let ReferenceBacking::Prepared { content, .. } = entry.backing else {
@@ -652,7 +633,7 @@ fn selected_labels_and_traits_keep_their_locale_while_approved_bodies_use_englis
         .to_string(),
     )
     .unwrap();
-    let mut options = fixture.options(ReferenceSupplementSelection::Bundled);
+    let mut options = fixture.options();
     options.locale = "fr".into();
     let workspace = test_support::initialize_workspace(&fixture.database).unwrap();
     crate::build_artifact(
@@ -687,14 +668,10 @@ fn selected_labels_and_traits_keep_their_locale_while_approved_bodies_use_englis
 }
 
 #[test]
-fn incremental_notice_change_removal_and_failed_asset_keep_committed_state_honest() {
+fn incremental_notice_change_and_removal_update_attribution() {
     let fixture = Fixture::new("pf2e");
-    fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
-    let report = fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
+    fixture.build().unwrap();
+    let report = fixture.build().unwrap();
     assert_eq!(report.inferred_inputs, 0);
     assert_eq!(report.source_report.reused_preparations, 2);
     let before = test_support::open_reader(&fixture.database)
@@ -703,11 +680,10 @@ fn incremental_notice_change_removal_and_failed_asset_keep_committed_state_hones
         .reference_preparation
         .clone()
         .unwrap();
-    let source_fingerprint =
-        CapturedBuildInputs::capture(fixture.options(ReferenceSupplementSelection::Bundled))
-            .unwrap()
-            .fingerprint()
-            .clone();
+    let source_fingerprint = CapturedBuildInputs::capture(fixture.options())
+        .unwrap()
+        .fingerprint()
+        .clone();
     let notice_path = fixture.source.join("static/licenses/ORCLicense.md");
     let text = fs::read_to_string(&notice_path).unwrap();
     fs::write(
@@ -715,18 +691,14 @@ fn incremental_notice_change_removal_and_failed_asset_keep_committed_state_hones
         format!("{text}\nUpdated source attribution.\n"),
     )
     .unwrap();
-    let inputs =
-        CapturedBuildInputs::capture(fixture.options(ReferenceSupplementSelection::Bundled))
-            .unwrap();
+    let inputs = CapturedBuildInputs::capture(fixture.options()).unwrap();
     assert_eq!(
         inputs.fingerprint(),
         &source_fingerprint,
         "notice updates do not falsify Foundry record provenance"
     );
     assert_ne!(inputs.reference_inputs_identity(), before.input_hash);
-    fixture
-        .build(ReferenceSupplementSelection::Bundled)
-        .unwrap();
+    fixture.build().unwrap();
     assert!(
         test_support::open_reader(&fixture.database)
             .unwrap()
@@ -736,48 +708,8 @@ fn incremental_notice_change_removal_and_failed_asset_keep_committed_state_hones
             .text
             .ends_with("Updated source attribution.\n")
     );
-    let revision = test_support::open_reader(&fixture.database)
-        .unwrap()
-        .artifact_instance()
-        .reference_revision();
-    assert!(
-        fixture
-            .build(ReferenceSupplementSelection::Directory {
-                path: fixture.directory.path().join("missing-required-asset")
-            })
-            .is_err()
-    );
-    assert_eq!(
-        test_support::open_reader(&fixture.database)
-            .unwrap()
-            .artifact_instance()
-            .reference_revision(),
-        revision
-    );
-    assert_eq!(
-        fixture.entry("language:chthonian").availability,
-        ReferenceAvailability::Available
-    );
-    fixture
-        .build(ReferenceSupplementSelection::Absent {
-            revision: "removed/v2".into(),
-        })
-        .unwrap();
-    assert_eq!(
-        fixture.entry("language:chthonian").backing,
-        ReferenceBacking::None
-    );
-    assert_eq!(
-        fixture.entry("domain:air").availability,
-        ReferenceAvailability::Available,
-        "removing supplemental context does not remove source-localized content"
-    );
     fs::remove_file(&notice_path).unwrap();
-    fixture
-        .build(ReferenceSupplementSelection::Absent {
-            revision: "removed/v2".into(),
-        })
-        .unwrap();
+    fixture.build().unwrap();
     assert_eq!(
         fixture.entry("domain:air").availability,
         ReferenceAvailability::PermissionUnresolved
@@ -800,7 +732,6 @@ fn pinned_source_all_approved_standalone_policies_are_readable() {
         output_path: directory.path().join("unused.sqlite"),
         manifest_path: None,
         locale: "en".into(),
-        reference_supplement: ReferenceSupplementSelection::Bundled,
         search_profiles: vec![],
         reuse_embeddings: true,
         reuse_passage_layouts: true,

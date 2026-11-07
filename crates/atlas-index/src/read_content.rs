@@ -214,39 +214,6 @@ pub(crate) fn relationship_row(
     })
 }
 impl SqliteIndexReader {
-    /// Bounded exact hydration for already-selected graph evidence IDs. The
-    /// canonical row reader remains the only relationship decoding policy.
-    pub(crate) fn relationship_occurrences_by_id(
-        &self,
-        ids: &[i64],
-    ) -> Result<Vec<(i64, SourceStoredRelationship)>, IndexError> {
-        if ids.len() > 100 {
-            return Err(IndexError::Invalid(
-                "relationship evidence batch exceeds 100 identifiers".into(),
-            ));
-        }
-        let ids: Vec<i64> = ids
-            .iter()
-            .copied()
-            .collect::<std::collections::BTreeSet<_>>()
-            .into_iter()
-            .collect();
-        if ids.is_empty() {
-            return Ok(vec![]);
-        }
-        self.count_statement();
-        let mut statement = self.native()?.prepare(&format!("{RELATIONSHIP_SELECT} WHERE o.occurrence_id IN (SELECT value FROM json_each(?1)) ORDER BY o.occurrence_id"))?;
-        let rows = statement
-            .query_map([serde_json::to_string(&ids)?], relationship_row)?
-            .collect::<Result<Vec<_>, _>>()?;
-        if rows.len() != ids.len() {
-            return Err(IndexError::Invalid(
-                "selected relationship evidence is unavailable".into(),
-            ));
-        }
-        Ok(ids.into_iter().zip(rows).collect())
-    }
-
     fn checked_content_fields(
         &self,
         c: &rusqlite::Connection,

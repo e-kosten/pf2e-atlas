@@ -90,25 +90,6 @@ export function appendLink(
     : leaf;
 }
 
-export function sameReferenceCondition(
-  left: import("../../generated/atlas").ReferenceClauseConditionView,
-  right: import("../../generated/atlas").ReferenceClauseConditionView,
-): boolean {
-  if (left.kind === "record" && right.kind === "record")
-    return sameRelationship(left.relationship, right.relationship);
-  if (left.kind !== "definition" || right.kind !== "definition") return false;
-  const a = left.reference.target;
-  const b = right.reference.target;
-  return (
-    left.reference.include_contents === right.reference.include_contents &&
-    (a.kind === "definition" && b.kind === "definition"
-      ? a.key === b.key
-      : a.kind === "record" &&
-        b.kind === "record" &&
-        sameSelection(a.selection, b.selection))
-  );
-}
-
 export type LinkLeaf = Extract<
   QueryPredicate,
   {

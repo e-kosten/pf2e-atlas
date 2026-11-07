@@ -5,6 +5,7 @@ import type { FilterEditorFieldView, FilterEditorView } from "../../generated/at
 import type { FilterPanelState } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
 import { numericLiteral } from "./queryBuilder";
+import { transitionOperand } from "./operatorTransitions";
 
 /** A compact presentation of one same-entry conjunction, using catalog member IDs. */
 export function CollectionValueInput({
@@ -30,8 +31,12 @@ export function CollectionValueInput({
   const amount = fields.find(
     (candidate) => candidate.definition.id === control.amount_field_id,
   );
+  const qualifier = fields.find(
+    (candidate) => candidate.definition.id === control.qualifier_field_id,
+  );
   const rules = query.rules as RuleType[];
   const categoryRule = rules.find((rule) => rule.field === control.category_field_id);
+  const qualifierRule = rules.find((rule) => rule.field === control.qualifier_field_id);
   const amountRule = rules.find((rule) => rule.field === control.amount_field_id);
   let amountError: string | null = null;
   if (amountRule?.value != null && String(amountRule.value).trim()) {
@@ -58,6 +63,32 @@ export function CollectionValueInput({
   }
   return (
     <div className="filter-collection-compact">
+      {qualifier && (
+        <Select
+          aria-label={category.label + " match"}
+          value={categoryRule?.operator ?? "eq"}
+          options={category.operators
+            .filter((operator) => ["eq", "in"].includes(operator.operator))
+            .map((operator) => ({ value: operator.operator, label: operator.label }))}
+          onChange={(operator) => {
+            const previous = category.operators.find(
+              (entry) => entry.operator === (categoryRule?.operator ?? "eq"),
+            );
+            const next = category.operators.find(
+              (entry) => entry.operator === operator,
+            )!;
+            replace(
+              category.definition.id,
+              operator,
+              transitionOperand(
+                previous?.operand ?? null,
+                next.operand,
+                categoryRule?.value ?? "",
+              ),
+            );
+          }}
+        />
+      )}
       <FilterValueInput
         field={category}
         operator={categoryRule?.operator ?? "eq"}
@@ -77,6 +108,27 @@ export function CollectionValueInput({
         countLimit={editor.limits.literal_list}
         clauseId={categoryRule?.id ?? null}
       />
+      {qualifier && (
+        <FilterValueInput
+          field={qualifier}
+          operator="eq"
+          value={qualifierRule?.value ?? ""}
+          onChange={(value) =>
+            value === "" || value == null
+              ? onChange({
+                  ...query,
+                  rules: rules.filter((rule) => rule !== qualifierRule),
+                })
+              : replace(qualifier.definition.id, "eq", value)
+          }
+          scope={workspace.vocabularyScope ?? { kind: "artifact" }}
+          countContext={workspace.filterDiscoveryContext}
+          countsEnabled={workspace.filterCountsEnabled !== false}
+          countQueryKey={workspace.filterCountQueryKey}
+          countLimit={editor.limits.literal_list}
+          clauseId={qualifierRule?.id ?? null}
+        />
+      )}
       {amount && (
         <div className="filter-collection-amount">
           {!showAmount && !amountRule ? (
@@ -153,6 +205,7 @@ export function isCompactCollection(
     return (
       (rule.field === control.category_field_id &&
         ["eq", "in"].includes(rule.operator)) ||
+      (rule.field === control.qualifier_field_id && rule.operator === "eq") ||
       (rule.field === control.amount_field_id &&
         ["eq", "neq", "gt", "gte", "lt", "lte"].includes(rule.operator))
     );

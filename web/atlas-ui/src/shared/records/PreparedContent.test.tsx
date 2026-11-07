@@ -960,9 +960,8 @@ it.each([
                   trait_key: "trait:mental",
                   help: {
                     definition_key: "trait:mental",
-                    availability: "available",
+
                     destination: { kind: "definition", key: "trait:mental" },
-                    related_filters: [],
                   },
                 },
                 {
@@ -970,12 +969,7 @@ it.each([
                   value: "fire",
                   label: "Fire",
                   trait_key: "trait:fire",
-                  help: {
-                    definition_key: "trait:fire",
-                    availability: "label_only",
-                    destination: null,
-                    related_filters: [],
-                  },
+                  help: undefined,
                 },
                 {
                   kind: "trait",

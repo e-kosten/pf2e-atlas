@@ -29,13 +29,10 @@ pub use source_address::{
     InvalidSourceByteRange, OwnedContentIdentity, OwnedContentLocator, SourceByteRange,
     SourcePassageAddress,
 };
-mod query_definition;
 mod query_relationship;
-pub use query_definition::{QueryDefinitionReference, QueryDefinitionReferenceTarget};
 pub use query_relationship::{
-    QueryRecordSelection, QueryReferenceClause, QueryRelationship, QueryRelationshipDirection,
-    assign_relationship_clause_ids, definition_reference_clauses, reference_clauses,
-    relationship_clauses, select_relationship_clause_id,
+    QueryRecordSelection, QueryRelationship, QueryRelationshipDirection,
+    assign_relationship_clause_ids, relationship_clauses, select_relationship_clause_id,
 };
 
 pub use categories::RecordKind;

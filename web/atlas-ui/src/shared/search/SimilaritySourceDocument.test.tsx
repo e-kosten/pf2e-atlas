@@ -1,3 +1,4 @@
+import { ReferenceHelpHost } from "../records/ReferenceHelpHost";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -62,7 +63,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <RouterTestContext>{children}</RouterTestContext>
+        <RouterTestContext>
+          <ReferenceHelpHost>{children}</ReferenceHelpHost>
+        </RouterTestContext>
       </ConfigProvider>
     </QueryClientProvider>
   );

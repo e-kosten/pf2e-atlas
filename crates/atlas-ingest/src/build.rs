@@ -166,7 +166,6 @@ impl CapturedBuildInputs {
             .and_then(serde_json::Value::as_str);
         let reference_supplement =
             crate::reference_supplement::ReferenceSupplementCapture::capture(
-                &options.reference_supplement,
                 package,
                 version,
                 &options.locale,

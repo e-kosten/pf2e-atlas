@@ -10,7 +10,7 @@ const render = (ui: React.ReactNode) =>
 
 const help = {
   definition_key: "weapon_group:bow",
-  availability: "available" as const,
+
   destination: {
     kind: "record" as const,
     navigation: {
@@ -21,7 +21,6 @@ const help = {
       source_fingerprint: null,
     },
   },
-  related_filters: [],
 };
 
 describe("authored equipment facts", () => {

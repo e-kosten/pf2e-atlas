@@ -1,3 +1,4 @@
+import { ReferenceHelpHost } from "../records/ReferenceHelpHost";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { detailFixture } from "../../test/fixtures";
@@ -17,7 +18,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <RouterTestContext>{children}</RouterTestContext>
+        <RouterTestContext>
+          <ReferenceHelpHost>{children}</ReferenceHelpHost>
+        </RouterTestContext>
       </ConfigProvider>
     </QueryClientProvider>
   );
@@ -95,16 +98,15 @@ it("keeps supplied readable trait seed links on the native trait destination", a
     label: "Fire",
     help: {
       definition_key: "trait:fire",
-      availability: "available",
+
       destination: { kind: "definition", key: "trait:fire" },
-      related_filters: [],
     },
     content: { body: { kind: "plain", text: "Fire rules." }, references: [] },
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    related_filters: [],
+    publications: [],
   });
   render(
     <SearchEntry
@@ -113,6 +115,11 @@ it("keeps supplied readable trait seed links on the native trait destination", a
       similar={{
         seed: { kind: "trait", trait_key: "trait:fire" },
         title: "Fire",
+        help: {
+          definition_key: "trait:fire",
+          destination: { kind: "definition", key: "trait:fire" },
+        },
+        generation: "test-generation",
         onClear: vi.fn(),
         onSearch: vi.fn(),
       }}

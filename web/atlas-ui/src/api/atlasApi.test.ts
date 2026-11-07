@@ -9,7 +9,6 @@ import {
   getRelatedRecords,
   getTraitDetail,
   getDefinitionDetail,
-  getDefinitionFilterOptions,
   getTraitRecords,
   searchPage,
   getRelationshipOccurrences,
@@ -38,9 +37,7 @@ import {
 } from "./atlasApi";
 import type {
   EncounterMutationView,
-  DefinitionDetailView,
   RelationshipOccurrencesPage,
-  SearchResultsPage,
   UpdateEncounterParticipantRequest,
 } from "../generated/atlas";
 import { participantUpdate } from "../features/encounters/participantEdits";
@@ -1242,8 +1239,8 @@ it("posts exact relationship evidence pages and normalizes occurrence totals", a
     artifact_generation: "generation-a",
     clause: {
       clause_id: "link",
-      condition: { kind: "record", relationship: constraint },
-      destination: { kind: "record", navigation: constraint.selection },
+      relationship: constraint,
+
       record: summaryFixture("items:armor", "Leather Armor"),
       title: "Leather Armor",
     },
@@ -1271,142 +1268,6 @@ it("posts exact relationship evidence pages and normalizes occurrence totals", a
     expect.objectContaining({ method: "POST", signal: controller.signal }),
   );
   expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(request);
-});
-
-it("preserves proof identity separately from nullable reading across search, paging and discovery", async () => {
-  const target = { kind: "definition" as const, key: "rule:pf2e:Fixture.Rule.Hidden" };
-  const source = {
-    record_key: "actors:goblin",
-    embedded_path: [{ collection: "/items", identity: { Stable: "owned-ability" } }],
-    field: null,
-    passage: null,
-    source_fingerprint: "exact-source",
-  };
-  const reference = { target, include_contents: true };
-  const clause = {
-    clause_id: "hidden",
-    condition: { kind: "definition" as const, reference },
-    destination: null,
-    title: "Hidden rule",
-  };
-  const proof = {
-    kind: "definition" as const,
-    occurrence: {
-      source: { kind: "record" as const, selection: source },
-      source_destination: { kind: "record" as const, navigation: source },
-      source_title: "Owned custom ability",
-      source_field: "/system/description/value",
-      target,
-      target_destination: null,
-      target_title: "Hidden rule",
-      occurrence_path: "description:localize:4",
-      evidence: "localization",
-      label: null,
-      visible: true,
-    },
-  };
-  const page = {
-    number: 1,
-    size: 5,
-    count: 1,
-    total: 1,
-    has_more: false,
-    next_page: null,
-  };
-  const filter = {
-    kind: "definition_reference" as const,
-    clause_id: "hidden",
-    reference,
-  };
-  const occurrencePage = {
-    artifact_generation: "generation-a",
-    clause,
-    result_record: summaryFixture("actors:goblin", "Goblin"),
-    occurrences: [proof],
-    page,
-  } satisfies Wire<RelationshipOccurrencesPage>;
-  respond(occurrencePage);
-  const occurrenceResult = await getRelationshipOccurrences({
-    filter,
-    clause_id: "hidden",
-    result_record_key: "actors:goblin",
-    page: { number: 1, size: 5 },
-    expected_artifact_generation: "generation-a",
-  });
-  expect(occurrenceResult.clause.destination).toBeNull();
-  expect(occurrenceResult.clause.condition).toEqual(clause.condition);
-  expect(occurrenceResult.occurrences).toEqual([proof]);
-  expect(occurrenceResult.page.total).toBe(1n);
-
-  const resultPage = {
-    search_content: "all",
-    sort: { kind: "relevance" },
-    ranking: "score",
-    search_profile: "embeddinggemma",
-    artifact_generation: "generation-a",
-    mode: { kind: "list_records" },
-    relationship_clauses: [clause],
-    rows: [
-      {
-        record: occurrencePage.result_record,
-        matches: [],
-        relationship_evidence: [{ clause_id: "hidden", occurrences: [proof], page }],
-      },
-    ],
-    page,
-    coverage: null,
-  } satisfies Wire<SearchResultsPage>;
-  respond(resultPage);
-  const result = await searchPage({
-    criteria: { kind: "list_records", filter },
-    page: { number: 1, size: 5 },
-    expected_artifact_generation: "generation-a",
-  });
-  expect(result.relationship_clauses[0]).toEqual(clause);
-  expect(result.rows[0].relationship_evidence[0].occurrences).toEqual([proof]);
-  expect(result.rows[0].relationship_evidence[0].page.total).toBe(1n);
-  expect(JSON.parse(fetchMock.mock.calls[1][1].body).criteria.filter).toEqual(filter);
-
-  const presentation = { status: "available", ...clause };
-  respond({ relationship_clauses: [presentation] });
-  const discovery = await discoverFilterEditor({ filter, selected_field_ids: [] });
-  expect(discovery.relationship_clauses).toEqual([presentation]);
-});
-
-it("retains outgoing definition target identity when reading is unavailable", async () => {
-  const target = { kind: "definition" as const, key: "rule:pf2e:Fixture.Rule.Hidden" };
-  const result = {
-    artifact_generation: "generation-a",
-    definition_key: "language:chthonian",
-    label: "Chthonian",
-    help: {
-      definition_key: "language:chthonian",
-      availability: "available",
-      destination: { kind: "definition", key: "language:chthonian" },
-      related_filters: [],
-    },
-    content: { body: { kind: "plain", text: "Language context." }, references: [] },
-    attribution: null,
-    notices: [],
-    references: [
-      {
-        target,
-        destination: null,
-        occurrence_path: "definition:1",
-        label: "Hidden rule",
-      },
-    ],
-    references_availability: "available",
-    references_truncated: false,
-  } satisfies Wire<DefinitionDetailView>;
-  respond(result);
-  const detail = await getDefinitionDetail({
-    definition_key: "language:chthonian",
-    expected_artifact_generation: "generation-a",
-  });
-  expect(detail.references).toEqual(result.references);
-  expect(detail.references[0].target).toEqual(target);
-  expect(detail.references[0].destination).toBeNull();
 });
 
 it("normalizes recovery source associations for both check and non-check offers", async () => {
@@ -1731,7 +1592,7 @@ it("reads exact definition detail and preserves absent content and the record de
     label: "Darkvision",
     help: {
       definition_key: "sense:darkvision",
-      availability: "available",
+
       destination: {
         kind: "record",
         navigation: {
@@ -1742,14 +1603,13 @@ it("reads exact definition detail and preserves absent content and the record de
           source_fingerprint: null,
         },
       },
-      related_filters: [],
     },
     content: null,
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    related_filters: [],
+    publications: [],
   };
   respond(result);
   expect(
@@ -1770,48 +1630,4 @@ it("reads exact definition detail and preserves absent content and the record de
       expected_artifact_generation: null,
     }),
   ).rejects.toBeInstanceOf(AtlasApiError);
-});
-it("normalizes complete definition-option totals without inventing contextual counts", async () => {
-  respond({
-    artifact_generation: "generation-a",
-    total: 2549,
-    options: [],
-    selected: [],
-  });
-  const response = await getDefinitionFilterOptions({
-    text: "common",
-    offset: 0,
-    limit: 10,
-    selected: [],
-    expected_artifact_generation: null,
-  });
-  expect(response.total).toBe(2549n);
-  expect(response).not.toHaveProperty("distinct_roots");
-  expect(fetchMock.mock.calls[0][0]).toBe("/api/filters/definitions");
-});
-
-it("keeps definition totals exact and rejects unsafe wire counters", async () => {
-  const request = {
-    text: null,
-    offset: 0,
-    limit: 10,
-    selected: [],
-    expected_artifact_generation: null,
-  };
-  respond({
-    artifact_generation: "generation-a",
-    total: Number.MAX_SAFE_INTEGER,
-    options: [],
-    selected: [],
-  });
-  expect((await getDefinitionFilterOptions(request)).total).toBe(9007199254740991n);
-  respond({
-    artifact_generation: "generation-a",
-    total: Number.MAX_SAFE_INTEGER + 1,
-    options: [],
-    selected: [],
-  });
-  await expect(getDefinitionFilterOptions(request)).rejects.toThrow(
-    "Invalid numeric field",
-  );
 });

@@ -1,11 +1,6 @@
 import type { RuleGroupType } from "react-querybuilder";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import { normalizeBuilderEdit } from "./builderEdits";
-import {
-  builderPredicate,
-  predicateBuilder,
-  DEFINITION_CONDITION,
-} from "./queryBuilder";
 
 const kind = fieldFixture("kind");
 const collection = fieldFixture("embedded.equipment", "collection");
@@ -103,47 +98,5 @@ describe("atomic builder edits", () => {
     expect(normalizeBuilderEdit(previous, next, fields, null).rules[0]).toMatchObject({
       value: { rules: [{ value: "Staff of Fire" }] },
     });
-  });
-});
-
-it("retains exact definition references through builder edits and omits only a cleared leaf", () => {
-  const definition = {
-    kind: "definition_reference" as const,
-    clause_id: "definition",
-    reference: {
-      target: { kind: "definition" as const, key: "language:chthonian" },
-      include_contents: false,
-    },
-  };
-  const sibling = {
-    kind: "compare" as const,
-    clause_id: "kind",
-    field: "kind",
-    op: "eq" as const,
-    value: "creature",
-  };
-  const predicate = {
-    kind: "any_of" as const,
-    clause_id: "root",
-    children: [
-      { kind: "not" as const, clause_id: "negative", predicate: definition },
-      sibling,
-    ],
-  };
-  const draft = predicateBuilder(predicate, [kind]);
-  expect(builderPredicate(draft, [kind])).toEqual(predicate);
-  const changed = {
-    ...draft,
-    rules: draft.rules.map((rule) =>
-      "rules" in rule || rule.field !== DEFINITION_CONDITION
-        ? rule
-        : { ...rule, value: undefined },
-    ),
-  };
-  const normalized = normalizeBuilderEdit(draft, changed, fields, null);
-  expect(builderPredicate(normalized, [kind])).toEqual({
-    kind: "any_of",
-    clause_id: "root",
-    children: [sibling],
   });
 });

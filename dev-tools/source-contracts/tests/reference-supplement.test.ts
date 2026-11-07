@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { extractReferenceSupplement, prepareReferenceSupplementCandidate, referenceSupplementDiff,
+import { approvedReferenceData, extractReferenceSupplement, prepareReferenceSupplementCandidate, referenceSupplementDiff,
   sourceTagText, type SupplementMappings } from '../src/comparison/reference-supplement.js';
 
 const mapping: SupplementMappings = { schema: 'pc1-reference-mappings/v1',
@@ -67,32 +67,25 @@ test('candidate diffs retain exact text, mapping/removal and notice evidence ind
 test('maintainer candidate writes a new review artifact without changing approved inputs', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-reference-candidate-'));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const assets = path.join(root, 'approved'); await mkdir(assets);
   const payload = extractReferenceSupplement({ language: [language('Common')] }, { group: [group('Crossbow')] }, mapping);
-  const manifest = { schema: 1, recipe: 'pc1-reference-subset/v1', permission_recipe: 'permission/v1',
-    mapping_recipe: 'mapping/v1', source_repository: 'https://github.com/Pf2eToolsOrg/Pf2eTools',
-    source_commit: 'a'.repeat(40), source_files: {}, files: { 'notices.json': 'old' }, selection: {} };
-  for (const [file, value] of Object.entries({ 'manifest.json': JSON.stringify(manifest), 'payload.json': JSON.stringify(payload),
-    'notices.json': '{"notices":[]}', 'orc-license.pdf': 'fixture ORC bytes', 'community-use-policy.pdf': 'fixture CUP bytes' })) await writeFile(path.join(assets, file), value);
-  const languages = path.join(root, 'languages.json'), groups = path.join(root, 'groups.json'), mappings = path.join(root, 'mapping.json');
+  const languages = path.join(root, 'languages.json'), groups = path.join(root, 'groups.json');
   await writeFile(languages, JSON.stringify({ language: [language('Common')] }));
   await writeFile(groups, JSON.stringify({ group: [group('Crossbow'), group('Crossbow')] }));
-  await writeFile(mappings, JSON.stringify(mapping));
-  const original = await readFile(path.join(assets, 'manifest.json'));
-  const args = { languages, groups, mappings, sourceCommit: 'b'.repeat(40), assets, before: assets, out: path.join(root, 'candidate') };
+  const original = await readFile(path.join(approvedReferenceData, 'manifest.json'));
+  const args = { languages, groups, sourceCommit: 'b'.repeat(40), out: path.join(root, 'candidate') };
   const result = await prepareReferenceSupplementCandidate(args);
   assert.equal(result.entries, 2);
-  assert.deepEqual(await readFile(path.join(assets, 'manifest.json')), original);
+  assert.deepEqual(await readFile(path.join(approvedReferenceData, 'manifest.json')), original);
   assert.deepEqual(JSON.parse(await readFile(path.join(args.out, 'payload.json'), 'utf8')), payload);
-  assert.deepEqual(await readFile(path.join(args.out, 'orc-license.pdf')), await readFile(path.join(assets, 'orc-license.pdf')));
+  assert.deepEqual(await readFile(path.join(args.out, 'orc-license.pdf')), await readFile(path.join(approvedReferenceData, 'orc-license.pdf')));
   const selected = JSON.parse(await readFile(path.join(args.out, 'manifest.json'), 'utf8'));
   assert.equal(selected.source_commit, 'b'.repeat(40));
   assert.match(selected.source_files['data/languages.json'].sha256, /^[a-f0-9]{64}$/);
   assert.ok((await readdir(args.out)).includes('changes.json'));
   await assert.rejects(prepareReferenceSupplementCandidate(args), /already exists/);
-  await assert.rejects(prepareReferenceSupplementCandidate({ ...args, out: path.join(assets, 'nested') }), /separate/);
+  await assert.rejects(prepareReferenceSupplementCandidate({ ...args, out: path.join(approvedReferenceData, 'nested') }), /separate/);
   if (process.platform !== 'win32') {
-    const link = path.join(root, 'linked-approved'); await symlink(assets, link);
+    const link = path.join(root, 'linked-approved'); await symlink(approvedReferenceData, link);
     await assert.rejects(prepareReferenceSupplementCandidate({ ...args, out: path.join(link, 'escaped') }), /separate/);
   }
 });

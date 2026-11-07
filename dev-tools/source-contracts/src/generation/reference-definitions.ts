@@ -13,7 +13,6 @@ export interface ReferenceDefinition {
 }
 export interface ReferenceCatalog {
   digest: string; definitions: ReferenceDefinition[];
-  records: { key: string; family: string }[];
 }
 export interface ReferenceRegistry {
   schema: 'reference-definition-registry/v1'; source_package: 'pf2e';
@@ -34,7 +33,7 @@ function canonical(value: unknown): string {
     .map(([key, entry]) => JSON.stringify(key) + ':' + canonical(entry)).join(',') + '}';
   return JSON.stringify(value);
 }
-export const referencePackFolders = ['actions', 'bestiary-ability-glossary-srd', 'bestiary-family-ability-glossary', 'conditions'];
+export const referencePackFolders = ['bestiary-ability-glossary-srd', 'bestiary-family-ability-glossary'];
 export const referenceAdditionalPaths = [
   ...referencePackFolders.map(folder => 'packs/pf2e/' + folder),
   'packs/pf2e/class-features/wildsong.json',
@@ -106,7 +105,7 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
     if (packs.length !== 1 || packs[0].type !== 'Item' || packs[0].system !== 'pf2e' || typeof packs[0].name !== 'string')
       throw new Error('Reference pack mapping changed: ' + folder);
     for (const [file, bytes] of documents) if (file.startsWith('packs/pf2e/' + folder + '/') && !file.endsWith('/_folders.json')) {
-      const data = object(JSON.parse(bytes.toString())), family = folder === 'conditions' ? 'condition' : 'action';
+      const data = object(JSON.parse(bytes.toString())), family = 'action';
       if (typeof data._id !== 'string' || !/^[A-Za-z0-9]{16}$/.test(data._id) || data.type !== family)
         throw new Error('Invalid reference record identity: ' + file);
       const key = packs[0].name + ':' + data._id;
@@ -237,7 +236,7 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
     }
     if (!record && !registry.standalone_labels[suffix]) throw new Error('Unreviewed standalone NPC label: ' + suffix);
     if (record && (typeof record.data.name !== 'string' || !record.data.name.trim())) throw new Error('Missing NPC wrapper title');
-    add('rule', 'pf2e:' + key, null, key, 'static/lang/en.json', localizationLines.get(key)!, ['definition_reference'], {
+    add('rule', 'pf2e:' + key, null, key, 'static/lang/en.json', localizationLines.get(key)!, [], {
       displayLabel: record ? record.data.name as string : registry.standalone_labels[suffix], excluded,
       recordKey: record?.key ?? null, expectedFamily: record?.family ?? null,
       requiredLocalizationKey: record ? key : null,
@@ -276,7 +275,6 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
   definitions.sort((a, b) => compare(a.namespace, b.namespace) || compare(a.identifier, b.identifier));
   if (new Set(definitions.map(definition => definition.namespace + ':' + definition.identifier)).size !== definitions.length)
     throw new Error('Duplicate reference definition identity');
-  const records = [...selected.values()].map(({ key, family }) => ({ key, family })).sort((a, b) => compare(a.key, b.key));
-  return { digest: sha('reference-catalog/v1:' + inputs.digest + ':' + canonical(registry)
-    + ':' + canonical({ definitions, records })), definitions, records };
+  return { digest: sha('reference-catalog/v2:' + inputs.digest + ':' + canonical(registry)
+    + ':' + canonical(definitions)), definitions };
 }

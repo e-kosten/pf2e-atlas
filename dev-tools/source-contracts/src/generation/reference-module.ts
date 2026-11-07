@@ -45,10 +45,5 @@ ${catalog.definitions.map(definition => `    FoundryReferenceDefinition {
 ];
 pub fn reference_definitions() -> &'static [FoundryReferenceDefinition] { DEFINITIONS }
 
-static GLOSSARY_RECORDS: &[(&str, &str)] = &[
-${catalog.records.map(record => `    (${quote(record.key)}, ${quote(record.family)}),`).join('\n')}
-];
-pub fn foundry_glossary_records() -> &'static [(&'static str, &'static str)] { GLOSSARY_RECORDS }
-
 `;
 }

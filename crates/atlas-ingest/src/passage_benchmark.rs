@@ -162,7 +162,6 @@ fn published_layout_reuse_full_corpus_benchmark() {
         output_path: index.clone(),
         manifest_path: None,
         locale: "en".into(),
-        reference_supplement: crate::ReferenceSupplementSelection::default(),
         search_profiles: atlas_embedding::SEARCH_PROFILES
             .iter()
             .map(|profile| {

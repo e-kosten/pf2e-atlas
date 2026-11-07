@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, readFile, readdir, realpath, rename, rm, writeFile } fr
 import path from 'node:path';
 import { contains, packageRoot, repositoryRoot } from '../generation/pinned-source.js';
 
+export const approvedReferenceData = path.join(repositoryRoot, 'crates/atlas-ingest/reference-data');
+
 export interface SupplementMappings {
   schema: 'pc1-reference-mappings/v1'; languages: Record<string, string>;
   weapon_groups: Record<string, string>; wildsong_existing_record: string;
@@ -100,8 +102,7 @@ export function referenceSupplementDiff(before: SupplementPayload, after: Supple
 }
 
 export async function prepareReferenceSupplementCandidate(args: {
-  languages: string; groups: string; sourceCommit: string; assets: string; before: string; out: string;
-  mappings?: string;
+  languages: string; groups: string; sourceCommit: string; out: string;
 }) {
   if (!/^[a-f0-9]{40}$/.test(args.sourceCommit)) throw new Error('An explicit immutable source commit is required');
   // Resolve existing ancestors so an output-directory symlink cannot bypass ownership checks.
@@ -114,8 +115,11 @@ export async function prepareReferenceSupplementCandidate(args: {
     }
   };
   const physicalOut = await resolveOutput(path.resolve(args.out));
-  for (const input of [args.assets, args.before, args.languages, args.groups, args.mappings].filter((value): value is string => Boolean(value)))
-    if (contains(physicalOut, await realpath(input)) || contains(await realpath(input), physicalOut)) throw new Error('Candidate output must be separate from inputs');
+  for (const input of [approvedReferenceData, args.languages, args.groups]) {
+    const physicalInput = await realpath(input);
+    if (contains(physicalOut, physicalInput) || contains(physicalInput, physicalOut))
+      throw new Error('Candidate output must be separate from inputs');
+  }
   for (const owned of ['crates', 'dev-tools', 'scripts', 'docs', '.git'])
     if (contains(path.join(repositoryRoot, owned), physicalOut)) throw new Error('Candidate output must be outside tracked product/tool directories');
   const existing = await readdir(args.out).catch((error: NodeJS.ErrnoException) => {
@@ -123,15 +127,15 @@ export async function prepareReferenceSupplementCandidate(args: {
   });
   if (existing !== null) throw new Error('Candidate output already exists; use a new review directory');
   const languageBytes = await readFile(args.languages), groupBytes = await readFile(args.groups);
-  const mappings = JSON.parse(await readFile(args.mappings ?? path.join(packageRoot, 'fixtures/reference-supplement-mappings.json'), 'utf8')) as SupplementMappings;
+  const mappings = JSON.parse(await readFile(path.join(packageRoot, 'fixtures/reference-supplement-mappings.json'), 'utf8')) as SupplementMappings;
   const payload = extractReferenceSupplement(JSON.parse(languageBytes.toString()), JSON.parse(groupBytes.toString()), mappings);
-  const beforeManifest = object(JSON.parse(await readFile(path.join(args.before, 'manifest.json'), 'utf8')));
-  const beforePayload = JSON.parse(await readFile(path.join(args.before, 'payload.json'), 'utf8')) as SupplementPayload;
-  const manifest = object(JSON.parse(await readFile(path.join(args.assets, 'manifest.json'), 'utf8')));
+  const beforeManifest = object(JSON.parse(await readFile(path.join(approvedReferenceData, 'manifest.json'), 'utf8')));
+  const beforePayload = JSON.parse(await readFile(path.join(approvedReferenceData, 'payload.json'), 'utf8')) as SupplementPayload;
+  const manifest = { ...beforeManifest };
   if (manifest.schema !== 1 || manifest.recipe !== 'pc1-reference-subset/v1'
     || manifest.source_repository !== 'https://github.com/Pf2eToolsOrg/Pf2eTools') throw new Error('Unsupported PC1 asset manifest');
   const files = new Map<string, Uint8Array>();
-  for (const file of ['notices.json', 'orc-license.pdf', 'community-use-policy.pdf']) files.set(file, await readFile(path.join(args.assets, file)));
+  for (const file of ['notices.json', 'orc-license.pdf', 'community-use-policy.pdf']) files.set(file, await readFile(path.join(approvedReferenceData, file)));
   files.set('payload.json', Buffer.from(JSON.stringify(payload, null, 2) + '\n'));
   manifest.source_commit = args.sourceCommit;
   const sourceFiles: [string, Buffer][] = [['data/languages.json', languageBytes], ['data/groups.json', groupBytes]];

@@ -5,10 +5,9 @@ Status: accepted; amends the trait-only vocabulary/storage scope of
 semantic-seed policies remain active.
 Date: 2026-11-05
 
-Amended 2026-11-06: existing glossary records use ordinary record presentation.
-The special template-reading selection and per-description approval-hash gate
-were removed after product review. Setup also consumes the bundled supplement
-directly. Source attribution and input integrity remain.
+Amended 2026-11-06. Existing glossary records use ordinary record presentation.
+Setup consumes the bundled supplement directly. Glossary help uses contextual
+reading and ordinary property filters.
 
 ## Context
 
@@ -59,8 +58,8 @@ legacy trait behavior remain available for conflicting packs.
 
 `definition_reference_occurrences` replaces the trait-reference storage owner.
 Both endpoints are checked unions of real record addresses and definition keys.
-This represents record-to-definition, record-to-record localization mappings,
-definition-to-record and definition-to-definition evidence without fake records.
+Record-side localization declarations support exact owner help. Trait-source
+occurrences supply existing trait reference queries.
 Owners, fields, authored occurrence paths and audience visibility remain explicit.
 
 The record-owned authored parser collects exact localization references. Expanded
@@ -74,6 +73,13 @@ One canonical publication path reconciles these occurrences. Trait APIs project
 their existing visible record/trait subset. Record graph edges retain their
 existing owner and are not copied into this table. Reference membership, an
 explicit mention, and a saved encounter condition remain different facts.
+
+The Actions field uses the ordinary set query over immediate owned NPC actions.
+An exact localization declaration in the action's own description establishes
+its ability identity. With no such declaration, a unique explicit compendium
+origin can establish the identity. Values are existing record keys from the
+general ability glossary. The field derives membership from retained evidence
+and uses the ordinary vocabulary, counts and Read contracts.
 
 ## Publication and upgrade
 
@@ -103,8 +109,7 @@ source and a valid destination. Complete preparation attests all visible and
 hidden evidence; its audit remains exact. New namespaces gain no automatic
 vectors; existing record and trait numerical policies retain their owners.
 
-Named SQL projections retain authored sense acuity, range and source states, and
-armor group. Offline backfill uses compatible retained snapshots and preserves
+Named SQL projections retain authored sense acuity and range states and armor group. Offline backfill uses compatible retained snapshots and preserves
 missing, null and invalid values. A retired preparation remains deferred to its
 existing explicit setup path rather than being decoded by the migration.
 
@@ -117,9 +122,8 @@ existing records; Generic Sneak Attack remains a standalone supplied definition.
 The approved supplemental asset contains only selected language speaker context
 and published specialization prose, exact mappings, provenance and notices. Runtime
 selects the bundled asset directly for normal setup and check mode. Ingest captures
-the selected bytes, notice bytes, locale and recipe identities once. Bundled and
-explicit directory selections of identical bytes retain the same input identity.
-Notice-only changes and explicit absence/disable participate in setup freshness.
+the selected bytes, notice bytes, locale and recipe identities once. Changes to the notice bytes participate in
+setup freshness.
 Changed or missing selected inputs fail the attempted update without publishing
 partial content or silently retaining an obsolete provider.
 
@@ -161,32 +165,10 @@ uniqueness support owned-ability help without guessing from names or capped page
 App-service projects categorical values as raw identity, readable label and optional
 typed help. Record destinations retain `RecordNavigationView` and ordinary authored
 content, with their existing control and reference addresses.
-Standalone definition destinations remain typed definition keys. Related actions
-carry the executable predicate, or a numeric field configuration that still needs
-an operator/value. Older traits-only coverage preserves ordinary record reads and
-reports setup-required help for new namespaces.
-
-Exact reference conditions and evidence retain their typed record/definition
-identities even when no body is readable. Their optional reading destinations are
-projected from canonical backing metadata, separately from query admission. The
-same capability owner decorates fact links, clause summaries, proof endpoints and
-outgoing references. Batched metadata reads preserve inert evidence titles without
-turning label-only or withheld content into a definition page. Prepared check and
-routine badges receive the same metadata-backed help as record presentation badges.
-
-`DefinitionReference` is an incoming query leaf in the existing Boolean eligibility
-engine. A record destination unions visible canonical localization occurrences
-with existing UUID graph evidence; standalone keys use canonical occurrences.
-Definition keys backed by records retain their semantic identity while resolving
-to the checked record destination. Missing or inapplicable targets fail admission
-even under negation. Existing record-link predicates and symmetric specialized
-trait-reference workflows retain their meanings. Generic trait help supplies the
-exact membership predicate; the legacy symmetric reference binding stays with the
-existing trait References/Similar workflow. Unknown binding metadata remains an
-error rather than silently dropping a capability. Artifact-scoped definition-option
-discovery includes eligible zero-match and label-only values plus admitted existing
-glossary records; it does not change corpus/list value-vocabulary semantics or add
-a glossary browser.
+Standalone definition destinations remain typed definition keys. Definition detail
+supplies executable predicates for its full-page property associations. Inline
+references are carried by prepared content. Older traits-only coverage preserves
+ordinary record reads and reports setup-required help for new namespaces.
 
 ### Contextual browser reading
 
@@ -225,8 +207,7 @@ standalone page using the existing trait association presentation. Existing trai
 association and Similar policies are unchanged; other definitions gain no automatic
 Similar capability.
 
-Related actions consume the Rust-supplied canonical predicate. Standalone
-association sections and manual discovery share that predicate and the existing
-query owner. Numeric configuration stays in Advanced Filters and becomes executable
-only after an operator and value are supplied. Opening, nesting or closing help
+Related actions consume the Rust-supplied canonical predicate. The existing field
+editor owns discovery and configuration, including acuity and range on a single
+sense entry. Opening, nesting or closing help
 does not change the host's selected record, criteria or drafts.

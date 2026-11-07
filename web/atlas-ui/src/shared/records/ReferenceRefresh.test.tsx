@@ -44,18 +44,17 @@ function definition(
       help.destination?.kind === "definition"
         ? { body: { kind: "plain", text }, references: [] }
         : null,
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    publications: [],
+    related_filters: [],
   };
 }
 const standaloneHelp: ReferenceHelpView = {
   definition_key: "language:chthonian",
-  availability: "available",
+
   destination: { kind: "definition", key: "language:chthonian" },
-  related_filters: [],
 };
 function setup(help: ReferenceHelpView) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -141,12 +140,11 @@ it.each(["changed", "unreadable"] as const)(
     const replacement = rootNavigation("abilities:new");
     const original: ReferenceHelpView = {
       definition_key: "sense:darkvision",
-      availability: "available",
+
       destination: {
         kind: "record",
         navigation: old,
       },
-      related_filters: [],
     };
     vi.mocked(getDefinitionDetail).mockImplementation(async (request) => {
       if (
@@ -154,21 +152,18 @@ it.each(["changed", "unreadable"] as const)(
         request.expected_artifact_generation !== generation
       )
         throw changed();
-      const help: ReferenceHelpView =
-        generation === "g1"
-          ? original
-          : {
-              ...original,
-              availability: outcome === "unreadable" ? "label_only" : "available",
-              destination:
-                outcome === "unreadable"
-                  ? null
-                  : {
-                      kind: "record",
-                      navigation: replacement,
-                    },
-            };
-      return definition(help, generation);
+      return {
+        ...definition(original, generation),
+        help:
+          generation === "g1"
+            ? original
+            : outcome === "unreadable"
+              ? null
+              : {
+                  ...original,
+                  destination: { kind: "record", navigation: replacement },
+                },
+      };
     });
     vi.mocked(getRecordDetail).mockImplementation(async (key) => {
       const detail = detailFixture(
@@ -185,6 +180,7 @@ it.each(["changed", "unreadable"] as const)(
     });
     const { client } = setup(original);
     await screen.findByText("Old authored body.");
+    expect(getDefinitionDetail).not.toHaveBeenCalled();
     generation = "g2";
     await act(async () => {
       await client.invalidateQueries({
@@ -238,12 +234,11 @@ it("keeps the complete direct-record address when refresh is refused", async () 
   };
   const help: ReferenceHelpView = {
     definition_key: null,
-    availability: "available",
+
     destination: {
       kind: "record",
       navigation: selection,
     },
-    related_filters: [],
   };
   let refuse = false;
   vi.mocked(getRecordDetail).mockImplementation(async () => {

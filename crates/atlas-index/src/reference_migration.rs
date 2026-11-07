@@ -74,17 +74,7 @@ fn backfill_reference_facts(
         let mut allocation = crate::projections::ProjectionIds::seeded(seed);
         for row in crate::projections::root_rows(&source, &label, id, &mut allocation)? {
             let (key, fields): (&str, &[&str]) = match row.table {
-                "actor_senses" => (
-                    "id",
-                    &[
-                        "acuity_state",
-                        "acuity",
-                        "range_state",
-                        "range",
-                        "source_state",
-                        "source",
-                    ],
-                ),
+                "actor_senses" => ("id", &["acuity_state", "acuity", "range_state", "range"]),
                 "armor_projection" => ("physical_id", &["armor_group_state", "armor_group"]),
                 _ => continue,
             };

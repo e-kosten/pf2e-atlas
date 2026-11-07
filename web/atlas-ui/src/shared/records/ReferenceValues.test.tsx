@@ -77,7 +77,7 @@ it("uses supplied spell change trait labels in authored and effective reading", 
 
 const help: ReferenceHelpView = {
   definition_key: "sense:darkvision",
-  availability: "available",
+
   destination: {
     kind: "record",
     navigation: {
@@ -88,7 +88,6 @@ const help: ReferenceHelpView = {
       source_fingerprint: null,
     },
   },
-  related_filters: [],
 };
 
 it("preserves profile choices, speaker notes and exact supplied help without inventing a label-only destination", () => {

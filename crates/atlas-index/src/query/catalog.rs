@@ -583,6 +583,19 @@ fn build() -> Result<Vec<Descriptor>, String> {
         choices::<Language>()?,
         None,
     ));
+    fields.push(field(
+        "actions",
+        Set,
+        &["npc"],
+        set(
+            family(super::actions::PARENT, "items"),
+            super::actions::MEMBERS,
+            "record_id",
+            None,
+        ),
+        Vec::new(),
+        None,
+    ));
     for (path, col, table, owner, families, kind) in [
         (
             "movement.speeds",

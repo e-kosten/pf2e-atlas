@@ -14,9 +14,9 @@ pub use references::{
     DefinitionReferenceInput, DefinitionReferenceSource, DefinitionReferenceTarget,
     ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
     ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice,
-    ReferenceOccurrencePage, ReferencePermission, ReferencePermissionDisposition,
-    ReferenceProvenance, ReferencePublication, ReferenceRecordMapping, ReferenceSummary,
-    ReferenceSummaryBacking, ReferenceSummaryBatch, SourceDefinitionTarget,
+    ReferencePermission, ReferencePermissionDisposition, ReferenceProvenance, ReferencePublication,
+    ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking, ReferenceSummaryBatch,
+    SourceDefinitionTarget,
 };
 mod service;
 pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};
@@ -97,18 +97,3 @@ pub use relationship_selection::CheckedRelationshipSelection;
 mod core_search_tests;
 #[cfg(test)]
 mod neighbor_reuse_tests;
-
-mod definition_query;
-pub use definition_query::{
-    CheckedDefinitionReferenceTarget, DefinitionReferenceOccurrence,
-    DefinitionReferenceOccurrencePage, DefinitionReferenceOccurrencePageRequest,
-};
-
-mod definition_discovery;
-pub use definition_discovery::{
-    DefinitionFilterOption, DefinitionFilterOptionsPage, DefinitionFilterOptionsRequest,
-    DefinitionFilterSelection, DefinitionFilterSelectionAvailability,
-};
-
-#[cfg(test)]
-mod definition_query_tests;

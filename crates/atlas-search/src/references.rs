@@ -1,5 +1,5 @@
 //! Definition reads over the same bounded reference snapshot as ordinary records.
-use crate::{AtlasRetrievalService, SearchError, SearchPage, SearchPageInfo};
+use crate::{AtlasRetrievalService, SearchError};
 use atlas_domain::{DefinitionKey, OwnedContentLocator, RecordKey};
 pub use atlas_index::{
     DefinitionReferenceInput, DefinitionReferenceSource, DefinitionReferenceTarget,
@@ -9,11 +9,6 @@ pub use atlas_index::{
     ReferenceRecordMapping, ReferenceSummary, ReferenceSummaryBacking, ReferenceSummaryBatch,
     SourceDefinitionTarget,
 };
-
-pub struct ReferenceOccurrencePage {
-    pub entries: Vec<DefinitionReferenceInput>,
-    pub page: SearchPageInfo,
-}
 
 impl AtlasRetrievalService {
     pub fn reference_coverage(&self) -> ReferenceCoverage {
@@ -45,30 +40,6 @@ impl AtlasRetrievalService {
 
     pub fn reference_notice(&self, id: &str) -> Result<Option<ReferenceNotice>, SearchError> {
         Ok(self.index.reference_notice(id)?)
-    }
-
-    pub fn definition_reference_occurrences(
-        &self,
-        target: &DefinitionReferenceTarget,
-        page: SearchPage,
-    ) -> Result<ReferenceOccurrencePage, SearchError> {
-        let (entries, total) =
-            self.index
-                .definition_reference_occurrences(target, page.size(), page.offset()?)?;
-        let page = SearchPageInfo::from_page(page, entries.len(), total)?;
-        Ok(ReferenceOccurrencePage { entries, page })
-    }
-
-    pub fn definition_references_from_source(
-        &self,
-        source: &DefinitionReferenceSource,
-        page: SearchPage,
-    ) -> Result<ReferenceOccurrencePage, SearchError> {
-        let (entries, total) =
-            self.index
-                .definition_references_from_source(source, page.size(), page.offset()?)?;
-        let page = SearchPageInfo::from_page(page, entries.len(), total)?;
-        Ok(ReferenceOccurrencePage { entries, page })
     }
 
     pub fn source_definition_target(

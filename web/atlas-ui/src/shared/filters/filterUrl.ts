@@ -43,16 +43,6 @@ function pack(node: QueryPredicate): unknown[] {
       return ["s", node.field, node.op, node.values];
     case "state_match":
       return ["m", node.field, node.state];
-    case "definition_reference": {
-      const target = node.reference.target;
-      return [
-        "d",
-        target.kind === "definition"
-          ? ["d", target.key]
-          : ["r", packSelection(target.selection)],
-        ...(node.reference.include_contents ? [] : [0]),
-      ];
-    }
     case "relationship": {
       const link = node.relationship;
       const packed: unknown[] = [
@@ -138,24 +128,6 @@ export function decodeFilterUrl(encoded: string): QueryPredicate {
           field: urlString(node[1]),
           state: urlString(node[2]) as QueryFieldState,
         };
-      case "d": {
-        urlTuple(node, 2, 3);
-        if (node.length === 3 && node[2] !== 0) invalidFilterUrl();
-        const target = urlTuple(node[1], 2);
-        return {
-          kind: "definition_reference",
-          clause_id,
-          reference: {
-            target:
-              target[0] === "d"
-                ? { kind: "definition", key: urlString(target[1]) }
-                : target[0] === "r"
-                  ? { kind: "record", selection: unpackSelection(target[1]) }
-                  : invalidFilterUrl(),
-            include_contents: node.length === 2,
-          },
-        };
-      }
       case "t":
       case "f":
         urlTuple(node, 2, 3);

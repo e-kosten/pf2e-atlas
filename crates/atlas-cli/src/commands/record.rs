@@ -161,7 +161,7 @@ fn width() -> usize {
         .filter(|v| *v >= 20)
         .unwrap_or(80)
 }
-pub(crate) fn render_selected_record(
+fn render_selected_record(
     service: &atlas_app_service::AtlasAppService,
     record: &RecordDetailView,
     detail: TerminalDetail,

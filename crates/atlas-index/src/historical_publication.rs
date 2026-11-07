@@ -132,14 +132,7 @@ pub(crate) fn records(
             // Released fixtures retain schema29's named projection shape; the
             // current publication path never drops these current columns.
             let fields: &[&str] = match row.table {
-                "actor_senses" => &[
-                    "acuity_state",
-                    "acuity",
-                    "range_state",
-                    "range",
-                    "source_state",
-                    "source",
-                ],
+                "actor_senses" => &["acuity_state", "acuity", "range_state", "range"],
                 "armor_projection" => &["armor_group_state", "armor_group"],
                 _ => &[],
             };

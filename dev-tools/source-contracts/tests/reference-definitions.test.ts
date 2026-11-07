@@ -7,7 +7,7 @@ import { createCatalogReader } from '../src/discovery/catalog-values.js';
 import { generateReferenceModule } from '../src/generation/reference-module.js';
 
 test('reference metadata output retains real record pointers without copying prose', () => {
-  const output = generateReferenceModule({ digest: 'a'.repeat(64), records: [{ key: 'general:aaaaaaaaaaaaaaaa', family: 'action' }],
+  const output = generateReferenceModule({ digest: 'a'.repeat(64),
     definitions: [{ namespace: 'sense', identifier: 'darkvision', labelKey: 'PF2E.Darkvision', descriptionKey: null,
       displayLabel: null, recordKey: 'general:aaaaaaaaaaaaaaaa', expectedFamily: 'action', requiredLocalizationKey: null,
       sourceFile: 'src/values.ts', sourceLine: 7, excluded: false, filterFields: ['senses'] }] },

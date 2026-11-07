@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { atlasRouter } from "../../app/router";
 import {
   ReferenceHelpProvider,
@@ -7,9 +7,6 @@ import {
 } from "./ReferenceHelp";
 import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import { useRecordPreview } from "./useRecordPreview";
-
-const PreviewSession = createContext<ReturnType<typeof useRecordPreview> | null>(null);
-export const useReferenceHelpSession = () => useContext(PreviewSession);
 
 type HelpHostProps = {
   children: ReactNode;
@@ -27,10 +24,9 @@ export function ReferenceHelpHost({
   recordActions,
   visibleOwnerRecordKey,
 }: HelpHostProps) {
-  const inherited = useReferenceHelpSession();
   const onHelp = useReferenceHelpHandler();
   const onReference = useReferenceRecordNavigation();
-  return (inherited || onHelp || onReference) &&
+  return (onHelp || onReference) &&
     !recordActions &&
     visibleOwnerRecordKey === undefined ? (
     <ReferenceHelpProvider generation={generation}>{children}</ReferenceHelpProvider>
@@ -61,41 +57,38 @@ function LocalReferenceHelpHost({
     });
   }, [destination, closeForNavigation]);
   return (
-    <PreviewSession value={preview}>
-      <ReferenceHelpProvider
-        onHelp={preview.openHelp}
-        onReference={preview.open}
-        generation={generation}
-      >
-        {children}
-        {preview.destination && (
-          <RecordReferenceDrawer
-            actions={preview.detail && recordActions?.(preview.detail.record)}
-            destination={preview.destination}
-            definition={preview.definition}
-            help={preview.help}
-            onHelp={preview.openHelp}
-            anchor={preview.anchor}
-            visibleOwnerRecordKey={visibleOwnerRecordKey}
-            detail={preview.detail}
-            loading={preview.loading}
-            error={preview.error}
-            onRetry={preview.retry}
-            onReload={preview.reload}
-            retryLabel={preview.retryLabel}
-            reloadLabel={preview.reloadLabel}
-            onClose={preview.close}
-            onNavigateAway={preview.closeForNavigation}
-            restoreAnchorFocus={false}
-            onReference={preview.open}
-            onRankChange={preview.changeRank}
-            readingHistory={preview.readingHistory}
-            requestedNavigation={preview.selection}
-            landing={preview.landing}
-            onOpenFullPage={preview.close}
-          />
-        )}
-      </ReferenceHelpProvider>
-    </PreviewSession>
+    <ReferenceHelpProvider
+      onHelp={preview.openHelp}
+      onReference={preview.open}
+      generation={generation}
+    >
+      {children}
+      {preview.destination && (
+        <RecordReferenceDrawer
+          actions={preview.detail && recordActions?.(preview.detail.record)}
+          destination={preview.destination}
+          definition={preview.definition}
+          help={preview.help}
+          onHelp={preview.openHelp}
+          anchor={preview.anchor}
+          visibleOwnerRecordKey={visibleOwnerRecordKey}
+          detail={preview.detail}
+          loading={preview.loading}
+          error={preview.error}
+          onRetry={preview.retry}
+          onReload={preview.reload}
+          retryLabel={preview.retryLabel}
+          reloadLabel={preview.reloadLabel}
+          onClose={preview.close}
+          onNavigateAway={preview.closeForNavigation}
+          restoreAnchorFocus={false}
+          onReference={preview.open}
+          onRankChange={preview.changeRank}
+          readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
+          landing={preview.landing}
+        />
+      )}
+    </ReferenceHelpProvider>
   );
 }

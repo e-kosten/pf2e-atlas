@@ -165,6 +165,7 @@ fn cel_supported_examples_and_fail_closed_limits() {
         "defenses.ac in [25,26]",
         "level+1>=3",
         "traits.matches('x')",
+        "references_definition('sense:darkvision')",
         "has(defenses.hp.maximum)",
         "defenses.hp.maximum==null",
         "availability[source.type]=='value'",

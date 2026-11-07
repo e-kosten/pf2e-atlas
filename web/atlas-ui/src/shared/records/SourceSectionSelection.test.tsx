@@ -378,13 +378,13 @@ it("clears source selection for a nested reference Drawer, including the same so
       }}
     >
       <RecordReferenceDrawer
+        destination={{ kind: "record", navigation: detail.selected }}
         anchor={null}
         detail={detail}
         loading={false}
         error={null}
         onRetry={vi.fn()}
         onClose={vi.fn()}
-        onOpenFullPage={vi.fn()}
         onReference={vi.fn()}
         onRankChange={vi.fn()}
       />

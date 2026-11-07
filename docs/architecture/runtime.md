@@ -104,14 +104,12 @@ The record itself remains a key and DTO. Content outcomes and resolved relations
 occurrences are separate derived outputs. Original bytes/provenance, admission
 failures and detailed reports remain ingest/developer concerns.
 
-`BuildArtifactOptions` composes source paths, locale, the selected reference
-supplement, selected profile configurations, batching/reuse and output paths.
+`BuildArtifactOptions` composes source paths, locale, selected profile configurations, batching/reuse and output paths.
 `CapturedBuildInputs` owns those options, the source capture and verified supplement
 bytes. Its source fingerprint remains Foundry-only provenance. Setup additionally
 compares the reference preparation recipe, complete coverage and combined input
-identity, which binds generated glossary metadata, selected supplement
-payload/mapping/notices, locale and explicit
-absence. It consumes that same owner if a source build is needed.
+identity, which binds generated glossary metadata, bundled supplement
+payload, mappings, notices and locale. It consumes that same owner if a source build is needed.
 Direct builds capture once after destination
 and requested-configuration admission. An empty profile collection builds lexical
 content. Bounded preparation retains compact global resolver/collision evidence,

@@ -107,9 +107,6 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
             QueryExpression::Relationship { relationship } => serde_json::to_string(relationship)
                 .map_err(|_| error("relationship", "Invalid link selection", None))?
                 .len(),
-            QueryExpression::DefinitionReference { reference } => serde_json::to_string(reference)
-                .map_err(|_| error("definition_reference", "Invalid definition selection", None))?
-                .len(),
             QueryExpression::Exists {
                 collection,
                 scope_id,
@@ -163,38 +160,9 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                         None,
                     ));
                 }
-                validate_record_selection(&relationship.selection)
-            }
-            QueryExpression::DefinitionReference { reference } => {
-                if scope.is_some() {
-                    return Err(error(
-                        "mixed_scope",
-                        "Definition references apply to records, not collection members",
-                        None,
-                    ));
-                }
-                if p.clause_id.is_none() {
-                    return Err(error(
-                        "clause_id",
-                        "Definition references require a clause ID",
-                        None,
-                    ));
-                }
-                match &reference.target {
-                    atlas_domain::QueryDefinitionReferenceTarget::Record { selection } => {
-                        validate_record_selection(selection)
-                    }
-                    atlas_domain::QueryDefinitionReferenceTarget::Definition { key }
-                        if key.to_string().len() > 1024 =>
-                    {
-                        Err(error(
-                            "definition_selection",
-                            "Definition key exceeds its address bounds",
-                            None,
-                        ))
-                    }
-                    _ => Ok(()),
-                }
+                let s = &relationship.selection;
+                if s.owners.len()>32 || s.field.as_ref().is_some_and(|f|f.len()>512) || s.owners.iter().any(|o|o.collection.len()>512 || matches!(&o.identity,atlas_domain::OwnedContentIdentity::Stable(id) if id.len()>512)) { return Err(error("relationship_selection","Link selection exceeds its address bounds",None)); }
+                Ok(())
             }
             QueryExpression::BooleanConstant { .. } => Ok(()),
             QueryExpression::Compare { field, op, value } => {
@@ -323,7 +291,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
     )?;
     fn count_links(p: &QueryPredicate) -> usize {
         match &p.expression {
-            QueryExpression::Relationship { .. } | QueryExpression::DefinitionReference { .. } => 1,
+            QueryExpression::Relationship { .. } => 1,
             QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
                 children.iter().map(count_links).sum()
             }
@@ -339,14 +307,4 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
     Ok(ValidatedQuery {
         predicate: predicate.clone(),
     })
-}
-
-fn validate_record_selection(s: &atlas_domain::QueryRecordSelection) -> Result<(), QueryError> {
-    if s.owners.len() > 32
-        || s.field.as_ref().is_some_and(|f| f.len() > 512)
-        || s.owners.iter().any(|o| o.collection.len() > 512 || matches!(&o.identity, atlas_domain::OwnedContentIdentity::Stable(id) if id.len() > 512))
-    {
-        return Err(error("relationship_selection", "Link selection exceeds its address bounds", None));
-    }
-    Ok(())
 }

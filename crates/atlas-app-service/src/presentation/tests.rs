@@ -2550,12 +2550,7 @@ fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effect
                 .map(|value| ReferenceValueView {
                     value: value.into(),
                     label: value.into(),
-                    help: Some(ReferenceHelpView {
-                        definition_key: Some(format!("language:{value}")),
-                        availability: DefinitionAvailabilityView::SetupRequired,
-                        destination: None,
-                        related_filters: vec![],
-                    }),
+                    help: None,
                 })
                 .collect()
         )

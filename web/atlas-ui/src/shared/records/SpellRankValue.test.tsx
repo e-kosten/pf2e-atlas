@@ -91,7 +91,7 @@ describe("SpellRankValue", () => {
 it("keeps definition and heightening actions separate for interactive categorical content", async () => {
   const help = {
     definition_key: "damage:fire",
-    availability: "available" as const,
+
     destination: {
       kind: "record" as const,
       navigation: {
@@ -102,7 +102,6 @@ it("keeps definition and heightening actions separate for interactive categorica
         source_fingerprint: null,
       },
     },
-    related_filters: [],
   };
   const onHelp = vi.fn();
   const { container } = render(

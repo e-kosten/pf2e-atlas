@@ -1227,6 +1227,20 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
     )
     .unwrap();
     assert_eq!(editor.catalog_version, 10);
+    let senses = editor
+        .groups
+        .iter()
+        .flat_map(|group| &group.fields)
+        .find(|field| field.definition.id == "senses")
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(senses.collection_control.as_ref().unwrap()).unwrap(),
+        serde_json::json!({
+            "category_field_id": "senses[].type",
+            "amount_field_id": "senses[].range",
+            "qualifier_field_id": "senses[].acuity",
+        })
+    );
     let embedded = editor.groups.iter().find(|g| g.id == "embedded").unwrap();
     assert_eq!(
         embedded

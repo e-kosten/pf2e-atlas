@@ -16,9 +16,8 @@ vi.mock("../../api/atlasApi", async (original) => ({
 function readableTraitHelp(key: string): ReferenceHelpView {
   return {
     definition_key: key,
-    availability: "available",
+
     destination: { kind: "definition", key },
-    related_filters: [],
   };
 }
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -79,36 +78,20 @@ it("preserves native modified clicks", () => {
   expect(location.pathname).toBe("/search");
 });
 
-it.each([
-  undefined,
-  "label_only",
-  "permission_unresolved",
-  "missing_localized_body",
-] as const)(
-  "does not turn trait identity into reading capability when help is %s",
-  (availability) => {
-    render(
-      <TraitBadge
-        trait={{
-          kind: "trait",
-          value: "custom",
-          label: "Custom",
-          trait_key: "trait:custom",
-          help: availability
-            ? {
-                definition_key: "trait:custom",
-                availability,
-                destination: null,
-                related_filters: [],
-              }
-            : undefined,
-        }}
-      />,
-    );
-    expect(screen.getByText("Custom")).toBeVisible();
-    expect(screen.queryByRole("link")).toBeNull();
-  },
-);
+it("keeps a trait without reading help as plain text", () => {
+  render(
+    <TraitBadge
+      trait={{
+        kind: "trait",
+        value: "custom",
+        label: "Custom",
+        trait_key: "trait:custom",
+      }}
+    />,
+  );
+  expect(screen.getByText("Custom")).toBeVisible();
+  expect(screen.queryByRole("link")).toBeNull();
+});
 
 it("opens supplied prepared trait help in the shared clean Drawer with its native trait URL", async () => {
   const help = readableTraitHelp("trait:agile");
@@ -121,11 +104,11 @@ it("opens supplied prepared trait help in the shared clean Drawer with its nativ
       body: { kind: "plain", text: "Multiple attack penalty is reduced." },
       references: [],
     },
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    related_filters: [],
+    publications: [],
   };
   vi.mocked(getDefinitionDetail).mockResolvedValue(detail);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

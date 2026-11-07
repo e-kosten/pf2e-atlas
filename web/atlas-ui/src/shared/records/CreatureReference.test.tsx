@@ -189,7 +189,7 @@ it("uses the same authored reading groups in reference and encounter with early 
 
 const senseHelp: ReferenceHelpView = {
   definition_key: "sense:darkvision",
-  availability: "available",
+
   destination: {
     kind: "record",
     navigation: {
@@ -200,7 +200,6 @@ const senseHelp: ReferenceHelpView = {
       source_fingerprint: null,
     },
   },
-  related_filters: [],
 };
 
 it("activates supplied categorical help while keeping actor qualifiers, modifiers and communication inline", () => {

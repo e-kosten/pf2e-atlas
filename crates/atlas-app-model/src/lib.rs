@@ -77,12 +77,9 @@ pub use condition_events::{
 mod definitions;
 mod traits;
 pub use definitions::{
-    DefinitionAttributionView, DefinitionAvailabilityView, DefinitionDetailRequest,
-    DefinitionDetailView, DefinitionFilterOptionView, DefinitionFilterOptionsRequest,
-    DefinitionFilterOptionsView, DefinitionGrantScopeView, DefinitionGrantView,
-    DefinitionNoticeView, DefinitionPermissionDispositionView, DefinitionPublicationView,
-    DefinitionReferenceView, DefinitionSourceLocationView, ReferenceContentView,
-    ReferenceDestinationView, ReferenceFilterActionView, ReferenceHelpView, ReferenceValueView,
+    DefinitionDetailRequest, DefinitionDetailView, DefinitionNoticeView, DefinitionPublicationView,
+    ReferenceContentView, ReferenceDestinationView, ReferenceFilterActionView, ReferenceHelpView,
+    ReferenceValueView,
 };
 pub use traits::{
     TraitAssociationKind, TraitDetailRequest, TraitDetailView, TraitRecordView, TraitRecordsPage,
@@ -223,8 +220,7 @@ pub use record::{
     RecordSummaryView,
 };
 pub use search::{
-    ConnectionScopeUnavailableReason, ConnectionScopeView, DefinitionReferenceEvidenceView,
-    ReferenceClauseConditionView, ReferenceOccurrenceView, RelationshipClausePresentationView,
+    ConnectionScopeUnavailableReason, ConnectionScopeView, RelationshipClausePresentationView,
     RelationshipClauseSummaryView, RelationshipEvidenceView, RelationshipOccurrencesPage,
     RelationshipOccurrencesRequest, RetrievalModeView, SearchConnectionScope, SearchCoverageView,
     SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary, SearchPageRequest,
@@ -274,9 +270,6 @@ mod tests {
     fn export_bindings_to(path: &Path) {
         DefinitionDetailRequest::export_all_to(path).expect("definition detail request bindings");
         DefinitionDetailView::export_all_to(path).expect("definition detail bindings");
-        DefinitionFilterOptionsRequest::export_all_to(path)
-            .expect("definition picker request bindings");
-        DefinitionFilterOptionsView::export_all_to(path).expect("definition picker bindings");
         SimilarityPartsRequest::export_all_to(path).expect("similarity inventory request bindings");
         SimilarityPartsView::export_all_to(path).expect("similarity inventory bindings");
         SimilarityPartView::export_all_to(path).expect("similarity section bindings");

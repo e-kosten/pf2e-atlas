@@ -722,11 +722,7 @@ pub(crate) fn prepare(
         &mut |definition, inputs| {
             let key = definition.key.clone();
             if let Some(markup) = &definition.authored_markup {
-                reference_build.publish_definition_references(
-                    &key.clone().into(),
-                    markup,
-                    &mut spool,
-                )?;
+                reference_build.publish_trait_localization_references(&key, markup, &mut spool)?;
             }
             spool.traits.push(&definition).map_err(index)?;
             for input in inputs {

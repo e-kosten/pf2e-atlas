@@ -1,3 +1,7 @@
+import {
+  useReferenceHelpHandler,
+  useReferenceRecordNavigation,
+} from "../../shared/records/ReferenceHelp";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LinkNotFound } from "../../app/InvalidUrl";
@@ -5,10 +9,7 @@ import { atlasRouter } from "../../app/router";
 import { definitionDestination } from "../../app/destinations";
 import { useDefinitionDetail } from "../../shared/records/useDefinitionDetail";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import {
-  ReferenceHelpHost,
-  useReferenceHelpSession,
-} from "../../shared/records/ReferenceHelpHost";
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import {
   referenceDestination,
   ReferenceHelpProvider,
@@ -28,11 +29,12 @@ export function DefinitionView({ definitionKey }: { definitionKey: string }) {
 
 function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
   const query = useDefinitionDetail(definitionKey);
-  const preview = useReferenceHelpSession()!;
+  const onHelp = useReferenceHelpHandler();
+  const onReference = useReferenceRecordNavigation()!;
   const client = useQueryClient();
   const recordTarget =
-    query.data?.help.destination?.kind === "record"
-      ? query.data.help.destination
+    query.data?.help?.destination?.kind === "record"
+      ? query.data.help!.destination
       : undefined;
   const canonical = definitionDestination({ definitionKey });
   const traitTarget = canonical.to === "/traits/$traitKey";
@@ -50,8 +52,8 @@ function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
   }, [definitionKey, recordTarget, traitTarget]);
   const readable =
     !traitTarget &&
-    query.data?.help.destination?.kind === "definition" &&
-    query.data.help.destination.key === definitionKey &&
+    query.data?.help?.destination?.kind === "definition" &&
+    query.data.help!.destination.key === definitionKey &&
     query.data.content !== null;
   const reload = async () => {
     await retireReferenceQueries(client);
@@ -62,8 +64,8 @@ function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
   if (unavailable) return <LinkNotFound />;
   return (
     <ReferenceHelpProvider
-      onHelp={preview.openHelp}
-      onReference={preview.open}
+      onHelp={onHelp}
+      onReference={onReference}
       generation={query.data?.artifact_generation}
     >
       <main className="record-view">
@@ -73,14 +75,14 @@ function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
             loading={query.isFetching || Boolean(recordTarget) || traitTarget}
             error={query.error}
             onRetry={() => void query.refetch()}
-            onReference={preview.open}
+            onReference={onReference}
           />
           {readable && query.data && (
             <DefinitionAssociations
               key={JSON.stringify([definitionKey, query.data.artifact_generation])}
-              actions={query.data.help.related_filters}
+              actions={query.data.related_filters}
               generation={query.data.artifact_generation}
-              onReference={preview.open}
+              onReference={onReference}
               onReload={() => void reload()}
             />
           )}

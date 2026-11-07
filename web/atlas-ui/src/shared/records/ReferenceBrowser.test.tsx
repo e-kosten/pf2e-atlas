@@ -91,15 +91,8 @@ function Harness({
           ? {
               kind: "all_of",
               children: relationships.map((entry) => ({
-                ...(entry.condition.kind === "record"
-                  ? {
-                      kind: "relationship" as const,
-                      relationship: entry.condition.relationship,
-                    }
-                  : {
-                      kind: "definition_reference" as const,
-                      reference: entry.condition.reference,
-                    }),
+                kind: "relationship" as const,
+                relationship: entry.relationship,
                 clause_id: entry.clause_id,
               })),
             }
@@ -641,15 +634,12 @@ it("shows text and reference-link evidence in the selected reader without a resu
   };
   const constraint: RelationshipClauseSummaryView = {
     clause_id: "link",
-    condition: {
-      kind: "record",
-      relationship: {
-        direction: "incoming",
-        selection: target,
-        include_contents: true,
-      },
+    relationship: {
+      direction: "incoming",
+      selection: target,
+      include_contents: true,
     },
-    destination: { kind: "record", navigation: target },
+
     title: "Leather Armor",
     record: summaryFixture("items:armor", "Leather Armor"),
   };
@@ -668,29 +658,25 @@ it("shows text and reference-link evidence in the selected reader without a resu
         },
         occurrences: [
           {
-            kind: "record",
-            destination: { kind: "record", navigation: target },
-            occurrence: {
-              source: {
-                record: "actors:ghoul",
-                embedded_path: [],
-                field: "description",
-              },
-              source_navigation: navigation,
-              ordinal: 0,
-              origin: "prepared_content",
-              kind: "uuid",
-              authored_target: null,
-              occurrence_path: null,
-              audiences: [],
-              availability: null,
-              status: "resolved_record",
-              target,
-              url: null,
-              effect_label: null,
-              source_title: "Ghoul equipment",
-              target_title: "Leather Armor",
+            source: {
+              record: "actors:ghoul",
+              embedded_path: [],
+              field: "description",
             },
+            source_navigation: navigation,
+            ordinal: 0,
+            origin: "prepared_content",
+            kind: "uuid",
+            authored_target: null,
+            occurrence_path: null,
+            audiences: [],
+            availability: null,
+            status: "resolved_record",
+            target,
+            url: null,
+            effect_label: null,
+            source_title: "Ghoul equipment",
+            target_title: "Leather Armor",
           },
         ],
       },

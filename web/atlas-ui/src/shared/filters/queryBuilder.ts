@@ -12,7 +12,6 @@ import type {
 // A structural builder condition, never a backend catalog field.
 export const BOOLEAN_CONDITION = "atlas:boolean-constant";
 export const LINK_CONDITION = "atlas:record-link";
-export const DEFINITION_CONDITION = "atlas:definition-reference";
 type PredicateGroup = RuleGroupType & {
   atlasSinglePredicate?: boolean;
   atlasNotClauseId?: string;
@@ -305,19 +304,6 @@ export function builderPredicate(
           ? { kind: "not", clause_id: rule.meta.atlasNotClauseId, predicate }
           : predicate,
       );
-    if (node.field === DEFINITION_CONDITION) {
-      if (scope !== null)
-        throw new Error("Definition references belong outside collection conditions.");
-      if (!node.value?.target) continue;
-      if (node.operator !== "references")
-        throw new Error("Choose a definition reference condition.");
-      append({
-        kind: "definition_reference",
-        clause_id: node.id || crypto.randomUUID(),
-        reference: node.value,
-      });
-      continue;
-    }
     if (node.field === LINK_CONDITION) {
       if (scope !== null)
         throw new Error("Link conditions belong outside collection conditions.");
@@ -504,13 +490,6 @@ function predicateNode(
     predicate.kind === "not"
   )
     return predicateBuilder(predicate, fields, scope);
-  if (predicate.kind === "definition_reference")
-    return {
-      id: predicate.clause_id,
-      field: DEFINITION_CONDITION,
-      operator: "references",
-      value: predicate.reference,
-    };
   if (predicate.kind === "relationship")
     return {
       id: predicate.clause_id,

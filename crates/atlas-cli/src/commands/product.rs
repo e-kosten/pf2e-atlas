@@ -123,24 +123,18 @@ pub(crate) fn print_search_page_count(result: &atlas_app_model::SearchResultsPag
     }
 }
 
-pub(crate) fn print_relationship_occurrence(occurrence: &atlas_app_model::ReferenceOccurrenceView) {
-    let (source, target) = match occurrence {
-        atlas_app_model::ReferenceOccurrenceView::Record { occurrence, .. } => (
-            occurrence
-                .source_title
-                .as_deref()
-                .unwrap_or("Unnamed entry"),
-            occurrence
-                .target_title
-                .as_deref()
-                .unwrap_or("Unnamed entry"),
-        ),
-        atlas_app_model::ReferenceOccurrenceView::Definition { occurrence } => (
-            occurrence.source_title.as_str(),
-            occurrence.target_title.as_str(),
-        ),
-    };
-    println!("  {source} → {target}");
+pub(crate) fn print_relationship_occurrence(occurrence: &atlas_app_model::RecordRelationshipView) {
+    println!(
+        "  {} → {}",
+        occurrence
+            .source_title
+            .as_deref()
+            .unwrap_or("Unnamed entry"),
+        occurrence
+            .target_title
+            .as_deref()
+            .unwrap_or("Unnamed entry")
+    );
 }
 
 /// Emit a whole-command failure with the same exit policy as batch items.

@@ -13,8 +13,6 @@ import {
   type ManualTrackerHandler,
 } from "./EncounterManualTrackers";
 import { EncounterAbilityStates } from "./EncounterAbilityStates";
-import { destinationHref } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
 import {
   EncounterTurnResources,
   type TurnResourceHandler,
@@ -68,7 +66,6 @@ export function EncounterInspectorPane({
   spellError,
   onCloseRecordPreview,
   onNavigateAwayPreview,
-  onOpenRecordFullPage,
   onReference,
   onAddCondition,
   onRemoveCondition,
@@ -106,7 +103,6 @@ export function EncounterInspectorPane({
   onReloadPreview,
   reloadPreviewLabel,
   retryPreviewLabel,
-  previewRecordKey,
   previewAnchor,
   previewReadingHistory,
   previewLanding,
@@ -131,7 +127,6 @@ export function EncounterInspectorPane({
   spellError?: string;
   onCloseRecordPreview: () => void;
   onNavigateAwayPreview?: () => void;
-  onOpenRecordFullPage: (recordKey: string) => void;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onAddCondition: (
     condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
@@ -211,7 +206,6 @@ export function EncounterInspectorPane({
   onReloadPreview?: () => void;
   reloadPreviewLabel?: string;
   retryPreviewLabel?: string;
-  previewRecordKey: string | null;
   previewAnchor: RecordPreviewAnchor | null;
   previewReadingHistory?: import("../../shared/records/recordPreviewTypes").RecordPreviewContentProps["readingHistory"];
   previewLanding?: import("../../generated/atlas").RecordNavigationView;
@@ -282,9 +276,9 @@ export function EncounterInspectorPane({
             participants={participants}
           />
         </EncounterConditionRecovery>
-        {(previewDestination || previewRecordKey) && (
+        {previewDestination && (
           <RecordReferenceDrawer
-            destination={previewDestination ?? undefined}
+            destination={previewDestination}
             definition={previewDefinition}
             help={previewHelp}
             onHelp={onHelp}
@@ -313,17 +307,6 @@ export function EncounterInspectorPane({
             requestedNavigation={previewSelection}
             landing={previewLanding}
             detail={previewDetail}
-            fullPageHref={
-              previewRecordKey
-                ? destinationHref(
-                    recordDestination({
-                      recordKey: previewRecordKey!,
-                      selection: previewSelection,
-                      landing: previewLanding,
-                    }),
-                  )
-                : undefined
-            }
             loading={previewLoading}
             error={previewError}
             onRetry={onRetryPreview}
@@ -332,9 +315,6 @@ export function EncounterInspectorPane({
             retryLabel={retryPreviewLabel}
             onClose={onCloseRecordPreview}
             onNavigateAway={onNavigateAwayPreview}
-            onOpenFullPage={() => {
-              if (previewRecordKey) onOpenRecordFullPage(previewRecordKey);
-            }}
             onReference={onReference}
           />
         )}

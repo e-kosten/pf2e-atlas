@@ -375,10 +375,6 @@ fn actor_rows(
             choice(SourceFieldView::from(&sense.r#type))?.field(&mut r, "type");
             choice(SourceFieldView::from(&sense.acuity))?.field(&mut r, "acuity");
             number(SourceFieldView::from(&sense.range))?.field(&mut r, "range");
-            convert(SourceFieldView::from(&sense.source), |source| {
-                Ok(Value::Text(source.clone()))
-            })?
-            .field(&mut r, "source");
             rows.push(r);
         }
     }

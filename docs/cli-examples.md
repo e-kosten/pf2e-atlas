@@ -359,21 +359,6 @@ Link functions operate on result roots and cannot appear inside authored
 collection `exists` expressions. `--print-filter` works without opening a workspace
 and requires canonical keys, including when using convenience flags.
 
-Definition-reference expressions use the same query tree and can combine with
-ordinary filters:
-
-```bash
-atlas search --where 'references_definition("language:chthonian")' --json
-atlas search --where '!references_definition("sense:darkvision", "main_entry")' --json
-```
-
-These find explicit references, rather than creatures possessing the sense or
-speaking the language. Use `atlas filters fields` and `atlas filters values` to
-discover property filters for those relationships.
-Record-backed definition keys retain their semantic identity while referencing
-the existing record destination. Missing or unavailable targets remain errors,
-including inside negation.
-
 ### Search JSON and occurrence paging
 
 Browse, text search and Similar JSON return a search page in `data`: `rows`,

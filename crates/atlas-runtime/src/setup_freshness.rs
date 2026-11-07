@@ -32,13 +32,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn changed_reference_selection_is_not_fresh_when_foundry_bytes_are_unchanged() {
+    fn changed_reference_notice_is_not_fresh_when_foundry_bytes_are_unchanged() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
         std::fs::create_dir_all(source.join("static/lang")).unwrap();
         std::fs::write(source.join("static/lang/en.json"), "{}").unwrap();
-        std::fs::write(source.join("module.json"), r#"{"id":"custom","packs":[]}"#).unwrap();
-        let options = |revision: &str| BuildArtifactOptions {
+        std::fs::write(
+            source.join("module.json"),
+            r#"{"id":"pf2e","version":"8.6.1","packs":[]}"#,
+        )
+        .unwrap();
+        let options = || BuildArtifactOptions {
             source_root: source.clone(),
             output_path: temporary.path().join("workspace.sqlite"),
             manifest_path: None,
@@ -47,12 +51,15 @@ mod tests {
             reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 32,
-            reference_supplement: atlas_ingest::ReferenceSupplementSelection::Absent {
-                revision: revision.into(),
-            },
         };
-        let first = CapturedBuildInputs::capture(options("disabled/v1")).unwrap();
-        let changed = CapturedBuildInputs::capture(options("disabled/v2")).unwrap();
+        let first = CapturedBuildInputs::capture(options()).unwrap();
+        std::fs::create_dir_all(source.join("static/licenses")).unwrap();
+        std::fs::write(
+            source.join("static/licenses/ORCLicense.md"),
+            "TX 9-307-067, fixture notice",
+        )
+        .unwrap();
+        let changed = CapturedBuildInputs::capture(options()).unwrap();
         assert_eq!(first.fingerprint().value, changed.fingerprint().value);
         assert_eq!(
             first.fingerprint().file_count,
@@ -70,7 +77,7 @@ mod tests {
             recipe: atlas_ingest::REFERENCE_PREPARATION_RECIPE.into(),
             input_hash: first.reference_inputs_identity().into(),
             coverage: atlas_index::ReferenceCoverage::Complete,
-            source_package: Some("custom".into()),
+            source_package: Some("pf2e".into()),
             pack_systems: Default::default(),
             expected_entry_count,
             entry_keys_sha256,

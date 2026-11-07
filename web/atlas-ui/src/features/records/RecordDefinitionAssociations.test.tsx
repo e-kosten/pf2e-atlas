@@ -5,7 +5,6 @@ import {
   AtlasApiError,
   getDefinitionDetail,
   getRecordDetail,
-  getDefinitionFilterOptions,
   searchPage,
 } from "../../api/atlasApi";
 import type { DefinitionDetailView } from "../../generated/atlas";
@@ -19,13 +18,11 @@ vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   getDefinitionDetail: vi.fn(),
   getRecordDetail: vi.fn(),
-  getDefinitionFilterOptions: vi.fn(),
   searchPage: vi.fn(),
 }));
 const definitionApi = vi.mocked(getDefinitionDetail);
 const recordApi = vi.mocked(getRecordDetail);
 const searchApi = vi.mocked(searchPage);
-const optionsApi = vi.mocked(getDefinitionFilterOptions);
 const recordKey = "bestiary-ability-glossary:darkvision";
 function property(
   generation = "test-generation",
@@ -37,7 +34,7 @@ function property(
     label: "Darkvision",
     help: {
       definition_key: "sense:darkvision",
-      availability: "available",
+
       destination: {
         kind: "record",
         navigation: {
@@ -48,31 +45,29 @@ function property(
           source_fingerprint: null,
         },
       },
-      related_filters: [
-        {
-          kind: "search",
-          label: "With this sense",
-          artifact_generation: generation,
-          predicate: {
-            kind: "exists",
-            collection: "senses",
-            scope_id: "same-sense",
-            predicate: {
-              kind: "compare",
-              field: "type",
-              op: "eq",
-              value: "darkvision",
-            },
-          },
-        },
-      ],
     },
     content: null,
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    related_filters: [
+      {
+        label: "With this sense",
+
+        predicate: {
+          kind: "exists",
+          collection: "senses",
+          scope_id: "same-sense",
+          predicate: {
+            kind: "compare",
+            field: "type",
+            op: "eq",
+            value: "darkvision",
+          },
+        },
+      },
+    ],
+    publications: [],
   };
 }
 function setup(
@@ -110,12 +105,6 @@ beforeEach(() => {
   };
   recordApi.mockResolvedValue(detail);
   definitionApi.mockResolvedValue(property());
-  optionsApi.mockResolvedValue({
-    artifact_generation: "test-generation",
-    options: [],
-    selected: [],
-    total: 0n,
-  });
   searchApi.mockResolvedValue({
     search_content: "all",
     ranking: "score",
@@ -144,12 +133,12 @@ it("adds matched property associations after the actual record body and preserve
     container.textContent!.indexOf("With this sense"),
   );
   expect(screen.getByRole("button", { name: "Explore related records" })).toBeVisible();
-  const action = property().help.related_filters[0];
+  const action = property().related_filters[0];
   expect(searchApi).toHaveBeenCalledWith(
     expect.objectContaining({
       criteria: {
         kind: "list_records",
-        filter: action.kind === "search" ? action.predicate : null,
+        filter: action.predicate,
       },
     }),
     expect.any(AbortSignal),
@@ -158,8 +147,8 @@ it("adds matched property associations after the actual record body and preserve
 
 it("does not lend a property association to a different backend destination", async () => {
   const wrong = property();
-  if (wrong.help.destination?.kind === "record")
-    wrong.help.destination.navigation.record_key = "other:record";
+  if (wrong.help!.destination?.kind === "record")
+    wrong.help!.destination.navigation.record_key = "other:record";
   definitionApi.mockResolvedValue(wrong);
   setup();
   expect(
@@ -285,6 +274,5 @@ it("does not request definition metadata for an ordinary record page", async () 
   setup({ recordKey });
   expect(await screen.findByText("Actual existing ability rules.")).toBeVisible();
   expect(screen.getByRole("button", { name: "Explore related records" })).toBeVisible();
-  expect(optionsApi).not.toHaveBeenCalled();
   expect(definitionApi).not.toHaveBeenCalled();
 });

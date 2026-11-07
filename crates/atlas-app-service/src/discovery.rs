@@ -140,17 +140,23 @@ pub(crate) fn filter_editor_view(
             "movement.speeds" => Some(FilterCollectionControlView {
                 category_field_id: "movement.speeds[].type".into(),
                 amount_field_id: Some("movement.speeds[].feet".into()),
+                qualifier_field_id: None,
             }),
             "defenses.weaknesses" | "defenses.resistances" => Some(FilterCollectionControlView {
                 category_field_id: format!("{}[].type", definition.id),
                 amount_field_id: Some(format!("{}[].value", definition.id)),
+                qualifier_field_id: None,
             }),
-            "senses" | "defenses.immunities" | "spell.damage" => {
-                Some(FilterCollectionControlView {
-                    category_field_id: format!("{}[].type", definition.id),
-                    amount_field_id: None,
-                })
-            }
+            "senses" => Some(FilterCollectionControlView {
+                category_field_id: "senses[].type".into(),
+                amount_field_id: Some("senses[].range".into()),
+                qualifier_field_id: Some("senses[].acuity".into()),
+            }),
+            "defenses.immunities" | "spell.damage" => Some(FilterCollectionControlView {
+                category_field_id: format!("{}[].type", definition.id),
+                amount_field_id: None,
+                qualifier_field_id: None,
+            }),
             _ => None,
         };
         let unit_fields = if ["rounds", "minutes", "hours", "days"]
@@ -177,6 +183,7 @@ pub(crate) fn filter_editor_view(
             unit_fields,
             short_choices: matches!(definition.id.as_str(), "kind" | "rarity")
                 || (!choices.is_empty() && choices.len() <= 12),
+            allow_custom_values: (definition.id == "actions").then_some(false),
             definition,
             control,
             placement,
@@ -252,7 +259,7 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         return ProductGroup::Defenses;
     }
     match path.split('.').next().unwrap_or("") {
-        "body" | "abilities" | "skills" => ProductGroup::Creatures,
+        "body" | "abilities" | "skills" | "actions" => ProductGroup::Creatures,
         "level" | "has_description" => ProductGroup::Common,
         "hazard" => ProductGroup::Hazards,
         "physical" | "ammo" | "weapon" | "armor" | "shield" | "consumable" | "equipment"

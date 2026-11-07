@@ -4,7 +4,7 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 export type RecordPreviewAnchor = HTMLElement;
 
 export type RecordPreviewContentProps = {
-  destination?: import("../../generated/atlas").ReferenceDestinationView;
+  destination: import("../../generated/atlas").ReferenceDestinationView;
   definition?: import("../../generated/atlas").DefinitionDetailView;
   help?: import("../../generated/atlas").ReferenceHelpView;
   onHelp?: import("./ReferenceHelp").ReferenceHelpHandler;
@@ -18,7 +18,6 @@ export type RecordPreviewContentProps = {
     onBack: () => void;
     restore: { scroll: number; focusHref?: string; focusRegion?: "header" | "body" };
   };
-  fullPageHref?: string;
   requestedNavigation?: import("../../generated/atlas").RecordNavigationView;
   landing?: import("../../generated/atlas").RecordNavigationView;
   detail: RecordDetailView | undefined;
@@ -31,7 +30,6 @@ export type RecordPreviewContentProps = {
   onClose: () => void;
   onNavigateAway?: () => void;
   restoreAnchorFocus?: boolean;
-  onOpenFullPage: () => void;
   onReference: RecordReferenceHandler;
   onRankChange?: (rank: number | undefined) => void;
 };

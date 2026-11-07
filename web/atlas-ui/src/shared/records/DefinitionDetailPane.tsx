@@ -76,9 +76,7 @@ export function DefinitionDetailPane({
 }
 
 export function DefinitionAttribution({ detail }: { detail: DefinitionDetailView }) {
-  const attribution = detail.attribution;
-  if (!attribution) return null;
-  const publications = attribution.publications
+  const publications = detail.publications
     .filter((publication) => publication.title?.trim())
     .map((publication) =>
       [publication.title, publication.page == null ? null : `p. ${publication.page}`]

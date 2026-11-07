@@ -1,4 +1,5 @@
 //! Validated typed filters, catalog policy and parameterized compilation.
+mod actions;
 pub(crate) mod catalog;
 mod cel;
 pub(crate) mod compiler;

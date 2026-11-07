@@ -7,7 +7,6 @@ pub struct BuildArtifactOptions {
     pub output_path: PathBuf,
     pub manifest_path: Option<PathBuf>,
     pub locale: String,
-    pub reference_supplement: crate::ReferenceSupplementSelection,
     /// Empty builds a complete lexical artifact without native vector activation.
     pub search_profiles: Vec<EmbeddingRuntimeConfig>,
     pub reuse_embeddings: bool,

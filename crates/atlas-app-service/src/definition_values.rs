@@ -1,9 +1,11 @@
 //! Product labels/help decorate query-owned choices without changing their scope.
 use crate::{AppServiceResult, definitions::HelpContext};
 use atlas_app_model::*;
-use atlas_domain::{DefinitionKey, DefinitionNamespace as N, QueryCapability, QueryLiteral};
-use atlas_search::AtlasRetrievalService;
-use std::collections::BTreeSet;
+use atlas_domain::{
+    DefinitionKey, DefinitionNamespace as N, QueryCapability, QueryLiteral, RecordKey,
+};
+use atlas_search::{AtlasRetrievalService, GetRecordsRequest};
+use std::collections::{BTreeMap, BTreeSet};
 
 fn namespace(catalog: &QueryCapability, field: &str) -> Option<N> {
     let field = catalog.fields.iter().find(|f| f.id == field)?;
@@ -78,6 +80,55 @@ fn decorate(
         help: reference.help,
     })
 }
+fn action_choices<'a>(
+    r: &AtlasRetrievalService,
+    field: &str,
+    values: impl Iterator<Item = &'a QueryLiteral>,
+) -> AppServiceResult<BTreeMap<String, FilterChoiceView>> {
+    if field != "actions" {
+        return Ok(BTreeMap::new());
+    }
+    let keys: Vec<_> = values
+        .filter_map(|value| match value {
+            QueryLiteral::String(key) => RecordKey::parse(key).ok(),
+            _ => None,
+        })
+        .filter(|key| key.pack().as_str() == "bestiary-ability-glossary-srd")
+        .collect();
+    Ok(r.get_records(GetRecordsRequest { record_keys: &keys })?
+        .records
+        .into_iter()
+        .filter(|record| {
+            record.document_kind == "Item"
+                && record
+                    .source_type
+                    .as_value()
+                    .is_some_and(|value| value == "action")
+        })
+        .filter_map(|record| {
+            let label = record.name.as_value()?.clone();
+            let key = record.key.to_string();
+            let navigation = crate::definitions::record_navigation(
+                record.key,
+                Vec::new(),
+                r.source_fingerprint(),
+            );
+            Some((
+                key.clone(),
+                FilterChoiceView {
+                    value: QueryLiteral::String(key),
+                    label,
+                    help: Some(ReferenceHelpView {
+                        definition_key: None,
+                        destination: ReferenceDestinationView::Record {
+                            navigation: navigation.into(),
+                        },
+                    }),
+                },
+            ))
+        })
+        .collect())
+}
 fn fallback_label(catalog: &QueryCapability, field: &str, value: &QueryLiteral) -> Option<String> {
     let QueryLiteral::String(value) = value else {
         return None;
@@ -115,6 +166,7 @@ pub(crate) fn options(
     let catalog = r.discover_filter_fields()?;
     let namespace = namespace(&catalog, &options.field);
     let context = HelpContext::load(r, keys(namespace, options.options.iter().map(|o| &o.value)))?;
+    let actions = action_choices(r, &options.field, options.options.iter().map(|o| &o.value))?;
     Ok(FilterValueOptionsView {
         field: options.field.clone(),
         total_values: options.total_values,
@@ -124,8 +176,14 @@ pub(crate) fn options(
             .options
             .into_iter()
             .map(|o| {
-                let label = fallback_label(&catalog, &options.field, &o.value);
-                let value = decorate(&context, namespace, o.value, label)?;
+                let value = if let QueryLiteral::String(key) = &o.value
+                    && let Some(choice) = actions.get(key)
+                {
+                    choice.clone()
+                } else {
+                    let label = fallback_label(&catalog, &options.field, &o.value);
+                    decorate(&context, namespace, o.value, label)?
+                };
                 Ok(FilterValueOptionView {
                     value: value.value,
                     label: value.label,
@@ -144,6 +202,7 @@ pub(crate) fn vocabulary(
     let catalog = r.discover_filter_fields()?;
     let namespace = namespace(&catalog, &values.field);
     let context = HelpContext::load(r, keys(namespace, values.options.iter().map(|o| &o.value)))?;
+    let actions = action_choices(r, &values.field, values.options.iter().map(|o| &o.value))?;
     Ok(FilterVocabularyView {
         field: values.field.clone(),
         selected_values: values.selected_values,
@@ -153,6 +212,11 @@ pub(crate) fn vocabulary(
             .options
             .into_iter()
             .map(|o| {
+                if let QueryLiteral::String(key) = &o.value
+                    && let Some(choice) = actions.get(key)
+                {
+                    return Ok(choice.clone());
+                }
                 let label = fallback_label(&catalog, &values.field, &o.value);
                 decorate(&context, namespace, o.value, label)
             })

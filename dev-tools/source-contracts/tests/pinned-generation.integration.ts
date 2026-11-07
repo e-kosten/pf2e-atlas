@@ -42,8 +42,8 @@ test('fresh generation input stores nodes once and resolves every reference', ()
 test('reference metadata reconciles the full census without changing the checked DTO contract', async () => {
   const catalog = input.referenceCatalog!;
   assert.ok(catalog);
-  assert.equal(catalog.records.length, 1166);
-  assert.equal(catalog.definitions.length + input.traitDefinitions!.length + catalog.records.length, 2553);
+  assert.equal(catalog.definitions.length, 603);
+  assert.equal(input.traitDefinitions!.length, 784);
   const included = catalog.definitions.filter(definition => !definition.excluded);
   const rows = (namespace: string) => included.filter(definition => definition.namespace === namespace);
   assert.equal(rows('language').length, 119);

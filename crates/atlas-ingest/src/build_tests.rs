@@ -668,7 +668,6 @@ impl Fixture {
             output_path: self.0.join("artifact.sqlite"),
             manifest_path: None,
             locale: "en".into(),
-            reference_supplement: crate::ReferenceSupplementSelection::default(),
             search_profiles: vec![],
             reuse_embeddings: true,
             reuse_passage_layouts: true,
@@ -1057,7 +1056,6 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
         output_path: evidence.join("full-lexical.sqlite"),
         manifest_path: None,
         locale: "en".into(),
-        reference_supplement: crate::ReferenceSupplementSelection::default(),
         search_profiles: vec![],
         reuse_embeddings: false,
         reuse_passage_layouts: false,
@@ -1730,7 +1728,6 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         output_path: temporary.path().join("preparation.sqlite"),
         manifest_path: None,
         locale: "en".into(),
-        reference_supplement: crate::ReferenceSupplementSelection::default(),
         search_profiles: vec![atlas_embedding::EmbeddingRuntimeConfig::new(
             atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
             cache,
@@ -2197,13 +2194,6 @@ fn trait_vocabulary_is_localized_persisted_and_keeps_exact_variants() {
             .trait_definition(&atlas_domain::TraitKey::new("common").unwrap())
             .unwrap()
             .is_none()
-    );
-    assert_eq!(
-        reader
-            .reference_entries(atlas_domain::DefinitionNamespace::Trait, 1, 0)
-            .unwrap()
-            .1,
-        u64::try_from(atlas_foundry_model::generated::trait_definitions().len()).unwrap()
     );
 }
 

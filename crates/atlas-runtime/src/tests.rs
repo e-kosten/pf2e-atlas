@@ -628,7 +628,6 @@ fn stale_build_configuration_is_rejected_before_reading_source() {
             reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 32,
-            reference_supplement: Default::default(),
         },
     )
     .unwrap_err();
@@ -713,7 +712,6 @@ fn setup_chooses_metadata_refresh_or_one_source_publication() {
                     reuse_embeddings: true,
                     reuse_passage_layouts: true,
                     embedding_batch_size: 32,
-                    reference_supplement: Default::default(),
                 },
             )
             .unwrap();
@@ -757,7 +755,6 @@ fn owned_build_inputs_keep_captured_manifest_and_reject_unconsumed_source_change
         reuse_embeddings: true,
         reuse_passage_layouts: true,
         embedding_batch_size: 32,
-        reference_supplement: Default::default(),
     };
     let manifest_path = paths.source_root.join("module.json");
     let manifest = fs::read(&manifest_path).unwrap();

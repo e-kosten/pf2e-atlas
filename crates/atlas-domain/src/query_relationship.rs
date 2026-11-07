@@ -78,11 +78,7 @@ pub fn assign_relationship_clause_ids(p: &mut QueryPredicate) -> Result<(), Quer
         }
     })?;
     fn assign(p: &mut QueryPredicate, used: &mut BTreeSet<String>, next: &mut usize) {
-        if matches!(
-            p.expression,
-            QueryExpression::Relationship { .. } | QueryExpression::DefinitionReference { .. }
-        ) && p.clause_id.is_none()
-        {
+        if matches!(p.expression, QueryExpression::Relationship { .. }) && p.clause_id.is_none() {
             loop {
                 let id = format!("relationship-{next}");
                 *next += 1;
@@ -115,7 +111,7 @@ pub fn select_relationship_clause_id(
     let mut leaves = Vec::new();
     fn collect<'a>(p: &'a QueryPredicate, positive: bool, leaves: &mut Vec<(&'a str, bool)>) {
         match &p.expression {
-            QueryExpression::Relationship { .. } | QueryExpression::DefinitionReference { .. } => {
+            QueryExpression::Relationship { .. } => {
                 if let Some(id) = &p.clause_id {
                     leaves.push((id, positive));
                 }
@@ -148,20 +144,19 @@ pub fn select_relationship_clause_id(
 }
 
 /// Bounded source-order presentation inventory, never an independent eligibility scope.
-fn checked_reference_clauses(p: &QueryPredicate) -> Result<Vec<&QueryPredicate>, QueryError> {
+pub fn relationship_clauses(
+    p: &QueryPredicate,
+) -> Result<Vec<(&str, &QueryRelationship)>, QueryError> {
     let mut clauses = Vec::new();
     let mut invalid = false;
     let mut ids = BTreeSet::new();
     visit(p, 0, &mut 0, &mut |node| {
-        if matches!(
-            &node.expression,
-            QueryExpression::Relationship { .. } | QueryExpression::DefinitionReference { .. }
-        ) {
+        if let QueryExpression::Relationship { relationship } = &node.expression {
             if let Some(id) = &node.clause_id {
                 if id.is_empty() || id.len() > 128 || !ids.insert(id.as_str()) {
                     invalid = true;
                 }
-                clauses.push(node);
+                clauses.push((id.as_str(), relationship));
             } else {
                 invalid = true;
             }
@@ -169,64 +164,13 @@ fn checked_reference_clauses(p: &QueryPredicate) -> Result<Vec<&QueryPredicate>,
     })?;
     if invalid {
         return Err(error(
-            "Reference conditions require distinct nonempty clause IDs",
+            "Link conditions require distinct nonempty clause IDs",
         ));
     }
     if clauses.len() > QueryLimits::default().relationship_leaves {
-        return Err(error("Use at most 16 reference conditions"));
+        return Err(error("Use at most 16 link conditions"));
     }
     Ok(clauses)
-}
-/// Borrowed source-order inventory over the two executable reference leaves.
-pub enum QueryReferenceClause<'a> {
-    Record(&'a QueryRelationship),
-    Definition(&'a crate::QueryDefinitionReference),
-}
-pub fn reference_clauses(
-    p: &QueryPredicate,
-) -> Result<Vec<(&str, QueryReferenceClause<'_>)>, QueryError> {
-    Ok(checked_reference_clauses(p)?
-        .into_iter()
-        .filter_map(|p| match &p.expression {
-            QueryExpression::Relationship { relationship } => Some((
-                p.clause_id.as_deref().unwrap_or(""),
-                QueryReferenceClause::Record(relationship),
-            )),
-            QueryExpression::DefinitionReference { reference } => Some((
-                p.clause_id.as_deref().unwrap_or(""),
-                QueryReferenceClause::Definition(reference),
-            )),
-            _ => None,
-        })
-        .collect())
-}
-/// Existing record-link conditions, preserving source order and exact identity.
-pub fn relationship_clauses(
-    p: &QueryPredicate,
-) -> Result<Vec<(&str, &QueryRelationship)>, QueryError> {
-    Ok(checked_reference_clauses(p)?
-        .into_iter()
-        .filter_map(|p| match &p.expression {
-            QueryExpression::Relationship { relationship } => {
-                Some((p.clause_id.as_deref().unwrap_or(""), relationship))
-            }
-            _ => None,
-        })
-        .collect())
-}
-/// Incoming definition-reference conditions in the same bounded clause inventory.
-pub fn definition_reference_clauses(
-    p: &QueryPredicate,
-) -> Result<Vec<(&str, &crate::QueryDefinitionReference)>, QueryError> {
-    Ok(checked_reference_clauses(p)?
-        .into_iter()
-        .filter_map(|p| match &p.expression {
-            QueryExpression::DefinitionReference { reference } => {
-                Some((p.clause_id.as_deref().unwrap_or(""), reference))
-            }
-            _ => None,
-        })
-        .collect())
 }
 
 #[cfg(test)]

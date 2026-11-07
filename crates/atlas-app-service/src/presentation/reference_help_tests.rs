@@ -264,12 +264,7 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
             );
             hidden.availability = ReferenceAvailability::PermissionUnresolved;
             hidden.permission.disposition = ReferencePermissionDisposition::MetadataOnlyUnresolved;
-            hidden.filter_bindings = vec![ReferenceFilterBinding {
-                id: "references".into(),
-                relation: "references_definition".into(),
-                field: None,
-                value: None,
-            }];
+            hidden.filter_bindings.clear();
             entries.push(hidden);
             let trait_entry = entries.remove(0);
             data.traits
@@ -440,7 +435,7 @@ fn exact_owned_general_help_rejects_unrelated_traits_domains_and_ambiguity() {
         .find(|a| a.title == "General vision 23")
         .unwrap();
     let Some(ReferenceHelpView {
-        destination: Some(ReferenceDestinationView::Record { navigation, .. }),
+        destination: ReferenceDestinationView::Record { navigation, .. },
         ..
     }) = &general.help
     else {
@@ -461,40 +456,12 @@ fn exact_owned_general_help_rejects_unrelated_traits_domains_and_ambiguity() {
 }
 
 #[test]
-fn legacy_trait_help_retains_membership_without_narrowing_symmetric_references() {
-    let fixture = fixture(true);
-    let detail = fixture.worker.record_detail(HOLDER).unwrap();
-    let help = detail
-        .presentation
-        .identity
-        .traits
-        .iter()
-        .find(|badge| badge.value == "fire")
-        .unwrap()
-        .help
-        .as_ref()
-        .unwrap();
-    assert_eq!(help.related_filters.len(), 1);
-    let ReferenceFilterActionView::Search { predicate, .. } = &help.related_filters[0] else {
-        panic!("membership filter");
-    };
-    assert_eq!(
-        serde_json::to_value(predicate).unwrap(),
-        json!({"kind":"set_match","field":"traits","op":"includes","values":["fire"]})
-    );
-    assert_eq!(help.availability, DefinitionAvailabilityView::LabelOnly);
-}
-
-#[test]
-fn alternate_melee_and_spell_patch_traits_keep_contextual_help_and_raw_identity() {
+fn alternate_melee_and_spell_patch_traits_keep_labels_and_raw_identity() {
     let fixture = fixture(true);
     let assert_fire = |value: &ReferenceValueView| {
         assert_eq!(value.value, "fire");
         assert_eq!(value.label, "Fire");
-        assert_eq!(
-            value.help.as_ref().unwrap().definition_key.as_deref(),
-            Some("trait:fire")
-        );
+        assert!(value.help.is_none());
     };
     let detail = fixture
         .worker
@@ -557,161 +524,11 @@ fn list_request(filter: Option<atlas_domain::QueryPredicate>) -> SearchResultsRe
 }
 
 #[test]
-fn permission_blocked_body_retains_definition_identity_and_executable_reference_action() {
+fn bodyless_entries_keep_typed_filters_and_record_backed_help_retains_associations() {
     let fixture = fixture(true);
     let execution = crate::ReadExecutionContext::uncancellable();
-    let detail = fixture
-        .worker
-        .definition_detail(
-            DefinitionDetailRequest {
-                definition_key: "rule:pf2e:Fixture.Rule.Hidden".into(),
-                expected_artifact_generation: None,
-            },
-            &execution,
-        )
-        .unwrap();
-    assert!(detail.content.is_none());
-    assert!(detail.help.destination.is_none());
-    assert_eq!(
-        detail.help.availability,
-        DefinitionAvailabilityView::PermissionUnresolved
-    );
-    assert_eq!(
-        detail.help.definition_key.as_deref(),
-        Some("rule:pf2e:Fixture.Rule.Hidden")
-    );
-    let ReferenceFilterActionView::Search {
-        label,
-        predicate,
-        artifact_generation,
-        ..
-    } = &detail.help.related_filters[0]
-    else {
-        panic!("reference action")
-    };
-    assert_eq!(label, "References to this definition");
-    let mut request = list_request(Some(predicate.clone()));
-    request.expected_artifact_generation = Some(artifact_generation.clone());
-    let result = fixture.worker.search_page(request, &execution).unwrap();
-    assert_eq!(result.rows.len(), 1);
-    assert_eq!(result.rows[0].record.record_key, HOLDER);
-    assert!(result.relationship_clauses[0].destination.is_none());
-    let ReferenceOccurrenceView::Definition { occurrence } =
-        &result.rows[0].relationship_evidence[0].occurrences[0]
-    else {
-        panic!("canonical definition evidence")
-    };
-    assert!(
-        matches!(&occurrence.target, atlas_domain::QueryDefinitionReferenceTarget::Definition { key } if key.to_string() == "rule:pf2e:Fixture.Rule.Hidden")
-    );
-    assert!(occurrence.target_destination.is_none());
-    let atlas_domain::QueryDefinitionReferenceTarget::Record { selection } = &occurrence.source
-    else {
-        panic!("exact record source")
-    };
-    assert_eq!(selection.record_key.to_string(), HOLDER);
-    assert_eq!(selection.owners.len(), 1);
-    assert_eq!(
-        selection.field.as_deref(),
-        Some("/system/description/value")
-    );
-    assert!(
-        matches!(&occurrence.source_destination, Some(ReferenceDestinationView::Record { navigation, }) if navigation.owners == selection.owners && navigation.field == selection.field)
-    );
-}
-
-#[test]
-fn glossary_parent_predicate_composes_with_static_connection_scope_and_reader_edition() {
-    let fixture = fixture(true);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let definition = fixture
-        .worker
-        .definition_detail(
-            DefinitionDetailRequest {
-                definition_key: "rule:pf2e:Fixture.Rule.Hidden".into(),
-                expected_artifact_generation: None,
-            },
-            &execution,
-        )
-        .unwrap();
-    let ReferenceFilterActionView::Search {
-        predicate,
-        artifact_generation,
-        ..
-    } = &definition.help.related_filters[0]
-    else {
-        panic!("exact definition query")
-    };
-    let mut request = list_request(None);
-    request.connection_scope = Some(SearchConnectionScope {
-        parent: Box::new(StaticSearchContext {
-            filter: Some(predicate.clone()),
-            exclude_clause_id: None,
-            incomplete: false,
-            list_ref: None,
-            trait_key: None,
-            connection_scope: None,
-            expected_artifact_generation: Some(artifact_generation.clone()),
-        }),
-        direction: atlas_domain::QueryRelationshipDirection::Incoming,
-        include_contents: true,
-    });
-    let page = fixture
-        .worker
-        .search_page(request.clone(), &execution)
-        .unwrap();
-    assert_eq!(page.connection_scope, Some(ConnectionScopeView::Connected));
-    assert_eq!(page.rows.len(), 1);
-    let record = &page.rows[0].record;
-    assert_eq!(record.record_key, GENERAL);
-    assert_eq!(record.edition, Some(RecordEditionView::Legacy));
-    let badge = &record.traits[0];
-    assert_eq!(
-        (badge.value.as_str(), badge.label.as_str()),
-        ("fire", "Fire")
-    );
-    assert!(badge.help.as_ref().unwrap().destination.is_none());
-    assert_eq!(badge.help.as_ref().unwrap().related_filters.len(), 1);
-    request
-        .connection_scope
-        .as_mut()
-        .unwrap()
-        .parent
-        .expected_artifact_generation = Some("stale".into());
-    let error = fixture
-        .worker
-        .search_page(request, &execution)
-        .unwrap_err()
-        .into_app_error();
-    assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
-}
-
-#[test]
-fn bodyless_help_keeps_filter_workflows_without_offering_definition_reading() {
-    let fixture = fixture(true);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    for (key, availability, labels) in [
-        (
-            "size:med",
-            DefinitionAvailabilityView::LabelOnly,
-            vec![
-                "With this body size",
-                "With this item size",
-                "With this ancestry size",
-            ],
-        ),
-        (
-            "weakness_type:fire",
-            DefinitionAvailabilityView::LabelOnly,
-            vec!["With this weakness"],
-        ),
-        (
-            "language:draconic",
-            DefinitionAvailabilityView::MissingLocalizedBody,
-            vec!["With this language"],
-        ),
-    ] {
-        let detail = fixture
+    let read = |key: &str| {
+        fixture
             .worker
             .definition_detail(
                 DefinitionDetailRequest {
@@ -720,123 +537,59 @@ fn bodyless_help_keeps_filter_workflows_without_offering_definition_reading() {
                 },
                 &execution,
             )
-            .unwrap();
-        assert_eq!(detail.help.definition_key.as_deref(), Some(key));
-        assert_eq!(detail.help.availability, availability);
-        assert!(detail.help.destination.is_none(), "{key}");
-        assert!(detail.content.is_none(), "{key}");
-        assert_eq!(detail.help.related_filters.len(), labels.len());
-        for (action, label) in detail.help.related_filters.iter().zip(labels) {
-            let ReferenceFilterActionView::Search {
-                label: actual_label,
-                predicate,
-                artifact_generation,
-            } = action
-            else {
-                panic!("executable property action")
-            };
-            assert_eq!(actual_label, label);
-            let mut request = list_request(Some(predicate.clone()));
-            request.expected_artifact_generation = Some(artifact_generation.clone());
-            let result = fixture.worker.search_page(request, &execution).unwrap();
-            if key == "weakness_type:fire" {
-                assert_eq!(result.rows[0].record.record_key, "armies:army000000000001");
-            }
-        }
-        let selected = fixture
-            .worker
-            .definition_filter_options(
-                DefinitionFilterOptionsRequest {
-                    text: None,
-                    offset: 0,
-                    limit: 100,
-                    selected: vec![atlas_domain::QueryDefinitionReferenceTarget::Definition {
-                        key: key.parse().unwrap(),
-                    }],
-                    expected_artifact_generation: Some(detail.artifact_generation),
-                },
-                &execution,
-            )
-            .unwrap();
-        assert!(selected.selected[0].help.destination.is_none());
-        assert_eq!(
-            selected.selected[0].help.related_filters,
-            detail.help.related_filters
-        );
-    }
-    let detail = fixture
-        .worker
-        .record_detail("ancestries:ancestry00000001")
-        .unwrap();
-    let RecordBodyView::Ancestry(ancestry) = detail.presentation.body else {
-        panic!("ancestry")
+            .unwrap()
     };
-    let size = ancestry.size.value.unwrap();
-    assert_eq!(
-        (size.value.as_str(), size.label.as_str()),
-        ("med", "Medium")
-    );
-    let help = size.help.unwrap();
-    assert!(help.destination.is_none());
-    assert_eq!(help.related_filters.len(), 3);
-    let darkvision = fixture
+    for key in ["size:med", "weakness_type:fire", "language:draconic"] {
+        let detail = read(key);
+        assert!(detail.help.is_none(), "{key}");
+        assert!(detail.content.is_none(), "{key}");
+        assert!(detail.related_filters.is_empty(), "{key}");
+    }
+    let page = fixture
         .worker
-        .definition_detail(
-            DefinitionDetailRequest {
-                definition_key: "sense:darkvision".into(),
-                expected_artifact_generation: None,
-            },
+        .search_page(
+            list_request(Some(atlas_domain::QueryPredicate::new(
+                atlas_domain::QueryExpression::Exists {
+                    collection: "defenses.weaknesses".into(),
+                    scope_id: "weakness".into(),
+                    predicate: Box::new(atlas_domain::QueryPredicate::new(
+                        atlas_domain::QueryExpression::Compare {
+                            field: "type".into(),
+                            op: atlas_domain::QueryCompare::Eq,
+                            value: atlas_domain::QueryLiteral::String("fire".into()),
+                        },
+                    )),
+                },
+            ))),
             &execution,
         )
         .unwrap();
-    assert!(
-        matches!(darkvision.help.destination, Some(ReferenceDestinationView::Record { navigation, .. }) if navigation.record_key == GENERAL)
-    );
+    assert_eq!(page.rows[0].record.record_key, "armies:army000000000001");
+    let darkvision = read("sense:darkvision");
+    assert!(matches!(
+        darkvision.help.map(|help| help.destination),
+        Some(ReferenceDestinationView::Record { navigation }) if navigation.record_key == GENERAL
+    ));
+    assert_eq!(darkvision.related_filters[0].label, "With this sense");
 }
 
 #[test]
-fn retained_empty_traits_keep_raw_content_and_membership_without_reading_pages() {
+fn retained_empty_traits_have_membership_without_reading_pages() {
     let execution = crate::ReadExecutionContext::uncancellable();
     for complete in [false, true] {
         let fixture = fixture(complete);
-        let generic = fixture
-            .worker
-            .definition_detail(
-                DefinitionDetailRequest {
-                    definition_key: "trait:empty-fixture".into(),
-                    expected_artifact_generation: None,
-                },
-                &execution,
-            )
-            .unwrap();
-        assert_eq!(
-            generic.help.availability,
-            DefinitionAvailabilityView::Available
-        );
-        assert!(generic.help.destination.is_none());
-        let Some(ReferenceContentView {
-            body: PreparedFieldBodyView::Html { html, .. },
-            ..
-        }) = &generic.content
-        else {
-            panic!("retained canonical content")
-        };
-        assert_eq!(html, "<p></p>");
         let specialized = fixture
             .worker
             .trait_definition(
                 TraitDetailRequest {
                     trait_key: "trait:empty-fixture".into(),
-                    expected_artifact_generation: Some(generic.artifact_generation.clone()),
+                    expected_artifact_generation: None,
                 },
                 &execution,
             )
             .unwrap();
         assert_eq!(specialized.label, "Empty fixture");
-        assert!(
-            specialized.content.is_none(),
-            "native trait page must have no empty reading body"
-        );
+        assert!(specialized.content.is_none());
         let record = fixture.worker.record_detail(HOLDER).unwrap();
         let badge = record
             .presentation
@@ -846,121 +599,37 @@ fn retained_empty_traits_keep_raw_content_and_membership_without_reading_pages()
             .find(|badge| badge.value == "empty-fixture")
             .unwrap();
         assert_eq!(badge.label, "Empty fixture");
-        let help = badge.help.as_ref().unwrap();
-        assert!(help.destination.is_none());
-        assert_eq!(help.related_filters, generic.help.related_filters);
-        let ReferenceFilterActionView::Search { predicate, .. } = &help.related_filters[0] else {
-            panic!("trait membership")
-        };
+        assert!(badge.help.is_none());
+        let predicate =
+            atlas_domain::QueryPredicate::new(atlas_domain::QueryExpression::SetMatch {
+                field: "traits".into(),
+                op: atlas_domain::QuerySetMatch::Includes,
+                values: vec!["empty-fixture".into()],
+            });
         let page = fixture
             .worker
-            .search_page(list_request(Some(predicate.clone())), &execution)
+            .search_page(list_request(Some(predicate)), &execution)
             .unwrap();
         assert_eq!(page.rows.len(), 1);
         assert_eq!(page.rows[0].record.record_key, HOLDER);
-        if complete {
-            let options = fixture
-                .worker
-                .definition_filter_options(
-                    DefinitionFilterOptionsRequest {
-                        text: None,
-                        offset: 0,
-                        limit: 100,
-                        selected: vec![atlas_domain::QueryDefinitionReferenceTarget::Definition {
-                            key: "trait:empty-fixture".parse().unwrap(),
-                        }],
-                        expected_artifact_generation: Some(generic.artifact_generation),
-                    },
-                    &execution,
-                )
-                .unwrap();
-            assert!(options.selected[0].help.destination.is_none());
-            assert_eq!(
-                options.selected[0].help.related_filters,
-                help.related_filters
-            );
-        }
     }
 }
 
 #[test]
-fn empty_approved_definition_preserves_attribution_identity_and_reference_proofs() {
-    let fixture = fixture(true);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let detail = fixture
+fn empty_approved_definition_has_no_reading_body() {
+    let detail = fixture(true)
         .worker
         .definition_detail(
             DefinitionDetailRequest {
                 definition_key: "domain:air".into(),
                 expected_artifact_generation: None,
             },
-            &execution,
+            &crate::ReadExecutionContext::uncancellable(),
         )
         .unwrap();
-    assert_eq!(
-        detail.help.availability,
-        DefinitionAvailabilityView::Available
-    );
-    assert!(detail.help.destination.is_none());
-    assert_eq!(detail.notices[0].text, "Synthetic empty glossary fixture.");
-    assert_eq!(
-        detail.attribution.as_ref().unwrap().body_grants[0].license,
-        "CC0-1.0"
-    );
-    assert_eq!(detail.help.related_filters.len(), 1);
-    let Some(ReferenceContentView {
-        body: PreparedFieldBodyView::Html { html, .. },
-        ..
-    }) = &detail.content
-    else {
-        panic!("retained canonical content")
-    };
-    assert_eq!(html, "<p></p>");
-    let ReferenceFilterActionView::Search { predicate, .. } =
-        crate::definitions::definition_reference_action(
-            atlas_domain::QueryDefinitionReferenceTarget::Definition {
-                key: "domain:air".parse().unwrap(),
-            },
-            &detail.artifact_generation,
-            "References to this definition",
-        )
-        .unwrap()
-    else {
-        panic!("reference predicate")
-    };
-    let page = fixture
-        .worker
-        .search_page(list_request(Some(predicate)), &execution)
-        .unwrap();
-    assert_eq!(page.rows.len(), 1);
-    assert!(page.relationship_clauses[0].destination.is_none());
-    let ReferenceOccurrenceView::Definition { occurrence } =
-        &page.rows[0].relationship_evidence[0].occurrences[0]
-    else {
-        panic!("canonical empty-definition reference")
-    };
-    assert!(
-        matches!(&occurrence.target, atlas_domain::QueryDefinitionReferenceTarget::Definition { key } if key.to_string() == "domain:air")
-    );
-    assert!(occurrence.target_destination.is_none());
-    let options = fixture
-        .worker
-        .definition_filter_options(
-            DefinitionFilterOptionsRequest {
-                text: None,
-                offset: 0,
-                limit: 100,
-                selected: vec![occurrence.target.clone()],
-                expected_artifact_generation: Some(detail.artifact_generation),
-            },
-            &execution,
-        )
-        .unwrap();
-    assert!(options.selected[0].help.destination.is_none());
-    assert_eq!(
-        options.selected[0].help.related_filters,
-        detail.help.related_filters
-    );
+    assert_eq!(detail.definition_key, "domain:air");
+    assert!(detail.help.is_none());
+    assert!(detail.content.is_none());
 }
 
 #[test]
@@ -968,34 +637,22 @@ fn prepared_check_and_routine_badges_use_canonical_trait_reading_capabilities() 
     let fixture = fixture(true);
     let check_traits = |badges: &[RecordBadgeView]| {
         for badge in badges {
-            let help = badge.help.as_ref().unwrap();
-            assert_eq!(
-                help.definition_key.as_deref(),
-                Some(format!("trait:{}", badge.value).as_str())
-            );
             match badge.value.as_str() {
                 "illusion" => {
                     assert_eq!(badge.label, "Illusion");
-                    assert_eq!(help.availability, DefinitionAvailabilityView::Available);
-                    assert!(
-                        matches!(&help.destination, Some(ReferenceDestinationView::Definition { key }) if key == "trait:illusion")
-                    );
+                    assert!(matches!(
+                        badge.help.as_ref().map(|help| &help.destination),
+                        Some(ReferenceDestinationView::Definition { key }) if key == "trait:illusion"
+                    ));
                 }
                 "fire" => {
                     assert_eq!(badge.label, "Fire");
-                    assert_eq!(help.availability, DefinitionAvailabilityView::LabelOnly);
-                    assert!(help.destination.is_none());
-                    assert_eq!(help.related_filters.len(), 1);
+                    assert!(badge.help.is_none());
                 }
                 "homebrew-trait" => {
                     assert_eq!(badge.label, "homebrew-trait");
                     assert!(badge.trait_key.is_none());
-                    assert_eq!(
-                        help.availability,
-                        DefinitionAvailabilityView::UnavailableUnknown
-                    );
-                    assert!(help.destination.is_none());
-                    assert!(help.related_filters.is_empty());
+                    assert!(badge.help.is_none());
                 }
                 other => panic!("unexpected trait {other}"),
             }
@@ -1072,14 +729,7 @@ fn browse_summary_uses_rust_fallback_then_canonical_rarity_help() {
         let rarity = record.rarity.as_ref().unwrap();
         assert_eq!(rarity.value, "uncommon");
         assert_eq!(rarity.label, label);
-        assert_eq!(
-            rarity.help.as_ref().unwrap().availability,
-            if complete {
-                DefinitionAvailabilityView::LabelOnly
-            } else {
-                DefinitionAvailabilityView::SetupRequired
-            }
-        );
+        assert!(rarity.help.is_none());
     }
 }
 
@@ -1178,26 +828,9 @@ fn all_size_filter_paths_use_canonical_labels_and_truthful_help_across_surfaces(
                     .iter()
                     .find(|choice| choice.value == atlas_domain::QueryLiteral::String(value.into()))
                     .unwrap();
-                let help = choice.help.as_ref().unwrap();
-                assert_eq!(
-                    help.definition_key.as_deref(),
-                    Some(format!("size:{value}").as_str())
-                );
-                assert!(help.destination.is_none());
+                assert!(choice.help.is_none());
                 if complete && value != "sm" {
                     assert_eq!(choice.label, canonical_label);
-                    assert_eq!(help.availability, DefinitionAvailabilityView::LabelOnly);
-                    assert_eq!(help.related_filters.len(), 3);
-                } else {
-                    assert_eq!(
-                        help.availability,
-                        if complete {
-                            DefinitionAvailabilityView::UnavailableUnknown
-                        } else {
-                            DefinitionAvailabilityView::SetupRequired
-                        }
-                    );
-                    assert!(help.related_filters.is_empty());
                 }
             }
             let vocabulary = fixture
@@ -1222,13 +855,9 @@ fn all_size_filter_paths_use_canonical_labels_and_truthful_help_across_surfaces(
                 .iter()
                 .find(|choice| choice.value == atlas_domain::QueryLiteral::String(token.into()))
                 .unwrap();
-            let help = choice.help.as_ref().unwrap();
-            assert!(help.destination.is_none());
+            assert!(choice.help.is_none());
             if complete {
                 assert_eq!(choice.label, label);
-                assert_eq!(help.related_filters.len(), 3);
-            } else {
-                assert_eq!(help.availability, DefinitionAvailabilityView::SetupRequired);
             }
             let contextual = fixture
                 .worker
@@ -1266,56 +895,16 @@ fn all_size_filter_paths_use_canonical_labels_and_truthful_help_across_surfaces(
                 .find(|choice| choice.value == atlas_domain::QueryLiteral::String(token.into()))
                 .unwrap();
             assert_eq!(choice.distinct_roots, 1);
-            let help = choice.help.as_ref().unwrap();
-            assert!(help.destination.is_none());
+            assert!(choice.help.is_none());
             if complete {
                 assert_eq!(choice.label, label);
-                assert_eq!(help.related_filters.len(), 3);
-            } else {
-                assert_eq!(help.availability, DefinitionAvailabilityView::SetupRequired);
             }
         }
     }
 }
 
 #[test]
-fn definition_reference_evidence_keeps_general_purpose_for_both_reference_origins() {
-    let fixture = fixture(true);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let predicate = atlas_domain::QueryPredicate {
-        clause_id: Some("definition-purpose".into()),
-        expression: atlas_domain::QueryExpression::DefinitionReference {
-            reference: atlas_domain::QueryDefinitionReference {
-                target: atlas_domain::QueryDefinitionReferenceTarget::Record {
-                    selection: Box::new(atlas_domain::QueryRecordSelection {
-                        record_key: GENERAL.parse().unwrap(),
-                        owners: vec![],
-                        field: None,
-                        passage: None,
-                        source_fingerprint: None,
-                        spell_rank: None,
-                    }),
-                },
-                include_contents: true,
-            },
-        },
-    };
-    let result = fixture
-        .worker
-        .search_page(list_request(Some(predicate)), &execution)
-        .unwrap();
-    let row = result
-        .rows
-        .iter()
-        .find(|row| row.record.record_key == HOLDER)
-        .unwrap();
-    let occurrences = &row.relationship_evidence[0].occurrences;
-    assert!(occurrences.iter().any(|occurrence| matches!(occurrence, ReferenceOccurrenceView::Record { destination, .. } if matches!(destination.as_ref(), ReferenceDestinationView::Record { navigation } if navigation.record_key == GENERAL))));
-    assert!(occurrences.iter().any(|occurrence| matches!(occurrence, ReferenceOccurrenceView::Definition { occurrence } if matches!(&occurrence.target_destination, Some(ReferenceDestinationView::Record { navigation }) if navigation.record_key == GENERAL) && matches!(&occurrence.target, atlas_domain::QueryDefinitionReferenceTarget::Record { selection } if selection.record_key.to_string() == GENERAL))));
-}
-
-#[test]
-fn army_iwr_uses_the_same_definition_labels_and_filters_as_creatures() {
+fn army_iwr_uses_the_same_definition_labels_as_creatures() {
     let fixture = fixture(true);
     let detail = fixture
         .worker
@@ -1324,10 +913,10 @@ fn army_iwr_uses_the_same_definition_labels_and_filters_as_creatures() {
     let RecordBodyView::Army(army) = detail.presentation.body else {
         panic!("army");
     };
-    for (fact, namespace, label) in [
-        (&army.immunities, "immunity_type", "Fire immunity"),
-        (&army.weaknesses, "weakness_type", "Fire weakness"),
-        (&army.resistances, "resistance_type", "Fire resistance"),
+    for (fact, label) in [
+        (&army.immunities, "Fire immunity"),
+        (&army.weaknesses, "Fire weakness"),
+        (&army.resistances, "Fire resistance"),
     ] {
         let value = fact.value.as_ref().unwrap()[0]
             .damage_type
@@ -1336,12 +925,7 @@ fn army_iwr_uses_the_same_definition_labels_and_filters_as_creatures() {
             .unwrap();
         assert_eq!(value.value, "fire");
         assert_eq!(value.label, label);
-        assert_eq!(
-            value.help.as_ref().unwrap().definition_key.as_deref(),
-            Some(format!("{namespace}:fire").as_str())
-        );
-        assert_eq!(value.help.as_ref().unwrap().related_filters.len(), 1);
-        assert!(value.help.as_ref().unwrap().destination.is_none());
+        assert!(value.help.is_none());
     }
     assert_eq!(
         army.resistances.value.as_ref().unwrap()[0].magnitude.value,
@@ -1365,7 +949,7 @@ fn retained_profile_labels_and_normal_vision_preserve_readability_and_raw_identi
             (vision.value.as_str(), vision.label.as_str()),
             ("normal", "Normal")
         );
-        assert!(vision.help.unwrap().destination.is_none());
+        assert!(vision.help.is_none());
         let language = &ancestry.languages.value.as_ref().unwrap()[0];
         assert_eq!(
             (language.value.as_str(), language.label.as_str()),
@@ -1400,52 +984,6 @@ fn retained_profile_labels_and_normal_vision_preserve_readability_and_raw_identi
         assert_eq!(deity.attributes.value.unwrap()[0].label, "Wisdom");
         assert_eq!(deity.skills.value.unwrap()[0].label, "Arcana");
     }
-}
-
-#[test]
-fn noncatalog_selected_owners_keep_identity_and_labels_without_glossary_promotion() {
-    let fixture = fixture(true);
-    let detail = fixture.worker.record_detail(HOLDER).unwrap();
-    let RecordBodyView::Creature(actor) = &detail.presentation.body else {
-        panic!("actor");
-    };
-    let selected = crate::relationship_search::query_selection(
-        &actor
-            .activities
-            .value
-            .as_ref()
-            .unwrap()
-            .iter()
-            .find(|a| a.title == "General vision 23")
-            .unwrap()
-            .navigation,
-    )
-    .unwrap();
-    let target = atlas_domain::QueryDefinitionReferenceTarget::Record {
-        selection: Box::new(selected),
-    };
-    let options = fixture
-        .worker
-        .definition_filter_options(
-            DefinitionFilterOptionsRequest {
-                text: None,
-                offset: 0,
-                limit: 100,
-                selected: vec![target.clone()],
-                expected_artifact_generation: Some(detail.artifact_generation),
-            },
-            &crate::ReadExecutionContext::uncancellable(),
-        )
-        .unwrap();
-    let selected = &options.selected[0];
-    assert_eq!(selected.target, target);
-    assert_eq!(selected.label, "General vision 23");
-    assert_eq!(
-        selected.help.availability,
-        DefinitionAvailabilityView::NotInCatalog
-    );
-    assert!(selected.help.destination.is_none());
-    assert!(selected.help.related_filters.is_empty());
 }
 
 #[test]

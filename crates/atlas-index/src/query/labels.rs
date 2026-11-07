@@ -90,6 +90,7 @@ pub(super) fn field_label(path: &str, scope: Option<&str>) -> Result<&'static st
         (_, "hazard.hardness" | "shield.hardness") => "Hardness",
         (_, "hazard.complexity") => "Complex Hazard",
         (_, "languages") => "Languages",
+        (_, "actions") => "Actions",
         (_, "movement.speeds") => "Movement Speeds",
         (_, "senses") => "Senses",
         (_, "defenses.immunities") => "Immunities",

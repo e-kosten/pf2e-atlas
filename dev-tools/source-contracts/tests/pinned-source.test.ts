@@ -88,7 +88,7 @@ test('condition-pack changes invalidate generation independently of declaration 
 test('glossary pack changes invalidate only the separate reference-source identity', async t => {
   const { directory, source, pin, identity } = await fixture();
   t.after(() => rm(directory, { recursive: true, force: true }));
-  await writeFile(path.join(source, 'packs/pf2e/actions/fixture.json'), '{"changed":true}');
+  await writeFile(path.join(source, 'packs/pf2e/bestiary-ability-glossary-srd/fixture.json'), '{"changed":true}');
   assert.equal((await sourceIdentity(source)).source_digest, identity.source_digest);
   assert.equal((await conditionSourceInputs(source)).digest, pin.conditionSourceDigest);
   await assert.rejects(preparePinnedSource(pin, path.join(directory, 'cache'), source), /Reference pack bytes/);

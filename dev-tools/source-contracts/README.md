@@ -176,25 +176,24 @@ See the [description provenance review](../../docs/research/trait-description-pr
 ### Glossary source evidence
 
 Generation also emits `reference_definitions.rs`: exact non-trait vocabulary,
-localization keys, source locations, reviewed sense/Wildsong record pointers,
-existing glossary-record identities.
+localization keys, source locations and reviewed record pointers.
 Localized game prose remains an ingest input. The maintained
 `fixtures/reference-definition-registry.json` owns reviewed associations;
 generation verifies exact record targets before emitting metadata. Reviewed
 family wrappers are explicit record mappings, including Golem Antimagic and
 Wind-Up. Record destinations use their ordinary prepared content.
 
-The current census reconciles 784 traits, 1,166 existing records and 603 other
-metadata rows. Four rows are explicit exclusions: shared SF2e Hover/No Breath and
+The current census reconciles 784 traits and 603 other metadata rows. Four rows are explicit exclusions: shared SF2e Hover/No Breath and
 the runtime/default vision/hearing labels. Label-only values keep their exact
 filter tokens without acquiring invented definitions. Deity domain identifiers
 follow the authored lowercase catalog keys, including `airapocryphal`; the runtime
 config's differently hyphenated token is not an alias.
 
 `source-pin.json` binds these inputs with `referenceSourceDigest`, separately from
-the checked DTO contract. The isolated source export includes the four selected
-glossary/action/condition packs, exact Wildsong feature and two SF2e exclusion
-witnesses. Missing, altered or newly unreviewed glossary source fails generation.
+the checked DTO contract. The glossary inputs include both PF2e bestiary ability
+packs, the exact Wildsong feature and two SF2e exclusion witnesses. The separate
+condition generator still reads the condition pack. Missing, altered or newly
+unreviewed glossary source fails generation.
 The shared bounded AST reader interprets only supported catalog expressions and
 the explicitly selected PF2e system branch; it never executes upstream code.
 

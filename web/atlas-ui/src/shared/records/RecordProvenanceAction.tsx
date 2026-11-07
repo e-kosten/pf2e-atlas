@@ -15,8 +15,6 @@ export function RecordProvenanceAction({
   const openHelp = useReferenceHelpNavigation();
   const help = {
     definition_key: null,
-    availability: "available" as const,
-    related_filters: [],
     destination: {
       kind: "record" as const,
       navigation,

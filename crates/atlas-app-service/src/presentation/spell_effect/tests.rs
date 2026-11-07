@@ -112,10 +112,7 @@ fn battle_form_brackets_replace_each_other_and_preserve_base_dice_types_and_trai
         assert_eq!(jaws.damage.value.value.as_deref(), Some(damage));
         let damage_type = jaws.damage_type.value.as_ref().unwrap();
         assert_eq!(damage_type.value, "piercing");
-        assert_eq!(
-            damage_type.help.as_ref().unwrap().availability,
-            DefinitionAvailabilityView::SetupRequired
-        );
+        assert!(damage_type.help.is_none());
         assert!(jaws.traits.iter().any(|t| t.value == "unarmed"));
         assert_eq!(jaws.attack.base_value.is_some(), rank > 2);
         assert!(

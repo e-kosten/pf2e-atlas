@@ -59,7 +59,12 @@ struct SourcePolicies {
 }
 #[derive(Deserialize)]
 struct SourcePolicy {
-    key: DefinitionKey,
+    keys: Vec<DefinitionKey>,
+    #[serde(flatten)]
+    attribution: SourceAttribution,
+}
+#[derive(Clone, Deserialize)]
+struct SourceAttribution {
     publications: Vec<ReferencePublication>,
     grants: Vec<String>,
     notices: Vec<String>,
@@ -81,11 +86,7 @@ pub(crate) struct ReferenceBuild<'a> {
     records: BTreeMap<RecordKey, MappingRecord>,
     expected_records: BTreeSet<RecordKey>,
     occurrences: BuildFrameStream<RecordLocalizationOccurrence>,
-    definition_occurrences: BuildFrameStream<(
-        DefinitionKey,
-        atlas_record::source_content::AuthoredLocalizationOccurrence,
-    )>,
-    policies: BTreeMap<DefinitionKey, SourcePolicy>,
+    policies: BTreeMap<DefinitionKey, SourceAttribution>,
     targets: BTreeMap<DefinitionKey, DefinitionReferenceTarget>,
     localization_keys: BTreeMap<String, BTreeSet<DefinitionKey>>,
 }
@@ -105,8 +106,16 @@ impl<'a> ReferenceBuild<'a> {
             == Some("pf2e");
         let policies: SourcePolicies =
             serde_json::from_slice(crate::reference_notices::SOURCE_POLICY).map_err(invalid)?;
-        if policies.schema != 1 || policies.recipe != "foundry-reference-source-policy/v1" {
+        if policies.schema != 2 || policies.recipe != "foundry-reference-source-policy/v2" {
             return Err(invalid("unsupported reference source-policy recipe"));
+        }
+        let mut selected_policies = BTreeMap::new();
+        for SourcePolicy { keys, attribution } in policies.rows {
+            for key in keys {
+                if selected_policies.insert(key, attribution.clone()).is_some() {
+                    return Err(invalid("duplicate reference source-policy key"));
+                }
+            }
         }
         Ok(Self {
             inputs,
@@ -128,12 +137,7 @@ impl<'a> ReferenceBuild<'a> {
                 .collect::<Result<BTreeSet<_>, _>>()
                 .map_err(invalid)?,
             occurrences: BuildFrameStream::new_in(scratch).map_err(index)?,
-            definition_occurrences: BuildFrameStream::new_in(scratch).map_err(index)?,
-            policies: policies
-                .rows
-                .into_iter()
-                .map(|row| (row.key.clone(), row))
-                .collect(),
+            policies: selected_policies,
             targets: BTreeMap::new(),
             localization_keys: BTreeMap::new(),
         })
@@ -227,20 +231,6 @@ impl<'a> ReferenceBuild<'a> {
                         .insert(entry.key.clone());
                 }
             }
-            if let ReferenceBacking::Prepared {
-                authored_markup, ..
-            } = &entry.backing
-            {
-                for occurrence in authored_localization_occurrences(
-                    authored_markup,
-                    self.audience,
-                    ContentVisibilityRule::All,
-                ) {
-                    self.definition_occurrences
-                        .push(&(entry.key.clone(), occurrence))
-                        .map_err(index)?;
-                }
-            }
             spool.reference_entries.push(&entry).map_err(index)?;
         }
         // Trait identity/seed preparation remains specialized, but exact references
@@ -261,22 +251,6 @@ impl<'a> ReferenceBuild<'a> {
                     .entry(localization.into())
                     .or_default()
                     .insert(key.clone());
-            }
-        }
-        let mut definition_cursor = self.definition_occurrences.cursor().map_err(index)?;
-        while let Some((key, occurrence)) = definition_cursor.next_frame().map_err(index)? {
-            if let Some(target) = self.resolve_localization(&occurrence.localization_key) {
-                spool
-                    .definition_references
-                    .push(&DefinitionReferenceInput {
-                        source: DefinitionReferenceSource::Definition { key },
-                        target,
-                        occurrence_path: occurrence.path,
-                        evidence: occurrence.localization_key,
-                        label: None,
-                        visible: occurrence.visible,
-                    })
-                    .map_err(index)?;
             }
         }
         let mut cursor = self.occurrences.cursor().map_err(index)?;
@@ -322,9 +296,9 @@ impl<'a> ReferenceBuild<'a> {
             .flatten()
     }
 
-    pub(crate) fn publish_definition_references(
+    pub(crate) fn publish_trait_localization_references(
         &self,
-        key: &DefinitionKey,
+        key: &atlas_domain::TraitKey,
         markup: &str,
         spool: &mut PublicationSpool,
     ) -> Result<(), IngestError> {
@@ -335,7 +309,9 @@ impl<'a> ReferenceBuild<'a> {
                 spool
                     .definition_references
                     .push(&DefinitionReferenceInput {
-                        source: DefinitionReferenceSource::Definition { key: key.clone() },
+                        source: DefinitionReferenceSource::Definition {
+                            key: key.clone().into(),
+                        },
                         target,
                         occurrence_path: occurrence.path,
                         evidence: occurrence.localization_key,
@@ -443,13 +419,8 @@ impl<'a> ReferenceBuild<'a> {
                 .enumerate()
                 .map(|(index, field)| ReferenceFilterBinding {
                     id: format!("{}-{index}", authored.namespace),
-                    relation: if *field == "definition_reference" {
-                        "references_definition"
-                    } else {
-                        "property"
-                    }
-                    .into(),
-                    field: (*field != "definition_reference").then(|| (*field).to_owned()),
+                    relation: "property".into(),
+                    field: Some((*field).to_owned()),
                     value: Some(authored.identifier.into()),
                 })
                 .collect(),
@@ -491,7 +462,7 @@ impl<'a> ReferenceBuild<'a> {
         let policy = self.policies.get(&key);
         let markup = if let Some(supplemental) = supplemental {
             entry.provenance.source_revision =
-                self.inputs.reference_supplement().source_commit.clone();
+                Some(self.inputs.reference_supplement().source_commit.clone());
             entry.provenance.source_repository =
                 Some("https://github.com/Pf2eToolsOrg/Pf2eTools".into());
             if let Some((file, hash)) = self

@@ -553,29 +553,23 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
     assert_eq!(result.relationship_clauses[0].title, "Leather Armor");
     assert_eq!(result.page.total, 1);
     assert_eq!(result.rows[0].relationship_evidence[0].page.total, 2);
-    let atlas_app_model::ReferenceOccurrenceView::Record {
-        occurrence: first,
-        destination,
-    } = &result.rows[0].relationship_evidence[0].occurrences[0]
-    else {
-        panic!("record graph evidence expected")
-    };
-    assert_eq!(first.source_title.as_deref(), Some("Guard's armor"));
-    assert!(matches!(
-        destination.as_ref(),
-        atlas_app_model::ReferenceDestinationView::Record { .. }
-    ));
-    assert!(
-        result.rows[0].relationship_evidence[0]
-            .occurrences
-            .iter()
-            .any(|o| matches!(o,atlas_app_model::ReferenceOccurrenceView::Record{occurrence, ..} if occurrence.origin=="structured" && occurrence.kind=="CompendiumProvenance"))
+    assert_eq!(
+        result.rows[0].relationship_evidence[0].occurrences[0]
+            .source_title
+            .as_deref(),
+        Some("Guard's armor")
     );
     assert!(
         result.rows[0].relationship_evidence[0]
             .occurrences
             .iter()
-            .any(|o| matches!(o,atlas_app_model::ReferenceOccurrenceView::Record{occurrence, ..} if occurrence.origin=="content"))
+            .any(|o| o.origin == "structured" && o.kind == "CompendiumProvenance")
+    );
+    assert!(
+        result.rows[0].relationship_evidence[0]
+            .occurrences
+            .iter()
+            .any(|o| o.origin == "content")
     );
     let page = f
         .worker
@@ -684,17 +678,7 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
     let result = f.worker.search_page(criteria, &execution).unwrap();
     let occurrences = &result.rows[0].relationship_evidence[0].occurrences;
     for origin in ["structured", "content"] {
-        let occurrence = occurrences
-            .iter()
-            .find_map(|o| match o {
-                atlas_app_model::ReferenceOccurrenceView::Record { occurrence, .. }
-                    if occurrence.origin == origin =>
-                {
-                    Some(occurrence.as_ref())
-                }
-                _ => None,
-            })
-            .unwrap();
+        let occurrence = occurrences.iter().find(|o| o.origin == origin).unwrap();
         let navigation = &occurrence.source_navigation;
         assert!(
             !navigation.owners.is_empty(),
@@ -869,6 +853,7 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
         SearchModeSummary::SimilarTraits {
             trait_key: "trait:agile".into(),
             title: "Agile".into(),
+            help: None,
         }
     );
     assert_eq!(first.rows.len(), 1);

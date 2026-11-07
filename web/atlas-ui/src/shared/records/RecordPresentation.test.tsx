@@ -321,8 +321,7 @@ describe("semantic family presentation", () => {
     expect(onHelp).toHaveBeenCalledExactlyOnceWith(
       {
         definition_key: null,
-        availability: "available",
-        related_filters: [],
+
         destination: { kind: "record", navigation: relationship.target },
       },
       original,
@@ -1441,9 +1440,8 @@ it("presents consumable spell semantics, exact navigation, package prices and so
       trait_key: "trait:wand",
       help: {
         definition_key: "trait:wand",
-        availability: "available",
+
         destination: { kind: "definition", key: "trait:wand" },
-        related_filters: [],
       },
     },
   ];

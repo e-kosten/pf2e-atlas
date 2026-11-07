@@ -68,15 +68,13 @@ Definition preparation coverage is separate from the physical workspace schema a
 base record/trait readiness. Offline migration retains existing data; explicit
 setup prepares additional definitions and atomically publishes their source,
 mapping, locale and notice identities. Supplemental reference content is an approved
-normalized asset verified through setup's cache owner, with no upstream polling
+normalized asset captured and verified directly by ingest, with no upstream polling
 or source-file reads during ordinary reference retrieval.
 
 Contextual help retains raw property identity beside its readable label and typed
-record/definition destination. Rust app-service supplies exact related-filter
-actions; CLI and browser consume those contracts. Definition-reference predicates
-share ordinary query eligibility, while artifact-scoped definition discovery keeps
-zero-match values available without adding ordinary Search candidates or changing
-corpus/list vocabulary discovery.
+record or definition destination. App-service supplies executable property filters
+for full-page associations. Advanced Filters use the ordinary field catalog and
+value discovery, with Read links for values backed by useful content.
 
 ## Data flow
 

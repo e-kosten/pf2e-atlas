@@ -1,8 +1,6 @@
 use crate::{test_support::*, *};
 use atlas_domain::{DefinitionKey, DefinitionNamespace};
-use atlas_record::source_content::{
-    ContentVisibilityRule, DefinitionLocalizationMap, LocalizationResolver,
-};
+use atlas_record::source_content::{DefinitionLocalizationMap, LocalizationResolver};
 use rusqlite::Connection;
 
 struct Locale;
@@ -68,12 +66,7 @@ fn prepared(
             label_grants: vec![],
             notices: vec!["fixture-notice".into()],
         },
-        filter_bindings: vec![ReferenceFilterBinding {
-            id: "references".into(),
-            relation: "references_definition".into(),
-            field: None,
-            value: Some(description_key.into()),
-        }],
+        filter_bindings: vec![],
     }
 }
 
@@ -243,30 +236,6 @@ fn publish(
         .collect::<std::collections::BTreeMap<_, _>>();
     for entry in entries {
         spool.reference_entries.push(entry)?;
-        if let ReferenceBacking::Prepared {
-            authored_markup, ..
-        } = &entry.backing
-        {
-            for occurrence in atlas_record::source_content::definition_body_localization_references(
-                authored_markup,
-                &keys,
-                input.context.audience,
-                ContentVisibilityRule::All,
-            ) {
-                spool
-                    .definition_references
-                    .push(&DefinitionReferenceInput {
-                        source: DefinitionReferenceSource::Definition {
-                            key: entry.key.clone(),
-                        },
-                        target: targets[&occurrence.key].clone(),
-                        occurrence_path: occurrence.path,
-                        evidence: occurrence.localization_key,
-                        label: None,
-                        visible: occurrence.visible,
-                    })?;
-            }
-        }
     }
     for source in &input.records {
         for occurrence in atlas_record::source_record::definition_record_localization_references(
@@ -307,7 +276,7 @@ fn publish(
 }
 
 #[test]
-fn standalone_and_record_backed_definitions_preserve_real_edge_endpoints_and_source_free_reads() {
+fn standalone_and_record_backed_definitions_read_without_source_or_copied_records() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("references.sqlite");
     let (mut input, mut entries, notices) = fixture();
@@ -320,25 +289,6 @@ fn standalone_and_record_backed_definitions_preserve_real_edge_endpoints_and_sou
     publish(&path, &mut input, &entries, &notices).unwrap();
     let reader = open_reader(&path).unwrap();
     assert_eq!(reader.reference_coverage(), ReferenceCoverage::Complete);
-    assert_eq!(
-        reader
-            .reference_entries(DefinitionNamespace::Domain, 1, 0)
-            .unwrap()
-            .1,
-        2
-    );
-    assert_ne!(
-        reader
-            .reference_entries(DefinitionNamespace::Domain, 1, 0)
-            .unwrap()
-            .0[0]
-            .key,
-        reader
-            .reference_entries(DefinitionNamespace::Domain, 1, 1)
-            .unwrap()
-            .0[0]
-            .key
-    );
     assert!(
         reader
             .reference_entry(&"language:homebrew".parse().unwrap())
@@ -357,33 +307,6 @@ fn standalone_and_record_backed_definitions_preserve_real_edge_endpoints_and_sou
         reader.reference_notice("fixture-notice").unwrap().unwrap(),
         notices[0]
     );
-    let (occurrences, total) = reader
-        .definition_reference_occurrences(
-            &DefinitionReferenceTarget::Definition {
-                key: "domain:water".parse().unwrap(),
-            },
-            20,
-            0,
-        )
-        .unwrap();
-    assert_eq!(total, 1);
-    assert!(
-        matches!(&occurrences[0].source,DefinitionReferenceSource::Definition{key} if key.to_string()=="domain:air")
-    );
-    let (occurrences, total) = reader
-        .definition_reference_occurrences(
-            &DefinitionReferenceTarget::Record {
-                key: "items:eeeeeeeeeeeeeeee".parse().unwrap(),
-                owners: vec![],
-            },
-            20,
-            0,
-        )
-        .unwrap();
-    assert_eq!(total, 1);
-    assert!(
-        matches!(&occurrences[0].source,DefinitionReferenceSource::Record{key,..} if key.to_string()=="items:bbbbbbbbbbbbbbbb")
-    );
     let mapped = reader
         .reference_entry(&"sense:darkvision".parse().unwrap())
         .unwrap()
@@ -399,7 +322,7 @@ fn standalone_and_record_backed_definitions_preserve_real_edge_endpoints_and_sou
             .unwrap(),
         input.records.len()
     );
-    assert_eq!(c.query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_definition_key='domain:air' AND target_definition_key='domain:water' AND source_record_key IS NULL AND target_record_key IS NULL",[],|r|r.get::<_,usize>(0)).unwrap(),1);
+    assert_eq!(c.query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_definition_key='domain:air'",[],|r|r.get::<_,usize>(0)).unwrap(),0);
     assert_eq!(c.query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_record_key='items:bbbbbbbbbbbbbbbb' AND target_record_key='items:eeeeeeeeeeeeeeee' AND source_definition_key IS NULL AND target_definition_key IS NULL",[],|r|r.get::<_,usize>(0)).unwrap(),1);
     validate_artifact(&path).unwrap();
     let retained: Vec<u8> = c.query_row("SELECT snapshot FROM record_bodies WHERE record_id=(SELECT record_id FROM records WHERE key='items:eeeeeeeeeeeeeeee')", [], |r| r.get(0)).unwrap();
@@ -631,7 +554,21 @@ fn offline_migration_backfills_authored_sense_qualifiers_and_armor_group_without
             .unwrap(),
         original_bodies
     );
-    let senses=read.connection().prepare("SELECT acuity_state,acuity,range_state,range,source_state,source FROM actor_senses ORDER BY original_index").unwrap().query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,Option<String>>(1)?,r.get::<_,String>(2)?,r.get::<_,Option<i64>>(3)?,r.get::<_,String>(4)?,r.get::<_,Option<String>>(5)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    let senses = read
+        .connection()
+        .prepare("SELECT acuity_state,acuity,range_state,range FROM actor_senses ORDER BY original_index")
+        .unwrap()
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, Option<i64>>(3)?,
+            ))
+        })
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
     assert_eq!(
         senses,
         vec![
@@ -639,26 +576,10 @@ fn offline_migration_backfills_authored_sense_qualifiers_and_armor_group_without
                 "value".into(),
                 Some("precise".into()),
                 "value".into(),
-                Some(60),
-                "value".into(),
-                Some("authored source".into())
+                Some(60)
             ),
-            (
-                "missing".into(),
-                None,
-                "null".into(),
-                None,
-                "missing".into(),
-                None
-            ),
-            (
-                "invalid".into(),
-                None,
-                "invalid".into(),
-                None,
-                "null".into(),
-                None
-            )
+            ("missing".into(), None, "null".into(), None),
+            ("invalid".into(), None, "invalid".into(), None),
         ]
     );
     assert_eq!(
@@ -1009,16 +930,6 @@ fn outbound_evidence_retains_exact_source_owner_and_complete_target_uniqueness()
         }]
     };
     let field = Some("/system/description/value");
-    let source = DefinitionReferenceSource::Record {
-        key: record.clone(),
-        owners: owner("1111111111111111"),
-        field: field.map(str::to_owned),
-    };
-    let (page, total) = reader
-        .definition_references_from_source(&source, 1, 0)
-        .unwrap();
-    assert_eq!(page.len(), 1);
-    assert_eq!(total, 122);
     assert_eq!(
         reader
             .source_definition_target(&record, &owner("1111111111111111"), field)
@@ -1059,28 +970,6 @@ fn outbound_evidence_retains_exact_source_owner_and_complete_target_uniqueness()
             .unwrap(),
         SourceDefinitionTarget::None
     );
-    let (outbound, total) = reader
-        .definition_references_from_source(
-            &DefinitionReferenceSource::Definition {
-                key: "domain:air".parse().unwrap(),
-            },
-            100,
-            0,
-        )
-        .unwrap();
-    assert_eq!(total, 1);
-    assert_eq!(
-        outbound[0].target,
-        DefinitionReferenceTarget::Definition {
-            key: "domain:water".parse().unwrap()
-        }
-    );
-    assert!(outbound[0].visible);
-    assert!(
-        reader
-            .definition_references_from_source(&source, 0, 0)
-            .is_err()
-    );
 }
 
 #[test]
@@ -1118,17 +1007,7 @@ fn retained_trait_metadata_does_not_imply_new_namespace_coverage() {
         Err(IndexError::Unavailable(_))
     ));
     assert!(matches!(
-        reader.definition_references_from_source(
-            &DefinitionReferenceSource::Record {
-                key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
-                owners: vec![],
-                field: None
-            },
-            100,
-            0
-        ),
+        reader.source_definition_target(&"actors:aaaaaaaaaaaaaaaa".parse().unwrap(), &[], None,),
         Err(IndexError::Unavailable(_))
     ));
 }
-
-mod query_integration;

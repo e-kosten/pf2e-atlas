@@ -81,10 +81,6 @@ export function useReferenceRecordNavigation() {
   return useContext(HelpContext).onReference;
 }
 
-export function useReferenceHelpGeneration() {
-  return useContext(HelpContext).generation;
-}
-
 export function useReferenceHelpNavigation() {
   const host = useContext(HelpContext);
   return (

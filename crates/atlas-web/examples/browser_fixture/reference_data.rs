@@ -4,7 +4,10 @@ use atlas_index::{
     IndexBuildInput, IndexError, ReferenceAvailability, ReferenceBacking, ReferenceCoverage,
     ReferenceEntry, ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse,
     ReferenceNotice, ReferencePermission, ReferencePermissionDisposition, ReferencePreparation,
-    ReferenceProvenance, ReferenceRecordMapping,
+    ReferenceProvenance, ReferencePublication, ReferenceRecordMapping,
+};
+use atlas_record::source_content::{
+    ContentReferenceKind, ContentReferenceTarget, ResolvedContentReference,
 };
 use atlas_search::test_support::{hash, record};
 
@@ -135,7 +138,18 @@ pub fn attach(input: &mut IndexBuildInput) -> Result<ReferenceFixture, IndexErro
             .provenance
             .label_key = Some(localization.into());
     }
-    let body = "<p>Typically spoken by demons. This sentence is synthetic test content.</p>";
+    let body = "<p>Typically spoken by demons. This sentence is synthetic test content. @UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6]{Darkvision}</p>";
+    let resolve = |kind: &ContentReferenceKind, target: &str| {
+        (*kind == ContentReferenceKind::Uuid
+            && target == "Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6")
+            .then(|| ResolvedContentReference {
+                target: ContentReferenceTarget::Record {
+                    key: DARKVISION.parse().unwrap(),
+                },
+                display_name: Some("Darkvision".into()),
+                item_family: Some("action".into()),
+            })
+    };
     let chthonian = entries
         .iter_mut()
         .find(|entry| entry.key.to_string() == "language:chthonian")
@@ -147,12 +161,20 @@ pub fn attach(input: &mut IndexBuildInput) -> Result<ReferenceFixture, IndexErro
             body,
             input.context.audience,
             None,
-            None,
+            Some(&resolve),
         )
         .map_err(|error| IndexError::Invalid(error.to_string()))?,
     };
     chthonian.availability = ReferenceAvailability::Available;
     chthonian.provenance.source_sha256 = Some(hash(body.as_bytes()));
+    chthonian
+        .provenance
+        .publications
+        .push(ReferencePublication {
+            title: Some("Fixture rulebook".into()),
+            page: Some(89),
+            license: Some("CC0-1.0".into()),
+        });
     chthonian.permission.body_grants.push(ReferenceGrantUse {
         license: "CC0-1.0".into(),
         scope: ReferenceGrantScope::FunctionalContent,

@@ -187,15 +187,3 @@ mod embedding_values_tests;
 
 #[cfg(test)]
 mod publication_crash_tests;
-
-mod definition_query;
-pub use definition_query::{
-    DefinitionReferenceOccurrence, DefinitionReferenceOccurrencePage,
-    DefinitionReferenceOccurrencePageRequest,
-};
-
-mod definition_discovery;
-pub use definition_discovery::{
-    DefinitionFilterOption, DefinitionFilterOptionsPage, DefinitionFilterOptionsRequest,
-    DefinitionFilterSelection, DefinitionFilterSelectionAvailability,
-};

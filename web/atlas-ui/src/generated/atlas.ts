@@ -396,20 +396,8 @@ export type { ReferenceValueView } from "../../../../crates/atlas-app-model/bind
 export type { ReferenceHelpView } from "../../../../crates/atlas-app-model/bindings/ReferenceHelpView";
 export type { ReferenceDestinationView } from "../../../../crates/atlas-app-model/bindings/ReferenceDestinationView";
 export type { ReferenceFilterActionView } from "../../../../crates/atlas-app-model/bindings/ReferenceFilterActionView";
-export type { DefinitionAvailabilityView } from "../../../../crates/atlas-app-model/bindings/DefinitionAvailabilityView";
 export type { DefinitionDetailRequest } from "../../../../crates/atlas-app-model/bindings/DefinitionDetailRequest";
 export type { DefinitionDetailView } from "../../../../crates/atlas-app-model/bindings/DefinitionDetailView";
-export type { DefinitionFilterOptionsRequest } from "../../../../crates/atlas-app-model/bindings/DefinitionFilterOptionsRequest";
-export type { DefinitionFilterOptionsView } from "../../../../crates/atlas-app-model/bindings/DefinitionFilterOptionsView";
-export type { DefinitionFilterOptionView } from "../../../../crates/atlas-app-model/bindings/DefinitionFilterOptionView";
-export type { QueryDefinitionReference } from "../../../../crates/atlas-app-model/bindings/QueryDefinitionReference";
-export type { QueryDefinitionReferenceTarget } from "../../../../crates/atlas-app-model/bindings/QueryDefinitionReferenceTarget";
-
-export type { ReferenceClauseConditionView } from "../../../../crates/atlas-app-model/bindings/ReferenceClauseConditionView";
-
-export type { ReferenceOccurrenceView } from "../../../../crates/atlas-app-model/bindings/ReferenceOccurrenceView";
-
-export type { DefinitionReferenceEvidenceView } from "../../../../crates/atlas-app-model/bindings/DefinitionReferenceEvidenceView";
 
 export type { StaticSearchContext } from "../../../../crates/atlas-app-model/bindings/StaticSearchContext";
 export type { ConnectionScopeView } from "../../../../crates/atlas-app-model/bindings/ConnectionScopeView";

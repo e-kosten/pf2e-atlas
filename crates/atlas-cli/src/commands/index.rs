@@ -40,7 +40,6 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         &workspace,
         atlas_runtime::WORKSPACE_SCHEMA_VERSION,
         BuildArtifactOptions {
-            reference_supplement: Default::default(),
             source_root: configuration.source_root,
             output_path: paths.index_path.clone(),
             manifest_path: configuration.manifest_path,

@@ -14,7 +14,7 @@ import type {
   SearchResultsPage,
   SearchResultsRequest,
 } from "../../generated/atlas";
-import { fieldFixture, summaryFixture } from "../../test/fixtures";
+import { summaryFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { decodeFilterUrl } from "../filters/filterUrl";
@@ -25,21 +25,14 @@ vi.mock("../../api/atlasApi", async (original) => ({
   searchPage: vi.fn(),
 }));
 const api = vi.mocked(searchPage);
-const action: Extract<ReferenceFilterActionView, { kind: "search" }> = {
-  kind: "search",
+const action: ReferenceFilterActionView = {
   label: "With this language",
-  artifact_generation: "generation-a",
   predicate: {
     kind: "set_match",
     field: "languages",
     op: "includes_any",
     values: ["chthonian"],
   },
-};
-const numeric: ReferenceFilterActionView = {
-  kind: "configure_field",
-  label: "Strength Modifier",
-  field: fieldFixture("abilities.str.modifier", "number", "Strength Modifier"),
 };
 function page(request: SearchResultsRequest, count = 5): SearchResultsPage {
   return {
@@ -94,7 +87,7 @@ beforeEach(() => {
 });
 
 it("uses the supplied exact predicate for a five-row preview, count, and full Search link", async () => {
-  const { onReference } = setup([action, numeric]);
+  const { onReference } = setup([action]);
   expect(await screen.findByText("5 of 88 entries")).toBeVisible();
   expect(screen.getAllByRole("listitem")).toHaveLength(5);
   expect(screen.getByRole("tab", { name: "With this language" })).toBeVisible();
@@ -208,10 +201,4 @@ it("removes invalidated-generation rows and reloads the definition rather than r
   expect(screen.queryByText("Speaker 0")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Reload definition" }));
   expect(onReload).toHaveBeenCalledOnce();
-});
-
-it("does not create an empty standalone block for numeric-only actions", () => {
-  setup([numeric]);
-  expect(screen.queryByRole("region", { name: "Related records" })).toBeNull();
-  expect(api).not.toHaveBeenCalled();
 });

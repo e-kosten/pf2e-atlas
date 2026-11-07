@@ -704,7 +704,7 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
   if (input.referenceCatalog) {
     if (!input.referenceSource) throw new Error('Reference metadata requires pinned source provenance');
     files['reference_definitions.rs'] = generateReferenceModule(input.referenceCatalog, generatedHeader, input.referenceSource);
-    files['mod.rs'] += '\npub mod reference_definitions;\npub use reference_definitions::{FoundryReferenceDefinition, REFERENCE_CATALOG_SHA256, reference_definitions, foundry_glossary_records};\n';
+    files['mod.rs'] += '\npub mod reference_definitions;\npub use reference_definitions::{FoundryReferenceDefinition, REFERENCE_CATALOG_SHA256, reference_definitions};\n';
   }
   if (input.actionDefinitions) {
     if (!input.referenceSource) throw new Error('Action metadata requires pinned source provenance');

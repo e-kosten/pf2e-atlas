@@ -132,7 +132,10 @@ function FilterChoicePicker({
   }, [text]);
 
   function labelForValue(value: string) {
-    return sentenceCase(filterValueLabel(field, value));
+    return (
+      query.data?.values.options.find((option) => String(option.value) === value)
+        ?.label ?? sentenceCase(filterValueLabel(field, value))
+    );
   }
   const choices = (
     closedChoices ? field.choices : (query.data?.values.options ?? [])
@@ -179,6 +182,7 @@ function FilterChoicePicker({
     );
   const exact =
     edit.kind === "operand" &&
+    field.allow_custom_values !== false &&
     !field.definition.choices.length &&
     literal &&
     !matchingValue

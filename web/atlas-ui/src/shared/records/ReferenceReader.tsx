@@ -509,16 +509,6 @@ export function ReferenceReader({
           readingHistory={preview.readingHistory}
           requestedNavigation={preview.selection}
           landing={preview.landing}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
         />
       )}
     </section>

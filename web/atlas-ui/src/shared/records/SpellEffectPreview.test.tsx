@@ -92,7 +92,7 @@ it("keeps an unavailable rank preview distinct from an empty collection", () => 
 it("links the complete supplied strike damage without parsing it or nesting heightening controls", async () => {
   const help = {
     definition_key: "damage:fire",
-    availability: "available" as const,
+
     destination: {
       kind: "record" as const,
       navigation: {
@@ -103,7 +103,6 @@ it("links the complete supplied strike damage without parsing it or nesting heig
         source_fingerprint: null,
       },
     },
-    related_filters: [],
   };
   const onHelp = vi.fn();
   const { container } = render(

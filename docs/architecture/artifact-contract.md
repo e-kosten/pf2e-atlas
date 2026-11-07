@@ -130,12 +130,12 @@ deep audit independently reconstructs and checks present hashes. Metadata-only
 upgrades refresh existing hashes after their dependent projections change. Saved state,
 source/native recipes and historical migration callbacks retain their owners.
 
-Workspace migration 30 generalizes retained trait definitions into the single
+The glossary workspace migration generalizes retained trait definitions into the single
 `reference_entries` owner and trait reference evidence into oriented
 `definition_reference_occurrences`. Both occurrence endpoints are checked unions
 of record addresses and definition keys. The migration preserves numerical bytes,
 trait membership, identities and saved state without acquiring source or models.
-It backfills authored sense acuity/range/source states and armor group from
+It backfills authored sense acuity and range states and armor group from
 compatible retained snapshots. Retired or otherwise deferred source preparation
 keeps its existing setup requirement and is not decoded by this backfill.
 Missing `reference_preparation` remains explicit traits-only coverage; migration
@@ -185,7 +185,7 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
 | Contextual definitions | `reference_entries`: one canonical vocabulary/source-rule owner with typed key, readable label, finite availability, checked prepared body or record pointer, source/locale/publication evidence, separate body/label grants and exact filter bindings. Record pointers contain no copied body or vector. `reference_notices` retains deduplicated required notice text and hashes. |
-| Definition references | `definition_reference_occurrences`: exact authored localization and standalone-body occurrences with record-or-definition source and target, owners, field, path and visibility. Trait reference APIs project their existing subset; existing record graph rows are not copied here. |
+| Definition references | `definition_reference_occurrences`: exact authored localization and trait reference occurrences with record-or-definition endpoints, owners, field, path and visibility. Trait reference APIs project their existing subset; existing record graph rows are not copied here. |
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
@@ -227,13 +227,6 @@ explicit invalid query facts while the checked source remains retained.
 vocabulary. Relationship leaves apply to candidate roots and are rejected inside
 authored Exists scopes. Neutral owner-address primitives live in atlas-domain;
 source selection policy remains atlas-record-owned.
-The incoming definition-reference leaf shares this compiler and its clause budget,
-admission and positive-proof evidence. Its typed target is a real record selection
-or definition key. Record backing resolves through checked canonical metadata and
-unions existing UUID occurrences with visible localization evidence; it never
-copies graph rows or substitutes capped neighboring keys. Unknown/inapplicable
-targets are errors even under NOT or an unmatched OR branch. Ordinary record-link
-leaves and the symmetric specialized trait-reference reader remain distinct.
 Index validates fields, applicability, operators, literals and bounded complexity
 against its catalog, then compiles parameterized SQL. Only true roots match;
 unknown remains unknown under NOT. Exists uses one child witness for its complete
@@ -265,12 +258,9 @@ Vocabulary totals describe available matching values, exclude absent selections,
 and never masquerade as displayed-root counts. Closed choices remain in the
 executable catalog even when absent from the corpus.
 
-Artifact-scoped definition-option discovery separately enumerates eligible published
-definition identities and admitted existing glossary records. It includes zero-match
-and label-only entries and retains unavailable selected identities separately. Its
-labels, metadata and predicates stay checked against the executable query catalog;
-persisted binding metadata is not SQL authority. Sense acuity/range qualify the same
-`senses` member, and armor groups use the ordinary root/immediate-equipment field.
+Sense type, acuity and range qualify the same `senses` member. Multiple required
+sense entries use separate collection predicates. Armor groups use the ordinary
+root and immediate equipment fields.
 
 Public filters use domain namespaces, including root `kind`, `traits`,
 `level_or_rank` and explicit `embedded.spells`/`embedded.equipment` collections.

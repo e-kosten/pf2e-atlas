@@ -1,4 +1,8 @@
 import {
+  useReferenceHelpHandler,
+  useReferenceRecordNavigation,
+} from "../../shared/records/ReferenceHelp";
+import {
   useDefinitionDetail,
   definitionHelpMatchesRecord,
 } from "../../shared/records/useDefinitionDetail";
@@ -19,10 +23,7 @@ import { recordLayout } from "../../shared/records/recordLayout";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import {
-  ReferenceHelpHost,
-  useReferenceHelpSession,
-} from "../../shared/records/ReferenceHelpHost";
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { recordReadingIdentity } from "../../shared/records/useRetainedRecord";
 type RecordViewProps = {
@@ -51,7 +52,8 @@ function RecordViewContent({
   detail,
 }: RecordViewProps & { detail: ReturnType<typeof useRecordDetail> }) {
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
-  const preview = useReferenceHelpSession()!;
+  const onHelp = useReferenceHelpHandler();
+  const onReference = useReferenceRecordNavigation()!;
   const client = useQueryClient();
   const property = useDefinitionDetail(
     route.definitionKey ?? null,
@@ -88,7 +90,7 @@ function RecordViewContent({
       <main className="record-view">
         <DocumentPagePane layout={recordLayout(detail.data?.presentation)}>
           <RecordDetailPane
-            onHelp={preview.openHelp}
+            onHelp={onHelp}
             sectionLanding={route.section}
             identityActions={
               <AddToRecordButton
@@ -126,9 +128,9 @@ function RecordViewContent({
                   )}
                   {propertyHelp && property.data && (
                     <DefinitionAssociations
-                      actions={propertyHelp.related_filters}
+                      actions={property.data.related_filters}
                       generation={property.data.artifact_generation}
-                      onReference={preview.open}
+                      onReference={onReference}
                       onReload={() => void reload()}
                     />
                   )}
@@ -147,7 +149,7 @@ function RecordViewContent({
             error={detail.error}
             onRetry={() => void detail.refetch()}
             loading={detail.isLoading || detail.isFetching}
-            onReference={preview.open}
+            onReference={onReference}
             onRankChange={changeRank}
           />
         </DocumentPagePane>

@@ -15,7 +15,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getEncounterReference } from "../../api/atlasApi";
 import {
   useDefinitionDetail,
-  definitionHelpMatchesRecord,
   definitionDetailQueryOptions,
 } from "./useDefinitionDetail";
 import type {
@@ -194,7 +193,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       ? null
       : destination?.kind === "definition"
         ? destination.key
-        : (help?.definition_key ?? null),
+        : null,
     generation,
   );
 
@@ -220,9 +219,9 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         const current = await queryClient.fetchQuery(definitionDetailQueryOptions(key));
         if (session.current !== currentSession) return;
         setGeneration(current.artifact_generation);
-        setHelp(current.help);
+        setHelp(current.help ?? undefined);
         setLanding(undefined);
-        if (!current.help.destination) {
+        if (!current.help) {
           setDestination({ kind: "definition", key });
           setSelection(undefined);
           setReloadState({
@@ -461,7 +460,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       ? reloadState.error
       : standalone
         ? definition.error
-        : (detail.error ?? definition.error);
+        : detail.error;
   const refreshRequired =
     isArtifactGenerationChanged(referenceError) || reloadState?.kind === "failed";
 
@@ -471,15 +470,10 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     closeForNavigation,
     destination,
     help: standalone
-      ? (definition.data?.help ?? help)
-      : definition.data &&
-          destination?.kind === "record" &&
-          definitionHelpMatchesRecord(
-            definition.data.help,
-            selection ?? destination.navigation,
-          )
-        ? definition.data.help
-        : help,
+      ? definition.data
+        ? (definition.data.help ?? undefined)
+        : help
+      : help,
     definition: standalone ? definition.data : undefined,
     openHelp,
     detail: requestedContext

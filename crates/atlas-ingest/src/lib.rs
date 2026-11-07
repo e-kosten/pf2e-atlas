@@ -14,7 +14,7 @@ mod reference_notices;
 mod reference_supplement;
 mod references;
 mod report;
-pub use reference_supplement::{REFERENCE_PREPARATION_RECIPE, ReferenceSupplementSelection};
+pub use reference_supplement::REFERENCE_PREPARATION_RECIPE;
 mod source;
 mod source_aliases;
 mod source_compatibility;

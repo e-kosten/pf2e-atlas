@@ -23,31 +23,29 @@ function definition(): DefinitionDetailView {
     label: "Chthonian",
     help: {
       definition_key: "language:chthonian",
-      availability: "available",
+
       destination: { kind: "definition", key: "language:chthonian" },
-      related_filters: [
-        {
-          kind: "search",
-          label: "With this language",
-          artifact_generation: "generation-a",
-          predicate: {
-            kind: "set_match",
-            field: "languages",
-            op: "includes_any",
-            values: ["chthonian"],
-          },
-        },
-      ],
     },
     content: {
       body: { kind: "plain", text: "Readable language context." },
       references: [],
     },
-    attribution: null,
+
     notices: [],
-    references: [],
-    references_availability: "available",
-    references_truncated: false,
+
+    related_filters: [
+      {
+        label: "With this language",
+
+        predicate: {
+          kind: "set_match",
+          field: "languages",
+          op: "includes_any",
+          values: ["chthonian"],
+        },
+      },
+    ],
+    publications: [],
   };
 }
 function setup(key = "language:chthonian") {
@@ -104,8 +102,7 @@ it.each(["label_only", "empty"])(
     const detail = definition();
     detail.content = null;
     if (kind === "label_only") {
-      detail.help.availability = "label_only";
-      detail.help.destination = null;
+      detail.help = null;
     }
     detailApi.mockResolvedValue(detail);
     setup();
@@ -122,8 +119,8 @@ it.each(["label_only", "empty"])(
 it("redirects record-backed help to the actual record with its supplied property context", async () => {
   const detail = definition();
   detail.definition_key = "sense:darkvision";
-  detail.help.definition_key = detail.definition_key;
-  detail.help.destination = {
+  detail.help!.definition_key = detail.definition_key;
+  detail.help!.destination = {
     kind: "record",
     navigation: {
       record_key: "bestiary-ability-glossary:darkvision",

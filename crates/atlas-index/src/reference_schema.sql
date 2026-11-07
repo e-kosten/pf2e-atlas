@@ -25,7 +25,5 @@ ALTER TABLE actor_senses ADD COLUMN acuity_state TEXT NOT NULL DEFAULT 'missing'
 ALTER TABLE actor_senses ADD COLUMN acuity TEXT CHECK((acuity_state='value' AND acuity IS NOT NULL) OR (acuity_state<>'value' AND acuity IS NULL));
 ALTER TABLE actor_senses ADD COLUMN range_state TEXT NOT NULL DEFAULT 'missing' CHECK(range_state IN ('value','missing','null','invalid','not_applicable'));
 ALTER TABLE actor_senses ADD COLUMN range ANY CHECK((range_state='value' AND range IS NOT NULL AND typeof(range) IN ('integer','real')) OR (range_state<>'value' AND range IS NULL));
-ALTER TABLE actor_senses ADD COLUMN source_state TEXT NOT NULL DEFAULT 'missing' CHECK(source_state IN ('value','missing','null','invalid','not_applicable'));
-ALTER TABLE actor_senses ADD COLUMN source TEXT CHECK((source_state='value' AND source IS NOT NULL) OR (source_state<>'value' AND source IS NULL));
 ALTER TABLE armor_projection ADD COLUMN armor_group_state TEXT NOT NULL DEFAULT 'missing' CHECK(armor_group_state IN ('value','missing','null','invalid','not_applicable'));
 ALTER TABLE armor_projection ADD COLUMN armor_group TEXT CHECK((armor_group_state='value' AND armor_group IS NOT NULL) OR (armor_group_state<>'value' AND armor_group IS NULL));

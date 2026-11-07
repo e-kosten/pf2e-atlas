@@ -169,7 +169,7 @@ pub(crate) fn write(
         }
     }
     crate::publication_delta::remove_absent_roots(c, &live)?;
-    let kept_entries = crate::references::write_entries(c, input, &mut definition_outgoing)?;
+    let kept_entries = crate::references::write_entries(c, input)?;
     crate::references::validate_inventory(
         input.context.reference_preparation.as_ref(),
         kept_traits.iter().chain(&kept_entries).cloned(),

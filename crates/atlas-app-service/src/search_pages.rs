@@ -336,12 +336,7 @@ impl AtlasAppService {
                     }
                     let (occurrences, page) = crate::relationship_search::evidence_page(
                         retrieval,
-                        evidence_filter.as_ref().ok_or_else(|| {
-                            AppServiceError::invalid_request(
-                                "Reference evidence requires the selected filter",
-                            )
-                        })?,
-                        summary,
+                        &summary.relationship,
                         &key,
                         SearchPage::new(1, 3)?,
                     )?;

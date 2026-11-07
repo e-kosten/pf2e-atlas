@@ -15,11 +15,11 @@ describe("RecordReferenceDrawer", () => {
       render(
         <ConfigProvider theme={{ token: { motion: false } }}>
           <RecordReferenceDrawer
+            destination={{ kind: "record", navigation: recordDetailFixture().selected }}
             anchor={document.createElement("button")}
             detail={undefined}
             loading
             onClose={onClose}
-            onOpenFullPage={vi.fn()}
             onReference={vi.fn()}
           />
         </ConfigProvider>,
@@ -38,11 +38,19 @@ describe("RecordReferenceDrawer", () => {
     const props = {
       anchor,
       onClose: vi.fn(),
-      onOpenFullPage: vi.fn(),
+      destination: {
+        kind: "record" as const,
+        navigation: recordDetailFixture().selected,
+      },
       onReference: vi.fn(),
     };
     const { rerender, unmount } = render(
-      <RecordReferenceDrawer {...props} detail={undefined} loading />,
+      <RecordReferenceDrawer
+        {...props}
+        destination={{ kind: "record", navigation: recordDetailFixture().selected }}
+        detail={undefined}
+        loading
+      />,
       {
         wrapper: ({ children }) => (
           <ConfigProvider theme={{ token: { motion: false } }}>
@@ -63,6 +71,10 @@ describe("RecordReferenceDrawer", () => {
       rerender(
         <RecordReferenceDrawer
           {...props}
+          destination={{
+            kind: "record",
+            navigation: detailFixture("spells:fear", "Fear").selected,
+          }}
           detail={detailFixture("spells:fear", "Fear")}
           loading={false}
         />,
@@ -81,13 +93,13 @@ describe("RecordReferenceDrawer", () => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ md: true });
     render(
       <RecordReferenceDrawer
+        destination={{ kind: "record", navigation: recordDetailFixture().selected }}
         anchor={document.createElement("button")}
         detail={undefined}
         loading={false}
         error={new Error("Reference could not load")}
         onRetry={vi.fn()}
         onClose={vi.fn()}
-        onOpenFullPage={vi.fn()}
         onReference={vi.fn()}
       />,
       {
@@ -110,11 +122,11 @@ describe("RecordReferenceDrawer", () => {
     render(
       <ConfigProvider theme={{ token: { motion: false } }}>
         <RecordReferenceDrawer
+          destination={{ kind: "record", navigation: recordDetailFixture().selected }}
           anchor={null}
           detail={recordDetailFixture()}
           loading={false}
           onClose={onClose}
-          onOpenFullPage={vi.fn()}
           onReference={vi.fn()}
         />
       </ConfigProvider>,
@@ -140,13 +152,16 @@ describe("RecordReferenceDrawer", () => {
       render(
         <ConfigProvider theme={{ token: { motion: false } }}>
           <RecordReferenceDrawer
+            destination={{
+              kind: "record",
+              navigation: detailFixture("spells:fear", "Fear").selected,
+            }}
             context="encounter"
             actions={<button>Cast</button>}
             anchor={document.createElement("button")}
             detail={detailFixture("spells:fear", "Fear")}
             loading={false}
             onClose={onClose}
-            onOpenFullPage={vi.fn()}
             onReference={vi.fn()}
           />
         </ConfigProvider>,
@@ -178,12 +193,12 @@ describe("RecordReferenceDrawer", () => {
       render(
         <ConfigProvider theme={{ token: { motion: false } }}>
           <RecordReferenceDrawer
+            destination={{ kind: "record", navigation: detail.selected }}
             visibleOwnerRecordKey="actors:mage"
             anchor={document.createElement("button")}
             detail={detail}
             loading={false}
             onClose={vi.fn()}
-            onOpenFullPage={vi.fn()}
             onReference={vi.fn()}
             readingHistory={{
               address: "fear",
@@ -211,9 +226,11 @@ describe("RecordReferenceDrawer", () => {
         anchor: document.createElement("button"),
         detail: undefined,
         loading: false,
-        fullPageHref: "/records/rules:next",
         onClose: vi.fn(),
-        onOpenFullPage: vi.fn(),
+        destination: {
+          kind: "record" as const,
+          navigation: recordDetailFixture().selected,
+        },
         onReference: vi.fn(),
       };
       const preview = (showTrigger: boolean, version = 1) => {
@@ -226,7 +243,11 @@ describe("RecordReferenceDrawer", () => {
           <StrictMode>
             <ConfigProvider theme={{ token: { motion: false } }}>
               <button>Outside preview</button>
-              <RecordReferenceDrawer {...props} detail={detail} />
+              <RecordReferenceDrawer
+                {...props}
+                destination={{ kind: "record", navigation: detail.selected }}
+                detail={detail}
+              />
             </ConfigProvider>
           </StrictMode>
         );
@@ -305,11 +326,11 @@ describe("RecordReferenceDrawer", () => {
         <StrictMode>
           <ConfigProvider theme={{ token: { motion: false } }}>
             <RecordReferenceDrawer
+              destination={{ kind: "record", navigation: detail.selected }}
               anchor={document.createElement("button")}
               detail={detail}
               loading={false}
               onClose={close}
-              onOpenFullPage={vi.fn()}
               onReference={vi.fn()}
             />{" "}
           </ConfigProvider>
@@ -337,11 +358,11 @@ describe("RecordReferenceDrawer", () => {
     const onReference = vi.fn();
     render(
       <RecordReferenceDrawer
+        destination={{ kind: "record", navigation: recordDetailFixture().selected }}
         anchor={document.createElement("button")}
         detail={recordDetailFixture()}
         loading={false}
         onClose={vi.fn()}
-        onOpenFullPage={vi.fn()}
         onReference={onReference}
       />,
     );
@@ -362,7 +383,10 @@ describe("RecordReferenceDrawer", () => {
       detail: recordDetailFixture(),
       loading: false,
       onClose: vi.fn(),
-      onOpenFullPage: vi.fn(),
+      destination: {
+        kind: "record" as const,
+        navigation: recordDetailFixture().selected,
+      },
       onReference: vi.fn(),
     };
     const preview = () => (
@@ -382,8 +406,7 @@ describe("RecordReferenceDrawer", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBe(heading);
     expect(full).toHaveFocus();
-    fireEvent.click(full);
-    expect(props.onOpenFullPage).toHaveBeenCalledTimes(1);
+    expect(full).toHaveAttribute("href", "/records/spell:dirge");
     breakpoint.mockReturnValue({ md: true });
     rerender(preview());
     expect(screen.getByRole("dialog", { name: "Dirge of Doom" })).toBe(dialog);

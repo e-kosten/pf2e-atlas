@@ -32,7 +32,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  useEffect,
 } from "react";
 import {
   QueryBuilder,
@@ -64,7 +63,6 @@ import {
   commonDraftRange,
   BOOLEAN_CONDITION,
   LINK_CONDITION,
-  DEFINITION_CONDITION,
   emptyGroup,
   isClearedOperand,
   numericLiteral,
@@ -79,8 +77,6 @@ import {
   type FilterPanelState,
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
-import { DefinitionReferenceValue } from "./DefinitionReferenceValue";
-import { DefinitionFilterPicker } from "./DefinitionFilterPicker";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
@@ -127,8 +123,6 @@ export function FilterControls({
   searchInputRef,
   similarSearch,
   additionalFilters,
-  configureField,
-  onConfigured,
   children,
 }: {
   filterState: FilterPanelState;
@@ -139,8 +133,6 @@ export function FilterControls({
   searchInputRef?: RefObject<InputRef | null>;
   similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
-  configureField?: string;
-  onConfigured?: () => void;
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
@@ -174,36 +166,6 @@ export function FilterControls({
   const generation =
     workspace.filterDiscoveryContext?.expected_artifact_generation ??
     editor?.artifact_generation;
-  const configured = useRef<string | null>(null);
-  const [configuration, setConfiguration] = useState<{
-    field?: string;
-    error: string | null;
-  }>({ error: null });
-  if (
-    configuration.field !== configureField &&
-    (!configureField ||
-      (editor &&
-        !workspace.filterDiscoveryLoading &&
-        (!generation || editor.artifact_generation === generation)))
-  ) {
-    setConfiguration({
-      field: configureField,
-      error: configureField
-        ? prepared.addFieldDraft(configureField)
-        : configuration.error,
-    });
-    if (configureField) setAdvanced(true);
-  }
-  useEffect(() => {
-    if (!configureField) {
-      configured.current = null;
-      return;
-    }
-    if (configuration.field !== configureField || configured.current === configureField)
-      return;
-    configured.current = configureField;
-    onConfigured?.();
-  }, [configureField, configuration.field, onConfigured]);
   const latestContext = useRef({ generation, filter: search.filter });
   useLayoutEffect(() => {
     latestContext.current = { generation, filter: search.filter };
@@ -219,8 +181,7 @@ export function FilterControls({
     const presentation = editor?.relationship_clauses.find(
       (entry) =>
         entry.clause_id === leaf.clause_id &&
-        entry.condition.kind === "record" &&
-        sameRelationship(entry.condition.relationship, leaf.relationship),
+        sameRelationship(entry.relationship, leaf.relationship),
     );
     if (
       presentation &&
@@ -365,8 +326,6 @@ export function FilterControls({
       inputRef={searchInputRef}
       query={search.query}
       similar={similarSearch}
-      generation={generation}
-      onRefresh={workspace.refreshFilterInformation}
       onSearch={(query) =>
         setSearch(
           {
@@ -572,22 +531,6 @@ export function FilterControls({
           onClose={() => setAdvanced(false)}
         >
           <section className="advanced-filters" aria-label="Advanced filters">
-            {configuration.error && (
-              <Typography.Text type="danger" role="status">
-                {configuration.error}
-              </Typography.Text>
-            )}
-            {editor && (
-              <DefinitionFilterPicker
-                generation={generation}
-                onRefresh={workspace.refreshFilterInformation}
-                onAction={(action) =>
-                  action.kind === "search"
-                    ? latestEditor.current.addPredicate(action.predicate)
-                    : latestEditor.current.addFieldDraft(action.field.id)
-                }
-              />
-            )}
             {prepared.error &&
               !search.filterError &&
               search.filter &&
@@ -877,10 +820,7 @@ function StructuredBuilder({
             ? [
                 {
                   label: "Record links",
-                  options: [
-                    { name: LINK_CONDITION, label: "Record links" },
-                    { name: DEFINITION_CONDITION, label: "References definition" },
-                  ],
+                  options: [{ name: LINK_CONDITION, label: "Record links" }],
                 },
               ]
             : []),
@@ -903,21 +843,19 @@ function StructuredBuilder({
           { name: "or", label: "Match any" },
         ]}
         getOperators={(id) =>
-          id === DEFINITION_CONDITION
-            ? [{ name: "references", label: "References" }]
-            : id === LINK_CONDITION
-              ? [
-                  { name: "incoming", label: "Links to" },
-                  { name: "outgoing", label: "Linked from" },
-                ]
-              : id === BOOLEAN_CONDITION
-                ? [{ name: "constant", label: "Matches" }]
-                : (
-                    visible.find((field) => field.definition.id === id)?.operators ?? []
-                  ).map((operator) => ({
-                    name: operator.operator,
-                    label: operator.label,
-                  }))
+          id === LINK_CONDITION
+            ? [
+                { name: "incoming", label: "Links to" },
+                { name: "outgoing", label: "Linked from" },
+              ]
+            : id === BOOLEAN_CONDITION
+              ? [{ name: "constant", label: "Matches" }]
+              : (
+                  visible.find((field) => field.definition.id === id)?.operators ?? []
+                ).map((operator) => ({
+                  name: operator.operator,
+                  label: operator.label,
+                }))
         }
         context={
           {
@@ -989,9 +927,7 @@ function FilterRule(props: RuleProps) {
       <div
         className={rule.outerClassName}
         data-rule-id={props.rule.id}
-        data-link-condition={
-          [LINK_CONDITION, DEFINITION_CONDITION].includes(props.rule.field) || undefined
-        }
+        data-link-condition={props.rule.field === LINK_CONDITION || undefined}
       >
         <RuleComponents {...rule} />
       </div>
@@ -1083,20 +1019,6 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
                 value: LINK_CONDITION,
                 label: "Record links",
                 searchText: "Record links",
-              },
-            ],
-          },
-        ]
-      : []),
-    ...(props.value === DEFINITION_CONDITION
-      ? [
-          {
-            label: "References",
-            options: [
-              {
-                value: DEFINITION_CONDITION,
-                label: "References definition",
-                searchText: "References definition",
               },
             ],
           },
@@ -1243,25 +1165,6 @@ function FilterGroupBody(props: UseRuleGroup) {
 function BuilderOperatorSelector(props: OperatorSelectorProps) {
   const editing = useContext(RuleEditContext);
   if (isActorMetricChooser(props.field)) return null;
-  if (props.field === DEFINITION_CONDITION)
-    return (
-      <Select
-        aria-label="Definition condition"
-        value={editing?.rule.meta?.atlasExcluded ? "not:references" : "references"}
-        disabled={props.disabled}
-        options={[
-          { value: "references", label: "References" },
-          { value: "not:references", label: "Does not reference" },
-        ]}
-        onChange={(value) =>
-          editing?.replace({
-            ...editing.rule,
-            operator: "references",
-            meta: { ...editing.rule.meta, atlasExcluded: value.startsWith("not:") },
-          })
-        }
-      />
-    );
   if (props.field === LINK_CONDITION)
     return (
       <Select
@@ -1349,16 +1252,6 @@ function BuilderValueEditor(props: ValueEditorProps) {
   const editing = useContext(RuleEditContext);
   const { editor, query, scope, workspace } = props.context as BuilderContext;
   const links = useContext(LinkEditingContext);
-  if (props.field === DEFINITION_CONDITION)
-    return (
-      <DefinitionReferenceValue
-        reference={props.value}
-        generation={editor.artifact_generation}
-        onRefresh={workspace.refreshFilterInformation}
-        disabled={props.disabled}
-        onChange={props.handleOnChange}
-      />
-    );
   if (props.field === LINK_CONDITION) {
     const rule = props.rule as PredicateRule;
     const relationship = rule.value?.selection

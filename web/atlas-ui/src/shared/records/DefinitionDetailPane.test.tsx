@@ -13,62 +13,35 @@ function definition(key = "trait:fire"): DefinitionDetailView {
     label: "Fire",
     help: {
       definition_key: key,
-      availability: "available",
+
       destination: { kind: "definition", key },
-      related_filters: [
-        {
-          kind: "search",
-          label: "With this trait",
-          artifact_generation: "generation-a",
-          predicate: {
-            kind: "in",
-            clause_id: "trait",
-            field: "traits",
-            values: ["fire"],
-          },
-        },
-      ],
     },
     content: {
       body: { kind: "plain", text: "Fire effects deal fire damage." },
       references: [],
     },
-    attribution: {
-      source_package: "pf2e",
-      source_repository: "https://example.com/source",
-      source_revision: "internal-revision",
-      source_file: "scripts/config/traits.ts",
-      source_sha256: "internal-hash",
-      label_key: "PF2E.TraitFire",
-      description_key: "PF2E.TraitDescriptionFire",
-      catalogs: ["trait"],
-      source_locations: [{ file: "scripts/config/traits.ts", line: 42, column: 1 }],
-      intended_record_key: null,
-      indexing_locale: "en",
-      content_locale: "en",
-      publications: [{ title: "Player Core", page: 456, license: "ORC" }],
-      permission_disposition: "approved_content",
-      body_grants: [{ license: "ORC", scope: "functional_content" }],
-      label_grants: [],
-    },
+
     notices: [
       {
         id: "source-notice",
-        sha256: "notice-hash",
         text: "Internal complete legal notice",
         source_url: "https://example.com/notice",
       },
     ],
-    references: [
+
+    related_filters: [
       {
-        target: { kind: "definition", key: "trait:light" },
-        destination: { kind: "definition", key: "trait:light" },
-        occurrence_path: "internal:reference",
-        label: "Light",
+        label: "With this trait",
+
+        predicate: {
+          kind: "in",
+          clause_id: "trait",
+          field: "traits",
+          values: ["fire"],
+        },
       },
     ],
-    references_availability: "available",
-    references_truncated: true,
+    publications: [{ title: "Player Core", page: 456, license: "ORC" }],
   };
 }
 
@@ -82,12 +55,11 @@ it("renders trait Drawer content with its natural header and no related actions 
     <RecordReferenceDrawer
       destination={{ kind: "definition", key: detail.definition_key }}
       definition={detail}
-      help={detail.help}
+      help={detail.help ?? undefined}
       anchor={null}
       detail={undefined}
       loading={false}
       onClose={vi.fn()}
-      onOpenFullPage={vi.fn()}
       onReference={vi.fn()}
     />,
     { wrapper },
@@ -147,8 +119,8 @@ it("renders prepared nested reference markers through their existing exact ordin
 
 it("keeps absent publication attribution and unavailable bodies quiet", () => {
   const detail = definition("language:custom");
-  detail.attribution!.publications = [];
-  detail.help = { ...detail.help, availability: "label_only", destination: null };
+  detail.publications = [];
+  detail.help = null;
   detail.content = null;
   const { container } = render(
     <>
@@ -176,13 +148,12 @@ it("preserves ordinary record actions while keeping general-definition reading f
         kind: "record",
         navigation: detail.selected,
       }}
-      help={help}
+      help={help ?? undefined}
       anchor={null}
       detail={detail}
       loading={false}
       actions={<button>Ordinary record action</button>}
       onClose={vi.fn()}
-      onOpenFullPage={vi.fn()}
       onReference={vi.fn()}
     />,
     { wrapper },
