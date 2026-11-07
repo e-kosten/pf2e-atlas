@@ -598,6 +598,46 @@ pub(crate) fn render_field_content(
     atlas_record::source_content::render_contextual_interactions(html, &effective, &context.formula)
 }
 
+pub(crate) fn reference_body(
+    content: atlas_record::source_content::PreparedReferenceDefinition,
+    retrieval: &atlas_search::AtlasRetrievalService,
+    selection_version: &str,
+) -> AppServiceResult<ReferenceContentView> {
+    Ok(ReferenceContentView {
+        section_rendering: Some(PreparedSectionRenderingView {
+            html: atlas_record::source_record::single_section_annotated_prepared_html(
+                &content.html,
+            ),
+            selection_version: selection_version.into(),
+        }),
+        body: PreparedFieldBodyView::Html {
+            inclusions: vec![],
+            controls: content_controls(&content.interactions, None, retrieval)?,
+            html: content.html,
+        },
+        references: content
+            .references
+            .into_iter()
+            .filter(|reference| reference.visible)
+            .map(|reference| {
+                let (status, target, url) = crate::projection::content_reference_destination(
+                    reference.resolution,
+                    retrieval.source_fingerprint(),
+                );
+                PreparedReferenceView {
+                    self_action_reference: None,
+                    ordinal: reference.ordinal,
+                    status: status.into(),
+                    target,
+                    url,
+                    effect_label: None,
+                    contextual_target: None,
+                }
+            })
+            .collect(),
+    })
+}
+
 #[cfg(test)]
 mod section_rendering_tests {
     use super::*;
@@ -659,44 +699,4 @@ mod section_rendering_tests {
             .is_none()
         );
     }
-}
-
-pub(crate) fn reference_body(
-    content: atlas_record::source_content::PreparedReferenceDefinition,
-    retrieval: &atlas_search::AtlasRetrievalService,
-    selection_version: &str,
-) -> AppServiceResult<ReferenceContentView> {
-    Ok(ReferenceContentView {
-        section_rendering: Some(PreparedSectionRenderingView {
-            html: atlas_record::source_record::single_section_annotated_prepared_html(
-                &content.html,
-            ),
-            selection_version: selection_version.into(),
-        }),
-        body: PreparedFieldBodyView::Html {
-            inclusions: vec![],
-            controls: content_controls(&content.interactions, None, retrieval)?,
-            html: content.html,
-        },
-        references: content
-            .references
-            .into_iter()
-            .filter(|reference| reference.visible)
-            .map(|reference| {
-                let (status, target, url) = crate::projection::content_reference_destination(
-                    reference.resolution,
-                    retrieval.source_fingerprint(),
-                );
-                PreparedReferenceView {
-                    self_action_reference: None,
-                    ordinal: reference.ordinal,
-                    status: status.into(),
-                    target,
-                    url,
-                    effect_label: None,
-                    contextual_target: None,
-                }
-            })
-            .collect(),
-    })
 }
