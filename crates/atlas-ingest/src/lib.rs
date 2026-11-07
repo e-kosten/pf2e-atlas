@@ -14,10 +14,7 @@ mod reference_notices;
 mod reference_supplement;
 mod references;
 mod report;
-pub use reference_supplement::{
-    BundledReferenceFile, REFERENCE_PREPARATION_RECIPE, ReferenceSupplementSelection,
-    bundled_reference_supplement, bundled_reference_supplement_id,
-};
+pub use reference_supplement::{REFERENCE_PREPARATION_RECIPE, ReferenceSupplementSelection};
 mod source;
 mod source_aliases;
 mod source_compatibility;

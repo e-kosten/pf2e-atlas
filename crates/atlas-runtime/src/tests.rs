@@ -12,7 +12,6 @@ fn paths(dir: &std::path::Path) -> ResolvedAtlasPaths {
         repo_root: None,
         source_root: dir.join("source"),
         embedding_cache_root: dir.join("models"),
-        reference_cache_root: dir.join("reference-supplements"),
         index_path: dir.join("atlas.sqlite"),
     }
 }
@@ -1638,56 +1637,44 @@ fn incomplete_glossary_coverage_preserves_reads_and_requires_explicit_setup() {
 }
 
 #[test]
-fn corrupt_reference_supplement_preserves_the_committed_generation_and_saved_state() {
-    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+fn setup_uses_bundled_supplement_without_creating_or_reading_a_disk_cache() {
     let directory = tempfile::tempdir().unwrap();
     let paths = paths(directory.path());
     source(&paths);
-    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+    let cache = directory.path().join("reference-supplements");
+    let checked = crate::setup::ensure_setup(&paths, options(true));
+    assert!(!checked.ready);
+    assert!(checked.build.is_none());
+    assert!(!cache.exists());
+    let built = crate::setup::ensure_setup(&paths, options(false));
+    assert!(built.ready, "{built:?}");
+    assert!(built.build.is_some());
+    assert!(!cache.exists());
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
-    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-    let list = LocalStateWrite::new(&write)
-        .saved_lists()
-        .create(NewSavedList {
-            slug: "kept-cache-failure".into(),
-            name: "Kept".into(),
-            description: None,
-            tags: vec![],
-        })
+    let revision = workspace
+        .read(WORKSPACE_SCHEMA_VERSION)
+        .unwrap()
+        .reference_revision()
         .unwrap();
-    let before = write.reference_revision().unwrap();
-    write.commit().unwrap();
-    let cached = paths
-        .reference_cache_root
-        .join(atlas_ingest::bundled_reference_supplement_id())
-        .join("payload.json");
-    fs::write(&cached, "corrupt selected data").unwrap();
     for check in [true, false] {
         let report = crate::setup::ensure_setup(&paths, options(check));
-        assert!(!report.ready);
-        assert!(
-            report
-                .checks
-                .iter()
-                .any(|action| action.kind == SetupActionKind::AnalyzeSource
-                    && action.status == SetupActionStatus::Failed)
-        );
-        assert_eq!(
-            fs::read_to_string(&cached).unwrap(),
-            "corrupt selected data"
-        );
-        let reader = open_reader(&paths.index_path).unwrap();
-        assert_eq!(
-            reader.workspace_session().reference_revision().unwrap(),
-            before
-        );
-        assert_eq!(reader.statistics().unwrap().records, 1);
-        assert_eq!(
-            LocalStateRead::new(reader.workspace_session())
-                .saved_lists()
-                .list()
-                .unwrap(),
-            vec![list.clone()]
-        );
+        assert!(report.ready, "{report:?}");
+        assert!(report.build.is_none());
+        assert!(!cache.exists());
     }
+    fs::write(&cache, b"unrelated old cache contents").unwrap();
+    for check in [true, false] {
+        let report = crate::setup::ensure_setup(&paths, options(check));
+        assert!(report.ready, "{report:?}");
+        assert!(report.build.is_none());
+        assert_eq!(fs::read(&cache).unwrap(), b"unrelated old cache contents");
+    }
+    assert_eq!(
+        workspace
+            .read(WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        revision
+    );
 }

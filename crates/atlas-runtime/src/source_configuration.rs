@@ -127,7 +127,6 @@ mod tests {
             managed_source_root: root.join("managed-source"),
             source_root_explicit: false,
             embedding_cache_root: root.join("models"),
-            reference_cache_root: root.join("reference-supplements"),
             index_path: root.join("workspace.sqlite"),
         }
     }

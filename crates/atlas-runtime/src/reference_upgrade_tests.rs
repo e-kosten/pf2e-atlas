@@ -143,7 +143,6 @@ fn joined_paths(root: &std::path::Path) -> crate::ResolvedAtlasPaths {
         managed_source_root: root.join("managed-source"),
         source_root_explicit: true,
         embedding_cache_root: root.join("models"),
-        reference_cache_root: root.join("reference-supplements"),
         index_path: root.join("atlas.sqlite"),
     }
 }

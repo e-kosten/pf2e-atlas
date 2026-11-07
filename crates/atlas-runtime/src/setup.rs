@@ -5,7 +5,7 @@ use crate::{ResolvedAtlasPaths, setup_model::*};
 use atlas_embedding::{
     EmbeddingRuntimeConfig, prepare_embedding_model_cache, required_embedding_model_cache_files,
 };
-use atlas_ingest::{BuildArtifactOptions, BuildArtifactReport};
+use atlas_ingest::{BuildArtifactOptions, BuildArtifactReport, ReferenceSupplementSelection};
 fn progress(phase: &str, message: &str) {
     tracing::info!(target:"atlas_progress",phase,"{message}");
 }
@@ -164,9 +164,6 @@ pub(crate) fn ensure_setup(
             Ok(())
         }
         .and_then(|()| {
-            let reference_supplement =
-                crate::reference_acquisition::selection(&paths.reference_cache_root, options.check)
-                    .map_err(|error| (error, true))?;
             capture_build_inputs(BuildArtifactOptions {
                 source_root: paths.source_root.clone(),
                 output_path: paths.index_path.clone(),
@@ -176,7 +173,7 @@ pub(crate) fn ensure_setup(
                 reuse_embeddings: true,
                 reuse_passage_layouts: !options.force_rebuild,
                 embedding_batch_size: options.embedding_batch_size,
-                reference_supplement,
+                reference_supplement: ReferenceSupplementSelection::Bundled,
             })
             .map_err(|error| {
                 let failed = !matches!(error, atlas_ingest::IngestError::SourceIncompatible(_));

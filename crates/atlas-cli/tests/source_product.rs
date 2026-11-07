@@ -52,8 +52,6 @@ impl Fixture {
         c.output().unwrap()
     }
     fn isolated_repo_command(&self) -> Command {
-        // Ordinary setup writes its reference cache according to path mode, not
-        // the source/index/model overrides. Give writing tests a disposable repo.
         if !self.root.join(".git").exists() {
             fs::create_dir_all(self.root.join("crates/atlas-cli")).unwrap();
             fs::write(self.root.join("Cargo.toml"), "[workspace]\n").unwrap();
@@ -85,22 +83,6 @@ impl Fixture {
             command.env_remove(name);
         }
         command
-    }
-    fn assert_reference_cache_is_isolated(&self) {
-        let cache = self.root.join(".cache/reference-supplements");
-        assert!(
-            cache
-                .canonicalize()
-                .unwrap()
-                .starts_with(self.root.canonicalize().unwrap())
-        );
-        assert!(
-            cache
-                .join(atlas_ingest::bundled_reference_supplement_id())
-                .join("manifest.json")
-                .is_file()
-        );
-        assert_eq!(fs::read_dir(cache).unwrap().count(), 1);
     }
     fn data(&self, args: &[&str]) -> Value {
         let o = self.command(args, false);
@@ -949,7 +931,7 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
         )
     };
     let (first, progress) = setup(&isolated_root, &["embeddinggemma"], "always");
-    f.assert_reference_cache_is_isolated();
+    assert!(!f.root.join(".cache/reference-supplements").exists());
     assert_eq!(first["path_mode"], "repo");
     assert_eq!(first["build"]["source_fingerprint"], fingerprint);
     assert_eq!(first["search_profiles"].as_array().unwrap().len(), 1);
@@ -1534,7 +1516,7 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
     let fingerprint = atlas_ingest::compute_source_fingerprint(&fixture.root, None)
         .unwrap()
         .value;
-    let setup = |json: bool| {
+    let setup = |json: bool, check: bool| {
         let mut command = fixture.isolated_repo_command();
         command
             .args([
@@ -1543,27 +1525,27 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
                 "repo",
                 "--no-embeddings",
                 "--offline",
-                "--force",
                 "--source",
             ])
             .arg(&fixture.root)
             .arg("--index")
             .arg(&fixture.index)
             .arg("--embedding-cache-path")
-            .arg(fixture.root.join("models"));
+            .arg(fixture.root.join("models"))
+            .arg(if check { "--check" } else { "--force" });
         if json {
             command.arg("--json");
         }
         command.output().unwrap()
     };
-    let first = setup(true);
+    let first = setup(true, false);
     assert!(
         first.status.success(),
         "{} {}",
         String::from_utf8_lossy(&first.stdout),
         String::from_utf8_lossy(&first.stderr)
     );
-    fixture.assert_reference_cache_is_isolated();
+    assert!(!fixture.root.join(".cache/reference-supplements").exists());
     let first: Value = serde_json::from_slice(&first.stdout).unwrap();
     assert_eq!(first["data"]["path_mode"], "repo");
     assert_eq!(first["data"]["build"]["source_fingerprint"], fingerprint);
@@ -1572,7 +1554,17 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
     assert_eq!(admission["admitted_records"], 2);
     assert_eq!(admission["quarantined_files"], 1);
     assert_eq!(admission["exclusions"][0]["path"], "packs/actions/bad.json");
-    let text = setup(false);
+    let checked = setup(true, true);
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let checked: Value = serde_json::from_slice(&checked.stdout).unwrap();
+    assert_eq!(checked["data"]["ready"], true);
+    assert!(checked["data"]["build"].is_null());
+    assert!(!fixture.root.join(".cache/reference-supplements").exists());
+    let text = setup(false, false);
     assert!(text.status.success());
     assert!(
         String::from_utf8_lossy(&text.stdout)
@@ -1584,7 +1576,7 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
         fixture.root.join("held-macros"),
     )
     .unwrap();
-    let failed = setup(true);
+    let failed = setup(true, false);
     assert!(!failed.status.success());
     let failed: Value = serde_json::from_slice(&failed.stdout).unwrap();
     assert!(
@@ -1613,7 +1605,7 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
     for path in ["packs/actions/heal.json", "packs/macros/tool.json"] {
         fs::write(fixture.root.join(path), "{broken").unwrap();
     }
-    let failed = setup(true);
+    let failed = setup(true, false);
     assert!(!failed.status.success());
     let failed: Value = serde_json::from_slice(&failed.stdout).unwrap();
     assert!(
@@ -1626,7 +1618,7 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
                 .is_some_and(|s| s.contains("no loadable Foundry records"))),
         "{failed}"
     );
-    let text = setup(false);
+    let text = setup(false, false);
     assert!(!text.status.success());
     assert!(String::from_utf8_lossy(&text.stdout).contains("no loadable Foundry records"));
     assert_eq!(

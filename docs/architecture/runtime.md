@@ -39,13 +39,9 @@ mutation. Ingest rejects incompatible PF2e system manifest versions before produ
 preparation; developer admission reports remain usable for unsupported sources.
 
 The approved reference supplement is a bundled, normalized subset with its source
-pin, mapping/extraction recipe and complete content notices. Runtime installs those
-exact bytes atomically in `reference-supplements/<manifest-sha256>` under the same
-cache root as the managed PF2e source. A verified cache is reused without network
-access; altered or incomplete existing files fail setup and are preserved. Bundled
-bytes remain available offline when the cache is absent. Check mode uses them
-directly without creating a persistent cache. This is one approved source input,
-not an upstream provider poller or a fallback to an older selection.
+pin, mapping/extraction recipe and complete content notices. Normal setup and
+check mode pass those bytes directly to ingest, which validates the manifest,
+payload and notices and includes their identity in setup freshness.
 
 ## Source loading and checked records
 
@@ -356,10 +352,9 @@ the selected native tokenizer checks every officially prefixed final input.
 
 ## Runtime paths and setup
 
-The workspace lives in platform application-data storage; source checkouts,
-reference supplements and model assets remain in platform cache storage. Explicit
-repo mode uses `.cache/pf2e/<commit>`, `.cache/reference-supplements`,
-`.cache/hf-models` and `.atlas/workspace.sqlite`. Source path,
+The workspace lives in platform application-data storage; source checkouts and
+model assets remain in platform cache storage. Explicit repo mode uses
+`.cache/pf2e/<commit>`, `.cache/hf-models` and `.atlas/workspace.sqlite`. Source path,
 manifest, locale and requested profiles are durable configuration independent of
 active reference output. Explicit setup overrides update that intent; omitted
 options preserve it. Adding a profile retains already requested profiles.

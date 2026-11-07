@@ -3,8 +3,7 @@
 The bundled supplement is a normalized, selected input for explicit setup and
 direct reference builds. `manifest.json` binds `payload.json`, `notices.json`,
 the pristine registered ORC PDF and the Community Use Policy PDF by checksum.
-Runtime can install these bytes in its content-addressed cache without network
-access. Normal setup never polls upstream for a new revision.
+Normal setup and check mode consume these bundled bytes directly through ingest.
 
 The payload contains 24 Player Core typical-speaker fields and four Player Core
 weapon specialization paragraphs from the pinned Pf2eTools source. Wildsong uses
@@ -44,5 +43,5 @@ applicable notices; later app/CLI presentation exposes that stored attribution.
 Supplemental entry provenance names the original `data/languages.json` or
 `data/groups.json` file and its raw SHA-256. The prepared markup hash identifies
 the normalized selected field. The stored `reference-subset-manifest` provenance
-notice retains the extraction/mapping recipes and payload checksum so source-free
-attribution does not depend on the cache.
+notice retains the extraction/mapping recipes and payload checksum alongside the
+content for source-free attribution.

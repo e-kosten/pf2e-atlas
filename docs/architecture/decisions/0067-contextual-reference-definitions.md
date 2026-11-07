@@ -7,7 +7,8 @@ Date: 2026-11-05
 
 Amended 2026-11-06: existing glossary records use ordinary record presentation.
 The special template-reading selection and per-description approval-hash gate
-were removed after product review. Source attribution and input integrity remain.
+were removed after product review. Setup also consumes the bundled supplement
+directly. Source attribution and input integrity remain.
 
 ## Context
 
@@ -115,9 +116,9 @@ existing records; Generic Sneak Attack remains a standalone supplied definition.
 
 The approved supplemental asset contains only selected language speaker context
 and published specialization prose, exact mappings, provenance and notices. Runtime
-places the bundled normalized asset in its verified content-addressed cache;
-normal setup uses the approved selection and never polls upstream HEAD. Ingest
-captures the selected bytes, notice bytes, locale and recipe identities once.
+selects the bundled asset directly for normal setup and check mode. Ingest captures
+the selected bytes, notice bytes, locale and recipe identities once. Bundled and
+explicit directory selections of identical bytes retain the same input identity.
 Notice-only changes and explicit absence/disable participate in setup freshness.
 Changed or missing selected inputs fail the attempted update without publishing
 partial content or silently retaining an obsolete provider.

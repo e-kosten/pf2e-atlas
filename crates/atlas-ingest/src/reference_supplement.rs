@@ -1,4 +1,4 @@
-//! One approved, normalized reference subset; acquisition/cache policy stays in runtime.
+//! One approved, normalized reference subset captured from bundled or explicit input bytes.
 use crate::IngestError;
 use atlas_domain::{DefinitionKey, DefinitionNamespace};
 use atlas_index::ReferenceNotice;
@@ -22,9 +22,9 @@ pub enum ReferenceSupplementSelection {
     },
 }
 
-pub struct BundledReferenceFile {
-    pub name: &'static str,
-    pub bytes: &'static [u8],
+struct BundledReferenceFile {
+    name: &'static str,
+    bytes: &'static [u8],
 }
 
 static BUNDLED: &[BundledReferenceFile] = &[
@@ -50,12 +50,6 @@ static BUNDLED: &[BundledReferenceFile] = &[
     },
 ];
 
-pub fn bundled_reference_supplement() -> &'static [BundledReferenceFile] {
-    BUNDLED
-}
-pub fn bundled_reference_supplement_id() -> String {
-    hash(BUNDLED[0].bytes)
-}
 fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -358,7 +352,7 @@ mod tests {
 
     fn directory() -> tempfile::TempDir {
         let directory = tempfile::tempdir().unwrap();
-        for file in bundled_reference_supplement() {
+        for file in BUNDLED {
             fs::write(directory.path().join(file.name), file.bytes).unwrap();
         }
         directory
@@ -400,7 +394,7 @@ mod tests {
     }
 
     #[test]
-    fn embedded_and_cached_assets_have_one_path_independent_owned_identity() {
+    fn bundled_and_directory_assets_have_one_path_independent_owned_identity() {
         let first = directory();
         let second = directory();
         let selection = ReferenceSupplementSelection::Directory {
