@@ -175,7 +175,7 @@ describe("compact common choice picker", () => {
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
     open();
     expect(await screen.findByLabelText("4 matching records")).toBeInTheDocument();
-    expect(screen.getByLabelText("0 matching records")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 matching records")).toHaveTextContent(/^0$/);
     expect(
       screen.getByRole("button", {
         name: "Traits: Cold, neutral; activate to include",

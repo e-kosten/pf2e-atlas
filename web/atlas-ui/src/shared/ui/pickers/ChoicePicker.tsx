@@ -178,7 +178,8 @@ export function ChoicePicker({
       <div key={pageKey} className="common-choice-options" aria-busy={loading}>
         {rows.map((option) => {
           const state = stateOf(option.value);
-          const unavailable = counts?.get(option.value) === 0n;
+          const count = counts?.get(option.value);
+          const dimmed = count === 0n && state === "neutral";
           const next: ChoiceState = valueEditing
             ? state === "include"
               ? "neutral"
@@ -209,7 +210,9 @@ export function ChoicePicker({
                       ? "var(--filter-include-text)"
                       : state === "exclude"
                         ? "var(--filter-exclude-text)"
-                        : undefined,
+                        : dimmed
+                          ? token.colorTextDisabled
+                          : undefined,
                   backgroundColor:
                     state === "include"
                       ? "var(--filter-include-bg)"
@@ -232,14 +235,13 @@ export function ChoicePicker({
               onKeyDown={closeOnEscape}
             >
               <span className="common-choice-label">{option.label}</span>
-              {counts?.has(option.value) && (
+              {count !== undefined && (
                 <Typography.Text
                   type="secondary"
-                  aria-label={`${counts.get(option.value)} matching records`}
+                  style={dimmed ? { color: "inherit" } : undefined}
+                  aria-label={`${count} matching records`}
                 >
-                  {unavailable
-                    ? "0 matches"
-                    : new Intl.NumberFormat().format(counts.get(option.value)!)}
+                  {new Intl.NumberFormat().format(count)}
                 </Typography.Text>
               )}
               {state !== "neutral" && (
