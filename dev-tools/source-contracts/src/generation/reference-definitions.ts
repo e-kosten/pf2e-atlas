@@ -13,6 +13,7 @@ export interface ReferenceDefinition {
 }
 export interface ReferenceCatalog {
   digest: string; definitions: ReferenceDefinition[];
+  senseRules: { sense: string; fixedAcuity: string | null; unlimitedRange: boolean }[];
 }
 export interface ReferenceRegistry {
   schema: 'reference-definition-registry/v1'; source_package: 'pf2e';
@@ -141,6 +142,17 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
     for (const entry of rarity.entries) add('rarity', entry.identifier, entry.labelKey, null, entry.source.file, entry.source.line, ['rarity']);
   }
   const senses = reader.strings(get(values, 'SENSE_TYPES'));
+  const unlimitedRange = reader.strings(get(values, 'SENSES_WITH_UNLIMITED_RANGE'));
+  const fixedAcuities = map(values, 'SENSES_WITH_MANDATORY_ACUITIES');
+  const acuities = reader.strings(get(values, 'SENSE_ACUITIES'));
+  if ([...unlimitedRange, ...fixedAcuities.keys()].some(sense => !senses.includes(sense)))
+    throw new Error('Sense rule refers to an undeclared sense');
+  const senseRules = senses.map(sense => {
+    const fixedAcuity = fixedAcuities.get(sense)?.value ?? null;
+    if (fixedAcuity !== null && (typeof fixedAcuity !== 'string' || !acuities.includes(fixedAcuity)))
+      throw new Error('Invalid fixed acuity for ' + sense);
+    return { sense, fixedAcuity, unlimitedRange: unlimitedRange.includes(sense) };
+  });
   const senseLabels = map(config, 'senses');
   if (senseLabels.size !== senses.length || senses.some(token => !senseLabels.has(token))) throw new Error('Sense catalog mismatch');
   for (const token of senses) {
@@ -276,5 +288,5 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
   if (new Set(definitions.map(definition => definition.namespace + ':' + definition.identifier)).size !== definitions.length)
     throw new Error('Duplicate reference definition identity');
   return { digest: sha('reference-catalog/v2:' + inputs.digest + ':' + canonical(registry)
-    + ':' + canonical(definitions)), definitions };
+    + ':' + canonical(definitions)), definitions, senseRules };
 }

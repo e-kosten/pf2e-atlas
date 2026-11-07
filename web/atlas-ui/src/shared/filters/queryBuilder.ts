@@ -350,11 +350,8 @@ export function builderPredicate(
       });
     } else if (node.operator === "exists") {
       if (scope !== null) throw new Error("Nested collection filters are unavailable");
-      const child = builderPredicate(
-        node.value ?? emptyGroup(),
-        fields,
-        field.path,
-      ) || { kind: "boolean_constant", value: true };
+      const child = builderPredicate(node.value ?? emptyGroup(), fields, field.path);
+      if (!child && field.path === "senses") continue;
       append({
         kind: "exists",
         clause_id,
@@ -363,7 +360,7 @@ export function builderPredicate(
           (node as RuleType & { atlasScopeId?: string }).atlasScopeId ||
           node.id ||
           crypto.randomUUID(),
-        predicate: child,
+        predicate: child ?? { kind: "boolean_constant", value: true },
       });
     } else if (node.operator === "in") {
       const parsed = values(node.value).map((v) => literal(v, field));
@@ -476,14 +473,22 @@ function predicateNode(
   if (
     predicate.kind === "not" &&
     !["all_of", "any_of", "not"].includes(predicate.predicate.kind)
-  )
+  ) {
+    const inner = predicateNode(predicate.predicate, fields, scope);
+    if ("rules" in inner)
+      return {
+        ...inner,
+        not: true,
+        atlasNotClauseId: predicate.clause_id,
+      } as PredicateGroup;
     return {
-      ...predicateNode(predicate.predicate, fields, scope),
+      ...inner,
       meta: {
         atlasExcluded: true,
         atlasNotClauseId: predicate.clause_id,
       },
     } as PredicateRule;
+  }
   if (
     predicate.kind === "all_of" ||
     predicate.kind === "any_of" ||
@@ -524,12 +529,47 @@ function predicateNode(
       };
     case "state_match":
       return { ...base, operator: "state", value: predicate.state };
-    case "exists":
+    case "exists": {
+      // Older compact Senses rows could select several types. Preserve their
+      // any-of meaning while giving each sense its own row and refinements.
+      const child = predicate.predicate;
+      const members = child.kind === "all_of" ? child.children : [child];
+      const choices = members.find(
+        (member) => member.kind === "in" && member.field === "type",
+      );
+      if (
+        predicate.collection === "senses" &&
+        choices?.kind === "in" &&
+        members.every((member) => member === choices || member.kind === "compare")
+      ) {
+        const rows = choices.values.map((value) =>
+          predicateNode(
+            {
+              ...predicate,
+              clause_id: undefined,
+              scope_id: crypto.randomUUID(),
+              predicate: {
+                kind: "all_of",
+                children: members.map((member) =>
+                  member === choices
+                    ? { kind: "compare", field: "type", op: "eq", value }
+                    : { ...member, clause_id: undefined },
+                ),
+              },
+            },
+            fields,
+            scope,
+          ),
+        );
+        if (rows.length === 1) return { ...rows[0], id: predicate.clause_id };
+        return { id: predicate.clause_id, combinator: "or", rules: rows };
+      }
       return {
         ...base,
         atlasScopeId: predicate.scope_id,
         operator: "exists",
         value: predicateBuilder(predicate.predicate, fields, predicate.collection),
       } as RuleType & { atlasScopeId: string };
+    }
   }
 }

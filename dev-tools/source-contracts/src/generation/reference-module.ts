@@ -12,6 +12,11 @@ export function generateReferenceModule(catalog: ReferenceCatalog, header: strin
 // Localized game prose is not included in this metadata module.
 pub const REFERENCE_CATALOG_SHA256: &str = ${quote(catalog.digest)};
 
+/// Sense type, fixed acuity, and whether Foundry defines unlimited range.
+pub const SENSE_RULES: &[(&str, Option<&str>, bool)] = &[
+${catalog.senseRules.map(rule => `    (${quote(rule.sense)}, ${optional(rule.fixedAcuity)}, ${rule.unlimitedRange}),`).join('\n')}
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FoundryReferenceDefinition {
     pub namespace: &'static str,

@@ -6,6 +6,27 @@
 pub const REFERENCE_CATALOG_SHA256: &str =
     "47834017b480b7e26798d53b62fd4fdfa82eaff464578d4c96c90eee45fd7414";
 
+/// Sense type, fixed acuity, and whether Foundry defines unlimited range.
+pub const SENSE_RULES: &[(&str, Option<&str>, bool)] = &[
+    ("bloodsense", None, false),
+    ("darkvision", Some("precise"), true),
+    ("echolocation", Some("precise"), false),
+    ("electromagnetic-sense", None, false),
+    ("greater-darkvision", Some("precise"), true),
+    ("infrared-vision", Some("precise"), false),
+    ("lifesense", None, false),
+    ("low-light-vision", Some("precise"), true),
+    ("magicsense", None, false),
+    ("motion-sense", None, false),
+    ("scent", None, false),
+    ("see-invisibility", Some("precise"), true),
+    ("spiritsense", None, false),
+    ("thoughtsense", None, false),
+    ("tremorsense", None, false),
+    ("truesight", Some("precise"), false),
+    ("wavesense", None, false),
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FoundryReferenceDefinition {
     pub namespace: &'static str,

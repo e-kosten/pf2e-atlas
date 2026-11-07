@@ -1803,6 +1803,8 @@ fn authored_sense_qualifiers_share_one_member_and_keep_unknown_states() {
         (3, "missing"),
         (4, "value"),
         (5, "value"),
+        (6, "value"),
+        (7, "value"),
     ] {
         root(&db, id, "npc", "common");
         row(
@@ -1817,6 +1819,8 @@ fn authored_sense_qualifiers_share_one_member_and_keep_unknown_states() {
         (3, 2, "darkvision", "imprecise", 60, "value"),
         (4, 2, "tremorsense", "precise", 30, "value"),
         (5, 5, "darkvision", "precise", 0, "invalid"),
+        (6, 6, "greater-darkvision", "precise", 0, "missing"),
+        (7, 7, "scent", "imprecise", 0, "missing"),
     ] {
         row(
             &db,
@@ -1827,8 +1831,11 @@ fn authored_sense_qualifiers_share_one_member_and_keep_unknown_states() {
                 ("original_index", id.into()),
                 ("type_state", text("value")),
                 ("type", text(sense)),
-                ("acuity_state", text("value")),
-                ("acuity", text(acuity)),
+                (
+                    "acuity_state",
+                    text(if root == 6 { "missing" } else { "value" }),
+                ),
+                ("acuity", if root == 6 { Value::Null } else { text(acuity) }),
                 ("range_state", text(state)),
                 (
                     "range",
@@ -1864,12 +1871,21 @@ fn authored_sense_qualifiers_share_one_member_and_keep_unknown_states() {
     );
     assert_eq!(
         result(&db, "!senses.exists(s,s.type=='darkvision' && s.range>=60)"),
-        vec![1, 4]
+        vec![1, 4, 6, 7]
     );
     assert_eq!(
         result(&db, "senses.exists(s,s.availability['range']=='invalid')"),
         vec![5]
     );
+    assert_eq!(result(&db, "senses.exists(s,s.range>=60)"), vec![1, 2, 6]);
+    assert_eq!(
+        result(
+            &db,
+            "senses.exists(s,s.type=='greater-darkvision' && s.acuity=='precise' && s.range>=60)"
+        ),
+        vec![6]
+    );
+    assert_eq!(result(&db, "senses.exists(s,s.range<=30)"), vec![1, 2]);
 }
 
 #[test]

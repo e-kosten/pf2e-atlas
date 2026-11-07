@@ -4,6 +4,7 @@ use super::{
     validation::{ValidatedQuery, numeric_literal},
 };
 use atlas_domain::{QueryCompare, QueryExpression, QueryLiteral, QueryPredicate, QuerySetMatch};
+use atlas_foundry_model::generated::reference_definitions::SENSE_RULES;
 use rusqlite::types::Value;
 
 #[derive(Debug, Clone)]
@@ -356,6 +357,30 @@ pub(crate) fn compile_node(
 ) -> Result<String, crate::IndexError> {
     Ok(compile_tree(p, scope, parameters)?.truth)
 }
+
+fn comparison_field(d: &Descriptor, scope: Option<&str>) -> BoundField {
+    let mut field = bound_field(d, scope);
+    if scope == Some("senses") && d.definition.path == "acuity" {
+        let defaults = SENSE_RULES
+            .iter()
+            .filter_map(|(sense, acuity, _)| {
+                acuity.map(|acuity| format!("WHEN '{sense}' THEN '{acuity}'"))
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        if defaults.is_empty() {
+            return field;
+        }
+        let default = format!("CASE c.type {defaults} ELSE NULL END");
+        let missing = "c.type_state='value' AND c.acuity_state IN ('missing','null')";
+        field.value = format!("CASE WHEN {missing} THEN ({default}) ELSE c.acuity END");
+        field.state = format!(
+            "CASE WHEN {missing} AND ({default}) IS NOT NULL THEN 'value' ELSE c.acuity_state END"
+        );
+    }
+    field
+}
+
 fn compile_tree(
     p: &QueryPredicate,
     scope: Option<&str>,
@@ -372,15 +397,38 @@ fn compile_tree(
         QueryExpression::BooleanConstant { value } => if *value { "1" } else { "0" }.to_owned(),
         QueryExpression::Compare { field, op, value } => {
             let d = checked_descriptor(scope, field)?;
-            let b = bound_field(d, scope);
-            let op = comparison_operator(*op);
-            guarded(
+            let b = comparison_field(d, scope);
+            let comparison = guarded(
                 b.state,
-                format!("{} {op} {}", b.value, parameter(parameters, scalar(value)?)),
-            )
+                format!(
+                    "{} {} {}",
+                    b.value,
+                    comparison_operator(*op),
+                    parameter(parameters, scalar(value)?)
+                ),
+            );
+            if scope == Some("senses") && field == "range" {
+                let unlimited_types = SENSE_RULES
+                    .iter()
+                    .filter(|(_, _, unlimited)| *unlimited)
+                    .map(|(sense, _, _)| format!("'{sense}'"))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                // Unlimited outranks every finite literal. Keep authored availability intact.
+                let result = i32::from(matches!(
+                    op,
+                    QueryCompare::Gt | QueryCompare::Gte | QueryCompare::Neq
+                ));
+                format!(
+                    "CASE WHEN c.type_state='value' AND c.range_state IN ('missing','null')
+                     AND c.type IN ({unlimited_types}) THEN {result} ELSE ({comparison}) END"
+                )
+            } else {
+                comparison
+            }
         }
         QueryExpression::In { field, values } => {
-            let b = bound_field(checked_descriptor(scope, field)?, scope);
+            let b = comparison_field(checked_descriptor(scope, field)?, scope);
             let values = values
                 .iter()
                 .map(|v| Ok(parameter(parameters, scalar(v)?)))

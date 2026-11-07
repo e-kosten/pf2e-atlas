@@ -117,7 +117,7 @@ async fn glossary_reading_and_typed_associations_share_generation_and_identity()
     assert_eq!(status, StatusCode::OK, "{editor}");
     assert_eq!(
         editor["sense_qualifiers"],
-        json!([{"sense":"darkvision","acuity":"precise","has_range":true}])
+        json!([{"sense":"darkvision","acuity":null,"has_range":false}])
     );
     assert_eq!(
         detail["related_filters"][0],

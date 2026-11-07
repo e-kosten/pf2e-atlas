@@ -1,4 +1,4 @@
-import { builderPredicate } from "./queryBuilder";
+import { builderPredicate, predicateBuilder } from "./queryBuilder";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
@@ -68,7 +68,7 @@ it("shows local errors for a malformed optional amount and clears them on correc
   expect(changed).toHaveBeenLastCalledWith({ combinator: "and", rules: [] });
 });
 
-it("edits multiple sense choices, acuity and range in the same collection draft", async () => {
+it("edits one sense and its refinements in the same collection draft", async () => {
   const senses = fieldFixture("senses", "collection", "Senses");
   const member = (
     path: string,
@@ -135,12 +135,6 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
     </QueryClientProvider>,
   );
   expect(screen.queryByRole("combobox", { name: "Sense match" })).toBeNull();
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Sense" }));
-  fireEvent.click(
-    await screen.findByText("tremorsense", {
-      selector: ".ant-select-item-option-content span",
-    }),
-  );
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Acuity" }));
   fireEvent.click(
     await screen.findByText("imprecise", {
@@ -157,8 +151,8 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
       {
         id: "type",
         field: "senses[].type",
-        operator: "in",
-        value: ["scent", "tremorsense"],
+        operator: "eq",
+        value: "scent",
       },
       { id: "acuity", field: "senses[].acuity", operator: "eq", value: "imprecise" },
       { id: "range", field: "senses[].range", operator: "gte", value: "30" },
@@ -200,7 +194,7 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
         predicate: {
           kind: "all_of",
           children: [
-            { kind: "in", field: "type", values: ["scent", "tremorsense"] },
+            { kind: "compare", field: "type", op: "eq", value: "scent" },
             { kind: "compare", field: "acuity", value: "imprecise" },
             { kind: "compare", field: "range", op: "gte", value: 30 },
           ],
@@ -231,8 +225,8 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
       {
         id: "type",
         field: "senses[].type",
-        operator: "in",
-        value: ["scent", "tremorsense"],
+        operator: "eq",
+        value: "scent",
       },
     ]),
   );
@@ -242,6 +236,40 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
       selector: ".ant-select-item-option-content span",
     }),
   );
+  expect(current.rules).toEqual([
+    { id: "type", field: "senses[].type", operator: "eq", value: "darkvision" },
+  ]);
   expect(screen.queryByRole("combobox", { name: "Acuity" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Add range" })).toBeNull();
+
+  const definitions = editor.groups[0].fields.map((entry) => entry.definition);
+  const legacy = {
+    kind: "exists" as const,
+    collection: "senses",
+    scope_id: "legacy",
+    predicate: { kind: "in" as const, field: "type", values: ["scent", "darkvision"] },
+  };
+  expect(
+    builderPredicate(predicateBuilder(legacy, definitions), definitions),
+  ).toMatchObject({
+    kind: "any_of",
+    children: ["scent", "darkvision"].map((value) => ({
+      kind: "exists",
+      collection: "senses",
+      predicate: {
+        kind: "all_of",
+        children: [{ kind: "compare", field: "type", op: "eq", value }],
+      },
+    })),
+  });
+  const anySense = {
+    ...legacy,
+    predicate: { kind: "boolean_constant" as const, value: true },
+  };
+  const anyDraft = predicateBuilder(anySense, definitions);
+  const rule = anyDraft.rules[0] as { value: RuleGroupType };
+  expect(isCompactCollection(field, rule.value)).toBe(true);
+  expect(builderPredicate(anyDraft, definitions)).toMatchObject(anySense);
+  rule.value.rules = [];
+  expect(builderPredicate(anyDraft, definitions)).toBeNull();
 });
