@@ -374,10 +374,7 @@ fn occurrence_pages_require_generation_and_relevant_positive_proof() {
     ]);
     assert_eq!(page["page"]["total"], 2);
     assert_eq!(page["occurrences"].as_array().unwrap().len(), 1);
-    assert_eq!(
-        page["occurrences"][0]["occurrence"]["source_title"],
-        "Fixture Scout"
-    );
+    assert_eq!(page["occurrences"][0]["source_title"], "Fixture Scout");
     let stale = fixture.command(
         &[
             "graph",

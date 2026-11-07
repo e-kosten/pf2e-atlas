@@ -262,6 +262,23 @@ it("edits one sense and its refinements in the same collection draft", async () 
       },
     })),
   });
+  const compound = {
+    kind: "any_of" as const,
+    children: [legacy, { ...legacy, scope_id: "second" }],
+  };
+  expect(
+    builderPredicate(predicateBuilder(compound, definitions), definitions),
+  ).toMatchObject(compound);
+  const repeated = {
+    ...legacy,
+    predicate: { ...legacy.predicate, values: Array(128).fill("scent") },
+  };
+  expect(
+    builderPredicate(predicateBuilder(repeated, definitions), definitions),
+  ).toMatchObject({
+    kind: "exists",
+    predicate: { kind: "all_of", children: [{ kind: "compare", value: "scent" }] },
+  });
   const anySense = {
     ...legacy,
     predicate: { kind: "boolean_constant" as const, value: true },

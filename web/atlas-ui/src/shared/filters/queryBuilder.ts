@@ -461,7 +461,7 @@ export function predicateBuilder(
   }
   return {
     combinator: "and",
-    rules: [predicateNode(predicate, fields, scope)],
+    rules: [predicateNode(predicate, fields, scope, scope === null)],
     atlasSinglePredicate: true,
   } as PredicateGroup;
 }
@@ -469,26 +469,19 @@ function predicateNode(
   predicate: QueryPredicate,
   fields: QueryFieldDefinition[],
   scope: string | null,
+  standalone = false,
 ): RuleType | RuleGroupType {
   if (
     predicate.kind === "not" &&
     !["all_of", "any_of", "not"].includes(predicate.predicate.kind)
-  ) {
-    const inner = predicateNode(predicate.predicate, fields, scope);
-    if ("rules" in inner)
-      return {
-        ...inner,
-        not: true,
-        atlasNotClauseId: predicate.clause_id,
-      } as PredicateGroup;
+  )
     return {
-      ...inner,
+      ...predicateNode(predicate.predicate, fields, scope),
       meta: {
         atlasExcluded: true,
         atlasNotClauseId: predicate.clause_id,
       },
     } as PredicateRule;
-  }
   if (
     predicate.kind === "all_of" ||
     predicate.kind === "any_of" ||
@@ -537,12 +530,18 @@ function predicateNode(
       const choices = members.find(
         (member) => member.kind === "in" && member.field === "type",
       );
+      const senses = choices?.kind === "in" ? [...new Set(choices.values)] : [];
       if (
+        standalone &&
         predicate.collection === "senses" &&
-        choices?.kind === "in" &&
+        senses.length > 0 &&
+        senses.length <= 20 &&
+        members.length <= 3 &&
         members.every((member) => member === choices || member.kind === "compare")
       ) {
-        const rows = choices.values.map((value) =>
+        // A compact standalone row expands to at most 20 rows of three members.
+        // Leave compound filters in their original form to preserve query limits.
+        const rows = senses.map((value) =>
           predicateNode(
             {
               ...predicate,
