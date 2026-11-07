@@ -1252,7 +1252,7 @@ describe("field applicability while editing Boolean groups", () => {
     }
   });
 
-  it.each(["Match any", "Match none", "Not all match"])(
+  it.each(["Match any", "Match none", "At least one fails"])(
     "keeps fields available when %s can broaden the current result",
     (match) => {
       const editor = editorFixture([

@@ -1122,6 +1122,11 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
       aria-label="Filter field"
       placeholder="Choose a filter…"
       listHeight={filterFieldListHeight()}
+      popupMatchSelectWidth={320}
+      styles={{
+        content: { whiteSpace: "normal", overflowWrap: "anywhere" },
+        popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
+      }}
       showSearch={{ optionFilterProp: "searchText" }}
       options={groups}
       value={
@@ -1200,13 +1205,14 @@ function GroupMatchSelector(props: CombinatorSelectorProps) {
   return (
     <Select
       aria-label="Match conditions"
+      variant="filled"
       popupMatchSelectWidth={false}
       value={(group.not ? "not:" : "") + group.combinator}
       options={[
         { value: "and", label: "Match all" },
         { value: "or", label: "Match any" },
         { value: "not:or", label: "Match none" },
-        { value: "not:and", label: "Not all match" },
+        { value: "not:and", label: "At least one fails" },
       ]}
       onChange={(value) =>
         replaceGroup(props.path, {
@@ -1228,6 +1234,7 @@ function hasConfiguredCondition(group: RuleGroupType): boolean {
 }
 function FilterGroupBody(props: UseRuleGroup) {
   const context = props.context as BuilderContext;
+  const { token } = theme.useToken();
   const [choosingField, setChoosingField] = useState(false);
   return (
     <>
@@ -1242,11 +1249,15 @@ function FilterGroupBody(props: UseRuleGroup) {
             </>
           }
           variant="borderless"
+          styles={{
+            placeholder: { color: token.colorText },
+            popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
+          }}
           value={null}
           open={choosingField}
           onOpenChange={setChoosingField}
           listHeight={filterFieldListHeight()}
-          popupMatchSelectWidth={280}
+          popupMatchSelectWidth={320}
           showSearch={{ optionFilterProp: "searchText" }}
           options={filterFieldGroups(context, true)}
           disabled={props.disabled}
@@ -1256,7 +1267,12 @@ function FilterGroupBody(props: UseRuleGroup) {
           }}
         />
         {props.schema.maxLevels > props.path.length && (
-          <Button type="text" disabled={props.disabled} onClick={props.addGroup}>
+          <Button
+            type="text"
+            icon={<PlusOutlined aria-hidden="true" />}
+            disabled={props.disabled}
+            onClick={props.addGroup}
+          >
             Add group
           </Button>
         )}
@@ -1272,6 +1288,7 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
       <Select
         className={props.className}
         aria-label="Link condition"
+        popupMatchSelectWidth={false}
         value={(editing?.rule.meta?.atlasExcluded ? "not:" : "") + props.value}
         disabled={props.disabled}
         options={[
@@ -1330,6 +1347,7 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
     <Select
       className={props.className}
       aria-label={"Condition for " + (field?.label ?? "this field")}
+      popupMatchSelectWidth={false}
       value={excluded ? "not:" + props.value : props.value}
       options={
         props.field === BOOLEAN_CONDITION
