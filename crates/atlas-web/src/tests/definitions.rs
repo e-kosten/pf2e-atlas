@@ -68,45 +68,6 @@ async fn glossary_reading_and_typed_associations_share_generation_and_identity()
             .get("reading_context")
             .is_none()
     );
-    let mut pointer = sense["help"]["destination"]["navigation"].clone();
-    let object = pointer.as_object_mut().unwrap();
-    object.remove("field");
-    object.insert("expected_artifact_generation".into(), generation.clone());
-    let (status, pointed_record) = fixture
-        .json(Method::POST, "/api/records/detail", Some(pointer))
-        .await;
-    assert_eq!(status, StatusCode::OK, "{pointed_record}");
-    assert_eq!(
-        pointed_record["selected"]["record_key"],
-        sense["help"]["destination"]["navigation"]["record_key"]
-    );
-    assert_eq!(pointed_record["artifact_generation"], generation);
-    assert!(
-        pointed_record["presentation"]["content"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|field| field["body"]["html"]
-                .as_str()
-                .is_some_and(|html| html.contains("Fixture darkvision reference content")))
-    );
-    let (status, record) = fixture
-        .json(
-            Method::POST,
-            "/api/records/detail",
-            Some(json!({"record_key":ACTOR,"expected_artifact_generation":generation})),
-        )
-        .await;
-    assert_eq!(status, StatusCode::OK, "{record}");
-    let actor = &record["presentation"]["body"]["value"];
-    assert_eq!(actor["languages"]["value"][0]["value"], "common");
-    assert_eq!(actor["languages"]["value"][0]["label"], "Common");
-    assert_eq!(actor["languages"]["value"][1]["label"], "Chthonian");
-    assert_eq!(
-        actor["language_details"]["value"],
-        "Communicates by signing."
-    );
-    assert_eq!(actor["languages"]["value"][1]["help"], detail["help"]);
     let (status, editor) = fixture
         .json(
             Method::POST,

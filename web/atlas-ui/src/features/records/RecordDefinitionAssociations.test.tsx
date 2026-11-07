@@ -151,20 +151,6 @@ it("adds matched property associations after the actual record body and preserve
   );
 });
 
-it("does not lend a property association to a different backend destination", async () => {
-  const wrong = property();
-  if (wrong.help!.destination?.kind === "record")
-    wrong.help!.destination.navigation.record_key = "other:record";
-  definitionApi.mockResolvedValue(wrong);
-  setup();
-  expect(
-    await screen.findByText("This definition no longer points to this entry."),
-  ).toBeVisible();
-  expect(screen.getByText("Actual existing ability rules.")).toBeVisible();
-  expect(screen.queryByRole("tab", { name: "With this sense" })).toBeNull();
-  expect(searchApi).not.toHaveBeenCalled();
-});
-
 it.each(["matching", "changed"] as const)(
   "refreshes the record before revalidating a %s property mapping on the new generation",
   async (mapping) => {

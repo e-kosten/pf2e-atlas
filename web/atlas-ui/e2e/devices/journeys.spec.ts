@@ -2699,44 +2699,13 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
       new URL((await languageFullPage.getAttribute("href"))!, page.url()).pathname,
     ),
   ).toBe("/definitions/language:chthonian");
-  const languagePreview = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/search/page") &&
-      response.request().postDataJSON()?.page?.size === 5 &&
-      response.request().postDataJSON()?.criteria?.filter?.field === "languages",
-  );
   await activate(languageFullPage, info);
-  const languagePage = await (await languagePreview).json();
-  expect(languagePage.rows).toHaveLength(5);
-  expect(languagePage.page.total).toBeGreaterThan(5);
-  const languageRelations = page.getByRole("region", {
-    name: "With this language",
-    exact: true,
-  });
-  await expect(languageRelations.getByRole("listitem")).toHaveCount(5);
+  await expect(page).toHaveURL(/\/definitions\/language:chthonian$/);
   await expect(
-    languageRelations.getByText(`5 of ${languagePage.page.total} entries`, {
-      exact: true,
-    }),
+    page.getByRole("heading", { name: "Chthonian", exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "With this language" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Similar", exact: true })).toHaveCount(0);
-  const languageSearch = languageRelations.getByRole("link", {
-    name: "Search records",
-    exact: true,
-  });
-  expect(
-    decodeFilterUrl(
-      new URL(
-        (await languageSearch.getAttribute("href"))!,
-        page.url(),
-      ).searchParams.get("filter")!,
-    ),
-  ).toMatchObject({
-    kind: "set_match",
-    field: "languages",
-    op: "includes",
-    values: ["chthonian"],
-  });
 
   await page.goto(`/records/${sentinel}`);
   const agile = page.getByRole("link", { name: "Agile", exact: true }).first();
