@@ -456,7 +456,7 @@ Tracked git hooks live in `.githooks/`:
 
 - `pre-commit` and `pre-merge-commit`: check staged whitespace and run path-sensitive formatting checks (Rust and/or frontend). Docs-only changes need only the whitespace check.
 - `commit-msg`: require a Conventional Commit subject; an optional body must be blank-line-separated.
-- Run the applicable local gates explicitly before opening a PR, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
+- Run the applicable local gates explicitly before marking a PR ready for merge, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
 
 Formatting checks read files in the working tree; whitespace checks read the staged diff. Review partial staging carefully so local evidence corresponds to the committed candidate. Hooks do not replace code review or CI.
 
