@@ -169,7 +169,7 @@ pub use filter::{
     FilterDiscoveryContext, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
     FilterFieldPlacement, FilterOperandView, FilterOperatorView, FilterUnitFieldView,
     FilterValidationResult, FilterValueListView, FilterValueOptionView, FilterValueOptionsView,
-    FilterVocabularyScope, FilterVocabularyView,
+    FilterVocabularyScope, FilterVocabularyView, SenseQualifierView,
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,

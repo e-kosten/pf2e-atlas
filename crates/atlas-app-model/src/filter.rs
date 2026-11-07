@@ -100,6 +100,15 @@ pub struct FilterEditorView {
     pub limits: QueryLimits,
     pub groups: Vec<FilterEditorGroupView>,
     pub common_field_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sense_qualifiers: Option<Vec<SenseQualifierView>>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct SenseQualifierView {
+    pub sense: String,
+    pub acuity: Option<String>,
+    pub has_range: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterEditorGroupView {

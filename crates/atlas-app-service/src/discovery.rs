@@ -228,6 +228,7 @@ pub(crate) fn filter_editor_view(
         limits: catalog.limits,
         groups: groups.into_values().collect(),
         common_field_ids: COMMON.into_iter().map(str::to_owned).collect(),
+        sense_qualifiers: None,
     })
 }
 fn product_group(d: &QueryFieldDefinition) -> ProductGroup {

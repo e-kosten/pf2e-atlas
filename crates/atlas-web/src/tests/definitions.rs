@@ -107,6 +107,18 @@ async fn glossary_reading_and_typed_associations_share_generation_and_identity()
         "Communicates by signing."
     );
     assert_eq!(actor["languages"]["value"][1]["help"], detail["help"]);
+    let (status, editor) = fixture
+        .json(
+            Method::POST,
+            "/api/filters/editor",
+            Some(json!({"expected_artifact_generation":generation})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{editor}");
+    assert_eq!(
+        editor["sense_qualifiers"],
+        json!([{"sense":"darkvision","acuity":"precise","has_range":true}])
+    );
     assert_eq!(
         detail["related_filters"][0],
         json!({

@@ -93,6 +93,13 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
     qualifier_field_id: "senses[].acuity",
     amount_field_id: "senses[].range",
   };
+  editor.sense_qualifiers = [
+    { sense: "darkvision", acuity: null, has_range: false },
+    { sense: "scent", acuity: "precise", has_range: true },
+    { sense: "scent", acuity: "imprecise", has_range: true },
+    { sense: "tremorsense", acuity: "precise", has_range: true },
+    { sense: "tremorsense", acuity: "imprecise", has_range: true },
+  ];
   let current: RuleGroupType = {
     id: "same-sense",
     combinator: "and",
@@ -127,16 +134,7 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
       <Harness />
     </QueryClientProvider>,
   );
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Sense match" }));
-  fireEvent.click(
-    screen.getByText("in", { selector: ".ant-select-item-option-content" }),
-  );
-  expect(current.rules[0]).toEqual({
-    id: "type",
-    field: "senses[].type",
-    operator: "in",
-    value: ["scent"],
-  });
+  expect(screen.queryByRole("combobox", { name: "Sense match" })).toBeNull();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Sense" }));
   fireEvent.click(
     await screen.findByText("tremorsense", {
@@ -238,4 +236,12 @@ it("edits multiple sense choices, acuity and range in the same collection draft"
       },
     ]),
   );
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: /^Sense$/ }));
+  fireEvent.click(
+    await screen.findByText("darkvision", {
+      selector: ".ant-select-item-option-content span",
+    }),
+  );
+  expect(screen.queryByRole("combobox", { name: "Acuity" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add range" })).toBeNull();
 });

@@ -1,11 +1,10 @@
-import { Button, Form, Input, Select } from "antd";
+import { Button, Form, Input, Select, Typography } from "antd";
 import { useState } from "react";
 import type { RuleGroupType, RuleType } from "react-querybuilder";
 import type { FilterEditorFieldView, FilterEditorView } from "../../generated/atlas";
 import type { FilterPanelState } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
 import { numericLiteral } from "./queryBuilder";
-import { transitionOperand } from "./operatorTransitions";
 
 /** A compact presentation of one same-entry conjunction, using catalog member IDs. */
 export function CollectionValueInput({
@@ -38,6 +37,34 @@ export function CollectionValueInput({
   const categoryRule = rules.find((rule) => rule.field === control.category_field_id);
   const qualifierRule = rules.find((rule) => rule.field === control.qualifier_field_id);
   const amountRule = rules.find((rule) => rule.field === control.amount_field_id);
+  const senses = Array.isArray(categoryRule?.value)
+    ? categoryRule.value
+    : categoryRule?.value
+      ? [categoryRule.value]
+      : [];
+  const observed = editor.sense_qualifiers ?? [];
+  const eachSenseHas = (matches: (entry: (typeof observed)[number]) => boolean) =>
+    senses.length > 0 &&
+    senses.every((sense) =>
+      observed.some((entry) => entry.sense === sense && matches(entry)),
+    );
+  const acuityChoices = qualifier?.choices.filter(
+    (choice) =>
+      choice.value === qualifierRule?.value ||
+      (!senses.length && !!qualifierRule) ||
+      eachSenseHas(
+        (entry) => entry.acuity === choice.value && (!amountRule || entry.has_range),
+      ),
+  );
+  const hasRange = eachSenseHas(
+    (entry) =>
+      entry.has_range && (!qualifierRule || entry.acuity === qualifierRule.value),
+  );
+  const unavailableQualifier =
+    senses.length > 0 &&
+    ((amountRule && !hasRange) ||
+      (qualifierRule &&
+        !eachSenseHas((entry) => entry.acuity === qualifierRule.value)));
   let amountError: string | null = null;
   if (amountRule?.value != null && String(amountRule.value).trim()) {
     try {
@@ -63,43 +90,21 @@ export function CollectionValueInput({
   }
   return (
     <div className="filter-collection-compact">
-      {qualifier && (
-        <Select
-          aria-label={category.label + " match"}
-          value={categoryRule?.operator ?? "eq"}
-          options={category.operators
-            .filter((operator) => ["eq", "in"].includes(operator.operator))
-            .map((operator) => ({ value: operator.operator, label: operator.label }))}
-          onChange={(operator) => {
-            const previous = category.operators.find(
-              (entry) => entry.operator === (categoryRule?.operator ?? "eq"),
-            );
-            const next = category.operators.find(
-              (entry) => entry.operator === operator,
-            )!;
-            replace(
-              category.definition.id,
-              operator,
-              transitionOperand(
-                previous?.operand ?? null,
-                next.operand,
-                categoryRule?.value ?? "",
-              ),
-            );
-          }}
-        />
-      )}
       <FilterValueInput
         field={category}
-        operator={categoryRule?.operator ?? "eq"}
-        value={categoryRule?.value ?? ""}
+        operator={qualifier ? "in" : (categoryRule?.operator ?? "eq")}
+        value={qualifier ? senses : (categoryRule?.value ?? "")}
         onChange={(value) =>
-          value === "" || value == null
+          value === "" || value == null || (Array.isArray(value) && !value.length)
             ? onChange({
                 ...query,
                 rules: rules.filter((rule) => rule !== categoryRule),
               })
-            : replace(category.definition.id, categoryRule?.operator ?? "eq", value)
+            : replace(
+                category.definition.id,
+                qualifier ? "in" : (categoryRule?.operator ?? "eq"),
+                value,
+              )
         }
         scope={workspace.vocabularyScope ?? { kind: "artifact" }}
         countContext={workspace.filterDiscoveryContext}
@@ -108,9 +113,9 @@ export function CollectionValueInput({
         countLimit={editor.limits.literal_list}
         clauseId={categoryRule?.id ?? null}
       />
-      {qualifier && (
+      {qualifier && (qualifierRule || acuityChoices?.length) ? (
         <FilterValueInput
-          field={qualifier}
+          field={{ ...qualifier, choices: acuityChoices ?? [] }}
           operator="eq"
           value={qualifierRule?.value ?? ""}
           onChange={(value) =>
@@ -128,8 +133,8 @@ export function CollectionValueInput({
           countLimit={editor.limits.literal_list}
           clauseId={qualifierRule?.id ?? null}
         />
-      )}
-      {amount && (
+      ) : null}
+      {amount && (!qualifier || hasRange || amountRule) && (
         <div className="filter-collection-amount">
           {!showAmount && !amountRule ? (
             <Button
@@ -186,6 +191,11 @@ export function CollectionValueInput({
             </>
           )}
         </div>
+      )}
+      {unavailableQualifier && (
+        <Typography.Text type="secondary" role="status">
+          Some selected senses have no recorded value for these refinements.
+        </Typography.Text>
       )}
     </div>
   );

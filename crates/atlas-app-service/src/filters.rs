@@ -65,6 +65,9 @@ impl AtlasAppService {
                     }
                 }
                 crate::definition_values::editor(retrieval, &mut editor)?;
+                editor.sense_qualifiers = Some(retrieval.sense_qualifiers()?.into_iter()
+                    .map(|(sense, acuity, has_range)| atlas_app_model::SenseQualifierView { sense, acuity, has_range })
+                    .collect());
                 Ok(editor)
             },
         )
