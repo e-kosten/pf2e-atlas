@@ -48,10 +48,8 @@ fn metadata(
             notices: vec![],
         },
         filter_bindings: vec![ReferenceFilterBinding {
-            id: "property".into(),
-            relation: "property".into(),
-            field: Some(field.into()),
-            value: Some(token.into()),
+            field: field.into(),
+            value: token.into(),
         }],
     }
 }
@@ -237,17 +235,15 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
             size.filter_bindings
                 .extend(["physical.size", "ancestry.default_size"].map(|field| {
                     ReferenceFilterBinding {
-                        id: field.into(),
-                        relation: "property".into(),
-                        field: Some(field.into()),
-                        value: Some("med".into()),
+                        field: field.into(),
+                        value: "med".into(),
                     }
                 }));
             let mut large = size.clone();
             large.key = DefinitionKey::new(N::Size, "lg").unwrap();
             large.label = "Large".into();
             for binding in &mut large.filter_bindings {
-                binding.value = Some("lg".into());
+                binding.value = "lg".into();
             }
             entries.push(size);
             entries.push(large);

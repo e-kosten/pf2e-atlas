@@ -416,12 +416,9 @@ impl<'a> ReferenceBuild<'a> {
             filter_bindings: authored
                 .filter_fields
                 .iter()
-                .enumerate()
-                .map(|(index, field)| ReferenceFilterBinding {
-                    id: format!("{}-{index}", authored.namespace),
-                    relation: "property".into(),
-                    field: Some((*field).to_owned()),
-                    value: Some(authored.identifier.into()),
+                .map(|field| ReferenceFilterBinding {
+                    field: (*field).to_owned(),
+                    value: authored.identifier.into(),
                 })
                 .collect(),
         };

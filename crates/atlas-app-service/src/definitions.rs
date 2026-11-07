@@ -54,9 +54,7 @@ impl AtlasAppService {
             }
             let catalog = r.discover_filter_fields()?;
             for binding in &entry.filter_bindings {
-                if matches!(binding.relation.as_str(), "property" | "trait_membership")
-                    && let Some(action) = property_action(binding, &catalog)?
-                {
+                if let Some(action) = property_action(binding, &catalog)? {
                     detail.related_filters.push(action);
                 }
             }
@@ -158,12 +156,7 @@ fn property_action(
     binding: &ReferenceFilterBinding,
     catalog: &QueryCapability,
 ) -> AppServiceResult<Option<ReferenceFilterActionView>> {
-    let path = binding.field.as_deref().ok_or_else(|| {
-        AppServiceError::new(
-            AppErrorCode::ArtifactIncompatible,
-            "Property filter has no field",
-        )
-    })?;
+    let path = binding.field.as_str();
     let field = catalog
         .fields
         .iter()
@@ -177,12 +170,7 @@ fn property_action(
     if field.field_type == QueryFieldType::Number {
         return Ok(None);
     }
-    let value = binding.value.as_ref().ok_or_else(|| {
-        AppServiceError::new(
-            AppErrorCode::ArtifactIncompatible,
-            "Property filter has no value",
-        )
-    })?;
+    let value = &binding.value;
     let (predicate, label) = match field.field_type {
         QueryFieldType::Collection => {
             let member = catalog
@@ -384,10 +372,8 @@ mod tests {
         let (retrieval, _artifact) = crate::test_support::fixture_retrieval().unwrap();
         let catalog = retrieval.discover_filter_fields().unwrap();
         let binding = |field: &str, value: &str| ReferenceFilterBinding {
-            id: field.into(),
-            relation: "property".into(),
-            field: Some(field.into()),
-            value: Some(value.into()),
+            field: field.into(),
+            value: value.into(),
         };
         for (field, value, expected_label) in [
             ("languages", "common", "With this language"),

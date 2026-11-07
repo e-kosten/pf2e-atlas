@@ -56,10 +56,8 @@ fn metadata(key: DefinitionKey, label: &str, field: &str, value: &str) -> Refere
             notices: vec![],
         },
         filter_bindings: vec![ReferenceFilterBinding {
-            id: "property-0".into(),
-            relation: "property".into(),
-            field: Some(field.into()),
-            value: Some(value.into()),
+            field: field.into(),
+            value: value.into(),
         }],
     }
 }

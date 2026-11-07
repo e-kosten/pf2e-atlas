@@ -7,11 +7,14 @@ pub(super) const PARENT: &str = "(SELECT p.record_id AS id, p.record_id AS root_
         SELECT 1 FROM artifact_context a WHERE a.singleton=1
           AND json_extract(a.context_json,'$.reference_preparation.coverage')='complete'
           AND json_extract(a.context_json,'$.reference_preparation.source_package')='pf2e'
-          AND (json_type(a.context_json,'$.reference_preparation.pack_systems.bestiary-ability-glossary-srd') IS NULL
-               OR json_extract(a.context_json,'$.reference_preparation.pack_systems.bestiary-ability-glossary-srd')='pf2e')
+          AND NOT EXISTS (
+            SELECT 1 FROM json_each(a.context_json,'$.reference_preparation.pack_systems') s
+            WHERE s.key IN (r.pack_id,'bestiary-ability-glossary-srd') AND s.value IS NOT 'pf2e'
+          )
     ) THEN 'missing' WHEN p.items_state='value' AND EXISTS (
         SELECT 1 FROM actor_items i WHERE i.record_id=p.record_id AND i.source_type_state!='value'
-    ) THEN 'invalid' ELSE p.items_state END AS items_state FROM actor_projection p)";
+    ) THEN 'invalid' ELSE p.items_state END AS items_state
+    FROM actor_projection p JOIN records r USING(record_id))";
 
 // Own-body localization declarations take precedence over imported source identity.
 // Anchor declarations at the root so correlated membership can use both index keys.
@@ -218,5 +221,25 @@ mod tests {
         .unwrap();
         assert_eq!(values.total_values, 1);
         assert_eq!(values.options[0].value, QueryLiteral::String(grab));
+
+        for (pack_systems, applies) in [
+            (json!({"test": "pf2e"}), true),
+            (json!({"test": null}), false),
+            (json!({"test": "dnd5e"}), false),
+            (json!({"bestiary-ability-glossary-srd": null}), false),
+        ] {
+            db.execute(
+                "UPDATE artifact_context SET context_json =
+                 json_set(context_json, '$.reference_preparation.pack_systems', json(?))",
+                [pack_systems.to_string()],
+            )
+            .unwrap();
+            if applies {
+                assert_eq!(result(&db, &has_grab), [1, 2]);
+            } else {
+                assert!(result(&db, &has_grab).is_empty());
+                assert!(result(&db, &format!("!({has_grab})")).is_empty());
+            }
+        }
     }
 }

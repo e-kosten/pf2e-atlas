@@ -160,10 +160,8 @@ pub enum ReferenceGrantScope {
 /// Discovery metadata. Query construction and execution remain query-owned.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferenceFilterBinding {
-    pub id: String,
-    pub relation: String,
-    pub field: Option<String>,
-    pub value: Option<String>,
+    pub field: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -373,10 +371,8 @@ impl ReferenceEntry {
                 notices: vec![],
             },
             filter_bindings: vec![ReferenceFilterBinding {
-                id: "membership".into(),
-                relation: "trait_membership".into(),
-                field: Some("traits".into()),
-                value: Some(definition.key.identifier().into()),
+                field: "traits".into(),
+                value: definition.key.identifier().into(),
             }],
         })
     }
@@ -820,7 +816,10 @@ fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Resul
     }
     let mut bindings = std::collections::BTreeSet::new();
     for binding in &entry.filter_bindings {
-        if binding.id.is_empty() || binding.relation.is_empty() || !bindings.insert(&binding.id) {
+        if binding.field.is_empty()
+            || binding.value.is_empty()
+            || !bindings.insert((&binding.field, &binding.value))
+        {
             return Err(IndexError::Invalid(
                 "invalid or duplicate reference filter binding".into(),
             ));
