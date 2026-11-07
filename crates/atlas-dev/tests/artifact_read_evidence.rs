@@ -15,7 +15,6 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
                 .eligible_keys(
                     &query,
                     None,
-                    false,
                     atlas_domain::ResultSort::attribute(
                         atlas_domain::SortField::Name,
                         atlas_domain::SortDirection::Asc,
@@ -33,7 +32,6 @@ fn operation(reader: &SqliteIndexReader, name: &str) -> usize {
                 .eligible_keys(
                     &query,
                     None,
-                    false,
                     atlas_domain::ResultSort::attribute(
                         atlas_domain::SortField::Name,
                         atlas_domain::SortDirection::Asc,

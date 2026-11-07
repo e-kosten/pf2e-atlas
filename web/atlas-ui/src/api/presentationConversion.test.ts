@@ -167,6 +167,7 @@ async function readPreparedBody(
       selected: navigation,
       relationships: [],
       relationships_truncated: false,
+      remaster_relationships: { kind: "empty" },
       presentation: presentation(preparedBody),
     };
     respond(response);

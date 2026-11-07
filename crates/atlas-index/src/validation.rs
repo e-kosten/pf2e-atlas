@@ -241,6 +241,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity","Checking semantic search index");
     validate_vectors(c, &context, product_count)?;
     validate_aliases(c)?;
+    crate::remaster::validate(c)?;
     crate::component_digests::validate_present(c, &context)?;
     let mut urls=c.prepare("SELECT target_url FROM relationship_occurrences WHERE resolution IN ('resolved_url','unverified_url')")?;
     for url in urls.query_map([], |r| r.get::<_, String>(0))? {
@@ -597,8 +598,11 @@ fn remaster_sources(
         if legacy == "Macro" || remaster == "Macro" {
             return Err(bad("remaster endpoint is not a product record"));
         }
-        let source: atlas_record::source_content::SourceContentLocator =
-            serde_json::from_str(&json)?;
+        let Some(source): Option<atlas_record::source_content::SourceContentLocator> =
+            serde_json::from_str(&json)?
+        else {
+            continue;
+        };
         let exists: bool = c.query_row(
             "SELECT EXISTS(SELECT 1 FROM records WHERE key=? AND document_kind<>'Macro')",
             [source.record.to_string()],
@@ -661,7 +665,7 @@ fn validate_vectors(
     }
     Ok(())
 }
-fn validate_profile_storage(
+pub(crate) fn validate_profile_storage(
     c: &Connection,
     context: &SourceArtifactBuildContext,
 ) -> Result<(), IndexError> {

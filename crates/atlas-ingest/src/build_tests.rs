@@ -1617,7 +1617,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
         .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
         .unwrap();
     assert_eq!(links.len(), 1);
-    assert_eq!(links[0].provenance, provenance);
+    assert_eq!(links[0].provenance, Some(provenance.clone()));
     assert!(
         reopened
             .read_source_record(&provenance.record)
@@ -1670,7 +1670,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
             .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
             .unwrap()[0]
             .provenance,
-        provenance
+        Some(provenance)
     );
     assert_eq!(reopened.artifact_instance().workspace_key(), workspace);
     let c = rusqlite::Connection::open(&upgraded.output_path).unwrap();

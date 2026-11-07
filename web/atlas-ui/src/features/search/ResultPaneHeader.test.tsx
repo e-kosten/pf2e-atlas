@@ -1,7 +1,14 @@
 import { RouterTestContext } from "../../test/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { fireEvent, render as rtlRender, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render as rtlRender,
+  screen,
+  within,
+} from "@testing-library/react";
+import { ReferencePreviewContext } from "../../shared/records/ReferencePreviewContext";
 import { summaryFixture } from "../../test/fixtures";
 import type { SearchResultsPage } from "../../generated/atlas";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
@@ -22,6 +29,38 @@ function render(ui: ReactElement) {
 }
 
 describe("search pane composition", () => {
+  it("does not request or render an automatic remaster panel for ordinary completed text search", async () => {
+    const resultPage = {
+      ...searchResultsPage(),
+      mode: {
+        kind: "text_search" as const,
+        query: "Attack of Opportunity",
+        mode: "hybrid" as const,
+      },
+    };
+    render(
+      <SearchProfileProvider>
+        <ReferencePreviewContext value={{ open: vi.fn(), openTrait: vi.fn() }}>
+          <SearchView
+            workspace={workspace({
+              search: { ...DEFAULT_SEARCH_STATE, query: "Attack of Opportunity" },
+              resultPage,
+            })}
+          />
+        </ReferencePreviewContext>
+      </SearchProfileProvider>,
+    );
+    await act(async () => {});
+    expect(
+      screen.queryByRole("region", {
+        name: "Source statements about this term or entry",
+      }),
+    ).toBeNull();
+    expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+      "Attack of Opportunity",
+    );
+  });
+
   it("keeps Search settings beside the search input and the model choice in its dialog", () => {
     render(
       <SearchProfileProvider>

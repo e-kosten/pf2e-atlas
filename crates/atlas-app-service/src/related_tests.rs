@@ -243,7 +243,10 @@ fn related_availability_is_exact_owner_scoped_generation_checked_and_nonempty() 
         "must not broaden root to child references"
     );
     assert!(content.outgoing.occurrences[0].source.owners.is_empty());
-    assert!(matches!(result.counterparts, RelatedCategoryView::Empty));
+    assert!(matches!(
+        result.remaster_relationships,
+        RelatedCategoryView::Empty
+    ));
     let mut owned = request.clone();
     owned.selection.owners = vec![atlas_domain::OwnedContentLocator {
         collection: "/items".into(),
@@ -259,8 +262,8 @@ fn related_availability_is_exact_owner_scoped_generation_checked_and_nonempty() 
         owned.selection.owners
     );
     assert!(matches!(
-        result.counterparts,
-        RelatedCategoryView::Unavailable { .. }
+        result.remaster_relationships,
+        RelatedCategoryView::Empty
     ));
     assert!(matches!(
         result.variants,

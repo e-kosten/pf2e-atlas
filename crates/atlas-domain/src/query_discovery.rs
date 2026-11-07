@@ -34,8 +34,8 @@ pub struct QueryVocabularyOption {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryVocabularyBasis {
-    ProductArtifactBeforeEditionPreference,
-    ProductKeyScopeBeforeEditionPreference,
+    ProductArtifact,
+    ProductKeyScope,
 }
 /// `selected_values` contains valid selected literals, including values absent
 /// from the suggestion page. `total_values` counts available values matching

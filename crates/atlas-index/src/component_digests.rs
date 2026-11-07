@@ -765,7 +765,8 @@ mod historical_payload_tests {
         assert!(!old_vectors.is_empty());
         workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
         assert!(
-            crate::ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap()
+            !crate::ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
         );
         assert_eq!(bodies(&c), old_bodies);
         let current_table =
@@ -785,6 +786,29 @@ mod historical_payload_tests {
             )
             .unwrap(),
             0
+        );
+        assert!(crate::test_support::open_reader(&path).is_err());
+        crate::test_support::publish_input(&path, &input).unwrap();
+        assert_eq!(bodies(&c), old_bodies);
+        // Source-backed preparation can allocate new occurrence slots. The
+        // schema-only comparison above keeps exact old IDs; recovery keeps every
+        // occurrence's numerical bytes and validates current attribution below.
+        let mut recovered_bytes = vectors(&c, &current_table, true)
+            .into_iter()
+            .map(|(_, bytes)| bytes)
+            .collect::<Vec<_>>();
+        let mut old_bytes = old_vectors
+            .into_iter()
+            .map(|(_, bytes)| bytes)
+            .collect::<Vec<_>>();
+        recovered_bytes.sort();
+        old_bytes.sort();
+        assert_eq!(recovered_bytes, old_bytes);
+        assert_eq!(
+            c.query_row("SELECT name FROM saved_lists WHERE id=1", [], |r| r
+                .get::<_, String>(0))
+                .unwrap(),
+            "Kept pre20 state"
         );
         crate::validate_artifact(&path).unwrap();
     }

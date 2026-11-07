@@ -91,7 +91,7 @@ beforeEach(() => {
         options: [{ value: "fire" }],
         selected_values: request.selected_values,
         total_values: 90n,
-        basis: "product_artifact_before_edition_preference",
+        basis: "product_artifact",
       },
     }),
   );
@@ -622,7 +622,7 @@ it("keeps scoped discovery unavailability explicit and falls back to independent
               options: [{ value: "fire" }],
               selected_values: request.selected_values,
               total_values: 1n,
-              basis: "product_artifact_before_edition_preference",
+              basis: "product_artifact",
             },
           },
     ),

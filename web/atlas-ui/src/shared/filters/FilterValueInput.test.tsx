@@ -116,7 +116,7 @@ describe("shared value control vocabulary", () => {
                 options: request.offset
                   ? [{ value: "second-page" }]
                   : [{ value: "fire" }],
-                basis: "product_key_scope_before_edition_preference",
+                basis: "product_key_scope",
               },
             },
       ),

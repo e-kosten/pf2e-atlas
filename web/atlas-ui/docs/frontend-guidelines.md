@@ -293,6 +293,7 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `overlays/AtlasModal.tsx` and `overlays/AtlasDrawer.tsx`: ordinary overlays that
   keep shared recovery reachable within the active focus boundary.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
+- `InlineIconButton`, `InlineIconLink` and `InlineContext`: text-adjacent context actions and their wrapping. See [Inline context actions](#inline-context-actions).
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
 - `actions/useConfirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
 
@@ -325,6 +326,52 @@ wrapping toolbars, navigation actions and date formatting. Keep table overflow
 inside its container and record names readable. Loading, an empty collection,
 filtered emptiness and a failed read are distinct states; preserve existing data
 on failed refresh and provide local Retry.
+
+### Inline context actions
+
+Use `InlineIconButton` or `InlineIconLink` with `InlineContext` when an information
+or help icon annotates prose, a fact value, or a standalone text label. For example,
+a remaster explanation beside a former name and a conditional-skill explanation
+beside its modifier belong to this pattern. `PaneIconButton` and `PaneIconLink`
+belong to pane headers and toolbars; their control-box baseline is not an inline
+text-alignment policy.
+
+The shared inline treatment owns its geometry: text-relative middle alignment,
+a glyph around one text em, a click/focus target of at least 24 CSS pixels, and the
+4px spacing role between content and action. Glyph size and target size are
+separate. Callers must not add local vertical transforms, baseline nudges, button
+padding or a second gap to make the icon fit. Keep theme colors, hover and focus
+feedback with the shared Ant control.
+
+Let `InlineContext` keep the action attached to the final content fragment when
+wrapping. The complete sentence must still wrap. Do not set a whole long sentence
+to nowrap, duplicate a native anchor into extra focus stops, or insert hidden
+characters into copied text to force the layout. Preserve a rich content element's
+identity and allow its own text to wrap without leaving the action on a line alone.
+Literal text attaches the action to its last word. Rich content, such as a record
+link, stays in one wrapping group with its action aligned to the final line; the
+group may move to the next line rather than splitting the anchor into fragments.
+
+The caller owns what activation does. Preserve controlled help/popover state,
+content, dismissal and focus restoration when changing a trigger's geometry.
+Give icon controls an accessible name identifying their action or target, and mark
+the glyph decorative. Use real hrefs for destinations, intercept only ordinary
+activation for the reference drawer, and retain modified/native navigation. A
+short hover/focus tooltip labels the action and dismisses on Escape without moving
+focus; substantial or interactive context belongs in the existing popover or drawer.
+
+Reuse an existing higher-level composition when it already fits the task. For
+example, search-setting help belongs in `SearchSettingLabel` with `HelpTooltip`;
+its centered label group can retain its established layout. An Info icon beside Roll/Reroll in a control
+row is a toolbar action, not a prose annotation. `ValueExplanation` owns readable
+value/check explanations; do not replace its state machine just to obtain icon
+geometry. Choose by the surrounding task, not by the icon's name.
+
+Check the rendered result at 14px and 16px text, larger text/zoom, short desktop
+and 320/390px reading widths, in both appearances. Confirm optical alignment,
+24px target size, no orphan action or horizontal overflow with long words and
+links, keyboard tooltip dismissal, and the original overlay/native-link/focus
+behavior. Matching component props alone do not establish visual alignment.
 
 ### Reading and editing values
 
@@ -419,6 +466,13 @@ Atlas has one identity with independent system/light/dark appearance: Parchment
 and Oxblood in light appearance, and warmer Oxblood and Brass in dark appearance.
 Use flat surfaces, subtle separators, the existing interface typography and the
 shared 6px base radius. Generic controls retain Ant component/token ownership.
+
+Reader hosts share the document type scale in `record-reference.css`, including
+related-record content shown inside Tabs. Inline links and text inherit their
+local fact, heading or metadata size rather than Ant Typography's UI default.
+Controls and trait badges retain their own scales; do not change Ant's global
+font size to repair reader content. Verify computed label/link sizes in the
+reader and Explore, and check that badges and controls keep their intended size.
 
 `themeDefinitions.ts` owns the authored light/dark anchors and shared semantic
 roles. `atlasTheme.ts` projects them into the Ant configuration and document-level

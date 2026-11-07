@@ -1,10 +1,7 @@
 use crate::test_support::{input, record};
 use crate::*;
 use atlas_domain::{RecordKey, SourcePassageAddress};
-use atlas_index::{
-    IndexBuildInput, SourceAliasInput, SourceLexicalUnitInput, SourceLexicalUnitKind,
-    SourceRemasterPairInput,
-};
+use atlas_index::{IndexBuildInput, SourceLexicalUnitKind};
 use serde_json::json;
 fn effect(id: &str, name: &str, level: i32, html: &str) -> atlas_index::SourceArtifactRecordInput {
     record(
@@ -30,23 +27,8 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
         ],
         true,
     );
-    let alias_root = fixture
-        .lexical_units
-        .iter()
-        .find(|u| u.record == key("bbbbbbbbbbbbbbbb"))
-        .unwrap()
-        .clone();
-    fixture.aliases.push(SourceAliasInput {
-        record: alias_root.record.clone(),
-        alias: "Ember".into(),
-        evidence: "source redirect".into(),
-    });
-    fixture.lexical_units.push(SourceLexicalUnitInput {
-        kind: SourceLexicalUnitKind::RootAlias,
-        identity_terms: String::new(),
-        alias_terms: "Ember".into(),
-        ..alias_root
-    });
+    crate::test_support::add_remaster_alias(&mut fixture, &key("bbbbbbbbbbbbbbbb"), "Ember")
+        .unwrap();
     for unit in &mut fixture.semantic_units {
         unit.vector.fill(0.0);
         let axis = if unit.record == key("dddddddddddddddd") {
@@ -61,6 +43,14 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
     let profile = atlas_domain::SearchProfileId::new("bge-base");
     let mut vector = vec![0.0; 768];
     vector[0] = 1.0;
+    // The journal is source evidence; this scorer comparison concerns the four
+    // original records, including the record reached through its former name.
+    let candidates = [
+        key("aaaaaaaaaaaaaaaa"),
+        key("bbbbbbbbbbbbbbbb"),
+        key("cccccccccccccccc"),
+        key("dddddddddddddddd"),
+    ];
     let rank = |mode, ranking| {
         service
             .rank_candidates(crate::text::CandidateRequest {
@@ -70,9 +60,8 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
                 text: "Ember",
                 mode,
                 query: &query,
-                scope: RecordScope::All,
-                prefer: false,
-                suppress: false,
+                scope: RecordScope::Keys(&candidates),
+
                 vector: Some(&vector),
                 exclude: None,
             })
@@ -176,7 +165,6 @@ fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
 }
@@ -194,24 +182,12 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
         ],
         false,
     );
-    fixture.aliases.push(SourceAliasInput {
-        record: key("aaaaaaaaaaaaaaaa"),
-        alias: "Verified dragon".into(),
-        evidence: "source redirect".into(),
-    });
-    let root = fixture
-        .lexical_units
-        .iter()
-        .find(|unit| {
-            unit.record == key("aaaaaaaaaaaaaaaa") && unit.kind == SourceLexicalUnitKind::RootName
-        })
-        .unwrap();
-    fixture.lexical_units.push(SourceLexicalUnitInput {
-        kind: SourceLexicalUnitKind::RootAlias,
-        identity_terms: String::new(),
-        alias_terms: "Verified dragon".into(),
-        ..root.clone()
-    });
+    crate::test_support::add_remaster_alias(
+        &mut fixture,
+        &key("aaaaaaaaaaaaaaaa"),
+        "Verified dragon",
+    )
+    .unwrap();
     let (_dir, mut service) = service(fixture);
     assert_eq!(
         service
@@ -241,7 +217,7 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
     assert_eq!(aliases.len(), 1);
     assert_eq!(aliases[0].match_kind, RecordResolutionMatchKind::Alias);
     assert_eq!(aliases[0].record.key, key("aaaaaaaaaaaaaaaa"));
-    assert_eq!(aliases[0].evidence.as_deref(), Some("source redirect"));
+    assert!(aliases[0].evidence.is_some());
     assert_eq!(
         search(&mut service, "Verified dragon").records[0]
             .record
@@ -287,7 +263,6 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
                 filter: None,
                 scope: RecordScope::All,
                 page: SearchPage::default(),
-                prefer_remaster: true
             })
             .unwrap()
             .is_none()
@@ -309,15 +284,12 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
         ],
         false,
     );
-    fixture.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: legacy.clone(),
-        remaster: key("bbbbbbbbbbbbbbbb"),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: legacy.clone(),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &legacy.clone(),
+        &key("bbbbbbbbbbbbbbbb"),
+    )
+    .unwrap();
     let (_dir, service) = service(fixture);
     let legacy_ref = legacy.to_string();
     for (expression, accepted) in [("level >= 1", true), ("level == 2", false)] {
@@ -350,34 +322,67 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
     }
 }
 #[test]
-fn pair_preference_is_conditional_and_precedes_paging() {
+fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
     let mut fixture = input(
         vec![
-            effect("aaaaaaaaaaaaaaaa", "Legacy flame", 1, ""),
+            effect(
+                "aaaaaaaaaaaaaaaa",
+                "Legacy flame",
+                1,
+                "<h2>Unremastered</h2>",
+            ),
             effect("bbbbbbbbbbbbbbbb", "Remaster flame", 2, ""),
             effect("cccccccccccccccc", "Other flame", 3, ""),
         ],
-        false,
+        true,
     );
-    fixture.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: key("aaaaaaaaaaaaaaaa"),
-        remaster: key("bbbbbbbbbbbbbbbb"),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: key("aaaaaaaaaaaaaaaa"),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &key("aaaaaaaaaaaaaaaa"),
+        &key("bbbbbbbbbbbbbbbb"),
+    )
+    .unwrap();
+    for unit in &mut fixture.semantic_units {
+        unit.vector.fill(0.0);
+        unit.vector[0] = 1.0;
+    }
     let (_dir, mut service) = service(fixture);
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
+    let predicate = service.predicate(None).unwrap();
+    let mut vector = vec![0.0; 768];
+    vector[0] = 1.0;
+    // Exercise the real native semantic and hybrid candidate path without a query model.
+    for mode in [RetrievalMode::Vector, RetrievalMode::Hybrid] {
+        let (roots, _) = service
+            .rank_candidates(crate::text::CandidateRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
+                ranking: Default::default(),
+                search_profile: &profile,
+                text: "flame",
+                mode,
+                query: &predicate,
+                scope: RecordScope::All,
+                vector: Some(&vector),
+                exclude: None,
+            })
+            .unwrap();
+        assert_eq!(roots.len(), 3);
+        for id in ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"] {
+            assert!(roots.iter().any(|root| root.key == key(id)));
+        }
+    }
     let both = search(&mut service, "flame");
-    assert_eq!(both.page.total, 2);
+    assert_eq!(both.page.total, 3);
+    let mut all_request = TextSearchRequest::new("flame", SearchPage::first(1).unwrap());
+    all_request.mode = RetrievalMode::Fts;
+    let all = service.search_text(all_request).unwrap();
+    assert_eq!(all.page.total, 3);
     assert!(
-        !both
-            .records
+        both.records
             .iter()
             .any(|r| r.record.key == key("aaaaaaaaaaaaaaaa"))
     );
-    let only = search(&mut service, "Legacy");
+    let only = search(&mut service, "Unremastered");
     assert_eq!(only.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
     let filter = service.parse_where("level == 1").unwrap();
     let filtered = service
@@ -391,7 +396,6 @@ fn pair_preference_is_conditional_and_precedes_paging() {
             filter: Some(filter.predicate()),
             scope: RecordScope::All,
             page: SearchPage::first(1).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap();
     assert_eq!(filtered.page.total, 1);
@@ -407,19 +411,15 @@ fn pair_preference_is_conditional_and_precedes_paging() {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::new(2, 1).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap();
-    assert_eq!(page2.page.total, 2);
+    assert_eq!(page2.page.total, 3);
     assert_eq!(page2.records.len(), 1);
+    assert_eq!(page2.records[0].record.key, both.records[1].record.key);
     assert_eq!(
         service
-            .remaster_links(RemasterLinksRequest {
-                record_key: &key("aaaaaaaaaaaaaaaa")
-            })
+            .record_remaster_context(&key("bbbbbbbbbbbbbbbb"), &[])
             .unwrap()
-            .unwrap()
-            .links
             .len(),
         1
     );
@@ -524,7 +524,6 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -546,7 +545,6 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
             filter: None,
             scope: RecordScope::Keys(&keys),
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -760,7 +758,7 @@ fn contextual_numeric_bounds_restore_target_clause_over_structured_eligibility()
                 search_profile: None,
                 text: None,
                 scope: RecordScope::All,
-                prefer_remaster: true,
+
                 filter: Some(&predicate),
             },
         })
@@ -847,8 +845,7 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
             mode: RetrievalMode::Vector,
             query: &query,
             scope: RecordScope::All,
-            prefer: false,
-            suppress: true,
+
             vector: Some(&vector.vector),
             exclude: None,
         })
@@ -931,7 +928,6 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
                 filter: Some(filter.predicate()),
                 scope: RecordScope::All,
                 page: SearchPage::default(),
-                prefer_remaster: true,
             })
             .unwrap();
         let root = result
@@ -1058,7 +1054,6 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -1083,7 +1078,6 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::new(2, 1).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -1107,7 +1101,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         search_profile: None,
         text: Some("flame"),
         scope: RecordScope::All,
-        prefer_remaster: true,
+
         filter: Some(&predicate),
     };
     assert!(matches!(
@@ -1256,7 +1250,7 @@ fn variant_absence_requires_complete_known_compatibility() {
 }
 
 #[test]
-fn similar_filters_and_verified_remaster_policy_are_preserved() {
+fn similar_keeps_matching_relationship_roots_and_applies_only_explicit_filters() {
     let mut fixture = input(
         vec![
             effect("aaaaaaaaaaaaaaaa", "Seed", 0, ""),
@@ -1266,15 +1260,12 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
         ],
         true,
     );
-    fixture.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: key("bbbbbbbbbbbbbbbb"),
-        remaster: key("cccccccccccccccc"),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: key("bbbbbbbbbbbbbbbb"),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &key("bbbbbbbbbbbbbbbb"),
+        &key("cccccccccccccccc"),
+    )
+    .unwrap();
     let (_, service) = service(fixture);
     let filtered = service.parse_where("level >= 2").unwrap();
     let result = service
@@ -1286,7 +1277,6 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
             filter: Some(filtered.predicate()),
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -1303,12 +1293,11 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
     assert!(
-        !result
+        result
             .results
             .records
             .iter()
@@ -1421,17 +1410,7 @@ fn lexical_rows_cannot_combine_parent_child_or_separate_alias_terms() {
         .unwrap()
         .clone();
     for alias in aliases {
-        fixture.aliases.push(SourceAliasInput {
-            record: root.record.clone(),
-            alias: alias.into(),
-            evidence: "source redirect".into(),
-        });
-        fixture.lexical_units.push(SourceLexicalUnitInput {
-            kind: SourceLexicalUnitKind::RootAlias,
-            identity_terms: String::new(),
-            alias_terms: alias.into(),
-            ..root.clone()
-        });
+        crate::test_support::add_remaster_alias(&mut fixture, &root.record.clone(), alias).unwrap();
     }
     let (_, mut service) = service(fixture);
     for query in [

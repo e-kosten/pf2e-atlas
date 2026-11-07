@@ -1107,3 +1107,14 @@ it("shows identity-only Core and keeps a missing required identity actionable", 
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(apply).not.toHaveBeenCalled();
 });
+
+it("offers only content, model, ranking and match-display settings for a text search", () => {
+  setup({ ...DEFAULT_SEARCH_STATE, query: "heal" });
+  openMatchDisplay();
+  const dialog = screen.getByRole("dialog", { name: "Search settings" });
+  expect(
+    within(dialog)
+      .getAllByRole("combobox")
+      .map((control) => control.getAttribute("aria-label")),
+  ).toEqual(["Search content", "Search model", "Search ranking", "Match display"]);
+});

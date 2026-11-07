@@ -105,6 +105,7 @@ fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
         content_selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
         asset_policy: ASSET_POLICY_VERSION.into(),
         relationship_policy: RELATIONSHIP_POLICY_VERSION.into(),
+        remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
         query_projection_version: SOURCE_PROJECTION_VERSION.into(),
         query_catalog_version: query_capabilities().unwrap().version,
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
@@ -202,6 +203,7 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
             },
         ],
         aliases: vec![],
+        remaster_context: vec![],
         remaster_pairs: vec![],
         lexical_units: vec![],
         semantic_units: vec![],
@@ -474,7 +476,6 @@ fn roundtrip_summary_content_and_macro_scope() {
             .eligible_keys(
                 &all,
                 None,
-                false,
                 atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,
                     atlas_domain::SortDirection::Asc
@@ -1087,88 +1088,7 @@ fn missing_vectors_and_wrong_model_identity_cannot_be_published() {
     );
     assert!(validate_artifact(path).is_err());
 }
-#[test]
-fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
-    let mut input = fixture(false);
-    input.aliases = vec![
-        SourceAliasInput {
-            record: input.records[1].record.key().clone(),
-            alias: "Old Name".into(),
-            evidence: "verified migration declaration".into(),
-        },
-        SourceAliasInput {
-            record: input.records[2].record.key().clone(),
-            alias: "Old Name".into(),
-            evidence: "separate declaration".into(),
-        },
-    ];
-    input.remaster_pairs = vec![SourceRemasterPairInput {
-        legacy: input.records[1].record.key().clone(),
-        remaster: input.records[2].record.key().clone(),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: input.records[1].record.key().clone(),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    }];
-    synchronize_fixture_terms(&mut input);
-    let (_directory, path) = build(&input);
-    let reader = crate::test_support::open_reader(path).unwrap();
-    let matches = reader.lookup_name_or_alias(" OLD  NAME ").unwrap();
-    assert_eq!(matches.len(), 2);
-    assert_eq!(
-        matches[0].evidence.as_deref(),
-        Some("verified migration declaration")
-    );
-    assert!(
-        reader
-            .matched_legacy_keys(std::slice::from_ref(input.records[1].record.key()))
-            .unwrap()
-            .is_empty()
-    );
-    assert_eq!(
-        reader
-            .read_remaster_links(input.records[1].record.key())
-            .unwrap()
-            .len(),
-        1
-    );
-    let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
-    assert_eq!(
-        reader
-            .eligible_keys(
-                &all,
-                None,
-                true,
-                atlas_domain::ResultSort::attribute(
-                    atlas_domain::SortField::Name,
-                    atlas_domain::SortDirection::Asc
-                ),
-                0,
-                100
-            )
-            .unwrap()
-            .total,
-        2
-    );
-    assert_eq!(
-        reader
-            .eligible_keys(
-                &all,
-                Some(std::slice::from_ref(input.records[1].record.key())),
-                true,
-                atlas_domain::ResultSort::attribute(
-                    atlas_domain::SortField::Name,
-                    atlas_domain::SortDirection::Asc
-                ),
-                0,
-                100
-            )
-            .unwrap()
-            .total,
-        1
-    );
-}
+
 #[test]
 fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
     let input = fixture(true);
@@ -1674,62 +1594,6 @@ fn physical_projection_keeps_price_state_and_amount_across_equipment_families() 
 }
 
 #[test]
-fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
-    let mut input = fixture(false);
-    let legacy = input.records[1].record.key().clone();
-    let remaster = input.records[2].record.key().clone();
-    input.remaster_pairs = vec![SourceRemasterPairInput {
-        legacy: legacy.clone(),
-        remaster: remaster.clone(),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: legacy.clone(),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    }];
-    let second_legacy = input.records[0].record.key().clone();
-    input.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: second_legacy.clone(),
-        remaster: remaster.clone(),
-        provenance: input.remaster_pairs[0].provenance.clone(),
-    });
-    let (_directory, path) = build(&input);
-    {
-        let c = Connection::open(&path).unwrap();
-        c.execute("UPDATE remaster_pairs SET evidence_json='{}'", [])
-            .unwrap();
-    }
-    let reader = crate::test_support::open_reader(&path).unwrap();
-    reader.reset_read_metrics();
-    assert!(reader.matched_legacy_keys(&[]).unwrap().is_empty());
-    assert_eq!(reader.read_metrics().sql_statements, 0);
-    for keys in [vec![legacy.clone()], vec![remaster.clone()]] {
-        assert!(reader.matched_legacy_keys(&keys).unwrap().is_empty());
-    }
-    let mut keys = vec![legacy.clone(), legacy.clone(), remaster.clone()];
-    keys.extend((0..40000).map(|i| format!("absent:{i:016}").parse().unwrap()));
-    reader.reset_read_metrics();
-    assert_eq!(
-        reader.matched_legacy_keys(&keys).unwrap(),
-        vec![legacy.clone()]
-    );
-    assert_eq!(reader.read_metrics().sql_statements, 1);
-    assert_eq!(reader.read_metrics().source_body_decodes, 0);
-    assert_eq!(reader.read_metrics().remaster_pair_rows, 1);
-    assert_eq!(reader.read_metrics().remaster_provenance_decodes, 0);
-    let mut expected = vec![legacy.clone(), second_legacy.clone()];
-    expected.sort();
-    assert_eq!(
-        reader
-            .matched_legacy_keys(&[legacy.clone(), second_legacy, remaster])
-            .unwrap(),
-        expected
-    );
-    assert!(reader.read_remaster_links(&legacy).is_err());
-    assert!(validate_artifact(&path).is_err());
-}
-
-#[test]
 fn explicit_audit_rejects_invalid_typed_remaster_source() {
     for defect in ["record", "owner", "field"] {
         let mut next = fixture(false);
@@ -1750,7 +1614,7 @@ fn explicit_audit_rejects_invalid_typed_remaster_source() {
         next.remaster_pairs.push(SourceRemasterPairInput {
             legacy: next.records[1].record.key().clone(),
             remaster: next.records[2].record.key().clone(),
-            provenance,
+            provenance: Some(provenance),
         });
         crate::test_support::publish_input(&path, &next).unwrap();
         assert!(validate_artifact(&path).is_err(), "{defect}");
@@ -1787,4 +1651,46 @@ fn reader_reports_the_digest_of_exact_stored_context_bytes() {
     let reported_digest = reader.context_sha256();
     assert_eq!(reported_digest, stored_digest);
     assert_ne!(reported_digest, reader.context().sha256().unwrap());
+}
+
+pub(crate) fn publish_remaster_projection(
+    c: &rusqlite::Connection,
+    input: &crate::IndexBuildInput,
+) {
+    for pair in &input.remaster_pairs {
+        c.execute("INSERT INTO remaster_pairs SELECT l.record_id,r.record_id,? FROM records l,records r WHERE l.key=? AND r.key=?",rusqlite::params![serde_json::to_string(&pair.provenance).unwrap(),pair.legacy.to_string(),pair.remaster.to_string()]).unwrap();
+    }
+}
+
+#[test]
+fn shared_alias_preserves_both_exact_records_and_existing_evidence() {
+    let mut input = fixture(false);
+    for record in &input.records[1..3] {
+        input.aliases.push(crate::SourceAliasInput {
+            record: record.record.key().clone(),
+            alias: "Old Name".into(),
+            evidence: "journal:fixture".into(),
+        });
+    }
+    synchronize_fixture_terms(&mut input);
+    let (_dir, path) = build(&input);
+    let reader = crate::test_support::open_reader(&path).unwrap();
+    let matches = reader.lookup_name_or_alias("Old Name").unwrap();
+    assert_eq!(matches.len(), 2);
+    assert_eq!(
+        matches
+            .iter()
+            .map(|m| m.key.clone())
+            .collect::<std::collections::BTreeSet<_>>(),
+        input.records[1..3]
+            .iter()
+            .map(|r| r.record.key().clone())
+            .collect()
+    );
+    assert!(
+        matches
+            .iter()
+            .all(|m| m.alias.as_deref() == Some("Old Name")
+                && m.evidence.as_deref() == Some("journal:fixture"))
+    );
 }

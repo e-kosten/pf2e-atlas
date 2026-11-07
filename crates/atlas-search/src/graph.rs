@@ -37,20 +37,6 @@ pub struct GraphContextResult {
     pub outgoing: GraphContextSection,
     pub backlinks: GraphContextSection,
 }
-pub struct RemasterLinksRequest<'a> {
-    pub record_key: &'a RecordKey,
-}
-#[derive(Debug, Clone)]
-pub struct RemasterLinkResult {
-    pub legacy_record: SourceRecordSummary,
-    pub remaster_record: SourceRecordSummary,
-    pub provenance: atlas_record::source_content::SourceContentLocator,
-}
-#[derive(Debug, Clone)]
-pub struct RemasterLinksResult {
-    pub seed: SourceRecordSummary,
-    pub links: Vec<RemasterLinkResult>,
-}
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_index::{SourceRelationshipDirection, SourceRelationshipRequest};
 use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
@@ -133,31 +119,6 @@ impl AtlasRetrievalService {
                 request.backlink_limit,
             )?,
         }))
-    }
-    pub fn remaster_links(
-        &self,
-        request: RemasterLinksRequest<'_>,
-    ) -> Result<Option<RemasterLinksResult>, SearchError> {
-        let Some(seed) = self.index.read_summary(request.record_key)? else {
-            return Ok(None);
-        };
-        let mut links = Vec::new();
-        for pair in self.index.read_remaster_links(request.record_key)? {
-            let records = self.summaries(&[pair.legacy, pair.remaster])?;
-            let mut records = records.into_iter();
-            links.push(RemasterLinkResult {
-                legacy_record: records.next().ok_or_else(|| {
-                    SearchError::artifact_contract_violation("verified pair legacy summary absent")
-                })?,
-                remaster_record: records.next().ok_or_else(|| {
-                    SearchError::artifact_contract_violation(
-                        "verified pair remaster summary absent",
-                    )
-                })?,
-                provenance: pair.provenance,
-            });
-        }
-        Ok(Some(RemasterLinksResult { seed, links }))
     }
 }
 

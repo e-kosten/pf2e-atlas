@@ -6,7 +6,7 @@ pub struct FilterDiscoveryContext<'a> {
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub text: Option<&'a str>,
     pub scope: RecordScope<'a>,
-    pub prefer_remaster: bool,
+
     pub filter: Option<&'a QueryPredicate>,
 }
 impl FilterDiscoveryContext<'_> {
@@ -88,7 +88,6 @@ impl AtlasRetrievalService {
                 query,
                 context: QueryFacetContext {
                     eligible_keys: request.context.scope.keys().map(<[_]>::to_vec),
-                    prefer_remaster: request.context.prefer_remaster,
                 },
                 values: request.values.to_vec(),
             })?)
@@ -122,7 +121,6 @@ impl AtlasRetrievalService {
                 query,
                 QueryFacetContext {
                     eligible_keys: context.scope.keys().map(<[_]>::to_vec),
-                    prefer_remaster: context.prefer_remaster,
                 },
             ),
         })

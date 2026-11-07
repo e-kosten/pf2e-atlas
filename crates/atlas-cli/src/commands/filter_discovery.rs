@@ -279,10 +279,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
                 definition.id
             );
         }
-        println!(
-            "Source availability ({}; before remaster suppression):",
-            counts.counting_scope
-        );
+        println!("Source availability ({}):", counts.counting_scope);
         for state in counts.states {
             println!(
                 "{}\t{} records\t{} occurrences",

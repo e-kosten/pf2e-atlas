@@ -125,7 +125,7 @@ fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
                     scope: RecordScope::Keys(&keys),
                     page: SearchPage::default(),
                     sort: ResultSort::Relevance {},
-                    prefer_remaster: false,
+
                     cancelled: None,
                 })
                 .unwrap()
@@ -137,7 +137,11 @@ fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
                 .map(|row| row.record.key.clone())
                 .collect::<Vec<_>>();
             assert_eq!(
-                service.evaluation_ranking(run, false).unwrap(),
+                run.rows
+                    .iter()
+                    .filter(|row| row.disposition == "scored")
+                    .map(|row| row.record_key.clone())
+                    .collect::<Vec<_>>(),
                 actual,
                 "{}",
                 variant.id
@@ -302,7 +306,7 @@ fn direct_oracle_finds_a_winner_absent_from_every_bounded_knn_lane() {
             scope: RecordScope::Keys(&keys),
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
-            prefer_remaster: false,
+
             cancelled: None,
         })
         .unwrap()
@@ -454,7 +458,7 @@ fn label_only_trait_baseline_and_content_oracles_match_both_product_profiles() {
                     scope: RecordScope::Keys(&keys),
                     page: SearchPage::default(),
                     sort: ResultSort::Relevance {},
-                    prefer_remaster: false,
+
                     cancelled: None,
                 })
                 .unwrap()
@@ -638,7 +642,7 @@ fn exact_custom_identity_is_scored_and_versioned_instead_of_silently_dropped() {
                 scope: RecordScope::Keys(&keys),
                 page: Default::default(),
                 sort: ResultSort::Relevance {},
-                prefer_remaster: false,
+
                 cancelled: None,
             })
             .unwrap()

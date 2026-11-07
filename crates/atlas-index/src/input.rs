@@ -98,6 +98,8 @@ pub struct SourceArtifactBuildContext {
     pub content_selection_version: String,
     pub asset_policy: String,
     pub relationship_policy: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub remaster_inputs_identity: String,
     pub query_projection_version: String,
     pub query_catalog_version: u32,
     pub lookup_version: String,
@@ -138,7 +140,7 @@ pub struct SourceAliasInput {
 pub struct SourceRemasterPairInput {
     pub legacy: RecordKey,
     pub remaster: RecordKey,
-    pub provenance: SourceContentLocator,
+    pub provenance: Option<SourceContentLocator>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -197,6 +199,7 @@ pub struct IndexBuildInput {
     pub packs: Vec<IndexBuildPack>,
     pub context: SourceArtifactBuildContext,
     pub aliases: Vec<SourceAliasInput>,
+    pub remaster_context: Vec<atlas_record::remaster::RecordRemasterContext>,
     pub remaster_pairs: Vec<SourceRemasterPairInput>,
     pub lexical_units: Vec<SourceLexicalUnitInput>,
     pub semantic_units: Vec<SourceSemanticUnitInput>,

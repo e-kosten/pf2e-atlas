@@ -48,6 +48,11 @@ export function RecordReferenceDrawer({
 }: {
   anchor: RecordPreviewAnchor | null;
 } & RecordPreviewContentProps) {
+  const traitRoute = trait
+    ? traitDestination({
+        traitKey: trait.key,
+      })
+    : null;
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const [closing, setClosing] = useState(false);
@@ -57,9 +62,7 @@ export function RecordReferenceDrawer({
     ? readingNavigationForUrl(detail.selected, { navigation: requestedNavigation })
     : undefined;
   const href =
-    (trait
-      ? destinationHref(traitDestination({ traitKey: trait.key }))
-      : fullPageHref) ??
+    (trait ? destinationHref(traitRoute!) : fullPageHref) ??
     (detail
       ? destinationHref(
           recordDestination({
@@ -71,7 +74,7 @@ export function RecordReferenceDrawer({
       : undefined);
   const openFullPage = () => {
     if (trait) {
-      navigateDestination(traitDestination({ traitKey: trait.key }));
+      navigateDestination(traitRoute!);
       onClose();
     } else if (landing && detail)
       navigateDestination(

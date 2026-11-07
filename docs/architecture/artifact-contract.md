@@ -165,19 +165,19 @@ numerical values; schema and metadata-only upgrades preserve them. Saved-domain
 tables include a seeded local principal
 and non-null ownership, with owner-scoped slug uniqueness.
 
-| Family | Tables and purpose |
-| --- | --- |
-| Identity and provenance | `record_identity`, `packs`, `records`: canonical keys, compact source paths/hashes, lookup keys and body-free common summaries. |
-| Checked source | `record_bodies`: one gzip-compressed, versioned checked DTO snapshot per root. Invalid members retained by admission remain in that snapshot. No duplicate complete original JSON payload is stored. |
-| Query accelerators | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
-| Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
-| Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
-| Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
-| Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
-| Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
-| Selected sections | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns. |
-| Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
-| Semantic search | `search_profiles`, `semantic_units`, profile-specific `native_vectors_<identity hash>` tables keyed by input ID: complete profile identity and one active vector per native input. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
+| Family                   | Tables and purpose                                                                                                                                                                                                                                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity and provenance  | `record_identity`, `packs`, `records`: canonical keys, compact source paths/hashes, lookup keys and body-free common summaries.                                                                                                                                                                                               |
+| Checked source           | `record_bodies`: one gzip-compressed, versioned checked DTO snapshot per root. Invalid members retained by admission remain in that snapshot. No duplicate complete original JSON payload is stored.                                                                                                                          |
+| Query accelerators       | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families.    |
+| Query catalog            | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions.                                                                                                                                                                                     |
+| Prepared content         | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed.                                                                                                               |
+| Developer reports        | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports.                                                                                                                                                                               |
+| Relationships            | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status.                                                                                                                                                               |
+| Remaster context         | `verified_aliases`, `remaster_pairs`, `record_remaster_context`: lookup aliases, explicit counterparts and compact per-record relationship/journal context.                                                                                                                                                                   |
+| Selected sections        | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns.                                                                                                                      |
+| Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels.                                                                                                                                                                                       |
+| Semantic search          | `search_profiles`, `semantic_units`, profile-specific `native_vectors_<identity hash>` tables keyed by input ID: complete profile identity and one active vector per native input. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
 
 There is no generic metric EAV store, persisted RichDocument, synthetic canonical
 affliction table, copied embedded Item authority or complete plain-text/model-input
@@ -238,7 +238,7 @@ from the same index analysis before query embeddings or ranking.
 
 Explicit count-free vocabulary discovery has no search predicate or retrieval
 context. It enumerates known applicable values in the product artifact or explicit
-saved-list key scope before edition preference, retaining server text search,
+saved-list key scope, retaining server text search,
 bounded paging and separately validated selections. An empty key scope stays empty.
 Vocabulary totals describe available matching values, exclude absent selections,
 and never masquerade as displayed-root counts. Closed choices remain in the
@@ -541,8 +541,11 @@ Public reference generation for search pages, detail envelopes and Related
 availability is `workspace_key:reference_revision`. The complete serialized
 `SourceArtifactBuildContext` SHA-256 additionally identifies preparation/reuse. It covers
 locale, shared preparation policies and the complete sorted profile manifest as
-well as source identity. Shared HTML/content preparation hashes exclude the
-profile manifest, including its model and passage recipe. Raw input hashes identify
+well as source identity. `remaster_inputs_identity` binds the shared remaster
+recipe and exact compiled Atlas correspondence bytes. Offline admission classifies
+a mismatch as source preparation required, independently of Foundry authorship or
+source pin. Shared HTML/content preparation hashes exclude that metadata identity
+and the profile manifest, including its model and passage recipe. Raw input hashes identify
 unprefixed selected strings. Exact numerical reuse also binds the native token count
 and the execution contract, including prefixes and native tokenizer assets. Passage
 layout separately binds the full shared BGE segmentation-tokenizer SHA-256, including
@@ -552,7 +555,7 @@ Snapshot-local navigation continues to use the source fingerprint; these identit
 serve different purposes and are not interchangeable.
 
 Ordinary facet values and counts use structured predicates and explicit record-key
-scope, with exact clause replacement and remaster policy. A ranked semantic
+scope, with exact clause replacement. A ranked semantic
 window is not a membership predicate. Record-content text in discovery returns
 typed TextContext unavailability before inference; it cannot produce a candidate
 summary through the ordinary facet contract. Candidate summaries are deferred.
@@ -567,31 +570,31 @@ identity, rehydrating all neighbors in the
 consuming snapshot. Index still owns the masked native query and location decoder;
 search owns bounded transient retention. See [ADR0062](decisions/0062-exact-text-neighbor-reuse.md).
 
-Remaster pair `evidence_json` stores a typed `SourceContentLocator`: source record,
-checked embedded owners and field. Ingest captures the actual journal field that
-contains both explicit endpoint references. Alias provenance remains a separate
-string contract. Relationship preparation `typed-authored-occurrences/v7` requires
-normal source-backed rebuilding of previous evidence; it changes no physical
-schema or published migration checksum. Setup preserves saved lists/encounters,
-record identities and compatible vector reuse. Without compatible source, old
-reference preparation remains unavailable with the normal rebuild guidance.
+Remaster information uses existing alias/pair projections and one compact per-record
+context table. Selected journal expressions supply relevant names, exact references
+when available and optional journal fields. Scope remains internal to consolidation;
+source prose mentioning a link does not establish replacement identity. A small
+curated manifest supplies reviewed exact counterparts with family checks.
 
-Preparation retains remaster citations from checked source fields. Explicit full
-validation decodes every citation and verifies its source field against checked
-content. Ordinary suppression reads only relevant legacy identities through complete SQL candidate membership at both
-endpoints, with one JSON-bound candidate relation and no provenance decoding.
-Unrelated malformed provenance therefore cannot fail a valid search; detail
-consumers still decode their selected citations and never fabricate navigation.
-App-service projects readable record/page attribution and a typed exact destination
-at Other editions, shared with CLI/API remaster links.
+Schema32 removes the experimental declaration/citation/binding/support/term/capture
+framework while retaining its earlier migration checksums. The compiled remaster
+input identity in the normal build context requires source-backed preparation.
+Content, layout and native-vector reuse depend on their own unchanged contracts.
+Setup preserves saved state and exact keys. No-op setup skips publication; normal
+row reconciliation avoids rewrites when metadata is unchanged.
 
-Legacy suppression occurs only when its verified remaster also matches the complete
-current request, before paging. A legacy-only match remains visible, and exact key
-lookup remains available. Suggested variants are bounded evidence-backed same-pack,
+App-service projects compact relationship facts and useful current journal links
+for record/related reads and CLI presentation. Missing predecessors remain plain
+names. Versions depends on actual alternatives, not textual context alone. Ordinary
+Search retains all independently matching records and adds no alias annotations.
+There is no term-inspection API or remaster-specific unavailable-save action.
+See [ADR0067](decisions/0067-remaster-relationships.md).
+
+Suggested variants are bounded evidence-backed same-pack,
 family and compatible-category candidates. Verification distinguishes a complete
 empty result from unavailable seed/candidate compatibility or an incomplete
 bounded check; nonempty results retain ambiguity and truncation. These suggestions
-never change identity or suppression.
+never change identity or remove independently matching results.
 
 ## Publication, readers and validation
 

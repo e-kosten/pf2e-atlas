@@ -121,40 +121,24 @@ pub(crate) fn run_graph_uses(o: GraphUsesOptions) -> Result<ExitCode, String> {
 }
 pub(crate) fn run_graph_remaster(o: GraphRemasterOptions) -> Result<ExitCode, String> {
     let s = match client(o.path_mode, o.index) {
-        Ok(service) => service,
-        Err(error) => return report_app_error(error, o.json),
+        Ok(s) => s,
+        Err(e) => return report_app_error(e, o.json),
     };
     let key = match seed(&s, o.record_ref, o.json)? {
-        Ok(key) => key,
+        Ok(k) => k,
         Err(exit) => return Ok(exit),
     };
-    let r = match s.remaster_links(key) {
-        Ok(value) => value,
-        Err(error) => return report_app_error(error.into_app_error(), o.json),
-    };
-    let Some(r) = r else {
-        return report_app_error(
-            atlas_app_model::AppError::new(
-                atlas_app_model::AppErrorCode::RecordNotFound,
-                "record not found",
-            ),
-            o.json,
-        );
+    let result = match s.record_detail(&key.to_string()) {
+        Ok(r) => r,
+        Err(e) => return report_app_error(e.into_app_error(), o.json),
     };
     if o.json {
-        write_json_data(serde_json::to_value(&r).map_err(|e| e.to_string())?)?;
+        write_json_data(&result.remaster_relationships)?;
     } else {
-        println!("Other editions of {}", r.seed.title);
-        for link in r.links {
-            println!(
-                "{} → {}",
-                link.legacy_record.title, link.remaster_record.title
-            );
-            println!("  Source: {}", link.provenance.attribution);
-            if let Some(reason) = link.provenance.unavailable_reason {
-                println!("  {reason}");
-            }
-        }
+        print!(
+            "{}",
+            super::remaster_presentation::lines(&result.remaster_relationships)
+        );
     }
     Ok(ExitCode::SUCCESS)
 }

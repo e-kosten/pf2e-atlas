@@ -106,7 +106,7 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
     records.extend([
         record("browser-editions", "Item", json!({"_id":"legacy0000000001","type":"action","name":"Legacy signal","system":{"publication":{"remaster":false},"description":{"value":"<p>Legacy signal instructions.</p>"}}})),
         record("browser-editions", "Item", json!({"_id":"remaster00000001","type":"action","name":"Modern signal","system":{"publication":{"remaster":true},"description":{"value":"<p>Modern signal instructions.</p>"}}})),
-        record("browser-journals", "JournalEntry", json!({"_id":"editionjournal01","name":"Remaster Changes","pages":[{"_id":"editionpage00001","name":"Class Features","type":"text","text":{"content":"<p>Explicit edition references: @UUID[Compendium.pf2e.browser-editions.Item.legacy0000000001]{Legacy signal} becomes @UUID[Compendium.pf2e.browser-editions.Item.remaster00000001]{Modern signal}.</p>","format":1}}]})),
+        record("browser-journals", "JournalEntry", json!({"_id":"editionjournal01","name":"Remaster Changes","pages":[{"_id":"editionpage00001","name":"Class Features","type":"text","text":{"content":"<table><tr><th>Old</th><th>Status</th><th>New</th></tr><tr><td>@UUID[Compendium.pf2e.browser-editions.Item.legacy0000000001]{Legacy signal}</td><td>Renamed</td><td>@UUID[Compendium.pf2e.browser-editions.Item.remaster00000001]{Modern signal}</td></tr></table>","format":1}}]})),
     ]);
     records
 }

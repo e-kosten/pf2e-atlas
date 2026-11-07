@@ -141,7 +141,6 @@ impl AtlasAppService {
                             filter: filter.as_ref(),
                             scope,
                             page,
-                            prefer_remaster: true,
                         },
                         &projection_execution,
                     )?;
@@ -185,7 +184,6 @@ impl AtlasAppService {
                             filter: filter.as_ref(),
                             scope,
                             page,
-                            prefer_remaster: true,
                         },
                         &projection_execution,
                     )?;
@@ -227,7 +225,6 @@ impl AtlasAppService {
                             filter: filter.as_ref(),
                             scope,
                             page,
-                            prefer_remaster: true,
                         })?;
                         projection_execution.check()?;
                         let result = search_results_view(result, retrieval);
@@ -293,7 +290,6 @@ impl AtlasAppService {
                         filter: filter.as_ref(),
                         scope,
                         page,
-                        prefer_remaster: true,
                     })?;
                     projection_execution.check()?;
                     let results = search_results_view(result, retrieval);

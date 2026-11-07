@@ -53,3 +53,52 @@ it("restores reading mode and the selected Explore tab through Back and Forward"
   await act(async () => router.history.forward());
   await waitFor(() => expect(screen.getByText("Explore: similar")).toBeVisible());
 });
+
+it("keeps its entire notice out of every Explore tab while preserving global status and reading mode", async () => {
+  const router = createAtlasRouter(
+    createMemoryHistory({
+      initialEntries: ["/records/items:seed?record_tab=versions"],
+    }),
+  );
+  function Explore() {
+    const { setTab } = useRecordExploreLocation();
+    return (
+      <div>
+        <button onClick={() => setTab("versions")}>Versions</button>
+        <button onClick={() => setTab("similar")}>Similar</button>
+      </div>
+    );
+  }
+  render(
+    <RouterTestContext router={router}>
+      <RecordReadingWorkspace
+        readingNotice={<p>Compact relationship notice</p>}
+        status={<p>Refresh failed; retained rules remain available.</p>}
+        explore={<Explore />}
+        identity={(action) => action}
+      >
+        <p>Document prose</p>
+      </RecordReadingWorkspace>
+    </RouterTestContext>,
+  );
+  expect(screen.getByText("Compact relationship notice")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Explore related records" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Versions" })).toBeVisible(),
+  );
+  expect(screen.queryByText("Compact relationship notice")).toBeNull();
+  expect(
+    screen.getByText("Refresh failed; retained rules remain available."),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Similar" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Read document" })).toBeVisible(),
+  );
+  expect(screen.queryByText("Compact relationship notice")).toBeNull();
+  expect(
+    screen.getByText("Refresh failed; retained rules remain available."),
+  ).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Read document" }));
+  await waitFor(() => expect(screen.getByText("Document prose")).toBeVisible());
+  expect(screen.getByText("Compact relationship notice")).toBeVisible();
+});

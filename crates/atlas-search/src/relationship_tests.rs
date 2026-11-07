@@ -155,7 +155,6 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
             filter: Some(&filter),
             scope,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -362,7 +361,7 @@ fn occurrence_paging_has_complete_total_beyond_preview_budget() {
     );
 }
 #[test]
-fn remaster_preference_does_not_rebind_an_exact_reference() {
+fn remaster_relationship_does_not_rebind_an_exact_reference() {
     let mut fixture = input(
         vec![
             effect("aaaaaaaaaaaaaaaa", "Target", ""),
@@ -375,17 +374,12 @@ fn remaster_preference_does_not_rebind_an_exact_reference() {
         ],
         false,
     );
-    fixture
-        .remaster_pairs
-        .push(atlas_index::SourceRemasterPairInput {
-            legacy: key("items", "bbbbbbbbbbbbbbbb"),
-            remaster: key("items", "cccccccccccccccc"),
-            provenance: atlas_record::source_content::SourceContentLocator {
-                record: key("items", "bbbbbbbbbbbbbbbb"),
-                owners: vec![],
-                field: "/system/description/value".into(),
-            },
-        });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &key("items", "bbbbbbbbbbbbbbbb"),
+        &key("items", "cccccccccccccccc"),
+    )
+    .unwrap();
     let (service, _artifact) = open_input_fixture(fixture).unwrap();
     let constraints = [criterion(
         SourceRelationshipDirection::Incoming,
@@ -629,7 +623,6 @@ fn large_key_scopes_do_not_exceed_sqlite_parameter_limits() {
                 filter: None,
                 scope: RecordScope::Keys(&keys),
                 page: SearchPage::first(10).unwrap(),
-                prefer_remaster: true,
                 sort: atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,
                     atlas_domain::SortDirection::Asc

@@ -490,7 +490,11 @@ function TraitAssociatedRecords({
               {data.rows.map((row, index) => (
                 <div role="listitem" key={JSON.stringify([row.navigation, index])}>
                   <ReferenceResult
-                    row={{ record: row.record, matches: [], relationship_evidence: [] }}
+                    row={{
+                      record: row.record,
+                      matches: [],
+                      relationship_evidence: [],
+                    }}
                     selected={false}
                     disabled={false}
                     navigation={row.navigation}

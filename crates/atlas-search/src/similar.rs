@@ -8,7 +8,6 @@ pub struct SimilarRecordRequest<'a> {
     pub filter: Option<&'a QueryPredicate>,
     pub scope: RecordScope<'a>,
     pub page: SearchPage,
-    pub prefer_remaster: bool,
 }
 pub struct SimilarRecordResult {
     pub seed: atlas_domain::SourceRecordSummary,
@@ -42,8 +41,7 @@ impl crate::AtlasRetrievalService {
             mode: crate::RetrievalMode::Vector,
             query: &predicate,
             scope: request.scope,
-            prefer: request.prefer_remaster,
-            suppress: true,
+
             vector: Some(&vector.vector),
             exclude: Some(request.record_key),
         })?;

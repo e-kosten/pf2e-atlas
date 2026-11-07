@@ -73,10 +73,12 @@ pub struct RecordDetailRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordDetailView {
-    /// Verified editions of this root document, isolated from unrelated graph/variant reads.
+    /// Change statements associated with the exact selected document.
+    pub remaster_relationships: crate::RelatedCategoryView<crate::RemasterRelationshipsView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub counterparts: Option<crate::RelatedCategoryView<crate::RemasterLinksView>>,
+    pub source_remaster_context:
+        Option<crate::RelatedCategoryView<crate::RemasterSourceContextView>>,
     /// Default adjustment for adding this root creature to an encounter.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

@@ -5,13 +5,14 @@ import type { RecordPresentationView } from "./RecordPresentationView";
 import type { RecordRelationshipView } from "./RecordRelationshipView";
 import type { RecordSummaryView } from "./RecordSummaryView";
 import type { RelatedCategoryView } from "./RelatedCategoryView";
-import type { RemasterLinksView } from "./RemasterLinksView";
+import type { RemasterRelationshipsView } from "./RemasterRelationshipsView";
+import type { RemasterSourceContextView } from "./RemasterSourceContextView";
 
 export type RecordDetailView = {
 /**
- * Verified editions of this root document, isolated from unrelated graph/variant reads.
+ * Change statements associated with the exact selected document.
  */
-counterparts?: RelatedCategoryView<RemasterLinksView>,
+remaster_relationships: RelatedCategoryView<RemasterRelationshipsView>, source_remaster_context?: RelatedCategoryView<RemasterSourceContextView>,
 /**
  * Default adjustment for adding this root creature to an encounter.
  */

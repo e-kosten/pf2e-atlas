@@ -1,7 +1,10 @@
 # ADR 0046: Source-backed reference artifact and query projections
 
 Status: Accepted. [ADR0051](0051-persistent-workspace.md) amends the physical
-artifact and saved-database lifetimes; source authority and query policy remain.
+artifact and saved-database lifetimes. [ADR0067](0067-remaster-relationships.md)
+amends remaster pairs and opaque aliases with source-backed declarations, derived
+bindings/supports and explicit consumer policy. The other source authority and
+query boundaries remain.
 
 ## Decision
 
@@ -48,8 +51,7 @@ relationship leaves use the general three-valued compiler. A root is accepted
 only when the complete predicate is true. Relationship proof generation retains
 that general truth tree, so query planning does not change attributed evidence.
 Unit-price comparisons retain exact SQLite copper-to-gold division rather than
-inverting a floating-point threshold. Key scope, edition preference and lexical/
-vector eligibility consume the same accepted-root relation.
+inverting a floating-point threshold. Key scope and lexical/vector eligibility consume the same accepted-root relation.
 
 The root common Level / rank field selects authored spell rank/state for spells
 and record level/state for other applicable families, without unavailable-value
@@ -64,7 +66,7 @@ same-child sibling conditions. Valid compound OR/NOT and scoped-negative limitat
 produce typed optional unavailability, while malformed target/type/scope/limits
 and real failures remain errors. Explicit count-free vocabulary requests have no
 search context and enumerate applicable product values in artifact or saved-list
-key scope before edition preference. Selections are validated and retained
+key scope. Selections are validated and retained
 separately from paged suggestions and totals. No surface drops a contextual
 predicate silently or substitutes dummy counts.
 
@@ -104,22 +106,16 @@ Offline validation reconstructs the existing record resolver's compact identity
 and name index from checked snapshots to verify resolved structured destinations.
 It does not promote unresolved occurrences, because ingest may have additional
 excluded-source ambiguity evidence outside the product artifact.
-Verified aliases and remaster pairs require explicit evidence. Legacy suppression
-applies only when a verified replacement also matches the current request, before
-pagination; a legacy-only match remains visible. Suppression reads only relevant
-pair identities, with complete candidate membership at both endpoints in index
-SQL. It neither reads provenance nor checks unrelated rows. Checked publication
-and explicit full validation establish comprehensive validity; this supersedes
-the accidental ordinary-search failure on unrelated malformed remaster evidence.
+Verified aliases and exact counterpart mappings require explicit evidence.
+[ADR0067](0067-remaster-relationships.md) owns current journal-derived context,
+reviewed Atlas counterpart mappings and checked source preparation. Retrieval
+retains every independently matching record; a counterpart never substitutes for
+an exact selected identity. Checked publication and full validation establish
+comprehensive derived-data validity. Ordinary search does not decode unrelated
+remaster provenance. Source-backed republication preserves saved domains and
+stable identities; opaque old strings do not supply invented evidence.
 
-Remaster provenance is a typed source-content locator captured by ingest from
-an explicit journal reference pair. It retains the journal record, embedded owner
-chain and field; it makes no exact-row or source-span claim. Full validation checks
-that address against authored content in the checked snapshot. Provenance-bearing
-readers decode the values they consume; app-service supplies readable attribution
-and exact navigation for CLI/API and Other editions. Relationship policy v7
-requires source-backed republication for old artifacts, preserving saved domains
-and stable identities. Old opaque strings are never split or converted. Suggested variants are a bounded
+Suggested variants are a bounded
 same-pack/family derived view with transparent naming evidence, not identity,
 aliases or result suppression. RollTables are product records; Macros are
 developer-only on all product paths, including exact-key access.

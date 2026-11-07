@@ -203,8 +203,9 @@ not add translation-module ingestion or multilingual product support.
 Admission writes one indexed temporary stream. Compact per-pack frame addresses
 preserve declaration order, including packs sharing a physical directory, without
 holding a file open for each pack. Global collision/reference knowledge remains
-compact. After that inventory is complete, only the remaster-alias journals need
-early content preparation. With aliases resolved, bounded record slices combine
+compact. After that inventory is complete, remaster journals use early audience-
+selected preparation. Typed declarations and selected source-file captures derive
+supported aliases against the complete resolver. Bounded record slices then combine
 content, search selection, lexical projection and passage preparation directly
 into the owned publication. They do not replay a second full rich-record stream.
 
@@ -474,7 +475,8 @@ receipts and their reference reads use the normal uncancellable path under
 
 `AtlasRetrievalService` is a concrete service over index, an explicit default
 profile and an optional prepared query embedding. Narrow inherent methods own strict name/key lookup, browse, text search,
-similar, graph, remaster links, Suggested variants and catalog discovery. The
+similar, graph, bounded record/term remaster information, Suggested variants and
+catalog discovery. The
 service uses the concrete index reader defined by the artifact contract.
 
 The shared predicate compiles to index-owned parameterized eligibility SQL.
@@ -493,9 +495,9 @@ Count-free vocabulary is a separate discovery request with artifact or saved-lis
 membership scope, value-search text, bounded paging and selected literals. It has
 no query predicate, query text or retrieval mode. App-service resolves saved-list
 keys; search forwards scope without embedding; index enumerates known applicable
-product values before edition preference. Empty membership remains empty, and
+product values. Empty membership remains empty, and
 retained selections do not inflate suggestion totals. Contextual counts retain
-their exact same-child/counterfactual/remaster semantics over structured eligibility.
+their exact same-child/counterfactual semantics over structured eligibility.
 The app counts operation accepts a bounded explicit literal page, independently
 of vocabulary enumeration. It uses the same index-owned counterfactual compiler
 and counts distinct displayed roots for each replacement literal. Text context
@@ -526,8 +528,10 @@ defaults to fixed score fusion, and candidate windows remain bounded.
 `SearchRanking` also permits an RRF60 dogfooding alternative (ADR0053).
 CLI `--ranking` and the browser's URL-preserved ranking selector carry that choice
 independently of the embedding profile; adapters do not implement ranking policy.
-Verified legacy preference applies only among records matching the complete request,
-before paging. Exact legacy keys remain accessible. Macros are excluded on every
+Search and discovery retain every independently matching record across publication
+eras. Explicit counterpart mappings provide navigation and comparison. Exact keys
+and saved selections retain their identity; filtered saved lists keep all
+independently matching chosen members. Macros are excluded on every
 product path; RollTables remain browse/search/detail records.
 
 Text search uses an exhaustive query-embedding error conversion. Empty input and
@@ -587,8 +591,7 @@ cosine over all semantic units, including identities; content methods use the sa
 logical-part scorer and role masks as product search. Evaluation batches share
 stored vector reads and complete passage maxima across decay variants, then
 reselect explanation pairs for each variant. Evidence remains bounded to the raw
-top ten scored rows; a later remaster preference may require source lookup for a
-promoted row. Evaluation preparation/aggregation timings are not product latency.
+top ten scored rows. Evaluation preparation/aggregation timings are not product latency.
 
 Product content-method diagnostics separate seed preparation, candidate generation,
 vector reads, scoring, and evidence hydration. Their complete pre-reranking root
@@ -679,8 +682,10 @@ reference previews. Snapshot-local owner selections remain exact.
 
 One bounded app-service Related operation returns verified nonempty categories
 with separate empty, unavailable and error outcomes. Its reference scope is the
-exact selected owner (including the empty root owner path). Verified counterparts
-and typed variant checks apply only to roots. Variant checks retain their bounded
+exact selected owner (including the empty root owner path). Direct remaster
+information describes that selection; an owned entry's exact source-origin context
+is a separately labelled category, with independent availability/error outcomes.
+Typed variant checks apply only to roots. Variant checks retain their bounded
 source-snapshot compatibility verification; category discovery never runs Similar
 ranking. Responses and browser caches use the complete selection and immutable
 artifact-context hash, distinct from snapshot-local navigation fingerprints.
@@ -699,7 +704,7 @@ and clause ID. Shared retrieval admission validates every selected record/owner/
 field/fingerprint, including negative and unreachable branches, before inference.
 App-service owns workflow generation and human DTO projection. Index compiles the
 complete tree to parameterized eligibility before lexical/vector candidate selection,
-edition preference, ordering and paging. Saved-list membership intersects that tree.
+ordering and paging. Saved-list membership intersects that tree.
 
 Root totals are distinct and independent of occurrence caps. Human clause annotations
 cover all leaves, including negative/zero-result cases; per-root evidence includes
@@ -1029,12 +1034,19 @@ Damage/healing categories come from parsed source tags, not display-string tests
 The browser renders these facts and binds each dialog name to its visible heading.
 These presentation changes require no artifact re-preparation or locale changes.
 
-### Remaster provenance preparation
+### Compact remaster context preparation
 
-Relationship policy v7 replaces opaque remaster evidence with directly captured
-source-content locators. Existing workspaces use source-backed setup preparation,
-atomic checked publication and saved-state preservation; old strings are never
-converted. Suppression consumes only matching pair identities in index-owned SQL.
-Preparation establishes source-backed citations; explicit full validation checks
-all citations. Ordinary search does not scan unrelated provenance. App-service supplies shared readable attribution
-and exact source-field navigation for Other editions and CLI/API consumers.
+Ingest supplies existing aliases, exact counterpart pairs and per-record context
+from selected journals and the small curated mapping. Index publishes them in
+one transaction using the existing reference generation. The compiled remaster
+input identity requires source-backed metadata preparation when the recipe or
+mapping changes. Content/layout/native-input compatibility checks remain separate.
+
+Schema32 removes the experimental declaration framework and keeps only the alias,
+pair and context projections. Normal setup preserves saved state and compatible
+vectors; ordinary reads keep the normal readiness boundary until required
+preparation completes. Search retains all independently matching records.
+App-service supplies compact facts and useful journal destinations through ordinary
+record and related reads. No term catalog, missing-save inspector or dedicated
+relationship API is retained. See [ADR0067](decisions/0067-remaster-relationships.md)
+and the [artifact contract](artifact-contract.md).

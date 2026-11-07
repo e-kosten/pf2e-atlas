@@ -5,6 +5,7 @@ import {
 } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
 import type { ReactNode } from "react";
+import { useSearchProfile } from "../search/SearchProfileContext";
 import { PhysicalDetails } from "./PhysicalDetails";
 import { Button, Typography } from "antd";
 import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
@@ -34,6 +35,7 @@ export function PhysicalReference({
   onReference: RecordReferenceHandler;
   children: ReactNode;
 }) {
+  const profile = useSearchProfile();
   const consumable = item.consumable;
   const spell = consumable?.spell.value;
   const baseType = item.base_type.value;
@@ -49,7 +51,7 @@ export function PhysicalReference({
               value: baseType.value,
             },
           },
-          new URLSearchParams(window.location.search).get("search_profile"),
+          profile.id ?? profile.pendingUrlProfile,
         ),
       })
     : null;

@@ -4,6 +4,7 @@ import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference"
 import { SpellChanges, SpellReference } from "./SpellReference";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { decodeFilterUrl } from "../filters/filterUrl";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   actorFixture,
   activityFixture,
@@ -119,6 +120,11 @@ it("links readable base types to a fresh exact search and describes final-use ou
     };
     const { rerender } = render(
       <RecordPresentation presentation={presentation} onReference={vi.fn()} />,
+      {
+        wrapper: ({ children }) => (
+          <SearchProfileProvider id="embeddinggemma">{children}</SearchProfileProvider>
+        ),
+      },
     );
     const url = new URL(
       screen.getByRole("link", { name: "Alchemical Bomb" }).getAttribute("href")!,

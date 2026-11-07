@@ -111,8 +111,9 @@ describe("AtlasApp routing", () => {
         selection: request.selection,
         artifact_generation: request.artifact_generation,
         seed: summaryFixture(request.selection.record_key),
+        show_versions: false,
         references: { kind: "empty" },
-        counterparts: { kind: "empty" },
+        remaster_relationships: { kind: "empty" },
         variants: { kind: "empty" },
       }),
     );

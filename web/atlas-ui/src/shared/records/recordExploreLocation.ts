@@ -1,3 +1,4 @@
+import { useCallback, useRef } from "react";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { atlasRouter } from "../../app/router";
 import { readingView, type RecordExploreTab } from "../../app/urlState";
@@ -8,29 +9,45 @@ export function useRecordExploreLocation() {
   const router = contextRouter ?? atlasRouter;
   const search = useRouterState({ router, select: (state) => state.location.search });
   const { view: mode = "read", tab = "incoming" } = readingView(search);
-  function update(
-    mode: "read" | "explore",
-    tab: RecordExploreTab = readingView(router.latestLocation.search).tab ?? "incoming",
-    replace = false,
-  ) {
-    const next = { ...router.latestLocation.search };
-    if (mode === "explore") next.record_view = "explore";
-    else delete next.record_view;
-    if (tab !== "incoming") next.record_tab = tab;
-    else delete next.record_tab;
-    void router.navigate({
-      to: ".",
-      search: next,
-      replace,
-      resetScroll: false,
-      state: true,
+  const resetPending = useRef(false);
+  const update = useCallback(
+    (
+      mode: "read" | "explore",
+      tab: RecordExploreTab = readingView(router.latestLocation.search).tab ??
+        "incoming",
+      replace = false,
+    ) => {
+      const next = { ...router.latestLocation.search };
+      if (mode === "explore") next.record_view = "explore";
+      else delete next.record_view;
+      if (tab !== "incoming") next.record_tab = tab;
+      else delete next.record_tab;
+      return router.navigate({
+        to: ".",
+        search: next,
+        replace,
+        hash: true,
+        resetScroll: false,
+        state: true,
+      });
+    },
+    [router],
+  );
+  const resetUnavailableVersions = useCallback(() => {
+    const view = readingView(router.latestLocation.search);
+    if (view.view !== "explore" || view.tab !== "versions" || resetPending.current)
+      return;
+    resetPending.current = true;
+    void update("read", "incoming", true).finally(() => {
+      resetPending.current = false;
     });
-  }
+  }, [router, update]);
   return {
     mode,
     tab,
-    setMode: (mode: "read" | "explore") => update(mode),
+    resetUnavailableVersions,
+    setMode: (mode: "read" | "explore") => void update(mode),
     setTab: (tab: string) =>
-      update("explore", readingView({ record_tab: tab }).tab, true),
+      void update("explore", readingView({ record_tab: tab }).tab, true),
   };
 }

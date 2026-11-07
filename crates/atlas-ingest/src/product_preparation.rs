@@ -511,7 +511,7 @@ pub(crate) fn prepare(
     // record at a time; their content is deliberately prepared again in the final
     // slice. Shared search selection still runs exactly once per active root.
     let mut admitted_reader = admitted.cursor().map_err(index)?;
-    let (aliases, pairs) = crate::source_aliases::extract_prepared_aliases(
+    let (aliases, pairs, contexts) = crate::source_aliases::extract_prepared_aliases(
         &names,
         &families,
         &mut |visitor| {
@@ -527,7 +527,7 @@ pub(crate) fn prepare(
                 work.alias_journal_reads += 1;
                 work.alias_journal_fresh_preparations += usize::from(!content.reused);
                 work.alias_journal_reused_preparations += usize::from(content.reused);
-                visitor(key, &content.content)?;
+                visitor(&content.record, &content.content)?;
             }
             Ok(())
         },
@@ -541,6 +541,9 @@ pub(crate) fn prepare(
             .or_default()
             .push(alias.alias.clone());
         spool.aliases.push(&alias).map_err(index)?;
+    }
+    for context in contexts {
+        spool.remaster_context.push(&context).map_err(index)?;
     }
     for pair in pairs {
         spool.remaster_pairs.push(&pair).map_err(index)?;

@@ -205,6 +205,7 @@ export function detailFixture(
       source_fingerprint: null,
     },
     relationships_truncated: false,
+    remaster_relationships: { kind: "empty" },
     relationships: target
       ? [
           {

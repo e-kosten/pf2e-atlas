@@ -23,7 +23,11 @@ fn fixture() -> crate::test_support::FixtureWorker {
             ],
             false,
         );
-        fixture.remaster_pairs.push(serde_json::from_value(json!({"legacy":"items:0000000000000002","remaster":"items:0000000000000003","provenance":{"record":"items:0000000000000002","owners":[],"field":"/system/description/value"}})).unwrap());
+        atlas_search::test_support::add_remaster_relationship(
+            &mut fixture,
+            &"items:0000000000000002".parse().unwrap(),
+            &"items:0000000000000003".parse().unwrap(),
+        )?;
         Ok(open_input_fixture(fixture)?)
     }))
 }
@@ -275,7 +279,7 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
             .iter()
             .map(|i| i.record_key.as_str())
             .collect::<Vec<_>>(),
-        [keys[0], keys[2], keys[5]]
+        [keys[0], keys[2], keys[4], keys[5]]
     );
     assert_eq!(
         f.worker.saved_list("ordered").unwrap(),
@@ -422,4 +426,30 @@ fn sorting_trait_modes_reject_provided_order_outside_similar() {
             .code,
         AppErrorCode::InvalidRequest
     );
+}
+
+#[test]
+fn browse_and_lexical_search_keep_every_matching_relationship_root() {
+    let fixture = fixture();
+    for criteria in [
+        SearchCriteria::ListRecords { filter: None },
+        SearchCriteria::TextSearch {
+            query: "Item".into(),
+            filter: None,
+            mode: RetrievalModeView::Lexical,
+            search_content: None,
+        },
+    ] {
+        let result = fixture
+            .worker
+            .search_page(
+                search(None, criteria),
+                &ReadExecutionContext::uncancellable(),
+            )
+            .unwrap();
+        assert_eq!(result.page.total, 4);
+        for key in ["items:0000000000000002", "items:0000000000000003"] {
+            assert!(result.rows.iter().any(|row| row.record.record_key == key));
+        }
+    }
 }

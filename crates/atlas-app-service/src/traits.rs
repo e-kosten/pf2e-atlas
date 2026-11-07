@@ -198,7 +198,6 @@ impl AtlasAppService {
                             filter: None,
                             scope: RecordScope::All,
                             page,
-                            prefer_remaster: true,
                         })?
                         .ok_or_else(|| {
                             AppServiceError::invalid_request(

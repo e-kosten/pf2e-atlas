@@ -17,6 +17,13 @@ including source snapshots and cleanup boundaries.
 The [database ingest benchmark](database-ingest-revision.md) records release
 build time, peak memory, audit costs and the input ownership retrieval tradeoff.
 
+The [remaster information review](remaster-information.md) inventories pinned-source
+change declarations, missing legacy text, alias/pair limitations and presentation
+requirements. Its implementation scope is tracked in the linked backlog.
+The [available-counterpart audit](remaster-counterpart-coverage.md) follows the
+implementation with a complete same-name candidate census, additional journal
+bindings to review, real changed-body examples and search-preference coverage limits.
+
 Research notes should capture:
 
 - the question the spike tried to answer;

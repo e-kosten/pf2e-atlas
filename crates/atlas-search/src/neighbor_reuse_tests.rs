@@ -84,7 +84,6 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                     sort: sort.clone(),
                     ranking,
                     search_profile: None,
-                    prefer_remaster: true,
                 };
                 let actual = cached.search_text(request()).unwrap();
                 let expected = cold.search_text(request()).unwrap();
@@ -159,7 +158,7 @@ fn explicit_key_scopes_and_discovery_do_not_retain_native_windows() {
                     search_profile: None,
                     text: Some("Ember"),
                     scope: RecordScope::All,
-                    prefer_remaster: true,
+
                     filter: None,
                 },
             })
@@ -318,16 +317,12 @@ fn malformed_location_metadata_fails_on_hits_and_cold_reads_then_recovers() {
 #[test]
 fn unrelated_malformed_remaster_provenance_does_not_break_search_or_neighbor_reuse() {
     let mut data = fixture();
-    data.remaster_pairs
-        .push(atlas_index::SourceRemasterPairInput {
-            legacy: "items:0000000000000002".parse().unwrap(),
-            remaster: "items:0000000000000003".parse().unwrap(),
-            provenance: atlas_record::source_content::SourceContentLocator {
-                record: "items:0000000000000002".parse().unwrap(),
-                owners: vec![],
-                field: "/system/description/value".into(),
-            },
-        });
+    crate::test_support::add_remaster_relationship(
+        &mut data,
+        &"items:0000000000000002".parse().unwrap(),
+        &"items:0000000000000003".parse().unwrap(),
+    )
+    .unwrap();
     let (service, artifact) = crate::test_support::open_input_fixture(data).unwrap();
     drop(service);
     let store = Arc::new(NativeNeighborReuse::default());

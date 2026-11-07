@@ -555,7 +555,7 @@ describe("list views", () => {
             options: empty ? [] : [{ value: "fire" }],
             selected_values: request.selected_values,
             total_values: empty ? 0n : 1n,
-            basis: "product_key_scope_before_edition_preference",
+            basis: "product_key_scope",
           },
         };
       },

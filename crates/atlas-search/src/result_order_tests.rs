@@ -249,7 +249,6 @@ fn sorting_semantic_set_above_two_hundred_preserves_membership_window_and_witnes
                 filter: None,
                 scope: RecordScope::All,
                 page: SearchPage::new(page, size).unwrap(),
-                prefer_remaster: true,
             })
             .unwrap()
             .unwrap()
@@ -325,8 +324,7 @@ fn sorting_hybrid_keeps_lexical_members_outside_semantic_window_and_ranking_stra
                 mode: RetrievalMode::Hybrid,
                 query: &query,
                 scope: RecordScope::All,
-                prefer: true,
-                suppress: true,
+
                 vector: Some(&vector),
                 exclude: None,
             })
@@ -439,17 +437,7 @@ fn sorting_ties_keep_canonical_keys_and_relationship_scopes_do_not_rebind_editio
         ],
         false,
     );
-    fixture
-        .remaster_pairs
-        .push(atlas_index::SourceRemasterPairInput {
-            legacy: key(0),
-            remaster: key(1),
-            provenance: atlas_record::source_content::SourceContentLocator {
-                record: key(0),
-                owners: vec![],
-                field: "/system/description/value".into(),
-            },
-        });
+    crate::test_support::add_remaster_relationship(&mut fixture, &key(0), &key(1)).unwrap();
     let (service, _artifact) = open_input_fixture(fixture).unwrap();
     let keys = [key(0), key(1)];
     let relationship = crate::relationship_tests::criterion(
@@ -547,7 +535,6 @@ fn sorting_adaptive_semantic_windows_preserves_expansion_for_dense_contents() {
                 filter: None,
                 scope: RecordScope::All,
                 page: SearchPage::new(1, 100).unwrap(),
-                prefer_remaster: true,
             })
             .unwrap()
             .unwrap()

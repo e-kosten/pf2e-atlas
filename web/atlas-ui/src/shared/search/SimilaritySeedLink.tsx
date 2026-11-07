@@ -27,7 +27,11 @@ export function SimilaritySeedLink({
     return (
       <Typography.Link
         disabled={unavailable}
-        href={destinationHref(traitDestination({ traitKey: seed.trait_key }))}
+        href={destinationHref(
+          traitDestination({
+            traitKey: seed.trait_key,
+          }),
+        )}
         onClick={(event) => {
           if (unavailable || !reference || !isPrimaryActivation(event)) return;
           event.preventDefault();

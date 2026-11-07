@@ -5,6 +5,7 @@ import { browserFixture } from "../../scripts/browser-fixture.mjs";
 const touchSpecs = [
   "selection-search.spec.ts",
   "journeys.spec.ts",
+  "reader-typography.spec.ts",
   "modal-layout.spec.ts",
   "list-metadata.spec.ts",
   "feedback.spec.ts",
