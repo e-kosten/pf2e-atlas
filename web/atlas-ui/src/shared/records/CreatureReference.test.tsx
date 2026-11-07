@@ -301,7 +301,7 @@ it("keeps runtime sense availability and Perception beside the supplied help", (
   ).toHaveTextContent("precise · 60 feet · Unavailable (Blinded) · Perception +4");
 });
 
-it("keeps an owned ability's title destination primary with separate verified general help", () => {
+it("opens the exact owned ability from its title without an inline general definition", () => {
   const activity = {
     ...activityFixture("Customized ward"),
     kind: "ability" as const,
@@ -324,9 +324,5 @@ it("keeps an owned ability's title destination primary with separate verified ge
     activity.navigation,
   );
   expect(onHelp).not.toHaveBeenCalled();
-  const general = within(
-    screen.getByText("General definition").parentElement!,
-  ).getByRole("link");
-  fireEvent.click(general);
-  expect(onHelp).toHaveBeenCalledWith(senseHelp, general, undefined);
+  expect(screen.queryByText("General definition")).toBeNull();
 });

@@ -105,7 +105,27 @@ function FilterChoicePicker({
   const [offset, setOffset] = useState(0);
   const [showUnavailable, setShowUnavailable] = useState(false);
   const closedChoices = field.short_choices;
-  const loadSelectedLabels = field.allow_custom_values === false && selected.length > 0;
+  const isActions = field.definition.id === "actions";
+  const labelScope = JSON.stringify([scope, field.definition.id]);
+  const [retained, setRetained] = useState<{
+    scope: string;
+    labels: ReadonlyMap<string, string>;
+  }>();
+  const retainedLabels = retained?.scope === labelScope ? retained.labels : undefined;
+  const unresolvedActions = isActions
+    ? selected.filter((value) => !retainedLabels?.has(value))
+    : [];
+  // Contextual suggestions may omit a saved action. Resolve its label separately.
+  const actionLabels = useFilterVocabulary(
+    scope,
+    field.definition.id,
+    "",
+    0,
+    unresolvedActions,
+    unresolvedActions.length > 0,
+  );
+  const loadSelectedLabels =
+    !isActions && field.allow_custom_values === false && selected.length > 0;
   const allowNarrowing = edit.kind === "condition" || edit.allowNarrowing;
   const narrowingContext = countsEnabled && allowNarrowing ? countContext : undefined;
   const clauseId =
@@ -132,19 +152,47 @@ function FilterChoicePicker({
     return () => window.clearTimeout(timeout);
   }, [text]);
 
+  const choices = (closedChoices ? field.choices : (query.data?.values.options ?? []))
+    // A stale action ID can be returned as a fallback label without a resolved record.
+    .filter((option) => !isActions || option.help?.destination.kind === "record")
+    .map((option) => ({
+      value: String(option.value),
+      label: option.label,
+      help: option.help,
+    }));
+  // A vocabulary page can disappear when the picker changes search or count scope.
+  // Keep the resolved labels of saved selections independently of that page.
+  if (unresolvedActions.length) {
+    const learned = [
+      ...(actionLabels.data?.values.options ?? []),
+      ...(query.isPlaceholderData ? [] : choices),
+    ].filter(
+      ({ value, help }) =>
+        help?.destination.kind === "record" &&
+        typeof value === "string" &&
+        unresolvedActions.includes(value),
+    );
+    if (learned.length) {
+      setRetained({
+        scope: labelScope,
+        labels: new Map([
+          ...(retainedLabels ?? []),
+          ...learned.map(({ value, label }) => [String(value), label] as const),
+        ]),
+      });
+    }
+  }
   function labelForValue(value: string) {
     return (
-      query.data?.values.options.find((option) => String(option.value) === value)
-        ?.label ?? sentenceCase(filterValueLabel(field, value))
+      choices.find((option) => option.value === value)?.label ??
+      retainedLabels?.get(value) ??
+      (isActions
+        ? actionLabels.isPending || actionLabels.isFetching
+          ? "Loading action…"
+          : "Unavailable action"
+        : sentenceCase(filterValueLabel(field, value)))
     );
   }
-  const choices = (
-    closedChoices ? field.choices : (query.data?.values.options ?? [])
-  ).map((option) => ({
-    value: String(option.value),
-    label: option.label,
-    help: option.help,
-  }));
   const contextualCounts =
     countsEnabled && !query.error ? query.data?.counts : undefined;
   const extraCounts = useFilterOptionCounts(
@@ -202,6 +250,16 @@ function FilterChoicePicker({
     setOffset(0);
   }
   function activate(value: string, next: ChoiceState): void | "close" {
+    const action =
+      isActions &&
+      next !== "neutral" &&
+      choices.find((choice) => choice.value === value);
+    if (action && retainedLabels?.get(value) !== action.label) {
+      setRetained({
+        scope: labelScope,
+        labels: new Map(retainedLabels).set(value, action.label),
+      });
+    }
     if (edit.kind === "condition") {
       edit.onChange(changeChoiceValue(field.definition, edit.clause, value, next));
     } else if (edit.shape === "scalar") {

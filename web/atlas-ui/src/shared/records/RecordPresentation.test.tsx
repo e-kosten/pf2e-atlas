@@ -342,6 +342,46 @@ describe("semantic family presentation", () => {
     ).toBeNull();
   });
 
+  it("uses verified ability help over an older source relationship in the embedded header", () => {
+    const help = {
+      definition_key: "action:grab",
+      destination: { kind: "definition", key: "action:grab" },
+    } as const;
+    const activity = { ...activityFixture("Grab"), help };
+    const olderSource = detailFixture("actors:ghoul", "Grab", "rules:old-grab")
+      .relationships[0];
+    const onHelp = vi.fn();
+    render(
+      <ReferenceHelpProvider onHelp={onHelp}>
+        <RecordPresentation
+          presentation={{
+            ...actorPresentation(),
+            identity: summaryFixture("actors:ghoul", "Grab"),
+            body: { kind: "activity", value: activity },
+          }}
+          selection={activity.navigation}
+          relationships={[
+            {
+              ...olderSource,
+              origin: "structured",
+              kind: "CompendiumProvenance",
+              status: "resolved_record",
+              target_title: "Old Grab",
+            },
+          ]}
+          onReference={vi.fn()}
+        />
+      </ReferenceHelpProvider>,
+    );
+    const general = screen.getByRole("link", { name: "Open general entry" });
+    expect(screen.getAllByRole("link", { name: /^Open general entry/ })).toHaveLength(
+      1,
+    );
+    fireEvent.click(general);
+    expect(onHelp).toHaveBeenCalledExactlyOnceWith(help, general, undefined);
+    expect(screen.queryByText("General definition")).toBeNull();
+  });
+
   it("shows selected activity traits once in its identity and retains traits on embedded activities", () => {
     const disease = { kind: "trait", value: "disease", label: "Disease" };
     const activity = { ...activityFixture("Ghoul Fever"), traits: [disease] };

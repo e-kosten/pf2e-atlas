@@ -971,11 +971,6 @@ export function ActorActivity({
         </div>
       )}
       <div className="actor-activity__facts">
-        {activity.help?.destination && (
-          <FactRow label="General definition">
-            <ReferenceHelpLink help={activity.help}>{activity.title}</ReferenceHelpLink>
-          </FactRow>
-        )}
         {activity.first_level_only?.value === true && (
           <FactRow label="Selection">At 1st level only</FactRow>
         )}

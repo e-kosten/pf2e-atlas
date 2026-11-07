@@ -25,6 +25,7 @@ import type {
   RecordPresentationView,
   RecordRelationshipView,
   RecordSummaryView,
+  ReferenceHelpView,
   ActionCostView,
   FactView,
 } from "../../generated/atlas";
@@ -162,7 +163,7 @@ export function RecordIdentity({
   selection,
   onOwnerReturn,
   visibleOwnerRecordKey,
-  referenceRecord,
+  referenceHelp,
   referenceTitle,
   stacked = true,
   headingRef,
@@ -183,7 +184,7 @@ export function RecordIdentity({
   actionCost?: FactView<ActionCostView>;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
-  referenceRecord?: RecordNavigationView;
+  referenceHelp?: ReferenceHelpView;
   referenceTitle?: string;
   visibleOwnerRecordKey?: string;
   onOwnerReturn?: (
@@ -194,8 +195,8 @@ export function RecordIdentity({
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
   const hasRarity = Boolean(identity?.rarity?.label.trim());
-  const secondaryActions = referenceRecord ? (
-    <RecordProvenanceAction navigation={referenceRecord} title={referenceTitle} />
+  const secondaryActions = referenceHelp ? (
+    <RecordProvenanceAction help={referenceHelp} title={referenceTitle} />
   ) : null;
   return (
     <DocumentIdentityHeader
@@ -323,6 +324,18 @@ export function RecordPresentationIdentity({
           relationship.status === "resolved_record",
       )
     : undefined;
+  const abilityHelp =
+    selection?.embedded_path.length && body?.kind === "activity"
+      ? body.value.help
+      : undefined;
+  const referenceHelp =
+    abilityHelp ??
+    (provenance?.target
+      ? {
+          definition_key: null,
+          destination: { kind: "record" as const, navigation: provenance.target },
+        }
+      : undefined);
   return (
     <RecordIdentity
       stacked={documentIdentity}
@@ -361,8 +374,8 @@ export function RecordPresentationIdentity({
       root={root}
       selection={selection}
       onOwnerReturn={onOwnerReturn}
-      referenceTitle={provenance?.target_title}
-      referenceRecord={provenance?.target ?? undefined}
+      referenceTitle={abilityHelp ? undefined : provenance?.target_title}
+      referenceHelp={referenceHelp}
     />
   );
 }
