@@ -160,10 +160,10 @@ it("retains sort priority on trait native links", () => {
     destinationHref(
       traitDestination({
         traitKey: "trait:agile",
-        query: "?tab=similar&sort=level_desc&sort=name_asc",
+        query: "?tab=references&sort=level_desc&sort=name_asc",
       }),
     ),
-  ).toBe("/traits/trait:agile?tab=similar&sort=level_desc&sort=name_asc");
+  ).toBe("/traits/trait:agile?tab=references&sort=level_desc&sort=name_asc");
 });
 
 it.each([

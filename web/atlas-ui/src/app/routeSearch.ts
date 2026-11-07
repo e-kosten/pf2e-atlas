@@ -118,6 +118,7 @@ export function canonicalRouteSearch(
   kind: RouteSearchKind,
   search: AtlasSearchParams,
 ): AtlasSearchParams {
+  if (retiredSimilaritySearch(kind, search)) return {};
   if (failedFilterTransport(kind, search)) return search;
   const result: AtlasSearchParams = {};
   if (kind === "empty") return result;
@@ -176,7 +177,7 @@ export function canonicalRouteSearch(
     const tab = singleton(search, "tab");
     if (tab !== undefined && !["members", "references", "similar"].includes(tab))
       throw new RouteSearchError("tab");
-    if (tab && tab !== "members") result.tab = tab;
+    if (tab === "references") result.tab = tab;
   }
   if (isSearch || isList || kind === "trait") {
     const sort = search.sort;
@@ -194,11 +195,20 @@ export function canonicalRouteSearch(
   return { ...result, ...exact };
 }
 
+function retiredSimilaritySearch(kind: RouteSearchKind, search: AtlasSearchParams) {
+  return (
+    (kind === "search" || kind === "search_record") &&
+    typeof search.similar === "string" &&
+    search.similar.trim().startsWith("trait:")
+  );
+}
+
 export function failedFilterTransport(
   kind: RouteSearchKind,
   search: AtlasSearchParams,
 ): boolean {
   if (!["search", "search_record", "list", "list_record"].includes(kind)) return false;
+  if (retiredSimilaritySearch(kind, search)) return false;
   if (search.filter === undefined && search.relationships === undefined) return false;
   return (
     decodeSearchStateFromParams(new URLSearchParams(stringifySearchParams(search)))

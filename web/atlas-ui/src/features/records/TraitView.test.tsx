@@ -1,9 +1,3 @@
-import type {
-  ResultSort,
-  SearchResultsRequest,
-  SearchResultsPage,
-} from "../../generated/atlas";
-import { similarityConfigurationFixture } from "../../test/similarityFixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
@@ -52,40 +46,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue(detailFixture("actors:creature", "Creature"));
   api.getTraitDetail.mockReset().mockResolvedValue(definition);
-  api.searchPage
-    .mockReset()
-    .mockImplementation(
-      async (request: SearchResultsRequest): Promise<SearchResultsPage> => {
-        if (request.criteria.kind !== "similar_traits" || !request.criteria.similarity)
-          throw new Error("Expected an explicit trait Similar request");
-        return {
-          search_content: "all",
-          search_profile: request.search_profile ?? "embeddinggemma",
-          artifact_generation: request.expected_artifact_generation ?? "generation-one",
-          sort: request.sort ?? { kind: "relevance" },
-          ranking: "score",
-          mode: { kind: "similar_traits", trait_key: "trait:agile", title: "Agile" },
-          similarity: similarityConfigurationFixture(request.criteria.similarity),
-          relationship_clauses: [],
-          rows: [
-            {
-              record: summaryFixture("weapons:dagger", "Dagger"),
-              matches: [],
-              relationship_evidence: [],
-            },
-          ],
-          page: {
-            number: 1,
-            size: 5,
-            count: 1,
-            total: 80n,
-            has_more: true,
-            next_page: 2,
-          },
-          coverage: null,
-        };
-      },
-    );
+  api.searchPage.mockReset();
   api.getTraitRecords.mockReset().mockImplementation(async (request) => ({
     search_profile: null,
     trait_key: "trait:agile",
@@ -299,147 +260,16 @@ it("keeps exact embedded membership addresses in native links and navigation", a
   );
   expect(location.pathname).toBe("/traits/trait:agile");
 });
-it("requests stored Similar with the selected profile and no text fallback", async () => {
-  setup();
-  fireEvent.click(await screen.findByRole("tab", { name: "Similar" }));
-  await screen.findByRole("region", { name: "Similar records" });
+it("uses the default association when a stale link selects Similar", async () => {
+  setup("?tab=similar");
   expect(
-    api.searchPage.mock.calls.some(
-      ([request]) =>
-        request.criteria.kind === "similar_traits" &&
-        request.search_profile === "embeddinggemma" &&
-        request.criteria.seed_trait_key === "trait:agile" &&
-        request.criteria.similarity.method === "baseline",
-    ),
-  ).toBe(true);
+    await screen.findByRole("tab", { name: "With this trait", selected: true }),
+  ).toBeVisible();
+  expect(screen.queryByRole("tab", { name: "Similar" })).toBeNull();
+  expect(api.searchPage).not.toHaveBeenCalled();
 });
 
-it.each([undefined, "embeddinggemma", "bge-base"])(
-  "retains explicit profile %s and random ordering across trait tab updates without promoting defaults",
-  async (profile) => {
-    const query =
-      "?tab=similar&sort=random&seed=42" +
-      (profile ? `&search_profile=${profile}` : "");
-    history.replaceState(null, "", "/traits/trait:agile" + query);
-    setup(query);
-    await screen.findByRole("tab", { name: "Similar", selected: true });
-    fireEvent.click(screen.getByRole("tab", { name: "References" }));
-    await waitFor(() => {
-      const params = new URLSearchParams(location.search);
-      expect(params.get("tab")).toBe("references");
-      expect(params.get("search_profile")).toBe(profile ?? null);
-      expect(params.get("sort")).toBe("random");
-      expect(params.get("seed")).toBe("42");
-    });
-    fireEvent.click(screen.getByRole("tab", { name: "Similar" }));
-    await waitFor(() => {
-      const params = new URLSearchParams(location.search);
-      expect(params.get("tab")).toBe("similar");
-      expect(params.get("search_profile")).toBe(profile ?? null);
-      expect(params.get("seed")).toBe("42");
-    });
-  },
-);
-
-it("restores Similar order from its URL and carries it into primary Search", async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
-    <QueryClientProvider client={client}>
-      <SearchProfileProvider id="embeddinggemma">
-        <RouterTestContext>
-          <TraitView
-            route={{ traitKey: "trait:agile", query: "?tab=similar&sort=level_desc" }}
-          />
-        </RouterTestContext>
-      </SearchProfileProvider>
-    </QueryClientProvider>,
-  );
-  await screen.findByRole("tab", { name: "Similar", selected: true });
-  await waitFor(() =>
-    expect(api.searchPage.mock.lastCall?.[0]).toMatchObject({
-      criteria: {
-        kind: "similar_traits",
-        seed_trait_key: "trait:agile",
-        similarity: { method: "baseline" },
-        filter: null,
-      },
-      page: { number: 1, size: 5 },
-      sort: { kind: "attributes", rules: [{ field: "level", direction: "desc" }] },
-    } satisfies Partial<SearchResultsRequest>),
-  );
-  const link = screen.getByRole("link", { name: "Search similar records" });
-  const url = new URL(link.getAttribute("href")!, location.origin);
-  expect(url.pathname).toBe("/search");
-  const search = decodeSearchStateFromParams(url.searchParams);
-  expect(search.sort).toEqual({
-    kind: "attributes",
-    rules: [{ field: "level", direction: "desc" }],
-  } satisfies ResultSort);
-  expect(buildSearchRequest(search, 1).criteria).toMatchObject({
-    kind: "similar_traits",
-    seed_trait_key: "trait:agile",
-    similarity: { method: "baseline" },
-  });
-  expect(url.searchParams.get("similarity_method")).toBe("baseline");
-  fireEvent.click(screen.getByRole("tab", { name: "References" }));
-  await screen.findByRole("region", { name: "Trait references" });
-  expect(
-    api.getTraitRecords.mock.calls
-      .filter(([r]) => r.kind !== "similar")
-      .every(([r]) => !r.sort),
-  ).toBe(true);
-});
-
-it.each([
-  { label: "attribute order", first: "sort=level_desc", second: "sort=unit_price_asc" },
-  { label: "Random seed", first: "sort=random&seed=42", second: "sort=random&seed=43" },
-])(
-  "keeps a single bounded preview when $label changes A → B → A",
-  async ({ first, second }) => {
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const content = (query: string) => (
-      <QueryClientProvider client={client}>
-        <SearchProfileProvider id="embeddinggemma">
-          <RouterTestContext>
-            <TraitView
-              route={{ traitKey: "trait:agile", query: "?tab=similar&" + query }}
-            />
-          </RouterTestContext>
-        </SearchProfileProvider>
-      </QueryClientProvider>
-    );
-    const view = render(content(first));
-    await screen.findByRole("tab", { name: "Similar", selected: true });
-    await waitFor(() =>
-      expect(api.searchPage.mock.lastCall?.[0].criteria.kind).toBe("similar_traits"),
-    );
-    const original = api.searchPage.mock.lastCall![0].sort;
-    view.rerender(content(second));
-    await waitFor(() =>
-      expect(api.searchPage.mock.lastCall?.[0].sort).not.toEqual(original),
-    );
-    view.rerender(content(first));
-    await waitFor(() =>
-      expect(
-        new URL(
-          screen
-            .getByRole("link", { name: "Search similar records" })
-            .getAttribute("href")!,
-          location.origin,
-        ).searchParams.toString(),
-      ).toContain(first),
-    );
-    expect(
-      [...api.getTraitRecords.mock.calls, ...api.searchPage.mock.calls].every(
-        ([r]) => r.page.number === 1 && r.page.size === 5,
-      ),
-    ).toBe(true);
-    expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
-    expect(screen.queryByText(/See more|Browse all/i)).toBeNull();
-  },
-);
-
-it.each(["members", "references", "similar"] as const)(
+it.each(["members", "references"] as const)(
   "opens primary Search with exact %s criteria and no inline full-result mode",
   async (kind) => {
     setup();
@@ -447,16 +277,14 @@ it.each(["members", "references", "similar"] as const)(
     if (kind !== "members")
       fireEvent.click(
         screen.getByRole("tab", {
-          name: kind === "references" ? "References" : "Similar",
+          name: "References",
         }),
       );
     const link = await screen.findByRole("link", {
       name:
         kind === "members"
           ? "Search records with this trait"
-          : kind === "references"
-            ? "Search trait references"
-            : "Search similar records",
+          : "Search trait references",
     });
     expect(link).not.toHaveClass("ant-btn-primary");
     const url = new URL(link.getAttribute("href")!, location.origin);
@@ -474,20 +302,18 @@ it.each(["members", "references", "similar"] as const)(
               values: ["agile"],
             },
           }
-        : kind === "references"
-          ? { kind: "trait_references", trait_key: "trait:agile" }
-          : { kind: "similar_traits", seed_trait_key: "trait:agile" },
+        : { kind: "trait_references", trait_key: "trait:agile" },
     );
     expect(fireEvent.click(link, { metaKey: true })).toBe(true);
     expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
   },
 );
 
-it("hides known-empty associations while retaining Similar", async () => {
+it("hides known-empty associations", async () => {
   api.getTraitRecords.mockImplementation(async (request: TraitRecordsRequest) => ({
     trait_key: request.trait_key,
     kind: request.kind,
-    search_profile: request.kind === "similar" ? request.search_profile : null,
+    search_profile: null,
     artifact_generation: request.expected_artifact_generation,
     sort: { kind: "relevance" },
     rows: [],
@@ -495,9 +321,11 @@ it("hides known-empty associations while retaining Similar", async () => {
     coverage: null,
   }));
   setup();
-  expect(
-    await screen.findByRole("tab", { name: "Similar", selected: true }),
-  ).toBeVisible();
+  await screen.findByText("Multiple attack penalty is reduced.");
+  await waitFor(() =>
+    expect(screen.queryByLabelText("Loading connections…")).toBeNull(),
+  );
+  expect(screen.queryByRole("tab", { name: "Similar" })).toBeNull();
   expect(screen.queryByRole("tab", { name: "References" })).toBeNull();
   expect(screen.queryByRole("tab", { name: "With this trait" })).toBeNull();
 });
