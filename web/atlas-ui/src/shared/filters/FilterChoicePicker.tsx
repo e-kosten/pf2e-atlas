@@ -136,11 +136,16 @@ function FilterChoicePicker({
         )[0] ?? null);
   const narrowingKey = narrowingContext
     ? JSON.stringify(
-        [scope, field.definition.id, narrowingContext, clauseId],
+        [scope, field.definition.id, { ...narrowingContext, filter: null }],
         (_, value) => (typeof value === "bigint" ? value.toString() : value),
       )
     : null;
   const showAllValues = narrowingKey !== null && fullCatalogKey === narrowingKey;
+  // Keep the requested catalog through edits within this chooser session.
+  if (fullCatalogKey !== null && !showAllValues) {
+    setFullCatalogKey(null);
+    setOffset(0);
+  }
   const query = useFilterVocabulary(
     scope,
     field.definition.id,
@@ -243,11 +248,11 @@ function FilterChoicePicker({
   const counts = contextualCounts
     ? new Map([...contextualCounts, ...extraCounts])
     : extraCounts;
-  // Contextual pages also carry all selected options, including those outside
-  // the text search. The Advanced operand already displays these in its field.
+  // Contextual pages and the Actions catalog can carry off-search selections.
+  // The Advanced operand already displays these in its field.
   const searchTerm = search.trim().toLowerCase();
   const offSearch =
-    edit.kind === "operand" && query.data?.contextual && searchTerm
+    edit.kind === "operand" && (query.data?.contextual || isActions) && searchTerm
       ? choices.filter(
           ({ value, label }) =>
             selected.includes(value) &&
@@ -259,7 +264,9 @@ function FilterChoicePicker({
     ? choices.filter((choice) => !offSearch.includes(choice))
     : choices;
   const total = query.data?.values.total_values ?? 0n;
-  const displayedTotal = total - BigInt(offSearch.length);
+  const displayedTotal = query.data?.contextual
+    ? total - BigInt(offSearch.length)
+    : total;
   const pageSize = BigInt(VOCABULARY_PAGE_SIZE);
   const pages = (total + pageSize - 1n) / pageSize;
   const literal = text.trim();
@@ -368,6 +375,7 @@ function FilterChoicePicker({
         onOpenChange={(next) => {
           setOpen(next);
           if (!next) {
+            setFullCatalogKey(null);
             setText("");
             setSearch("");
             setOffset(0);

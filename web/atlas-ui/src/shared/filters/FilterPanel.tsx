@@ -1394,12 +1394,8 @@ function levelBounds(rule: PredicateRule): [string, string] | null {
   if (operator === "eq") return [bound, bound];
   if (operator === "gte") return [bound, ""];
   if (operator === "lte") return ["", bound];
-  if (operator !== "gt" && operator !== "lt") return null;
-  if (!bound.trim()) return ["", ""];
-  const strict = Number(bound);
-  const inclusive = strict + (operator === "gt" ? 1 : -1);
-  if (!Number.isSafeInteger(strict) || !Number.isSafeInteger(inclusive)) return null;
-  return operator === "gt" ? [String(inclusive), ""] : ["", String(inclusive)];
+  // Indexed levels can be fractional, so strict comparisons need their operator.
+  return null;
 }
 function booleanComparison(
   field: FilterEditorFieldView | undefined,

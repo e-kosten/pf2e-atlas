@@ -247,7 +247,8 @@
 .filter-controls__search-row.primary-toolbar {
   flex-wrap: nowrap;
 }
-.filter-controls__search-row > .reference-search-entry {
+.filter-controls__search-row
+  > :is(.reference-search-entry, .reference-search-entry--similar) {
   flex: 1 1 auto;
   min-width: 0;
 }

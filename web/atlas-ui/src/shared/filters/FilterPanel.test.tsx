@@ -1289,25 +1289,34 @@ describe("field applicability while editing Boolean groups", () => {
   });
 });
 
-it("displays a strict level comparison as an inclusive bound and edits only that condition", () => {
-  const change = renderControls(
-    editorFixture([fieldFixture("level_or_rank", "number", "Level / rank")]),
-    { kind: "compare", clause_id: "level", field: "level_or_rank", op: "lt", value: 5 },
-  );
+it.each([
+  { field: "level_or_rank", label: "Level / rank", op: "lt" },
+  { field: "level", label: "Level", op: "gt" },
+] as const)("keeps the strict operator when editing $label", ({ field, label, op }) => {
+  const change = renderControls(editorFixture([fieldFixture(field, "number", label)]), {
+    kind: "compare",
+    clause_id: "level",
+    field,
+    op,
+    value: 5,
+  });
   fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
   const advanced = within(screen.getByRole("dialog", { name: "Advanced filters" }));
-  const max = advanced.getByRole("textbox", { name: "Level / rank maximum" });
-  expect(max).toHaveValue("4");
+  expect(
+    advanced.getByRole("combobox", { name: "Condition for " + label }).parentElement,
+  ).toHaveTextContent(op);
+  const value = advanced.getByRole("textbox", { name: label });
+  expect(value).toHaveValue("5");
   expect(change).not.toHaveBeenCalled();
-  fireEvent.change(max, { target: { value: "0" } });
+  fireEvent.change(value, { target: { value: "2.5" } });
   expect(change).toHaveBeenLastCalledWith(
     expect.objectContaining({
       filter: {
         kind: "compare",
         clause_id: "level",
-        field: "level_or_rank",
-        op: "lte",
-        value: 0,
+        field,
+        op,
+        value: 2.5,
       },
     }),
   );
