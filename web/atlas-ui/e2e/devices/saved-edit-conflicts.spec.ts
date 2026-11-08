@@ -77,7 +77,9 @@ test("reorder in the same list view preserves an open note draft and both saves"
     const { region, draft } = await openNote(page, slug);
     await draft.fill("Edited after opening");
     const handle = page.locator(".list-member__drag-handle").first();
+    await expect(handle).toBeEnabled();
     await handle.focus();
+    await expect(handle).toBeFocused();
     await page.keyboard.press("Space", { delay: 20 });
     await expect(handle).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("ArrowDown");

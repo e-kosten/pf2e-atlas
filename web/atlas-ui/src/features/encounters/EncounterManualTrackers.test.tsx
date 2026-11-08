@@ -27,10 +27,9 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
   });
   fireEvent.click(screen.getByRole("button", { name: "Save tracker" }));
   await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
-  expect(onChange.mock.calls[0][0]).toMatchObject({
+  expect(onChange).toHaveBeenCalledWith("dragon", {
     expected_encounter_revision: 7,
     expected_participant_revision: 3,
-    participant_key: "dragon",
     action: {
       kind: "add",
       name: "Breath ready",
@@ -56,7 +55,7 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
   onChange.mockResolvedValue({ active: true, refreshed: true });
   fireEvent.click(screen.getByRole("button", { name: "Save tracker" }));
   await waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
-  expect(onChange.mock.calls[1][0].expected_encounter_revision).toBe(9);
+  expect(onChange.mock.calls[1][1].expected_encounter_revision).toBe(9);
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 
@@ -97,12 +96,14 @@ it("keeps a ready tracker visible and sends separate restart and removal actions
   fireEvent.click(screen.getByRole("button", { name: "Restart Breath ready" }));
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledWith(
+      "dragon",
       expect.objectContaining({ action: { kind: "restart", tracker_key: "breath" } }),
     ),
   );
   fireEvent.click(screen.getByRole("button", { name: "Remove tracker Breath ready" }));
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledWith(
+      "dragon",
       expect.objectContaining({ action: { kind: "remove", tracker_key: "breath" } }),
     ),
   );

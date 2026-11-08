@@ -256,7 +256,7 @@ async fn non_glossary_filter_values_and_vocabulary_keep_readable_backend_labels(
     let fixture = Fixture::with_glossary();
     for request in [
         json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"physical.base_type","text":"chain-mail","limit":10,"selected_values":["chain-mail"]}),
-        json!({"kind":"contextual","context":{"kind":"filtered","filter":null,"text":null,"mode":"hybrid","search_profile":"bge-base"},"field_id":"physical.base_type","text":"chain-mail","limit":10}),
+        json!({"kind":"contextual","context":{"kind":"filtered","filter":null,"text":null,"search_profile":"bge-base"},"field_id":"physical.base_type","text":"chain-mail","limit":10}),
     ] {
         let (status, values) = fixture
             .json(Method::POST, "/api/filters/values", Some(request))

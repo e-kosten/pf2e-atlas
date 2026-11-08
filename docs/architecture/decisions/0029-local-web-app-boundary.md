@@ -53,13 +53,20 @@ The annotated HTTP handlers and Rust DTO schemas own the browser contract.
 Orval generates Fetch operations and TypeScript models from the exported document.
 The frontend uses the generated wire types directly. JSON integers travel as
 numbers, and the API boundary checks safe integer bounds in both directions.
-Request schemas account
-for what Serde accepts, including omissions and explicit nulls. Response schemas
-account for what Serde emits. For a DTO used in both directions, declare its
-emitted shape on the Rust type and record any accepted omissions or nulls in
-`atlas-web/src/schema_directions.rs`. The export uses separate component names
-where the shapes differ. See the [frontend contribution workflow](../../../web/atlas-ui/README.md)
-for regeneration and freshness commands.
+The URL supplies resource targets for path-addressed edits and queries. Handlers
+pass the target and command to the service separately. The CLI supplies the same
+targets directly. Commands carry operation intent and preconditions. Views carry
+projected facts and any reusable value needed for a subsequent operation, such
+as an authored roll offer or a prepared damage draft.
+
+Request schemas account for what Serde accepts, including omissions and explicit
+nulls. Response schemas account for what Serde emits. When a value travels in
+both directions and the shapes differ, declare its emitted shape on the Rust
+type and record the input differences in `atlas-web/src/schema_directions.rs`.
+The export uses separate component names for these shapes and fails if a rule
+names a missing or unreachable component or a missing field. See the
+[frontend contribution workflow](../../../web/atlas-ui/README.md) for regeneration
+and freshness commands.
 
 ## Browser/backend compatibility
 

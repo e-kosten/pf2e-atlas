@@ -104,6 +104,10 @@ const INPUT_FIELDS: &[InputFields] = &[
 ];
 
 pub(super) fn describe_accepted_inputs(document: &mut Value) -> Result<(), String> {
+    describe_inputs(document, INPUT_FIELDS)
+}
+
+fn describe_inputs(document: &mut Value, rules: &[InputFields]) -> Result<(), String> {
     let paths = document["paths"]
         .as_object()
         .ok_or("missing OpenAPI paths")?;
@@ -126,7 +130,21 @@ pub(super) fn describe_accepted_inputs(document: &mut Value) -> Result<(), Strin
         .ok_or("missing OpenAPI schemas")?;
     let requests = reachable(schemas, request_roots)?;
     let responses = reachable(schemas, response_roots)?;
-    let mut affected: BTreeSet<_> = INPUT_FIELDS
+    for rule in rules {
+        if !schemas.contains_key(rule.component) {
+            return Err(format!(
+                "input rule references missing schema {}",
+                rule.component
+            ));
+        }
+        if !requests.contains(rule.component) {
+            return Err(format!(
+                "input rule schema {} is unreachable from requests",
+                rule.component
+            ));
+        }
+    }
+    let mut affected: BTreeSet<_> = rules
         .iter()
         .map(|fields| fields.component.to_owned())
         .collect();
@@ -162,8 +180,17 @@ pub(super) fn describe_accepted_inputs(document: &mut Value) -> Result<(), Strin
         .collect::<Result<_, _>>()?;
     for name in affected.intersection(&requests) {
         let mut schema = schemas[name].clone();
-        if let Some(fields) = INPUT_FIELDS.iter().find(|fields| fields.component == name) {
-            loosen(&mut schema, fields);
+        if let Some(fields) = rules.iter().find(|fields| fields.component == name) {
+            let mut matched = BTreeSet::new();
+            loosen(&mut schema, fields, &mut matched);
+            for field in fields.optional.iter().chain(fields.nullable) {
+                if !matched.contains(field) {
+                    return Err(format!(
+                        "input rule for schema {} references missing field {field}",
+                        fields.component
+                    ));
+                }
+            }
         }
         rewrite_references(&mut schema, &input_names);
         schemas.insert(input_names.get(name).unwrap_or(name).clone(), schema);
@@ -186,7 +213,7 @@ pub(super) fn describe_accepted_inputs(document: &mut Value) -> Result<(), Strin
     Ok(())
 }
 
-fn loosen(schema: &mut Value, fields: &InputFields) {
+fn loosen(schema: &mut Value, fields: &InputFields, matched: &mut BTreeSet<&'static str>) {
     if let Some(required) = schema.get_mut("required").and_then(Value::as_array_mut) {
         required.retain(|field| {
             field
@@ -195,16 +222,24 @@ fn loosen(schema: &mut Value, fields: &InputFields) {
         });
     }
     if let Some(properties) = schema.get_mut("properties").and_then(Value::as_object_mut) {
+        matched.extend(
+            fields
+                .optional
+                .iter()
+                .copied()
+                .filter(|name| properties.contains_key(*name)),
+        );
         for name in fields.nullable {
             if let Some(property) = properties.get_mut(*name) {
+                matched.insert(name);
                 *property = json!({"anyOf": [property.take(), {"type": "null"}]});
             }
         }
     }
-    for keyword in ["oneOf", "allOf"] {
+    for keyword in ["oneOf", "anyOf", "allOf"] {
         if let Some(branches) = schema.get_mut(keyword).and_then(Value::as_array_mut) {
             for branch in branches {
-                loosen(branch, fields);
+                loosen(branch, fields, matched);
             }
         }
     }
@@ -264,5 +299,69 @@ fn rewrite_references(node: &mut Value, names: &BTreeMap<String, String>) {
             }
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stale_input_rules_fail_export_with_context() {
+        let document = json!({
+            "paths": {"/example": {"post": {
+                "requestBody": {"schema": {"$ref": "#/components/schemas/Request"}}
+            }}},
+            "components": {"schemas": {
+                "Request": {"oneOf": [
+                    {"properties": {"kind": {"type": "string"}}},
+                    {"properties": {"name": {"type": "string"}}, "required": ["name"]}
+                ]},
+                "Other": {"type": "object"}
+            }}
+        });
+        let cases: &[(&str, &'static [&'static str], &str)] = &[
+            (
+                "Removed",
+                &["name"],
+                "input rule references missing schema Removed",
+            ),
+            (
+                "Other",
+                &["name"],
+                "input rule schema Other is unreachable from requests",
+            ),
+            (
+                "Request",
+                &["old_name"],
+                "input rule for schema Request references missing field old_name",
+            ),
+        ];
+        for &(component, optional, error) in cases {
+            assert_eq!(
+                describe_inputs(
+                    &mut document.clone(),
+                    &[InputFields {
+                        component,
+                        optional,
+                        nullable: &[],
+                    }]
+                ),
+                Err(error.to_owned())
+            );
+        }
+        let mut updated = document;
+        describe_inputs(
+            &mut updated,
+            &[InputFields {
+                component: "Request",
+                optional: &["name"],
+                nullable: &["name"],
+            }],
+        )
+        .unwrap();
+        let branch = &updated["components"]["schemas"]["Request"]["oneOf"][1];
+        assert_eq!(branch["required"], json!([]));
+        assert_eq!(branch["properties"]["name"]["anyOf"][1]["type"], "null");
     }
 }
