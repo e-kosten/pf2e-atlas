@@ -46,6 +46,18 @@
       display: flow-root;
     }
 
+    :is(
+      .actor-reference__activities--strike,
+      .actor-reference__activities--gear
+    ):focus-visible {
+      outline: none;
+
+      > h3 {
+        outline: 2px solid var(--selection-border);
+        outline-offset: var(--space-control);
+      }
+    }
+
     :is(.creature-reference__rules, .actor-reference__mechanics) > * + * {
       margin-block-start: var(--space-section);
     }
