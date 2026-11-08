@@ -114,7 +114,9 @@ mod tests {
         crate::traits::write_historical_record_traits(c, source.record.key(), evidence).unwrap();
         write.commit().unwrap();
 
-        workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
+        workspace
+            .migrate(&TEST_MIGRATIONS[..36], |_| Ok(()))
+            .unwrap();
         let read = workspace.read(36).unwrap();
         let c = read.connection();
         let members = c

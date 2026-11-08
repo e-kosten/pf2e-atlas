@@ -56,6 +56,9 @@ impl NativeModelKey {
     pub fn ordinal(&self) -> usize {
         self.ordinal
     }
+    pub fn identity_json(&self) -> &str {
+        &self.json
+    }
     pub fn model(&self) -> &SourceSearchProfileIdentity {
         &self.model
     }
@@ -92,15 +95,22 @@ impl NativeInput {
         model: &SourceSearchProfileIdentity,
         input: &NativeInputDescriptor,
     ) -> Result<Self, IndexError> {
-        if !crate::codec::checked_hash(&input.input_sha256) {
+        Self::from_hash(
+            model,
+            Self::decode_hash(&input.input_sha256)?,
+            input.token_count,
+        )
+    }
+    pub(crate) fn decode_hash(input_sha256: &str) -> Result<[u8; 32], IndexError> {
+        if !crate::codec::checked_hash(input_sha256) {
             return Err(invalid("invalid SHA-256 digest"));
         }
         let mut hash = [0; 32];
         for (byte, index) in hash.iter_mut().zip((0..64).step_by(2)) {
-            *byte = u8::from_str_radix(&input.input_sha256[index..index + 2], 16)
+            *byte = u8::from_str_radix(&input_sha256[index..index + 2], 16)
                 .map_err(|error| IndexError::Invalid(error.to_string()))?;
         }
-        Self::from_hash(model, hash, input.token_count)
+        Ok(hash)
     }
     pub fn from_hash(
         model: &SourceSearchProfileIdentity,

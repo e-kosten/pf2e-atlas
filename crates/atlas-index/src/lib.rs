@@ -15,8 +15,13 @@ mod embedding_storage_migration;
 mod embedding_values;
 mod native_allocation;
 mod native_storage_migration;
+mod native_token_counts;
 mod native_values;
 pub use native_storage_migration::{INPUT_OWNED_STORAGE_SCHEMA_SQL, backfill_input_owned_storage};
+pub use native_token_counts::{
+    NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL, NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION,
+    VerifiedNativeTokenCounts,
+};
 mod passage_layouts;
 mod persisted_inputs;
 pub use persisted_inputs::ReusableSourceAdmission;
@@ -147,7 +152,9 @@ pub use schema::{
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use validation::validate_artifact;
-pub use validation::{ArtifactValidationReport, validate_reference};
+pub use validation::{
+    ArtifactValidationReport, validate_reference, validate_reference_with_token_count_digests,
+};
 
 mod lexical_projection;
 pub use lexical_projection::project_lexical_units;

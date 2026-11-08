@@ -72,7 +72,24 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
         .map_err(|e| IndexError::Operation(e.to_string()))?;
     let c = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     c.set_prepared_statement_cache_capacity(128);
-    validate_reference(&c)
+    c.execute_batch("BEGIN DEFERRED")?;
+    let schema: u32 = c.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    if schema >= crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION {
+        validate_reference_with_token_count_digests(&c)
+    } else {
+        validate_reference(&c)
+    }
+}
+
+/// Audit the exact admitted reference, including proofs used only by ingest.
+pub fn validate_reference_with_token_count_digests(
+    c: &Connection,
+) -> Result<ArtifactValidationReport, IndexError> {
+    let report = validate_reference(c)?;
+    let context = crate::read_stored_reference_context(c)?
+        .ok_or_else(|| bad("published reference has no context"))?;
+    crate::native_token_counts::audit(c, &context.search_profiles)?;
+    Ok(report)
 }
 
 /// Validate the caller's exact snapshot, including uncommitted maintenance writes.

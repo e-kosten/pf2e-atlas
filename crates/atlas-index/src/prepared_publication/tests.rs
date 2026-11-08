@@ -1053,7 +1053,7 @@ fn rebuild_ignores_corrupt_native_registry_and_pending_values() {
         .execute_batch(
             "INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at)
          SELECT input_id,zeroblob(3072),published_hash,0 FROM embedding_inputs LIMIT 1;
-         UPDATE embedding_models SET identity_json='{}';",
+         UPDATE embedding_models SET identity_json='{}',published_token_count_digest=X'00';",
         )
         .unwrap();
     write.commit().unwrap();
@@ -1081,9 +1081,171 @@ fn rebuild_ignores_corrupt_native_registry_and_pending_values() {
         }
     }
     assert_eq!(count(&workspace, "pending_embedding_values"), 1);
+    assert!(
+        publication
+            .verified_native_token_counts(model)
+            .unwrap()
+            .is_empty()
+    );
+    publication.finish_verified_native_profile(model).unwrap();
     publication.publish().unwrap();
     assert_eq!(count(&workspace, "pending_embedding_values"), 0);
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let digest_bytes: usize = read
+        .connection()
+        .query_row(
+            "SELECT length(published_token_count_digest) FROM embedding_models",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(digest_bytes, 33);
+    crate::validate_reference_with_token_count_digests(read.connection()).unwrap();
+    drop(read);
     for unit in &input.semantic_units {
         assert_eq!(raw_value(&workspace, model, &descriptor(unit)), unit.vector);
     }
+}
+
+#[test]
+fn published_token_count_digest_rejects_corruption_without_blocking_maintenance_recovery() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("descriptor-proof.sqlite");
+    let input = crate::foundation_tests::fixture(true);
+    publish_input(&path, &input).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let model = &input.context.search_profiles[0];
+    let descriptor = descriptor(&input.semantic_units[0]);
+
+    let mut bootstrap = prepare_publication_in(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+    )
+    .unwrap();
+    assert!(
+        bootstrap
+            .verified_native_token_counts(model)
+            .unwrap()
+            .is_empty()
+    );
+    bootstrap.finish_verified_native_profile(model).unwrap();
+    bootstrap.publish().unwrap();
+
+    let retry = fixture_publication(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+    )
+    .unwrap();
+    assert_eq!(
+        retry
+            .verified_native_token_counts(model)
+            .unwrap()
+            .count_for(&descriptor.input_sha256),
+        Some(descriptor.token_count)
+    );
+    drop(retry);
+    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE embedding_inputs SET token_count=token_count+1 WHERE input_hash=?",
+            [crate::embedding_values::digest(&descriptor.input_sha256).unwrap()],
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let retry = fixture_publication(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+    )
+    .unwrap();
+    let error = retry.verified_native_token_counts(model).err().unwrap();
+    assert!(
+        error
+            .to_string()
+            .contains("published token-count digest mismatch")
+    );
+    drop(retry);
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 2);
+    assert!(
+        crate::validate_reference_with_token_count_digests(read.connection())
+            .unwrap_err()
+            .to_string()
+            .contains("published token-count digest mismatch")
+    );
+    drop(read);
+
+    drop(
+        owner
+            .maintenance(
+                TEST_WORKSPACE_SCHEMA_VERSION,
+                "test interrupted maintenance",
+            )
+            .unwrap(),
+    );
+    assert!(crate::recover_reference_publication(&owner, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    assert_eq!(
+        workspace
+            .read(TEST_WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        2
+    );
+}
+
+#[test]
+fn token_count_digest_failure_rolls_back_reference_publication() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("digest-rollback.sqlite");
+    let mut input = crate::foundation_tests::fixture(true);
+    publish_input(&path, &input).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    write
+        .connection()
+        .execute_batch(
+            "CREATE TRIGGER reject_descriptor_digest BEFORE UPDATE OF published_token_count_digest
+         ON embedding_models BEGIN SELECT RAISE(ABORT,'injected digest write failure'); END;",
+        )
+        .unwrap();
+    write.commit().unwrap();
+    input.semantic_units[0].input_hash = crate::codec::sha256(b"new source input for rollback");
+    let mut publication = prepare_publication_in(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+    )
+    .unwrap();
+    publication
+        .finish_verified_native_profile(&input.context.search_profiles[0])
+        .unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let before = reference_preservation_rows(read.connection()).unwrap();
+    drop(read);
+    assert!(
+        publication
+            .publish()
+            .unwrap_err()
+            .to_string()
+            .contains("injected digest write failure")
+    );
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 1);
+    assert_eq!(
+        reference_preservation_rows(read.connection()).unwrap(),
+        before
+    );
 }

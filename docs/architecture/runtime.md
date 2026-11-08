@@ -314,13 +314,12 @@ recipe. It reconstructs each section from current selected text and bounded
 context, then checks its addresses, exact input hashes, progressive full coverage,
 UTF-8 boundaries and token budgets. Missing or incompatible layouts use normal
 splitting. Contradictory published metadata remains an integrity error. Identity
-selection and per-profile native input validation still run; inference reuse and
-atomic publication are unchanged. This adds no schema or duplicate text cache.
+selection still runs. Per-profile native input validation can reuse published
+counts for exact inputs with a verified digest.
 Recipe versions remain explicit and must change with output-affecting preparation
 changes; application Git versions and UI changes are not cache identities.
 `setup --force` bypasses passage-layout reuse and reruns splitting while retaining
-compatible vector reuse. Existing source admission/prepared-HTML reuse is
-unchanged. The ingest layout-reuse option is separate from its vector-reuse option.
+compatible vector reuse.
 Pinned historical layout/input-hash fixtures check representative outputs for
 each current recipe in the model-free suite. Historical fixtures and their digest
 ledger are append-only: changed behavior needs a recipe bump and a new fixture.

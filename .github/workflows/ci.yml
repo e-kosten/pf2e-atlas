@@ -118,15 +118,19 @@ jobs:
           cargo build --locked -p atlas-cli --no-default-features
           cargo build --locked -p atlas-runtime --example migrate-fixture-workspace
           cargo run --locked -p atlas-embedding --example prepare-model-cache -- target/embedding-models
-      - name: Check native token IDs and search against release fixtures
+      - name: Check native token IDs
         shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
           export ATLAS_TEST_MODEL_CACHE
           # Each test loads full model sessions; bound peak memory on release runners.
           cargo test --locked -p atlas-embedding compatibility_tests -- --ignored --test-threads=1
+      - name: Check search against release fixtures
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
           candidate=target/debug/atlas
           migrator=target/debug/examples/migrate-fixture-workspace
           if [[ "$RUNNER_OS" == Windows ]]; then

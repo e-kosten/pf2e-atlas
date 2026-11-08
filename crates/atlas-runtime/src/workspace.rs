@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 37;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_index::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -262,6 +262,12 @@ const MIGRATIONS: &[Migration] = &[
         sql: "",
         backfill: None,
     },
+    Migration {
+        version: atlas_index::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION,
+        name: "native-token-count-digest",
+        sql: atlas_index::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -340,6 +346,46 @@ mod tests {
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
 
     #[test]
+    fn token_count_digest_migration_leaves_published_native_descriptors_unattested() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("token-count-upgrade.sqlite");
+        register_extensions().unwrap();
+        let old = Workspace::at(&path).unwrap();
+        old.migrate(&MIGRATIONS[..37], |_| Ok(())).unwrap();
+        let input = atlas_search::test_support::input_with_both_profiles(vec![
+            atlas_search::test_support::record(
+                "actors",
+                "Actor",
+                serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Goblin","type":"npc"}),
+            ),
+        ]);
+        atlas_index::test_support::publish_input_in(&old, 37, &input).unwrap();
+        let read = old.read(37).unwrap();
+        let before =
+            atlas_index::test_support::native_preservation_rows(read.connection()).unwrap();
+        assert!(!before.is_empty());
+        drop(read);
+
+        let workspace = initialize_workspace(&path).unwrap();
+        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(read.reference_revision().unwrap(), 1);
+        assert_eq!(
+            atlas_index::test_support::native_preservation_rows(read.connection()).unwrap(),
+            before
+        );
+        let proof_count: usize = read
+            .connection()
+            .query_row(
+                "SELECT count(published_token_count_digest) FROM embedding_models",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(proof_count, 0);
+        atlas_index::validate_reference_with_token_count_digests(read.connection()).unwrap();
+    }
+
+    #[test]
     fn source_counter_upgrade_preserves_ability_payloads_and_rejects_older_readers() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("source-counter-upgrade.sqlite");
@@ -364,10 +410,10 @@ mod tests {
             upgraded.read(36),
             Err(atlas_storage::StorageError::Schema {
                 expected: 36,
-                actual: 37
+                actual: WORKSPACE_SCHEMA_VERSION
             })
         ));
-        let read = upgraded.read(37).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let encounter = LocalStateRead::new(&read)
             .encounters()
             .get_with_participants("e")

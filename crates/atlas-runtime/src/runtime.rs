@@ -192,7 +192,9 @@ impl AtlasRuntime {
         } else {
             self.open_index()?
         };
-        atlas_index::validate_reference(index.workspace_session().connection())
+        atlas_index::validate_reference_with_token_count_digests(
+            index.workspace_session().connection(),
+        )
     }
     pub fn check_index_report(
         &self,
