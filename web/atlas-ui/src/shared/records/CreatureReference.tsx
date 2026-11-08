@@ -9,7 +9,6 @@ import type {
 } from "../../generated/atlas";
 import {
   ActorActivities,
-  ActorCombatBudget,
   ActorDefenses,
   hasActorDefenses,
   hasActorActivities,
@@ -93,8 +92,6 @@ export function CreatureReference({
     hasActorDefenses(actor, { hideHitPoints: encounter });
   const hasRuntimeDetailsInEssentials = hasRuntimeDetails(actor, true);
   const conditions = encounter && encounterContent?.conditions;
-  const showCombatBudget =
-    encounter && !encounterContent && Boolean(actor.runtime?.action_budget);
   const sections = [
     ...(!encounter && prose ? [["description", "Description"]] : []),
     ...(hasDefenses ? [["defenses", "Defenses"]] : []),
@@ -199,15 +196,12 @@ export function CreatureReference({
               ) : null
             }
             runtime={
-              showCombatBudget || conditions ? (
+              conditions ? (
                 <>
-                  {showCombatBudget && <ActorCombatBudget actor={actor} />}
                   {!hasStatistics && <ActorSecondaryFacts actor={actor} />}
-                  {conditions && (
-                    <section id={id("conditions")} tabIndex={-1}>
-                      {conditions}
-                    </section>
-                  )}
+                  <section id={id("conditions")} tabIndex={-1}>
+                    {conditions}
+                  </section>
                 </>
               ) : null
             }

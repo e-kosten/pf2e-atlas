@@ -20,10 +20,6 @@
   gap: var(--space-section);
   min-width: 0;
 }
-.actor-encounter-layout__runtime .actor-reference__combat-budget {
-  padding: 0;
-  border: 0;
-}
 .actor-encounter-layout__rules {
   min-width: 0;
 }

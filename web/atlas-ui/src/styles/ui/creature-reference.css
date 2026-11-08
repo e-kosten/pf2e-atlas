@@ -65,11 +65,6 @@
   display: grid;
   gap: var(--space-control);
 }
-.creature-reference__fact-groups .actor-reference__facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
-  gap: var(--space-group) var(--space-section);
-}
 .creature-reference__source-defenses .actor-reference__defenses {
   border: 0;
   padding: 0;
@@ -79,12 +74,6 @@
 }
 .creature-reference__source-defenses .actor-reference__defenses > h3 {
   margin: 0;
-}
-.creature-reference .actor-reference__awareness-movement {
-  display: grid;
-  gap: var(--space-group);
-  align-content: start;
-  min-width: 0;
 }
 .creature-reference .actor-reference__skills {
   display: grid;
@@ -235,8 +224,4 @@
     grid-column: 1;
     grid-row: 1;
   }
-}
-
-.actor-reference__restriction {
-  margin: 0;
 }

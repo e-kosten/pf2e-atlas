@@ -60,7 +60,10 @@ impl TestSavedLists<'_> {
     pub fn create(&self, list: NewSavedList) -> LocalStateResult<SavedList> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = SavedListsWrite::from_connection(&transaction);
+        let domain = SavedListsWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.create(list)?;
         transaction.commit()?;
         Ok(result)
@@ -69,7 +72,8 @@ impl TestSavedLists<'_> {
     pub fn get(&self, list_ref: &str) -> LocalStateResult<Option<SavedList>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
-        let domain = SavedListsRead::from_connection(&transaction);
+        let domain =
+            SavedListsRead::from_connection(&transaction, crate::store::local_owner(&transaction)?);
         let result = domain.get(list_ref)?;
         transaction.commit()?;
         Ok(result)
@@ -77,7 +81,8 @@ impl TestSavedLists<'_> {
     pub fn get_with_items(&self, list_ref: &str) -> LocalStateResult<Option<SavedListWithItems>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
-        let domain = SavedListsRead::from_connection(&transaction);
+        let domain =
+            SavedListsRead::from_connection(&transaction, crate::store::local_owner(&transaction)?);
         let result = domain.get_with_items(list_ref)?;
         transaction.commit()?;
         Ok(result)
@@ -85,7 +90,10 @@ impl TestSavedLists<'_> {
     pub fn delete(&self, list_ref: &str) -> LocalStateResult<bool> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = SavedListsWrite::from_connection(&transaction);
+        let domain = SavedListsWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.delete(list_ref)?;
         transaction.commit()?;
         Ok(result)
@@ -93,7 +101,10 @@ impl TestSavedLists<'_> {
     pub fn update(&self, list: UpdateSavedList) -> LocalStateResult<Option<SavedList>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = SavedListsWrite::from_connection(&transaction);
+        let domain = SavedListsWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.update(list)?;
         transaction.commit()?;
         Ok(result)
@@ -101,7 +112,10 @@ impl TestSavedLists<'_> {
     pub fn import(&self, import: ImportSavedList) -> LocalStateResult<SavedListWithItems> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = SavedListsWrite::from_connection(&transaction);
+        let domain = SavedListsWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.import(import)?;
         transaction.commit()?;
         Ok(result)
@@ -114,8 +128,11 @@ impl TestSavedLists<'_> {
     ) -> LocalStateResult<bool> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let result =
-            SavedListsWrite::from_connection(&transaction).reorder_item(list_ref, reorder)?;
+        let result = SavedListsWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        )
+        .reorder_item(list_ref, reorder)?;
         transaction.commit()?;
         Ok(result)
     }
@@ -126,7 +143,10 @@ impl TestSavedLists<'_> {
     ) -> LocalStateResult<AddSavedListItemOutcome> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = SavedListsWrite::from_connection(&transaction);
+        let domain = SavedListsWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.add_resolved_item(list_ref, item)?;
         transaction.commit()?;
         Ok(result)
@@ -134,7 +154,10 @@ impl TestSavedLists<'_> {
     pub fn remove_item(&self, list_ref: &str, record_key: &str) -> LocalStateResult<bool> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = SavedListsWrite::from_connection(&transaction);
+        let domain = SavedListsWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.remove_item(list_ref, record_key)?;
         transaction.commit()?;
         Ok(result)
@@ -152,8 +175,11 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<EncounterEventReceipt> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let receipt = EncountersWrite::from_connection(&transaction)
-            .apply_condition_event(key, id, intent, revision, changes)?;
+        let receipt = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        )
+        .apply_condition_event(key, id, intent, revision, changes)?;
         transaction.commit()?;
         Ok(receipt)
     }
@@ -165,8 +191,9 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<EncounterEventReceipt>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
-        let receipt = EncountersRead::from_connection(&transaction)
-            .condition_event_receipt(key, id, intent)?;
+        let receipt =
+            EncountersRead::from_connection(&transaction, crate::store::local_owner(&transaction)?)
+                .condition_event_receipt(key, id, intent)?;
         transaction.commit()?;
         Ok(receipt)
     }
@@ -179,7 +206,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<()> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         domain.replace_spell_resources(participant, expected_revision, resources)?;
         transaction.commit()?;
         Ok(())
@@ -193,7 +223,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<()> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         domain.set_spell_expended(participant, expected_revision, spell, expended)?;
         transaction.commit()?;
         Ok(())
@@ -207,7 +240,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<InitiativeRollReceipt> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result =
             domain.roll_initiative(encounter_key, request_id, expected_revision, resolved)?;
         transaction.commit()?;
@@ -216,7 +252,10 @@ impl TestEncounters<'_> {
     pub fn create(&self, encounter: NewEncounter) -> LocalStateResult<Encounter> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.create(encounter)?;
         transaction.commit()?;
         Ok(result)
@@ -225,7 +264,8 @@ impl TestEncounters<'_> {
     pub fn get(&self, encounter_ref: &str) -> LocalStateResult<Option<Encounter>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
-        let domain = EncountersRead::from_connection(&transaction);
+        let domain =
+            EncountersRead::from_connection(&transaction, crate::store::local_owner(&transaction)?);
         let result = domain.get(encounter_ref)?;
         transaction.commit()?;
         Ok(result)
@@ -236,7 +276,8 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<EncounterWithParticipants>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
-        let domain = EncountersRead::from_connection(&transaction);
+        let domain =
+            EncountersRead::from_connection(&transaction, crate::store::local_owner(&transaction)?);
         let result = domain.get_with_participants(encounter_ref)?;
         transaction.commit()?;
         Ok(result)
@@ -245,7 +286,10 @@ impl TestEncounters<'_> {
     pub fn delete(&self, encounter_ref: &str) -> LocalStateResult<bool> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.delete(encounter_ref)?;
         transaction.commit()?;
         Ok(result)
@@ -257,7 +301,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<EncounterParticipant> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.add_participant(encounter_ref, participant)?;
         transaction.commit()?;
         Ok(result)
@@ -269,7 +316,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Vec<EncounterParticipant>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.add_participants(encounter_ref, participants)?;
         transaction.commit()?;
         Ok(result)
@@ -280,7 +330,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<EncounterParticipant>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.update_participant(participant)?;
         transaction.commit()?;
         Ok(result)
@@ -291,7 +344,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<EncounterParticipant>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.reorder_participant(reorder)?;
         transaction.commit()?;
         Ok(result)
@@ -303,7 +359,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<EncounterParticipantCondition> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.add_condition(condition)?;
         transaction.commit()?;
         Ok(result)
@@ -314,7 +373,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<EncounterParticipantCondition>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.update_condition(condition)?;
         transaction.commit()?;
         Ok(result)
@@ -326,7 +388,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<bool> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.remove_condition(participant_key, condition_id)?;
         transaction.commit()?;
         Ok(result)
@@ -338,7 +403,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<bool> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.set_current_turn(encounter_ref, participant_key)?;
         transaction.commit()?;
         Ok(result)
@@ -351,7 +419,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<Encounter>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.advance_turn(encounter_ref, choose)?;
         transaction.commit()?;
         Ok(result)
@@ -366,7 +437,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<Encounter>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result = domain.advance_turn_once(
             encounter_ref,
             request_id,
@@ -385,7 +459,10 @@ impl TestEncounters<'_> {
     ) -> LocalStateResult<Option<Encounter>> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(
+            &transaction,
+            crate::store::local_owner(&transaction)?,
+        );
         let result =
             domain.remove_participant_and_select_turn(encounter_ref, participant_key, choose)?;
         transaction.commit()?;
@@ -418,14 +495,14 @@ mod tests {
         let mut connection = connection()?;
         {
             let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            let lists = SavedListsWrite::from_connection(&tx);
+            let lists = SavedListsWrite::from_connection(&tx, crate::store::local_owner(&tx)?);
             lists.create(NewSavedList {
                 slug: "kept-together".into(),
                 name: "List".into(),
                 description: None,
                 tags: vec![],
             })?;
-            let encounters = EncountersWrite::from_connection(&tx);
+            let encounters = EncountersWrite::from_connection(&tx, crate::store::local_owner(&tx)?);
             encounters.create(NewEncounter {
                 slug: "same-action".into(),
                 name: "Encounter".into(),
@@ -437,12 +514,12 @@ mod tests {
             // Dropping the caller's transaction abandons the complete composed action.
         }
         assert!(
-            SavedListsRead::from_connection(&connection)
+            SavedListsRead::from_connection(&connection, crate::store::local_owner(&connection)?)
                 .list()?
                 .is_empty()
         );
         assert!(
-            EncountersRead::from_connection(&connection)
+            EncountersRead::from_connection(&connection, crate::store::local_owner(&connection)?)
                 .list()?
                 .is_empty()
         );
@@ -455,7 +532,7 @@ mod tests {
         let mut connection = connection()?;
         connection.execute("INSERT INTO record_identity(key,last_known_name,availability) VALUES('spells:known','Current name','available')", [])?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let lists = SavedListsWrite::from_connection(&tx);
+        let lists = SavedListsWrite::from_connection(&tx, crate::store::local_owner(&tx)?);
         lists.import(ImportSavedList {
             slug: "imported".into(),
             name: "Imported".into(),
@@ -494,9 +571,10 @@ mod tests {
             "UPDATE record_identity SET availability='unavailable' WHERE key='spells:known'",
             [],
         )?;
-        let saved = SavedListsRead::from_connection(&connection)
-            .get_with_items("imported")?
-            .unwrap();
+        let saved =
+            SavedListsRead::from_connection(&connection, crate::store::local_owner(&connection)?)
+                .get_with_items("imported")?
+                .unwrap();
         assert_eq!(saved.items.len(), 2);
         assert_eq!(saved.items[0].record_title_snapshot, "Saved name");
         Ok(())
@@ -506,22 +584,29 @@ mod tests {
     fn owner_scopes_slugs_without_reusing_stable_keys() -> LocalStateResult<()> {
         let mut connection = connection()?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        SavedListsWrite::from_connection(&tx).create(NewSavedList {
-            slug: "same".into(),
-            name: "Local".into(),
-            description: None,
-            tags: vec![],
-        })?;
+        SavedListsWrite::from_connection(&tx, crate::store::local_owner(&tx)?).create(
+            NewSavedList {
+                slug: "same".into(),
+                name: "Local".into(),
+                description: None,
+                tags: vec![],
+            },
+        )?;
         tx.execute("INSERT INTO principals VALUES(2,'other','Other')", [])?;
         tx.execute("INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at) VALUES(2,'list_other','same','Other','now','now')", [])?;
         assert_eq!(
-            SavedListsRead::from_connection(&tx)
+            SavedListsRead::from_connection(&tx, crate::store::local_owner(&tx)?)
                 .get("same")?
                 .unwrap()
                 .name,
             "Local"
         );
-        assert_eq!(SavedListsRead::from_connection(&tx).list()?.len(), 1);
+        assert_eq!(
+            SavedListsRead::from_connection(&tx, crate::store::local_owner(&tx)?)
+                .list()?
+                .len(),
+            1
+        );
         assert!(tx.execute("INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,'list_duplicate','same','Duplicate','now','now')", []).is_err());
         tx.commit()?;
         Ok(())

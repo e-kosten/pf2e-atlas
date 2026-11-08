@@ -97,7 +97,7 @@ fn changed_generation_rejects_without_mutation_and_saved_receipt_recovers() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&key)?)
         })
@@ -113,7 +113,7 @@ fn changed_generation_rejects_without_mutation_and_saved_receipt_recovers() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&key)?)
         })
@@ -163,7 +163,7 @@ fn unlisted_npc_skill_uses_ability_and_condition_before_roll() {
     assert_eq!(stealth(&initial), 3);
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().add_condition(
+            Ok(session.local_state()?.encounters().add_condition(
                 atlas_local_state::AddEncounterParticipantCondition {
                     scope: Default::default(),
                     extra_action: Default::default(),

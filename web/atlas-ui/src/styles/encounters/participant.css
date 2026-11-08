@@ -71,10 +71,11 @@
   gap: 6px 10px;
 }
 
-.encounter-hp-panel h3 {
-  flex-shrink: 0;
-  font-size: 16px;
+.encounter-reference .encounter-inspector-heading {
   margin: 0;
+  font-size: max(var(--reading-body-size), 1.125rem);
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .encounter-hp-panel__identity,
@@ -87,6 +88,10 @@
 
 .encounter-hp-panel__identity {
   flex-wrap: nowrap;
+}
+
+.encounter-hp-panel__identity > .encounter-inspector-heading {
+  flex-shrink: 0;
 }
 
 .encounter-hp-panel__actions {

@@ -26,6 +26,7 @@ pub struct PreparedPublication<'owner> {
     metadata: PublicationSpool,
     models: Vec<crate::native_values::NativeModelKey>,
     previous_layouts: Vec<Option<crate::native_values::NativeModelKey>>,
+    verified_profiles: Vec<bool>,
     cache_bytes: u64,
     cache_limit: u64,
     rebuild: bool,
@@ -131,6 +132,7 @@ impl<'owner> PreparedPublication<'owner> {
             workspace,
             schema,
             metadata,
+            verified_profiles: vec![false; models.len()],
             models,
             previous_layouts,
             cache_bytes,
@@ -167,6 +169,37 @@ impl<'owner> PreparedPublication<'owner> {
     pub fn temporary_native_bytes(&self) -> Result<u64, IndexError> {
         Ok(BuildFileUsage::of(self.selected_file.as_file())?.file_bytes)
     }
+    /// Load counts from the exact published model at this attempt's expected revision.
+    pub fn verified_native_token_counts(
+        &self,
+        model: &SourceSearchProfileIdentity,
+    ) -> Result<crate::VerifiedNativeTokenCounts, IndexError> {
+        let ordinal = self.model_key(model)?;
+        if self.rebuild || self.schema < crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION {
+            return Ok(crate::VerifiedNativeTokenCounts::default());
+        }
+        let started = std::time::Instant::now();
+        let read = self.workspace.read(self.schema)?;
+        crate::writer::check_expected(read.connection(), &self.metadata)?;
+        let counts =
+            crate::native_token_counts::verify(read.connection(), &self.models[ordinal], true)?;
+        tracing::info!(target: "atlas_build_diagnostic", stage = "native_token_count_verification",
+            profile = %model.profile_id, elapsed_ms = started.elapsed().as_secs_f64() * 1000.,
+            reuse_available = !counts.is_empty(), "Verified published native token counts");
+        Ok(counts)
+    }
+
+    /// Record completion of the source ingest path that checked every selected
+    /// descriptor against its tokenizer or the authenticated published counts.
+    pub fn finish_verified_native_profile(
+        &mut self,
+        model: &SourceSearchProfileIdentity,
+    ) -> Result<(), IndexError> {
+        let ordinal = self.model_key(model)?;
+        self.verified_profiles[ordinal] = true;
+        Ok(())
+    }
+
     pub fn append_semantic(
         &mut self,
         occurrence: crate::SemanticOccurrence,
@@ -371,6 +404,20 @@ impl<'owner> PreparedPublication<'owner> {
             crate::native_values::prune(connection)?;
             crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
             tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,"Completed reference reconciliation");
+            if self.schema >= crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION {
+                let started = std::time::Instant::now();
+                for (ordinal, key) in self.models.iter().enumerate() {
+                    crate::native_token_counts::publish(
+                        connection,
+                        &self.selected,
+                        ordinal,
+                        key,
+                        self.verified_profiles[ordinal],
+                    )?;
+                }
+                tracing::info!(target: "atlas_build_diagnostic", stage = "native_token_count_publication",
+                    elapsed_ms = started.elapsed().as_secs_f64() * 1000., "Published native token-count digests");
+            }
             if self.rebuild {
                 crate::validate_reference(connection)?;
             }

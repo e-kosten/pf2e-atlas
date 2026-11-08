@@ -106,3 +106,30 @@ test("reader links follow prose and badge links retain the badge scale", async (
   expect(await fontSize(traitLink)).toBe(badgeSize);
   expect(badgeSize).toBeLessThan(bodySize);
 });
+
+test("a link at the edge of authored prose has room for its focus outline", async ({
+  page,
+}) => {
+  await page.goto("/records/browser-rules:rule000000000001");
+  const prose = page
+    .locator(".prepared-content")
+    .filter({ hasText: "The lantern flashes" });
+  await prose.getByRole("link", { name: "Off-Guard", exact: true }).press("Tab");
+  const link = prose.getByRole("link", { name: "Lantern Ward", exact: true });
+  await expect(link).toBeFocused();
+  await expect(link).toHaveCSS("outline-style", "solid");
+  expect(
+    await link.evaluate((element) => {
+      const content = element.closest(".prepared-content")!;
+      const { outlineWidth, outlineOffset } = getComputedStyle(element);
+      const leftClearance =
+        element.getBoundingClientRect().left - content.getBoundingClientRect().left;
+      const width = parseFloat(outlineWidth);
+      return (
+        width > 0 &&
+        (getComputedStyle(content).overflowX === "visible" ||
+          leftClearance >= width + parseFloat(outlineOffset))
+      );
+    }),
+  ).toBe(true);
+});

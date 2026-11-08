@@ -140,17 +140,17 @@
   min-height: 36px;
 }
 
-.encounter-roster__initiative-input,
-.encounter-roster__hp {
+.encounter-roster__initiative-input {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 .encounter-roster__hp {
-  display: grid;
   text-align: right;
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .encounter-roster__hp small {

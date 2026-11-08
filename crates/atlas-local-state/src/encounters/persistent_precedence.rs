@@ -12,10 +12,11 @@ pub struct PersistentSourcePrecedence {
 
 pub(super) fn read(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
 ) -> LocalStateResult<Vec<PersistentSourcePrecedence>> {
-    let mut statement = connection.prepare("SELECT episode_id,source_order_json FROM encounter_persistent_precedence WHERE participant_id=(SELECT id FROM encounter_participants WHERE participant_key=?1) ORDER BY episode_id")?;
-    let rows = statement.query_map([participant_key], |row| {
+    let mut statement = connection.prepare("SELECT episode_id,source_order_json FROM encounter_persistent_precedence WHERE participant_id=(SELECT p.id FROM encounter_participants p JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2) ORDER BY episode_id")?;
+    let rows = statement.query_map(params![participant_key, owner_id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
     rows.map(|row| {
@@ -27,10 +28,11 @@ pub(super) fn read(
 
 pub(super) fn read_for_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: &str,
 ) -> LocalStateResult<std::collections::BTreeMap<String, Vec<PersistentSourcePrecedence>>> {
-    let mut statement = connection.prepare("SELECT p.participant_key,r.episode_id,r.source_order_json FROM encounter_participants p JOIN encounter_persistent_precedence r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,r.episode_id")?;
-    let rows = statement.query_map([encounter], |row| {
+    let mut statement = connection.prepare("SELECT p.participant_key,r.episode_id,r.source_order_json FROM encounter_participants p JOIN encounter_persistent_precedence r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY p.participant_key,r.episode_id")?;
+    let rows = statement.query_map(params![encounter, owner_id], |row| {
         Ok((
             row.get::<_, String>(0)?,
             row.get::<_, String>(1)?,
@@ -57,9 +59,11 @@ fn decode(episode_id: String, order: &str) -> LocalStateResult<PersistentSourceP
 
 pub(super) fn write(
     connection: &Connection,
+    owner_id: i64,
+    encounter_key: &str,
     participant_key: &str,
     precedence: &PersistentSourcePrecedence,
 ) -> LocalStateResult<()> {
-    connection.execute("INSERT INTO encounter_persistent_precedence(participant_id,episode_id,source_order_json) SELECT id,?2,?3 FROM encounter_participants WHERE participant_key=?1 ON CONFLICT(participant_id,episode_id) DO UPDATE SET source_order_json=excluded.source_order_json", params![participant_key,precedence.episode_id,serde_json::to_string(&precedence.source_order)?])?;
+    connection.execute("INSERT INTO encounter_persistent_precedence(participant_id,episode_id,source_order_json) SELECT p.id,?2,?3 FROM encounter_participants p JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.encounter_key=?4 AND e.owner_id=?5 ON CONFLICT(participant_id,episode_id) DO UPDATE SET source_order_json=excluded.source_order_json", params![participant_key,precedence.episode_id,serde_json::to_string(&precedence.source_order)?,encounter_key,owner_id])?;
     Ok(())
 }

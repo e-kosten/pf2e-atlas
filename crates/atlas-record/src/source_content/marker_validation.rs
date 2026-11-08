@@ -218,7 +218,18 @@ fn validate_reference_bindings(
     references: &[ContentReferenceOccurrence],
     binding: impl Fn(&ContentReferenceOccurrence) -> String,
 ) -> Result<(), PreparedMarkerError> {
-    let mut markers = reference_markers(&Html::parse_fragment(html))?;
+    check_reference_bindings(
+        reference_markers(&Html::parse_fragment(html))?,
+        references,
+        binding,
+    )
+}
+
+fn check_reference_bindings(
+    mut markers: BTreeMap<usize, (String, Option<String>)>,
+    references: &[ContentReferenceOccurrence],
+    binding: impl Fn(&ContentReferenceOccurrence) -> String,
+) -> Result<(), PreparedMarkerError> {
     let mut seen = BTreeSet::new();
     for reference in references.iter().filter(|r| r.visible) {
         if !seen.insert(reference.ordinal) {
@@ -270,6 +281,27 @@ pub fn validate_prepared_markers(
     html: &str,
     interactions: &[ContentInteraction],
 ) -> Result<(), PreparedMarkerError> {
+    checked_markers(html, interactions).map(drop)
+}
+
+/// Validate prepared record markup and its sidecars without reparsing for reference bindings.
+pub fn validate_prepared_record_content(
+    prepared: &super::PreparedSourceContent,
+) -> Result<(), PreparedMarkerError> {
+    let markers = checked_markers(&prepared.html, &prepared.interactions)?;
+    check_reference_bindings(markers, &prepared.references, |reference| {
+        reference_binding(
+            &prepared.locator,
+            &prepared.authored_markup_sha256,
+            reference,
+        )
+    })
+}
+
+fn checked_markers(
+    html: &str,
+    interactions: &[ContentInteraction],
+) -> Result<BTreeMap<usize, (String, Option<String>)>, PreparedMarkerError> {
     // A prepared cache must already conform to the preparation owner's exact
     // HTML/URL policy. DOM serialization tolerates harmless quote spelling.
     let sanitized = super::preparation::sanitizer().clean(html).to_string();
@@ -283,7 +315,7 @@ pub fn validate_prepared_markers(
     }
     let selector = Selector::parse("[data-atlas-interaction], [data-atlas-interaction-kind]")
         .map_err(|error| PreparedMarkerError(error.to_string()))?;
-    reference_markers(&document)?;
+    let markers = reference_markers(&document)?;
     let images = Selector::parse("img").map_err(|error| PreparedMarkerError(error.to_string()))?;
     if document.select(&images).any(|image| {
         !super::preparation::available_remote_image(image.attr("src").unwrap_or_default())
@@ -328,7 +360,7 @@ pub fn validate_prepared_markers(
             "interaction sidecar has no corresponding marker".into(),
         ));
     }
-    Ok(())
+    Ok(markers)
 }
 
 #[cfg(test)]

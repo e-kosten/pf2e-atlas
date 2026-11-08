@@ -7,8 +7,9 @@ impl EncountersRead<'_> {
             .get_with_participants(encounter_ref)?
             .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
         let connection = self.connection;
-        let id = storage::encounter_id(connection, &snapshot.encounter.encounter_key)?
-            .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
+        let id =
+            storage::encounter_id(connection, self.owner_id, &snapshot.encounter.encounter_key)?
+                .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
         let baselines = rows(
             connection,
             "SELECT b.participant_key,b.payload_json FROM encounter_participant_baselines b

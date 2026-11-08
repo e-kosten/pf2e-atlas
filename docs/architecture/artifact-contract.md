@@ -899,6 +899,21 @@ workspace migrations 18 and 19 provide the additional query columns. The exact
 preceding 6.12.4 model can be replaced from compatible source while preserving
 saved state; its snapshots are never decoded by the new model (ADR0052).
 
+### Published native token counts
+
+Each exact `embedding_models` row can carry a digest of its published
+input hashes and exact tokenizer counts. The digest excludes pending vectors.
+Schema 38 adds the nullable column. A source build earns the digest by checking
+the counts before publishing it in the same transaction as the registry. Older
+workspaces use fresh tokenization until the first successful source publication.
+The migration itself only adds the column.
+
+Ordinary ingest reuses counts from a verified registry snapshot only when the
+current raw input hash and full model identity match. A mismatched digest for
+the model in use stops the build. Explicit index validation checks active
+digests, and explicit index rebuild verifies counts afresh. Maintenance recovery
+retains its reference-data checks without consulting the optimization proof.
+
 ### Native embedding storage
 
 Workspace migration 10 replaces the permanent numerical checkpoint cache, wide

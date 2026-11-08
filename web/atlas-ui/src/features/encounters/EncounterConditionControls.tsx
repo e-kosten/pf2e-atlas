@@ -527,7 +527,7 @@ export function EncounterConditionControls({
         />
       )}
       <div className="encounter-conditions__header">
-        <h3>Conditions</h3>
+        <h3 className="encounter-inspector-heading">Conditions</h3>
         <Tooltip title="Add Condition" trigger={["hover", "focus"]}>
           <Button
             size="small"

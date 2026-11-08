@@ -18,7 +18,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<atlas_app_model::PersistentReviewView> {
         let (snapshot, boundary, round, claims, damage_result, recovery_results) = self
             .with_state(|session| {
-                let store = session.local_state().encounters();
+                let store = session.local_state()?.encounters();
                 let snapshot = store
                     .get_with_participants(encounter_ref)?
                     .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
@@ -189,7 +189,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<PersistentRecoveryResultView> {
         let intent = serde_json::json!({"action": "persistent_recovery", "request": request});
         self.with_write(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             let encounter = store
                 .get(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;

@@ -15,7 +15,7 @@ impl AtlasAppService {
             .with_workspace(
                 &crate::ReadExecutionContext::uncancellable(),
                 move |session| {
-                    let store = session.local_state();
+                    let store = session.local_state()?;
                     let encounter = store
                         .encounters()
                         .get_with_participants(&encounter_ref)?
@@ -231,7 +231,7 @@ impl AtlasAppService {
             )?;
         self.with_write(move |session| {
             session.require_reference_revision(reference_revision)?;
-            let encounters = session.local_state().encounters();
+            let encounters = session.local_state()?.encounters();
             match change {
                 PreparedSpellAction::Marker { spell, expended } => encounters.set_spell_expended(
                     &participant_key,

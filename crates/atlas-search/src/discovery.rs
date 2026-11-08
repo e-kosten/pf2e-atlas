@@ -66,16 +66,16 @@ impl AtlasRetrievalService {
         atlas_index::validate_value_counts(request.field, request.values)?;
         let query = self.predicate(request.context.filter)?;
         self.resolve_search_profile(request.context.search_profile, false)?;
-        if let QueryFacetOutcome::Unavailable { reason } =
-            atlas_index::facet_base_query(request.field, request.clause_id, &query)?
-        {
-            return Ok(QueryFacetOutcome::Unavailable { reason });
-        }
         if request
             .context
             .text
             .is_some_and(|text| !text.trim().is_empty())
         {
+            if let QueryFacetOutcome::Unavailable { reason } =
+                atlas_index::facet_base_query(request.field, request.clause_id, &query)?
+            {
+                return Ok(QueryFacetOutcome::Unavailable { reason });
+            }
             return Ok(QueryFacetOutcome::Unavailable {
                 reason: atlas_domain::FacetUnavailableReason::TextContext,
             });
@@ -106,12 +106,12 @@ impl AtlasRetrievalService {
         let query = self.predicate(context.filter)?;
         self.resolve_search_profile(context.search_profile, false)?;
         // Index owns self-exclusion analysis, including errors in the addressed clause.
-        if let QueryFacetOutcome::Unavailable { reason } =
-            atlas_index::facet_base_query(field, clause, &query)?
-        {
-            return Ok(QueryFacetOutcome::Unavailable { reason });
-        }
         if context.text.is_some_and(|text| !text.trim().is_empty()) {
+            if let QueryFacetOutcome::Unavailable { reason } =
+                atlas_index::facet_base_query(field, clause, &query)?
+            {
+                return Ok(QueryFacetOutcome::Unavailable { reason });
+            }
             return Ok(QueryFacetOutcome::Unavailable {
                 reason: atlas_domain::FacetUnavailableReason::TextContext,
             });

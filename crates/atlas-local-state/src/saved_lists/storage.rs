@@ -11,25 +11,29 @@ use super::model::{
 };
 use crate::{LocalStateError, LocalStateResult};
 
-pub(crate) fn insert_list(connection: &Connection, list: NewSavedList) -> LocalStateResult<String> {
+pub(crate) fn insert_list(
+    connection: &Connection,
+    owner_id: i64,
+    list: NewSavedList,
+) -> LocalStateResult<String> {
     let slug = list.slug;
     let now = now_rfc3339()?;
     for _ in 0..5 {
         let list_key = new_list_key();
         let result = connection.execute(
-            "INSERT INTO saved_lists (list_key, slug, name, description, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
-            params![list_key, slug, list.name, list.description, now],
+            "INSERT INTO saved_lists (list_key, slug, name, description, created_at, updated_at, owner_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)",
+            params![list_key, slug, list.name, list.description, now, owner_id],
         );
         match result {
             Ok(_) => {
-                replace_tags(connection, &list_key, list.tags)?;
+                replace_tags(connection, owner_id, &list_key, list.tags)?;
                 return Ok(list_key);
             }
             Err(rusqlite::Error::SqliteFailure(error, _))
                 if error.code == rusqlite::ErrorCode::ConstraintViolation =>
             {
-                if slug_exists(connection, &slug)? {
+                if slug_exists(connection, owner_id, &slug)? {
                     return Err(LocalStateError::ListAlreadyExists(slug));
                 }
             }
@@ -39,31 +43,35 @@ pub(crate) fn insert_list(connection: &Connection, list: NewSavedList) -> LocalS
     Err(LocalStateError::ListKeyAllocationFailed)
 }
 
-pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> {
+pub(crate) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<Vec<SavedList>> {
     let mut statement = connection.prepare(
         "SELECT list.id, list.list_key, list.slug, list.name, list.description,
                 COUNT(item.record_key), list.created_at, list.updated_at, list.revision
          FROM saved_lists list
          LEFT JOIN saved_list_items item ON item.list_id = list.id
-         WHERE list.owner_id = 1
+         WHERE list.owner_id = ?1
          GROUP BY list.id
          ORDER BY list.updated_at DESC, list.slug ASC",
     )?;
-    let rows = statement.query_map([], raw_saved_list_from_row)?;
+    let rows = statement.query_map([owner_id], raw_saved_list_from_row)?;
     rows.map(|row| saved_list_with_tags(connection, row?))
         .collect::<LocalStateResult<Vec<_>>>()
 }
 
-pub(crate) fn get(connection: &Connection, list_ref: &str) -> LocalStateResult<Option<SavedList>> {
+pub(crate) fn get(
+    connection: &Connection,
+    owner_id: i64,
+    list_ref: &str,
+) -> LocalStateResult<Option<SavedList>> {
     let raw = connection
         .query_row(
             "SELECT list.id, list.list_key, list.slug, list.name, list.description,
                     COUNT(item.record_key), list.created_at, list.updated_at, list.revision
              FROM saved_lists list
              LEFT JOIN saved_list_items item ON item.list_id = list.id
-             WHERE list.owner_id = 1 AND (list.list_key = ?1 OR list.slug = ?1)
+             WHERE list.owner_id = ?2 AND (list.list_key = ?1 OR list.slug = ?1)
              GROUP BY list.id",
-            params![list_ref],
+            params![list_ref, owner_id],
             raw_saved_list_from_row,
         )
         .optional()?;
@@ -73,9 +81,10 @@ pub(crate) fn get(connection: &Connection, list_ref: &str) -> LocalStateResult<O
 
 pub(crate) fn get_with_items(
     connection: &Connection,
+    owner_id: i64,
     list_ref: &str,
 ) -> LocalStateResult<Option<SavedListWithItems>> {
-    let Some(list) = get(connection, list_ref)? else {
+    let Some(list) = get(connection, owner_id, list_ref)? else {
         return Ok(None);
     };
     let mut statement = connection.prepare(
@@ -84,28 +93,33 @@ pub(crate) fn get_with_items(
                 item.added_at, item.updated_at
          FROM saved_list_items item
          JOIN saved_lists list ON list.id = item.list_id
-         WHERE list.list_key = ?1
+         WHERE list.list_key = ?1 AND list.owner_id = ?2
          ORDER BY item.position ASC, item.record_key ASC",
     )?;
-    let rows = statement.query_map(params![list.list_key], saved_list_item_from_row)?;
+    let rows = statement.query_map(params![list.list_key, owner_id], saved_list_item_from_row)?;
     let items = rows.collect::<Result<Vec<_>, _>>()?;
     Ok(Some(SavedListWithItems { list, items }))
 }
 
-pub(crate) fn delete(connection: &Connection, list_ref: &str) -> LocalStateResult<bool> {
+pub(crate) fn delete(
+    connection: &Connection,
+    owner_id: i64,
+    list_ref: &str,
+) -> LocalStateResult<bool> {
     let removed = connection.execute(
-        "DELETE FROM saved_lists WHERE owner_id = 1 AND (list_key = ?1 OR slug = ?1)",
-        params![list_ref],
+        "DELETE FROM saved_lists WHERE owner_id = ?2 AND (list_key = ?1 OR slug = ?1)",
+        params![list_ref, owner_id],
     )?;
     Ok(removed > 0)
 }
 
 pub(crate) fn replace_items(
     connection: &Connection,
+    owner_id: i64,
     list_ref: &str,
     items: Vec<ImportSavedListItem>,
 ) -> LocalStateResult<()> {
-    let Some(list_id) = list_id(connection, list_ref)? else {
+    let Some(list_id) = list_id(connection, owner_id, list_ref)? else {
         return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     connection.execute(
@@ -122,19 +136,27 @@ pub(crate) fn replace_items(
 
 pub(crate) fn update_list(
     connection: &Connection,
+    owner_id: i64,
     list: UpdateSavedList,
 ) -> LocalStateResult<bool> {
     let now = now_rfc3339()?;
     let result = connection.execute(
         "UPDATE saved_lists
          SET revision = revision + 1, slug = ?1, name = ?2, description = ?3, updated_at = ?4
-         WHERE list_key = ?5",
-        params![list.slug, list.name, list.description, now, list.list_key],
+         WHERE list_key = ?5 AND owner_id = ?6",
+        params![
+            list.slug,
+            list.name,
+            list.description,
+            now,
+            list.list_key,
+            owner_id
+        ],
     );
     match result {
         Ok(updated) => {
             if updated > 0 {
-                replace_tags(connection, &list.list_key, list.tags)?;
+                replace_tags(connection, owner_id, &list.list_key, list.tags)?;
             }
             Ok(updated > 0)
         }
@@ -149,10 +171,11 @@ pub(crate) fn update_list(
 
 pub(crate) fn add_item(
     connection: &Connection,
+    owner_id: i64,
     list_ref: &str,
     item: NewSavedListItem,
 ) -> LocalStateResult<AddSavedListItemOutcome> {
-    let Some(list_id) = list_id(connection, list_ref)? else {
+    let Some(list_id) = list_id(connection, owner_id, list_ref)? else {
         return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     let existing: Option<i64> = connection
@@ -223,10 +246,11 @@ fn insert_imported_items(
 
 pub(crate) fn remove_item(
     connection: &Connection,
+    owner_id: i64,
     list_ref: &str,
     record_key: &str,
 ) -> LocalStateResult<bool> {
-    let Some(list_id) = list_id(connection, list_ref)? else {
+    let Some(list_id) = list_id(connection, owner_id, list_ref)? else {
         return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     let removed = connection.execute(
@@ -245,10 +269,11 @@ pub(crate) fn remove_item(
 
 pub(crate) fn reorder_item(
     connection: &Connection,
+    owner_id: i64,
     list_ref: &str,
     reorder: ReorderSavedListItem,
 ) -> LocalStateResult<bool> {
-    let Some(list_id) = list_id(connection, list_ref)? else {
+    let Some(list_id) = list_id(connection, owner_id, list_ref)? else {
         return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     let mut statement = connection.prepare(
@@ -298,11 +323,12 @@ pub(crate) fn reorder_item(
 
 pub(crate) fn update_item_note(
     connection: &Connection,
+    owner_id: i64,
     list_ref: &str,
     record_key: &str,
     note: Option<&str>,
 ) -> LocalStateResult<bool> {
-    let Some(list_id) = list_id(connection, list_ref)? else {
+    let Some(list_id) = list_id(connection, owner_id, list_ref)? else {
         return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     let changed = connection.execute(
@@ -390,11 +416,15 @@ fn saved_list_item_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SavedLi
     })
 }
 
-fn list_id(connection: &Connection, list_ref: &str) -> rusqlite::Result<Option<i64>> {
+fn list_id(
+    connection: &Connection,
+    owner_id: i64,
+    list_ref: &str,
+) -> rusqlite::Result<Option<i64>> {
     connection
         .query_row(
-            "SELECT id FROM saved_lists WHERE owner_id = 1 AND (list_key = ?1 OR slug = ?1)",
-            params![list_ref],
+            "SELECT id FROM saved_lists WHERE owner_id = ?2 AND (list_key = ?1 OR slug = ?1)",
+            params![list_ref, owner_id],
             |row| row.get(0),
         )
         .optional()
@@ -411,10 +441,11 @@ fn tags_for_list_id(connection: &Connection, list_id: i64) -> rusqlite::Result<V
 
 fn replace_tags(
     connection: &Connection,
+    owner_id: i64,
     list_ref: &str,
     tags: Vec<String>,
 ) -> LocalStateResult<()> {
-    let Some(list_id) = list_id(connection, list_ref)? else {
+    let Some(list_id) = list_id(connection, owner_id, list_ref)? else {
         return Err(LocalStateError::ListNotFound(list_ref.to_string()));
     };
     connection.execute(
@@ -431,11 +462,15 @@ fn replace_tags(
     Ok(())
 }
 
-pub(super) fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
+pub(super) fn slug_exists(
+    connection: &Connection,
+    owner_id: i64,
+    slug: &str,
+) -> rusqlite::Result<bool> {
     connection
         .query_row(
-            "SELECT 1 FROM saved_lists WHERE owner_id = 1 AND slug = ?1",
-            params![slug],
+            "SELECT 1 FROM saved_lists WHERE owner_id = ?2 AND slug = ?1",
+            params![slug, owner_id],
             |_row| Ok(()),
         )
         .optional()

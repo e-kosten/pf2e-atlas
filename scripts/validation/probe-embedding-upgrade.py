@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
 import shutil
@@ -12,7 +13,6 @@ import sqlite3
 import subprocess
 import tarfile
 from contextlib import closing
-from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
 PROFILES = ("bge-base", "embeddinggemma")
@@ -401,11 +401,16 @@ def pinned_checks(current, previous):
 def check_pins(candidate, cache, root, base, repository, migrator=None):
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository):
         raise RuntimeError("Expected a GitHub repository in owner/name format")
+    download_env = os.environ.copy()
+    # Keep the CI credential out of candidate and migrator subprocesses.
+    os.environ.pop("GH_TOKEN", None)
     for ordinal, ((tag, asset, digest), profiles) in enumerate(pinned_checks(*read_pins(base)).items()):
-        url = f"https://github.com/{repository}/releases/download/{tag}/{asset}"
         archive = root / f"baseline-{ordinal}.tar.gz"
-        with urlopen(url, timeout=60) as response, archive.open("xb") as output:
-            shutil.copyfileobj(response, output)
+        subprocess.run(
+            ["gh", "release", "download", tag, "--repo", repository,
+             "--pattern", asset, "--output", str(archive)],
+            env=download_env, check=True, timeout=120,
+        )
         evidence = root / f"bundle-{ordinal}"
         evidence.mkdir()
         manifest = extract_bundle(archive, digest, evidence)
@@ -424,7 +429,7 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--baseline", type=Path)
     source.add_argument("--bundle", type=Path)
-    source.add_argument("--pins", action="store_true", help="Download the pinned GitHub release fixtures")
+    source.add_argument("--pins", action="store_true", help="Download the pinned release fixtures with authenticated gh")
     parser.add_argument("--base-ref")
     parser.add_argument("--repository")
     parser.add_argument("--sha256")

@@ -80,7 +80,7 @@ export function EncounterHpControls({
     <div className="encounter-hp-panel">
       <div className="encounter-hp-panel__header">
         <div className="encounter-hp-panel__identity">
-          <h3>HP</h3>
+          <h3 className="encounter-inspector-heading">HP</h3>
           <span className="encounter-hp-panel__values" aria-label="HP summary">
             <EncounterHpValue
               label="Current HP"

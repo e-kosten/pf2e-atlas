@@ -122,6 +122,7 @@ Read the applicable guide when the task reaches its scope:
 | Prepare nightlies, releases, installers or packaging | [Releases](docs/development/releases.md) |
 | Change documentation or contributor/agent instructions | [Documentation ownership](docs/development/documentation.md) |
 | Change module structure or perform a refactor | [Code guidelines](docs/development/code-guidelines.md) and [architecture overview](docs/architecture/overview.md) |
+| Change saved lists, parties, encounters, or reads derived from them | [Saved-state ownership](docs/architecture/decisions/0051-persistent-workspace.md#saved-state-ownership) |
 | Change UI controls or projected user copy, including Rust text | [Product guidelines](docs/product-guidelines.md) and [frontend guide](web/atlas-ui/docs/frontend-guidelines.md) |
 | Add, move or change a CLI command | [CLI command design](docs/product-guidelines.md#cli-command-design) |
 

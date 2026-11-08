@@ -1454,6 +1454,20 @@ fn inaccessible_workspace_lock_does_not_report_setup_required() {
 #[test]
 fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
     let f = Fixture::new();
+    let workspace = atlas_runtime::initialize_workspace(&f.index).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute_batch(
+            "UPDATE principals SET id = 7 WHERE principal_key = 'local';
+         INSERT INTO principals VALUES (1, 'other', 'Other');
+         INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at)
+         VALUES (1,'foreign-list','restricted','Other list','now','now');",
+        )
+        .unwrap();
+    write.commit().unwrap();
     f.data(&[
         "lists", "create", "Research", "--slug", "research", "--json",
     ]);
@@ -1474,6 +1488,7 @@ fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
     };
     let path = f.index.to_str().unwrap();
     assert!(complete(&["lists", "show", "--index", path, "res"], "5").contains("research"));
+    assert!(!complete(&["lists", "show", "--index", path, "res"], "5").contains("restricted"));
     let keys = complete(
         &[
             "lists", "add", "research", "--index", path, "--record", "actions:",

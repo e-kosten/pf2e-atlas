@@ -71,7 +71,9 @@ it("keeps an ungranted reaction visible before the first turn and tracks an expl
       onChange={onChange}
     />,
   );
-  expect(screen.getByText("At turn start")).toBeVisible();
+  const turn = within(screen.getByRole("region", { name: "Turn" }));
+  expect(turn.getByRole("heading", { name: "Turn", level: 3 })).toBeVisible();
+  expect(turn.getByText("At turn start")).toBeVisible();
   expect(onChange).not.toHaveBeenCalled();
   const grant = screen.getByRole("button", { name: "Allow reaction" });
   expect(grant).toHaveTextContent("Allow");
@@ -645,3 +647,57 @@ it("does not reconstruct an older turn's missing calculation from today's condit
   );
   expect(screen.queryByRole("region", { name: "Actions calculation" })).toBeNull();
 });
+
+it.each([
+  { name: "full", stunned: 2, slowed: 1, additionalSlowedLoss: 0 },
+  { name: "partial", stunned: 1, slowed: 2, additionalSlowedLoss: 1 },
+])(
+  "shows each condition once in the forecast for $name Stunned/Slowed overlap",
+  async ({ stunned, slowed, additionalSlowedLoss }) => {
+    const slowedRow = {
+      source: "slowed",
+      label: `Slowed ${slowed}`,
+      value: -slowed,
+      reason: additionalSlowedLoss
+        ? "1 action already lost to Stunned."
+        : "Overridden by Stunned",
+    };
+    const initial = value();
+    const forecast = {
+      ...initial.forecast,
+      adjusted_value: 2,
+      adjustments: [
+        { source: "quickened", label: "Quickened", value: 1 },
+        { source: "stunned", label: `Stunned ${stunned}`, value: -stunned },
+        ...(additionalSlowedLoss
+          ? [{ ...slowedRow, value: -additionalSlowedLoss }]
+          : []),
+      ],
+      suppressed_adjustments: additionalSlowedLoss ? [] : [slowedRow],
+    };
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <EncounterTurnResources
+          value={{ ...initial, regular_total: null, regular_remaining: null, forecast }}
+          disabled={false}
+          isCurrent={false}
+        />
+      </ConfigProvider>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Show explanation for Actions:/ }),
+    );
+    const calculation = within(
+      await screen.findByRole("region", { name: "Actions calculation" }),
+    );
+    await waitFor(() => expect(calculation.getByRole("table")).toBeVisible());
+    expect(calculation.getAllByText(`Slowed ${slowed}`)).toHaveLength(1);
+    expect(
+      calculation.getByRole("row", { name: new RegExp(`Slowed ${slowed}`) }),
+    ).toHaveTextContent(slowedRow.reason);
+    expect(
+      calculation.getByRole("row", { name: `Stunned ${stunned} -${stunned}` }),
+    ).toBeVisible();
+    expect(calculation.getByRole("row", { name: "Total 2" })).toBeVisible();
+  },
+);

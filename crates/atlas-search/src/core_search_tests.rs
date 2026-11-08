@@ -919,3 +919,113 @@ fn core_lexical_matching_preserves_all_relationship_roots_before_sorting_and_pag
         );
     }
 }
+
+#[test]
+fn facet_clause_errors_and_unavailability_preserve_precedence_with_text() {
+    use atlas_domain::{FacetUnavailableReason, QueryFacetOutcome, QueryLiteral};
+
+    let (mut service, _artifact) = open_input_fixture(fixture()).unwrap();
+    let filter = serde_json::from_value(json!({
+        "kind": "any_of",
+        "children": [
+            {"clause_id": "target", "kind": "set_match", "field": "traits", "op": "includes", "values": ["fire"]},
+            {"kind": "compare", "field": "level", "op": "gte", "value": 2}
+        ]
+    })).unwrap();
+    let code = |error: SearchError| error.query_error.unwrap().code;
+    let values = [QueryLiteral::String("fire".into())];
+
+    for text in [None, Some("  "), Some("Fireball")] {
+        let context = FilterDiscoveryContext {
+            content_scope: SearchContentScope::All,
+            search_profile: None,
+            text,
+            scope: RecordScope::All,
+            filter: Some(&filter),
+        };
+        let counts = DiscoverFilterCountsRequest {
+            field: "traits",
+            clause_id: Some("missing"),
+            context,
+        };
+        let mut options = DiscoverFilterValuesRequest {
+            field: "traits",
+            clause_id: Some("missing"),
+            context,
+            only_matching: false,
+            text: Some("fire"),
+            offset: 0,
+            limit: 10,
+        };
+        let mut value_counts = DiscoverFilterValueCountsRequest {
+            field: "traits",
+            clause_id: Some("missing"),
+            context,
+            values: &values,
+        };
+        assert_eq!(
+            code(service.discover_filter_counts(counts).unwrap_err()),
+            "clause_id"
+        );
+        assert_eq!(
+            code(
+                service
+                    .discover_filter_value_counts(DiscoverFilterValueCountsRequest {
+                        values: &[QueryLiteral::Number(1.into())],
+                        ..value_counts
+                    })
+                    .unwrap_err()
+            ),
+            "literal_type"
+        );
+        assert_eq!(
+            code(
+                service
+                    .discover_filter_value_counts(DiscoverFilterValueCountsRequest {
+                        ..value_counts
+                    })
+                    .unwrap_err()
+            ),
+            "clause_id"
+        );
+        assert_eq!(
+            code(
+                service
+                    .discover_filter_values(DiscoverFilterValuesRequest {
+                        limit: 0,
+                        ..options
+                    })
+                    .unwrap_err()
+            ),
+            "discovery_limit"
+        );
+        assert_eq!(
+            code(
+                service
+                    .discover_filter_values(DiscoverFilterValuesRequest { ..options })
+                    .unwrap_err()
+            ),
+            "clause_id"
+        );
+
+        value_counts.clause_id = Some("target");
+        assert_eq!(
+            service.discover_filter_value_counts(value_counts).unwrap(),
+            QueryFacetOutcome::Unavailable {
+                reason: FacetUnavailableReason::NonConjunctiveContext
+            }
+        );
+
+        options.clause_id = None;
+        let result = service.discover_filter_values(options).unwrap();
+        match text {
+            Some("Fireball") => assert_eq!(
+                result,
+                QueryFacetOutcome::Unavailable {
+                    reason: FacetUnavailableReason::TextContext,
+                }
+            ),
+            _ => assert!(matches!(result, QueryFacetOutcome::Available { .. })),
+        }
+    }
+}

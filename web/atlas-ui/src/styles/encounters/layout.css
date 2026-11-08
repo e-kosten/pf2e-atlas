@@ -80,6 +80,18 @@
   overflow-wrap: anywhere;
 }
 
+.encounter-detail-view .workspace-pane--filter .pane-header > span {
+  font-size: 0.875rem;
+}
+
+.encounter-detail-view .workspace-pane--results {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.encounter-detail-view .workspace-pane--results > .pane-header {
+  display: none;
+}
+
 .encounter-pane {
   background: var(--panel);
   min-height: 100%;

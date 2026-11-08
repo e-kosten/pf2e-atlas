@@ -22,7 +22,8 @@ fn historical(input: &IndexBuildInput) -> (tempfile::TempDir, PathBuf, Workspace
     drop(maintenance);
     drop(owner);
     let write = workspace.write(26).unwrap();
-    atlas_local_state::LocalStateWrite::new(&write)
+    atlas_local_state::LocalStateWrite::for_local(&write)
+        .unwrap()
         .saved_lists()
         .create(atlas_local_state::NewSavedList {
             slug: "canonical-kept".into(),
@@ -85,7 +86,7 @@ fn numerical(c: &Connection, _: &IndexBuildInput) -> String {
         ),
         (
             "embedding_models",
-            "SELECT * FROM embedding_models ORDER BY model_id",
+            "SELECT model_id,identity_json FROM embedding_models ORDER BY model_id",
         ),
         (
             "embedding_inputs",

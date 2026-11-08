@@ -9,6 +9,8 @@ pub enum IndexError {
     Unsupported(String),
     #[error("artifact invalid: {0}; rebuild with atlas index build")]
     Invalid(String),
+    #[error("artifact invalid: {0}; repair with atlas index rebuild")]
+    InvalidNativeTokenCountDigest(String),
     #[error("artifact operation failed: {0}")]
     Operation(String),
     #[error(transparent)]

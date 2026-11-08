@@ -25,12 +25,12 @@ fn restore_reserves_deleted_condition_ids_and_preserves_creation_baseline()
          SELECT id,?1,'deleted','slot',?2 FROM encounters WHERE slug='test'",
         params![participant.participant_key, deleted],
     )?;
-    let mut document = EncountersRead::from_connection(&source_db).export_document("test")?;
+    let mut document = EncountersRead::from_connection(&source_db, 1).export_document("test")?;
     let bytes = document.encode()?;
     let target = TestStore::open(temp_path("import-condition-history"))?;
     let mut db = target.connection()?;
     let tx = db.transaction()?;
-    let writer = EncountersWrite::from_connection(&tx);
+    let writer = EncountersWrite::from_connection(&tx, 1);
     let imported = writer.import_document(EncounterDocument::read(bytes.as_slice())?, None)?;
     let restored = writer
         .get_with_participants(&imported.encounter_key)?
@@ -74,7 +74,7 @@ fn import_failure_leaves_no_identity_or_encounter_and_can_be_retried() -> crate:
         .encounters()
         .add_participant("test", creature("Goblin", None, 24))?;
     let source_db = source.connection()?;
-    let bytes = EncountersRead::from_connection(&source_db)
+    let bytes = EncountersRead::from_connection(&source_db, 1)
         .export_document("test")?
         .encode()?;
     let target = TestStore::open(temp_path("import-rollback"))?;
@@ -84,7 +84,7 @@ fn import_failure_leaves_no_identity_or_encounter_and_can_be_retried() -> crate:
         "CREATE TRIGGER reject_baseline BEFORE INSERT ON encounter_participant_baselines
         BEGIN SELECT RAISE(ABORT, 'injected portability failure'); END;",
     )?;
-    let writer = EncountersWrite::from_connection(&tx);
+    let writer = EncountersWrite::from_connection(&tx, 1);
     assert!(
         writer
             .import_document(EncounterDocument::read(bytes.as_slice())?, None)
@@ -110,7 +110,7 @@ fn rejects_out_of_range_order_before_creating_a_copy() -> crate::LocalStateResul
         .add_participant("test", creature("Goblin", Some(10), 24))?;
     let mut db = source.connection()?;
     let tx = db.transaction()?;
-    let writer = EncountersWrite::from_connection(&tx);
+    let writer = EncountersWrite::from_connection(&tx, 1);
     let bytes = writer.export_document("test")?.encode()?;
     let mut json: serde_json::Value = serde_json::from_slice(&bytes)?;
     json["snapshot"]["participants"][0]["initiative_order"] = i64::MAX.into();
@@ -199,7 +199,7 @@ fn copy_remaps_pending_decisions_and_preserves_source_bound_receipts() -> crate:
     )?;
     let mut db = source.connection()?;
     let tx = db.transaction()?;
-    let writer = EncountersWrite::from_connection(&tx);
+    let writer = EncountersWrite::from_connection(&tx, 1);
     let bytes = writer.export_document(key)?.encode()?;
     let copy = writer.import_document(
         EncounterDocument::read(bytes.as_slice())?,
