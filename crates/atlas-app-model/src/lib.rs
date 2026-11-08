@@ -42,7 +42,7 @@ pub use persistent_damage::{
     PersistentDamageInput, PersistentDamageOutcomeView, PersistentDamageProtectionView,
     PersistentDamageResolutionView, PersistentDamageResultView, PersistentDraftContext,
     PersistentRecoveryDraft, PersistentRecoveryInput, PreparePersistentDamageRequest,
-    PreparedPersistentDamageView, PreparedPersistentRecoveryInput,
+    PreparedPersistentDamageDraft, PreparedPersistentDamageView, PreparedPersistentRecoveryInput,
 };
 pub use persistent_damage::{
     PersistentDamageGroupView, PersistentDamageSourceView, PersistentEpisodeReviewView,

@@ -1534,7 +1534,7 @@ it("normalizes prepared damage and recovery without changing their recorded iden
     },
   };
   respond({
-    draft_context: context,
+    damage_draft: null,
     recovery_draft: {
       context,
       source_condition_id: 9,
@@ -1596,7 +1596,7 @@ it("normalizes prepared damage and recovery without changing their recorded iden
     amount: 4,
     protection: { weakness: 2, resistance: 3 },
   });
-  expect(prepared.draft_context.round_number).toBe(2);
+  expect(prepared.damage_draft).toBeNull();
   expect(prepared.recovery_draft).toMatchObject({
     context: { round_number: 2 },
     source_condition_id: 9,

@@ -492,11 +492,15 @@ export function EncounterPersistentDamageBatch({
                                 loading={rollPending}
                                 aria-label={`Roll ${label} damage`}
                                 onClick={async () => {
-                                  let completed:
-                                    PreparedPersistentDamageView | undefined;
+                                  let issued:
+                                    | {
+                                        draft: PersistentDamageDraft;
+                                        group: PersistentDamageOutcomeView;
+                                      }
+                                    | undefined;
                                   await damageRoll.run(async () => {
                                     setRollingEpisode(group.episode_id);
-                                    completed = await prepare(
+                                    const prepared = await prepare(
                                       `damage:${group.episode_id}`,
                                       [
                                         ...groups,
@@ -506,23 +510,26 @@ export function EncounterPersistentDamageBatch({
                                         },
                                       ],
                                     );
-                                    return completed;
+                                    const entry = prepared.damage_draft;
+                                    const outcome = prepared.damage.groups.find(
+                                      (g) => g.episode_id === group.episode_id,
+                                    );
+                                    if (
+                                      entry?.episode_id !== group.episode_id ||
+                                      !outcome?.roll
+                                    )
+                                      throw new Error(
+                                        "Could not confirm the prepared damage roll.",
+                                      );
+                                    issued = { draft: entry.draft, group: outcome };
+                                    return prepared;
                                   });
-                                  if (!completed) return;
-                                  const damage = completed.damage;
-                                  const outcome = damage.groups.find(
-                                    (g) => g.episode_id === group.episode_id,
-                                  );
-                                  if (!outcome?.roll) return;
-                                  const draft: PersistentDamageDraft = {
-                                    context: completed.draft_context,
-                                    source_condition_id: outcome.source_condition_id,
-                                    roll: outcome.roll,
-                                  };
-                                  setRolls((previous) => ({
-                                    ...previous,
-                                    [group.episode_id]: { draft, group: outcome },
-                                  }));
+                                  const roll = issued;
+                                  if (roll)
+                                    setRolls((previous) => ({
+                                      ...previous,
+                                      [group.episode_id]: roll,
+                                    }));
                                 }}
                               >
                                 Roll

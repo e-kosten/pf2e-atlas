@@ -139,9 +139,18 @@ pub struct PreparedPersistentDamageView {
     pub complete: bool,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub recovery: Option<PersistentRecoveryResultView>,
-    pub draft_context: PersistentDraftContext,
+    /// Issued only for the newly rolled damage in this preparation.
+    #[cfg_attr(feature = "openapi", schema(required))]
+    pub damage_draft: Option<PreparedPersistentDamageDraft>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub recovery_draft: Option<PersistentRecoveryDraft>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PreparedPersistentDamageDraft {
+    pub episode_id: String,
+    pub draft: PersistentDamageDraft,
 }
 
 /// The turn and participant reviewed by the GM before submitting browser-held rolls.

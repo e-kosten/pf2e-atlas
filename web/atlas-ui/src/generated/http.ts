@@ -1311,7 +1311,7 @@ export interface RollOutcome {
   total: number;
 }
 
-export interface PersistentDamageDraft {
+export interface PersistentDamageDraftInputSchema {
   context: PersistentDraftContextInputSchema;
   roll: RollOutcome;
   source_condition_id: number;
@@ -1323,7 +1323,7 @@ export type PersistentDamageInput = {
   amount: number;
   kind: 'table_result';
 } | {
-  draft: PersistentDamageDraft;
+  draft: PersistentDamageDraftInputSchema;
   kind: 'prepared';
 };
 
@@ -4376,6 +4376,27 @@ export interface PendingHpLifecycleView {
   unavailable_reason?: string;
 }
 
+/**
+ * The turn and participant reviewed by the GM before submitting browser-held rolls.
+ */
+export interface PersistentDraftContext {
+  /** @nullable */
+  artifact_generation: string | null;
+  /** @nullable */
+  boundary_key: string | null;
+  encounter_key: string;
+  participant_key: string;
+  /** @nullable */
+  record_key: string | null;
+  round_number: number;
+}
+
+export interface PersistentDamageDraft {
+  context: PersistentDraftContext;
+  roll: RollOutcome;
+  source_condition_id: number;
+}
+
 export interface PersistentDamageProtectionView {
   immune: boolean;
   resistance: number;
@@ -4406,21 +4427,6 @@ export interface PersistentDamageResultView {
   hardness_absorbed: number;
   request_id: string;
   total: number;
-}
-
-/**
- * The turn and participant reviewed by the GM before submitting browser-held rolls.
- */
-export interface PersistentDraftContext {
-  /** @nullable */
-  artifact_generation: string | null;
-  /** @nullable */
-  boundary_key: string | null;
-  encounter_key: string;
-  participant_key: string;
-  /** @nullable */
-  record_key: string | null;
-  round_number: number;
 }
 
 export interface PersistentEpisodeReviewView {
@@ -4501,10 +4507,15 @@ export interface PreparePersistentDamageRequest {
   request_id: string;
 }
 
+export interface PreparedPersistentDamageDraft {
+  draft: PersistentDamageDraft;
+  episode_id: string;
+}
+
 export interface PreparedPersistentDamageView {
   complete: boolean;
   damage: PersistentDamageResultView;
-  draft_context: PersistentDraftContext;
+  damage_draft: PreparedPersistentDamageDraft | null;
   recovery: PersistentRecoveryResultView | null;
   recovery_draft: PersistentRecoveryDraft | null;
 }

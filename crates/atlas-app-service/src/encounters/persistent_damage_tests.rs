@@ -625,18 +625,18 @@ fn damage_draft(
     preparation: &PreparedPersistentDamageView,
     episode_id: &str,
 ) -> PersistentDamageInput {
+    let entry = preparation.damage_draft.as_ref().unwrap();
+    assert_eq!(entry.episode_id, episode_id);
     let outcome = preparation
         .damage
         .groups
         .iter()
         .find(|group| group.episode_id == episode_id)
         .unwrap();
+    assert_eq!(entry.draft.source_condition_id, outcome.source_condition_id);
+    assert_eq!(Some(&entry.draft.roll), outcome.roll.as_ref());
     PersistentDamageInput::Prepared {
-        draft: PersistentDamageDraft {
-            context: preparation.draft_context.clone(),
-            source_condition_id: outcome.source_condition_id,
-            roll: outcome.roll.clone().unwrap(),
-        },
+        draft: entry.draft.clone(),
     }
 }
 
@@ -797,14 +797,9 @@ fn prepared_damage_expires_across_reference_generations_with_the_same_formula() 
             ),
         )
         .unwrap();
-    assert_eq!(
-        rolled.draft_context.artifact_generation,
-        apply.artifact_generation
-    );
-    assert_eq!(
-        rolled.draft_context.record_key,
-        before.participants[0].record_key
-    );
+    let draft_context = &rolled.damage_draft.as_ref().unwrap().draft.context;
+    assert_eq!(draft_context.artifact_generation, apply.artifact_generation);
+    assert_eq!(draft_context.record_key, before.participants[0].record_key);
 
     let workspace = atlas_runtime::initialize_workspace(f.worker.workspace_path()).unwrap();
     let write = workspace
@@ -819,10 +814,7 @@ fn prepared_damage_expires_across_reference_generations_with_the_same_formula() 
         .unwrap();
     write.commit().unwrap();
     apply.artifact_generation = f.worker.encounter(&key).unwrap().artifact_generation;
-    assert_ne!(
-        rolled.draft_context.artifact_generation,
-        apply.artifact_generation
-    );
+    assert_ne!(draft_context.artifact_generation, apply.artifact_generation);
     let stale = damage_draft(&rolled, &apply.groups[0].episode_id);
     let mut stale_preview = apply.groups[0].clone();
     stale_preview.damage = stale.clone();
@@ -1804,6 +1796,7 @@ fn prepared_recovery_keeps_damage_due_and_commits_all_changes_once() {
         .unwrap();
     assert!(!result.complete);
     assert_eq!(result.damage.total, 4);
+    assert!(result.damage_draft.is_none());
     assert!(result.recovery.as_ref().unwrap().success);
     assert_eq!(
         snapshot(&f, &key),
@@ -1963,6 +1956,30 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
             damage: damage_draft(&result, episode),
         });
     }
+    let carried = PreparePersistentDamageRequest {
+        request_id: "preview-carried-rolls".into(),
+        expected_encounter_revision: before.encounter.revision,
+        participant_key: actor.participant_key.clone(),
+        boundary_key: None,
+        artifact_generation: generation.clone(),
+        groups: groups.clone(),
+        recovery: None,
+    };
+    let preview = f
+        .worker
+        .prepare_persistent_damage(&key, carried.clone())
+        .unwrap();
+    assert!(preview.complete);
+    assert_eq!(preview.damage.total, 12);
+    assert!(preview.damage_draft.is_none());
+    let mut wrong_episode = carried;
+    let (first, rest) = wrong_episode.groups.split_at_mut(1);
+    std::mem::swap(&mut first[0].damage, &mut rest[0].damage);
+    assert!(
+        f.worker
+            .prepare_persistent_damage(&key, wrong_episode)
+            .is_err()
+    );
     assert_eq!(snapshot(&f, &key), before);
     let review = f
         .worker
@@ -1980,6 +1997,15 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
         recoveries: vec![],
         context: Default::default(),
     };
+    let mut wrong_episode = request.clone();
+    let (first, rest) = wrong_episode.groups.split_at_mut(1);
+    std::mem::swap(&mut first[0].damage, &mut rest[0].damage);
+    assert!(
+        f.worker
+            .apply_persistent_damage(&key, wrong_episode)
+            .is_err()
+    );
+    assert_eq!(snapshot(&f, &key), before);
     for change in [
         |draft: &mut PersistentDamageDraft| draft.context.participant_key = "another actor".into(),
         |draft: &mut PersistentDamageDraft| draft.context.round_number += 1,

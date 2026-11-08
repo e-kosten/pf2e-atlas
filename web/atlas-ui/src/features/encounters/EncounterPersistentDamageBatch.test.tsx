@@ -22,6 +22,8 @@ const fireRoll = {
     total: 5,
   },
 };
+const fireDraft = { context: draftContext, source_condition_id: 7, roll: fireRoll };
+const issuedFireDraft = { episode_id: "fire", draft: fireDraft };
 const api = vi.hoisted(() => ({ prepareEncounterPersistentDamage: vi.fn() }));
 vi.mock("../../api/atlasApi", () => api);
 afterEach(() => vi.restoreAllMocks());
@@ -39,7 +41,7 @@ beforeEach(() => {
   api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
     complete: request.groups.length === 2,
     recovery: null,
-    draft_context: draftContext,
+    damage_draft: null,
     recovery_draft: null,
     damage: {
       encounter_key: "encounter",
@@ -473,7 +475,11 @@ it("shows immunity before damage and retains the recorded reason when reference 
   api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
     complete: true,
     recovery: null,
-    draft_context: draftContext,
+    damage_draft: request.groups.some(
+      ({ damage }: { damage: { kind: string } }) => damage.kind === "roll",
+    )
+      ? issuedFireDraft
+      : null,
     recovery_draft: null,
     damage: {
       encounter_key: "encounter",
@@ -539,7 +545,7 @@ it("explains unresolved protections and starts with an editable table amount", a
   api.prepareEncounterPersistentDamage.mockResolvedValue({
     complete: true,
     recovery: null,
-    draft_context: draftContext,
+    damage_draft: null,
     recovery_draft: null,
     damage: { ...result, total: 3 },
   });
@@ -658,7 +664,7 @@ it("shows the backend's refreshed protections and amount while retaining prepare
     return {
       complete: request.groups.length === 1,
       recovery: null,
-      draft_context: draftContext,
+      damage_draft: request.groups[0]?.damage.kind === "roll" ? issuedFireDraft : null,
       recovery_draft: null,
       damage: {
         encounter_key: "encounter",
@@ -681,6 +687,7 @@ it("shows the backend's refreshed protections and amount while retaining prepare
       },
     };
   });
+  const onApply = vi.fn().mockResolvedValue({ ...result, total: 0 });
   render(
     <EncounterPersistentDamageBatch
       encounterRef="encounter"
@@ -694,7 +701,7 @@ it("shows the backend's refreshed protections and amount while retaining prepare
       damageTypes={[{ value: "fire", label: "Fire" }]}
       disabled={false}
       pending={false}
-      onApply={vi.fn()}
+      onApply={onApply}
       onRecover={vi.fn()}
     />,
   );
@@ -702,7 +709,63 @@ it("shows the backend's refreshed protections and amount while retaining prepare
   expect(await screen.findByText("Immune to fire")).toBeVisible();
   expect(screen.getByRole("button", { name: "Apply 0 damage" })).toBeEnabled();
   expect(screen.queryByText("5 damage")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Apply 0 damage" }));
+  await waitFor(() =>
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groups: [
+          { episode_id: "fire", damage: { kind: "prepared", draft: fireDraft } },
+        ],
+      }),
+    ),
+  );
 });
+
+it.each([null, { ...issuedFireDraft, episode_id: "acid" }])(
+  "does not stage damage when the issued draft is missing or for another episode",
+  async (damageDraft) => {
+    const original = api.prepareEncounterPersistentDamage.getMockImplementation()!;
+    api.prepareEncounterPersistentDamage.mockImplementation(async (ref, request) => {
+      const preview = await original(ref, request);
+      if (request.groups[0]?.damage.kind !== "roll") return preview;
+      return {
+        ...preview,
+        complete: true,
+        damage_draft: damageDraft,
+        damage: {
+          ...preview.damage,
+          total: fireRoll.total,
+          groups: [
+            { ...preview.damage.groups[0], roll: fireRoll, amount: fireRoll.total },
+          ],
+        },
+      };
+    });
+    const onApply = vi.fn();
+    render(
+      <EncounterPersistentDamageBatch
+        encounterRef="encounter"
+        participant={{
+          ...participant,
+          persistent_damage_groups: [participant.persistent_damage_groups[0]],
+        }}
+        encounterRevision={6}
+        generation="generation"
+        damageApplied={false}
+        damageTypes={[{ value: "fire", label: "Fire" }]}
+        disabled={false}
+        pending={false}
+        onApply={onApply}
+        onRecover={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Roll Fire damage" }));
+    expect(await screen.findByText("Couldn’t confirm the roll.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Roll Fire damage" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Apply damage" })).toBeDisabled();
+    expect(onApply).not.toHaveBeenCalled();
+  },
+);
 
 it("keeps post-Apply recovery and Clear usable with the refreshed revision", async () => {
   const onRecover = vi.fn().mockResolvedValue({
