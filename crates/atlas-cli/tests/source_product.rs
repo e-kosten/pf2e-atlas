@@ -1726,7 +1726,12 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
 
 #[test]
 fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
-    for missing_context in [false, true] {
+    for (damage, maintenance) in [
+        (Some("UPDATE artifact_context SET context_json='{}'"), false),
+        (Some("DELETE FROM artifact_context"), false),
+        (Some("UPDATE artifact_context SET context_json='{}'"), true),
+        (None, true),
+    ] {
         let fixture = Fixture::new();
         let connection = rusqlite::Connection::open(&fixture.index).unwrap();
         connection.execute_batch(
@@ -1738,16 +1743,29 @@ fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
              VALUES(1,'actions:cccccccccccccccc',0,'Keep this note','Removed record','now','now');
              INSERT INTO encounters(id,encounter_key,slug,name,status,note,created_at,updated_at)
              VALUES(1,'fight','fight','Saved encounter','draft','Keep encounter note','now','now');
-             INSERT INTO lexical_fts(lexical_fts) VALUES('delete-all');
-             UPDATE record_bodies SET snapshot=zeroblob(8);
-             UPDATE records SET name='Broken';"
+             INSERT INTO saved_list_tags VALUES(1,'keep','now');
+             INSERT INTO parties(party_key,name) VALUES('kept-party','Kept party');
+             INSERT INTO party_members(member_key,party_key,position,name)
+             VALUES('kept-member','kept-party',0,'Kept member');"
         ).unwrap();
-        let damage = if missing_context {
-            "DELETE FROM artifact_context"
-        } else {
-            "UPDATE artifact_context SET context_json='{}'"
-        };
-        connection.execute(damage, []).unwrap();
+        if let Some(damage) = damage {
+            connection
+                .execute_batch(
+                    "INSERT INTO lexical_fts(lexical_fts) VALUES('delete-all');
+                 UPDATE record_bodies SET snapshot=zeroblob(8);
+                 UPDATE records SET name='Broken';",
+                )
+                .unwrap();
+            connection.execute(damage, []).unwrap();
+        }
+        if maintenance {
+            connection
+                .execute(
+                    "UPDATE workspace SET maintenance='reclaiming database space'",
+                    [],
+                )
+                .unwrap();
+        }
         let header = || {
             connection
                 .query_row(
@@ -1790,6 +1808,12 @@ fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
         assert_eq!(header(), (before.0.0, before.0.1 + 1));
         assert_eq!(identities(), before.1);
         assert_eq!(config(), before.2);
+        let retained: (Option<String>, String, String) = connection.query_row(
+            "SELECT maintenance,tag,party_members.name FROM workspace CROSS JOIN saved_list_tags CROSS JOIN party_members",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        ).unwrap();
+        assert_eq!(retained, (None, "keep".into(), "Kept member".into()));
         let saved: (String, String, String, String) = connection
             .query_row(
                 "SELECT i.note,e.note,r.last_known_name,r.availability
@@ -1822,18 +1846,19 @@ fn index_rebuild_rolls_back_reference_reset_when_deep_audit_fails() {
          INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
          VALUES(1,'actions:dddddddddddddddd',0,'Keep broken saved row','Unknown','now','now');
          UPDATE artifact_context SET context_json='{}';
+         UPDATE workspace SET maintenance='interrupted repair';
          UPDATE records SET name='Prior committed data';"
     ).unwrap();
     let output = fixture.command(&["index", "rebuild", "--json"], false);
     assert!(!output.status.success());
     let diagnostic = String::from_utf8_lossy(&output.stdout);
     assert!(diagnostic.contains("foreign key violation"), "{diagnostic}");
-    let retained: (u64, String, String, String) = connection
+    let retained: (u64, String, String, String, String) = connection
         .query_row(
-            "SELECT reference_revision,context_json,name,note FROM workspace
+            "SELECT reference_revision,context_json,name,note,maintenance FROM workspace
          CROSS JOIN artifact_context CROSS JOIN records CROSS JOIN saved_list_items LIMIT 1",
             [],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
         )
         .unwrap();
     assert_eq!(
@@ -1842,13 +1867,14 @@ fn index_rebuild_rolls_back_reference_reset_when_deep_audit_fails() {
             1,
             "{}".into(),
             "Prior committed data".into(),
-            "Keep broken saved row".into()
+            "Keep broken saved row".into(),
+            "interrupted repair".into()
         )
     );
 }
 
 #[test]
-fn index_rebuild_refuses_missing_old_and_maintenance_workspaces() {
+fn index_rebuild_refuses_missing_old_and_unauthenticated_workspaces() {
     let fixture = Fixture::new();
     let missing = Fixture {
         root: fixture.root.join("absent"),
@@ -1867,8 +1893,10 @@ fn index_rebuild_refuses_missing_old_and_maintenance_workspaces() {
     for (mutation, expected) in [
         (format!("PRAGMA user_version={}", schema - 1), "schema"),
         (
-            format!("PRAGMA user_version={schema}; UPDATE workspace SET maintenance='fixture'"),
-            "fixture",
+            format!(
+                "PRAGMA user_version={schema}; UPDATE workspace SET maintenance='fixture'; UPDATE schema_migrations SET checksum='tampered' WHERE version=1"
+            ),
+            "applied migration 1 differs",
         ),
     ] {
         connection.execute_batch(&mutation).unwrap();
@@ -1882,6 +1910,65 @@ fn index_rebuild_refuses_missing_old_and_maintenance_workspaces() {
         assert!(diagnostic.contains(expected), "{diagnostic}");
         assert_eq!(fs::read(&fixture.index).unwrap(), before);
     }
+}
+
+#[test]
+fn index_rebuild_persists_corrected_source_and_manifest_only_after_success() {
+    let fixture = Fixture::new();
+    let connection = rusqlite::Connection::open(&fixture.index).unwrap();
+    let missing = fixture.root.join("source-typo");
+    let manifest = fixture.root.join("repair-module.json");
+    fs::copy(fixture.root.join("module.json"), &manifest).unwrap();
+    connection.execute(
+        "UPDATE requested_reference_config SET config_json=json_set(config_json,'$.config.source_root',?1)",
+        [missing.to_str().unwrap()],
+    ).unwrap();
+    let read_config = || {
+        connection
+            .query_row(
+                "SELECT config_json FROM requested_reference_config",
+                [],
+                |r| r.get::<_, String>(0),
+            )
+            .unwrap()
+    };
+    let before = read_config();
+    let output = fixture.command(&["index", "rebuild", "--json"], false);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("--source"));
+    let output = fixture.command(
+        &[
+            "index",
+            "rebuild",
+            "--source",
+            fixture.root.to_str().unwrap(),
+            "--manifest",
+            missing.to_str().unwrap(),
+            "--json",
+        ],
+        false,
+    );
+    assert!(!output.status.success());
+    assert_eq!(read_config(), before);
+    fixture.data(&[
+        "index",
+        "rebuild",
+        "--source",
+        fixture.root.to_str().unwrap(),
+        "--manifest",
+        manifest.to_str().unwrap(),
+        "--json",
+    ]);
+    let stored: Value = serde_json::from_str(&read_config()).unwrap();
+    assert_eq!(
+        stored["config"]["source_root"],
+        fixture.root.to_str().unwrap()
+    );
+    assert_eq!(
+        stored["config"]["manifest_path"],
+        manifest.to_str().unwrap()
+    );
+    fixture.data(&["index", "rebuild", "--json"]);
 }
 
 #[test]

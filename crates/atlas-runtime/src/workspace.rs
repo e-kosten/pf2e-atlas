@@ -279,13 +279,21 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> 
     Ok(workspace)
 }
 
-pub(crate) fn read_rebuild_configuration(
+pub(crate) fn begin_reference_repair(
     owner: &atlas_storage::UpdateOwner,
-) -> Result<atlas_index::RequestedReferenceConfig, String> {
-    let read = owner.read_current(MIGRATIONS).map_err(|e| e.to_string())?;
-    atlas_index::read_requested_reference_config(&read)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "workspace has no saved reference build configuration".to_string())
+) -> Result<
+    (
+        atlas_storage::ReferenceRepair<'_>,
+        atlas_index::RequestedReferenceConfig,
+    ),
+    String,
+> {
+    let (repair, configuration) = owner
+        .begin_reference_repair(MIGRATIONS, atlas_index::read_requested_reference_config)
+        .map_err(|e| e.to_string())?;
+    let configuration = configuration
+        .ok_or_else(|| "workspace has no saved reference build configuration".to_string())?;
+    Ok((repair, configuration))
 }
 
 /// Fixed immutable prefix for the opt-in historical numerical-storage probe.

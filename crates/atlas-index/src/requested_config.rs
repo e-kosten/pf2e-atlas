@@ -52,12 +52,19 @@ pub fn write_requested_reference_config(
     session: &WriteSession,
     config: &RequestedReferenceConfig,
 ) -> Result<(), IndexError> {
+    write_configuration(session.connection(), config)
+}
+
+pub(crate) fn write_configuration(
+    connection: &rusqlite::Connection,
+    config: &RequestedReferenceConfig,
+) -> Result<(), IndexError> {
     validate(config)?;
     let json = serde_json::to_string(&StoredConfig {
         version: 1,
         config: config.clone(),
     })?;
-    session.connection().execute(
+    connection.execute(
         "INSERT INTO requested_reference_config(id,config_json) VALUES(1,?1)
          ON CONFLICT(id) DO UPDATE SET config_json=excluded.config_json",
         [json],

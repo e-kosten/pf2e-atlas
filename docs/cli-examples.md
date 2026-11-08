@@ -488,9 +488,11 @@ atlas index rebuild
 The rebuild uses the saved Foundry source, locale, and search profiles. Have the
 configured source checkout and model files available locally. A lexical-only
 workspace stays lexical-only. Use `--index` to select a specific workspace.
+Use `--source PATH` or `--manifest PATH` if a saved path is invalid. Atlas saves
+the corrected paths when repair succeeds.
 
-Atlas keeps saved lists, encounters, and stable record IDs. It validates the
-replacement before committing, so a failed rebuild leaves the previous
-reference data and saved state in place. This command requires a current-schema
-SQLite workspace with intact saved data and no pending maintenance. Physical
-SQLite damage and saved-data recovery require a separate recovery process.
+Atlas keeps saved lists, parties, encounters, and stable record IDs. It validates
+the replacement before committing and clears any interrupted maintenance marker
+in that same commit. This command requires a current-schema SQLite workspace with
+an authenticated migration ledger and intact saved data. Physical SQLite damage
+and saved-data recovery require a separate recovery process.

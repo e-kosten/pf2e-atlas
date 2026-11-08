@@ -287,6 +287,14 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
     workspace.migrate(TEST_MIGRATIONS, |_| Ok(()))?;
     Ok(workspace)
 }
+
+pub fn reference_repair(
+    owner: &atlas_storage::UpdateOwner,
+) -> Result<atlas_storage::ReferenceRepair<'_>, IndexError> {
+    let (repair, ()) =
+        owner.begin_reference_repair(TEST_MIGRATIONS, |_| Ok::<_, IndexError>(()))?;
+    Ok(repair)
+}
 pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;

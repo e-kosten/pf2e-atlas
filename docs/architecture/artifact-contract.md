@@ -15,11 +15,12 @@ replacing an existing path. It preserves workspace identity and all saved state.
 `atlas-dev` owns manifests and provenance receipts, not SQL or migration policy.
 
 Explicit `atlas index rebuild` recovery requires a current-schema workspace and
-an authenticated migration ledger. It uses saved reference configuration, stages
-fresh source preparation and numerical results privately, and resets only
-generated data in the ordinary publication transaction. The stable record registry
-and saved tables remain in place. Deep validation runs on the candidate transaction
-before the single reference revision advance.
+an authenticated migration ledger. It may read saved repair configuration while
+normal admission is closed by a maintenance marker. It stages fresh source
+preparation and numerical results privately, then rechecks workspace identity,
+revision and ledger under exclusive admission. The repair replaces only generated
+data and deeply validates the candidate. The single publication commit advances
+the reference revision, clears maintenance and persists any source overrides.
 
 ## Identity and versions
 
@@ -941,7 +942,10 @@ generation in the same transaction. The migration preserves document vectors,
 saved state and the published vocabulary compatibility ID.
 
 One concrete publication owns build-local selection. Same-attempt selections win,
-then unpublished cache, then compatible published values in ordinary ingest.
+then exact published values, then unpublished cache and compatible published values.
+Malformed pending bytes are cache misses. A mismatched input descriptor is also
+a miss after confirming it has no published checksum, native vector or consumer.
+The cache writer rechecks that condition before replacing the descriptor.
 Newly inferred and cache-hit bytes become owned staging independent of eviction.
 Reused published vectors remain stable handles. Explicit reference repair uses
 only private inference staging. Per-batch sessions close before inference.
