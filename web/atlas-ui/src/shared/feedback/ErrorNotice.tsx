@@ -31,11 +31,13 @@ export function ErrorNotice({
   const heading =
     unconfirmedWrite && !outcome ? "Change could not be confirmed" : title;
   const explanation =
-    shared && outcome
-      ? undefined
-      : unconfirmedWrite
-        ? errorExplanation(error)
-        : (description ?? errorExplanation(error));
+    outcome === "uncertain"
+      ? description
+      : shared && outcome
+        ? undefined
+        : unconfirmedWrite
+          ? errorExplanation(error)
+          : (description ?? errorExplanation(error));
   if (compact || (shared && outcome && !unconfirmedWrite))
     return (
       <div className={`local-feedback${className ? ` ${className}` : ""}`}>

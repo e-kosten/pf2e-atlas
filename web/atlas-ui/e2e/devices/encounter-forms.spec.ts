@@ -82,7 +82,7 @@ test("overnight review reopens a stale draft and checks current values after a l
     });
     await activate(submit, info);
     await expect(
-      reopened.getByText("Change could not be confirmed", { exact: true }),
+      reopened.getByText("Recovery could not be confirmed", { exact: true }),
     ).toBeVisible();
     await expect(submit).toBeDisabled();
     const saved = await (await page.request.get(path)).json();

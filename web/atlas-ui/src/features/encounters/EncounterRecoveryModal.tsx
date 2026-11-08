@@ -287,7 +287,7 @@ export function EncounterRecoveryModal({
             />
           </div>
         )}
-        {stale && (
+        {stale && !uncertain && (
           <p role="alert">
             Encounter changed. Close this review and reopen it to use the current
             values.
@@ -299,10 +299,13 @@ export function EncounterRecoveryModal({
             title={
               uncertain ? "Recovery could not be confirmed" : "Recovery could not save"
             }
+            outcome={uncertain ? "uncertain" : undefined}
             type={uncertain ? "warning" : "error"}
             description={
-              uncertain && !mutations.refreshError
-                ? "Review the current encounter before opening another recovery preview."
+              uncertain
+                ? mutations.refreshError
+                  ? "Refresh the encounter to see the current values."
+                  : "Close and reopen this review to see the current values."
                 : undefined
             }
             action={
