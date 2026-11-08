@@ -2,6 +2,7 @@ import { Button, InputNumber, Space, Tooltip } from "antd";
 import { Minus, Plus, X } from "lucide-react";
 export function ConditionValueInput({
   value,
+  minimum = 1,
   onChange,
   onRemove,
   removeLabel,
@@ -13,6 +14,7 @@ export function ConditionValueInput({
   onKeyDown,
   onStep,
 }: {
+  minimum?: number;
   value?: number | null;
   onChange?: (value: number | null) => void;
   onRemove?: () => void;
@@ -26,27 +28,43 @@ export function ConditionValueInput({
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }) {
   const decreaseLabel =
-    value === 1 && onRemove ? (removeLabel ?? `Remove ${name}`) : `Decrease ${name}`;
+    minimum === 1 && value === 1 && onRemove
+      ? (removeLabel ?? `Remove ${name}`)
+      : `Decrease ${name}`;
   const increaseLabel = `Increase ${name}`;
   return (
     <Space.Compact size={size}>
       <Tooltip title={decreaseLabel} trigger={["hover", "focus"]}>
         <Button
-          disabled={disabled || readOnly || (value === 1 && !onRemove) || value == null}
-          icon={value === 1 && onRemove ? <X size={14} /> : <Minus size={14} />}
+          disabled={
+            disabled ||
+            readOnly ||
+            (minimum === 1 && value === 1 && !onRemove) ||
+            value == null ||
+            (minimum === 0 && value === 0)
+          }
+          icon={
+            minimum === 1 && value === 1 && onRemove ? (
+              <X size={14} />
+            ) : (
+              <Minus size={14} />
+            )
+          }
           aria-label={decreaseLabel}
           onClick={() => {
-            if (value === 1 && onRemove) onRemove();
+            if (minimum === 1 && value === 1 && onRemove) onRemove();
             else if (value != null) {
-              onChange?.(Math.max(1, value - 1));
-              onStep?.(Math.max(1, value - 1));
+              onChange?.(Math.max(minimum, value - 1));
+              onStep?.(Math.max(minimum, value - 1));
             }
           }}
         />
       </Tooltip>
       <InputNumber
         aria-label={name}
-        min={1}
+        min={minimum === 0 ? undefined : minimum}
+        changeOnBlur={minimum !== 0}
+        placeholder={minimum === 0 ? "—" : undefined}
         controls={false}
         value={value}
         disabled={disabled && !readOnly}

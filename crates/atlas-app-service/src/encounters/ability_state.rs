@@ -75,6 +75,29 @@ impl AtlasAppService {
                     option.declaration_identity.clone(),
                 )
             }
+            EncounterAbilityStateAction::SetConditionValue { value } => {
+                if value.is_some_and(|value| !(0..=9_007_199_254_740_991).contains(&value)) {
+                    return Err(AppServiceError::invalid_request(
+                        "Condition value must be a nonnegative safe integer.",
+                    ));
+                }
+                let identity = sources
+                    .entries
+                    .iter()
+                    .find(|source| {
+                        &source.owner == owner && source.grant_ordinal == request.rule_ordinal
+                    })
+                    .and_then(|source| source.override_identity.clone())
+                    .ok_or_else(|| {
+                        AppServiceError::invalid_request(
+                            "This source condition is no longer editable.",
+                        )
+                    })?;
+                (
+                    AbilityStateValue::ConditionValueOverride { value: *value },
+                    identity,
+                )
+            }
             EncounterAbilityStateAction::SpendUse | EncounterAbilityStateAction::RestoreUse => {
                 let ability = sources
                     .uses

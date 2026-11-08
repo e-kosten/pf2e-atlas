@@ -61,7 +61,7 @@ Behavioral subjects, such as a fascination or threat, are distinct from the sour
 that applied the condition. Missing subjects require context only when an action
 depends on them; the causal source is not an implicit substitute.
 
-Source-owned conditions are distinct, read-only causes. Checked owned conditions,
+Source-owned conditions are distinct causes backed by read-only declarations. Checked owned conditions,
 maintained in-memory grants and unlimited owned effects feed the same cause
 resolver as temporary saved conditions. Statistics, HP limits, senses, action
 restrictions, regain forecasts, targeting and lifecycle calculations consume those
@@ -107,7 +107,13 @@ capacity/interval; display labels, whole-corpus fingerprints and authored initia
 values are excluded. Unrelated reference edits preserve saved state. Changed or
 removed declarations, moved slots and legacy entries without that identity use
 the current authored defaults; Atlas does not silently rebind them or create a
-confirmation workflow. Navigation fingerprints still guard commands against stale
+confirmation workflow. A fixed-target Stupefied grant whose badge and
+activation depend on the same source counter may take a manual encounter value.
+The checked declaration remains the cause. The ability-state slot persists the
+GM's input, and the shared resolver treats a blank value as unknown, zero as
+inactive, and a positive value as the source's magnitude. Trackers and condition
+reference reading remain independent. Reset restores the creation baseline;
+overnight recovery preserves the GM's input. Navigation fingerprints still guard commands against stale
 source views. All ability-state writers, including turn and overnight refresh,
 store the current declaration identity. The pinned finite-choice
 preparer supplies its first authored choice when no selection is stored; toggles

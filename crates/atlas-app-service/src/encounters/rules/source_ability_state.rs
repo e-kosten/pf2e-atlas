@@ -138,7 +138,7 @@ pub(super) fn bind_declarations(
     Ok(())
 }
 
-fn declaration_identity(recipe: &impl serde::Serialize) -> AppServiceResult<String> {
+pub(super) fn declaration_identity(recipe: &impl serde::Serialize) -> AppServiceResult<String> {
     use sha2::{Digest, Sha256};
     let bytes = serde_json::to_vec(recipe).map_err(|error| {
         crate::AppServiceError::new(

@@ -11,6 +11,7 @@ vi.mock("../../api/atlasApi", () => ({
   previewEncounterCondition: vi.fn().mockResolvedValue({ consequences: [] }),
 }));
 import { EncounterConditionControls } from "./EncounterConditionControls";
+import { EncounterConditionValue } from "./EncounterConditionValue";
 
 it("edits typed persistent damage while preserving its episode, origin and independent duration", async () => {
   const onUpdate = vi.fn().mockRejectedValue(new Error("Try again"));
@@ -459,4 +460,41 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
   expect(onReference).toHaveBeenCalledWith(source.record_key, provenance, source);
   expect(onRemove).not.toHaveBeenCalled();
   expect(onUpdate).not.toHaveBeenCalled();
+});
+
+it("rejects negative source values without clamping them to inactive", async () => {
+  const onCommit = vi.fn().mockResolvedValue(true);
+  const onClear = vi.fn().mockResolvedValue(true);
+  render(
+    <EncounterConditionValue
+      name="Stupefied from Brain Blisters"
+      minimum={0}
+      value={2n}
+      disabled={false}
+      onCommit={onCommit}
+      onClear={onClear}
+    />,
+  );
+  const input = screen.getByRole("spinbutton", {
+    name: "Stupefied from Brain Blisters value",
+  });
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "-1" } });
+  fireEvent.blur(input);
+  expect(
+    screen.getByText("Enter a whole number, zero or greater."),
+  ).toBeInTheDocument();
+  expect(input).toHaveDisplayValue("-1");
+  expect(onCommit).not.toHaveBeenCalled();
+  expect(onClear).not.toHaveBeenCalled();
+
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "0" } });
+  fireEvent.blur(input);
+  await waitFor(() => expect(onCommit).toHaveBeenCalledWith(0n));
+
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "" } });
+  fireEvent.blur(input);
+  await waitFor(() => expect(onClear).toHaveBeenCalledTimes(1));
 });

@@ -86,6 +86,7 @@ pub(crate) struct SourceCondition {
     pub record_key: String,
     pub owner: OwnedContentLocator,
     pub grant_ordinal: Option<usize>,
+    pub override_identity: Option<String>,
     pub source_label: String,
     pub rule: ConditionRule,
     pub value: Option<i64>,
@@ -210,6 +211,7 @@ pub(in crate::encounters) fn source_conditions(
                 record_key: record.key().to_string(),
                 owner,
                 grant_ordinal: None,
+                override_identity: None,
                 source_label: label,
                 rule,
                 value,
@@ -322,6 +324,23 @@ pub(in crate::encounters) fn source_conditions(
                     record_key: record.key().to_string(),
                     owner: owner.clone(),
                     grant_ordinal: Some(ordinal),
+                    override_identity: if rule == ConditionRule::Stupefied
+                        && choice.is_none()
+                        && activation_unavailable.is_none()
+                        && has_manual_counter(&grant.alterations, &grant.predicate)
+                    {
+                        Some(super::source_ability_state::declaration_identity(&(
+                            "condition-value",
+                            record.key().to_string(),
+                            &owner,
+                            ordinal,
+                            rule.definition().slug,
+                            &grant.alterations,
+                            &grant.predicate,
+                        ))?)
+                    } else {
+                        None
+                    },
                     source_label: label.clone(),
                     rule,
                     value,
@@ -359,6 +378,40 @@ pub(in crate::encounters) fn source_conditions(
 }
 
 /// Only constant badge overrides are supported; expressions retain an unavailable value.
+fn has_manual_counter(
+    alterations: &SourcePresence<SourceFromSchemaAuraEffectSchemaAlterations>,
+    predicate: &SourcePresence<Vec<PredicateStatement>>,
+) -> bool {
+    let (Some([alteration]), Some([PredicateStatement::GreaterThan(activation)])) = (
+        alterations.as_value().map(|items| items.as_slice()),
+        predicate.as_value().map(Vec::as_slice),
+    ) else {
+        return false;
+    };
+    let (Some(JSONValue::String(selection)), Some((tested, StringOrNumber::Number(zero)))) =
+        (alteration.value.as_value(), activation.gt.as_value())
+    else {
+        return false;
+    };
+    selection == tested
+        && selection
+            .strip_prefix("{item|flags.system.rulesSelections.")
+            .and_then(|suffix| suffix.strip_suffix('}'))
+            .is_some_and(|name| {
+                !name.is_empty()
+                    && name
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            })
+        && zero.as_i64() == Some(0)
+        && activation.additional_fields.fields().is_empty()
+        && alteration.property.as_value()
+            == Some(&SourceFromSchemaItemAlterationSchemaProperty::BadgeValue)
+        && alteration.mode.as_value() == Some(&SourceFromSchemaAELikeSchemaMode::Override)
+        && alteration.additional_fields.fields().is_empty()
+        && alteration.from_equipment != SourcePresence::Value(true)
+}
+
 fn grant_value(
     rule: ConditionRule,
     alterations: &SourcePresence<SourceFromSchemaAuraEffectSchemaAlterations>,
@@ -387,6 +440,25 @@ fn grant_value(
 }
 
 impl SourceCondition {
+    pub fn manual_value(
+        &self,
+        participant: &atlas_local_state::EncounterParticipant,
+    ) -> Option<i64> {
+        let identity = self.override_identity.as_deref()?;
+        participant.ability_states.iter().find_map(|state| {
+            if state.owner != self.owner
+                || state.rule_ordinal != self.grant_ordinal
+                || state.declaration_identity.as_deref() != Some(identity)
+            {
+                return None;
+            }
+            match state.value {
+                atlas_local_state::AbilityStateValue::ConditionValueOverride { value } => value,
+                _ => None,
+            }
+        })
+    }
+
     pub fn active(
         &self,
         conditions: &[ConditionRule],
@@ -396,6 +468,9 @@ impl SourceCondition {
     ) -> Option<bool> {
         if self.activation_unavailable.is_some() {
             return None;
+        }
+        if let Some(value) = self.manual_value(participant) {
+            return Some(value > 0);
         }
         if let Some(choice) = &self.choice {
             let option = sources.options.iter().find(|option| {

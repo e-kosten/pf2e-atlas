@@ -149,6 +149,10 @@ without changing the authored filter values or their collection states. The offl
 migration checks all three prior result sets before removing the old tables and
 refreshes only the affected query and trait attestations.
 
+Workspace migration 37 advances workspace admission for the manual source-condition
+ability-state payload. It preserves the existing tables and saved rows. Older
+applications reject the upgraded workspace before decoding its saved state.
+
 The projection upgrade backfills authored sense acuity and range states and armor
 group from compatible retained snapshots. Retired or otherwise deferred source
 preparation follows its existing setup requirement. Explicit setup prepares new

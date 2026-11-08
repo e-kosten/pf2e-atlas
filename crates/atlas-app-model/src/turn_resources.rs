@@ -50,6 +50,9 @@ pub struct InherentActionConditionView {
     pub has_value: bool,
     pub value: Option<i64>,
     pub condition_ref: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub editable_rule_ordinal: Option<usize>,
     pub source_name: String,
     pub source: crate::RecordNavigationView,
 }
