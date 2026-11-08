@@ -1,4 +1,6 @@
 mod command_receipts;
+mod portability;
+pub use portability::{EncounterDocument, EncounterRecordSource};
 mod manual_trackers;
 pub use manual_trackers::{ManualTracker, ManualTrackerChange, TrackerProgress};
 mod recovery;

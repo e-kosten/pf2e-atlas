@@ -882,7 +882,10 @@ pub(crate) fn condition(
         .map_err(Into::into)
 }
 
-fn encounter_id(connection: &Connection, encounter_ref: &str) -> rusqlite::Result<Option<i64>> {
+pub(super) fn encounter_id(
+    connection: &Connection,
+    encounter_ref: &str,
+) -> rusqlite::Result<Option<i64>> {
     connection
         .query_row(
             "SELECT id FROM encounters WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
@@ -1097,7 +1100,7 @@ fn new_encounter_key() -> String {
     format!("encounter_{:016x}", random::<u64>())
 }
 
-fn new_participant_key() -> String {
+pub(super) fn new_participant_key() -> String {
     format!("participant_{:016x}", random::<u64>())
 }
 

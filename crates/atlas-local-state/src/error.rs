@@ -42,6 +42,8 @@ pub enum LocalStateError {
     InvalidRecordKey { record_key: String, reason: String },
     #[error("invalid saved-list import: {0}")]
     InvalidListImport(String),
+    #[error("invalid encounter document: {0}")]
+    InvalidEncounterDocument(String),
     #[error("saved list already exists: {0}")]
     ListAlreadyExists(String),
     #[error("saved list not found: {0}")]

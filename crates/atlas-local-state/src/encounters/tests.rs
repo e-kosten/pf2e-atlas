@@ -2687,6 +2687,8 @@ fn stored_closed_enums_reject_corruption_instead_of_reinterpreting_saved_gamepla
     Ok(())
 }
 
+#[path = "portability_tests.rs"]
+mod portability_tests;
 #[path = "roster_read_tests.rs"]
 mod roster_read_tests;
 #[path = "turn_receipts_tests.rs"]

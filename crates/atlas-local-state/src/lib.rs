@@ -35,7 +35,9 @@ pub use encounters::{
     SpellResource, UpdateEncounter, UpdateEncounterParticipant,
     UpdateEncounterParticipantCondition, WakingRule,
 };
-pub use encounters::{ApplyEncounterRecovery, ParticipantGameplay};
+pub use encounters::{
+    ApplyEncounterRecovery, EncounterDocument, EncounterRecordSource, ParticipantGameplay,
+};
 pub use encounters::{
     EncounterDifficultyReference, SavedOutgoingTurn, TurnActionAdjustment, TurnActionAllocation,
     TurnResourceEffect, TurnResources,

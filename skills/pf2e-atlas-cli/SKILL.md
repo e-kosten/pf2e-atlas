@@ -427,6 +427,8 @@ atlas encounters list --json
 atlas encounters create "Garden Sentries" --json
 atlas encounters add garden-sentries --record PACK:ID --quantity 2 --adjustment weak --json
 atlas encounters show garden-sentries --party-level 7 --party-size 4 --json
+atlas encounters export garden-sentries --output garden-sentries.json
+atlas encounters import garden-sentries.json --slug garden-sentries-copy --json
 ```
 
 Use a resolved creature or hazard key for `--record`. Each copy gets its own

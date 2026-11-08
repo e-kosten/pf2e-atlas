@@ -51,6 +51,7 @@ mod source_consumer_tests;
 mod test_support;
 
 pub use completions::{complete_record_keys, complete_saved_list_slugs};
+pub use encounters::portability::EncounterImportReport;
 pub use error::{AppServiceError, AppServiceResult};
 pub use filters::{CliFilterValuesRequest, RawFilterCountsRequest};
 pub use projection::record_summary_view;

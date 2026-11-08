@@ -10,12 +10,12 @@ Last reviewed: 2026-06-28
 Saved lists and future local-state features should live outside the generated SQLite artifact so they survive index rebuilds. That keeps the artifact rebuildable and read-only for runtime retrieval, but it also means users and agents need a deliberate way to back up, move, inspect, and restore durable local state without copying opaque SQLite files by hand.
 
 Saved-list CRUD and JSON import/export are implemented independently of generated
-artifact rebuilds. This item tracks broader local-state export, including encounters,
+artifact rebuilds. This item tracks whole-workspace export beyond portable encounter documents,
 and possible convenience formats.
 
 ## Desired Outcome
 
-Add stable import/export commands for local-state data. Saved-list JSON import/export now exists; broader local-state export remains future work.
+Add stable import/export commands for local-state data. Saved-list and encounter JSON import/export exist. Whole-workspace export remains future work.
 
 The design should answer:
 

@@ -2426,3 +2426,117 @@ fn source_spend_recovers_before_reference_loading_and_keeps_unavailable_source_m
         1
     );
 }
+
+#[test]
+fn encounter_portability_resumes_outgoing_review_without_repeating_committed_damage() {
+    let (source, key, participant) = fixture();
+    let boundary = outgoing_boundary(&source, &key, &participant);
+    let mut damage = batch(&source, &key, &participant);
+    damage.boundary_key = Some(boundary.clone());
+    let committed = source
+        .worker
+        .apply_persistent_damage(&key, damage.clone())
+        .unwrap();
+    assert_eq!(committed.total, 7);
+    let recovery = RecoverPersistentDamageRequest {
+        request_id: "outgoing-recover-fire".into(),
+        resolution: PersistentRecoveryResolution::Roll,
+        mode: PersistentRecoveryMode::EndTurn,
+        expected_encounter_revision: snapshot(&source, &key).encounter.revision,
+        participant_key: participant.clone(),
+        episode_id: "episode-fire".into(),
+        boundary_key: Some(boundary.clone()),
+        dc_override: Some(0),
+    };
+    assert!(
+        source
+            .worker
+            .recover_persistent_damage(&key, recovery)
+            .unwrap()
+            .success
+    );
+    let before = source
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    let bytes = source.worker.export_encounter(&key).unwrap();
+    let fresh = encounter_fixture_worker();
+    for (worker, slug) in [
+        (&source.worker, Some("portable-copy".into())),
+        (&fresh.worker, None),
+    ] {
+        let copy = worker.import_encounter(bytes.as_slice(), slug).unwrap();
+        let restored = worker.encounter(&copy.encounter_key).unwrap();
+        let copy_participant = &restored.participants[0].participant_key;
+        let after = worker
+            .encounter_turn_review(&copy.encounter_key)
+            .unwrap()
+            .outgoing
+            .unwrap();
+        assert_ne!(after.boundary_key, boundary);
+        assert_eq!(after.recovered_episode_ids, vec!["episode-fire"]);
+        assert_eq!(after.recovered_episode_ids, before.recovered_episode_ids);
+        assert_ne!(copy_participant, &participant);
+        assert_eq!(
+            after
+                .persistent_damage_groups
+                .iter()
+                .map(|g| &g.episode_id)
+                .collect::<Vec<_>>(),
+            before
+                .persistent_damage_groups
+                .iter()
+                .map(|g| &g.episode_id)
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            worker
+                .persistent_damage_review(
+                    &copy.encounter_key,
+                    copy_participant,
+                    Some(&after.boundary_key)
+                )
+                .unwrap()
+                .damage_applied
+        );
+
+        // A new request for the same committed effect fails without changing HP.
+        let mut repeated = damage.clone();
+        repeated.request_id = "new-request-for-committed-damage".into();
+        repeated.participant_key.clone_from(copy_participant);
+        repeated.boundary_key = Some(after.boundary_key);
+        repeated.expected_encounter_revision = restored.revision;
+        assert!(
+            worker
+                .apply_persistent_damage(&copy.encounter_key, repeated)
+                .is_err()
+        );
+        assert_eq!(
+            worker.encounter(&copy.encounter_key).unwrap().revision,
+            restored.revision
+        );
+
+        let advance = AdvanceEncounterTurnRequest {
+            request_id: "advance-restored".into(),
+            expected_revision: restored.revision,
+        };
+        worker
+            .advance_encounter_turn(&copy.encounter_key, advance.clone())
+            .unwrap();
+        let once = worker.encounter(&copy.encounter_key).unwrap();
+        worker
+            .advance_encounter_turn(&copy.encounter_key, advance)
+            .unwrap();
+        assert_eq!(
+            worker.encounter(&copy.encounter_key).unwrap().revision,
+            once.revision
+        );
+        assert_eq!(
+            once.encounter.round_number,
+            restored.encounter.round_number + 1
+        );
+    }
+    assert_eq!(source.worker.export_encounter(&key).unwrap(), bytes);
+}

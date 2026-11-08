@@ -869,6 +869,14 @@ There is no acknowledgment queue or persisted action-attempt/relationship workfl
 Spell reminders and optional strike context are read-only projections. Spell
 resource writes and retained dice use their existing guarded mutation owners.
 
+Encounter exchange uses a versioned document independent of the workspace
+schema. Local-state captures all encounter-owned tables in one read snapshot
+and restores a new encounter in one write. Restore remaps participant,
+condition and boundary identities, including historical condition IDs, and
+keeps committed effects and claims linked to their typed receipt outcomes.
+Source-bound request intents remain historical evidence. App-service reports
+missing or changed reference data, and the CLI owns file publication.
+
 This saved-domain migration preserves reference artifacts, parties, lists and
 existing encounters. Published migrations 1–8 remain unchanged.
 
