@@ -224,12 +224,10 @@ export function FilterControls({
       opener,
       advanced = false,
       initialExcluded = false,
-      initialScope,
     }: {
       opener?: HTMLElement;
       advanced?: boolean;
       initialExcluded?: boolean;
-      initialScope?: LinkPickerProps["initialScope"];
     } = {},
   ) {
     if (!Picker) throw new Error("Link condition picker provider is required");
@@ -242,7 +240,6 @@ export function FilterControls({
       open: true,
       initial,
       initialExcluded,
-      initialScope,
       parent: {
         ...parentContext,
         filter: workspace.fixedFilter
@@ -340,13 +337,6 @@ export function FilterControls({
           advanced: true,
           initialExcluded: !!rule.meta?.atlasExcluded,
           opener,
-          initialScope:
-            rule.operator === "incoming" || rule.operator === "outgoing"
-              ? {
-                  direction: rule.operator,
-                  include_contents: rule.value?.include_contents ?? true,
-                }
-              : undefined,
         },
       );
     },
@@ -933,7 +923,7 @@ function StructuredBuilder({
                   label: "Related entries",
                   options: [
                     { name: RELATED_CONDITION, label: "Related entries" },
-                    { name: LINK_CONDITION, label: "Related entries" },
+                    { name: LINK_CONDITION, label: "Record links" },
                   ],
                 },
               ]
@@ -1186,7 +1176,7 @@ function filterFieldGroups(
     relatedTarget,
   }: Pick<BuilderContext, "editor" | "scope" | "narrowFields" | "relatedTarget">,
   addingCondition: boolean,
-  includeConstant = false,
+  currentField?: string,
 ): {
   label: string;
   options: FilterFieldOption[];
@@ -1201,6 +1191,11 @@ function filterFieldGroups(
             (field) =>
               field.definition.scope === scope &&
               !isEmbeddedEntryField(field) &&
+              (field.definition.id === currentField ||
+                !relatedTarget ||
+                scope === null ||
+                field.definition.path !== "kind" ||
+                field.definition.choices.length !== 1) &&
               (scope === null || field.definition.field_type !== "collection") &&
               (!addingCondition || !narrowFields || field.applicable) &&
               (!field.unit_fields.length ||
@@ -1249,13 +1244,22 @@ function filterFieldGroups(
                 value: RELATED_CONDITION,
                 label: "Related entries",
                 searchText:
-                  "Related entries record links contains abilities spells equipment",
+                  "Related entries contains abilities spells equipment links to linked from",
               },
+              ...(currentField === LINK_CONDITION
+                ? [
+                    {
+                      value: LINK_CONDITION,
+                      label: "Record links",
+                      searchText: "Record links",
+                    },
+                  ]
+                : []),
             ],
           },
         ]
       : []),
-    ...(includeConstant
+    ...(currentField === BOOLEAN_CONDITION
       ? [
           {
             label: "Technical condition",
@@ -1283,15 +1287,13 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
   const groups = filterFieldGroups(
     { editor, scope, narrowFields, relatedTarget },
     addingCondition,
-    props.value === BOOLEAN_CONDITION,
+    props.value,
   );
-  const related =
-    props.value === LINK_CONDITION ||
-    editor.groups.some((group) =>
-      group.fields.some(
-        (field) => field.definition.id === props.value && isEmbeddedEntryField(field),
-      ),
-    );
+  const related = editor.groups.some((group) =>
+    group.fields.some(
+      (field) => field.definition.id === props.value && isEmbeddedEntryField(field),
+    ),
+  );
   const chooser = (
     <Select
       className={selectedKind ? undefined : props.className}
@@ -1588,12 +1590,28 @@ function BuilderValueEditor(props: ValueEditorProps) {
   const embedded = fields.find(
     (field) => field.definition.id === props.field && isEmbeddedEntryField(field),
   );
+  if (editing && props.field === LINK_CONDITION) {
+    return (
+      <div className="filter-rule-value">
+        <Button
+          disabled={props.disabled}
+          onClick={(event) =>
+            links?.open(
+              editing.rule,
+              (replacement) => editing.replace(replacement, false),
+              event.currentTarget,
+            )
+          }
+        >
+          Edit link
+        </Button>
+      </div>
+    );
+  }
   if (
     editing &&
     scope === null &&
-    ((embedded && props.operator === "exists") ||
-      props.field === RELATED_CONDITION ||
-      props.field === LINK_CONDITION)
+    ((embedded && props.operator === "exists") || props.field === RELATED_CONDITION)
   ) {
     return (
       <RelatedEntryEditor
@@ -1605,13 +1623,6 @@ function BuilderValueEditor(props: ValueEditorProps) {
         }
         disabled={props.disabled}
         onApply={(next) => editing.replace(next, false)}
-        onExact={(next, opener) =>
-          links?.open(
-            next,
-            (replacement) => editing.replace(replacement, false),
-            opener,
-          )
-        }
         renderConditions={(draft, change, memberScope) => (
           <AdvancedFilterSurface label="Related entry filters">
             <StructuredBuilder

@@ -874,6 +874,56 @@ describe("shared common and maintained advanced filters", () => {
     expect(screen.getByText(/Links to · Armor bonus/)).toBeInTheDocument();
   });
 
+  it("applies an empty Contains group as presence and offers applicable spell fields", async () => {
+    const scope = "embedded.spells";
+    const change = renderControls(
+      editorFixture([
+        fieldFixture(scope, "collection", "Spells"),
+        {
+          ...fieldFixture("embedded.spells[].kind", "string", "Kind"),
+          scope,
+          path: "kind",
+          choices: ["spell"],
+        },
+        {
+          ...fieldFixture("embedded.spells[].spell.rank", "number", "Spell rank"),
+          scope,
+          path: "spell.rank",
+        },
+      ]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    chooseActorMetricOption("Add condition", "Related entries");
+    fireEvent.click(screen.getByRole("button", { name: "Configure related entries" }));
+    chooseActorMetricOption("Entry type", "Spells");
+    const dialog = within(screen.getByRole("dialog", { name: "Related entries" }));
+    const apply = dialog.getByRole("button", { name: "Apply" });
+    expect(apply).toBeEnabled();
+    fireEvent.click(apply);
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "exists",
+            collection: scope,
+            predicate: { kind: "boolean_constant", value: true },
+          }),
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit related entries" }));
+    const reopened = within(
+      await screen.findByRole("dialog", { name: "Related entries" }),
+    );
+    fireEvent.mouseDown(reopened.getByRole("combobox", { name: "Add condition" }));
+    expect(screen.queryByRole("option", { name: /^Kind$/ })).toBeNull();
+    fireEvent.click(screen.getAllByText("Spell rank", { exact: true }).slice(-1)[0]);
+    expect(
+      reopened.getByText("Find entries with a spell that matches this filter group."),
+    ).toBeInTheDocument();
+    expect(reopened.getByRole("button", { name: "Apply" })).toBeDisabled();
+  });
+
   it("offers scoped fields without another collection inside an Exists condition", async () => {
     const collection = fieldFixture(
       "embedded.equipment",

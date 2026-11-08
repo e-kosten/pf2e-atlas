@@ -346,8 +346,7 @@ it("edits an exact embedded selection without rebinding it until a parent row is
   });
   fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
   const drawer = screen.getByRole("dialog", { name: "Advanced filters" });
-  fireEvent.click(within(drawer).getByRole("button", { name: "Edit related entries" }));
-  fireEvent.click(screen.getByRole("button", { name: "Choose record" }));
+  fireEvent.click(within(drawer).getByRole("button", { name: "Edit link" }));
   let dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
   await waitFor(() =>
     expect(within(dialog).getByRole("button", { name: "Apply" })).toBeEnabled(),
@@ -355,8 +354,7 @@ it("edits an exact embedded selection without rebinding it until a parent row is
   fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
   await waitFor(() => expect(dialog).not.toBeVisible());
   expect(linkClauses(current().search.filter)[0].relationship).toEqual(existing);
-  fireEvent.click(within(drawer).getByRole("button", { name: "Edit related entries" }));
-  fireEvent.click(screen.getByRole("button", { name: "Choose record" }));
+  fireEvent.click(within(drawer).getByRole("button", { name: "Edit link" }));
   dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
   fireEvent.click(within(dialog).getByRole("button", { name: "Clear selection" }));
   fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
@@ -373,7 +371,7 @@ it("edits an exact embedded selection without rebinding it until a parent row is
   expect(drawer).toBeVisible();
 });
 
-it("composes a nested picker through the same provider and Escape preserves the outer lookup", async () => {
+it("cancels a related filter without closing the record picker", async () => {
   const current = setup();
   const outer = await openAndSelect();
   fireEvent.click(within(outer).getByRole("button", { name: "Advanced filters" }));
@@ -384,34 +382,28 @@ it("composes a nested picker through the same provider and Escape preserves the 
   });
   fireEvent.click(configure);
   await selectSortOption("Relationship", "Links to");
-  await selectSortOption("Which related entries?", "A specific record");
-  fireEvent.click(screen.getByRole("button", { name: "Choose record" }));
-  const dialogs = await screen.findAllByRole("dialog", { name: "Add link condition" });
-  const inner = dialogs[dialogs.length - 1];
-  expect(inner).not.toBe(outer);
-  fireEvent.keyDown(inner, { key: "Escape", keyCode: 27 });
-  await waitFor(() => expect(inner).not.toBeVisible());
+  const dialog = screen.getByRole("dialog", { name: "Related entries" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(dialog).not.toBeVisible());
   expect(outer).toBeVisible();
   expect(advanced).toBeVisible();
   await waitFor(() => expect(configure).toHaveFocus());
   expect(current().search.filter).toBeNull();
 });
 
-it("requires a new exact selection when scope changes in the compact editor", async () => {
+it("requires a new exact selection when scope changes in Advanced filters", async () => {
   const current = setup({
     ...DEFAULT_SEARCH_STATE,
     filter: linkLeaf(existing, "existing"),
   });
   fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-  fireEvent.click(screen.getByRole("button", { name: "Edit related entries" }));
-  await screen.findByRole("dialog", { name: "Related entries" });
+  fireEvent.click(screen.getByRole("button", { name: "Edit link" }));
+  const picker = await screen.findByRole("dialog", { name: "Edit link condition" });
   await selectSortOption(
-    "Link scope",
+    "Link filter scope",
     existing.include_contents ? "Main entry only" : "Whole entry",
   );
-  fireEvent.click(screen.getByRole("button", { name: "Choose record" }));
-  const picker = await screen.findByRole("dialog", { name: "Add link condition" });
-  expect(within(picker).getByRole("button", { name: "Add" })).toBeDisabled();
+  expect(within(picker).getByRole("button", { name: "Apply" })).toBeDisabled();
   expect(linkClauses(current().search.filter)[0].relationship).toEqual(existing);
 });
 

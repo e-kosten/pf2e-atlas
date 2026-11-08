@@ -9,7 +9,6 @@ import { isBuilderGroup } from "./builderEdits";
 import { filterValueLabel } from "./filterValueLabel";
 import {
   BOOLEAN_CONDITION,
-  LINK_CONDITION,
   RELATED_CONDITION,
   builderPredicate,
   emptyGroup,
@@ -112,7 +111,6 @@ export function RelatedEntrySummary({
 type Draft = {
   relation: "contains" | QueryRelationshipDirection;
   collection: string | undefined;
-  mode: "any" | "filters" | "exact";
   query: RuleGroupType;
   includeContents: boolean;
   excluded: boolean;
@@ -138,13 +136,24 @@ function RelatedEntrySelect<Value extends string>({
   );
 }
 
+function filterDescription(draft: Draft, scope: string | null) {
+  if (draft.relation === "incoming")
+    return "Find entries that link to an entry matching this filter group.";
+  if (draft.relation === "outgoing")
+    return "Find entries linked from an entry matching this filter group.";
+  if (!draft.query.rules.length)
+    return "Matches any entry of the selected type. Add conditions to narrow the match.";
+  return scope === "embedded.spells"
+    ? "Find entries with a spell that matches this filter group."
+    : "Find entries with a contained entry that matches this filter group.";
+}
+
 export function RelatedEntryEditor({
   rule,
   fields,
   disabled,
   linkLimitReached,
   onApply,
-  onExact,
   renderConditions,
 }: {
   rule: PredicateRule;
@@ -152,7 +161,6 @@ export function RelatedEntryEditor({
   disabled?: boolean;
   linkLimitReached: boolean;
   onApply: (rule: PredicateRule) => void;
-  onExact: (rule: PredicateRule, opener?: HTMLElement) => void;
   renderConditions: (
     query: RuleGroupType,
     change: (query: RuleGroupType) => void,
@@ -164,31 +172,22 @@ export function RelatedEntryEditor({
   const appliedQuery = applied ? rule.value : rule.value?.query;
   const appliedGroup = isBuilderGroup(appliedQuery) ? appliedQuery : emptyGroup();
   const appliedLink = !applied && isBuilderGroup(appliedQuery);
-  const exactLink = rule.field === LINK_CONDITION;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>();
   const opener = useRef<HTMLButtonElement>(null);
-  const handoff = useRef<PredicateRule | undefined>(undefined);
   const exclusions = rule.meta?.atlasExcluded ?? false;
-  const configured = !!applied || appliedLink || !!rule.value?.selection;
+  const configured = !!applied || appliedLink;
   function begin() {
     setDraft({
       relation:
-        applied || (!appliedLink && !exactLink)
+        applied || !appliedLink
           ? "contains"
           : rule.operator === "outgoing"
             ? "outgoing"
             : "incoming",
       collection: applied?.definition.id,
-      mode: exactLink
-        ? "exact"
-        : applied && presenceOnly(appliedGroup)
-          ? "any"
-          : "filters",
-      query: appliedGroup,
-      includeContents:
-        (exactLink ? rule.value?.include_contents : rule.value?.includeContents) ??
-        true,
+      query: applied && presenceOnly(appliedGroup) ? emptyGroup() : appliedGroup,
+      includeContents: rule.value?.includeContents ?? true,
       excluded: exclusions,
     });
     setOpen(true);
@@ -215,7 +214,7 @@ export function RelatedEntryEditor({
   const exceedsLinkLimit = draft && draft.relation !== "contains" && linkLimitReached;
   let valid = false;
   if (draft && scope !== undefined && !exceedsLinkLimit) {
-    if (draft.mode !== "filters") valid = true;
+    if (draft.relation === "contains" && !draft.query.rules.length) valid = true;
     else if (complete(draft.query)) {
       try {
         valid = !!builderPredicate(
@@ -236,32 +235,15 @@ export function RelatedEntryEditor({
         ...base,
         field: collection.definition.id,
         operator: "exists",
-        value: draft.mode === "any" ? emptyGroup() : draft.query,
+        value: draft.query,
       });
     } else if (draft.relation !== "contains") {
-      if (draft.mode === "exact") {
-        handoff.current = {
-          ...base,
-          field: LINK_CONDITION,
-          operator: draft.relation,
-          value: {
-            include_contents: draft.includeContents,
-            selection:
-              exactLink &&
-              rule.operator === draft.relation &&
-              rule.value?.include_contents === draft.includeContents
-                ? rule.value?.selection
-                : undefined,
-          },
-        };
-      } else {
-        onApply({
-          ...base,
-          field: RELATED_CONDITION,
-          operator: draft.relation,
-          value: { query: draft.query, includeContents: draft.includeContents },
-        });
-      }
+      onApply({
+        ...base,
+        field: RELATED_CONDITION,
+        operator: draft.relation,
+        value: { query: draft.query, includeContents: draft.includeContents },
+      });
     }
     setOpen(false);
   }
@@ -277,14 +259,9 @@ export function RelatedEntryEditor({
         open={open}
         onCancel={() => setOpen(false)}
         onOk={apply}
-        okText={draft?.mode === "exact" ? "Choose record" : "Apply"}
+        okText="Apply"
         okButtonProps={{ disabled: !valid }}
-        afterClose={() => {
-          const pending = handoff.current;
-          handoff.current = undefined;
-          if (pending) onExact(pending, opener.current ?? undefined);
-          else opener.current?.focus({ preventScroll: true });
-        }}
+        afterClose={() => opener.current?.focus({ preventScroll: true })}
         destroyOnHidden
       >
         {draft && (
@@ -304,7 +281,7 @@ export function RelatedEntryEditor({
                   setDraft({
                     ...draft,
                     relation,
-                    ...(changedScope ? { query: emptyGroup(), mode: "filters" } : {}),
+                    ...(changedScope ? { query: emptyGroup() } : {}),
                   });
                 }}
               />
@@ -321,19 +298,6 @@ export function RelatedEntryEditor({
                   onChange={(collection) =>
                     setDraft({ ...draft, collection, query: emptyGroup() })
                   }
-                />
-              )}
-              {(collection || draft.relation !== "contains") && (
-                <RelatedEntrySelect
-                  label="Which related entries?"
-                  value={draft.mode}
-                  options={[
-                    { value: "filters", label: "Entries matching filters" },
-                    draft.relation === "contains"
-                      ? { value: "any", label: "Any entry of this type" }
-                      : { value: "exact", label: "A specific record" },
-                  ]}
-                  onChange={(mode: Draft["mode"]) => setDraft({ ...draft, mode })}
                 />
               )}
               {draft.relation !== "contains" && (
@@ -358,13 +322,13 @@ export function RelatedEntryEditor({
                 {draft.includeContents ? " and its contents." : " itself."}
               </Typography.Text>
             )}
-            {draft.mode === "filters" && scope !== undefined && (
+            {scope !== undefined && (
               <>
                 <div>
                   <Typography.Text strong>Related entry filters</Typography.Text>
                   <br />
                   <Typography.Text type="secondary">
-                    Atlas checks the conditions against one related entry at a time.
+                    {filterDescription(draft, scope)}
                   </Typography.Text>
                 </div>
                 {renderConditions(

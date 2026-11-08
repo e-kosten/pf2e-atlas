@@ -91,10 +91,10 @@ filters combine conditions with AND, OR and NOT.
 To find entries that contain a Fire spell of rank 3 or higher, add
 **Related entries** in **Advanced filters**, choose **Contains** and **Spells**,
 then add both conditions in the dialog and click **Apply**. Both conditions
-apply to the same contained spell. Choose **Any entry of this type** to check
-for the presence of a spell.
+apply to the same contained spell. Apply without adding conditions to check
+for the presence of any spell.
 
-Choose **Links to** or **Linked from** and **Match conditions** to filter the
+Choose **Links to** or **Linked from** in **Related entries** to filter the
 entry on the other end of a reference. Use **Links** when you already know
 which specific entry you want.
 

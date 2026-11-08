@@ -18,7 +18,6 @@ type LinkFilterForm = {
 export function LinkConditionPicker({
   open,
   initial,
-  initialScope,
   initialExcluded = false,
   parent,
   onCancel,
@@ -34,10 +33,10 @@ export function LinkConditionPicker({
   const scopeHelpTrigger = useRef<HTMLButtonElement>(null);
   const [form] = Form.useForm<LinkFilterForm>();
   const [direction, setDirection] = useState<QueryRelationshipDirection>(
-    initial?.direction ?? initialScope?.direction ?? "incoming",
+    initial?.direction ?? "incoming",
   );
   const [includeContents, setIncludeContents] = useState(
-    initial?.include_contents ?? initialScope?.include_contents ?? true,
+    initial?.include_contents ?? true,
   );
   function close() {
     setScopeHelpOpen(false);
