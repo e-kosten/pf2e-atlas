@@ -780,6 +780,62 @@ fn explicit_value_counts_use_independent_counterfactual_root_sets_and_scopes() {
 }
 
 #[test]
+fn grouped_trait_counts_exclude_the_selected_root_clause_and_keep_eligible_roots() {
+    use crate::discovery::{QueryFacetContext, QueryValueCountsRequest, field_value_counts};
+    let db = database();
+    for id in 1..=4 {
+        root(&db, id, "npc", "common");
+    }
+    db.execute(
+        "UPDATE records SET traits_state='invalid' WHERE record_id=4",
+        [],
+    )
+    .unwrap();
+    for (id, value) in [
+        (1, "fire"),
+        (1, "cold"),
+        (2, "cold"),
+        (3, "fire"),
+        (4, "cold"),
+    ] {
+        db.execute(
+            "INSERT INTO trait_members SELECT ?2,key,'[]',1,NULL FROM records WHERE record_id=?1",
+            rusqlite::params![id, value],
+        )
+        .unwrap();
+    }
+    let predicate: QueryPredicate = serde_json::from_value(json!({
+        "kind":"set_match","clause_id":"selected-trait","field":"traits",
+        "op":"includes","values":["fire"]
+    }))
+    .unwrap();
+    let request = QueryValueCountsRequest {
+        field: "traits".into(),
+        clause_id: Some("selected-trait".into()),
+        query: validate_query(&predicate).unwrap(),
+        context: QueryFacetContext {
+            eligible_keys: Some(
+                [1, 2, 4]
+                    .map(|id| format!("test:{id:016}").parse().unwrap())
+                    .to_vec(),
+            ),
+        },
+        values: ["fire", "cold", "agile"]
+            .map(|value| QueryLiteral::String(value.into()))
+            .to_vec(),
+    };
+    let counts = available(field_value_counts(&db, &request).unwrap());
+    assert_eq!(
+        counts
+            .options
+            .iter()
+            .map(|o| (o.distinct_roots, o.selected))
+            .collect::<Vec<_>>(),
+        [(1, true), (2, false), (0, false)],
+    );
+}
+
+#[test]
 fn explicit_count_validation_precedes_optional_unavailability() {
     use crate::discovery::{QueryFacetContext, QueryValueCountsRequest, field_value_counts};
     let db = database();

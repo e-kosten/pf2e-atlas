@@ -541,7 +541,9 @@ fn count_options(
         };
         Ok(validate_query(&p)?)
     };
-    if d.definition.id == "actions" && !values.is_empty() {
+    let grouped_traits =
+        matches!(d.binding, Binding::Traits) && d.definition.scope.is_none() && values.len() > 1;
+    if (d.definition.id == "actions" && !values.is_empty()) || grouped_traits {
         // Keep the same per-choice validation limits while sharing the database scan.
         for value in &values {
             with_choice(value)?;
@@ -550,12 +552,21 @@ fn count_options(
             Some(base) => validate_query(&base)?,
             None => query.clone(),
         };
-        let (eligible, mut parameters) =
-            crate::read_units::eligible_sql(&base, context.eligible_keys.as_deref())?;
+        let keys = context.eligible_keys.as_deref();
+        let (eligible, mut parameters) = if grouped_traits {
+            let (mut eligible, parameters) =
+                crate::read_units::eligible_record_keys_sql(&base, keys)?;
+            let state = bound_field(d, None).state;
+            eligible.push_str(&format!(" AND ({state})='value'"));
+            (eligible, parameters)
+        } else {
+            crate::read_units::eligible_sql(&base, keys)?
+        };
         let slot = format!("?{}", parameters.len() + 1);
         parameters.push(Value::Text(serde_json::to_string(&values)?));
-        let sql = crate::query::grouped_root_set_counts(d, &eligible, &slot)
-            .ok_or_else(|| IndexError::Invalid("Actions requires a root set binding".into()))?;
+        let sql = crate::query::grouped_root_set_counts(d, &eligible, &slot).ok_or_else(|| {
+            IndexError::Invalid(format!("{} requires a root set binding", d.definition.id))
+        })?;
         let counts = connection
             .prepare(&sql)?
             .query_map(params_from_iter(&parameters), |row| {
