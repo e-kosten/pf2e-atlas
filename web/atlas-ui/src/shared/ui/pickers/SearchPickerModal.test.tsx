@@ -235,12 +235,12 @@ it("keeps the root selection default when a match opens an exact embedded docume
   const page = result();
   const navigation = activityFixture("Command", "actors:ghoul").navigation;
   page.mode = { kind: "text_search", query: "command", mode: "hybrid" };
-  page.rows[0].matching_sections = [{ navigation, label: "Command", snippet: null }];
+  page.rows[0].matching_sections = [{ navigation, label: "Command", preview: null }];
   page.rows[0].matches = [
     {
       navigation,
       label: "Command",
-      snippet: null,
+      preview: null,
       lane: "lexical",
       lexical_rank: null,
       semantic_similarity: null,

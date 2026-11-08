@@ -2,4 +2,4 @@
 import type { SearchWitnessView } from "./SearchWitnessView";
 import type { SimilarityPartSelector } from "./SimilarityPartSelector";
 
-export type SimilarityPairView = { seed_part: SimilarityPartSelector, seed: SearchWitnessView | null, seed_text: string, candidate: SearchWitnessView, cosine: number, };
+export type SimilarityPairView = { seed_part: SimilarityPartSelector, seed: SearchWitnessView | null, candidate: SearchWitnessView, cosine: number, };

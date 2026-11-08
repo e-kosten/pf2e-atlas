@@ -452,6 +452,46 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
 }
 
 #[tokio::test]
+async fn search_match_previews_use_the_structured_wire_contract() {
+    let fixture = Fixture::new();
+    for (label, preview) in [
+        (
+            "Lantern Colors",
+            json!({"kind":"table","columns":["Color","Meaning"]}),
+        ),
+        (
+            "Lantern Signals",
+            json!({"kind":"text","blocks":["One flash means wait.","Two flashes mean go."],"truncated":false}),
+        ),
+        ("Lantern Warning", Value::Null),
+    ] {
+        let (status, body) = fixture.json(
+            Method::POST,
+            "/api/search/page",
+            Some(json!({
+                "criteria":{"kind":"text_search","query":format!("\"{label}\""),"mode":"lexical"},
+                "page":{"number":1,"size":10},
+            }))
+        ).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let row = body["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["record"]["record_key"] == ACTION)
+            .unwrap();
+        let matched = &row["matching_sections"][0];
+        assert_eq!(matched["label"], label);
+        assert_eq!(matched.get("preview"), Some(&preview), "{body}");
+        assert!(matched.get("snippet").is_none());
+        let round_trip: atlas_app_model::SearchMatchSectionView =
+            serde_json::from_value(matched.clone()).unwrap();
+        assert_eq!(round_trip.navigation.record_key, ACTION);
+        assert!(round_trip.navigation.passage.is_some());
+    }
+}
+
+#[tokio::test]
 async fn description_filter_keeps_own_prose_through_the_search_route() {
     let fixture = Fixture::new();
     let (status, body) = fixture

@@ -162,7 +162,6 @@ pub struct SimilarityRoleScore {
 pub struct SimilarityPair {
     pub seed_part: SimilarityPartSelector,
     pub seed: Option<SearchWitness>,
-    pub seed_text: String,
     pub candidate: SearchWitness,
     pub cosine: f64,
 }
@@ -670,12 +669,7 @@ impl crate::AtlasRetrievalService {
             })
             .collect::<Vec<_>>();
         self.hydrate_similarity_witnesses(&mut witnesses, &request)?;
-        for (key, evidence) in &mut evidence {
-            for pair in &mut evidence.pairs {
-                if let Some(text) = pair.seed.as_ref().and_then(|seed| seed.snippet.as_ref()) {
-                    pair.seed_text = text.clone();
-                }
-            }
+        for (key, evidence) in &evidence {
             if let Some(record) = results
                 .records
                 .iter_mut()
@@ -732,7 +726,7 @@ impl crate::AtlasRetrievalService {
             }
         }
         request.check()?;
-        let recovered = self.index.recover_passages(&locations)?;
+        let recovered = self.index.recover_match_previews(&locations)?;
         let mut owned_labels = Vec::new();
         for batch in locations.chunks(256) {
             request.check()?;
@@ -747,12 +741,17 @@ impl crate::AtlasRetrievalService {
         }
         for witness in witnesses {
             request.check()?;
-            if let Some((_, text)) = locations
+            if let Some((_, preview)) = locations
                 .iter()
                 .zip(&recovered)
                 .find(|(location, _)| *location == &witness.location)
             {
-                witness.snippet = text.as_deref().map(crate::text::reading_excerpt);
+                witness.preview = preview
+                    .as_ref()
+                    .and_then(|evidence| evidence.preview.clone());
+                witness.parent_heading = preview
+                    .as_ref()
+                    .and_then(|evidence| evidence.parent_heading.clone());
             }
             if let Some((_, _, owner_label)) = owned_labels.iter().find(|(key, owners, _)| {
                 key == &witness.location.record && owners == &witness.location.owners
@@ -787,7 +786,6 @@ fn prepare_similarity_evidence(
                     .location
                     .clone()
                     .map(|location| raw_witness(location, pair.cosine, seed.component.label())),
-                seed_text: String::new(),
                 candidate: raw_witness(pair.candidate, pair.cosine, &pair.candidate_label),
                 cosine: pair.cosine,
             })
@@ -826,7 +824,8 @@ fn raw_witness(location: SourceUnitLocation, cosine: f64, label: &str) -> Search
         location,
         lane: crate::SearchLane::Semantic,
         label: Some(label.into()),
-        snippet: None,
+        preview: None,
+        parent_heading: None,
         lexical_rank: None,
         semantic_similarity: Some(cosine),
     }

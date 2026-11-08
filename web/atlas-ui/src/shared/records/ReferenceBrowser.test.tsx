@@ -44,12 +44,12 @@ const rows: SearchResultRow[] = [
   {
     record: summaryFixture("actors:ghoul", "Ghoul"),
     relationship_evidence: [],
-    matching_sections: [{ navigation, label: "Jaws", snippet: null }],
+    matching_sections: [{ navigation, label: "Jaws", preview: null }],
     matches: [
       {
         navigation,
         label: "Jaws",
-        snippet: null,
+        preview: null,
         lane: "lexical",
         lexical_rank: null,
         semantic_similarity: null,
@@ -416,7 +416,7 @@ it("retains a precise field bookmark through Activity and lands a fresh selectio
   const resultRows = [
     {
       ...rows[0],
-      matching_sections: [{ navigation: target, label: "Description", snippet: null }],
+      matching_sections: [{ navigation: target, label: "Description", preview: null }],
       matches: [{ ...rows[0].matches[0], navigation: target, label: "Description" }],
     },
   ];

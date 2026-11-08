@@ -14,6 +14,7 @@ export type { EncounterAbilityStateKindView } from "../../../../crates/atlas-app
 export type { EncounterAbilityChoiceView } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityChoiceView";
 export type { EncounterAbilityStateAction } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityStateAction";
 export type { UpdateEncounterAbilityStateRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterAbilityStateRequest";
+export type { MatchPreviewView } from "../../../../crates/atlas-app-model/bindings/MatchPreviewView";
 export type { SearchMatchSectionView } from "../../../../crates/atlas-app-model/bindings/SearchMatchSectionView";
 export type { EncounterDifficultyAddition } from "../../../../crates/atlas-app-model/bindings/EncounterDifficultyAddition";
 export type { RecordGrantsView } from "../../../../crates/atlas-app-model/bindings/RecordGrantsView";

@@ -51,7 +51,7 @@ pub(super) fn output(result: &Result<Option<ConfigurableSimilarResult>, SearchEr
                 "parts":value.parts.iter().map(|p|(&p.part,p.score.to_bits(),p.weight.to_bits(),p.comparable)).collect::<Vec<_>>(),
                 "roles":value.roles.iter().map(|r|(&r.key,r.score.to_bits(),r.weight.to_bits(),r.comparable)).collect::<Vec<_>>(),
                 "pairs":value.pairs.iter().map(|p|json!({"part":p.seed_part,"seed":p.seed.as_ref().map(witness),
-                    "seed_text":p.seed_text,"candidate":witness(&p.candidate),"cosine_bits":p.cosine.to_bits()})).collect::<Vec<_>>(),
+                    "candidate":witness(&p.candidate),"cosine_bits":p.cosine.to_bits()})).collect::<Vec<_>>(),
                 "representative":value.representative,"truncated":value.truncated
             })).collect::<Vec<_>>(),"candidate_keys":result.candidate_keys,"effective":result.effective,
             "source_sections":result.source_sections,"content_scope":result.content_scope,

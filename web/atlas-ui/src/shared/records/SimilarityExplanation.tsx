@@ -1,3 +1,4 @@
+import { MatchPreview } from "./MatchPreview";
 import { useReferenceRecordNavigation } from "./ReferenceHelp";
 import { Table, Typography } from "antd";
 import type {
@@ -114,7 +115,7 @@ export function SimilarityExplanation({
                 onNavigate={onNavigate}
               />
             ) : null}
-            <Typography.Paragraph>{pair.seed_text}</Typography.Paragraph>
+            <MatchPreview preview={pair.seed?.preview} />
           </div>
           <div>
             <strong>Match</strong>{" "}
@@ -123,9 +124,7 @@ export function SimilarityExplanation({
               label={pair.candidate.label || "Matching passage"}
               onNavigate={onNavigate}
             />
-            {pair.candidate.snippet && (
-              <Typography.Paragraph>{pair.candidate.snippet}</Typography.Paragraph>
-            )}
+            <MatchPreview preview={pair.candidate.preview} />
           </div>
         </div>
       ))}

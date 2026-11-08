@@ -156,7 +156,6 @@ pub struct SimilarityRoleScoreView {
 pub struct SimilarityPairView {
     pub seed_part: SimilarityPartSelector,
     pub seed: Option<crate::SearchWitnessView>,
-    pub seed_text: String,
     pub candidate: crate::SearchWitnessView,
     pub cosine: f64,
 }

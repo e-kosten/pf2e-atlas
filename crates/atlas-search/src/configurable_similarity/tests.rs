@@ -528,7 +528,9 @@ fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
         .unwrap()
         .unwrap();
     assert_eq!(result.evidence[0].1.selected_parts, 1);
-    assert_eq!(result.evidence[0].1.pairs[0].seed_text, "Returns at dawn");
+    assert!(
+        matches!(&result.evidence[0].1.pairs[0].seed.as_ref().unwrap().preview, Some(atlas_record::source_record::SourceMatchPreview::Text { blocks, .. }) if blocks == &["Returns at dawn"])
+    );
     assert!(
         result
             .results
@@ -796,9 +798,13 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
             .1;
         assert_eq!(row.matches.len(), evidence.pairs.len());
         for (witness, pair) in row.matches.iter().zip(&evidence.pairs) {
-            assert_eq!(witness.snippet, pair.candidate.snippet);
+            assert_eq!(witness.preview, pair.candidate.preview);
             assert_eq!(witness.location, pair.candidate.location);
-            assert!(!pair.seed_text.is_empty());
+            assert!(
+                pair.seed
+                    .as_ref()
+                    .is_some_and(|seed| seed.preview.is_some())
+            );
         }
     }
     // Exercise the same request hydration with repeated seed/candidate locations,
@@ -812,7 +818,7 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
         .collect::<Vec<_>>();
     let mut repeated = (0..40).flat_map(|_| originals.clone()).collect::<Vec<_>>();
     for witness in &mut repeated {
-        witness.snippet = None;
+        witness.preview = None;
     }
     service.index.reset_read_metrics();
     service
@@ -832,6 +838,8 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
             "/system/details/biography/beliefs" => "Travel brings wisdom",
             other => panic!("unexpected witness field: {other}"),
         };
-        assert_eq!(witness.snippet.as_deref(), Some(expected));
+        assert!(
+            matches!(&witness.preview, Some(atlas_record::source_record::SourceMatchPreview::Text { blocks, .. }) if blocks == &[expected])
+        );
     }
 }

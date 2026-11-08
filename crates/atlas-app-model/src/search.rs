@@ -159,18 +159,29 @@ pub struct SearchResultRow {
     #[ts(optional)]
     pub matching_sections: Option<Vec<SearchMatchSectionView>>,
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MatchPreviewView {
+    Text {
+        blocks: Vec<String>,
+        truncated: bool,
+    },
+    Table {
+        columns: Vec<String>,
+    },
+}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchMatchSectionView {
     pub navigation: RecordNavigationView,
     pub label: String,
-    pub snippet: Option<String>,
+    pub preview: Option<MatchPreviewView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchWitnessView {
     pub navigation: RecordNavigationView,
     pub lane: SearchLaneView,
     pub label: Option<String>,
-    pub snippet: Option<String>,
+    pub preview: Option<MatchPreviewView>,
     pub lexical_rank: Option<f64>,
     pub semantic_similarity: Option<f64>,
 }

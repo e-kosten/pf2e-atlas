@@ -364,11 +364,22 @@ fn print_evidence(evidence: &SimilarityEvidenceView, explain: bool) {
             .and_then(|w| w.label.as_deref())
             .unwrap_or("Selected part");
         let candidate_label = pair.candidate.label.as_deref().unwrap_or("Content");
-        println!("  Seed ({seed_label}): {}", pair.seed_text);
-        if let Some(text) = &pair.candidate.snippet {
-            println!("  Match ({candidate_label}): {text}");
-        } else {
-            println!("  Match: {candidate_label}");
+        for (role, label, preview) in [
+            (
+                "Seed",
+                seed_label,
+                pair.seed.as_ref().and_then(|seed| seed.preview.as_ref()),
+            ),
+            ("Match", candidate_label, pair.candidate.preview.as_ref()),
+        ] {
+            if let Some(preview) = preview {
+                println!(
+                    "  {role} ({label}): {}",
+                    super::product::match_preview_text(preview)
+                );
+            } else {
+                println!("  {role}: {label}");
+            }
         }
     }
 }

@@ -210,7 +210,6 @@ fn evidence_view(
                 seed: pair
                     .seed
                     .map(|witness| crate::projection::search_witness_view(witness, fingerprint)),
-                seed_text: pair.seed_text,
                 candidate: crate::projection::search_witness_view(pair.candidate, fingerprint),
                 cosine: pair.cosine,
             })
