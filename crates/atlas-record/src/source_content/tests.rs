@@ -1164,3 +1164,60 @@ fn inline_damage_labels_follow_foundry_while_retaining_roll_annotations() {
     );
     assert_eq!(literal_damage("2d4[healing]").unwrap()[0].label, "healing");
 }
+
+#[test]
+fn prepared_record_validation_checks_safety_before_reference_bindings() {
+    let prepared = prepare(
+        "<p><a href='https://example.com'>External</a> @Check[fortitude|dc:21]</p>\
+         <p data-visibility='none'>@UUID[secret]{Secret}</p>",
+    );
+    assert!(!prepared.interactions.is_empty());
+    assert!(
+        prepared
+            .references
+            .iter()
+            .any(|reference| reference.visible)
+    );
+    assert!(
+        prepared
+            .references
+            .iter()
+            .any(|reference| !reference.visible)
+    );
+    validate_prepared_record_content(&prepared).unwrap();
+
+    let mut changed = prepared.clone();
+    changed.references.clear();
+    assert_eq!(
+        validate_prepared_record_content(&changed).unwrap_err().0,
+        "reference marker has no visible sidecar occurrence"
+    );
+    changed.html.push_str("<script>alert(1)</script>");
+    assert_eq!(
+        validate_prepared_record_content(&changed).unwrap_err().0,
+        "prepared HTML violates the sanitizer policy"
+    );
+
+    let mut changed = prepared.clone();
+    changed.html.push_str(&prepared.html);
+    assert_eq!(
+        validate_prepared_record_content(&changed).unwrap_err().0,
+        "reference ordinal is duplicated"
+    );
+
+    let mut changed = prepared.clone();
+    changed.html = changed
+        .html
+        .replace("https://example.com", "https://example.org");
+    assert_eq!(
+        validate_prepared_record_content(&changed).unwrap_err().0,
+        "reference href disagrees with sidecar destination"
+    );
+
+    let mut changed = prepared;
+    changed.authored_markup_sha256 = "0".repeat(64);
+    assert_eq!(
+        validate_prepared_record_content(&changed).unwrap_err().0,
+        "reference marker and visible sidecar binding disagree"
+    );
+}

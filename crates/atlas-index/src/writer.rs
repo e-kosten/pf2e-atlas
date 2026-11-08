@@ -11,7 +11,7 @@ use atlas_record::{
     source_content::{
         CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentReferenceKind,
         ContentReferenceResolution, ContentReferenceTarget, ContentVisibilityRule,
-        validate_prepared_markers, validate_prepared_reference_bindings,
+        validate_prepared_record_content,
     },
     source_record::{FieldAvailability, SourceContentStatus},
 };
@@ -387,15 +387,8 @@ pub(crate) fn write_content(
                         "prepared field input/interpreter identity disagrees".into(),
                     ));
                 }
-                validate_prepared_markers(&prepared.html, &prepared.interactions)
+                validate_prepared_record_content(prepared)
                     .map_err(|e| IndexError::Invalid(e.to_string()))?;
-                validate_prepared_reference_bindings(
-                    &prepared.html,
-                    locator,
-                    &prepared.authored_markup_sha256,
-                    &prepared.references,
-                )
-                .map_err(|e| IndexError::Invalid(e.to_string()))?;
                 for reference in &prepared.references {
                     if reference.visible && published && write_references {
                         let kind = match reference.kind {

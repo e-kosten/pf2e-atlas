@@ -247,3 +247,52 @@ fn mismatched_preparation_stamp_is_rejected_before_published_state_changes() {
     assert_eq!(stable_rows(read.connection()), before);
     crate::validate_reference(read.connection()).unwrap();
 }
+
+#[test]
+fn unsafe_prepared_html_rolls_back_reference_changes() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("unsafe-prepared-html.sqlite");
+    let workspace = initialize_workspace(&path).unwrap();
+    let mut input = fixture();
+    publish_input(&path, &input).unwrap();
+    let before = stable_rows(
+        workspace
+            .read(TEST_WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .connection(),
+    );
+
+    let prepared = input
+        .records
+        .iter_mut()
+        .flat_map(|record| &mut record.content)
+        .find_map(|field| match &mut field.status {
+            atlas_record::source_record::SourceContentStatus::Prepared(prepared) => Some(prepared),
+            _ => None,
+        })
+        .unwrap();
+    prepared.html.push_str("<script>alert(1)</script>");
+
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let source = spool(scratch.path(), input, origin(&workspace), None);
+    let error = PreparedPublication::new_in(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        source,
+    )
+    .unwrap()
+    .publish()
+    .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("prepared HTML violates the sanitizer policy"),
+        "{error}"
+    );
+
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 1);
+    assert_eq!(stable_rows(read.connection()), before);
+}
