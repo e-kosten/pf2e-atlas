@@ -62,16 +62,24 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
     let mut bytes = 0;
     let mut ids = HashSet::new();
     let mut scopes = HashSet::new();
+    #[derive(Clone, Copy, Default)]
+    struct Scope<'a> {
+        collection: Option<&'a str>,
+        inside_related: bool,
+    }
     fn visit(
         p: &QueryPredicate,
-        scope: Option<&str>,
-        inside_related: bool,
+        context: Scope<'_>,
         depth: usize,
         nodes: &mut usize,
         ids: &mut HashSet<String>,
         scopes: &mut HashSet<String>,
         bytes: &mut usize,
     ) -> Result<(), QueryError> {
+        let Scope {
+            collection: scope,
+            inside_related,
+        } = context;
         let limits = QueryLimits::default();
         *nodes += 1;
         if *nodes > limits.nodes || depth > limits.depth {
@@ -180,7 +188,18 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                         None,
                     ));
                 }
-                visit(predicate, None, true, depth + 1, nodes, ids, scopes, bytes)
+                visit(
+                    predicate,
+                    Scope {
+                        collection: None,
+                        inside_related: true,
+                    },
+                    depth + 1,
+                    nodes,
+                    ids,
+                    scopes,
+                    bytes,
+                )
             }
             QueryExpression::BooleanConstant { .. } => Ok(()),
             QueryExpression::Compare { field, op, value } => {
@@ -266,8 +285,10 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                 }
                 visit(
                     predicate,
-                    Some(collection),
-                    inside_related,
+                    Scope {
+                        collection: Some(collection),
+                        ..context
+                    },
                     depth + 1,
                     nodes,
                     ids,
@@ -284,29 +305,13 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                     ));
                 }
                 for child in children {
-                    visit(
-                        child,
-                        scope,
-                        inside_related,
-                        depth + 1,
-                        nodes,
-                        ids,
-                        scopes,
-                        bytes,
-                    )?;
+                    visit(child, context, depth + 1, nodes, ids, scopes, bytes)?;
                 }
                 Ok(())
             }
-            QueryExpression::Not { predicate } => visit(
-                predicate,
-                scope,
-                inside_related,
-                depth + 1,
-                nodes,
-                ids,
-                scopes,
-                bytes,
-            ),
+            QueryExpression::Not { predicate } => {
+                visit(predicate, context, depth + 1, nodes, ids, scopes, bytes)
+            }
         })();
         result.map_err(|mut e| {
             if e.clause_id.is_none() {
@@ -317,8 +322,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
     }
     visit(
         predicate,
-        None,
-        false,
+        Scope::default(),
         0,
         &mut nodes,
         &mut ids,

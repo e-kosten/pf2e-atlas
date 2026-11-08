@@ -34,6 +34,7 @@ function presenceOnly(group: RuleGroupType): boolean {
       !group.not &&
       !("rules" in rule) &&
       rule.field === BOOLEAN_CONDITION &&
+      !(rule as PredicateRule).meta?.atlasExcluded &&
       rule.value === true)
   );
 }
@@ -196,15 +197,18 @@ export function RelatedEntryEditor({
     (field) => field.definition.id === draft?.collection,
   );
   const scope = draft?.relation === "contains" ? collection?.definition.path : null;
-  function complete(group: RuleGroupType): boolean {
+  function complete(group: RuleGroupType, memberScope: string | null): boolean {
     return (
       group.rules.length > 0 &&
       group.rules.every((rule) => {
-        if ("rules" in rule) return complete(rule);
+        if ("rules" in rule) return complete(rule, memberScope);
         const field = fields.find(
           (field) =>
-            field.definition.id === rule.field && field.definition.scope === scope,
+            field.definition.id === rule.field &&
+            field.definition.scope === memberScope,
         );
+        if (rule.operator === "exists" && field?.definition.path === "senses")
+          return isBuilderGroup(rule.value) && complete(rule.value, "senses");
         return field
           ? !isClearedOperand(rule, field.definition)
           : rule.field === BOOLEAN_CONDITION;
@@ -215,7 +219,7 @@ export function RelatedEntryEditor({
   let valid = false;
   if (draft && scope !== undefined && !exceedsLinkLimit) {
     if (draft.relation === "contains" && !draft.query.rules.length) valid = true;
-    else if (complete(draft.query)) {
+    else if (complete(draft.query, scope)) {
       try {
         valid = !!builderPredicate(
           draft.query,

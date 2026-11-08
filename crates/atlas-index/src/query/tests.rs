@@ -2014,5 +2014,12 @@ fn filtered_links_preserve_direction_scope_and_unknown_witnesses() {
         )
         .is_empty()
     );
+    assert_eq!(
+        result(
+            &db,
+            "source.type == 'armor' || links_to_matching(rarity == 'uncommon')"
+        ),
+        vec![1, 9]
+    );
     assert!(parse_where("links_to_matching(links_to_matching(rarity == 'common'))").is_err());
 }
