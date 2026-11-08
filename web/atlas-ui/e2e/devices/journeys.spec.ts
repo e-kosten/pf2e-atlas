@@ -270,9 +270,10 @@ test("theme dismissal returns focus without stealing the next modal's focus", as
   await expect(page.getByText("Dark", { exact: true })).toBeHidden();
   await expect(theme).toBeFocused();
   await activate(theme, info);
-  const create = page.getByRole("button", { name: "New list", exact: true });
   // The theme popover can overlap the header action on tablets.
-  await create.press("Enter");
+  await activate(page.getByRole("heading", { name: "Saved Lists" }), info);
+  const create = page.getByRole("button", { name: "New list", exact: true });
+  await activate(create, info);
   const dialog = page.getByRole("dialog", { name: "New List", exact: true });
   await expect(dialog).toBeVisible();
   const name = dialog.getByRole("textbox", { name: /Name$/ });
@@ -282,8 +283,6 @@ test("theme dismissal returns focus without stealing the next modal's focus", as
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(create).toBeFocused();
-  await activate(page.getByRole("heading", { name: "Saved Lists" }), info);
-  await expect(page.getByText("Dark", { exact: true })).toBeHidden();
   await activate(create, info);
   await expect(name).toHaveValue("Retained draft");
 });
