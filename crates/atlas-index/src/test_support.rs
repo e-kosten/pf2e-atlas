@@ -267,6 +267,18 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: crate::backfill_trait_members,
         }),
     },
+    Migration {
+        version: 37,
+        name: "source-condition-override-payload",
+        sql: "",
+        backfill: None,
+    },
+    Migration {
+        version: crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION,
+        name: "native-token-count-digest",
+        sql: crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()

@@ -59,7 +59,7 @@ impl NativeExecution<'_, '_> {
     ) -> Result<crate::ProfileBuildReport, IngestError> {
         let mut runner = NativeInferenceRunner::new(config, self.options.embedding_batch_size)
             .map_err(embedding)?;
-        self.execute(config, |publication, model, batch| {
+        self.execute(config, true, |publication, model, batch| {
             let count = runner
                 .infer(batch, |values| stage_values(publication, model, values))
                 .map_err(embedding)?;
@@ -69,6 +69,7 @@ impl NativeExecution<'_, '_> {
     fn execute(
         self,
         config: &atlas_embedding::EmbeddingRuntimeConfig,
+        verify_counts: bool,
         mut infer: impl FnMut(
             &mut PreparedPublication<'_>,
             &SourceSearchProfileIdentity,
@@ -89,6 +90,14 @@ impl NativeExecution<'_, '_> {
             .map_err(index)?
             .clone();
         let tokenizer = TextEmbeddingTokenizer::load(config).map_err(embedding)?;
+        let counts = if verify_counts {
+            publication
+                .verified_native_token_counts(&model)
+                .map_err(index)?
+        } else {
+            atlas_index::VerifiedNativeTokenCounts::default()
+        };
+        let mut witnessed_occurrences = 0;
         let mut raw = raw_inputs.cursor().map_err(index)?;
         let mut consumed = 0;
         let mut reused = 0;
@@ -117,12 +126,37 @@ impl NativeExecution<'_, '_> {
             max_raw_batch = max_raw_batch.max(inputs.len());
             consumed += inputs.len();
             let preparation_started = std::time::Instant::now();
-            let batch = PreparedEmbeddingBatch::prepare(&tokenizer, inputs).map_err(embedding)?;
+            let fresh_batch = if counts.is_empty() {
+                Some(
+                    PreparedEmbeddingBatch::prepare(&tokenizer, std::mem::take(&mut inputs))
+                        .map_err(embedding)?,
+                )
+            } else {
+                for input in &mut inputs {
+                    if input.input_sha256
+                        != atlas_embedding::hash_document_embedding_input(&input.input)
+                    {
+                        return Err(embedding(
+                            atlas_embedding::EmbeddingError::PreparedInputMismatch,
+                        ));
+                    }
+                    input.token_count = if let Some(count) = counts.count_for(&input.input_sha256) {
+                        witnessed_occurrences += 1;
+                        count
+                    } else {
+                        tokenizer
+                            .validate_document_input(&input.input)
+                            .map_err(embedding)?
+                    };
+                }
+                None
+            };
+            let prepared = fresh_batch
+                .as_ref()
+                .map_or(inputs.as_slice(), PreparedEmbeddingBatch::inputs);
             preparation_elapsed += preparation_started.elapsed();
             let mut unique = BTreeMap::<(String, usize), usize>::new();
-            for (position, (input, occurrence)) in
-                batch.inputs().iter().zip(occurrences).enumerate()
-            {
+            for (position, (input, occurrence)) in prepared.iter().zip(occurrences).enumerate() {
                 publication
                     .append_semantic(SemanticOccurrence {
                         profile_id: model.profile_id.clone(),
@@ -136,7 +170,7 @@ impl NativeExecution<'_, '_> {
                     .map_err(index)?;
                 let key = (input.input_sha256.clone(), input.token_count);
                 if let Some(previous) = unique.get(&key) {
-                    if batch.inputs()[*previous].input != input.input {
+                    if prepared[*previous].input != input.input {
                         return Err(invalid("duplicate raw native inputs disagree"));
                     }
                 } else {
@@ -147,7 +181,7 @@ impl NativeExecution<'_, '_> {
             let positions = unique.into_values().collect::<Vec<_>>();
             let requested = positions
                 .iter()
-                .map(|position| batch.inputs()[*position].descriptor())
+                .map(|position| prepared[*position].descriptor())
                 .collect::<Vec<_>>();
             let selection_started = std::time::Instant::now();
             let selected = publication
@@ -169,7 +203,25 @@ impl NativeExecution<'_, '_> {
             max_missing_batch = max_missing_batch.max(missing.len());
             if !missing.is_empty() {
                 missing.sort_unstable();
-                let batch = batch.into_subset(&missing).map_err(embedding)?;
+                let batch = if let Some(batch) = fresh_batch {
+                    batch.into_subset(&missing).map_err(embedding)?
+                } else {
+                    let mut positions = missing.into_iter().peekable();
+                    let inference_inputs = inputs
+                        .into_iter()
+                        .enumerate()
+                        .filter_map(|(position, input)| {
+                            if positions.peek() == Some(&position) {
+                                positions.next();
+                                Some(input)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    PreparedEmbeddingBatch::prepare(&tokenizer, inference_inputs)
+                        .map_err(embedding)?
+                };
                 let inference_started = std::time::Instant::now();
                 let (count, outputs) = infer(publication, &model, &batch)?;
                 inferred += count;
@@ -177,7 +229,12 @@ impl NativeExecution<'_, '_> {
                 inference_elapsed += inference_started.elapsed();
             }
         }
-        tracing::info!(target:"atlas_build_diagnostic",profile=%model.profile_id,elapsed_ms=started.elapsed().as_secs_f64()*1000.,native_preparation_ms=preparation_elapsed.as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_unique_batch,max_raw_native_batch=max_raw_batch,max_missing_native_batch=max_missing_batch,max_native_output_vectors=max_outputs,native_preparation_inputs=consumed,"Completed bounded native execution");
+        if verify_counts {
+            publication
+                .finish_verified_native_profile(&model)
+                .map_err(index)?;
+        }
+        tracing::info!(target:"atlas_build_diagnostic",profile=%model.profile_id,elapsed_ms=started.elapsed().as_secs_f64()*1000.,native_preparation_ms=preparation_elapsed.as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_unique_batch,max_raw_native_batch=max_raw_batch,max_missing_native_batch=max_missing_batch,max_native_output_vectors=max_outputs,native_preparation_inputs=consumed,witnessed_occurrences,"Completed bounded native execution");
         Ok(crate::ProfileBuildReport {
             profile_id: model.profile_id,
             semantic_units,
@@ -201,7 +258,7 @@ pub(crate) fn stage_fixture_values(
             options,
             semantic_units,
         }
-        .execute(config, |publication, model, batch| {
+        .execute(config, false, |publication, model, batch| {
             let mut vector = vec![0.; model.dimensions];
             vector[0] = 1.;
             let values = batch

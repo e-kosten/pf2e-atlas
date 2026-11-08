@@ -85,7 +85,7 @@ fn numerical(c: &Connection, _: &IndexBuildInput) -> String {
         ),
         (
             "embedding_models",
-            "SELECT * FROM embedding_models ORDER BY model_id",
+            "SELECT model_id,identity_json FROM embedding_models ORDER BY model_id",
         ),
         (
             "embedding_inputs",
