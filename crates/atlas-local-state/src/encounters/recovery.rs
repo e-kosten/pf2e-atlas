@@ -103,6 +103,8 @@ impl EncountersWrite<'_> {
                     actual_revision: snapshot.encounter.revision,
                 });
             }
+            let encounter_id = storage::encounter_id(self.connection, key)?
+                .ok_or_else(|| LocalStateError::EncounterNotFound(key.into()))?;
             let mut seen = std::collections::BTreeSet::new();
             for (participant, _) in replacements {
                 if !seen.insert(participant)
@@ -131,6 +133,14 @@ impl EncountersWrite<'_> {
                     .iter()
                     .find(|p| &p.participant_key == participant && p.initiative == state.initiative)
                     .map(|p| p.initiative_order);
+                let order = match order {
+                    Some(order) => order,
+                    None => storage::next_initiative_order(
+                        self.connection,
+                        encounter_id,
+                        state.initiative,
+                    )?,
+                };
                 replace(self.connection, participant, state, order)?;
                 for table in [
                     "encounter_pending_consequences",
@@ -156,14 +166,7 @@ impl EncountersWrite<'_> {
         })
     }
 }
-fn replace(
-    c: &Connection,
-    key: &str,
-    s: &ParticipantGameplay,
-    preserved_order: Option<i64>,
-) -> LocalStateResult<()> {
-    let order: i64 = c.query_row("SELECT COALESCE(MAX(initiative_order),-1)+1 FROM encounter_participants WHERE encounter_id=(SELECT encounter_id FROM encounter_participants WHERE participant_key=?1) AND initiative IS ?2", params![key,s.initiative], |r|r.get(0))?;
-    let order = preserved_order.unwrap_or(order);
+fn replace(c: &Connection, key: &str, s: &ParticipantGameplay, order: i64) -> LocalStateResult<()> {
     c.execute("UPDATE encounter_participants SET participant_variant=?2,variant_origin=?3,level_override=?4,hp_origin=?5,max_hp=?6,current_hp=?7,temporary_hp=?8,initiative=?9,initiative_order=?10,defeated=?11,hazard_disabled=?12,mortality=?13,track_dying=?14,base_death_threshold=?15,turn_resources_json=NULL,revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE participant_key=?1",
         params![key,s.participant_variant.as_str(),s.variant_origin.as_str(),s.level_override,s.hp_origin.as_str(),s.max_hp,s.current_hp,s.temporary_hp,s.initiative,order,s.defeated,s.hazard_disabled, if s.mortality==MortalityState::Dead {"dead"} else {"alive"},s.track_dying,s.base_death_threshold])?;
     // Keep surviving condition identities so unaffected workflow references stay valid.

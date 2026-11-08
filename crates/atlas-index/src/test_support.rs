@@ -279,6 +279,16 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: atlas_local_state::SAVED_STATE_CLOSEOUT_SCHEMA_VERSION,
+        name: "saved-state-closeout",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "saved-state-closeout/v1",
+            apply: atlas_local_state::backfill_saved_state_closeout,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()

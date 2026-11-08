@@ -255,8 +255,8 @@ fn command_receipt_upgrade_preserves_committed_bytes_and_drops_preparation() {
         );
         let reference_revision = write.reference_revision().unwrap();
         write.commit().unwrap();
-        let upgraded = initialize_workspace(workspace.path()).unwrap();
-        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        workspace.migrate(&MIGRATIONS[..35], |_| Ok(())).unwrap();
+        let read = workspace.read(35).unwrap();
         let db = read.connection();
         assert_eq!(rows(db, "encounters"), encounters);
         assert_eq!(rows(db, "encounter_participants"), participants);
@@ -343,7 +343,7 @@ fn command_receipt_upgrade_preserves_committed_bytes_and_drops_preparation() {
             );
         }
         drop(read);
-        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let write = workspace.write(35).unwrap();
         let db = write.connection();
         for sql in [
             // Only a turn receipt in the same encounter is a valid snapshot parent.
@@ -381,7 +381,7 @@ fn failed_command_receipt_migration_restores_legacy_receipts_claims_and_ledger()
         .map(|table| (table, rows(db, table)))
         .collect::<Vec<_>>();
     write.commit().unwrap();
-    let mut failing = MIGRATIONS.to_vec();
+    let mut failing = MIGRATIONS[..35].to_vec();
     failing.last_mut().unwrap().backfill = Some(atlas_storage::DataBackfill {
         id: "injected-command-receipt-failure/v1",
         reconstruct_tables: false,

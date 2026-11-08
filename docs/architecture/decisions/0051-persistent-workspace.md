@@ -156,6 +156,9 @@ model memory and observed process RSS remain separate measurements.
 
 ## Saved-domain integrity
 
+The `principals` table holds local ownership metadata. The supported local
+workspace uses the seeded owner for lists, parties, and encounters.
+
 Encounter status and participant kind, variant and side are closed SQL enums.
 Readers reject unknown saved values, including provenance enums, rather than
 interpreting them as defaults. A participant's encounter/key pair is unique;

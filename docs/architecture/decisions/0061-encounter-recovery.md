@@ -31,6 +31,11 @@ round and initiative. Outgoing turn snapshots include the roster and are cleared
 by either operation. Turn allocations are cleared when their turn ends.
 Ending the turn also clears encounter boundary claims so restarting the retained
 round can allocate actions and process remaining conditions without stale claims.
+Reset assigns positive initiative order in each restored bucket, including unset
+initiative. The saved-state migration repairs affected live and frozen order
+without changing their relative turn order. A committed boundary claim references
+its event receipt through a deferred foreign key, so the action can reserve the
+claim before evaluating the event and commit both together.
 
 ## Consequences
 

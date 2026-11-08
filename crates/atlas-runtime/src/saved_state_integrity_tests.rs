@@ -206,8 +206,8 @@ fn main24_upgrade_preserves_deleted_condition_high_water_and_allocates_above_it(
         .collect::<Vec<_>>();
     let ledger = rows(read.connection(), "schema_migrations");
     drop(read);
-    let upgraded = initialize_workspace(workspace.path()).unwrap();
-    let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    workspace.migrate(&MIGRATIONS[..38], |_| Ok(())).unwrap();
+    let read = workspace.read(38).unwrap();
     assert_eq!(rows(read.connection(), "sqlite_sequence"), sequences);
     assert_eq!(
         rows(read.connection(), "encounter_participant_conditions"),
@@ -218,7 +218,7 @@ fn main24_upgrade_preserves_deleted_condition_high_water_and_allocates_above_it(
     }
     assert_eq!(&rows(read.connection(), "schema_migrations")[..24], ledger);
     drop(read);
-    let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let write = workspace.write(38).unwrap();
     write
         .connection()
         .execute(
@@ -415,5 +415,164 @@ fn integrity_constraints_allow_current_participant_and_encounter_deletion() {
                     .is_none()
             );
         }
+    }
+}
+
+#[test]
+fn saved_state_closeout_repairs_live_and_frozen_order_and_rejects_an_orphan_claim() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("saved-state-closeout.sqlite");
+    register_extensions().unwrap();
+    let workspace = Workspace::at(&path).unwrap();
+    let old = atlas_index::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION;
+    workspace
+        .migrate(&MIGRATIONS[..old as usize], |_| Ok(()))
+        .unwrap();
+    let write = workspace.write(old).unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at)
+         VALUES(1,'closeout','closeout','Closeout','draft','before','before');
+         INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative,initiative_order,created_at,updated_at)
+         VALUES(11,1,'a','pc',1,'A',NULL,-10,'before','before'),
+               (12,1,'b','pc',2,'B',NULL,1,'before','before'),
+               (13,1,'c','pc',3,'C',15,7,'before','before');
+         INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,boundary_key)
+         VALUES(1,'turn','advance','{}','boundary');
+         INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review)
+         VALUES(1,'advance','{}',0);
+         INSERT INTO encounter_boundary_claims VALUES(1,'a',1,'turn_end','','event');",
+    ).unwrap();
+    let payload = serde_json::json!({"version":1, "payload": {"snapshot": {"participants": [
+        {"participant_key":"b","initiative":null,"initiative_order":1,"position":2,"retained":"extra"},
+        {"participant_key":"a","initiative":null,"initiative_order":-10,"position":1},
+        {"participant_key":"c","initiative":15,"initiative_order":7,"position":3}
+    ]}}});
+    write
+        .connection()
+        .execute(
+            "UPDATE encounter_outgoing_turns SET payload_json=?1",
+            [payload.to_string()],
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let error = initialize_workspace(&path).err().unwrap();
+    assert!(
+        error
+            .to_string()
+            .contains("boundary claim without its event receipt"),
+        "{error}"
+    );
+    let write = workspace.write(old).unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,receipt_json)
+         VALUES(1,'event','event','{}','{}');
+         UPDATE encounter_outgoing_turns
+         SET payload_json=json_remove(payload_json,'$.payload.snapshot.participants[0].position');",
+    ).unwrap();
+    write.commit().unwrap();
+
+    let error = initialize_workspace(&path).err().unwrap();
+    assert!(
+        error.to_string().contains("invalid roster position"),
+        "{error}"
+    );
+    let write = workspace.write(old).unwrap();
+    assert_eq!(
+        write
+            .connection()
+            .query_row(
+                "SELECT initiative_order FROM encounter_participants WHERE id=11",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        -10
+    );
+    assert!(
+        write
+            .connection()
+            .prepare("SELECT 1 FROM sqlite_schema WHERE name='saved_list_items_position_idx'")
+            .unwrap()
+            .exists([])
+            .unwrap()
+    );
+    write
+        .connection()
+        .execute(
+            "UPDATE encounter_outgoing_turns SET payload_json=?",
+            [payload.to_string()],
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let upgraded = initialize_workspace(&path).unwrap();
+    let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let rows = read
+        .connection()
+        .prepare("SELECT initiative_order FROM encounter_participants ORDER BY id")
+        .unwrap()
+        .query_map([], |row| row.get::<_, i64>(0))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(rows, [1, 2, 7]);
+    let repaired = read
+        .connection()
+        .query_row(
+            "SELECT payload_json FROM encounter_outgoing_turns",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    let repaired: serde_json::Value = serde_json::from_str(&repaired).unwrap();
+    let participants = &repaired["payload"]["snapshot"]["participants"];
+    assert_eq!(participants[0]["initiative_order"], 2);
+    assert_eq!(participants[0]["retained"], "extra");
+    assert_eq!(participants[1]["initiative_order"], 1);
+    assert_eq!(participants[2]["initiative_order"], 7);
+    assert_eq!(
+        read.connection()
+            .query_row(
+                "SELECT receipt_family FROM encounter_boundary_claims",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap(),
+        "event"
+    );
+    assert!(
+        !read
+            .connection()
+            .prepare("PRAGMA foreign_key_check")
+            .unwrap()
+            .exists([])
+            .unwrap()
+    );
+    drop(read);
+
+    for (family, encounter_id) in [("turn", 1), ("event", 2)] {
+        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let connection = write.connection();
+        connection
+            .execute_batch(
+                "INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at)
+             VALUES(2,'other','other','Other','draft','before','before');",
+            )
+            .unwrap();
+        connection.execute(
+            "INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,boundary_key,receipt_json)
+             VALUES(?1,?2,'wrong','{}',CASE WHEN ?2='turn' THEN 'other-boundary' END,
+                CASE WHEN ?2='event' THEN '{}' END)",
+            rusqlite::params![encounter_id, family],
+        ).unwrap();
+        connection.execute(
+            "INSERT INTO encounter_boundary_claims(encounter_id,participant_key,round_number,kind,scope_key,request_id)
+             VALUES(1,'a',2,'turn_end','','wrong')", [],
+        ).unwrap();
+        assert!(
+            write.commit().is_err(),
+            "{family} receipt in encounter {encounter_id}"
+        );
     }
 }

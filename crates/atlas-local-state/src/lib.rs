@@ -9,7 +9,11 @@ mod parties;
 pub use parties::{PartiesRead, PartiesWrite, Party, PartyMember, PartyMemberInput};
 mod references;
 mod saved_lists;
+mod saved_state_closeout;
 mod saved_state_integrity;
+pub use saved_state_closeout::{
+    SAVED_STATE_CLOSEOUT_SCHEMA_VERSION, backfill_saved_state_closeout,
+};
 mod schema;
 pub use saved_state_integrity::backfill_saved_state_integrity;
 mod slug;
