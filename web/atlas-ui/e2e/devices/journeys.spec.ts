@@ -2928,7 +2928,7 @@ test("reference feedback: edition context is visible above rules and counterpart
   await noPageOverflow(page);
 });
 
-test("reference feedback: link picker drafts survive reading and filter popovers close before drawers", async ({
+test("reference feedback: link picker retains direction, scope and preview when editing", async ({
   page,
 }, info) => {
   await page.goto("/search");
@@ -2992,15 +2992,22 @@ test("reference feedback: link picker drafts survive reading and filter popovers
     exact: true,
   });
   await activate(chip, info);
-  const open = page.getByRole("link", { name: `Open ${title}`, exact: true });
-  await activate(open, info);
-  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
-  await expect(drawer).toBeVisible();
-  await expect(open).toBeHidden();
-  await activate(
-    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
-    info,
-  );
+  const edit = page.getByRole("dialog", { name: "Edit link condition", exact: true });
+  await expect(
+    edit
+      .locator(".reference-reader")
+      .getByRole("heading", { name: title, exact: true })
+      .first(),
+  ).toBeVisible();
+  const editResults = edit.getByRole("button", { name: "Results", exact: true });
+  if (await editResults.isVisible()) await activate(editResults, info);
+  await expect(
+    edit.getByRole("radio", { name: "Linked from", exact: true }),
+  ).toBeChecked();
+  await expect(edit.getByText("Main entry only", { exact: true })).toBeVisible();
+  await activate(edit.getByRole("button", { name: "Cancel", exact: true }), info);
+  await expect(edit).toBeHidden();
+  await expect(chip).toBeVisible();
   await expect(chip).toBeFocused();
   await noPageOverflow(page);
 });

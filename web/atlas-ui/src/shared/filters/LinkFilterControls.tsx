@@ -13,7 +13,7 @@ export function LinkFilterControls({
 }: {
   filter: QueryPredicate | null;
   title: (leaf: LinkLeaf) => string;
-  onEdit: (leaf: LinkLeaf) => void;
+  onEdit: (leaf: LinkLeaf, opener: HTMLElement) => void;
   onRemove: (leaf: LinkLeaf) => void;
   limit?: number;
 }) {
@@ -52,7 +52,7 @@ function LinkChip({
 }: {
   leaf: LinkLeaf;
   title: string;
-  onEdit: (leaf: LinkLeaf) => void;
+  onEdit: (leaf: LinkLeaf, opener: HTMLElement) => void;
   onRemove: (leaf: LinkLeaf) => void;
 }) {
   const relationship = leaf.relationship;
@@ -69,7 +69,7 @@ function LinkChip({
         title={`${direction} ${title}`}
         color="default"
         variant="filled"
-        onClick={() => onEdit(leaf)}
+        onClick={(event) => onEdit(leaf, event.currentTarget)}
         aria-haspopup="dialog"
         aria-label={`${direction} ${title}; ${relationship.include_contents ? "Whole entry" : "Main entry only"}`}
       >

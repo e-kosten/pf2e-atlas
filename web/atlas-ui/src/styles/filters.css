@@ -138,6 +138,10 @@
   gap: 4px;
   min-width: 0;
 }
+/* Keep the next control in place when a pointer action blurs an invalid range. */
+.filter-validation-deferred {
+  visibility: hidden;
+}
 .filter-value-control,
 .filter-rule-value,
 .filter-collection-condition {

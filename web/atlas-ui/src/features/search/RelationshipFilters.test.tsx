@@ -41,8 +41,9 @@ it("shows human link labels and exact scope without IDs", () => {
 });
 it("opens the modal for the exact existing relationship and removes only its own leaf", () => {
   const { edit, remove } = setup();
-  fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
-  expect(edit).toHaveBeenCalledWith(leaf);
+  const opener = screen.getByRole("button", { name: /Links to Leather Armor/ });
+  fireEvent.click(opener);
+  expect(edit).toHaveBeenCalledWith(leaf, opener);
   fireEvent.click(screen.getByRole("button", { name: "Remove relationship filter" }));
   expect(remove).toHaveBeenCalledWith(leaf);
 });

@@ -211,12 +211,19 @@ export function FilterControls({
     initial: QueryRelationship | undefined,
     id: string,
     confirm: (relationship: QueryRelationship, excluded: boolean) => string | null,
-    advanced = false,
-    initialExcluded = false,
+    {
+      opener,
+      advanced = false,
+      initialExcluded = false,
+    }: {
+      opener?: HTMLElement;
+      advanced?: boolean;
+      initialExcluded?: boolean;
+    } = {},
   ) {
     if (!Picker) throw new Error("Link condition picker provider is required");
     const openingQuery = prepared.query;
-    let focusAfterClose = false;
+    let restoreToolbarFocus = false;
     const parentContext = prepared.linkDiscoveryContext(id, advanced);
     setPicker({
       key: crypto.randomUUID(),
@@ -247,10 +254,10 @@ export function FilterControls({
         connection_scope: workspace.resultRequest?.connection_scope ?? null,
       },
       afterClose: () => {
-        if (focusAfterClose)
-          (linksTrigger.current ?? advancedTrigger.current)?.focus({
-            preventScroll: true,
-          });
+        const target = restoreToolbarFocus
+          ? (linksTrigger.current ?? advancedTrigger.current)
+          : opener;
+        if (target?.isConnected) target.focus({ preventScroll: true });
       },
       onCancel: () =>
         setPicker((current) => (current ? { ...current, open: false } : null)),
@@ -278,7 +285,7 @@ export function FilterControls({
           return "This condition changed. Reopen it before applying changes.";
         const error = confirm(relationship, excluded);
         if (error) return error;
-        focusAfterClose = !advanced && !!initial && excluded;
+        restoreToolbarFocus = !advanced && !!initial && excluded;
         if (selection)
           setDraftLabels((current) => ({
             ...current,
@@ -319,8 +326,7 @@ export function FilterControls({
           });
           return null;
         },
-        true,
-        !!rule.meta?.atlasExcluded,
+        { advanced: true, initialExcluded: !!rule.meta?.atlasExcluded },
       );
     },
   };
@@ -438,8 +444,12 @@ export function FilterControls({
                 return;
               }
               const id = crypto.randomUUID();
-              openPicker(undefined, id, (relationship, excluded) =>
-                latestEditor.current.addLink(relationship, id, excluded),
+              openPicker(
+                undefined,
+                id,
+                (relationship, excluded) =>
+                  latestEditor.current.addLink(relationship, id, excluded),
+                { opener: linksTrigger.current ?? undefined },
               );
             }}
           >
@@ -501,9 +511,12 @@ export function FilterControls({
           filter={search.filter}
           title={linkTitle}
           limit={editor?.limits.relationship_leaves}
-          onEdit={(leaf) =>
-            openPicker(leaf.relationship, leaf.clause_id!, (next, excluded) =>
-              latestEditor.current.editLink(leaf, next, excluded),
+          onEdit={(leaf, opener) =>
+            openPicker(
+              leaf.relationship,
+              leaf.clause_id!,
+              (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
+              { opener },
             )
           }
           onRemove={(leaf) => {
@@ -809,9 +822,15 @@ function CommonRange({
           />
         </label>
       </div>
-      {message && (
-        <Typography.Text type="danger" role="status" id={id + "-error"}>
-          {message}
+      {error && (
+        <Typography.Text
+          type="danger"
+          role={message ? "status" : undefined}
+          aria-hidden={message ? undefined : true}
+          id={id + "-error"}
+          className={message ? undefined : "filter-validation-deferred"}
+        >
+          {error}
         </Typography.Text>
       )}
     </div>
@@ -1638,8 +1657,8 @@ function BuilderValueEditor(props: ValueEditorProps) {
   const range = isRange && Array.isArray(props.value) ? props.value : [];
   const hasBound = (value: unknown) => value != null && String(value).trim() !== "";
   const enteredBounds = range.filter(hasBound).length;
-  const message = isRange
-    ? editingRange || enteredBounds === 0
+  const issue = isRange
+    ? enteredBounds === 0
       ? null
       : enteredBounds === 1
         ? "Enter minimum and maximum"
@@ -1647,6 +1666,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
     : incomplete
       ? null
       : error;
+  const message = isRange && editingRange ? null : issue;
   const clauseId = props.rule.id ?? null;
   // An unaddressed facet evaluates an added conjunction. That cannot describe
   // inserting a condition beneath OR or group negation.
@@ -1670,7 +1690,17 @@ function BuilderValueEditor(props: ValueEditorProps) {
       <Form.Item
         style={{ marginBottom: 0 }}
         validateStatus={message ? "error" : undefined}
-        help={message ? <span role="status">{message}</span> : undefined}
+        help={
+          issue ? (
+            <span
+              role={message ? "status" : undefined}
+              aria-hidden={message ? undefined : true}
+              className={message ? undefined : "filter-validation-deferred"}
+            >
+              {issue}
+            </span>
+          ) : undefined
+        }
       >
         <div className={field.unit_fields.length ? "filter-duration-value" : undefined}>
           <FilterValueInput

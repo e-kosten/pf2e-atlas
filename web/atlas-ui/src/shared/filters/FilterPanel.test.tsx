@@ -1371,10 +1371,16 @@ it("validates a level range after leaving both bounds, without committing an inv
   const max = screen.getByRole("textbox", { name: "Level / rank maximum" });
   fireEvent.focus(max);
   fireEvent.change(max, { target: { value: "1" } });
-  expect(screen.queryByText("Minimum exceeds maximum")).toBeNull();
+  expect(screen.getByText("Minimum exceeds maximum")).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
   expect(change).not.toHaveBeenCalled();
   fireEvent.blur(max, { relatedTarget: min });
-  expect(screen.queryByText("Minimum exceeds maximum")).toBeNull();
+  expect(screen.getByText("Minimum exceeds maximum")).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
   fireEvent.blur(min, { relatedTarget: document.body });
   expect(screen.getByText("Minimum exceeds maximum")).toBeVisible();
   fireEvent.focus(max);

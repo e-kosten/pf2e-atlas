@@ -678,7 +678,7 @@ it("inherits a profile switch on page one while retaining the explicit candidate
   });
   fireEvent.click(await screen.findByRole("button", { name: "Results" }));
   const pages = await screen.findByRole("group", { name: "Result pages" });
-  fireEvent.click(within(pages).getByTitle("Next Page"));
+  fireEvent.click(within(pages).getByRole("button", { name: "Next Page" }));
   await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
   setProfile("embeddinggemma");
   await waitFor(() => expect(search).toHaveBeenCalledTimes(3));
