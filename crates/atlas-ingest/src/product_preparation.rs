@@ -118,6 +118,7 @@ pub(crate) struct PreparedSourceBuild {
     pub context_shortened: usize,
     pub reused_sections: usize,
     pub document_units: usize,
+    #[cfg(test)]
     pub work: PreparationWork,
     // Field order closes every child stream before its fixture-owned directory.
     #[cfg(test)]
@@ -720,6 +721,7 @@ pub(crate) fn prepare(
         context_shortened,
         reused_sections,
         document_units,
+        #[cfg(test)]
         work,
         #[cfg(test)]
         _scratch: None,

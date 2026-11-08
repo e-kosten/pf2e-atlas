@@ -16,6 +16,26 @@ Keep crate entry points focused on composition:
 - `main.rs` should wire CLI/runtime entry behavior and delegate command logic to modules. Avoid accumulating command implementations, business logic, or reusable helpers in `main.rs`.
 - When a crate root grows large, inspect whether it is large because of public API exports or because it owns real definitions/logic. Prefer moving definitions and logic to cohesive modules while preserving a clear public API at the root.
 
+## Validation ownership and test seams
+
+- Before adding a runtime check, identify the input boundary, the invariant and
+  the failure the check prevents. Reuse the owning parser or constructor and
+  pass its checked value through the same immutable context. For example,
+  search can use a prepared embedding after admitting its model against the
+  current read snapshot. It still checks that the requested text and profile
+  match the prepared query.
+- Check again when new input arrives or when a different snapshot, persisted
+  value or transaction can invalidate the earlier guarantee. Ingest validates
+  the admission summary's internal counts once and separately checks that the
+  summary matches the publication's actual root count. Explicit artifact audits
+  inspect persisted data and can detect corruption after publication.
+- Exercise real entry points in tests. Keep fixture builders, alternate
+  comparison implementations and test controls in test code or behind
+  test-only compilation. Before adding a seam to a production path, identify
+  the specific regression the normal entry point cannot exercise and use the
+  narrowest seam that reaches it. Preserve independent expected results and
+  deliberate malformed-input cases.
+
 ## Refactor Completion Policy
 
 Refactors must land as finished end-state changes, not as transitional scaffolding.

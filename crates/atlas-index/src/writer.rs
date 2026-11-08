@@ -121,10 +121,6 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
         || c.used_trait_labels
             .iter()
             .any(|(id, label)| id.trim().is_empty() || label.trim().is_empty())
-        || c.content_selection_version.is_empty()
-        || c.localization_policy.is_empty()
-        || c.asset_policy.is_empty()
-        || c.relationship_policy.is_empty()
     {
         return Err(IndexError::Invalid(
             "build context policy or locale is empty".into(),
@@ -200,8 +196,8 @@ pub(crate) fn validate_input(input: &crate::PublicationSpool) -> Result<(), Inde
     input
         .inventory
         .validate_parts(&input.context.source_fingerprint, &input.packs)?;
-    crate::source_admission::validate_root_count(&input.context, input.records.len())?;
     validate_context(&input.context)?;
+    crate::source_admission::validate_root_count(&input.context, input.record_count())?;
     for profile in &input.context.search_profiles {
         let spec = atlas_embedding::search_profile(&profile.profile_id)
             .map_err(|e| IndexError::Unsupported(e.to_string()))?;
@@ -223,11 +219,6 @@ pub(crate) fn validate_input(input: &crate::PublicationSpool) -> Result<(), Inde
                 "duplicate or empty pack identity".into(),
             ));
         }
-    }
-    if input.identities().len() != input.records.len() {
-        return Err(IndexError::Invalid(
-            "record stream count differs from publication".into(),
-        ));
     }
     Ok(())
 }
@@ -384,12 +375,13 @@ pub(crate) fn write_content(
             "visibility",
             serde_json::from_str::<String>(&serde_json::to_string(&outcome.visibility)?)?,
         );
-        r.text("authored_markup_sha256", sha256(authored.as_bytes()));
+        let authored_hash = sha256(authored.as_bytes());
+        r.text("authored_markup_sha256", &authored_hash);
         r.text("preparation_context_hash", &source.preparation_context_hash);
         let (status, html, interactions) = match &outcome.status {
             SourceContentStatus::Prepared(prepared) => {
                 if prepared.interpretation_version != CONTENT_INTERPRETATION_VERSION
-                    || prepared.authored_markup_sha256 != sha256(authored.as_bytes())
+                    || prepared.authored_markup_sha256 != authored_hash
                 {
                     return Err(IndexError::Invalid(
                         "prepared field input/interpreter identity disagrees".into(),
@@ -624,7 +616,3 @@ pub(crate) fn write_relationship(
     r.push("target_url", url.map(Value::Text).unwrap_or(Value::Null));
     r.insert(c)
 }
-
-#[cfg(test)]
-#[path = "writer/identity_tests.rs"]
-mod identity_tests;

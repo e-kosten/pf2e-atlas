@@ -230,7 +230,7 @@ pub struct PreparedRecordInput {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct PreparedRecordFrame {
+struct PreparedRecordFrame {
     pub pack: String,
     /// Exact checked JSON bytes transported as text rather than a JSON byte array.
     pub snapshot: String,
@@ -244,7 +244,7 @@ pub(crate) struct PreparedRecordFrame {
     pub lexical: Vec<SourceLexicalUnitInput>,
 }
 impl PreparedRecordFrame {
-    pub(crate) fn decode(
+    fn decode(
         self,
     ) -> Result<
         (
@@ -284,7 +284,7 @@ pub struct PublicationSpool {
     pub(crate) packs: Vec<IndexBuildPack>,
     pub(crate) inventory: CompleteSourceInventory,
     pub(crate) expected: ArtifactInstance,
-    pub(crate) records: BuildFrameStream<PreparedRecordFrame>,
+    records: BuildFrameStream<PreparedRecordFrame>,
     pub lexical: BuildFrameStream<SourceLexicalUnitInput>,
     pub semantic: BuildFrameStream<SemanticOccurrence>,
     pub aliases: BuildFrameStream<SourceAliasInput>,
@@ -588,3 +588,6 @@ mod file_usage_tests {
         assert!(next.allocated_bytes.is_some());
     }
 }
+
+#[cfg(test)]
+mod identity_tests;
