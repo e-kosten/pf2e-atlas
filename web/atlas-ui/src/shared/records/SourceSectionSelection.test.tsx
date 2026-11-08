@@ -3,7 +3,7 @@ import type {
   PreparedContentFieldView,
   SimilarityPartsView,
 } from "../../generated/atlas";
-import { PreparedContent, PreparedContentBody } from "./PreparedContent";
+import { PreparedContent } from "./PreparedContent";
 import { SourceSectionSelectionContext } from "./SourceSectionSelectionContext";
 import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
 import {
@@ -392,38 +392,6 @@ it("clears source selection for a nested reference Drawer, including the same so
   );
   expect(screen.getByText("Original prepared source")).toBeVisible();
   expect(screen.queryByText("Second prose")).toBeNull();
-});
-
-it("treats a trait definition with several headings as its one canonical part", () => {
-  const traitInventory: SimilarityPartsView = {
-    ...inventory,
-    seed: { kind: "trait", trait_key: "trait:fire" },
-    parts: [{ ...inventory.parts[0], field: "/definition", navigation: null }],
-  };
-  render(
-    <SourceSectionSelectionContext
-      value={{
-        seed: traitInventory.seed,
-        generation: "generation-1",
-        selection: { inventory: traitInventory, selected: [] },
-      }}
-    >
-      <PreparedContentBody
-        body={{ kind: "plain", text: "Original trait" }}
-        references={[]}
-        onReference={vi.fn()}
-        sourceLocation={{ trait_key: "trait:fire" }}
-        sectionRendering={{
-          selection_version: "trait-definition-centroid/v1",
-          html: '<h2 data-atlas-source-section="0">First trait heading</h2><p data-atlas-source-section="0">Trait definition</p><h2 data-atlas-source-section="0">Second trait heading</h2>',
-        }}
-      />
-    </SourceSectionSelectionContext>,
-  );
-  expect(screen.getByText("Trait definition")).toHaveClass("source-section-excluded");
-  expect(screen.getByRole("heading", { name: "Second trait heading" })).toHaveClass(
-    "source-section-excluded",
-  );
 });
 
 it("never paints an identity component as a selected prose section", () => {

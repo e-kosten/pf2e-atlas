@@ -1496,14 +1496,6 @@ export async function getTraitRecords(
     });
   if (result.trait_key !== request.trait_key || result.kind !== request.kind)
     throw new Error("The trait response does not match this request. Retry.");
-  if (
-    request.kind === "similar" &&
-    request.search_profile != null &&
-    result.search_profile !== request.search_profile
-  )
-    throw new Error(
-      "The Similar response does not match the selected search model. Retry.",
-    );
   return { ...result, page: convertSearchPage(result.page) };
 }
 

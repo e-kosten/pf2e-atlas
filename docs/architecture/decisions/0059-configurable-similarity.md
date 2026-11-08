@@ -2,6 +2,10 @@
 
 Status: accepted.
 
+Schema 34 retired the trait-seeded Similar workflow and its numerical storage.
+See the [artifact contract](../artifact-contract.md#native-embedding-storage)
+for the current migration behavior. The original trait Similar design follows.
+
 ## Context
 
 Record Similar currently queries from one root identity vector, while trait

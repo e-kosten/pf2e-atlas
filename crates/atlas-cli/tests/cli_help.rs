@@ -197,7 +197,7 @@ fn relationship_filters_and_occurrence_paging_are_discoverable_in_help() {
 }
 
 #[test]
-fn similar_help_exposes_parts_methods_and_trait_seeds_without_new_ranking_flags() {
+fn similar_help_exposes_record_parts_and_methods_without_new_ranking_flags() {
     let text = help(&["similar"]);
     for flag in [
         "--method",
@@ -212,7 +212,7 @@ fn similar_help_exposes_parts_methods_and_trait_seeds_without_new_ranking_flags(
     ] {
         assert!(text.contains(flag), "missing Similar control: {flag}");
     }
-    assert!(text.contains("trait:fire"));
+    assert!(!text.contains("trait:fire"));
     assert!(text.contains("content-average"));
     assert!(!text.contains("--ranking"));
 }

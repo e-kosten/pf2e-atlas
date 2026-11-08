@@ -100,9 +100,9 @@ fn glossary_upgrade_is_atomic_and_keeps_source_free_trait_and_record_reads() {
     );
     let session = reader.workspace_session();
     let c = session.connection();
-    assert_retained_rows(c, &durable, &before);
+    assert_retained_rows(c, &durable[2..], &before[2..]);
     assert_eq!(occurrence_vector_bits(c), before_native);
-    assert_eq!(session.reference_revision().unwrap(), before_generation + 1);
+    assert_eq!(session.reference_revision().unwrap(), before_generation + 2);
     assert!(
         !c.prepare("SELECT 1 FROM sqlite_schema WHERE name='trait_definitions'")
             .unwrap()
@@ -442,8 +442,6 @@ fn populated_glossary_upgrade_then_explicit_setup_reuses_all_native_inputs() {
     let queries = [
         "SELECT * FROM embedding_inputs ORDER BY input_id",
         &native_sql,
-        "SELECT * FROM trait_seed_chunks ORDER BY trait_key,profile_id,ordinal",
-        "SELECT * FROM trait_vectors ORDER BY trait_key,profile_id",
         "SELECT * FROM saved_lists ORDER BY id",
         "SELECT * FROM encounters ORDER BY id",
     ];

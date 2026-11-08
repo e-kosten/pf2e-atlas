@@ -241,6 +241,16 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: crate::backfill_reference_entries,
         }),
     },
+    Migration {
+        version: 34,
+        name: "retire-trait-similarity",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "retire-trait-similarity/v1",
+            apply: crate::retire_trait_similarity,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -448,25 +458,6 @@ fn spool_input_in(
     for row in &input.traits {
         spool.traits.push(row)?;
     }
-    for seed in &input.trait_vectors {
-        spool.trait_seeds.push(&crate::TraitSeedOccurrence {
-            key: seed.key.clone(),
-            profile_id: seed.profile_id.clone(),
-            input_hash: seed.input_hash.clone(),
-            chunks: seed
-                .chunks
-                .iter()
-                .map(|chunk| crate::TraitChunkOccurrence {
-                    input: chunk.input.clone(),
-                    descriptor: atlas_embedding::NativeInputDescriptor {
-                        input_sha256: chunk.input_hash.clone(),
-                        token_count: chunk.token_count,
-                    },
-                    address: chunk.address.clone(),
-                })
-                .collect(),
-        })?;
-    }
     Ok(spool)
 }
 
@@ -478,7 +469,7 @@ pub fn prepare_publication_in<'owner>(
     input: &IndexBuildInput,
     reuse_published: bool,
 ) -> Result<crate::PreparedPublication<'owner>, IndexError> {
-    let native = fixture_native_values(input)?;
+    let native = collect_fixture_native_values(input, false)?;
     let workspace = Workspace::at(owner.path())?;
     let read = workspace.read(schema)?;
     let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
@@ -814,6 +805,13 @@ pub(crate) struct FixtureNativeValue<'a> {
 pub(crate) fn fixture_native_values<'a>(
     input: &'a IndexBuildInput,
 ) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
+    collect_fixture_native_values(input, true)
+}
+
+fn collect_fixture_native_values<'a>(
+    input: &'a IndexBuildInput,
+    historical_traits: bool,
+) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
     use atlas_embedding::NativeInputDescriptor;
     let mut selected = BTreeMap::<(String, String), FixtureNativeValue<'a>>::new();
     let mut accept = |profile: &atlas_domain::SearchProfileId,
@@ -866,29 +864,31 @@ pub(crate) fn fixture_native_values<'a>(
             &unit.vector,
         )?;
     }
-    for seed in &input.trait_vectors {
-        for chunk in &seed.chunks {
-            accept(
-                &seed.profile_id,
-                &chunk.input_hash,
-                chunk.token_count,
-                &chunk.vector,
+    if historical_traits {
+        for seed in &input.trait_vectors {
+            for chunk in &seed.chunks {
+                accept(
+                    &seed.profile_id,
+                    &chunk.input_hash,
+                    chunk.token_count,
+                    &chunk.vector,
+                )?;
+            }
+        }
+        for seed in &input.trait_vectors {
+            let definition = input
+                .traits
+                .iter()
+                .find(|definition| definition.key == seed.key)
+                .ok_or_else(|| IndexError::Invalid("trait seed has no definition".into()))?;
+            crate::traits::validate_seed(
+                definition,
+                input.context.search_profile(&seed.profile_id)?,
+                &seed.input_hash,
+                &seed.vector,
+                &seed.chunks,
             )?;
         }
-    }
-    for seed in &input.trait_vectors {
-        let definition = input
-            .traits
-            .iter()
-            .find(|definition| definition.key == seed.key)
-            .ok_or_else(|| IndexError::Invalid("trait seed has no definition".into()))?;
-        crate::traits::validate_seed(
-            definition,
-            input.context.search_profile(&seed.profile_id)?,
-            &seed.input_hash,
-            &seed.vector,
-            &seed.chunks,
-        )?;
     }
     Ok(selected.into_values().collect())
 }

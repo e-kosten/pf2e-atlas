@@ -22,8 +22,6 @@ async function memberships(request: APIRequestContext, detail: TraitDetailView) 
       kind: "members",
       page: { number: 1, size: 5 },
       expected_artifact_generation: detail.artifact_generation,
-      search_profile: null,
-      ranking: "score",
     },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
@@ -191,7 +189,7 @@ test("trait membership opens the exact embedded source", async ({
 
 test("stale trait Similar links open empty Search or the default trait tab", async ({
   page,
-}) => {
+}, testInfo) => {
   await page.goto(
     "/search?similar=trait:agile&similarity_method=passages&search_profile=bge-base",
   );
@@ -204,4 +202,8 @@ test("stale trait Similar links open empty Search or the default trait tab", asy
     page.getByRole("tab", { name: "With this trait", selected: true }),
   ).toBeVisible();
   await expect(page.getByRole("tab", { name: "Similar", exact: true })).toHaveCount(0);
+  await testInfo.attach("Trait page after retirement", {
+    body: await page.screenshot({ animations: "disabled" }),
+    contentType: "image/png",
+  });
 });

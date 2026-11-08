@@ -7,11 +7,10 @@ import {
 
 export function similarityFromPreferences(
   preferences: SimilarityPreferences,
-  trait = false,
   parts: string[] | null = null,
 ): SimilarityOptions {
   if (preferences.method === "baseline") return { method: "baseline" };
-  const candidate_parts = trait ? "any" : preferences.candidateParts;
+  const candidate_parts = preferences.candidateParts;
   return preferences.method === "passages"
     ? { method: "passages", decay: preferences.decay, parts, candidate_parts }
     : { method: "content-average", parts, candidate_parts };
@@ -33,14 +32,14 @@ export function similarityPreferences(
   };
 }
 
-export function similarityLabel(options: SimilarityOptions, trait = false): string {
+export function similarityLabel(options: SimilarityOptions): string {
   switch (options.method) {
     case "passages":
       return `Passage matches, decay ${options.decay}`;
     case "content-average":
       return "Content average";
     case "baseline":
-      return trait ? "Trait definition" : "Name and identity";
+      return "Name and identity";
   }
 }
 

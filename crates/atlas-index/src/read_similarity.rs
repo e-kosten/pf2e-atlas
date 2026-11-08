@@ -1,10 +1,9 @@
 //! Bounded stored-vector reads over the metadata-only logical-part projection.
 use crate::{IndexError, SourceUnitLocation, SqliteIndexReader};
 use atlas_domain::{
-    CORE_SECTIONS_RECIPE, CoreSectionFamily, CoreSectionRepresentation, CoreSectionSelection,
     RecordKey, SIMILARITY_ROLE_RECIPE, SearchContentScope, SearchProfileId,
-    SimilarityComparisonKey, SimilarityComponent, SimilarityPart, SimilarityPartSelector,
-    SimilarityParts, SimilarityRole, SimilaritySeed, SourcePassageAddress,
+    SimilarityComparisonKey, SimilarityComponent, SimilarityPartSelector, SimilarityParts,
+    SimilaritySeed, SourcePassageAddress,
 };
 use rusqlite::{params_from_iter, types::Value};
 
@@ -14,7 +13,6 @@ pub struct SourceSimilarityUnit {
     pub location: Option<SourceUnitLocation>,
     pub address: SourcePassageAddress,
     pub vector: Vec<f32>,
-    pub trait_text: Option<String>,
 }
 #[derive(Clone, Copy)]
 pub struct SourceSimilarityCandidateRequest<'a> {
@@ -124,57 +122,9 @@ impl SqliteIndexReader {
                 parts.insert(0, identity);
                 parts
             }
-            SimilaritySeed::Trait { trait_key } => {
-                let Some(definition) = self.trait_definition(trait_key)? else {
-                    return Err(IndexError::Unavailable(format!(
-                        "trait {trait_key} was not found"
-                    )));
-                };
-                let fingerprint = crate::codec::sha256(&serde_json::to_vec(&(
-                    trait_key,
-                    &definition.label,
-                    &definition.authored_markup,
-                ))?);
-                let has_vectors = c.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM trait_vectors WHERE trait_key=? AND profile_id=?)",
-                    rusqlite::params![trait_key.to_string(), profile.map(SearchProfileId::as_str)],
-                    |row| row.get(0),
-                )?;
-                vec![SimilarityComponent::Section {
-                    part: SimilarityPart {
-                        selector: SimilarityPartSelector(format!("part:{fingerprint}")),
-                        label: if definition.prepared.is_some() {
-                            "Definition".into()
-                        } else {
-                            "Label only".into()
-                        },
-                        owner_label: definition.label,
-                        owners: vec![],
-                        field: "/definition".into(),
-                        section_ordinal: 0,
-                        role: SimilarityRole::TraitDefinition,
-                        has_vectors,
-                        label_only: definition.prepared.is_none(),
-                    },
-                }]
-            }
         };
         let core = match seed {
             SimilaritySeed::Record { record_key } => self.core_selection(record_key, profile)?,
-            SimilaritySeed::Trait { .. } => CoreSectionSelection {
-                family: CoreSectionFamily::Trait,
-                selectors: parts.iter().map(|part| part.selector().clone()).collect(),
-                representation: if parts
-                    .iter()
-                    .any(|component| component.part().is_some_and(|part| part.label_only))
-                {
-                    CoreSectionRepresentation::TraitLabelOnly
-                } else {
-                    CoreSectionRepresentation::TraitDefinition
-                },
-                fallback_reason: None,
-                recipe: CORE_SECTIONS_RECIPE.into(),
-            },
         };
         Ok(SimilarityParts {
             seed: seed.clone(),
@@ -323,76 +273,8 @@ impl SqliteIndexReader {
                 location: Some(location),
                 address,
                 vector,
-                trait_text: None,
             });
         }
         Ok(units)
-    }
-
-    pub fn trait_similarity_units(
-        &self,
-        profile: &SearchProfileId,
-        key: &atlas_domain::TraitKey,
-        max_units: usize,
-    ) -> Result<Vec<SourceSimilarityUnit>, IndexError> {
-        let model = self.context().search_profile(profile)?;
-        self.require_vectors()?;
-        let count: usize = self.native()?.query_row(
-            "SELECT count(*) FROM trait_seed_chunks WHERE trait_key=? AND profile_id=?",
-            rusqlite::params![key.to_string(), profile.as_str()],
-            |row| row.get(0),
-        )?;
-        if count > max_units {
-            return Err(IndexError::Limit(format!(
-                "This comparison is too broad to complete. Deselect some sections under Sections to compare, or add filters to narrow the results. (Seed units: {count}; limit: {max_units}.)"
-            )));
-        }
-        let seed = SimilaritySeed::Trait {
-            trait_key: key.clone(),
-        };
-        let part = self
-            .similarity_parts(&seed, Some(profile))?
-            .parts
-            .into_iter()
-            .next()
-            .ok_or_else(|| {
-                IndexError::Invalid("trait comparison definition is unavailable".into())
-            })?;
-        let definition = self
-            .trait_definition(key)?
-            .ok_or_else(|| IndexError::Invalid("trait comparison definition disappeared".into()))?;
-        let source = format!(
-            "{}\n{}",
-            definition.label,
-            definition
-                .prepared
-                .as_ref()
-                .map(|prepared| prepared.text.as_str())
-                .unwrap_or("")
-        );
-        crate::traits::read_chunks(self.native()?, &key.to_string(), model)?
-            .into_iter()
-            .map(|chunk| {
-                let range = match &chunk.address {
-                    SourcePassageAddress::PlainSection { chunk_bytes, .. } => *chunk_bytes,
-                    _ => {
-                        return Err(IndexError::Invalid(
-                            "trait seed is not a source-addressed definition passage".into(),
-                        ));
-                    }
-                };
-                let text = range
-                    .extract(&source)
-                    .map_err(|error| IndexError::Invalid(error.to_string()))?
-                    .to_owned();
-                Ok(SourceSimilarityUnit {
-                    component: part.clone(),
-                    location: None,
-                    address: chunk.address,
-                    vector: chunk.vector,
-                    trait_text: Some(text),
-                })
-            })
-            .collect()
     }
 }

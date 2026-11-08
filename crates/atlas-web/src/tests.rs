@@ -392,7 +392,7 @@ async fn stateless_search_route_carries_criteria_and_generation_and_rejects_stal
 }
 
 #[tokio::test]
-async fn search_page_routes_typed_trait_seeds_and_reference_scopes() {
+async fn search_page_keeps_trait_reference_scope_and_rejects_retired_trait_seed() {
     let fixture = Fixture::new();
     for criteria in [
         json!({"kind":"similar_traits","seed_trait_key":"trait:fire","filter":null}),
@@ -405,6 +405,11 @@ async fn search_page_routes_typed_trait_seeds_and_reference_scopes() {
                 Some(json!({"criteria":criteria,"page":{"number":1,"size":25}})),
             )
             .await;
+        if criteria["kind"] == "similar_traits" {
+            assert!(status.is_client_error(), "{status}: {body}");
+            assert_eq!(body["code"], "invalid_request");
+            continue;
+        }
         assert_eq!(status, StatusCode::OK, "{body}");
         assert_eq!(body["mode"]["kind"], criteria["kind"]);
         assert_eq!(body["mode"]["trait_key"], "trait:fire");

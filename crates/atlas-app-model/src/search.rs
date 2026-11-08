@@ -91,19 +91,6 @@ pub enum SearchCriteria {
         #[ts(optional)]
         search_content: Option<atlas_domain::SearchContentScope>,
     },
-    SimilarTraits {
-        seed_trait_key: String,
-        filter: Option<QueryPredicate>,
-        #[serde(default)]
-        #[ts(optional)]
-        similarity: Option<atlas_domain::SimilarityOptions>,
-        #[serde(default)]
-        #[ts(optional)]
-        source_sections: Option<atlas_domain::SimilaritySourceSections>,
-        #[serde(default)]
-        #[ts(optional)]
-        search_content: Option<atlas_domain::SearchContentScope>,
-    },
     TraitReferences {
         trait_key: String,
         query: Option<String>,
@@ -126,13 +113,6 @@ pub enum SearchCriteria {
 pub enum SearchModeSummary {
     SimilarRecords {
         seed: Box<RecordSummaryView>,
-    },
-    SimilarTraits {
-        trait_key: String,
-        title: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        help: Option<crate::ReferenceHelpView>,
     },
     TraitReferences {
         trait_key: String,

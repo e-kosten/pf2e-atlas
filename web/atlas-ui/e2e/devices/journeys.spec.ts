@@ -2289,9 +2289,7 @@ test("a real trait member total renders a singular entry @engine", async ({ page
   const members = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/traits/records") &&
-      response.request().postDataJSON()?.kind === "members" &&
-      // Startup replaces the provisional null-profile request after readiness.
-      response.request().postDataJSON()?.search_profile === "bge-base",
+      response.request().postDataJSON()?.kind === "members",
   );
   await page.goto("/traits/trait%3Alight?search_profile=bge-base");
   const wire = await (await members).json();
@@ -2865,19 +2863,6 @@ test("reference feedback: traits reuse one drawer and retain mixed record histor
   );
   await expect(ward).toBeFocused();
   await expect(page).toHaveURL(hostUrl);
-  await page.goto("/search?similar=trait%3Alight&search_profile=bge-base");
-  const seed = page
-    .locator(".reference-search-entry--similar")
-    .getByRole("link", { name: "Light", exact: true });
-  await activate(seed, info);
-  await expect(
-    drawer.getByRole("heading", { name: "Light", exact: true }),
-  ).toBeVisible();
-  await activate(
-    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
-    info,
-  );
-  await expect(seed).toBeFocused();
   await noPageOverflow(page);
 });
 

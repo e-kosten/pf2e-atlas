@@ -4,9 +4,9 @@ use atlas_app_model::{
     CreateSavedListRequest,
 };
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
-use atlas_domain::{SearchProfileId, SourceByteRange, SourcePassageAddress, TraitKey};
-use atlas_index::{TraitDefinition, TraitSeedChunk, TraitVectorInput};
-use atlas_search::test_support::{hash, input, publish_input, record};
+use atlas_domain::{SearchProfileId, TraitKey};
+use atlas_index::TraitDefinition;
+use atlas_search::test_support::{input, publish_input, record};
 use serde_json::json;
 
 use super::AtlasWebState;
@@ -163,28 +163,6 @@ impl Fixture {
             source_revision: None,
             indexing_locale: "en".into(),
             content_locale: None,
-        });
-        let mut vector = vec![0.; 768];
-        vector[0] = 1.;
-        let chunk_hash = hash(b"Fire\n");
-        data.trait_vectors.push(TraitVectorInput {
-            key,
-            profile_id: SearchProfileId::new("bge-base"),
-            input_hash: hash(format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes()),
-            vector: vector.clone(),
-            chunks: vec![TraitSeedChunk {
-                input: "Fire\n".into(),
-                input_hash: chunk_hash.clone(),
-                token_count: 2,
-                vector,
-                address: SourcePassageAddress::PlainSection {
-                    source_text_sha256: chunk_hash,
-                    selection_version: "trait-definition-centroid/v1".into(),
-                    section_ordinal: 0,
-                    label: Some("Fire".into()),
-                    chunk_bytes: SourceByteRange { start: 0, end: 5 },
-                },
-            }],
         });
         let source_fingerprint = data.context.source_fingerprint.clone();
         if glossary {

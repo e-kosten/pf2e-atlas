@@ -34,7 +34,6 @@ import {
   DEFAULT_SEARCH_PREFERENCES,
   DEFAULT_SOURCE_SECTIONS,
   DEFAULT_SIMILARITY_PREFERENCES,
-  DEFAULT_TRAIT_SIMILARITY_PREFERENCES,
   type SimilarityPreferences,
   type MatchDisplay,
 } from "./searchPreferences";
@@ -90,12 +89,9 @@ export function SearchSettings({
   const wide = Boolean(Grid.useBreakpoint().lg);
   const [sourceView, setSourceView] = useState("sections");
   const [sourceTarget, setSourceTarget] = useState<SimilaritySourceTarget>(null);
-  const trait = seed?.kind === "trait";
-  const preferredSimilarity = trait
-    ? profile.preferences.traitSimilarity
-    : profile.preferences.recordSimilarity;
+  const preferredSimilarity = profile.preferences.recordSimilarity;
   const appliedSimilarity =
-    search.similarity ?? similarityFromPreferences(preferredSimilarity, trait);
+    search.similarity ?? similarityFromPreferences(preferredSimilarity);
   const appliedPreferences = similarityPreferences(
     appliedSimilarity,
     preferredSimilarity,
@@ -223,7 +219,7 @@ export function SearchSettings({
   const summary = [
     modelLabel,
     seed
-      ? similarityLabel(appliedSimilarity, trait)
+      ? similarityLabel(appliedSimilarity)
       : ranking === "rrf"
         ? "Rank-based ranking"
         : "Score-based ranking",
@@ -291,7 +287,6 @@ export function SearchSettings({
     const nextSimilarity = seed
       ? similarityFromPreferences(
           draft.similarity,
-          trait,
           draft.sourceSections === "custom" ? draft.parts : null,
         )
       : search.similarity;
@@ -323,11 +318,7 @@ export function SearchSettings({
           : profile.preferences.sourceSectionsByFamily,
       matchDisplay: draft.matchDisplay,
       showSmallerWeights: draft.showSmallerWeights,
-      ...(seed
-        ? trait
-          ? { traitSimilarity: draft.similarity }
-          : { recordSimilarity: draft.similarity }
-        : { ranking: draft.ranking }),
+      ...(seed ? { recordSimilarity: draft.similarity } : { ranking: draft.ranking }),
     };
     const saved = profile.applyPreferences(nextPreferences);
     if (!presentationOnly)
@@ -378,35 +369,25 @@ export function SearchSettings({
         : identitySelected
           ? `${selectedCount} selections`
           : `${selectedCount} selected ${selectedCount === 1 ? "section" : "sections"}`;
-  const sourcePossessive = seedTitle
-    ? `${seedTitle}’s`
-    : trait
-      ? "the trait’s"
-      : "the record’s";
-  const sourceName = seedTitle || (trait ? "this trait" : "this record");
+  const sourcePossessive = seedTitle ? `${seedTitle}’s` : "the record’s";
+  const sourceName = seedTitle || "this record";
   const searchContentHelp =
     draft?.searchContent === "core"
       ? "Limits content searches to a core set of fields, like name and description, while omitting details like a creature's spells."
       : "Searches all available content, including details like a creature's spells.";
   const sourceSectionsHelp =
     draft?.sourceSections === "core"
-      ? trait
-        ? `Uses ${sourcePossessive} definition, or its name when no definition is available.`
-        : `Uses ${sourcePossessive} name and identity plus the core sections chosen for this record kind.`
+      ? `Uses ${sourcePossessive} name and identity plus the core sections chosen for this record kind.`
       : draft?.sourceSections === "custom"
         ? `Uses only the selected content from ${sourceName}.`
-        : trait
-          ? `Uses all of ${sourcePossessive} available document sections.`
-          : `Uses ${sourcePossessive} name and identity plus all available document sections.`;
-  const partsHelp = `Choose which sections of this ${trait ? "trait" : "record"} to use when finding similar records.`;
+        : `Uses ${sourcePossessive} name and identity plus all available document sections.`;
+  const partsHelp = `Choose which sections of this record to use when finding similar records.`;
   const methodHelp =
     draft?.similarity.method === "passages"
       ? "Looks for passages similar to each selected section. Each selected section can match a different passage in the results."
       : draft?.similarity.method === "content-average"
         ? "Averages the selected sections into an overall comparison. Specific details can become less prominent when several different sections are combined."
-        : trait
-          ? "Uses the trait’s definition as the starting point, or its name when no definition is available."
-          : `Uses ${sourcePossessive} name and identifying information. Its description and abilities aren’t used.`;
+        : `Uses ${sourcePossessive} name and identifying information. Its description and abilities aren’t used.`;
   const sectionStatus = draft && (
     <>
       {" "}
@@ -522,9 +503,7 @@ export function SearchSettings({
                         matchDisplay: DEFAULT_SEARCH_PREFERENCES.matchDisplay,
                         showSmallerWeights:
                           DEFAULT_SEARCH_PREFERENCES.showSmallerWeights,
-                        similarity: trait
-                          ? DEFAULT_TRAIT_SIMILARITY_PREFERENCES
-                          : DEFAULT_SIMILARITY_PREFERENCES,
+                        similarity: DEFAULT_SIMILARITY_PREFERENCES,
                         parts: null,
                         generation: undefined,
                       }
@@ -646,14 +625,6 @@ export function SearchSettings({
                               })
                             }
                           />
-                          {allParts.some(
-                            (part) => part.kind === "section" && part.label_only,
-                          ) && (
-                            <Typography.Paragraph type="secondary">
-                              This trait has no definition text; comparison uses its
-                              label.
-                            </Typography.Paragraph>
-                          )}
                         </>
                       )}
                     </>
@@ -734,9 +705,7 @@ export function SearchSettings({
                           </Form.Item>
                         ) : (
                           <Form.Item label="Source sections">
-                            <Typography.Text>
-                              {trait ? "Trait definition" : "Name and identity"}
-                            </Typography.Text>
+                            <Typography.Text>Name and identity</Typography.Text>
                           </Form.Item>
                         ))}
                       <Form.Item
@@ -771,11 +740,7 @@ export function SearchSettings({
                               <Typography.Text type="secondary">
                                 {seed
                                   ? similarityLabel(
-                                      similarityFromPreferences(
-                                        draft.similarity,
-                                        trait,
-                                      ),
-                                      trait,
+                                      similarityFromPreferences(draft.similarity),
                                     )
                                   : draft.ranking === "score"
                                     ? "Score-based"
@@ -835,7 +800,6 @@ export function SearchSettings({
                                     onChange={(similarity) =>
                                       setDraft({ ...draft, similarity })
                                     }
-                                    trait={trait}
                                     methodHelp={methodHelp}
                                     selectedCount={selectedCount}
                                     identitySelected={identitySelected}

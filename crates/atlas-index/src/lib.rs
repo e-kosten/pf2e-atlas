@@ -72,9 +72,7 @@ pub use build_spool::{
     BuildFileUsage, BuildFrameCursor, BuildFrameOffset, BuildFrameStream, PreparedRecordInput,
     PublicationSpool,
 };
-pub use publication_source::{
-    PreparedRecordRef, SemanticOccurrence, TraitChunkOccurrence, TraitSeedOccurrence,
-};
+pub use publication_source::{PreparedRecordRef, SemanticOccurrence};
 mod numeric;
 mod persistence;
 #[cfg(test)]

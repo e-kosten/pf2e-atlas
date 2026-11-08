@@ -50,8 +50,7 @@ fn static_parent(request: SearchResultsRequest) -> Box<atlas_app_model::StaticSe
         } => (filter, Some(trait_key)),
         SearchCriteria::ListRecords { filter }
         | SearchCriteria::TextSearch { filter, .. }
-        | SearchCriteria::SimilarRecords { filter, .. }
-        | SearchCriteria::SimilarTraits { filter, .. } => (filter, None),
+        | SearchCriteria::SimilarRecords { filter, .. } => (filter, None),
     };
     Box::new(atlas_app_model::StaticSearchContext {
         filter,
@@ -755,34 +754,6 @@ fn trait_search_fixture(semantic: bool, reference_count: u32) -> FixtureWorker {
             indexing_locale: fixture.context.indexing_locale.clone(),
             content_locale: None,
         });
-        if semantic {
-            let mut vector = vec![0.; 768];
-            vector[0] = 1.;
-            let chunk_hash = atlas_search::test_support::hash(b"Agile\n");
-            fixture
-                .trait_vectors
-                .push(atlas_search::test_support::TraitVectorInput {
-                    key,
-                    profile_id: atlas_domain::SearchProfileId::new("bge-base"),
-                    input_hash: atlas_search::test_support::hash(
-                        format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes(),
-                    ),
-                    vector: vector.clone(),
-                    chunks: vec![atlas_search::test_support::TraitSeedChunk {
-                        input: "Agile\n".into(),
-                        input_hash: chunk_hash.clone(),
-                        token_count: 2,
-                        vector,
-                        address: atlas_domain::SourcePassageAddress::PlainSection {
-                            source_text_sha256: chunk_hash,
-                            selection_version: "trait-definition-centroid/v1".into(),
-                            section_ordinal: 0,
-                            label: Some("Agile".into()),
-                            chunk_bytes: atlas_domain::SourceByteRange { start: 0, end: 6 },
-                        },
-                    }],
-                });
-        }
         Ok(open_input_fixture(fixture)?)
     });
     fixture_worker_with_executor(executor)
@@ -828,62 +799,6 @@ fn trait_reference_search_deduplicates_roots_and_filters_before_paging() {
     let filtered = fixture.worker.search_page(search, &execution).unwrap();
     assert_eq!(filtered.page.total, 1);
     assert_eq!(filtered.rows[0].record.record_key, "items:0000000000000002");
-}
-
-#[test]
-fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
-    let fixture = trait_search_fixture(true, 3);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let mut search = request(
-        SearchCriteria::SimilarTraits {
-            search_content: None,
-            source_sections: None,
-            seed_trait_key: "trait:agile".into(),
-            similarity: None,
-            filter: None,
-        },
-        1,
-    );
-    let first = fixture
-        .worker
-        .search_page(search.clone(), &execution)
-        .unwrap();
-    assert_eq!(
-        first.mode,
-        SearchModeSummary::SimilarTraits {
-            trait_key: "trait:agile".into(),
-            title: "Agile".into(),
-            help: None,
-        }
-    );
-    assert_eq!(first.rows.len(), 1);
-    assert_eq!(first.rows[0].record.record_key, "items:0000000000000000");
-    assert_eq!(first.page.total, 4);
-    assert_eq!(first.coverage.as_ref().unwrap().candidate_roots, 4);
-    assert_eq!(
-        first.similarity.unwrap().options,
-        atlas_domain::SimilarityOptions::Baseline {}
-    );
-    search.criteria = SearchCriteria::SimilarTraits {
-        search_content: None,
-        source_sections: None,
-        seed_trait_key: "trait:agile".into(),
-        similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
-        filter: Some(
-            serde_json::from_value(json!({
-                "kind": "boolean_constant", "value": false
-            }))
-            .unwrap(),
-        ),
-    };
-    assert!(
-        fixture
-            .worker
-            .search_page(search, &execution)
-            .unwrap()
-            .rows
-            .is_empty()
-    );
 }
 
 #[test]
@@ -1223,63 +1138,6 @@ fn core_text_scope_restricts_existing_owned_names_without_adding_paragraph_fts()
 }
 
 #[test]
-fn trait_core_source_infers_passages_without_duplicate_identity_and_scope_alone_keeps_baseline() {
-    let fixture = trait_search_fixture(true, 3);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let candidate_only = fixture
-        .worker
-        .search_page(
-            request(
-                SearchCriteria::SimilarTraits {
-                    seed_trait_key: "trait:agile".into(),
-                    filter: None,
-                    similarity: None,
-                    source_sections: None,
-                    search_content: Some(atlas_domain::SearchContentScope::Core),
-                },
-                1,
-            ),
-            &execution,
-        )
-        .unwrap();
-    let config = candidate_only.similarity.unwrap();
-    assert_eq!(config.options, atlas_domain::SimilarityOptions::Baseline {});
-    assert_eq!(config.source_sections, None);
-    assert_eq!(
-        config.search_content,
-        atlas_domain::SearchContentScope::Core
-    );
-    let source_core = fixture
-        .worker
-        .search_page(
-            request(
-                SearchCriteria::SimilarTraits {
-                    seed_trait_key: "trait:agile".into(),
-                    filter: None,
-                    similarity: None,
-                    source_sections: Some(atlas_domain::SimilaritySourceSections::Core),
-                    search_content: None,
-                },
-                1,
-            ),
-            &execution,
-        )
-        .unwrap();
-    let config = source_core.similarity.unwrap();
-    assert!(matches!(
-        config.options,
-        atlas_domain::SimilarityOptions::Passages { .. }
-    ));
-    assert_eq!(config.resolved_selectors.len(), 1);
-    let core = config.core.unwrap();
-    assert_eq!(core.family, atlas_domain::CoreSectionFamily::Trait);
-    assert_eq!(
-        core.representation,
-        atlas_domain::CoreSectionRepresentation::TraitLabelOnly
-    );
-}
-
-#[test]
 fn similarity_part_inventory_remains_available_without_vectors_or_model_assets() {
     let (fixture, _) = fixture(false);
     let inventory = fixture
@@ -1457,30 +1315,20 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
 }
 
 #[test]
-fn similar_record_and_trait_responses_acknowledge_scoring_and_mapping_recipes() {
+fn similar_record_responses_acknowledge_scoring_and_mapping_recipes() {
     let fixture = trait_search_fixture(true, 3);
     let execution = crate::ReadExecutionContext::uncancellable();
-    for trait_seed in [false, true] {
+    {
         for options in [
             atlas_domain::SimilarityOptions::Baseline {},
             atlas_domain::SimilarityOptions::default(),
         ] {
-            let criteria = if trait_seed {
-                SearchCriteria::SimilarTraits {
-                    search_content: None,
-                    source_sections: None,
-                    seed_trait_key: "trait:agile".into(),
-                    filter: None,
-                    similarity: Some(options.clone()),
-                }
-            } else {
-                SearchCriteria::SimilarRecords {
-                    search_content: None,
-                    source_sections: None,
-                    seed_record_key: "items:0000000000000000".into(),
-                    filter: None,
-                    similarity: Some(options.clone()),
-                }
+            let criteria = SearchCriteria::SimilarRecords {
+                search_content: None,
+                source_sections: None,
+                seed_record_key: "items:0000000000000000".into(),
+                filter: None,
+                similarity: Some(options.clone()),
             };
             let page = fixture
                 .worker
@@ -1499,13 +1347,11 @@ fn similar_record_and_trait_responses_acknowledge_scoring_and_mapping_recipes() 
                 value["similarity"]["recipe"],
                 if matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
                     "current-baseline/v1"
-                } else if !trait_seed {
-                    atlas_domain::SIMILARITY_COMPONENT_RECIPE
                 } else {
-                    atlas_domain::SIMILARITY_RECIPE
+                    atlas_domain::SIMILARITY_COMPONENT_RECIPE
                 }
             );
-            if !trait_seed && !matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
+            if !matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
                 let config = page.similarity.as_ref().unwrap();
                 assert_eq!(
                     config.source_sections,

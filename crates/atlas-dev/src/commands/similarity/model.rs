@@ -262,7 +262,7 @@ pub(super) fn variants(
     requested: &[String],
 ) -> Result<(Vec<SimilarityEvaluationVariant>, Vec<String>), String> {
     let mut variants = Vec::new();
-    let mut skipped = Vec::new();
+    let skipped = Vec::new();
     let selected = match &scenario.selection {
         Selection::All => None,
         Selection::Explicit {
@@ -288,13 +288,7 @@ pub(super) fn variants(
             | SimilarityOptions::ContentAverage { parts, .. } => *parts = selected.clone(),
             SimilarityOptions::Baseline {} => (),
         }
-        if matches!(scenario.seed, SimilaritySeed::Trait { .. })
-            && options.candidate_parts() == atlas_domain::SimilarityCandidateParts::Corresponding
-        {
-            skipped.push(variant.id.clone());
-            continue;
-        }
-        options.validate(&scenario.seed)?;
+        options.validate()?;
         variants.push(SimilarityEvaluationVariant {
             id: variant.id.clone(),
             options,

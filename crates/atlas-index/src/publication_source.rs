@@ -1,8 +1,6 @@
 //! Repeatable publication inputs. The writer consumes one bounded record at a time.
 use crate::{SourceArtifactRecordInput, SourceLexicalUnitInput};
-use atlas_domain::{
-    OwnedContentLocator, RecordKey, SearchProfileId, SourcePassageAddress, TraitKey,
-};
+use atlas_domain::{OwnedContentLocator, RecordKey, SearchProfileId, SourcePassageAddress};
 use atlas_embedding::NativeInputDescriptor;
 use atlas_record::source_record::SourceSearchSelection;
 use serde::{Deserialize, Serialize};
@@ -23,20 +21,6 @@ pub struct SemanticOccurrence {
     pub chunk_ordinal: usize,
     pub input: NativeInputDescriptor,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraitSeedOccurrence {
-    pub key: TraitKey,
-    pub profile_id: SearchProfileId,
-    pub input_hash: String,
-    pub chunks: Vec<TraitChunkOccurrence>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraitChunkOccurrence {
-    pub input: String,
-    pub descriptor: NativeInputDescriptor,
-    pub address: SourcePassageAddress,
-}
-
 #[cfg(test)]
 mod tests {
     #[test]

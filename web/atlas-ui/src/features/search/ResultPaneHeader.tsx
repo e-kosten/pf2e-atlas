@@ -7,9 +7,7 @@ import { ResultSortControl } from "../../shared/search/ResultSortControl";
 
 export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceState }) {
   const page = workspace.resultPage?.page;
-  const similar =
-    workspace.resultPage?.mode.kind === "similar_records" ||
-    workspace.resultPage?.mode.kind === "similar_traits";
+  const similar = workspace.resultPage?.mode.kind === "similar_records";
   const displayedPageNumber = workspace.resultsRefreshing
     ? workspace.pageNumber
     : (page?.number ?? workspace.pageNumber);

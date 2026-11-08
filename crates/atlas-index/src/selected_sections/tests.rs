@@ -77,14 +77,6 @@ fn numerical(c: &Connection, _: &IndexBuildInput) -> String {
             "pending_embedding_values",
             "SELECT input_id,vector,vector_hash FROM pending_embedding_values ORDER BY input_id",
         ),
-        (
-            "trait_vectors",
-            "SELECT * FROM trait_vectors ORDER BY trait_key,profile_id",
-        ),
-        (
-            "trait_seed_chunks",
-            "SELECT * FROM trait_seed_chunks ORDER BY trait_key,profile_id,ordinal",
-        ),
     ] {
         output.extend_from_slice(name.as_bytes());
         let mut statement = c.prepare(sql).unwrap();
@@ -291,7 +283,7 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        assert_eq!(read.reference_revision().unwrap(), revision);
+        assert_eq!(read.reference_revision().unwrap(), revision + 1);
         assert_eq!(numerical(read.connection(), &input), before);
         assert_eq!(saved(read.connection()), saved_before);
         assert_eq!(
@@ -320,7 +312,7 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
         assert!(open_reader(&path).is_err());
         publish_input(&path, &input).unwrap();
         let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        assert_eq!(read.reference_revision().unwrap(), revision + 1);
+        assert_eq!(read.reference_revision().unwrap(), revision + 2);
         assert_eq!(
             native_preservation_rows(read.connection()).unwrap(),
             native_before
@@ -560,7 +552,7 @@ fn retired_preparation_and_predecessor_never_decode_snapshots_or_alter_pending_v
         let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(numerical(read.connection(), &input), before);
         assert_eq!(saved(read.connection()), saved_before);
-        assert_eq!(read.reference_revision().unwrap(), revision);
+        assert_eq!(read.reference_revision().unwrap(), revision + 1);
         assert_eq!(
             classify_reference_upgrade(read.connection()).unwrap(),
             if replacement {
@@ -584,7 +576,7 @@ fn retired_preparation_and_predecessor_never_decode_snapshots_or_alter_pending_v
         assert!(recover_reference_publication(&owner, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
         drop(owner);
         let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        assert_eq!(read.reference_revision().unwrap(), revision);
+        assert_eq!(read.reference_revision().unwrap(), revision + 1);
         assert_eq!(numerical(read.connection(), &input), before);
         assert_eq!(saved(read.connection()), saved_before);
         assert!(SqliteIndexReader::from_session(read).is_err());

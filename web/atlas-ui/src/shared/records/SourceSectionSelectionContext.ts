@@ -21,7 +21,7 @@ export const SourceSectionSelectionContext = createContext<SourceSectionScope | 
   null,
 );
 
-export type SourceContentLocation = ContentLocationView | { trait_key: string };
+export type SourceContentLocation = ContentLocationView;
 
 /** Compact embedded links represent an owner, even when its prose is not inline. */
 export function useSourceOwnerSelection() {
@@ -66,12 +66,7 @@ export function useSourceSectionSelection(
   sourceFingerprint?: string | null,
 ) {
   const scope = useContext(SourceSectionSelectionContext);
-  const matches =
-    scope &&
-    location &&
-    (scope.seed.kind === "record"
-      ? "record" in location && scope.seed.record_key === location.record
-      : "trait_key" in location && scope.seed.trait_key === location.trait_key);
+  const matches = scope && location && scope.seed.record_key === location.record;
   if (!matches) return null;
   const selection = scope.selection;
   const inventory = selection?.inventory;

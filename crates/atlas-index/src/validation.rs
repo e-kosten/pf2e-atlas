@@ -100,7 +100,6 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     // that same source-owner resolver instead of decoding a target per edge.
     let mut reference_index = atlas_record::source_record::SourceReferenceIndex::default();
     let (abilities, mut trait_evidence) = crate::references::audit_catalog(c, &context)?;
-    crate::traits::validate_trait_vectors(c, &context)?;
     let total_roots = count(c, "records")?;
     {
         let mut cursor = root_query.query([])?;
@@ -630,7 +629,7 @@ fn validate_vectors(
     product_count: usize,
 ) -> Result<(), IndexError> {
     crate::semantic_locations::validate(c)?;
-    let invalid: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN embedding_inputs i USING(input_id) WHERE i.published_hash IS NULL) OR EXISTS(SELECT 1 FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) WHERE i.published_hash IS NULL) OR EXISTS(SELECT 1 FROM embedding_inputs i WHERE published_hash IS NOT NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id) AND NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=i.input_id))",[],|r|r.get(0))?;
+    let invalid: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN embedding_inputs i USING(input_id) WHERE i.published_hash IS NULL) OR EXISTS(SELECT 1 FROM embedding_inputs i WHERE published_hash IS NOT NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id))",[],|r|r.get(0))?;
     if invalid {
         return Err(bad("published native consumer/registry coverage mismatch"));
     }

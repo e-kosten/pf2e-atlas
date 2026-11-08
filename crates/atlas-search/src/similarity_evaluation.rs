@@ -132,7 +132,7 @@ impl AtlasRetrievalService {
             }
             variant
                 .options
-                .validate(request.seed)
+                .validate()
                 .map_err(SearchError::invalid_search_options)?;
         }
         let content = request
@@ -168,10 +168,6 @@ impl AtlasRetrievalService {
                     }),
                     128,
                 )?,
-                SimilaritySeed::Trait { trait_key } => {
-                    self.index
-                        .trait_similarity_units(request.profile, trait_key, 128)?
-                }
             };
             units.retain(|unit| selected.contains(unit.component.selector()));
             if units.is_empty()
@@ -225,9 +221,6 @@ impl AtlasRetrievalService {
                         .index
                         .seed_identity_vector(request.profile, record_key)?
                         .map(|value| value.vector),
-                    SimilaritySeed::Trait { trait_key } => {
-                        self.index.trait_vector(trait_key, request.profile)?
-                    }
                 }
                 .ok_or_else(|| {
                     SearchError::vector_readiness_required(

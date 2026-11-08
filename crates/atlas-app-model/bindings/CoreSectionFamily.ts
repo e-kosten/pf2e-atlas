@@ -4,4 +4,4 @@
  * A stable policy family for discovery and remembered source presets. The record
  * owner classifies checked source; adapters must not infer this from labels.
  */
-export type CoreSectionFamily = "npc" | "hazard" | "spell" | "rule" | "equipment" | "character_option" | "deity" | "campaign_feature" | "vehicle" | "army" | "character" | "familiar" | "trait" | "unmodelled";
+export type CoreSectionFamily = "npc" | "hazard" | "spell" | "rule" | "equipment" | "character_option" | "deity" | "campaign_feature" | "vehicle" | "army" | "character" | "familiar" | "unmodelled";

@@ -71,8 +71,8 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     };
     let rediscovery = recovery::command(&o, Some(&seed));
     let explicit_parts = !o.parts.is_empty();
-    let options = options.unwrap_or_else(|| SimilarityOptions::default_for_seed(&seed));
-    if let Err(error) = options.validate(&seed) {
+    let options = options.unwrap_or_default();
+    if let Err(error) = options.validate() {
         return report_app_error(invalid(error), o.json);
     }
     if o.list_parts {
@@ -118,10 +118,6 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
                         " (vectors unavailable)"
                     }
                 );
-                if matches!(&part, atlas_app_model::SimilarityComponentView::Section { part } if part.label_only)
-                {
-                    println!("  Label only; no definition text");
-                }
                 println!("  --part '{}'", part.selector().0);
             }
             println!(
@@ -390,8 +386,6 @@ fn core_representation_label(value: atlas_domain::CoreSectionRepresentation) -> 
             "Name and identity with Core prose"
         }
         atlas_domain::CoreSectionRepresentation::IdentityOnly => "Name and identity only",
-        atlas_domain::CoreSectionRepresentation::TraitDefinition => "Trait definition",
-        atlas_domain::CoreSectionRepresentation::TraitLabelOnly => "Trait label only",
     }
 }
 

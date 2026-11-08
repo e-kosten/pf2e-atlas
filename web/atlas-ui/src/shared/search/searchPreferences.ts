@@ -26,7 +26,6 @@ export type SearchPreferences = {
   matchDisplay: MatchDisplay;
   showSmallerWeights: boolean;
   recordSimilarity: SimilarityPreferences;
-  traitSimilarity: SimilarityPreferences;
 };
 
 export const DEFAULT_SOURCE_SECTIONS = "all" as const;
@@ -35,10 +34,6 @@ export const DEFAULT_SIMILARITY_PREFERENCES: SimilarityPreferences = {
   method: "passages",
   decay: 0.5,
   candidateParts: "any",
-};
-export const DEFAULT_TRAIT_SIMILARITY_PREFERENCES: SimilarityPreferences = {
-  ...DEFAULT_SIMILARITY_PREFERENCES,
-  method: "baseline",
 };
 export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   version: 1,
@@ -49,7 +44,6 @@ export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   matchDisplay: DEFAULT_MATCH_DISPLAY,
   showSmallerWeights: false,
   recordSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
-  traitSimilarity: DEFAULT_TRAIT_SIMILARITY_PREFERENCES,
 };
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -58,27 +52,23 @@ function object(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function similarity(value: unknown, trait = false): SimilarityPreferences {
+function similarity(value: unknown): SimilarityPreferences {
   const input = object(value);
-  const defaults = trait
-    ? DEFAULT_TRAIT_SIMILARITY_PREFERENCES
-    : DEFAULT_SIMILARITY_PREFERENCES;
   return {
     method:
       input?.method === "passages" ||
       input?.method === "content-average" ||
       input?.method === "baseline"
         ? input.method
-        : defaults.method,
+        : DEFAULT_SIMILARITY_PREFERENCES.method,
     decay:
       typeof input?.decay === "number" &&
       Number.isFinite(input.decay) &&
       input.decay >= 0 &&
       input.decay <= 1
         ? input.decay
-        : defaults.decay,
-    candidateParts:
-      !trait && input?.candidateParts === "corresponding" ? "corresponding" : "any",
+        : DEFAULT_SIMILARITY_PREFERENCES.decay,
+    candidateParts: input?.candidateParts === "corresponding" ? "corresponding" : "any",
   };
 }
 
@@ -96,7 +86,8 @@ export function readSearchPreferences(): SearchPreferences {
         searchContent: input.searchContent === "core" ? "core" : "all",
         sourceSectionsByFamily: Object.fromEntries(
           Object.entries(object(input.sourceSectionsByFamily) ?? {}).filter(
-            ([, value]) => value === "all" || value === "core",
+            ([family, value]) =>
+              family !== "trait" && (value === "all" || value === "core"),
           ),
         ),
         matchDisplay:
@@ -109,7 +100,6 @@ export function readSearchPreferences(): SearchPreferences {
               : DEFAULT_MATCH_DISPLAY,
         showSmallerWeights: input.showSmallerWeights === true,
         recordSimilarity: similarity(input.recordSimilarity),
-        traitSimilarity: similarity(input.traitSimilarity, true),
       };
 
     const model = localStorage.getItem(LEGACY_SEARCH_PROFILE_KEY);

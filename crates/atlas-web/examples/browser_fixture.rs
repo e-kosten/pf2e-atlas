@@ -14,10 +14,10 @@ use std::{error::Error, fs, io, net::SocketAddr, path::PathBuf};
 
 use atlas_app_model::AppReadinessStatus;
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
-use atlas_domain::{SearchProfileId, SourceByteRange, SourcePassageAddress, TraitKey};
-use atlas_index::{TraitDefinition, TraitSeedChunk, TraitVectorInput};
+use atlas_domain::{SearchProfileId, TraitKey};
+use atlas_index::TraitDefinition;
 use atlas_runtime::AtlasPathMode;
-use atlas_search::test_support::{hash, input};
+use atlas_search::test_support::input;
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -81,12 +81,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             None,
             None,
         )?;
-        let seed_input = format!("{label}\n{}", prepared.text);
-        let seed_hash = hash(seed_input.as_bytes());
-        let seed_end = seed_input.len();
-        let mut vector = vec![0.; 768];
-        // Preserve the existing Light seed's normalized first-axis direction.
-        vector[0] = 1.;
         fixture.traits.push(TraitDefinition {
             key: key.clone(),
             label: label.into(),
@@ -100,28 +94,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             source_revision: None,
             indexing_locale: "en".into(),
             content_locale: Some("en".into()),
-        });
-        fixture.trait_vectors.push(TraitVectorInput {
-            key,
-            profile_id: SearchProfileId::new("bge-base"),
-            input_hash: hash(format!("trait-definition-centroid/v1:{seed_hash}").as_bytes()),
-            vector: vector.clone(),
-            chunks: vec![TraitSeedChunk {
-                input: seed_input,
-                input_hash: seed_hash.clone(),
-                token_count: 8,
-                vector,
-                address: SourcePassageAddress::PlainSection {
-                    source_text_sha256: seed_hash,
-                    selection_version: "trait-definition-centroid/v1".into(),
-                    section_ordinal: 0,
-                    label: Some(label.into()),
-                    chunk_bytes: SourceByteRange {
-                        start: 0,
-                        end: seed_end,
-                    },
-                },
-            }],
         });
     }
     // Give distinct roots positive overlap so the default passage comparison

@@ -1,7 +1,7 @@
 import { Checkbox, Typography } from "antd";
 import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
-import { recordDestination, traitDestination } from "../../app/destinations";
+import { recordDestination } from "../../app/destinations";
 
 export function SimilaritySectionChoices({
   parts,
@@ -68,14 +68,10 @@ export function SimilaritySectionChoices({
                     <Typography.Link
                       strong={singleSection}
                       href={destinationHref(
-                        seed.kind === "trait"
-                          ? traitDestination({
-                              traitKey: seed.trait_key,
-                            })
-                          : recordDestination({
-                              recordKey: seed.record_key,
-                              selection: part.navigation ?? undefined,
-                            }),
+                        recordDestination({
+                          recordKey: seed.record_key,
+                          selection: part.navigation ?? undefined,
+                        }),
                       )}
                       onClick={(event) => {
                         if (!isPrimaryActivation(event)) return;

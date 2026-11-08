@@ -53,12 +53,11 @@ impl AtlasAppService {
 }
 
 pub(crate) fn validate_options(
-    seed: &SimilaritySeed,
     options: &SimilarityOptions,
     expected_generation: Option<&str>,
 ) -> AppServiceResult<()> {
     options
-        .validate(seed)
+        .validate()
         .map_err(AppServiceError::invalid_request)?;
     require_parts_generation(options, expected_generation)
 }
@@ -97,13 +96,11 @@ pub(crate) fn configured_results(
     atlas_app_model::SearchResultsView,
     atlas_app_model::SimilarityConfigurationView,
 )> {
-    let missing_code = if matches!(request.seed, SimilaritySeed::Record { .. }) {
-        atlas_app_model::AppErrorCode::RecordNotFound
-    } else {
-        atlas_app_model::AppErrorCode::InvalidRequest
-    };
     let result = retrieval.configurable_similar(request)?.ok_or_else(|| {
-        AppServiceError::new(missing_code, "the selected similarity seed is unavailable")
+        AppServiceError::new(
+            atlas_app_model::AppErrorCode::RecordNotFound,
+            "the selected similarity seed is unavailable",
+        )
     })?;
     execution.check()?;
     let mode = match &result.seed {
@@ -118,18 +115,6 @@ pub(crate) fn configured_results(
                 seed: Box::new(crate::projection::localized_summary_view(
                     summary, retrieval,
                 )),
-            }
-        }
-        SimilaritySeed::Trait { trait_key } => {
-            let definition = retrieval
-                .reference_summary(&trait_key.clone().into())?
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("the selected similarity trait is unavailable")
-                })?;
-            atlas_app_model::SearchModeSummary::SimilarTraits {
-                trait_key: trait_key.to_string(),
-                help: crate::definitions::summary_help(&definition, retrieval.source_fingerprint()),
-                title: definition.label,
             }
         }
     };
@@ -244,7 +229,6 @@ fn part_addresses(
 ) -> AppServiceResult<PartAddresses> {
     Ok(match seed {
         SimilaritySeed::Record { record_key } => retrieval.similarity_part_addresses(record_key)?,
-        SimilaritySeed::Trait { .. } => Default::default(),
     })
 }
 
@@ -272,7 +256,6 @@ fn component_view(
                         source_fingerprint: None,
                     })
                 }
-                SimilaritySeed::Trait { .. } => None,
             };
             atlas_app_model::SimilarityComponentView::Identity {
                 navigation,
@@ -298,7 +281,6 @@ fn part_view(
 ) -> atlas_app_model::SimilarityPartView {
     let address = addresses.get(&part.selector);
     let label = match seed {
-        SimilaritySeed::Trait { .. } => part.label,
         SimilaritySeed::Record { .. } => address
             .and_then(|address| match address {
                 atlas_domain::SourcePassageAddress::HtmlSection { label, .. }
@@ -324,7 +306,6 @@ fn part_view(
                 fingerprint,
             ),
         }),
-        SimilaritySeed::Trait { .. } => None,
     };
     atlas_app_model::SimilarityPartView {
         navigation,
@@ -346,14 +327,7 @@ pub(crate) fn validate_caller_similarity(request: &SearchResultsRequest) -> AppS
         SearchCriteria::SimilarRecords {
             similarity: Some(options),
             ..
-        }
-        | SearchCriteria::SimilarTraits {
-            similarity: Some(options),
-            ..
-        } => crate::similarity::require_parts_generation(
-            options,
-            request.expected_artifact_generation.as_deref(),
-        ),
+        } => require_parts_generation(options, request.expected_artifact_generation.as_deref()),
         _ => Ok(()),
     }
 }
@@ -411,41 +385,18 @@ mod tests {
 
     #[test]
     fn explicit_part_selection_requires_a_generation_guard() {
-        let seed = SimilaritySeed::Record {
-            record_key: "items:0000000000000000".parse().unwrap(),
-        };
         let options = SimilarityOptions::Passages {
             decay: 0.5,
             parts: Some(vec![SimilarityPartSelector("part-selector".into())]),
             candidate_parts: SimilarityCandidateParts::Any,
         };
         assert_eq!(
-            validate_options(&seed, &options, None)
+            validate_options(&options, None)
                 .unwrap_err()
                 .into_app_error()
                 .code,
             atlas_app_model::AppErrorCode::InvalidRequest
         );
-        assert!(validate_options(&seed, &options, Some("generation")).is_ok());
-    }
-
-    #[test]
-    fn empty_parts_and_trait_correspondence_remain_invalid() {
-        let seed = SimilaritySeed::Trait {
-            trait_key: "trait:fire".parse().unwrap(),
-        };
-        for options in [
-            SimilarityOptions::ContentAverage {
-                parts: Some(vec![]),
-                candidate_parts: SimilarityCandidateParts::Any,
-            },
-            SimilarityOptions::Passages {
-                decay: 0.5,
-                parts: None,
-                candidate_parts: SimilarityCandidateParts::Corresponding,
-            },
-        ] {
-            assert!(validate_options(&seed, &options, Some("generation")).is_err());
-        }
+        assert!(validate_options(&options, Some("generation")).is_ok());
     }
 }

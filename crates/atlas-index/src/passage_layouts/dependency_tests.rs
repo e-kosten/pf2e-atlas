@@ -263,7 +263,7 @@ fn authentic_v7_schema29_upgrade_reuses_sources_layouts_and_native_values() {
         ReferenceUpgrade::SourcePreparation
     );
     assert_eq!(native_snapshot(read.connection()), native);
-    assert_eq!(read.reference_revision().unwrap(), old_revision);
+    assert_eq!(read.reference_revision().unwrap(), old_revision + 1);
     drop(read);
     assert!(open_reader(&path).is_err());
     let reuse = ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();

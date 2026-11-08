@@ -6,6 +6,10 @@ The trait-only vocabulary/storage scope is amended by
 membership, references and semantic-seed behavior remain active.
 Date: 2026-10-20
 
+Schema 34 retired the trait-seeded Similar workflow and its numerical storage.
+See the [artifact contract](../artifact-contract.md#native-embedding-storage)
+for the current migration behavior. The original trait Similar design follows.
+
 ## Context
 
 Foundry defines reusable trait identifiers, localized labels and explicit

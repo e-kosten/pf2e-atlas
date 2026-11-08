@@ -134,7 +134,6 @@ function TraitAssociations({
   onReference: RecordReferenceHandler;
 }) {
   const [state, setState] = useState(() => traitAssociationState(route.query));
-  const profile = useSearchProfile();
   const availability = useQueries({
     queries: (["members", "references"] as const).map((kind) => {
       const request: TraitRecordsRequest = {
@@ -142,8 +141,6 @@ function TraitAssociations({
         kind,
         page: { number: 1, size: 5 },
         expected_artifact_generation: detail.artifact_generation,
-        search_profile: profile.id,
-        ranking: "score",
       };
       return {
         meta: referenceQueryMeta,
@@ -251,8 +248,6 @@ function TraitAssociatedRecords({
     kind,
     page: { number: 1, size: 5 },
     expected_artifact_generation: detail.artifact_generation,
-    search_profile: profile.id,
-    ranking: "score",
   };
   const query = useQuery<TraitRecordsPage>({
     meta: referenceQueryMeta,

@@ -190,24 +190,6 @@ struct PendingEvidence {
     truncated: bool,
 }
 
-#[derive(PartialEq, Eq, Hash)]
-enum SeedUnitKey<'a> {
-    Native(i64),
-    Trait(
-        &'a SimilarityPartSelector,
-        &'a atlas_domain::SourcePassageAddress,
-    ),
-}
-
-fn seed_unit_key(unit: &SourceSimilarityUnit) -> SeedUnitKey<'_> {
-    match &unit.location {
-        Some(location) => SeedUnitKey::Native(location.unit_id),
-        // Trait chunks have no record witness. Equal source addresses recover
-        // the same trait text and label, including any repeated chunk coverage.
-        None => SeedUnitKey::Trait(unit.component.selector(), &unit.address),
-    }
-}
-
 fn compact_part_scores(
     parts: Vec<crate::similarity_scoring::PartScore>,
     source_indices: &BTreeMap<&SimilarityPartSelector, usize>,
@@ -290,13 +272,13 @@ impl crate::AtlasRetrievalService {
         request.check()?;
         request
             .options
-            .validate(request.seed)
+            .validate()
             .map_err(SearchError::invalid_search_options)?;
         Self::validate_search_sort(&request.sort)?;
         let source_sections = if matches!(request.options, SimilarityOptions::Baseline {}) {
             if request.source_sections.is_some() {
                 return Err(SearchError::invalid_search_options(
-                    "Name and identity / Trait definition does not support a source section preset",
+                    "Name and identity does not support a source section preset",
                 ));
             }
             None
@@ -308,9 +290,6 @@ impl crate::AtlasRetrievalService {
         };
         let found = match request.seed {
             SimilaritySeed::Record { record_key } => self.index.read_summary(record_key)?.is_some(),
-            SimilaritySeed::Trait { trait_key } => {
-                self.index.trait_definition(trait_key)?.is_some()
-            }
         };
         if !found {
             return Ok(None);
@@ -326,19 +305,6 @@ impl crate::AtlasRetrievalService {
                         scope: request.scope,
                         content_scope: request.content_scope,
                         page: request.page,
-                    })?
-                    .map(|result| result.results),
-                SimilaritySeed::Trait { trait_key } => self
-                    .similar_trait(crate::SimilarTraitRequest {
-                        sort: request.sort,
-                        search_profile: request.search_profile,
-                        trait_key,
-                        filter: request.filter,
-                        scope: request.scope,
-                        content_scope: request.content_scope,
-                        page: request.page,
-
-                        ranking: Default::default(),
                     })?
                     .map(|result| result.results),
             };
@@ -398,10 +364,6 @@ impl crate::AtlasRetrievalService {
                 source_identity,
                 MAX_SEED_UNITS,
             )?,
-            SimilaritySeed::Trait { trait_key } => {
-                self.index
-                    .trait_similarity_units(&profile, trait_key, MAX_SEED_UNITS)?
-            }
         };
         seed_units.retain(|unit| selected.contains(unit.component.selector()));
         if selected.iter().any(|selector| {
@@ -427,13 +389,17 @@ impl crate::AtlasRetrievalService {
         let seed_unit_indices = seed_units
             .iter()
             .enumerate()
-            .map(|(index, unit)| (seed_unit_key(unit), index))
+            .map(|(index, unit)| {
+                (
+                    unit.location.as_ref().map(|location| location.unit_id),
+                    index,
+                )
+            })
             .collect::<HashMap<_, _>>();
         let mode = request.options.candidate_parts();
         let predicate = self.predicate(request.filter)?;
         let exclude = match request.seed {
             SimilaritySeed::Record { record_key } => Some(record_key),
-            SimilaritySeed::Trait { .. } => None,
         };
         let mut diagnostics = SimilarityDiagnostics {
             seed_units: seed_units.len(),
@@ -615,7 +581,7 @@ impl crate::AtlasRetrievalService {
                     .map(|pair| {
                         Ok(PendingPair {
                             seed_unit: seed_unit_indices
-                                .get(&seed_unit_key(pair.seed))
+                                .get(&pair.seed.location.as_ref().map(|location| location.unit_id))
                                 .copied()
                                 .ok_or_else(|| {
                                     SearchError::artifact_contract_violation(
@@ -821,9 +787,7 @@ fn prepare_similarity_evidence(
                     .location
                     .clone()
                     .map(|location| raw_witness(location, pair.cosine, seed.component.label())),
-                seed_text: crate::text::reading_excerpt(
-                    seed.trait_text.as_deref().unwrap_or_default(),
-                ),
+                seed_text: String::new(),
                 candidate: raw_witness(pair.candidate, pair.cosine, &pair.candidate_label),
                 cosine: pair.cosine,
             })

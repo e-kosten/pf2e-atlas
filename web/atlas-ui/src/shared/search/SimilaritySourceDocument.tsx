@@ -1,18 +1,10 @@
-import { useReferenceRecordNavigation } from "../records/ReferenceHelp";
 import { useLayoutEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Spin } from "antd";
 import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
-import { ErrorNotice } from "../feedback/ErrorNotice";
-import { similarityTraitSourceQueryOptions } from "./similarityQueries";
 import { rootNavigation, useReferenceReading } from "../records/useReferenceReading";
 import { ReferenceReader } from "../records/ReferenceReader";
-import { DocumentIdentityHeader } from "../records/DocumentIdentityHeader";
-import { PreparedContentBody } from "../records/PreparedContent";
 import { ReferenceHelpHost } from "../records/ReferenceHelpHost";
-import { ReferenceHelpProvider } from "../records/ReferenceHelp";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
-import { recordReadingIdentity, useRetainedRecord } from "../records/useRetainedRecord";
+import { recordReadingIdentity } from "../records/useRetainedRecord";
 import {
   SourceSectionSelectionContext,
   type SourceSectionSelection,
@@ -50,27 +42,15 @@ export function SimilaritySourceDocument({
 }) {
   return (
     <ReferenceHelpHost generation={generation ?? undefined}>
-      {seed.kind === "record" ? (
-        <RecordSourceDocument
-          key={JSON.stringify([seed.record_key, generation])}
-          recordKey={seed.record_key}
-          generation={generation}
-          target={target}
-          selection={selection}
-          active={active}
-          onReloadSections={onReloadSections}
-        />
-      ) : (
-        <TraitSourceDocument
-          key={JSON.stringify([seed.trait_key, generation])}
-          traitKey={seed.trait_key}
-          generation={generation}
-          target={target}
-          selection={selection}
-          active={active}
-          onReloadSections={onReloadSections}
-        />
-      )}
+      <RecordSourceDocument
+        key={JSON.stringify([seed.record_key, generation])}
+        recordKey={seed.record_key}
+        generation={generation}
+        target={target}
+        selection={selection}
+        active={active}
+        onReloadSections={onReloadSections}
+      />
     </ReferenceHelpHost>
   );
 }
@@ -177,112 +157,5 @@ function RecordSourceDocument({
         />
       </SourceSectionSelectionContext>
     </div>
-  );
-}
-
-function TraitSourceDocument({
-  traitKey,
-  generation,
-  target,
-  active,
-  selection = null,
-  onReloadSections,
-}: {
-  traitKey: string;
-  generation: string | null;
-  target: SimilaritySourceTarget;
-  active: boolean;
-  selection?: SourceSectionSelection | null;
-  onReloadSections: () => void;
-}) {
-  const query = useQuery(similarityTraitSourceQueryOptions(traitKey, generation));
-  const detail = useRetainedRecord(
-    JSON.stringify([traitKey, generation]),
-    query.data,
-    query.error,
-  );
-  const onReference = useReferenceRecordNavigation()!;
-  const heading = useRef<HTMLHeadingElement>(null);
-  const focusedVisit = useRef<number | null>(null);
-  useLayoutEffect(() => {
-    if (target && active && detail && focusedVisit.current !== target.visit) {
-      focusedVisit.current = target.visit;
-      if (
-        heading.current &&
-        mayHandOffSourceFocus(target, heading.current.ownerDocument)
-      )
-        heading.current.focus({ preventScroll: true });
-    }
-  }, [target, active, detail]);
-  const comparisonActive =
-    detail?.artifact_generation === generation &&
-    selection?.inventory.artifact_generation === generation &&
-    selection.inventory.seed.kind === "trait" &&
-    selection.inventory.seed.trait_key === traitKey;
-  return (
-    <section
-      className={`search-settings__trait-source${comparisonActive ? " comparison-source" : ""}`}
-      aria-label="Trait document"
-      aria-busy={query.isFetching}
-    >
-      {query.error && (
-        <ErrorNotice
-          error={query.error}
-          title={detail ? "Unable to refresh this trait" : "Unable to load this trait"}
-          description={detail ? "Previously loaded content remains below." : undefined}
-          action={
-            <Button
-              onClick={() =>
-                isArtifactGenerationChanged(query.error)
-                  ? onReloadSections()
-                  : void query.refetch()
-              }
-            >
-              {isArtifactGenerationChanged(query.error) ? "Reload sections" : "Retry"}
-            </Button>
-          }
-        />
-      )}
-      {detail ? (
-        <ReferenceHelpProvider generation={detail.artifact_generation}>
-          <article className="record-reference">
-            <DocumentIdentityHeader
-              title={detail.label}
-              classification="Trait"
-              headingRef={heading}
-            />
-            {query.isFetching && <Spin delay={500} size="small" />}
-            {detail.content ? (
-              <SourceSectionSelectionContext
-                value={
-                  detail.artifact_generation === generation
-                    ? {
-                        seed: { kind: "trait", trait_key: traitKey },
-                        generation,
-                        selection,
-                      }
-                    : null
-                }
-              >
-                <PreparedContentBody
-                  body={detail.content.body}
-                  sourceLocation={{ trait_key: traitKey }}
-                  sectionRendering={detail.content.section_rendering}
-                  references={detail.content.references}
-                  onReference={onReference}
-                />
-              </SourceSectionSelectionContext>
-            ) : (
-              <Alert
-                type="info"
-                title="No definition is available in this reference collection."
-              />
-            )}
-          </article>
-        </ReferenceHelpProvider>
-      ) : (
-        query.isPending && <Spin delay={500} description="Loading trait…" />
-      )}
-    </section>
   );
 }

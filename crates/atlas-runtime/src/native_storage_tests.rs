@@ -436,8 +436,8 @@ fn main24_native_upgrade_preserves_shared_inputs_traits_pending_models_and_saved
         );
         let saved = rows(read.connection(), "SELECT * FROM saved_lists ORDER BY id");
         drop(read);
-        initialize_workspace(workspace.path()).unwrap();
-        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        workspace.migrate(&MIGRATIONS[..33], |_| Ok(())).unwrap();
+        let read = workspace.read(33).unwrap();
         assert_eq!(read.workspace_key().unwrap(), key);
         assert_eq!(read.reference_revision().unwrap(), revision);
         assert_eq!(published_values(read.connection(), &input, true), values);
@@ -519,7 +519,7 @@ fn main24_native_upgrade_preserves_shared_inputs_traits_pending_models_and_saved
                 .unwrap()
         );
         drop(read);
-        initialize_workspace(workspace.path()).unwrap();
+        workspace.migrate(&MIGRATIONS[..33], |_| Ok(())).unwrap();
     }
 }
 #[test]
@@ -872,7 +872,7 @@ fn published_empty_profiles_upgrade_without_inventing_numerical_values() {
     drop(read);
     initialize_workspace(workspace.path()).unwrap();
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(read.reference_revision().unwrap(), revision + 1);
     assert_eq!(
         read.connection()
             .query_row("SELECT count(*) FROM embedding_inputs", [], |row| row
@@ -931,8 +931,8 @@ fn valid_signed_zero_centroids_keep_their_original_bytes_during_upgrade() {
         "SELECT * FROM trait_vectors ORDER BY trait_key,profile_id",
     );
     write.commit().unwrap();
-    initialize_workspace(workspace.path()).unwrap();
-    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    workspace.migrate(&MIGRATIONS[..33], |_| Ok(())).unwrap();
+    let read = workspace.read(33).unwrap();
     assert_eq!(
         rows(
             read.connection(),
@@ -970,22 +970,46 @@ fn trait_similarity_retirement_preserves_document_values_on_historical_upgrade()
         let historical = &MIGRATIONS[..33];
         if intermediate_upgrade {
             workspace.migrate(historical, |_| Ok(())).unwrap();
+            let read = workspace.read(33).unwrap();
+            let trait_rows = rows(
+                read.connection(),
+                "SELECT * FROM trait_seed_chunks ORDER BY trait_key,profile_id,ordinal",
+            );
+            let native_before = published_values(read.connection(), &input, true);
+            drop(read);
+            let failed = workspace.migrate(MIGRATIONS, |_| {
+                Err(atlas_storage::StorageError::Migration(
+                    "injected retirement validation failure".into(),
+                ))
+            });
+            assert!(
+                failed
+                    .unwrap_err()
+                    .to_string()
+                    .contains("injected retirement")
+            );
+            let read = workspace.read(33).unwrap();
+            assert_eq!(read.reference_revision().unwrap(), revision);
+            assert_eq!(
+                rows(
+                    read.connection(),
+                    "SELECT max(version) FROM schema_migrations"
+                ),
+                vec![vec![Value::Integer(33)]]
+            );
+            assert_eq!(
+                rows(
+                    read.connection(),
+                    "SELECT * FROM trait_seed_chunks ORDER BY trait_key,profile_id,ordinal"
+                ),
+                trait_rows
+            );
+            assert_eq!(
+                published_values(read.connection(), &input, true),
+                native_before
+            );
         }
-        let migrations = historical
-            .iter()
-            .copied()
-            .chain([Migration {
-                version: 34,
-                name: "retire-trait-similarity",
-                sql: "",
-                backfill: Some(atlas_storage::DataBackfill {
-                    reconstruct_tables: false,
-                    id: "retire-trait-similarity/v1",
-                    apply: atlas_index::retire_trait_similarity,
-                }),
-            }])
-            .collect::<Vec<_>>();
-        workspace.migrate(&migrations, |_| Ok(())).unwrap();
+        workspace.migrate(MIGRATIONS, |_| Ok(())).unwrap();
         let read = workspace.read(34).unwrap();
         assert_eq!(read.workspace_key().unwrap(), key);
         assert_eq!(read.reference_revision().unwrap(), revision + 1);

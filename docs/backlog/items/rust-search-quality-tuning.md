@@ -8,7 +8,7 @@ Last reviewed: 2026-10-27
 ## Configurable Similar
 
 Similar supports Passage matches with normalized geometric rank decay,
-Content average, and the existing record/trait baselines over stored vectors.
+Content average, and the existing record baseline over stored vectors.
 Advanced Compare parts selects exact existing source sections; candidate matching
 can use any prose or explicit cross-kind correspondence roles. Role eligibility
 must constrain candidate retrieval before bounded KNN as well as final scoring.

@@ -8,7 +8,7 @@ import {
 
 beforeEach(() => localStorage.clear());
 
-it("keeps record and trait launch defaults independent", () => {
+it("uses record Similar defaults", () => {
   const preferences = readSearchPreferences();
   expect(preferences).toEqual({
     version: 1,
@@ -19,11 +19,10 @@ it("keeps record and trait launch defaults independent", () => {
     matchDisplay: "sections",
     showSmallerWeights: false,
     recordSimilarity: { method: "passages", decay: 0.5, candidateParts: "any" },
-    traitSimilarity: { method: "baseline", decay: 0.5, candidateParts: "any" },
   });
 });
 
-it("preserves a stored trait content method and its inactive values", () => {
+it("ignores retired trait preferences while retaining record preferences", () => {
   const preferences = {
     ...DEFAULT_SEARCH_PREFERENCES,
     traitSimilarity: {
@@ -32,8 +31,17 @@ it("preserves a stored trait content method and its inactive values", () => {
       candidateParts: "any" as const,
     },
   };
-  expect(writeSearchPreferences(preferences)).toBe(true);
-  expect(readSearchPreferences()).toEqual(preferences);
+  localStorage.setItem(
+    SEARCH_PREFERENCES_KEY,
+    JSON.stringify({
+      ...preferences,
+      sourceSectionsByFamily: { trait: "core", npc: "core" },
+    }),
+  );
+  expect(readSearchPreferences()).toEqual({
+    ...DEFAULT_SEARCH_PREFERENCES,
+    sourceSectionsByFamily: { npc: "core" },
+  });
 });
 
 it("remembers general preferences across browser-owner launches", () => {
@@ -107,7 +115,6 @@ it("recovers malformed optional preferences without accepting invalid decay", ()
   expect(readSearchPreferences()).toEqual({
     ...DEFAULT_SEARCH_PREFERENCES,
     model: "bge-base",
-    traitSimilarity: { method: "baseline", decay: 1, candidateParts: "any" },
   });
 });
 

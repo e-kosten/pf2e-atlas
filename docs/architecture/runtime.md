@@ -172,8 +172,8 @@ Record-owned selection also supplies canonical whole-section addresses. Index
 stores each selected section once, with lexical evidence and shared semantic
 chunk locations referencing it. Similar, Core, source navigation and neighbor
 hydration read those relations without reconstructing section identity from JSON
-or combining active vector ranges. Trait seeds and non-section identity units
-retain their explicit representations.
+or combining active vector ranges. Non-section identity units retain their
+explicit representation.
 
 A compatible section-storage upgrade uses retained checked snapshots and prepared
 content without source acquisition, tokenizers or inference. The independent
@@ -581,13 +581,10 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
-An omitted record method selects Passage matches, Any content and decay 0.5; an
-omitted trait method selects the baseline Trait definition recipe. Domain owns
-that seed-aware default; explicit options and valid browser preferences retain
-their meaning. CLI source-comparison flags without a method explicitly select
-Passage matches; destination scope alone preserves the seed-aware default.
-Configurable Similar carries typed method/decay/part/candidate-role options for
-record or trait seeds. The same app workflow projects an exact part inventory and
+An omitted Similar method selects Passage matches, Any content and decay 0.5.
+Explicit options and record preferences retain their meaning.
+Configurable Similar carries typed method, decay, part and candidate-role options
+for exact record seeds. The same app workflow projects an exact part inventory and
 paired match evidence for CLI and web. Configured responses acknowledge both the
 scoring and role-mapping recipes. Browser result caches are ephemeral within the
 build contract, which includes the domain recipe constants; recipe changes require
@@ -658,9 +655,7 @@ Same-record evidence navigates through the reader; cross-record seed or referenc
 Drawer, preserving the selected result and its return context.
 
 Record Similar carries the exact root seed and canonical filters, and returns a
-body-free seed summary beside bounded candidate pages. Trait Similar carries its
-typed trait key and projected label through the same search-page workflow. It adds no ranking lane or
-query embedding. Every request supplies its complete criteria, page and optional
+body-free seed summary beside bounded candidate pages. It uses stored vectors. Every request supplies its complete criteria, page and optional
 expected artifact generation. The generation check precedes embedding and ranking;
 a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
 generation identities. There is no app window registry or handle lifecycle. Each
@@ -727,7 +722,7 @@ artifact-context hash, distinct from snapshot-local navigation fingerprints.
 
 Browser exploration previews are independent first-page Search requests limited
 to five rows. Full-result actions enter primary Search rather than an inline
-association pager. Typed trait Similar seeds reuse persisted trait vectors.
+association pager.
 Trait-reference searches obtain complete distinct owning-record eligibility from
 index evidence through search, then apply the ordinary predicates, ordering and
 paging. Exact contained-source membership remains distinct from a root trait
