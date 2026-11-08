@@ -135,9 +135,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
             "trait_key":"trait:fire",
             "kind":"members",
             "page":{"number":1,"size":25},
-            "expected_artifact_generation":generation,
-            "search_profile":null,
-            "ranking":null
+            "expected_artifact_generation":generation
         })),
     )
     .await;

@@ -80,7 +80,7 @@ fn remaster_v29_upgrade_rolls_back_then_preserves_state_until_source_reprepare()
             atlas_index::classify_reference_upgrade(read.connection()).unwrap(),
             atlas_index::ReferenceUpgrade::SourcePreparation
         );
-        assert_eq!(read.reference_revision().unwrap(), before_revision);
+        assert_eq!(read.reference_revision().unwrap(), before_revision + 1);
         assert!(
             read.connection()
                 .prepare("SELECT 1 FROM remaster_pairs")
@@ -99,7 +99,7 @@ fn remaster_v29_upgrade_rolls_back_then_preserves_state_until_source_reprepare()
             .unwrap()
             .reference_revision()
             .unwrap(),
-        before_revision
+        before_revision + 1
     );
     let source = directory.path().join("source");
     std::fs::create_dir_all(source.join("packs/actions")).unwrap();

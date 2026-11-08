@@ -726,133 +726,6 @@ fn empty_and_oversized_batches_do_not_open_the_workspace() {
 }
 
 #[test]
-fn forced_trait_bytes_recompute_centroid_with_unchanged_text_hash_and_repeated_chunks() {
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("trait-force.sqlite");
-    let mut input = crate::foundation_tests::fixture(true);
-    crate::embedding_values_tests::add_label_only_trait(&mut input);
-    input.traits[0].label = "X\nT\nX".into();
-    let text = "X\nT\nX\n";
-    let mut x = vec![0.; 768];
-    x[2] = 1.;
-    let mut t = vec![0.; 768];
-    t[3] = 1.;
-    let chunks = [(0, 2, &x), (2, 4, &t), (4, 6, &x)]
-        .into_iter()
-        .map(|(start, end, vector)| {
-            let body = &text[start..end];
-            TraitSeedChunk {
-                input: body.into(),
-                input_hash: crate::codec::sha256(body.as_bytes()),
-                token_count: 2,
-                address: atlas_domain::SourcePassageAddress::PlainSection {
-                    source_text_sha256: crate::codec::sha256(text.as_bytes()),
-                    selection_version: "trait-definition-centroid/v1".into(),
-                    section_ordinal: 0,
-                    label: Some(input.traits[0].label.clone()),
-                    chunk_bytes: atlas_domain::SourceByteRange { start, end },
-                },
-                vector: vector.clone(),
-            }
-        })
-        .collect::<Vec<_>>();
-    let seed_hash = crate::codec::sha256(
-        format!(
-            "trait-definition-centroid/v1:{}",
-            chunks
-                .iter()
-                .map(|c| c.input_hash.as_str())
-                .collect::<Vec<_>>()
-                .join(":")
-        )
-        .as_bytes(),
-    );
-    input.trait_vectors[0].input_hash = seed_hash.clone();
-    input.trait_vectors[0].vector =
-        atlas_embedding::normalized_centroid(&[x.as_slice(), t.as_slice(), x.as_slice()]).unwrap();
-    input.trait_vectors[0].chunks = chunks;
-    publish_input(&path, &input).unwrap();
-    let workspace = initialize_workspace(&path).unwrap();
-    let owner = workspace.update_owner().unwrap();
-    let model = &input.context.search_profiles[0];
-    let desc = NativeInputDescriptor {
-        input_sha256: input.trait_vectors[0].chunks[0].input_hash.clone(),
-        token_count: 2,
-    };
-    let mut forced = vec![0.; 768];
-    forced[8] = 1.;
-    {
-        let scratch = BuildScratch::new(&owner).unwrap();
-        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        let expected = ArtifactInstance::new(read.workspace_key().unwrap(), 1);
-        drop(read);
-        let metadata = publication_spool_in(scratch.path(), &input, expected).unwrap();
-        let mut publication = PreparedPublication::new_in(
-            &owner,
-            TEST_WORKSPACE_SCHEMA_VERSION,
-            scratch.path(),
-            metadata,
-        )
-        .unwrap();
-        assert_eq!(
-            publication
-                .select_native(model, std::slice::from_ref(&desc), false)
-                .unwrap(),
-            [NativeValueSelection::Missing]
-        );
-        publication
-            .stage_inferred(model, &[(&desc, &forced)])
-            .unwrap();
-        assert_eq!(raw_value(&workspace, model, &desc), x);
-    }
-    let scratch = BuildScratch::new(&owner).unwrap();
-    prepare_publication_in(
-        &owner,
-        TEST_WORKSPACE_SCHEMA_VERSION,
-        scratch.path(),
-        &input,
-        false,
-    )
-    .unwrap()
-    .publish()
-    .unwrap();
-    let mut expected = vec![0.; 768];
-    expected[8] = (2. / 5f64.sqrt()) as f32;
-    expected[3] = (1. / 5f64.sqrt()) as f32;
-    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    let (actual_hash, bytes): (String, Vec<u8>) = read
-        .connection()
-        .query_row(
-            "SELECT input_hash,vector FROM trait_vectors WHERE trait_key=? AND profile_id=?",
-            params![input.traits[0].key.to_string(), model.profile_id.as_str()],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .unwrap();
-    assert_eq!(actual_hash, seed_hash);
-    assert_eq!(crate::read_units::decode_vector(&bytes).unwrap(), expected);
-    assert_ne!(expected, input.trait_vectors[0].vector);
-    let order = read.connection().prepare("SELECT lower(hex(i.input_hash)) FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) ORDER BY ordinal").unwrap()
-        .query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-    assert_eq!(
-        order,
-        input.trait_vectors[0]
-            .chunks
-            .iter()
-            .map(|c| c.input_hash.clone())
-            .collect::<Vec<_>>()
-    );
-    assert_eq!(
-        read.connection()
-            .query_row("SELECT count(*) FROM pending_embedding_values", [], |r| {
-                r.get::<_, usize>(0)
-            })
-            .unwrap(),
-        0
-    );
-    crate::validate_reference(read.connection()).unwrap();
-}
-
-#[test]
 fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows() {
     for field in ["selected_hash", "input_hash"] {
         let directory = tempfile::tempdir().unwrap();
@@ -961,25 +834,16 @@ fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows
 }
 
 #[test]
-fn selection_rejects_missing_published_checksum_for_native_document_or_trait_consumers() {
-    for consumer in ["native", "document", "trait"] {
+fn selection_rejects_missing_published_checksum_for_native_or_document_consumers() {
+    for consumer in ["native", "document"] {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("null-published.sqlite");
-        let mut input = crate::foundation_tests::fixture(true);
-        crate::embedding_values_tests::add_label_only_trait(&mut input);
+        let input = crate::foundation_tests::fixture(true);
         publish_input(&path, &input).unwrap();
         let workspace = initialize_workspace(&path).unwrap();
         let owner = workspace.update_owner().unwrap();
         let model = &input.context.search_profiles[0];
-        let desc = if consumer == "trait" {
-            let chunk = &input.trait_vectors[0].chunks[0];
-            NativeInputDescriptor {
-                input_sha256: chunk.input_hash.clone(),
-                token_count: chunk.token_count,
-            }
-        } else {
-            descriptor(&input.semantic_units[0])
-        };
+        let desc = descriptor(&input.semantic_units[0]);
         let table = crate::schema::native_vector_table(model).unwrap();
         let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         let c = write.connection();
@@ -993,8 +857,6 @@ fn selection_rejects_missing_published_checksum_for_native_document_or_trait_con
         .unwrap();
         if consumer == "native" {
             c.execute("DELETE FROM semantic_units WHERE input_id=?", [id])
-                .unwrap();
-            c.execute("DELETE FROM trait_seed_chunks WHERE input_id=?", [id])
                 .unwrap();
         } else {
             c.execute(&format!("DELETE FROM {table} WHERE input_id=?"), [id])

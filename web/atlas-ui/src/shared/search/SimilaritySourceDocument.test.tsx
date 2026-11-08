@@ -17,11 +17,10 @@ import { RouterTestContext } from "../../test/router";
 import { SimilaritySourceDocument } from "./SimilaritySourceDocument";
 import { rootNavigation } from "../records/useReferenceReading";
 
-const api = vi.hoisted(() => ({ detail: vi.fn(), trait: vi.fn() }));
+const api = vi.hoisted(() => ({ detail: vi.fn() }));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   getRecordDetail: api.detail,
-  getTraitDetail: api.trait,
 }));
 const recordKey = "hazards:brown-mold";
 const seed = { kind: "record", record_key: recordKey } as const;
@@ -178,45 +177,9 @@ it("rejects a source from a different artifact generation", async () => {
   expect(screen.queryByText("Wrong generation source")).toBeNull();
 });
 
-it("renders the existing prepared trait definition with its source identity", async () => {
-  api.trait.mockResolvedValue({
-    trait_key: "trait:fire",
-    label: "Fire",
-    artifact_generation: "test-generation",
-    content: { body: { kind: "plain", text: "Fire definition" }, references: [] },
-  });
-  const view = render(
-    <SimilaritySourceDocument
-      seed={{ kind: "trait", trait_key: "trait:fire" }}
-      generation="test-generation"
-      target={null}
-      onReloadSections={vi.fn()}
-      active
-    />,
-    { wrapper },
-  );
-  expect(await screen.findByRole("heading", { name: "Fire" })).toBeVisible();
-  expect(screen.getByText("Fire definition")).toBeVisible();
-  const traitPart = { ...part, navigation: null, label: "Definition" };
-  view.rerender(
-    <SimilaritySourceDocument
-      seed={{ kind: "trait", trait_key: "trait:fire" }}
-      generation="test-generation"
-      target={{ part: traitPart, visit: 1 }}
-      onReloadSections={vi.fn()}
-      active
-    />,
-  );
-  expect(screen.getByRole("heading", { name: "Fire" })).toHaveFocus();
-  expect(api.trait).toHaveBeenCalledWith(
-    { trait_key: "trait:fire", expected_artifact_generation: "test-generation" },
-    expect.any(AbortSignal),
-  );
-});
-
-it.each(["record", "trait"] as const)(
+it.each(["record"] as const)(
   "recovers a changed %s source through the shared section reload instead of retrying an obsolete generation",
-  async (kind) => {
+  async () => {
     const { AtlasApiError } = await import("../../api/atlasApi");
     const error = new AtlasApiError(409, "The reference collection changed.", {
       code: "artifact_generation_changed",
@@ -224,11 +187,10 @@ it.each(["record", "trait"] as const)(
       recoverable_action: "refresh_results",
     });
     api.detail.mockRejectedValue(error);
-    api.trait.mockRejectedValue(error);
     const reload = vi.fn();
     render(
       <SimilaritySourceDocument
-        seed={kind === "record" ? seed : { kind: "trait", trait_key: "trait:fire" }}
+        seed={seed}
         generation="old-generation"
         target={null}
         active
@@ -239,7 +201,7 @@ it.each(["record", "trait"] as const)(
     fireEvent.click(await screen.findByRole("button", { name: "Reload sections" }));
     expect(reload).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
-    expect(kind === "record" ? api.detail : api.trait).toHaveBeenCalledOnce();
+    expect(api.detail).toHaveBeenCalledOnce();
   },
 );
 
@@ -332,8 +294,6 @@ it("emphasizes a source only with the matching seed and generation inventory", a
 it.each([
   { caller: "seed link", embedded: false },
   { caller: "seed link", embedded: true },
-  { caller: "trait source", embedded: false },
-  { caller: "trait source", embedded: true },
 ] as const)(
   "preserves requested spell rank and exact identity from $caller (embedded=$embedded)",
   async ({ caller, embedded }) => {
@@ -404,59 +364,31 @@ it.each([
       ];
       return Promise.resolve(detail);
     });
-    api.trait.mockResolvedValue({
-      trait_key: "trait:fire",
-      label: "Fire",
-      artifact_generation: "test-generation",
-      content: {
-        body: {
-          kind: "html",
-          html: '<p><span data-atlas-reference="0">Spell reference</span></p>',
-          controls: [],
-          inclusions: [],
-        },
-        references: [reference],
-      },
-    });
-    if (caller === "seed link") {
-      render(
-        <SimilaritySeedLink
-          seed={{ kind: "record", record_key: spellKey }}
-          title="Source seed"
-        />,
-        { wrapper },
+    render(
+      <SimilaritySeedLink
+        seed={{ kind: "record", record_key: spellKey }}
+        title="Source seed"
+      />,
+      { wrapper },
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Source seed" }));
+    await screen.findByRole("button", { name: /Change rank/ });
+    if (embedded || landing) {
+      fireEvent.click(screen.getByRole("link", { name: "Embedded spell" }));
+      await waitFor(() =>
+        expect(api.detail).toHaveBeenLastCalledWith(
+          spellKey,
+          expect.objectContaining({
+            embedded_path: (landing ?? target).embedded_path,
+          }),
+          expect.any(AbortSignal),
+        ),
       );
-      fireEvent.click(screen.getByRole("link", { name: "Source seed" }));
-      await screen.findByRole("button", { name: /Change rank/ });
-      if (embedded || landing) {
-        fireEvent.click(screen.getByRole("link", { name: "Embedded spell" }));
-        await waitFor(() =>
-          expect(api.detail).toHaveBeenLastCalledWith(
-            spellKey,
-            expect.objectContaining({
-              embedded_path: (landing ?? target).embedded_path,
-            }),
-            expect.any(AbortSignal),
-          ),
+      if (landing) {
+        fireEvent.click(
+          await screen.findByRole("link", { name: "Return to Fireball" }),
         );
-        if (landing) {
-          fireEvent.click(
-            await screen.findByRole("link", { name: "Return to Fireball" }),
-          );
-        }
       }
-    } else {
-      render(
-        <SimilaritySourceDocument
-          seed={{ kind: "trait", trait_key: "trait:fire" }}
-          generation="test-generation"
-          target={null}
-          active
-          onReloadSections={vi.fn()}
-        />,
-        { wrapper },
-      );
-      fireEvent.click(await screen.findByRole("link", { name: "Spell reference" }));
     }
     await screen.findByRole("link", { name: "Open reference full page" });
     const openFullPage = () =>
@@ -505,32 +437,3 @@ it.each([
     });
   },
 );
-
-it("keeps unknown trait failures contextual and retries without exposing diagnostics", async () => {
-  api.trait
-    .mockRejectedValueOnce(new Error("private-path-and-decoder-details"))
-    .mockResolvedValue({
-      trait_key: "trait:fire",
-      label: "Fire",
-      artifact_generation: "test-generation",
-      content: {
-        body: { kind: "plain", text: "Recovered definition" },
-        references: [],
-      },
-    });
-  render(
-    <SimilaritySourceDocument
-      seed={{ kind: "trait", trait_key: "trait:fire" }}
-      generation="test-generation"
-      target={null}
-      active
-      onReloadSections={vi.fn()}
-    />,
-    { wrapper },
-  );
-  expect(await screen.findByText("Unable to load this trait")).toBeVisible();
-  expect(screen.queryByText("private-path-and-decoder-details")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  expect(await screen.findByText("Recovered definition")).toBeVisible();
-  expect(screen.queryByText("Unable to load this trait")).toBeNull();
-});

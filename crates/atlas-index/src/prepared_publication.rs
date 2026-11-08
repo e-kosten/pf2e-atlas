@@ -161,12 +161,6 @@ impl<'owner> PreparedPublication<'owner> {
     ) -> Result<(), IndexError> {
         self.metadata.semantic.push(&occurrence)
     }
-    pub fn append_trait_seed(
-        &mut self,
-        seed: crate::TraitSeedOccurrence,
-    ) -> Result<(), IndexError> {
-        self.metadata.trait_seeds.push(&seed)
-    }
     pub fn semantic_unit_count(&self) -> usize {
         self.metadata.semantic.len()
     }
@@ -419,7 +413,7 @@ impl<'owner> PreparedPublication<'owner> {
                     [id],
                 )?;
                 // Owned staging is keyed by full identity, not this disposable ID.
-                write.connection().execute("DELETE FROM embedding_inputs WHERE input_id=? AND published_hash IS NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=embedding_inputs.input_id) AND NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=embedding_inputs.input_id) AND NOT EXISTS(SELECT 1 FROM pending_embedding_values p WHERE p.input_id=embedding_inputs.input_id)",[id])?;
+                write.connection().execute("DELETE FROM embedding_inputs WHERE input_id=? AND published_hash IS NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=embedding_inputs.input_id) AND NOT EXISTS(SELECT 1 FROM pending_embedding_values p WHERE p.input_id=embedding_inputs.input_id)",[id])?;
                 if let Some(model_id) = model_id {
                     write.connection().execute("DELETE FROM embedding_models WHERE model_id=? AND NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id) AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.identity_json=embedding_models.identity_json)",[model_id])?;
                 }
@@ -498,6 +492,7 @@ impl PublicationValues<'_, '_> {
             .ok_or(rusqlite::Error::QueryReturnedNoRows)?;
         binding.selected_input(&input, &checksum)
     }
+    #[cfg(test)]
     pub(crate) fn value(
         &self,
         model: &SourceSearchProfileIdentity,

@@ -151,6 +151,7 @@ class ProbeInputs(unittest.TestCase):
         check = PROBE["check"]
         build = Mock(side_effect=[{}, AssertionError("Maintenance ran before the frozen query check")])
         with patch.dict(check.__globals__, build=build, published_vectors=Mock(return_value={}),
+                        has_trait_seed_chunks=Mock(return_value=False),
                         migrate_predecessor=Mock(return_value={}),
                         profile_contracts=Mock(return_value={"bge-base": {
                             **original, "input_recipe": "new"}}),
@@ -207,6 +208,27 @@ class FrozenVectors(unittest.TestCase):
         before = self.registry("before.sqlite")
         after = self.registry("after.sqlite", model_id=8, input_id=90)
         PROBE["require_preserved_vectors"]("bge-base", before, after, self.report)
+
+    def test_trait_retirement_excludes_only_vectors_exclusive_to_trait_seeds(self):
+        index = self.root / "old.sqlite"
+        self.registry(index.name)
+        with closing(sqlite3.connect(index)) as db, db:
+            db.executescript("CREATE TABLE semantic_units(input_id INTEGER);"
+                             "CREATE TABLE trait_seed_chunks(input_id INTEGER);"
+                             "INSERT INTO semantic_units VALUES(2);"
+                             "INSERT INTO trait_seed_chunks VALUES(2),(3);")
+            db.executemany("INSERT INTO embedding_inputs VALUES(?,?,?,?,?)", [
+                (input_id, 1, bytes([input_id]) * 32, 4, b"v" * 32) for input_id in (3, 4)
+            ])
+
+        self.assertTrue(PROBE["has_trait_seed_chunks"](index))
+        published = PROBE["published_vectors"]
+        all_vectors = published(index)["bge-base"]
+        preserved = published(index, retiring_trait_seeds=True)["bge-base"]
+        self.assertEqual(len(all_vectors), 3)
+        self.assertEqual(preserved, {
+            key: checksum for key, checksum in all_vectors.items() if key[1] != (b"\x03" * 32).hex()
+        })
 
     def test_replaced_or_missing_vectors_fail_even_when_reuse_is_reported(self):
         before = self.registry("before.sqlite")

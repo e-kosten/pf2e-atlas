@@ -162,8 +162,7 @@ includes the key, label, content, catalogs, source revision and indexing locale.
 A successful response can have `content: null`: report the missing definition
 rather than inventing text or substituting another trait. Trait membership uses
 the exact identifier; `--trait deadly` does not include `deadly-d8`. `record get`,
-`record resolve` and `graph` operate on records. `atlas similar trait:fire` accepts
-an exact typed trait seed; it searches for similar records, not similar trait names.
+`record resolve` and `graph` operate on records.
 Trait Members and References views remain available in the web UI.
 
 ## Search and evidence
@@ -186,18 +185,16 @@ atlas similar 'Brown Mold' --list-parts --json
 atlas similar 'Brown Mold' --list-parts --sections core --json
 atlas similar 'Lich' --sections core --search-content core --json
 atlas similar 'Brown Mold' --method passages --decay 0.5 --explain --json
-atlas similar trait:fire --method baseline --json
 ```
 
 Similar uses stored vectors and needs no model weights. Records default to
-Passage matches; traits default to the baseline Trait definition recipe. Source
+Passage matches. Source
 comparison options without `--method` select Passage matches. Candidate scope
 alone (`--search-content`) keeps the seed's method default. `--method passages`
 compares selected content with geometric rank decay from the strongest logical
 part (0) through equal-part contribution (1). `--method content-average` compares
 content centroids; it does not accept decay. `--method baseline` preserves root
-identity similarity for records and definition-centroid similarity for traits;
-it does not accept parts, a source preset, candidate-part mode or decay. It can
+identity similarity. It does not accept parts, a source preset, candidate-part mode or decay. It can
 restrict candidate content with `--search-content core`.
 
 Use `--list-parts` to discover available source content. Copy exact selectors into

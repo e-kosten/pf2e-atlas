@@ -62,8 +62,8 @@ with one canonical definition store owned by index. Existing `TraitKey` values a
 exact source tokens or package-qualified localization keys. A definition backed by
 a real record retains a checked pointer to that record; its body and vectors stay
 with the record. Standalone definitions use the shared content interpreter.
-Specialized trait memberships and seed vectors remain trait policies; additional
-vocabulary does not automatically receive vectors or Search candidate status.
+Trait membership remains a specialization. Vocabulary entries do not receive
+vectors or become Search candidates.
 See [ADR0056](./decisions/0056-trait-reference-entities.md) and its scoped amendment.
 
 Definition preparation coverage is separate from the physical workspace schema and
@@ -227,7 +227,7 @@ Their awaiting HTTP helper marks abandonment on drop; cooperative checks skip
 queued work and later projection. Blocking work retains its permit until it
 finishes. Durable mutations and their reference reads remain uncancellable.
 Stored-vector Similar is a mode of the stateless search-page request, carrying its
-record or typed trait seed and canonical filters. Trait-reference searches use
+exact record seed and canonical filters. Trait-reference searches use
 complete indexed root eligibility before ordinary filtering and paging. Related availability is a bounded app-service
 workflow over exact selected-owner graph reads and root-only verified suggestions,
 with complete artifact-generation cache identity and truthful empty/unavailable

@@ -40,8 +40,6 @@ pub enum CoreSectionFamily {
     Army,
     Character,
     Familiar,
-    /// Trait inventories retain their existing definition/label representation.
-    Trait,
     Unmodelled,
 }
 
@@ -63,8 +61,6 @@ pub enum CoreFallbackReason {
 pub enum CoreSectionRepresentation {
     IdentityAndProse,
     IdentityOnly,
-    TraitDefinition,
-    TraitLabelOnly,
 }
 
 /// Resolved selectors acknowledge one Core recipe within the checked inventory.
@@ -99,7 +95,6 @@ mod tests {
             (CoreSectionFamily::Character, "\"character\""),
             (CoreSectionFamily::CharacterOption, "\"character_option\""),
             (CoreSectionFamily::Familiar, "\"familiar\""),
-            (CoreSectionFamily::Trait, "\"trait\""),
         ] {
             assert_eq!(serde_json::to_string(&value).unwrap(), expected);
         }

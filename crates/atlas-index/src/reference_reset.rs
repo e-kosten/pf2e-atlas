@@ -28,8 +28,6 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM core_lexical_units;
          DELETE FROM core_semantic_locations;
          DELETE FROM core_roots;
-         DELETE FROM trait_seed_chunks;
-         DELETE FROM trait_vectors;
          DELETE FROM trait_references;
          DELETE FROM trait_memberships;
          DELETE FROM reference_entries;

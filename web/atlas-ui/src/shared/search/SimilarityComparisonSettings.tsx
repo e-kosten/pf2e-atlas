@@ -6,7 +6,6 @@ import { SearchSettingLabel } from "./SearchSettingLabel";
 export function SimilarityComparisonSettings({
   value,
   onChange,
-  trait,
   methodHelp,
   selectedCount,
   identitySelected,
@@ -14,7 +13,6 @@ export function SimilarityComparisonSettings({
 }: {
   value: SimilarityPreferences;
   onChange: (value: SimilarityPreferences) => void;
-  trait: boolean;
   methodHelp: string;
   selectedCount: number;
   identitySelected: boolean;
@@ -43,13 +41,13 @@ export function SimilarityComparisonSettings({
             },
             {
               value: "baseline",
-              label: trait ? "Trait definition" : "Name and identity",
+              label: "Name and identity",
             },
           ]}
           onChange={(method) => onChange({ ...value, method })}
         />
       </Form.Item>
-      {usesParts && !trait && (
+      {usesParts && (
         <Form.Item
           label={
             <SearchSettingLabel

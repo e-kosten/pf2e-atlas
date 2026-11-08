@@ -1422,7 +1422,6 @@
   },
   "trait_records": {
     "artifact_generation": "fixture-generation",
-    "coverage": null,
     "kind": "members",
     "page": {
       "count": 1,
@@ -1465,7 +1464,6 @@
         "source_label": null
       }
     ],
-    "search_profile": null,
     "trait_key": "trait:fire"
   },
   "turn_review": {

@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 33;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 34;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -228,6 +228,16 @@ const MIGRATIONS: &[Migration] = &[
             reconstruct_tables: true,
             id: "reference-entries/v1",
             apply: atlas_index::backfill_reference_entries,
+        }),
+    },
+    Migration {
+        version: 34,
+        name: "retire-trait-similarity",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "retire-trait-similarity/v1",
+            apply: atlas_index::retire_trait_similarity,
         }),
     },
 ];
@@ -780,7 +790,7 @@ mod tests {
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(main_ledger(read.connection()), published_history);
         assert_eq!(vectors(read.connection()), before);
-        assert_eq!(read.reference_revision().unwrap(), revision as u64);
+        assert_eq!(read.reference_revision().unwrap(), revision as u64 + 1);
         assert_eq!(
             LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
             "Kept"

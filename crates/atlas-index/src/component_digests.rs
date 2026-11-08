@@ -372,7 +372,6 @@ mod tests {
         }
         for table in [
             "reference_entries",
-            "trait_vectors",
             "trait_memberships",
             "trait_references",
             "owned_ability_evidence",

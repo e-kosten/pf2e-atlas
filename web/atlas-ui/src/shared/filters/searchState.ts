@@ -85,29 +85,15 @@ export function buildSearchRequest(
       page,
       expected_artifact_generation:
         state.similarityGeneration ?? expected_artifact_generation,
-      criteria: state.similarSeed.startsWith("trait:")
-        ? {
-            kind: "similar_traits",
-            seed_trait_key: state.similarSeed,
-            filter: state.filter,
-            similarity: state.similarity,
-            search_content: state.searchContent ?? "all",
-            source_sections:
-              state.similarity?.method === "baseline"
-                ? undefined
-                : state.sourceSections,
-          }
-        : {
-            kind: "similar_records",
-            seed_record_key: state.similarSeed,
-            filter: state.filter,
-            similarity: state.similarity,
-            search_content: state.searchContent ?? "all",
-            source_sections:
-              state.similarity?.method === "baseline"
-                ? undefined
-                : state.sourceSections,
-          },
+      criteria: {
+        kind: "similar_records",
+        seed_record_key: state.similarSeed,
+        filter: state.filter,
+        similarity: state.similarity,
+        search_content: state.searchContent ?? "all",
+        source_sections:
+          state.similarity?.method === "baseline" ? undefined : state.sourceSections,
+      },
     };
   return {
     search_profile,
@@ -273,11 +259,7 @@ export function decodeSearchStateFromParams(
   let similarity: SimilarityOptions | undefined;
   if (similarSeed) {
     try {
-      similarity = decodeSimilarityOptions(
-        params,
-        preferences,
-        similarSeed.startsWith("trait:"),
-      );
+      similarity = decodeSimilarityOptions(params, preferences);
       const rawSections = params.get("similarity_sections");
       if (similarity.method === "baseline") {
         if (rawSections !== null) throw new Error(INVALID_SIMILARITY_SETTINGS);
@@ -336,9 +318,8 @@ export function decodeSearchStateFromParams(
 function decodeSimilarityOptions(
   params: URLSearchParams,
   preferences: SearchPreferences,
-  trait: boolean,
 ): SimilarityOptions {
-  const preferred = trait ? preferences.traitSimilarity : preferences.recordSimilarity;
+  const preferred = preferences.recordSimilarity;
   const method = params.get("similarity_method") ?? preferred.method;
   const hasContentOptions =
     params.has("candidate_parts") ||
@@ -351,12 +332,8 @@ function decodeSimilarityOptions(
   }
   if (method !== "passages" && method !== "content-average")
     throw new Error(INVALID_SIMILARITY_SETTINGS);
-  const candidate_parts =
-    params.get("candidate_parts") ?? (trait ? "any" : preferred.candidateParts);
-  if (
-    (candidate_parts !== "any" && candidate_parts !== "corresponding") ||
-    (trait && candidate_parts !== "any")
-  )
+  const candidate_parts = params.get("candidate_parts") ?? preferred.candidateParts;
+  if (candidate_parts !== "any" && candidate_parts !== "corresponding")
     throw new Error(INVALID_SIMILARITY_SETTINGS);
   const parts = params.has("similarity_part") ? params.getAll("similarity_part") : null;
   if (parts?.some((part) => !part) || (parts && !params.get("similarity_generation")))

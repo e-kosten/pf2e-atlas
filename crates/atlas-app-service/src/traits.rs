@@ -8,7 +8,7 @@ use atlas_app_model::{
     TraitRecordView, TraitRecordsPage, TraitRecordsRequest,
 };
 use atlas_domain::TraitKey;
-use atlas_search::{RecordScope, SearchPage, SimilarTraitRequest, TraitAssociationRequest};
+use atlas_search::{SearchPage, TraitAssociationRequest};
 
 impl AtlasAppService {
     pub fn trait_definition(
@@ -71,30 +71,11 @@ impl AtlasAppService {
         execution.check()?;
         let key = parse_key(&request.trait_key)?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
-        let sort = if request.kind == TraitAssociationKind::Similar {
-            let sort = request
-                .sort
-                .unwrap_or(atlas_domain::ResultSort::Relevance {});
-            sort.validate().map_err(AppServiceError::invalid_request)?;
-            if matches!(sort, atlas_domain::ResultSort::SavedOrder {}) {
-                return Err(AppServiceError::invalid_request(
-                    "Saved order is available only for saved lists",
-                ));
-            }
-            Some(sort)
-        } else {
-            if request.sort.is_some() {
-                return Err(AppServiceError::invalid_request(
-                    "Sorting is available for Similar results",
-                ));
-            }
-            None
-        };
         let projection_execution = execution.clone();
         self.with_retrieval(execution, move |retrieval| {
             let generation = retrieval.artifact_generation()?;
             check_generation(Some(&request.expected_artifact_generation), &generation)?;
-            let (rows, page, coverage, search_profile) = match request.kind {
+            let (rows, page) = match request.kind {
                 TraitAssociationKind::Members => {
                     let result = retrieval.trait_memberships(TraitAssociationRequest {
                         trait_key: &key,
@@ -124,12 +105,7 @@ impl AtlasAppService {
                             ),
                         })
                         .collect();
-                    (
-                        rows,
-                        crate::projection::search_page_view(result.page),
-                        None,
-                        None,
-                    )
+                    (rows, crate::projection::search_page_view(result.page))
                 }
                 TraitAssociationKind::References => {
                     let result = retrieval.trait_references(TraitAssociationRequest {
@@ -160,74 +136,16 @@ impl AtlasAppService {
                             reference_direction: Some(reference.direction),
                         })
                         .collect();
-                    (
-                        rows,
-                        crate::projection::search_page_view(result.page),
-                        None,
-                        None,
-                    )
-                }
-                TraitAssociationKind::Similar => {
-                    let result = retrieval
-                        .similar_trait(SimilarTraitRequest {
-                            content_scope: atlas_domain::SearchContentScope::All,
-                            sort: sort
-                                .clone()
-                                .unwrap_or(atlas_domain::ResultSort::Relevance {}),
-                            trait_key: &key,
-                            search_profile: request.search_profile.as_ref(),
-                            ranking: request.ranking.unwrap_or_default(),
-                            filter: None,
-                            scope: RecordScope::All,
-                            page,
-                        })?
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request(
-                                "Trait definition is not available for Similar",
-                            )
-                        })?;
-                    projection_execution.check()?;
-                    let mut results =
-                        crate::projection::search_results_view(result.results, retrieval);
-                    if sort.as_ref().is_some_and(|s| s.is_unit_price()) {
-                        let mut records = results
-                            .rows
-                            .iter()
-                            .map(|r| r.record.clone())
-                            .collect::<Vec<_>>();
-                        crate::result_order::price_labels(retrieval, &mut records)?;
-                        for (row, record) in results.rows.iter_mut().zip(records) {
-                            row.record = record;
-                        }
-                    }
-                    let rows = results
-                        .rows
-                        .into_iter()
-                        .map(|row| TraitRecordView {
-                            source_label: None,
-                            reference_direction: None,
-                            navigation: root_navigation(row.record.record_key.clone()),
-                            record: row.record,
-                        })
-                        .collect();
-                    (
-                        rows,
-                        results.page,
-                        Some(results.coverage),
-                        Some(results.search_profile),
-                    )
+                    (rows, crate::projection::search_page_view(result.page))
                 }
             };
             projection_execution.check()?;
             Ok(TraitRecordsPage {
-                sort,
-                search_profile,
                 artifact_generation: generation,
                 trait_key: key.to_string(),
                 kind: request.kind,
                 rows,
                 page,
-                coverage,
             })
         })
     }
@@ -238,16 +156,6 @@ fn parse_key(value: &str) -> AppServiceResult<TraitKey> {
         .map_err(|e: atlas_domain::TraitKeyParseError| {
             AppServiceError::invalid_request(e.to_string())
         })
-}
-fn root_navigation(record_key: String) -> RecordNavigationView {
-    RecordNavigationView {
-        spell_rank: None,
-        record_key,
-        owners: vec![],
-        field: None,
-        passage: None,
-        source_fingerprint: None,
-    }
 }
 
 #[cfg(test)]
@@ -274,7 +182,6 @@ mod tests {
         assert!(view.source_revision.is_none());
         assert!(view.indexing_locale.is_none());
         let request = TraitRecordsRequest {
-            sort: None,
             trait_key: "trait:attack".into(),
             kind: TraitAssociationKind::Members,
             page: SearchPageRequest {
@@ -282,8 +189,6 @@ mod tests {
                 size: 20,
             },
             expected_artifact_generation: "stale".into(),
-            search_profile: None,
-            ranking: None,
         };
         let error = fixture
             .worker
@@ -295,7 +200,6 @@ mod tests {
             .worker
             .trait_records(
                 TraitRecordsRequest {
-                    sort: None,
                     expected_artifact_generation: view.artifact_generation,
                     ..request
                 },
@@ -346,7 +250,6 @@ mod tests {
             .worker
             .trait_records(
                 TraitRecordsRequest {
-                    sort: None,
                     trait_key: "trait:agile".into(),
                     kind: TraitAssociationKind::Members,
                     page: SearchPageRequest {
@@ -354,8 +257,6 @@ mod tests {
                         size: 20,
                     },
                     expected_artifact_generation: definition.artifact_generation,
-                    search_profile: None,
-                    ranking: None,
                 },
                 &execution,
             )

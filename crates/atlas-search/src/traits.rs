@@ -1,8 +1,6 @@
 //! Typed vocabulary retrieval on the same admitted reference snapshot.
-use crate::{
-    AtlasRetrievalService, RecordScope, SearchError, SearchPage, SearchPageInfo, TextSearchResult,
-};
-use atlas_domain::{QueryPredicate, SearchProfileId, SearchRanking, TraitKey};
+use crate::{AtlasRetrievalService, SearchError, SearchPage, SearchPageInfo};
+use atlas_domain::TraitKey;
 pub use atlas_index::{ReferenceSourceLocation, TraitDefinition, TraitMembership, TraitReference};
 pub struct TraitAssociationRequest<'a> {
     pub trait_key: &'a TraitKey,
@@ -16,21 +14,6 @@ pub struct TraitReferenceResult {
     pub entries: Vec<TraitReference>,
     pub records: Vec<atlas_domain::SourceRecordSummary>,
     pub page: SearchPageInfo,
-}
-pub struct SimilarTraitRequest<'a> {
-    pub content_scope: atlas_domain::SearchContentScope,
-    pub sort: atlas_domain::ResultSort,
-    pub trait_key: &'a TraitKey,
-    pub search_profile: Option<&'a SearchProfileId>,
-    pub filter: Option<&'a QueryPredicate>,
-    pub scope: RecordScope<'a>,
-    pub page: SearchPage,
-
-    pub ranking: SearchRanking,
-}
-pub struct SimilarTraitResult {
-    pub seed: TraitDefinition,
-    pub results: TextSearchResult,
 }
 impl AtlasRetrievalService {
     pub fn trait_definition(&self, key: &TraitKey) -> Result<Option<TraitDefinition>, SearchError> {
@@ -71,133 +54,5 @@ impl AtlasRetrievalService {
             entries,
             page,
         })
-    }
-    pub fn similar_trait(
-        &self,
-        request: SimilarTraitRequest<'_>,
-    ) -> Result<Option<SimilarTraitResult>, SearchError> {
-        Self::validate_search_sort(&request.sort)?;
-        let Some(seed) = self.index.trait_definition(request.trait_key)? else {
-            return Ok(None);
-        };
-        let profile = self.resolve_search_profile(request.search_profile, true)?;
-        let vector=self.index.trait_vector(request.trait_key,&profile)?.ok_or_else(||SearchError::vector_readiness_required("trait has no stored definition vector; update the reference workspace with embeddings"))?;
-        let predicate = self.predicate(request.filter)?;
-        let (roots, window) = self.rank_candidates(crate::text::CandidateRequest {
-            content_scope: request.content_scope,
-            ranking: request.ranking,
-            search_profile: &profile,
-            text: "",
-            mode: crate::RetrievalMode::Vector,
-            query: &predicate,
-            scope: request.scope,
-
-            vector: Some(&vector),
-            exclude: None,
-        })?;
-        let results =
-            self.finish_results(&profile, roots, request.page, true, window, request.sort)?;
-        Ok(Some(SimilarTraitResult { seed, results }))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::test_support::{hash, input, open_input_fixture, record};
-    use serde_json::json;
-    fn fixture(vector: bool) -> (atlas_index::IndexBuildInput, TraitKey) {
-        let record = record(
-            "items",
-            "Item",
-            json!({"_id":"aaaaaaaaaaaaaaaa","name":"Flame","type":"effect","system":{"description":{"value":"Fire burns."}}}),
-        );
-        let mut fixture = input(vec![record], vector);
-        let key = TraitKey::new("fire").unwrap();
-        fixture.traits.push(TraitDefinition {
-            key: key.clone(),
-            label: "Fire".into(),
-            label_key: None,
-            description_key: None,
-            description_html: None,
-            authored_markup: None,
-            prepared: None,
-            catalogs: vec![],
-            source_locations: vec![],
-            source_revision: fixture.context.source_revision.clone(),
-            indexing_locale: fixture.context.indexing_locale.clone(),
-            content_locale: None,
-        });
-        if vector {
-            let mut vector = vec![0.; 768];
-            vector[0] = 1.;
-            let chunk_hash = hash(b"Fire\n");
-            fixture.trait_vectors.push(atlas_index::TraitVectorInput {
-                key: key.clone(),
-                profile_id: SearchProfileId::new("bge-base"),
-                input_hash: hash(format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes()),
-                vector: vector.clone(),
-                chunks: vec![atlas_index::TraitSeedChunk {
-                    input: "Fire\n".into(),
-                    input_hash: chunk_hash.clone(),
-                    token_count: 2,
-                    vector,
-                    address: atlas_domain::SourcePassageAddress::PlainSection {
-                        source_text_sha256: chunk_hash,
-                        selection_version: "trait-definition-centroid/v1".into(),
-                        section_ordinal: 0,
-                        label: Some("Fire".into()),
-                        chunk_bytes: atlas_domain::SourceByteRange { start: 0, end: 5 },
-                    },
-                }],
-            });
-        }
-        (fixture, key)
-    }
-    #[test]
-    fn trait_similar_uses_stored_seed_and_normal_record_candidates() {
-        let (fixture, key) = fixture(true);
-        let (service, _artifact) = open_input_fixture(fixture).unwrap();
-        let result = service
-            .similar_trait(SimilarTraitRequest {
-                content_scope: atlas_domain::SearchContentScope::All,
-                sort: atlas_domain::ResultSort::Relevance {},
-                trait_key: &key,
-                search_profile: None,
-                filter: None,
-                scope: RecordScope::All,
-                page: SearchPage::default(),
-
-                ranking: SearchRanking::Score,
-            })
-            .unwrap()
-            .unwrap();
-        assert_eq!(result.seed.key, key);
-        assert_eq!(result.results.records.len(), 1);
-        assert_eq!(
-            result.results.records[0].record.key.to_string(),
-            "items:aaaaaaaaaaaaaaaa"
-        );
-        assert_eq!(result.results.coverage.semantic_unit_window, Some(4096));
-    }
-    #[test]
-    fn trait_similar_without_configured_vectors_has_explicit_readiness_failure() {
-        let (fixture, key) = fixture(false);
-        let (service, _artifact) = open_input_fixture(fixture).unwrap();
-        let result = service.similar_trait(SimilarTraitRequest {
-            content_scope: atlas_domain::SearchContentScope::All,
-            sort: atlas_domain::ResultSort::Relevance {},
-            trait_key: &key,
-            search_profile: None,
-            filter: None,
-            scope: RecordScope::All,
-            page: SearchPage::default(),
-
-            ranking: SearchRanking::Score,
-        });
-        assert_eq!(
-            result.err().unwrap().kind(),
-            crate::SearchErrorKind::VectorReadinessRequired
-        );
     }
 }

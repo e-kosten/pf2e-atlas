@@ -128,9 +128,9 @@ it("preserves only explicit trait profiles with singleton validation and canonic
   expect(
     canonicalRouteSearch("trait", {
       search_profile: [" embeddinggemma ", " embeddinggemma "],
-      tab: "similar",
+      tab: "references",
     }),
-  ).toEqual({ search_profile: "embeddinggemma", tab: "similar" });
+  ).toEqual({ search_profile: "embeddinggemma", tab: "references" });
   expect(canonicalRouteSearch("trait", { search_profile: "  " })).toEqual({});
   expect(canonicalRouteSearch("trait", {})).toEqual({});
   expect(() =>
@@ -306,4 +306,24 @@ it("ignores retired and unknown query keys while retaining exact reader and Vers
     record_view: "explore",
     record_tab: "versions",
   });
+});
+
+it("drops stale trait Similar state instead of running a filtered search", () => {
+  expect(
+    canonicalRouteSearch("search", {
+      similar: "trait:fire",
+      filter,
+      sort: "level_desc",
+      search_profile: "bge-base",
+      similarity_method: "passages",
+      similarity_sections: "custom",
+    }),
+  ).toEqual({});
+  expect(
+    canonicalRouteSearch("search", {
+      similar: ["trait:fire", "trait:fire"],
+      filter: "invalid",
+    }),
+  ).toEqual({});
+  expect(canonicalRouteSearch("trait", { tab: "similar" })).toEqual({});
 });

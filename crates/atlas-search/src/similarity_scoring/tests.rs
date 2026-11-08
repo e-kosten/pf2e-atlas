@@ -51,7 +51,6 @@ fn unit(
             chunk_bytes: SourceByteRange { start, end },
         },
         vector: vector.to_vec(),
-        trait_text: None,
     }
 }
 fn close(actual: f64, expected: f64) {
@@ -424,7 +423,6 @@ fn identity(selector: &str, vector: [f32; 2]) -> SourceSimilarityUnit {
         location: None,
         address: SourcePassageAddress::Identity {},
         vector: vector.to_vec(),
-        trait_text: None,
     }
 }
 

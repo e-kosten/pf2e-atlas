@@ -133,7 +133,6 @@ mod tests {
             (SimilarityRole::Description, true),
             (SimilarityRole::Ability, true),
             (SimilarityRole::Other, false),
-            (SimilarityRole::TraitDefinition, false),
         ] {
             assert!(!Identity.corresponds_to(Role(role)));
             assert!(!Role(role).corresponds_to(Identity));

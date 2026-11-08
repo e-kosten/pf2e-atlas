@@ -1205,28 +1205,18 @@ it("rejects trait responses from another identity, artifact generation or Simila
   ).rejects.toThrow("does not match");
   const request = {
     trait_key: "trait:agile",
-    kind: "similar" as const,
+    kind: "members" as const,
     expected_artifact_generation: "current",
-    search_profile: "bge-base",
-    ranking: "score" as const,
     page: { number: 1, size: 20 },
   };
   respond({
     trait_key: "trait:agile",
-    kind: "similar",
+    kind: "members",
     artifact_generation: "old",
-    search_profile: "bge-base",
   });
   await expect(getTraitRecords(request)).rejects.toMatchObject({
     appError: { code: "artifact_generation_changed" },
   });
-  respond({
-    trait_key: "trait:agile",
-    kind: "similar",
-    artifact_generation: "current",
-    search_profile: "embeddinggemma",
-  });
-  await expect(getTraitRecords(request)).rejects.toThrow("selected search model");
 });
 
 it("posts exact relationship evidence pages and normalizes occurrence totals", async () => {

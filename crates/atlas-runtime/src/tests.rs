@@ -301,7 +301,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     .unwrap();
     let historical = initial_schema == 2;
     assert_eq!(runtime.upgrade_workspace_if_present().unwrap(), !historical);
-    let expected_revision = before + u64::from(!historical);
+    let expected_revision = before + 1;
     if historical {
         assert!(runtime.open_index().is_err());
         assert!(runtime.read_workspace(None).is_err());

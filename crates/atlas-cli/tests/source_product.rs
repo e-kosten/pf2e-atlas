@@ -1485,7 +1485,7 @@ fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
 }
 
 #[test]
-fn similar_discovers_exact_record_and_trait_parts_without_stored_vectors() {
+fn similar_discovers_exact_record_parts_without_stored_vectors() {
     let fixture = Fixture::new();
     let record = fixture.data(&["similar", "Treat Wounds", "--list-parts", "--json"]);
     assert_eq!(record["seed"]["kind"], "record");
@@ -1520,13 +1520,10 @@ fn similar_discovers_exact_record_and_trait_parts_without_stored_vectors() {
     );
     assert!(parts.iter().any(|part| part["role_label"] == "Ability"));
 
-    let trait_parts = fixture.data(&["similar", "trait:fire", "--list-parts", "--json"]);
-    assert_eq!(
-        trait_parts["seed"],
-        serde_json::json!({"kind":"trait","trait_key":"trait:fire"})
-    );
-    assert_eq!(trait_parts["supports_corresponding_parts"], false);
-    assert_eq!(trait_parts["parts"][0]["label_only"], true);
+    let output = fixture.command(&["similar", "trait:fire", "--list-parts", "--json"], false);
+    assert!(!output.status.success());
+    let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(envelope["error"]["code"], "invalid_request");
 }
 
 #[test]

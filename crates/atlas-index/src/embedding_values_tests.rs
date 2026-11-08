@@ -544,7 +544,7 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
     write.commit().unwrap();
     let upgraded = initialize_workspace(&path).unwrap();
     let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), 1);
+    assert_eq!(read.reference_revision().unwrap(), 2);
     assert_eq!(
         read.connection()
             .query_row("SELECT value FROM saved_probe", [], |r| r
@@ -569,7 +569,7 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
             }
         )
         .unwrap()
-        .is_some()
+        .is_none()
     );
     assert!(
         read.connection()
@@ -579,23 +579,16 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
     drop(read);
     assert!(!ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
     let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), 1);
+    assert_eq!(read.reference_revision().unwrap(), 2);
     assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
     assert!(SqliteIndexReader::from_session(read).is_err());
     // Source-backed republication activates current projections after the schema-only
     // upgrade has independently preserved published values and forced recovery.
     publish_input(&path, &traits).unwrap();
     let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), 2);
+    assert_eq!(read.reference_revision().unwrap(), 3);
     assert_eq!(count(read.connection(), "pending_embedding_values"), 0);
     let reader = SqliteIndexReader::from_session(read).unwrap();
-    assert_eq!(
-        reader
-            .trait_vector(&seed.key, &seed.profile_id)
-            .unwrap()
-            .unwrap(),
-        seed.vector
-    );
     assert_eq!(
         reader
             .seed_identity_vector(&unit.profile_id, &unit.record)
@@ -707,78 +700,4 @@ pub(super) fn add_label_only_trait(input: &mut IndexBuildInput) {
             vector,
         }],
     });
-}
-#[test]
-fn shared_native_values_survive_last_document_and_last_trait_transitions() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("atlas.sqlite");
-    let mut input = crate::foundation_tests::fixture(true);
-    add_label_only_trait(&mut input);
-    let model = input.context.search_profiles[0].clone();
-    let chunk = input.trait_vectors[0].chunks[0].clone();
-    let descriptor = atlas_embedding::NativeInputDescriptor {
-        input_sha256: chunk.input_hash.clone(),
-        token_count: chunk.token_count,
-    };
-    let original = input.semantic_units[0].input_hash.clone();
-    let tokens = input.semantic_units[0].input_token_count;
-    input.semantic_units[0].input_hash = chunk.input_hash.clone();
-    input.semantic_units[0].input_token_count = chunk.token_count;
-    publish_input(&path, &input).unwrap();
-    let workspace = initialize_workspace(&path).unwrap();
-    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    let id = crate::native_values::lookup_input(read.connection(), &model, &descriptor)
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        crate::native_values::read(read.connection(), id, &model).unwrap(),
-        chunk.vector
-    );
-    assert!(
-        read.connection()
-            .prepare("SELECT * FROM trait_native_values")
-            .is_err()
-    );
-    drop(read);
-    input.semantic_units[0].input_hash = original.clone();
-    input.semantic_units[0].input_token_count = tokens;
-    publish_input(&path, &input).unwrap();
-    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(
-        crate::native_values::lookup_input(read.connection(), &model, &descriptor).unwrap(),
-        Some(id)
-    );
-    assert_eq!(
-        crate::native_values::read(read.connection(), id, &model).unwrap(),
-        chunk.vector
-    );
-    drop(read);
-    input.semantic_units[0].input_hash = chunk.input_hash;
-    input.semantic_units[0].input_token_count = chunk.token_count;
-    publish_input(&path, &input).unwrap();
-    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(
-        crate::native_values::lookup_input(read.connection(), &model, &descriptor).unwrap(),
-        Some(id)
-    );
-    drop(read);
-    input.traits.clear();
-    input.trait_vectors.clear();
-    publish_input(&path, &input).unwrap();
-    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(
-        crate::native_values::read(read.connection(), id, &model).unwrap(),
-        chunk.vector
-    );
-    drop(read);
-    input.semantic_units[0].input_hash = original;
-    input.semantic_units[0].input_token_count = tokens;
-    publish_input(&path, &input).unwrap();
-    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(
-        crate::native_values::lookup_input(read.connection(), &model, &descriptor).unwrap(),
-        None
-    );
-    drop(read);
-    validate_artifact(&path).unwrap();
 }

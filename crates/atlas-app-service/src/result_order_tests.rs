@@ -376,59 +376,6 @@ fn sorting_multirule_labels_use_any_price_rule_and_invalid_rules_fail_before_inf
 }
 
 #[test]
-fn sorting_trait_modes_reject_provided_order_outside_similar() {
-    let fixture = fixture();
-    let execution = ReadExecutionContext::uncancellable();
-    for kind in [
-        TraitAssociationKind::Members,
-        TraitAssociationKind::References,
-    ] {
-        let request = TraitRecordsRequest {
-            sort: Some(ResultSort::Random { seed: 0 }),
-            trait_key: "trait:fire".into(),
-            kind,
-            page: SearchPageRequest {
-                number: 1,
-                size: 20,
-            },
-            expected_artifact_generation: "not-consumed-for-invalid-order".into(),
-            search_profile: None,
-            ranking: None,
-        };
-        assert_eq!(
-            fixture
-                .worker
-                .trait_records(request, &execution)
-                .unwrap_err()
-                .into_app_error()
-                .code,
-            AppErrorCode::InvalidRequest
-        );
-    }
-    let request = TraitRecordsRequest {
-        sort: Some(ResultSort::Attributes { rules: vec![] }),
-        trait_key: "trait:fire".into(),
-        kind: TraitAssociationKind::Similar,
-        page: SearchPageRequest {
-            number: 1,
-            size: 20,
-        },
-        expected_artifact_generation: "not-consumed-for-invalid-order".into(),
-        search_profile: None,
-        ranking: None,
-    };
-    assert_eq!(
-        fixture
-            .worker
-            .trait_records(request, &execution)
-            .unwrap_err()
-            .into_app_error()
-            .code,
-        AppErrorCode::InvalidRequest
-    );
-}
-
-#[test]
 fn browse_and_lexical_search_keep_every_matching_relationship_root() {
     let fixture = fixture();
     for criteria in [

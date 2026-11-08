@@ -1,5 +1,5 @@
 use super::*;
-use atlas_domain::{RecordKey, SearchProfileId, SimilarityOptions, SimilaritySeed, TraitKey};
+use atlas_domain::{RecordKey, SearchProfileId, SimilarityOptions, SimilaritySeed};
 
 fn open_native(
     path: &std::path::Path,
@@ -28,20 +28,6 @@ fn record_request(key: &RecordKey) -> SimilarRecordRequest<'_> {
     }
 }
 
-fn trait_request(key: &TraitKey) -> SimilarTraitRequest<'_> {
-    SimilarTraitRequest {
-        content_scope: SearchContentScope::All,
-        sort: ResultSort::Relevance {},
-        trait_key: key,
-        search_profile: None,
-        filter: None,
-        scope: RecordScope::All,
-        page: SearchPage::first(10).unwrap(),
-
-        ranking: SearchRanking::Score,
-    }
-}
-
 fn evidence_signature(evidence: &[(RecordKey, SimilarityEvidence)]) -> Value {
     json!(evidence.iter().map(|(key, value)| json!({
         "key": key, "score": value.score.to_bits(), "aggregation": value.aggregation,
@@ -54,58 +40,6 @@ fn evidence_signature(evidence: &[(RecordKey, SimilarityEvidence)]) -> Value {
         })).collect::<Vec<_>>(),
         "representative": value.representative, "truncated": value.truncated
     })).collect::<Vec<_>>())
-}
-
-fn with_traits() -> atlas_index::IndexBuildInput {
-    let mut data = fixture();
-    for label in ["Fire", "Flame"] {
-        let key = TraitKey::new(label.to_lowercase()).unwrap();
-        data.traits.push(TraitDefinition {
-            key: key.clone(),
-            label: label.into(),
-            label_key: None,
-            description_key: None,
-            description_html: None,
-            authored_markup: None,
-            prepared: None,
-            catalogs: vec![],
-            source_locations: vec![],
-            source_revision: data.context.source_revision.clone(),
-            indexing_locale: data.context.indexing_locale.clone(),
-            content_locale: None,
-        });
-        for profile in ["bge-base", "embeddinggemma"] {
-            let input = format!("{label}\n");
-            let chunk_hash = crate::test_support::hash(input.as_bytes());
-            let mut vector = vec![0.; 768];
-            vector[0] = 1.;
-            data.trait_vectors.push(atlas_index::TraitVectorInput {
-                key: key.clone(),
-                profile_id: SearchProfileId::new(profile),
-                input_hash: crate::test_support::hash(
-                    format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes(),
-                ),
-                vector: vector.clone(),
-                chunks: vec![atlas_index::TraitSeedChunk {
-                    input: input.clone(),
-                    input_hash: chunk_hash.clone(),
-                    token_count: 2,
-                    vector,
-                    address: atlas_domain::SourcePassageAddress::PlainSection {
-                        source_text_sha256: chunk_hash,
-                        selection_version: "trait-definition-centroid/v1".into(),
-                        section_ordinal: 0,
-                        label: Some(label.into()),
-                        chunk_bytes: atlas_domain::SourceByteRange {
-                            start: 0,
-                            end: input.len(),
-                        },
-                    },
-                }],
-            });
-        }
-    }
-    data
 }
 
 fn transitions() -> Vec<(SearchPage, ResultSort)> {
@@ -210,46 +144,6 @@ fn equal_record_vectors_keep_distinct_exclusions_in_native_identity() {
 }
 
 #[test]
-fn trait_preview_full_and_paging_reuse_neighbors_with_current_seed_presentation() {
-    let (service, artifact) = crate::test_support::open_input_fixture(with_traits()).unwrap();
-    drop(service);
-    let store = Arc::new(NativeNeighborReuse::default());
-    for profile in ["bge-base", "embeddinggemma"] {
-        for content_scope in [SearchContentScope::All, SearchContentScope::Core] {
-            for (i, (page, sort)) in transitions().into_iter().enumerate() {
-                // Fire and Flame intentionally have identical native vectors.
-                let key = TraitKey::new(if i == 0 { "fire" } else { "flame" }).unwrap();
-                let cached = open_native(&artifact.path(), Some(&store), profile);
-                let cold = open_native(&artifact.path(), None, profile);
-                let request = || SimilarTraitRequest {
-                    content_scope,
-                    page,
-                    sort: sort.clone(),
-
-                    ranking: if i == 2 {
-                        SearchRanking::Rrf
-                    } else {
-                        SearchRanking::Score
-                    },
-                    ..trait_request(&key)
-                };
-                let actual = cached.similar_trait(request()).unwrap().unwrap();
-                let expected = cold.similar_trait(request()).unwrap().unwrap();
-                assert_eq!(actual.seed.key, key);
-                assert_eq!(actual.seed.label, if i == 0 { "Fire" } else { "Flame" });
-                assert_eq!(json!(actual.seed), json!(expected.seed));
-                assert_eq!(signature(&actual.results), signature(&expected.results));
-                assert_eq!(cold.read_metrics().knn_queries, 3);
-                assert_eq!(
-                    cached.read_metrics().knn_queries,
-                    if i == 0 { 3 } else { 0 }
-                );
-            }
-        }
-    }
-}
-
-#[test]
 fn similar_predicate_changes_miss_and_successful_empty_windows_can_hit() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
@@ -279,11 +173,10 @@ fn similar_predicate_changes_miss_and_successful_empty_windows_can_hit() {
 
 #[test]
 fn explicit_and_empty_similar_key_scopes_bypass_retention() {
-    let (service, artifact) = crate::test_support::open_input_fixture(with_traits()).unwrap();
+    let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
     let store = Arc::new(NativeNeighborReuse::default());
     let seed = "items:0000000000000000".parse().unwrap();
-    let trait_key = TraitKey::new("fire").unwrap();
     let keys = ["items:0000000000000001".parse().unwrap()];
     for scope in [keys.as_slice(), &[]] {
         for _ in 0..2 {
@@ -301,27 +194,13 @@ fn explicit_and_empty_similar_key_scopes_bypass_retention() {
                 cold.read_metrics().knn_queries
             );
             assert_eq!(store.stats().ready_entries, 0);
-            service.reset_read_metrics();
-            cold.reset_read_metrics();
-            let request = || SimilarTraitRequest {
-                scope: RecordScope::Keys(scope),
-                ..trait_request(&trait_key)
-            };
-            let actual = service.similar_trait(request()).unwrap().unwrap();
-            let expected = cold.similar_trait(request()).unwrap().unwrap();
-            assert_eq!(signature(&actual.results), signature(&expected.results));
-            assert_eq!(
-                service.read_metrics().knn_queries,
-                cold.read_metrics().knn_queries
-            );
-            assert_eq!(store.stats().ready_entries, 0);
         }
     }
 }
 
 #[test]
 fn warm_neighbors_do_not_bypass_missing_seeds_profiles_or_sort_validation() {
-    let data = with_traits();
+    let data = fixture();
     let seed: RecordKey = "items:0000000000000000".parse().unwrap();
     let (service, artifact) = crate::test_support::open_input_fixture(data).unwrap();
     drop(service);
@@ -331,11 +210,6 @@ fn warm_neighbors_do_not_bypass_missing_seeds_profiles_or_sort_validation() {
         .similar_records(record_request(&seed))
         .unwrap()
         .unwrap();
-    let fire = TraitKey::new("fire").unwrap();
-    service
-        .similar_trait(trait_request(&fire))
-        .unwrap()
-        .unwrap();
     let entries = store.stats().ready_entries;
     service.reset_read_metrics();
 
@@ -343,13 +217,6 @@ fn warm_neighbors_do_not_bypass_missing_seeds_profiles_or_sort_validation() {
     assert!(
         service
             .similar_records(record_request(&absent))
-            .unwrap()
-            .is_none()
-    );
-    let absent_trait = TraitKey::new("absent").unwrap();
-    assert!(
-        service
-            .similar_trait(trait_request(&absent_trait))
             .unwrap()
             .is_none()
     );
@@ -370,14 +237,6 @@ fn warm_neighbors_do_not_bypass_missing_seeds_profiles_or_sort_validation() {
             })
             .is_err()
     );
-    assert!(
-        service
-            .similar_trait(SimilarTraitRequest {
-                sort: ResultSort::Attributes { rules: vec![] },
-                ..trait_request(&fire)
-            })
-            .is_err()
-    );
     assert_eq!(service.read_metrics().knn_queries, 0);
     assert_eq!(store.stats().ready_entries, entries);
 }
@@ -393,9 +252,7 @@ fn advanced_similar_keeps_its_distinct_candidate_path_with_an_empty_or_warm_stor
     };
     for warm in [false, true] {
         if warm {
-            let SimilaritySeed::Record { record_key } = &seed else {
-                unreachable!()
-            };
+            let SimilaritySeed::Record { record_key } = &seed;
             open_native(&artifact.path(), Some(&store), "bge-base")
                 .similar_records(record_request(record_key))
                 .unwrap()

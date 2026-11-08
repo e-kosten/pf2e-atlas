@@ -6,7 +6,7 @@ use crate::{
     build::default_audience, index_build_input::DocumentAttribution,
     source::localization::LocalizationCatalog,
 };
-use atlas_domain::{RecordKey, SourcePassageAddress, TraitKey};
+use atlas_domain::RecordKey;
 use atlas_embedding::{PreparedNativeInput, TextEmbeddingTokenizer};
 use atlas_foundry_model::{SourceAdmission, SourceContext, SourceValue, admit_document_source};
 use atlas_index::{
@@ -60,19 +60,9 @@ struct Envelope {
     journal: Option<BuildFrameOffset>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) enum RawOccurrence {
-    Document {
-        attribution: DocumentAttribution,
-    },
-    Trait {
-        key: TraitKey,
-        address: SourcePassageAddress,
-    },
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct AttributedNativeInput {
     pub input: PreparedNativeInput,
-    pub occurrence: RawOccurrence,
+    pub attribution: DocumentAttribution,
 }
 /// Rich source and prepared-record batches drain before the next batch is read.
 const PREPARATION_REUSE_BATCH: usize = 32;
@@ -664,7 +654,7 @@ pub(crate) fn prepare(
                             native_inputs
                                 .push(&AttributedNativeInput {
                                     input: input.into(),
-                                    occurrence: RawOccurrence::Document { attribution },
+                                    attribution,
                                 })
                                 .map_err(index)?;
                             document_units += 1;
@@ -717,29 +707,9 @@ pub(crate) fn prepare(
     drop(admitted);
     reference_build.publish_catalog(&mut spool, &resolver)?;
     let trait_context = spool.context().clone();
-    crate::traits::prepare_traits_stream(
-        &catalog,
-        &trait_context,
-        tokenizer.as_ref(),
-        &resolver,
-        &mut |definition, inputs| {
-            let key = definition.key.clone();
-            spool.traits.push(&definition).map_err(index)?;
-            for input in inputs {
-                let address = input.address.clone();
-                native_inputs
-                    .push(&AttributedNativeInput {
-                        input: input.into(),
-                        occurrence: RawOccurrence::Trait {
-                            key: key.clone(),
-                            address,
-                        },
-                    })
-                    .map_err(index)?;
-            }
-            Ok(())
-        },
-    )?;
+    crate::traits::prepare_traits_stream(&catalog, &trait_context, &resolver, &mut |definition| {
+        spool.traits.push(&definition).map_err(index)
+    })?;
     work.largest_prepared_frame_bytes = spool.max_record_frame_bytes();
     tracing::info!(target:"atlas_build_diagnostic",phase="source_preparation",captured_document_reads=work.captured_document_reads,admitted_record_reads=work.admitted_record_reads,alias_journal_reads=work.alias_journal_reads,alias_journal_fresh_preparations=work.alias_journal_fresh_preparations,alias_journal_reused_preparations=work.alias_journal_reused_preparations,main_fresh_preparations=work.main_fresh_preparations,largest_admitted_batch=work.largest_admitted_batch,content_overlap_admitted_records=work.largest_content_overlap.admitted_records,content_overlap_prepared_records=work.largest_content_overlap.prepared_records,structural_reuse_record_batch=PREPARATION_REUSE_BATCH,reusable_record_read_batches=work.reusable_record_read_batches,reusable_layout_read_calls=work.reusable_layout_read_calls,reusable_layout_read_batches=work.reusable_layout_read_batches,largest_admission_batch_source_bytes=work.largest_admission_batch_source_bytes,admission_overlap_raw_sources=work.largest_admission_overlap.raw_sources,admission_overlap_retained_records=work.largest_admission_overlap.retained_records,semantic_overlap_prepared_records=work.largest_semantic_overlap.prepared_records,semantic_overlap_layout_roots=work.largest_semantic_overlap.layout_roots,selection_calls=work.selection_calls,reusable_record_read_calls=work.reusable_record_read_calls,largest_source_bytes=work.largest_source_bytes,largest_admitted_frame_bytes=work.largest_admitted_frame_bytes,largest_prepared_frame_bytes=work.largest_prepared_frame_bytes,record_frames=spool.record_count(),native_input_frames=native_inputs.len(),"Observed source preparation work and frame sizes");
     Ok(PreparedSourceBuild {

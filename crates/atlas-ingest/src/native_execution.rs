@@ -1,14 +1,10 @@
 //! Bounded native preparation, reuse and inference over attributed inputs.
-use crate::{
-    BuildArtifactOptions, IngestError,
-    product_preparation::{AttributedNativeInput, RawOccurrence},
-};
+use crate::{BuildArtifactOptions, IngestError, product_preparation::AttributedNativeInput};
 use atlas_embedding::{
     NativeInferenceRunner, PreparedEmbeddingBatch, PreparedNativeInput, TextEmbeddingTokenizer,
 };
 use atlas_index::{
     BuildFrameStream, PreparedPublication, SemanticOccurrence, SourceSearchProfileIdentity,
-    TraitChunkOccurrence, TraitSeedOccurrence,
 };
 use std::collections::BTreeMap;
 
@@ -28,68 +24,6 @@ fn counted_progress(model: atlas_embedding::SearchProfileSpec, current: usize, t
     tracing::info!(target:"atlas_progress",phase=%format!("{}:reuse_selection",model.id),
         current=current as u64,total=total as u64,unit="passages",profile=model.id,
         "Checking saved {} embeddings",model.label);
-}
-fn flush_seed(
-    publication: &mut PreparedPublication<'_>,
-    seed: &mut Option<TraitSeedOccurrence>,
-) -> Result<(), atlas_index::IndexError> {
-    if let Some(mut value) = seed.take() {
-        use sha2::{Digest, Sha256};
-        let hashes = value
-            .chunks
-            .iter()
-            .map(|c| c.descriptor.input_sha256.as_str())
-            .collect::<Vec<_>>();
-        value.input_hash = format!(
-            "{:x}",
-            Sha256::digest(format!(
-                "{}:{}",
-                crate::traits::TRAIT_SEED_RECIPE,
-                hashes.join(":")
-            ))
-        );
-        publication.append_trait_seed(value)?;
-    }
-    Ok(())
-}
-fn append_occurrence(
-    publication: &mut PreparedPublication<'_>,
-    model: &SourceSearchProfileIdentity,
-    input: &PreparedNativeInput,
-    occurrence: RawOccurrence,
-    seed: &mut Option<TraitSeedOccurrence>,
-) -> Result<(), atlas_index::IndexError> {
-    match occurrence {
-        RawOccurrence::Document { attribution } => {
-            flush_seed(publication, seed)?;
-            publication.append_semantic(SemanticOccurrence {
-                profile_id: model.profile_id.clone(),
-                record: attribution.record,
-                owners: attribution.owners,
-                field: attribution.field,
-                address: attribution.address,
-                chunk_ordinal: attribution.chunk_ordinal,
-                input: input.descriptor(),
-            })?;
-        }
-        RawOccurrence::Trait { key, address } => {
-            if seed.as_ref().is_some_and(|old| old.key != key) {
-                flush_seed(publication, seed)?;
-            }
-            let seed = seed.get_or_insert_with(|| TraitSeedOccurrence {
-                key,
-                profile_id: model.profile_id.clone(),
-                input_hash: String::new(),
-                chunks: Vec::new(),
-            });
-            seed.chunks.push(TraitChunkOccurrence {
-                input: input.input.clone(),
-                descriptor: input.descriptor(),
-                address,
-            });
-        }
-    }
-    Ok(())
 }
 fn stage_values(
     publication: &mut PreparedPublication<'_>,
@@ -159,7 +93,6 @@ impl NativeExecution<'_, '_> {
         let mut consumed = 0;
         let mut reused = 0;
         let mut inferred = 0;
-        let mut seed = None;
         let mut preparation_elapsed = std::time::Duration::ZERO;
         let mut selection_elapsed = std::time::Duration::ZERO;
         let mut inference_elapsed = std::time::Duration::ZERO;
@@ -176,7 +109,7 @@ impl NativeExecution<'_, '_> {
                     break;
                 };
                 inputs.push(frame.input);
-                occurrences.push(frame.occurrence);
+                occurrences.push(frame.attribution);
             }
             if inputs.is_empty() {
                 break;
@@ -190,7 +123,16 @@ impl NativeExecution<'_, '_> {
             for (position, (input, occurrence)) in
                 batch.inputs().iter().zip(occurrences).enumerate()
             {
-                append_occurrence(publication, &model, input, occurrence, &mut seed)
+                publication
+                    .append_semantic(SemanticOccurrence {
+                        profile_id: model.profile_id.clone(),
+                        record: occurrence.record,
+                        owners: occurrence.owners,
+                        field: occurrence.field,
+                        address: occurrence.address,
+                        chunk_ordinal: occurrence.chunk_ordinal,
+                        input: input.descriptor(),
+                    })
                     .map_err(index)?;
                 let key = (input.input_sha256.clone(), input.token_count);
                 if let Some(previous) = unique.get(&key) {
@@ -235,7 +177,6 @@ impl NativeExecution<'_, '_> {
                 inference_elapsed += inference_started.elapsed();
             }
         }
-        flush_seed(publication, &mut seed).map_err(index)?;
         tracing::info!(target:"atlas_build_diagnostic",profile=%model.profile_id,elapsed_ms=started.elapsed().as_secs_f64()*1000.,native_preparation_ms=preparation_elapsed.as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_unique_batch,max_raw_native_batch=max_raw_batch,max_missing_native_batch=max_missing_batch,max_native_output_vectors=max_outputs,native_preparation_inputs=consumed,"Completed bounded native execution");
         Ok(crate::ProfileBuildReport {
             profile_id: model.profile_id,

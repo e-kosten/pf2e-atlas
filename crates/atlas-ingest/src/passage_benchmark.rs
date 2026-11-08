@@ -1,8 +1,7 @@
 //! Explicit full-corpus experiment; no inference or writes to the selected index.
 use crate::{
-    BuildArtifactOptions,
-    index_build_input::DocumentAttribution,
-    product_preparation::{PreparedSourceBuild, RawOccurrence},
+    BuildArtifactOptions, index_build_input::DocumentAttribution,
+    product_preparation::PreparedSourceBuild,
 };
 use atlas_domain::RecordKey;
 use atlas_embedding::{PreparedEmbeddingBatch, PreparedNativeInput, TextEmbeddingTokenizer};
@@ -28,10 +27,9 @@ pub(super) fn signatures(prepared: &PreparedSourceBuild) -> BTreeMap<RecordKey, 
     prepared
         .native_inputs
         .visit(&mut |frame| {
-            if let RawOccurrence::Document { attribution } = frame.occurrence {
-                let hash = records.entry(attribution.record.clone()).or_default();
-                update_document_signature(hash, &attribution, &native_signature(&frame.input));
-            }
+            let attribution = frame.attribution;
+            let hash = records.entry(attribution.record.clone()).or_default();
+            update_document_signature(hash, &attribution, &native_signature(&frame.input));
             Ok(())
         })
         .unwrap();
@@ -313,7 +311,7 @@ fn published_layout_reuse_full_corpus_benchmark() {
         } else {
             expected_native = Some(native);
         }
-        let entry = serde_json::json!({"case":case,"preparation_seconds":preparation_seconds,"native_validation_seconds":native_seconds,"layout_count":if case=="forced_fresh"{0}else{layout_count},"layout_count_timing":"bounded inventory before measured preparation","reused_sections":prepared.reused_sections,"records":prepared.spool.record_count(),"document_inputs":prepared.document_units,"trait_inputs":prepared.native_inputs.len()-prepared.document_units,"source_fingerprint":prepared.fingerprint.value,"context":prepared.spool.context().sha256().unwrap()});
+        let entry = serde_json::json!({"case":case,"preparation_seconds":preparation_seconds,"native_validation_seconds":native_seconds,"layout_count":if case=="forced_fresh"{0}else{layout_count},"layout_count_timing":"bounded inventory before measured preparation","reused_sections":prepared.reused_sections,"records":prepared.spool.record_count(),"document_inputs":prepared.document_units,"source_fingerprint":prepared.fingerprint.value,"context":prepared.spool.context().sha256().unwrap()});
         eprintln!("{entry}");
         report.push(entry);
         std::fs::write(&evidence, serde_json::to_vec_pretty(&report).unwrap()).unwrap();

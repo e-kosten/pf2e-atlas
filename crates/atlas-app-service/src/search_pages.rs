@@ -83,7 +83,6 @@ impl AtlasAppService {
                 SearchCriteria::ListRecords { filter }
                 | SearchCriteria::TextSearch { filter, .. }
                 | SearchCriteria::SimilarRecords { filter, .. }
-                | SearchCriteria::SimilarTraits { filter, .. }
                 | SearchCriteria::TraitReferences { filter, .. } => filter.as_ref(),
             };
             let relationship_summaries =
@@ -97,8 +96,7 @@ impl AtlasAppService {
             let cancelled = || projection_execution.check().is_err();
             let search_content = match &request.criteria {
                 SearchCriteria::TextSearch { search_content, .. }
-                | SearchCriteria::SimilarRecords { search_content, .. }
-                | SearchCriteria::SimilarTraits { search_content, .. } => {
+                | SearchCriteria::SimilarRecords { search_content, .. } => {
                     search_content.unwrap_or_default()
                 }
                 _ => atlas_domain::SearchContentScope::All,
@@ -116,58 +114,8 @@ impl AtlasAppService {
                         AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string())
                     })?;
                     let seed = atlas_domain::SimilaritySeed::Record { record_key: key };
-                    let options = options.unwrap_or_else(|| {
-                        if source_sections.is_some() {
-                            atlas_domain::SimilarityOptions::default()
-                        } else {
-                            atlas_domain::SimilarityOptions::default_for_seed(&seed)
-                        }
-                    });
+                    let options = options.unwrap_or_default();
                     crate::similarity::validate_options(
-                        &seed,
-                        &options,
-                        request.expected_artifact_generation.as_deref(),
-                    )?;
-                    let (mode, results, effective) = crate::similarity::configured_results(
-                        retrieval,
-                        atlas_search::ConfigurableSimilarRequest {
-                            cancelled: Some(&cancelled),
-                            seed: &seed,
-                            options: &options,
-                            source_sections,
-                            content_scope: search_content,
-                            sort: sort.clone(),
-                            search_profile: request.search_profile.as_ref(),
-                            filter: filter.as_ref(),
-                            scope,
-                            page,
-                        },
-                        &projection_execution,
-                    )?;
-                    projection_execution.check()?;
-                    similarity = Some(effective);
-                    (mode, results.rows, results.page, Some(results.coverage))
-                }
-                SearchCriteria::SimilarTraits {
-                    seed_trait_key,
-                    filter,
-                    similarity: options,
-                    source_sections,
-                    search_content: _,
-                } => {
-                    let key = seed_trait_key
-                        .parse::<atlas_domain::TraitKey>()
-                        .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
-                    let seed = atlas_domain::SimilaritySeed::Trait { trait_key: key };
-                    let options = options.unwrap_or_else(|| {
-                        if source_sections.is_some() {
-                            atlas_domain::SimilarityOptions::default()
-                        } else {
-                            atlas_domain::SimilarityOptions::default_for_seed(&seed)
-                        }
-                    });
-                    crate::similarity::validate_options(
-                        &seed,
                         &options,
                         request.expected_artifact_generation.as_deref(),
                     )?;

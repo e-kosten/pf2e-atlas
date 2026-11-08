@@ -49,10 +49,7 @@ export function SearchView({
     mode?.kind === "similar_records" &&
     mode.seed.record_key === workspace.search.similarSeed
       ? mode.seed.title
-      : mode?.kind === "similar_traits" &&
-          mode.trait_key === workspace.search.similarSeed
-        ? mode.title
-        : undefined;
+      : undefined;
   const similarTitle =
     seedTitle ??
     (workspace.resultsFailed || workspace.errorMessage
@@ -86,17 +83,7 @@ export function SearchView({
             workspace.search.similarSeed
               ? {
                   title: similarTitle,
-                  help:
-                    !workspace.resultsFailed &&
-                    !workspace.errorMessage &&
-                    mode?.kind === "similar_traits" &&
-                    mode.trait_key === workspace.search.similarSeed
-                      ? mode.help
-                      : undefined,
-                  generation: workspace.resultPage?.artifact_generation,
-                  seed: workspace.search.similarSeed.startsWith("trait:")
-                    ? { kind: "trait", trait_key: workspace.search.similarSeed }
-                    : { kind: "record", record_key: workspace.search.similarSeed },
+                  seed: { kind: "record", record_key: workspace.search.similarSeed },
                   onSearch: workspace.refresh,
                   onClear: () =>
                     workspace.setSearch({
@@ -132,9 +119,7 @@ export function SearchView({
                 seedTitle={seedTitle}
                 seed={
                   workspace.search.similarSeed
-                    ? workspace.search.similarSeed.startsWith("trait:")
-                      ? { kind: "trait", trait_key: workspace.search.similarSeed }
-                      : { kind: "record", record_key: workspace.search.similarSeed }
+                    ? { kind: "record", record_key: workspace.search.similarSeed }
                     : null
                 }
                 generation={workspace.resultPage?.artifact_generation}

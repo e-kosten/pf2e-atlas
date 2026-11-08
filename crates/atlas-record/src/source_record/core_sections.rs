@@ -155,7 +155,7 @@ fn core_root_field(family: CoreSectionFamily, field: &str) -> bool {
         F::Spell | F::Rule | F::Equipment | F::CharacterOption | F::Deity | F::CampaignFeature => {
             field == "/system/description/value"
         }
-        F::Familiar | F::Trait | F::Unmodelled => false,
+        F::Familiar | F::Unmodelled => false,
     }
 }
 

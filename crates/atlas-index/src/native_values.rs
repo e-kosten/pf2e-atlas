@@ -182,7 +182,11 @@ impl<'session> NativeModel<'session> {
     fn checksum(&self, row: &InputRow) -> Result<Option<Vec<u8>>, IndexError> {
         match &row.published_checksum {
             None => {
-                let consumers: bool = self.connection.prepare_cached("SELECT EXISTS(SELECT 1 FROM semantic_units WHERE input_id=?1) OR EXISTS(SELECT 1 FROM trait_seed_chunks WHERE input_id=?1)")?
+                let consumers: bool = self
+                    .connection
+                    .prepare_cached(
+                        "SELECT EXISTS(SELECT 1 FROM semantic_units WHERE input_id=?1)",
+                    )?
                     .query_row([row.id], |r| r.get(0))?;
                 let native: bool = self.native_exists
                     && self
@@ -477,14 +481,13 @@ fn invalid(message: &str) -> IndexError {
 pub(crate) fn prune_registry(c: &Connection) -> Result<(), IndexError> {
     c.execute_batch("DELETE FROM embedding_inputs WHERE published_hash IS NULL
         AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=embedding_inputs.input_id)
-        AND NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=embedding_inputs.input_id)
         AND NOT EXISTS(SELECT 1 FROM pending_embedding_values p WHERE p.input_id=embedding_inputs.input_id);
         DELETE FROM embedding_models WHERE NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id)
         AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.identity_json=embedding_models.identity_json);")?;
     Ok(())
 }
 
-/// Run after every occurrence and ordered trait consumer, before final validation.
+/// Run after every document occurrence, before final validation.
 pub(crate) fn prune(c: &Connection) -> Result<(), IndexError> {
     let profiles = c
         .prepare("SELECT identity_json FROM search_profiles")?
@@ -502,7 +505,7 @@ pub(crate) fn prune(c: &Connection) -> Result<(), IndexError> {
             [&table],
             |r| r.get(0),
         )?;
-        let mut obsolete = c.prepare("SELECT input_id FROM embedding_inputs i WHERE model_id=? AND published_hash IS NOT NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id) AND NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=i.input_id)")?;
+        let mut obsolete = c.prepare("SELECT input_id FROM embedding_inputs i WHERE model_id=? AND published_hash IS NOT NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id)")?;
         let mut rows = obsolete.query([id])?;
         while let Some(row) = rows.next()? {
             let input_id: i64 = row.get(0)?;
@@ -517,7 +520,7 @@ pub(crate) fn prune(c: &Connection) -> Result<(), IndexError> {
         drop(rows);
         drop(obsolete);
         if exists && !profiles.contains(&json) {
-            let referenced: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM embedding_inputs i WHERE model_id=? AND (EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id) OR EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=i.input_id)))",[id],|r|r.get(0))?;
+            let referenced: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM embedding_inputs i WHERE model_id=? AND EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id))",[id],|r|r.get(0))?;
             if referenced {
                 return Err(invalid("retired numerical model still has consumers"));
             }
@@ -613,8 +616,7 @@ mod tests {
         c.execute_batch("CREATE TABLE search_profiles(identity_json TEXT);
             CREATE TABLE embedding_models(model_id INTEGER PRIMARY KEY,identity_json TEXT UNIQUE);
             CREATE TABLE embedding_inputs(input_id INTEGER PRIMARY KEY,model_id INTEGER,input_hash BLOB,token_count INTEGER,published_hash BLOB,UNIQUE(model_id,input_hash));
-            CREATE TABLE semantic_units(input_id INTEGER);
-            CREATE TABLE trait_seed_chunks(input_id INTEGER);") .unwrap();
+            CREATE TABLE semantic_units(input_id INTEGER);") .unwrap();
         let model = model();
         let input = NativeInputDescriptor {
             input_sha256: "a".repeat(64),
@@ -713,11 +715,11 @@ mod tests {
     }
 
     #[test]
-    fn registry_gc_protects_document_trait_and_pending_even_with_null_checksum() {
+    fn registry_gc_protects_document_and_pending_even_with_null_checksum() {
         let (c, _, _) = fixture();
         c.execute_batch("CREATE TABLE pending_embedding_values(input_id INTEGER);
             INSERT INTO embedding_inputs VALUES(8,1,randomblob(32),3,NULL),(9,1,randomblob(32),3,NULL),(10,1,randomblob(32),3,NULL);
-            INSERT INTO semantic_units VALUES(7); INSERT INTO trait_seed_chunks VALUES(8);
+            INSERT INTO semantic_units VALUES(7);
             INSERT INTO pending_embedding_values VALUES(9);").unwrap();
         prune_registry(&c).unwrap();
         let remaining = c
@@ -727,7 +729,7 @@ mod tests {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
-        assert_eq!(remaining, [7, 8, 9]);
+        assert_eq!(remaining, [7, 9]);
         assert_eq!(
             c.query_row("SELECT count(*) FROM embedding_models", [], |r| r
                 .get::<_, usize>(0))

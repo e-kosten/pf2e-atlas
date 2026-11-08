@@ -374,16 +374,6 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
     assert!(!config.model_dir().join("onnx/model.onnx").exists());
     let mut options = fixture.options();
     options.search_profiles = vec![config];
-    let long_trait = atlas_foundry_model::generated::trait_definitions()
-        .iter()
-        .find(|definition| definition.description_key.is_some())
-        .unwrap();
-    let catalog_path = fixture.0.join("static/lang/en.json");
-    let mut catalog: serde_json::Value =
-        serde_json::from_slice(&fs::read(&catalog_path).unwrap()).unwrap();
-    catalog[long_trait.description_key.unwrap()] =
-        serde_json::json!(format!("<p>{}</p>", "one ".repeat(50_000)));
-    fs::write(catalog_path, serde_json::to_vec(&catalog).unwrap()).unwrap();
     let original: serde_json::Value =
         serde_json::from_slice(&fs::read(fixture.0.join("packs/items/useful.json")).unwrap())
             .unwrap();
@@ -415,27 +405,6 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         })
         .unwrap();
     assert!(unique.len() < prepared.native_inputs.len());
-    let mut expected_trait_hashes = Vec::new();
-    prepared
-        .native_inputs
-        .visit(&mut |frame| {
-            if let crate::product_preparation::RawOccurrence::Trait { key, .. } = frame.occurrence
-                && key.identifier() == long_trait.identifier
-            {
-                expected_trait_hashes.push(frame.input.input_sha256);
-            }
-            Ok(())
-        })
-        .unwrap();
-    assert!(expected_trait_hashes.len() > atlas_index::NATIVE_VALUE_BATCH_LIMIT);
-    assert!(
-        expected_trait_hashes
-            .iter()
-            .collect::<std::collections::BTreeSet<_>>()
-            .len()
-            < expected_trait_hashes.len()
-    );
-
     let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let captured = std::sync::Arc::clone(&events);
     let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
@@ -478,13 +447,6 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
     atlas_index::validate_artifact(&options.output_path).unwrap();
     let workspace = atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
     let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
-    {
-        let read = workspace.read(schema).unwrap();
-        let actual_hashes = read.connection().prepare("SELECT lower(hex(i.input_hash)) FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) WHERE trait_key=? ORDER BY ordinal").unwrap()
-            .query_map([format!("trait:{}", long_trait.identifier)], |row| row.get::<_, String>(0)).unwrap()
-            .collect::<rusqlite::Result<Vec<_>>>().unwrap();
-        assert_eq!(actual_hashes, expected_trait_hashes);
-    }
     let before_revision = workspace
         .read(schema)
         .unwrap()
@@ -795,8 +757,7 @@ fn actual_tokenizer_prepares_identity_for_unavailable_authored_names() {
         prepared
             .native_inputs
             .visit(&mut |frame| {
-                if let crate::product_preparation::RawOccurrence::Document { attribution } =
-                    frame.occurrence
+                let attribution = frame.attribution;
                 {
                     if matches!(
                         attribution.address,
@@ -1747,11 +1708,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
     prepared
         .native_inputs
         .visit(&mut |frame| {
-            let crate::product_preparation::RawOccurrence::Document { attribution } =
-                frame.occurrence
-            else {
-                return Ok(());
-            };
+            let attribution = frame.attribution;
             document_units += 1;
             assert!(frame.input.token_count <= 512);
             tokens += frame.input.token_count;

@@ -2,6 +2,10 @@
 
 Status: accepted
 
+Schema 34 retired the trait-seeded Similar workflow and its numerical storage.
+See the [artifact contract](../artifact-contract.md#native-embedding-storage)
+for the current migration behavior. The original trait Similar design follows.
+
 ## Context
 
 A semantic unit describes an occurrence in a record/profile/location. An embedding

@@ -175,7 +175,7 @@ pub(crate) fn write(
         kept_traits.iter().chain(&kept_entries).cloned(),
     )?;
     crate::owned_abilities::write_evidence(c, input)?;
-    crate::traits::write_traits_stream(c, input, values, &kept_traits)?;
+    crate::traits::prune_trait_definitions(c, &kept_traits)?;
     next_roots.visit(&mut |root| {
         if let Some(core) = root.core
             && (root.refresh_core || changed_search.contains(&root.id))

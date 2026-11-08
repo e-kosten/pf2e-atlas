@@ -64,13 +64,7 @@ function setup(
           >
             <SearchSettings
               search={state}
-              seed={
-                state.similarSeed
-                  ? state.similarSeed.startsWith("trait:")
-                    ? { kind: "trait", trait_key: state.similarSeed }
-                    : seed
-                  : null
-              }
+              seed={state.similarSeed ? seed : null}
               seedTitle="Brown Mold"
               generation="generation-1"
               onApply={apply}
@@ -119,7 +113,6 @@ it("resets only the draft until Apply and preserves other family preferences", a
       decay: 0.85,
       candidateParts: "corresponding",
     },
-    traitSimilarity: { method: "content-average", decay: 0.75, candidateParts: "any" },
   };
   const state: SearchFormState = {
     ...search,
@@ -163,7 +156,6 @@ it("resets only the draft until Apply and preserves other family preferences", a
       matchDisplay: "sections" as const,
       showSmallerWeights: false,
       sourceSectionsByFamily: { hazard: "all", npc: "core" },
-      traitSimilarity: preferences.traitSimilarity,
     }),
   );
 });
@@ -184,25 +176,6 @@ it("resets text fusion without inventing a Similar selection", () => {
       ranking: "score",
       searchContent: "all",
       similarSeed: null,
-    }),
-    "bge-base",
-  );
-});
-
-it("keeps Trait definition as the reset method without opening a section editor", () => {
-  const { apply } = setup({
-    ...DEFAULT_SEARCH_STATE,
-    similarSeed: "trait:fire",
-    similarity: { method: "baseline" },
-  });
-  expect(screen.queryByRole("button", { name: "Choose sections" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  expect(apply).toHaveBeenCalledWith(
-    expect.objectContaining({
-      similarity: { method: "baseline" },
-      sourceSections: undefined,
-      similarityGeneration: undefined,
     }),
     "bge-base",
   );

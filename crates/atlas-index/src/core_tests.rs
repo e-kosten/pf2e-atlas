@@ -494,7 +494,7 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
     let read = upgraded
         .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
-    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(read.reference_revision().unwrap(), revision + 1);
     assert_eq!(
         classify_reference_upgrade(read.connection()).unwrap(),
         ReferenceUpgrade::SourcePreparation
@@ -510,7 +510,7 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
     let read = upgraded
         .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
-    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(read.reference_revision().unwrap(), revision + 1);
     assert_eq!(bodies(read.connection()), bodies_before);
     assert_eq!(
         crate::test_support::native_preservation_rows(read.connection()).unwrap(),
@@ -557,7 +557,7 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
     let read = upgraded
         .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
-    assert_eq!(read.reference_revision().unwrap(), revision + 1);
+    assert_eq!(read.reference_revision().unwrap(), revision + 2);
     assert_eq!(bodies(read.connection()), bodies_before);
     assert_eq!(
         crate::test_support::native_preservation_rows(read.connection()).unwrap(),
@@ -640,73 +640,6 @@ fn an_allowed_owned_name_remains_core_when_its_description_is_empty() {
             .len(),
         1
     );
-}
-
-#[test]
-fn trait_core_inventory_retains_its_single_label_only_representation() {
-    let mut input = nested_fixture(false);
-    let key: atlas_domain::TraitKey = "trait:core-label".parse().unwrap();
-    let label = "Core label";
-    let text = format!("{label}\n");
-    let hash = crate::codec::sha256(text.as_bytes());
-    let vector = basis(1., 0.);
-    input.traits.push(TraitDefinition {
-        key: key.clone(),
-        label: label.into(),
-        label_key: None,
-        description_key: None,
-        description_html: None,
-        authored_markup: None,
-        prepared: None,
-        catalogs: vec![],
-        source_locations: vec![],
-        source_revision: None,
-        indexing_locale: "en".into(),
-        content_locale: None,
-    });
-    input.trait_vectors.push(TraitVectorInput {
-        key: key.clone(),
-        profile_id: SearchProfileId::new("bge-base"),
-        input_hash: crate::codec::sha256(format!("trait-definition-centroid/v1:{hash}").as_bytes()),
-        vector: vector.clone(),
-        chunks: vec![TraitSeedChunk {
-            input: text.clone(),
-            input_hash: hash,
-            token_count: 2,
-            address: SourcePassageAddress::PlainSection {
-                source_text_sha256: crate::codec::sha256(text.as_bytes()),
-                selection_version: "trait-definition-centroid/v1".into(),
-                section_ordinal: 0,
-                label: Some(label.into()),
-                chunk_bytes: SourceByteRange {
-                    start: 0,
-                    end: text.len(),
-                },
-            },
-            vector,
-        }],
-    });
-    let (_directory, path) = crate::foundation_tests::build(&input);
-    let reader = crate::test_support::open_reader(&path).unwrap();
-    let profile = SearchProfileId::new("bge-base");
-    let inventory = reader
-        .similarity_parts(
-            &SimilaritySeed::Trait {
-                trait_key: key.clone(),
-            },
-            Some(&profile),
-        )
-        .unwrap();
-    assert_eq!(
-        inventory.core.representation,
-        CoreSectionRepresentation::TraitLabelOnly
-    );
-    assert_eq!(inventory.parts.len(), 1);
-    assert!(!inventory.parts[0].is_identity());
-    assert!(inventory.parts[0].part().unwrap().label_only);
-    let units = reader.trait_similarity_units(&profile, &key, 1).unwrap();
-    assert_eq!(units.len(), 1);
-    assert!(!units[0].component.is_identity());
 }
 
 #[test]

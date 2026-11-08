@@ -104,10 +104,6 @@
 .search-settings__source-context {
   overflow-wrap: anywhere;
 }
-.search-settings__trait-source {
-  height: 100%;
-  overflow-y: auto;
-}
 .search-settings__part-choice {
   display: flex;
   align-items: baseline;

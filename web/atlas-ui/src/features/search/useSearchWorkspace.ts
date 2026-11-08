@@ -582,19 +582,13 @@ export function useSearchWorkspace({
     setPreparingSeed(false);
     if (next.similarSeed !== search.similarSeed && next.similarSeed) {
       const nextSeed = next.similarSeed;
-      const trait = nextSeed.startsWith("trait:");
-      const preferences = trait
-        ? searchPreferences.traitSimilarity
-        : searchPreferences.recordSimilarity;
+      const preferences = searchPreferences.recordSimilarity;
       next = {
         ...next,
         sourceSections: preferences.method === "baseline" ? undefined : "all",
       };
-      if (preferences.method !== "baseline" && trait)
-        next.sourceSections = preferredSourceSections(searchPreferences, "trait");
       if (
         preferences.method !== "baseline" &&
-        !trait &&
         hasCoreSourcePreference(searchPreferences) &&
         searchProfile !== null
       ) {
@@ -647,12 +641,7 @@ export function useSearchWorkspace({
       next = {
         ...next,
         similarity: next.similarSeed
-          ? similarityFromPreferences(
-              next.similarSeed.startsWith("trait:")
-                ? searchPreferences.traitSimilarity
-                : searchPreferences.recordSimilarity,
-              next.similarSeed.startsWith("trait:"),
-            )
+          ? similarityFromPreferences(searchPreferences.recordSimilarity)
           : undefined,
         similarityGeneration: undefined,
         sourceSections: next.similarSeed ? (next.sourceSections ?? "all") : undefined,

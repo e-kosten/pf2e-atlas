@@ -3,7 +3,6 @@ use crate::{
     ArtifactInstance, CompleteSourceInventory, IndexBuildPack, IndexError, PreparedRecordRef,
     SemanticOccurrence, SourceAliasInput, SourceArtifactBuildContext, SourceArtifactDiagnostic,
     SourceArtifactRecordInput, SourceLexicalUnitInput, SourceRemasterPairInput, TraitDefinition,
-    TraitSeedOccurrence,
 };
 use atlas_record::source_record::{
     SourceBackedRecord, SourceContentOutcome, SourceRelationshipOccurrence, SourceSearchSelection,
@@ -295,7 +294,6 @@ pub struct PublicationSpool {
     pub reference_entries: BuildFrameStream<crate::ReferenceEntry>,
     pub reference_notices: BuildFrameStream<crate::ReferenceNotice>,
     pub owned_ability_evidence: BuildFrameStream<crate::OwnedAbilityEvidence>,
-    pub trait_seeds: BuildFrameStream<TraitSeedOccurrence>,
     preparation_hash: String,
     root_keys: std::collections::BTreeSet<atlas_domain::RecordKey>,
     identities: Vec<crate::writer::CheckedRootIdentity>,
@@ -327,7 +325,6 @@ impl PublicationSpool {
             reference_entries: BuildFrameStream::new_in(scratch)?,
             reference_notices: BuildFrameStream::new_in(scratch)?,
             owned_ability_evidence: BuildFrameStream::new_in(scratch)?,
-            trait_seeds: BuildFrameStream::new_in(scratch)?,
         })
     }
     pub fn context(&self) -> &SourceArtifactBuildContext {
@@ -390,7 +387,6 @@ impl PublicationSpool {
             self.reference_entries.file_usage()?,
             self.reference_notices.file_usage()?,
             self.owned_ability_evidence.file_usage()?,
-            self.trait_seeds.file_usage()?,
         ] {
             usage = usage.combine(next)?;
         }
@@ -441,12 +437,6 @@ impl PublicationSpool {
         v: &mut dyn FnMut(&TraitDefinition) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
         self.traits.visit(&mut |row| v(&row))
-    }
-    pub(crate) fn trait_seeds(
-        &self,
-        v: &mut dyn FnMut(&TraitSeedOccurrence) -> Result<(), IndexError>,
-    ) -> Result<(), IndexError> {
-        self.trait_seeds.visit(&mut |row| v(&row))
     }
 }
 

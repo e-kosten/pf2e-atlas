@@ -87,6 +87,7 @@ pub(crate) fn build_context(
             pack_systems: inputs.reference_pack_systems(),
         }),
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
+        // Retain the published trait vocabulary compatibility ID across schema 34.
         trait_policy: "trait-definition-centroid/v1".into(),
         used_trait_labels: BTreeMap::new(),
         format_version: ARTIFACT_FORMAT_VERSION,

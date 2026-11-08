@@ -16,7 +16,6 @@ pub(super) fn missing_generation(options: &SimilarOptions) -> Option<String> {
 pub(super) fn command(options: &SimilarOptions, seed: Option<&SimilaritySeed>) -> String {
     let identity = match seed {
         Some(SimilaritySeed::Record { record_key }) => record_key.to_string(),
-        Some(SimilaritySeed::Trait { trait_key }) => trait_key.to_string(),
         None => options.record_ref.clone(),
     };
     let mut words = vec![

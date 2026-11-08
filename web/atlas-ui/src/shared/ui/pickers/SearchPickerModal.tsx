@@ -137,20 +137,14 @@ export function SearchPickerModal<FormValues>({
     search_profile: profile.id ?? undefined,
     ranking: search.ranking ?? profile.preferences.ranking,
     criteria:
-      base.criteria.kind === "similar_records" ||
-      base.criteria.kind === "similar_traits"
+      base.criteria.kind === "similar_records"
         ? {
             ...base.criteria,
             filter,
             similarity:
               search.similarity ??
               base.criteria.similarity ??
-              similarityFromPreferences(
-                base.criteria.kind === "similar_traits"
-                  ? profile.preferences.traitSimilarity
-                  : profile.preferences.recordSimilarity,
-                base.criteria.kind === "similar_traits",
-              ),
+              similarityFromPreferences(profile.preferences.recordSimilarity),
           }
         : { ...base.criteria, filter },
     page: { number: pageNumber, size: search.pageSize },
@@ -206,10 +200,7 @@ export function SearchPickerModal<FormValues>({
               : null,
         }),
       );
-      if (
-        request.criteria.kind === "similar_records" ||
-        request.criteria.kind === "similar_traits"
-      )
+      if (request.criteria.kind === "similar_records")
         assertSimilarityIdentity(page, request.criteria.similarity);
       retrieval.adopt(ticket, page.artifact_generation, {
         queryKey: resultsKeyForGeneration(page.artifact_generation),
@@ -452,25 +443,17 @@ export function SearchPickerModal<FormValues>({
                     recordResults.data.mode.seed.record_key ===
                       request.criteria.seed_record_key
                       ? recordResults.data.mode.seed.title
-                      : recordResults.data?.mode.kind === "similar_traits" &&
-                          request.criteria.kind === "similar_traits" &&
-                          recordResults.data.mode.trait_key ===
-                            request.criteria.seed_trait_key
-                        ? recordResults.data.mode.title
-                        : undefined
+                      : undefined
                   }
                   search={
-                    request.criteria.kind === "similar_records" ||
-                    request.criteria.kind === "similar_traits"
+                    request.criteria.kind === "similar_records"
                       ? { ...search, similarity: request.criteria.similarity }
                       : search
                   }
                   seed={
                     request.criteria.kind === "similar_records"
                       ? { kind: "record", record_key: request.criteria.seed_record_key }
-                      : request.criteria.kind === "similar_traits"
-                        ? { kind: "trait", trait_key: request.criteria.seed_trait_key }
-                        : null
+                      : null
                   }
                   generation={retrieval.generation}
                   disabled={disabled}

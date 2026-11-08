@@ -137,7 +137,7 @@ function setup(
             <SearchSettings
               search={search}
               seed={search.similarSeed ? selectedSeed : null}
-              seedTitle={selectedSeed.kind === "trait" ? "Fire" : "Brown Mold"}
+              seedTitle={"Brown Mold"}
               onApply={apply}
               generation="generation-1"
             />
@@ -516,67 +516,6 @@ it("updates comparison help and hides decay when Content average is selected", a
     ).toBeVisible(),
   );
   expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull();
-});
-
-it("resets traits to their default without replacing the record preference", () => {
-  const preferences = {
-    ...DEFAULT_SEARCH_PREFERENCES,
-    recordSimilarity: {
-      method: "content-average" as const,
-      decay: 0.25,
-      candidateParts: "corresponding" as const,
-    },
-    traitSimilarity: {
-      method: "passages" as const,
-      decay: 0.75,
-      candidateParts: "any" as const,
-    },
-  };
-  const { apply, remember } = setup(
-    { ...DEFAULT_SEARCH_STATE, similarSeed: "trait:fire", similarity: options },
-    { kind: "trait", trait_key: "trait:fire" },
-    preferences,
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  expect(apply).toHaveBeenCalledWith(
-    expect.objectContaining({ similarity: { method: "baseline" } }),
-    "bge-base",
-  );
-  expect(remember).toHaveBeenCalledWith(
-    expect.objectContaining({
-      recordSimilarity: preferences.recordSimilarity,
-      traitSimilarity: { method: "baseline", decay: 0.5, candidateParts: "any" },
-    }),
-  );
-});
-
-it("names the trait baseline by its content while preserving its wire value", async () => {
-  const { apply } = setup(
-    {
-      ...DEFAULT_SEARCH_STATE,
-      similarSeed: "trait:fire",
-      similarity: { method: "baseline" },
-    },
-    { kind: "trait", trait_key: "trait:fire" },
-  );
-  await waitFor(() => expect(screen.getByTitle("Trait definition")).toBeVisible());
-  expect(screen.queryByText("Name and identity")).toBeNull();
-  expect(screen.queryByText("Current baseline")).toBeNull();
-  expect(screen.queryByText(/Uses the trait’s definition, or its label/)).toBeNull();
-  const methodHelp = screen.getByRole("button", { name: "About comparison method" });
-  fireEvent.click(methodHelp);
-  await waitFor(() =>
-    expect(
-      screen.getByText(/Uses the trait’s definition as the starting point/),
-    ).toBeVisible(),
-  );
-  fireEvent.keyDown(methodHelp, { key: "Escape" });
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  expect(apply).toHaveBeenCalledExactlyOnceWith(
-    expect.objectContaining({ similarity: { method: "baseline" } }),
-    "bge-base",
-  );
 });
 
 it("establishes the source opener before handing off a touch-like activation", () => {

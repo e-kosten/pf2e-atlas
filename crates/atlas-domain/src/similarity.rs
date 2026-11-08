@@ -1,5 +1,5 @@
 //! Shared, stored-vector similarity options and exact selectable content parts.
-use crate::{CoreSectionSelection, OwnedContentLocator, RecordKey, SimilarityComponent, TraitKey};
+use crate::{CoreSectionSelection, OwnedContentLocator, RecordKey, SimilarityComponent};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -10,7 +10,6 @@ pub const SIMILARITY_ROLE_RECIPE: &str = "typed-content-correspondence/v1";
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilaritySeed {
     Record { record_key: RecordKey },
-    Trait { trait_key: TraitKey },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
@@ -38,12 +37,11 @@ pub enum SimilarityRole {
     Notes,
     JournalText,
     TableResult,
-    TraitDefinition,
     Other,
 }
 impl SimilarityRole {
     pub fn corresponds_to(self, candidate: Self) -> bool {
-        self == candidate && !matches!(self, Self::Other | Self::TraitDefinition)
+        self == candidate && !matches!(self, Self::Other)
     }
     pub const fn label(self) -> &'static str {
         match self {
@@ -57,7 +55,6 @@ impl SimilarityRole {
             Self::Notes => "Notes",
             Self::JournalText => "Journal text",
             Self::TableResult => "Table result",
-            Self::TraitDefinition => "Trait definition",
             Self::Other => "Other content",
         }
     }
@@ -96,14 +93,6 @@ impl Default for SimilarityOptions {
     }
 }
 impl SimilarityOptions {
-    /// Select the product default for an omitted method after resolving its seed.
-    pub fn default_for_seed(seed: &SimilaritySeed) -> Self {
-        match seed {
-            SimilaritySeed::Record { .. } => Self::default(),
-            SimilaritySeed::Trait { .. } => Self::Baseline {},
-        }
-    }
-
     pub fn parts(&self) -> Option<&[SimilarityPartSelector]> {
         match self {
             Self::Passages { parts, .. } | Self::ContentAverage { parts, .. } => parts.as_deref(),
@@ -121,7 +110,7 @@ impl SimilarityOptions {
             Self::Baseline {} => SimilarityCandidateParts::Any,
         }
     }
-    pub fn validate(&self, seed: &SimilaritySeed) -> Result<(), String> {
+    pub fn validate(&self) -> Result<(), String> {
         if let Self::Passages { decay, .. } = self
             && (!decay.is_finite() || !(0.0..=1.0).contains(decay))
         {
@@ -129,13 +118,6 @@ impl SimilarityOptions {
         }
         if self.parts().is_some_and(<[_]>::is_empty) {
             return Err("select at least one comparison part".into());
-        }
-        if matches!(seed, SimilaritySeed::Trait { .. })
-            && self.candidate_parts() == SimilarityCandidateParts::Corresponding
-        {
-            return Err(
-                "trait definitions support any candidate content, not corresponding parts".into(),
-            );
         }
         Ok(())
     }
@@ -165,28 +147,6 @@ pub struct SimilarityParts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn omitted_methods_use_independent_record_and_trait_defaults() {
-        let record = SimilaritySeed::Record {
-            record_key: "items:0000000000000000".parse().unwrap(),
-        };
-        let trait_seed = SimilaritySeed::Trait {
-            trait_key: "trait:fire".parse().unwrap(),
-        };
-        assert_eq!(
-            SimilarityOptions::default_for_seed(&record),
-            SimilarityOptions::Passages {
-                decay: 0.5,
-                parts: None,
-                candidate_parts: SimilarityCandidateParts::Any,
-            }
-        );
-        assert_eq!(
-            SimilarityOptions::default_for_seed(&trait_seed),
-            SimilarityOptions::Baseline {}
-        );
-    }
-
     #[test]
     fn baseline_wire_options_reject_method_specific_fields() {
         assert_eq!(

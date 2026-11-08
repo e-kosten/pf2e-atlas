@@ -72,9 +72,7 @@ pub use build_spool::{
     BuildFileUsage, BuildFrameCursor, BuildFrameOffset, BuildFrameStream, PreparedRecordInput,
     PublicationSpool,
 };
-pub use publication_source::{
-    PreparedRecordRef, SemanticOccurrence, TraitChunkOccurrence, TraitSeedOccurrence,
-};
+pub use publication_source::{PreparedRecordRef, SemanticOccurrence};
 mod numeric;
 mod persistence;
 #[cfg(test)]
@@ -163,6 +161,8 @@ mod reference_migration;
 #[cfg(test)]
 mod reference_tests;
 mod references;
+mod trait_similarity_retirement;
+pub use trait_similarity_retirement::retire_trait_similarity;
 mod traits;
 pub use reference_migration::{REFERENCE_ENTRIES_SCHEMA_SQL, backfill_reference_entries};
 pub use references::{

@@ -449,17 +449,12 @@ eligibility remains constrained to eligible roots within the selected profile.
 `semantic_units` retains each attributable occurrence and references its location
 and native-input metadata. Compact digests index full checked addresses; validation
 recomputes them and key conflicts compare the complete metadata. Each published input
-owns one vector in its model-owned vec0 table, shared by document occurrences and
-trait chunks. Reuse verifies the selected checksum's binding, not the untouched
-payload. `trait_seed_chunks` retains ordered input/coverage evidence, including
-repetitions. Trait-only inputs
-stay outside document KNN unless an eligible document occurrence uses them. Trait
-centroids use separate binary f32 values/checksums; there is no second permanent
-native-value corpus.
-Final publication reconciles active units and clears pending values and unused
-metadata in the same transaction, after their consumers are installed. Pending
-values have priority for resuming unfinished builds while published readers retain
-the old generation.
+owns one vector in its model-owned vec0 table, shared by document occurrences.
+Reuse verifies the selected checksum binding. Final publication reconciles
+active units and clears pending values and unused metadata in the same
+transaction, after their consumers are installed. Pending values have priority
+for resuming unfinished builds while published readers retain the old generation.
+
 Lexical/reference reads and stored-vector Similar do not require query weights.
 
 Lexical rows keep each root name and verified alias separate with root vocabulary;
@@ -481,7 +476,7 @@ exact equal-distance hits at a KNN cutoff is arbitrary and may change with physi
 layout. Existing outer ordering sorts the selected hits, not excluded ties. Do not
 enumerate boundary ties or expand windows to enforce reproducibility. Current
 baseline Similar uses the stored root identity seed and semantic candidates,
-excluding the seed; trait baseline Similar uses its stored definition centroid.
+excluding the seed.
 No invented trait/graph reranking weights apply.
 
 Configurable Similar also supports passage matching and content averages over
@@ -625,15 +620,8 @@ Canonical reference publication retains exact namespace/token and source-rule
 identities, source catalog/localization evidence, selected prepared definitions
 or verified pointers, availability and required notices. Trait publication remains
 a specialization of that owner, retaining its external identity and semantics.
-Membership retains the actual source owner; explicit references remain separate
-from membership and arbitrary label matches. Stored trait seeds bind their
-complete selected input, versioned recipe and profile. Trait Similar uses the
-existing normal-record candidate ranking and eligibility. None of these rows
-create fabricated Foundry records or replace authored trait filter values. Checked
-publication and deep validation require a seed for every published trait definition
-in every configured profile, including definitions with label-only input. An empty
-profile manifest permits metadata-only publication; unknown identifiers without a
-published definition do not require seeds. See
+Membership retains the actual source owner. Explicit references remain separate
+from membership and arbitrary label matches. See
 [ADR0056](./decisions/0056-trait-reference-entities.md) and
 [ADR0068](./decisions/0068-contextual-reference-definitions.md).
 
@@ -778,9 +766,9 @@ recursive detail projection or a second fact authority.
 
 Prepared-content views may carry an optional transient section-rendering HTML
 sidecar. `atlas-record` derives record annotations from the same canonical section
-partition as search (`structural-source-sections/v4`); a trait definition
-(`trait-definition-centroid/v1`) and a plain field each retain their one logical
-section. Reserved authored annotation attributes are stripped from the rendering
+partition as search (`structural-source-sections/v4`). Plain fields can use one
+logical section. Trait definition HTML retains its reading annotations and
+legacy compatibility identifier, while selectable Similar sections belong to records. Reserved authored annotation attributes are stripped from the rendering
 copy before canonical annotations are applied. The original prepared HTML, passage
 hashes and persisted content remain unchanged. The sidecar preserves container, list and table topology, and
 annotates block nodes by ordinal, wrapping substantive bare text only when needed.
@@ -903,6 +891,13 @@ results survive in the simple cache. Exact occurrences, trait chunks/centroids,
 input IDs and saved state remain. Only after old/new coverage and bytes agree does
 the transaction retire old vector tables, trait-only storage and job history.
 No inference, source access or intermediate target schema is required.
+
+Migration 34 retires Similar to Trait. It removes the centroid and seed-chunk
+tables and deletes published native values whose only consumers were trait seeds.
+Inputs shared with documents retain their vectors and IDs. Pending inference
+keeps its independent ownership. A populated artifact advances its reference
+generation in the same transaction. The migration preserves document vectors,
+saved state and the published vocabulary compatibility ID.
 
 One concrete publication owns build-local selection. Same-attempt selections win,
 then unpublished cache, then compatible published values when reuse is enabled.

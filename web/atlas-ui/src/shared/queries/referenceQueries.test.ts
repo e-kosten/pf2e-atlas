@@ -3,11 +3,7 @@ import { AtlasApiError } from "../../api/atlasApi";
 import { conditionLifecycleQuery } from "../../features/encounters/conditionLifecycleQuery";
 import { persistentReviewQuery } from "../../features/encounters/usePersistentReview";
 import { recordDetailQueryOptions } from "../records/recordDetailQuery";
-import {
-  similarityPartsQueryOptions,
-  similarityTraitSourceQueryOptions,
-  traitSimilarPreviewQueryOptions,
-} from "../search/similarityQueries";
+import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { similarityPartsFixture } from "../../test/similarityFixtures";
 import {
   isArtifactGenerationChanged,
@@ -24,29 +20,11 @@ function cache(client: QueryClient, options: { queryKey: QueryKey; meta?: QueryM
 }
 
 describe("reference query retirement", () => {
-  it("retires production raw, inventory, trait and contextual query definitions at unknown and concrete generations", async () => {
+  it("retires production raw, inventory and contextual query definitions at unknown and concrete generations", async () => {
     const queryClient = client();
     const seed = { kind: "record" as const, record_key: "hazards:brown-mold" };
     const inventories = [undefined, null, "generation-a"].map((generation) =>
       cache(queryClient, similarityPartsQueryOptions(seed, "bge-base", generation)),
-    );
-    const traitSource = cache(
-      queryClient,
-      similarityTraitSourceQueryOptions("trait:fire", null),
-    );
-    const traitSimilar = cache(
-      queryClient,
-      traitSimilarPreviewQueryOptions({
-        criteria: {
-          kind: "similar_traits",
-          seed_trait_key: "trait:fire",
-          filter: null,
-          similarity: { method: "baseline" },
-        },
-        search_profile: "bge-base",
-        expected_artifact_generation: "generation-a",
-        page: { number: 1, size: 5 },
-      }),
     );
     const raw = cache(queryClient, recordDetailQueryOptions("spells:heal"));
     const contextual = cache(
@@ -65,14 +43,7 @@ describe("reference query retirement", () => {
     ];
     for (const key of savedKeys) queryClient.setQueryData(key, { saved: true });
     await retireReferenceQueries(queryClient);
-    for (const key of [
-      ...inventories,
-      traitSource,
-      traitSimilar,
-      raw,
-      contextual,
-      persistent,
-    ])
+    for (const key of [...inventories, raw, contextual, persistent])
       expect(queryClient.getQueryState(key)).toBeUndefined();
     for (const key of savedKeys)
       expect(queryClient.getQueryData(key)).toEqual({ saved: true });
