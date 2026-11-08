@@ -80,15 +80,10 @@
   outline-offset: var(--space-control);
 }
 .record-reference .prepared-content .document-heading {
-  line-height: 1.3;
   margin-block: var(--space-section) var(--space-control);
 }
-.record-reference .prepared-content > :is(h2, h3, h4, h5, h6):first-child,
-.record-reference .prepared-content > .document-heading:first-child {
+.record-reference .prepared-content > :is(h1, h2, h3, h4, h5, h6):first-child {
   margin-block-start: 0;
-}
-.record-reference .prepared-content :is(h5, h6).document-heading {
-  font-size: 1rem;
 }
 
 /* Inserted source prose shares the document flow, without nested record cards. */

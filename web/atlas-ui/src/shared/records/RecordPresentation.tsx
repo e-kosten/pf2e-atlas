@@ -603,7 +603,7 @@ export function RecordPresentation({
           )}
           {!encounter &&
             (body.value.spell_effect && !body.value.spell_effect.unavailable ? (
-              <section>
+              <section className="record-reference__rules">
                 <h3>Rules</h3>
                 {flavor}
               </section>

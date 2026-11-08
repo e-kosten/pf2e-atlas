@@ -794,11 +794,16 @@ Ability modifiers and Skills are subordinate to Statistics. Preserve authored
 headings. Within authored prose, leave more space before a heading than after it,
 and trim the first heading's top margin when the host already owns that boundary.
 
-Reference section headings use 20px bold type, subsection headings use 18px bold
-type, and fact labels use the 16px body size at semibold weight. Structural
-headings must be more prominent than the keys they organize. Apply the label
-weight only to fact labels; preserve emphasis in rule prose and numeric values.
-Keep semantic heading nesting even when adjusting its visual prominence.
+A heading must be at least as large as the body text it introduces. With 16px
+reference prose, use 20px bold type for primary sections, 18px bold for
+subsections, and 16px with added weight and spacing for deeper headings. In
+narrow reference drawers, use a 20px title, 18px primary headings, and 16px for
+subsections and deeper headings. Full record titles use 24px.
+
+Assign visual prominence by the heading's role in the reader. A top-level
+authored heading may divide the main text or sit inside an existing section.
+Keep semantic nesting when adjusting visual prominence. Fact labels use body
+size at semibold weight. Preserve emphasis in rule prose and numeric values.
 
 Short facts use 1.5 line height; running prose uses 1.55. Keep labels, values and
 essential qualifiers together, with long values wrapping inside their group.

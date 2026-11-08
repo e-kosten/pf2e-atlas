@@ -73,6 +73,8 @@
 @media (max-width: 600px) {
   .record-preview-drawer {
     --record-drawer-inset: var(--space-group);
+    --reading-primary-size: 1.125rem;
+    --reading-secondary-size: var(--reading-body-size);
   }
   .record-preview-drawer__header .record-reference__title h2 {
     font-size: 1.25rem;

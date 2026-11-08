@@ -1,6 +1,9 @@
 /* Reading hosts share a document scale; Ant controls retain their own scale. */
+:root {
+  --reading-body-size: 1rem;
+}
 :is(.detail-panel, .record-reference, .record-explore__task) {
-  font-size: 1rem;
+  font-size: var(--reading-body-size);
   line-height: 1.55;
 }
 
@@ -12,6 +15,8 @@
 }
 
 .record-reference {
+  --reading-section-size: var(--reading-primary-size, 1.25rem);
+  --reading-subsection-size: var(--reading-secondary-size, 1.125rem);
   --reading-paragraph-gap: 0.75em;
   container-type: inline-size;
   container-name: record-pane;
@@ -42,9 +47,45 @@
 .prepared-content :is(p, ul, ol, blockquote, dl) {
   margin-block: 0 var(--reading-paragraph-gap, 0.75em);
 }
-.record-reference .prepared-content :is(h2, h3, h4, h5, h6) {
+.record-reference .prepared-content :is(h1, h2, h3, h4, h5, h6) {
   margin-block: 20px 8px;
+  font-size: max(var(--reading-body-size), var(--authored-heading-size, 1rem));
+  font-weight: 600;
+  line-height: 1.3;
   text-wrap: pretty;
+}
+.record-reference .prepared-content {
+  --authored-primary-size: var(--reading-section-size);
+  --authored-secondary-size: var(--reading-subsection-size);
+}
+.record-reference
+  :is(
+    .creature-reference__prose,
+    .hazard-reference__detection,
+    .record-reference__rules,
+    .record-reference__content:has(> h3)
+  )
+  .prepared-content {
+  --authored-primary-size: var(--reading-subsection-size);
+  --authored-secondary-size: var(--reading-body-size);
+}
+.record-reference
+  :is(.embedded-ability-reading__entry, .record-reference__content:has(> h5))
+  .prepared-content {
+  --authored-primary-size: var(--reading-body-size);
+  --authored-secondary-size: var(--reading-body-size);
+}
+.record-reference
+  .prepared-content
+  :is([data-reading-heading-depth="0"], h3.document-heading) {
+  --authored-heading-size: var(--authored-primary-size);
+  font-weight: 700;
+}
+.record-reference
+  .prepared-content
+  :is([data-reading-heading-depth="1"], h4.document-heading) {
+  --authored-heading-size: var(--authored-secondary-size);
+  font-weight: 700;
 }
 .prepared-content > :last-child,
 .prepared-content > :has(+ p:empty:last-child) {
@@ -211,19 +252,19 @@
 }
 .record-reference h3 {
   margin: 0 0 8px;
-  font-size: 1.25rem;
+  font-size: max(var(--reading-body-size), var(--reading-section-size));
   font-weight: 700;
   line-height: 1.35;
 }
 .record-reference h4 {
   margin: 0 0 var(--space-control);
-  font-size: 1.125rem;
+  font-size: max(var(--reading-body-size), var(--reading-subsection-size));
   font-weight: 700;
   line-height: 1.35;
 }
 .record-reference h5 {
   margin: 0 0 var(--space-control);
-  font-size: 1rem;
+  font-size: var(--reading-body-size);
   font-weight: 700;
 }
 .record-fact-list {

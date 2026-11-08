@@ -1,7 +1,32 @@
+const headingSelector = "h1,h2,h3,h4,h5,h6";
+
+/** Mark visual depth without altering the authored heading tags or anchors. */
+export function markAuthoredHeadingDepth(html: string) {
+  if (!/<h[1-6][\s>]/i.test(html)) return html;
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  const headings = Array.from(
+    parsed.body.querySelectorAll(headingSelector),
+    (heading) => ({
+      heading,
+      level: Number(heading.tagName.slice(1)),
+      inclusion: heading.closest("[data-atlas-inclusion]"),
+    }),
+  );
+  const firstLevels = new Map<Element | null, number>();
+  for (const { inclusion, level } of headings) {
+    firstLevels.set(inclusion, Math.min(firstLevels.get(inclusion) ?? level, level));
+  }
+  for (const { heading, inclusion, level } of headings) {
+    const depth = level - (firstLevels.get(inclusion) ?? level) + Number(!!inclusion);
+    heading.setAttribute("data-reading-heading-depth", String(Math.min(depth, 2)));
+  }
+  return parsed.body.innerHTML;
+}
+
 /** Presentation of already prepared headings; never interprets source rules. */
 export function documentHeadings(html: string, identity: string) {
   const parsed = new DOMParser().parseFromString(html, "text/html");
-  const headings = [...parsed.body.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6")];
+  const headings = [...parsed.body.querySelectorAll<HTMLElement>(headingSelector)];
   const firstLevel = Math.min(
     ...headings
       .filter(

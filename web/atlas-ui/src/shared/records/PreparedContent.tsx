@@ -3,7 +3,7 @@ import { recordDestination } from "../../app/destinations";
 import { sanitizePreparedHtml } from "./PreparedHtml";
 import DOMPurify from "dompurify";
 import { Alert, Typography } from "antd";
-import { documentHeadings } from "./documentHeadings";
+import { documentHeadings, markAuthoredHeadingDepth } from "./documentHeadings";
 import "../../styles/ui/journal-reading.css";
 import {
   useMemo,
@@ -145,7 +145,7 @@ export function PreparedContentBody({
     () =>
       documentIdentity
         ? documentHeadings(sanitized, documentIdentity)
-        : { html: sanitized, outline: [] },
+        : { html: markAuthoredHeadingDepth(sanitized), outline: [] },
     [sanitized, documentIdentity],
   );
   const { html, outline } = prepared;
