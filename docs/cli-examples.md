@@ -237,6 +237,28 @@ The party options preview difficulty and suggested XP per PC for the supplied
 party without saving those options to the encounter. Omit them to use the
 encounter's saved difficulty reference. Pass `--json` for structured output.
 
+#### Move a saved encounter
+
+Export a saved encounter, including a fight in progress, and import a copy into
+an initialized workspace:
+
+```bash
+atlas encounters export garden-sentries --output garden-sentries.json
+atlas encounters import garden-sentries.json --slug garden-sentries-copy --json
+atlas encounters show garden-sentries-copy
+```
+
+Export writes a versioned JSON document to stdout by default. A named output
+file must be new. Import uses the exported slug unless you supply `--slug`
+and fails if that slug is already in use. The result reports missing or
+changed reference records. Saved participants and state survive missing
+references, though source-dependent actions may need compatible reference data.
+
+Reopen the imported encounter before continuing play. Pending decisions and
+committed effects come with the encounter. Existing action contexts and
+uncommitted roll drafts belong to the original encounter. Each file is limited
+to 64 MiB and 100,000 entries including historical identity slots.
+
 General dice rolls need no setup and do not change encounter state:
 
 ```bash

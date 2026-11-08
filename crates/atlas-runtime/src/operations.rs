@@ -53,6 +53,10 @@ impl<'a> ExactRecordRead<'a> {
         })
     }
 
+    pub fn source_fingerprint(&self) -> &str {
+        &self.context.source_fingerprint
+    }
+
     pub fn trait_label(&self, identifier: &str) -> Option<&str> {
         self.context
             .used_trait_labels
@@ -79,6 +83,10 @@ impl WorkspaceWrite {
     pub fn local_state(&self) -> LocalStateWrite<'_> {
         LocalStateWrite::new(&self.session)
     }
+    pub fn exact_records(&self) -> Result<ExactRecordRead<'_>, RuntimeError> {
+        ExactRecordRead::open(self.session.connection())
+    }
+
     /// Resolve one product key without opening a separate read transaction.
     pub fn exact_record(
         &self,

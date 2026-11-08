@@ -1920,14 +1920,18 @@ fn name_only_list_creation_reserves_a_new_slug_with_initial_items() {
     assert_eq!(original["items"].as_array().unwrap().len(), 0);
 }
 
-#[test]
-fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
-    let f = Fixture::new();
+fn install_encounter_guard(f: &Fixture) {
     fs::create_dir_all(f.root.join("packs/creatures")).unwrap();
     fs::write(f.root.join("module.json"), r#"{"packs":[{"name":"actions","label":"Actions","type":"Item","path":"packs/actions"},{"name":"macros","label":"Macros","type":"Macro","path":"packs/macros"},{"name":"creatures","label":"Creatures","type":"Actor","path":"packs/creatures"}]}"#).unwrap();
     fs::write(f.root.join("packs/creatures/guard.json"), r#"{"_id":"dddddddddddddddd","name":"Local Guard","type":"npc","system":{"details":{"level":{"value":1}},"traits":{"value":["humanoid"],"rarity":"common"},"attributes":{"hp":{"max":20,"value":20},"ac":{"value":16}}}}"#).unwrap();
     let rebuilt = f.command(&["index", "build", "--no-embeddings", "--json"], true);
     assert!(rebuilt.status.success(), "{rebuilt:?}");
+}
+
+#[test]
+fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
+    let f = Fixture::new();
+    install_encounter_guard(&f);
 
     let created = f.data(&[
         "encounters",
@@ -1988,4 +1992,95 @@ fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
             .unwrap()
             .is_empty()
     );
+}
+
+#[test]
+fn encounter_exchange_handles_collisions_without_overwriting() {
+    let source = Fixture::new();
+    let created = source.data(&["encounters", "create", "Traveling encounter", "--json"]);
+    let original = created["encounter"]["encounter_key"].as_str().unwrap();
+    install_encounter_guard(&source);
+    source.data(&[
+        "encounters",
+        "add",
+        original,
+        "--record",
+        "Local Guard",
+        "--json",
+    ]);
+    let file = source.root.join("portable.json");
+    let export = source.command(
+        &[
+            "encounters",
+            "export",
+            original,
+            "--output",
+            file.to_str().unwrap(),
+        ],
+        false,
+    );
+    assert!(export.status.success(), "{export:?}");
+    let bytes = fs::read(&file).unwrap();
+    let mut document: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(document["version"], 1);
+    assert!(document.get("status").is_none());
+    let collision = source.command(
+        &[
+            "encounters",
+            "export",
+            original,
+            "--output",
+            file.to_str().unwrap(),
+        ],
+        false,
+    );
+    assert!(!collision.status.success());
+    assert_eq!(fs::read(&file).unwrap(), bytes);
+    let collision = source.command(
+        &["encounters", "import", file.to_str().unwrap(), "--json"],
+        false,
+    );
+    assert!(!collision.status.success());
+
+    let copy = source.data(&[
+        "encounters",
+        "import",
+        file.to_str().unwrap(),
+        "--slug",
+        "traveling-copy",
+        "--json",
+    ]);
+    assert_ne!(copy["encounter_key"], original);
+    assert_eq!(copy["slug"], "traveling-copy");
+
+    let destination = Fixture::new();
+    let imported = destination.data(&["encounters", "import", file.to_str().unwrap(), "--json"]);
+    assert_eq!(
+        imported["missing_records"],
+        serde_json::json!(["creatures:dddddddddddddddd"])
+    );
+    let restored = destination.data(&["encounters", "show", "traveling-encounter", "--json"]);
+    assert_eq!(restored["participants"][0]["display_name"], "Local Guard");
+    assert_eq!(restored["participants"][0]["current_hp"], 20);
+
+    document["version"] = 99.into();
+    let unsupported = source.root.join("unsupported.json");
+    fs::write(&unsupported, serde_json::to_vec(&document).unwrap()).unwrap();
+    let rejected = source.command(
+        &[
+            "encounters",
+            "import",
+            unsupported.to_str().unwrap(),
+            "--slug",
+            "rejected",
+            "--json",
+        ],
+        false,
+    );
+    assert!(!rejected.status.success());
+    assert!(
+        String::from_utf8_lossy(&rejected.stdout).contains("unsupported encounter file version")
+    );
+    let list = source.data(&["encounters", "list", "--json"]);
+    assert_eq!(list["encounters"].as_array().unwrap().len(), 2);
 }

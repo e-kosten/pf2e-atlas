@@ -6,7 +6,12 @@ use atlas_app_model::{
 };
 use atlas_cli_support::{CliPathMode, write_json_data};
 use clap::{ArgGroup, Args, Subcommand, ValueEnum};
-use std::{path::PathBuf, process::ExitCode};
+use std::{
+    fs::File,
+    io::{self, Write},
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 #[derive(Debug, Args)]
 pub(crate) struct EncountersArgs {
@@ -50,6 +55,18 @@ enum EncounterCommand {
     },
     /// Delete a saved encounter and its participants.
     Delete { encounter: String },
+    /// Export a complete saved encounter as a versioned JSON document.
+    Export {
+        encounter: String,
+        #[arg(long, help = "Write a new file instead of stdout")]
+        output: Option<PathBuf>,
+    },
+    /// Import a portable JSON document as a new encounter.
+    Import {
+        input: PathBuf,
+        #[arg(long, help = "Choose a different destination slug")]
+        slug: Option<String>,
+    },
     #[command(about = "Add a creature or hazard by record key or exact name")]
     Add {
         encounter: String,
@@ -90,12 +107,20 @@ enum Adjustment {
 
 pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
     let json = args.json;
+    let retrieval_mode = if matches!(
+        &args.command,
+        EncounterCommand::Export { .. } | EncounterCommand::Import { .. }
+    ) {
+        atlas_app_service::AppServiceRetrievalMode::OnDemandSavedWorkspace
+    } else {
+        atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference
+    };
     let service = match connect(ClientOptions {
         search_profile: None,
         path_mode: crate::cli::runtime_path_mode(args.path_mode),
         index: args.index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
+        retrieval_mode,
     }) {
         Ok(service) => service,
         Err(error) => return report_app_error(error, json),
@@ -208,6 +233,33 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
                 println!("Deleted {}", view.encounter_key);
             }
         }
+        EncounterCommand::Export { encounter, output } => {
+            let bytes = view!(service.export_encounter(&encounter));
+            write_document(output.as_deref(), &bytes)?;
+        }
+        EncounterCommand::Import { input, slug } => {
+            let file = File::open(&input).map_err(|err| format!("{}: {err}", input.display()))?;
+            let report = view!(service.import_encounter(file, slug));
+            if json {
+                write_json_data(&report)?;
+            } else {
+                println!("Imported {} ({})", report.slug, report.encounter_key);
+                if !report.reference_checked {
+                    eprintln!(
+                        "Reference records could not be checked in the destination workspace."
+                    );
+                }
+                if report.source_changed == Some(true) {
+                    eprintln!("Reference content differs from the exported workspace.");
+                }
+                for key in report.missing_records {
+                    eprintln!("Reference unavailable: {key}");
+                }
+                for key in report.changed_records {
+                    eprintln!("Reference changed: {key}");
+                }
+            }
+        }
         EncounterCommand::Add {
             encounter,
             record,
@@ -273,4 +325,25 @@ fn print_detail(view: &EncounterDetailView) {
             println!("  {}: {reason}", opponent.name);
         }
     }
+}
+
+fn write_document(output: Option<&Path>, bytes: &[u8]) -> Result<(), String> {
+    let Some(output) = output else {
+        return io::stdout()
+            .lock()
+            .write_all(bytes)
+            .map_err(|err| err.to_string());
+    };
+    let parent = output
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let write = || -> io::Result<()> {
+        let mut staged = tempfile::NamedTempFile::new_in(parent)?;
+        staged.write_all(bytes)?;
+        staged.as_file().sync_all()?;
+        staged.persist_noclobber(output).map_err(|err| err.error)?;
+        Ok(())
+    };
+    write().map_err(|err| format!("{}: {err}", output.display()))
 }
