@@ -109,14 +109,19 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       !filters.filterWasReset &&
       !activeFilters.filterWasReset &&
       !activeFilters.filterError,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const query = listSearchQuery(activeFilters);
-      const view = await filterSavedList({
-        list_ref: listRef,
-        ...(activeFilters.sort ? { sort: activeFilters.sort } : {}),
-        ...(query ? { query } : {}),
-        ...(buildFilter(activeFilters) ? { filter: buildFilter(activeFilters)! } : {}),
-      });
+      const view = await filterSavedList(
+        listRef,
+        {
+          ...(activeFilters.sort ? { sort: activeFilters.sort } : {}),
+          ...(query ? { query } : {}),
+          ...(buildFilter(activeFilters)
+            ? { filter: buildFilter(activeFilters)! }
+            : {}),
+        },
+        signal,
+      );
       if (!sameResultSort(view.sort, effectiveResultSort(activeFilters, "saved_list")))
         throw new Error("The saved records used a different order. Retry the list.");
       return view;
@@ -243,7 +248,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   };
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
-      removeSavedListItem({ list_ref: listRef, record_ref: recordKey }),
+      removeSavedListItem(listRef, { record_ref: recordKey }),
     onSuccess: async (view, recordKey) => {
       if (recordKey === route.selectedRecordKey) {
         entryNote.retainAfterRemoval(recordKey);
@@ -270,8 +275,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       targetRecordKey: string;
       placement: "before" | "after";
     }) =>
-      reorderSavedListItem({
-        list_ref: listRef,
+      reorderSavedListItem(listRef, {
         record_ref: input.recordKey,
         target_record_ref: input.targetRecordKey,
         placement: input.placement,

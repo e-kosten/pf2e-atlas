@@ -5,9 +5,7 @@ import type {
 
 export function participantUpdate(
   participant: EncounterParticipantView,
-  changes: Partial<
-    Omit<UpdateEncounterParticipantRequest, "participant_key" | "expected_revision">
-  >,
+  changes: Partial<Omit<UpdateEncounterParticipantRequest, "expected_revision">>,
 ): UpdateEncounterParticipantRequest {
   return {
     hp_edit: changes.hp_edit ?? "current_hp" in changes,
@@ -26,7 +24,6 @@ export function participantUpdate(
     hidden: participant.hidden,
     note: participant.note,
     ...changes,
-    participant_key: participant.participant_key,
     expected_revision: participant.revision,
   };
 }

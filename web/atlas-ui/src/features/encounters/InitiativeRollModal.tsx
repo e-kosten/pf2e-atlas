@@ -60,7 +60,10 @@ export function InitiativePopover({
   participant: EncounterParticipantView;
   encounterKey: string;
   onRoll: RollProps["onRoll"];
-  onUpdate: (request: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantRequest,
+  ) => Promise<unknown>;
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -120,6 +123,7 @@ export function InitiativePopover({
               onRoll={onRoll}
               onSetTotal={(_key, value) =>
                 onUpdate(
+                  participant.participant_key,
                   participantUpdate(participant, {
                     initiative: value,
                   }),

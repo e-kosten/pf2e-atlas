@@ -178,6 +178,9 @@ fn schema_preserves_wire_contract_edges() {
         note["properties"]["note"]["$ref"],
         "#/components/schemas/FieldEdit_Option_String"
     );
+    assert!(note["properties"].get("list_ref").is_none());
+    assert!(note["properties"].get("record_key").is_none());
+    assert_eq!(note["additionalProperties"], false);
     let nullable_edit = &schemas["FieldEdit_Option_String"];
     assert_eq!(nullable_edit["additionalProperties"], false);
     for property in ["expected", "value"] {
@@ -195,7 +198,9 @@ fn schema_preserves_wire_contract_edges() {
         );
     }
     let list_update = &schemas["UpdateSavedListRequest"];
-    assert_eq!(list_update["required"], json!(["list_key"]));
+    assert!(list_update.get("required").is_none());
+    assert!(list_update["properties"].get("list_key").is_none());
+    assert_eq!(list_update["additionalProperties"], false);
     assert_eq!(
         list_update["properties"]["description"],
         json!({"$ref": "#/components/schemas/FieldEdit_Option_String"})
@@ -800,11 +805,19 @@ async fn saved_list_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["items"][0]["record_key"], ACTION);
     assert_eq!(body["items"][0]["status"], "active");
-    let(status,body)=fixture.json(Method::POST,&format!("{path}/filter"),Some(json!({"list_ref":"ignored","filter":{"kind":"in","clause_id":"kind","field":"kind","values":["rule"]}}))).await;
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            &format!("{path}/filter"),
+            Some(
+                json!({"filter":{"kind":"in","clause_id":"kind","field":"kind","values":["rule"]}}),
+            ),
+        )
+        .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["list"]["list_key"], fixture.list_key);
     assert_eq!(body["items"][0]["record_key"], ACTION);
-    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"list_key":"ignored","slug":{"expected":"research","value":"renamed-research"},"name":{"expected":"Research","value":"Renamed Research"},"description":{"expected":null,"value":"Updated prep"}}))).await;
+    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"slug":{"expected":"research","value":"renamed-research"},"name":{"expected":"Research","value":"Renamed Research"},"description":{"expected":null,"value":"Updated prep"}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["list"]["list_key"], fixture.list_key);
     assert_eq!(body["list"]["slug"], "renamed-research");
@@ -814,7 +827,7 @@ async fn saved_list_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             &format!("{path}/items"),
-            Some(json!({"list_ref":"ignored","record_ref":SECOND_ACTION,"note":null})),
+            Some(json!({"record_ref":SECOND_ACTION,"note":null})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -826,7 +839,7 @@ async fn saved_list_routes_use_real_router_wiring() {
         .json(
             Method::DELETE,
             &format!("{path}/items"),
-            Some(json!({"list_ref":"ignored","record_ref":ACTION})),
+            Some(json!({"record_ref":ACTION})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -877,7 +890,7 @@ async fn encounter_routes_use_real_router_wiring() {
         fixture.participant_key
     );
     let receipt = json!({"encounter_key":fixture.encounter_key});
-    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"encounter_key":"ignored","slug":{"expected":"ambush","value":"renamed-ambush"},"name":{"expected":"Ambush","value":"Renamed Ambush"},"description":{"expected":null,"value":"Updated"},"note":{"expected":null,"value":"Updated note"},"status":{"expected":"draft","value":"complete"}}))).await;
+    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"slug":{"expected":"ambush","value":"renamed-ambush"},"name":{"expected":"Ambush","value":"Renamed Ambush"},"description":{"expected":null,"value":"Updated"},"note":{"expected":null,"value":"Updated note"},"status":{"expected":"draft","value":"complete"}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let path = format!("/api/encounters/{}", fixture.encounter_key);
@@ -885,14 +898,18 @@ async fn encounter_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             &format!("{path}/participants/record"),
-            Some(
-                json!({"encounter_ref":"ignored","record_ref":ACTOR,"quantity":2,"initiative":18}),
-            ),
+            Some(json!({"record_ref":ACTOR,"quantity":2,"initiative":18})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
-    let(status,body)=fixture.json(Method::POST,&format!("{path}/participants/manual"),Some(json!({"encounter_ref":"ignored","display_name":"Valeros","max_hp":30,"current_hp":25,"initiative":20}))).await;
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            &format!("{path}/participants/manual"),
+            Some(json!({"display_name":"Valeros","max_hp":30,"current_hp":25,"initiative":20})),
+        )
+        .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let participant_path = format!("{path}/participants/{}", fixture.participant_key);
@@ -911,7 +928,7 @@ async fn encounter_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             &format!("{path}/turn"),
-            Some(json!({"encounter_ref":"ignored","participant_key":fixture.participant_key})),
+            Some(json!({"participant_key":fixture.participant_key})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -921,7 +938,7 @@ async fn encounter_routes_use_real_router_wiring() {
         .encounter(&fixture.encounter_key)
         .unwrap()
         .revision;
-    let(status,body)=fixture.json(Method::POST,&format!("{participant_path}/conditions"),Some(json!({"participant_key":"ignored","request_id":"apply-frightened","expected_encounter_revision":revision,"name":"Frightened","value":1,"duration":{"amount":2,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}}))).await;
+    let(status,body)=fixture.json(Method::POST,&format!("{participant_path}/conditions"),Some(json!({"request_id":"apply-frightened","expected_encounter_revision":revision,"name":"Frightened","value":1,"duration":{"amount":2,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let detail = fixture.service.encounter(&fixture.encounter_key).unwrap();
@@ -932,7 +949,20 @@ async fn encounter_routes_use_real_router_wiring() {
         .unwrap()
         .conditions[0];
     let condition_path = format!("{participant_path}/conditions/{}", condition.condition_id);
-    let update = json!({"condition_id":999,"request_id":"edit-frightened","expected_encounter_revision":detail.revision,"name":"Frightened","value":2,"duration":{"amount":1,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}});
+    let update = json!({"request_id":"edit-frightened","expected_encounter_revision":detail.revision,"name":"Frightened","value":2,"duration":{"amount":1,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}});
+    for condition_id in [condition.condition_id, condition.condition_id + 1] {
+        let mut request = update.clone();
+        request["condition_id"] = json!(condition_id);
+        let (status, body) = fixture
+            .json(Method::PATCH, &condition_path, Some(request))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request");
+    }
+    assert_eq!(
+        fixture.service.encounter(&fixture.encounter_key).unwrap(),
+        detail
+    );
     let (status, body) = fixture
         .json(Method::PATCH, &condition_path, Some(update.clone()))
         .await;
@@ -979,7 +1009,7 @@ async fn encounter_routes_use_real_router_wiring() {
 }
 
 fn participant_edit(participant: &atlas_app_model::EncounterParticipantView, name: &str) -> Value {
-    json!({"participant_key":"ignored","expected_revision":participant.revision,"display_name":name,"side":"pc","participant_variant":"normal","initiative":19,"max_hp":24,"current_hp":20,"temporary_hp":1,"defeated":false,"hazard_disabled":false,"hidden":false,"note":"wounded"})
+    json!({"expected_revision":participant.revision,"display_name":name,"side":"pc","participant_variant":"normal","initiative":19,"max_hp":24,"current_hp":20,"temporary_hp":1,"defeated":false,"hazard_disabled":false,"hidden":false,"note":"wounded"})
 }
 
 #[tokio::test]
@@ -990,11 +1020,12 @@ async fn saved_list_reorder_route_uses_path_identity_and_strict_placement() {
         .json(
             Method::POST,
             &path,
-            Some(json!({"list_ref":"ignored","record_ref":SECOND_ACTION})),
+            Some(json!({"record_ref":SECOND_ACTION})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    let request = json!({"list_ref":"ignored","record_ref":ACTION,"target_record_ref":SECOND_ACTION,"placement":"after"});
+    let request =
+        json!({"record_ref":ACTION,"target_record_ref":SECOND_ACTION,"placement":"after"});
     let path = format!("{path}/reorder");
     let (status, body) = fixture
         .json(Method::POST, &path, Some(request.clone()))
@@ -1137,11 +1168,7 @@ async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures()
         assert_eq!(body["code"], "invalid_request");
     }
     let (status, body) = fixture
-        .json(
-            Method::POST,
-            "/api/encounters/ambush/turn",
-            Some(json!({"encounter_ref":"ignored"})),
-        )
+        .json(Method::POST, "/api/encounters/ambush/turn", Some(json!({})))
         .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
 }
@@ -1169,7 +1196,7 @@ async fn turn_resource_route_preserves_intent_and_uses_participant_path_identity
         "/api/encounters/ambush/participants/{}/turn-resources",
         fixture.participant_key
     );
-    let mut request = json!({"request_id":"manual-reaction","participant_key":"ignored","turn_key":turn_key,"expected_encounter_revision":detail.revision,"action":{"kind":"spend","resource":"reaction"}});
+    let mut request = json!({"request_id":"manual-reaction","turn_key":turn_key,"expected_encounter_revision":detail.revision,"action":{"kind":"spend","resource":"reaction"}});
     let (status, body) = fixture
         .json(Method::POST, &path, Some(request.clone()))
         .await;
@@ -1194,7 +1221,7 @@ async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt(
         "/api/encounters/ambush/participants/{}/hp",
         fixture.participant_key
     );
-    let mut request = json!({"request_id":"hp-action","participant_key":"ignored","action":{"kind":"damage","amount":"10+2"}});
+    let mut request = json!({"request_id":"hp-action","action":{"kind":"damage","amount":"10+2"}});
     let (status, body) = fixture
         .json(Method::POST, &path, Some(request.clone()))
         .await;
@@ -1232,7 +1259,6 @@ async fn persistent_preparation_routes_round_trip_a_browser_draft() {
             Method::POST,
             &format!("/api/encounters/ambush/participants/{participant}/conditions"),
             Some(json!({
-                "participant_key": participant,
                 "request_id": "persistent-condition",
                 "expected_encounter_revision": revision,
                 "condition_ref": "conditionitems:lDVqvLKA6eF3Df60",
@@ -1375,7 +1401,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
         .json(
             Method::POST,
             "/api/encounters/ambush/participants/record",
-            Some(json!({"encounter_ref":"ignored","record_ref":ACTOR,"quantity":1})),
+            Some(json!({"record_ref":ACTOR,"quantity":1})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1512,7 +1538,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::PATCH,
             &path,
-            Some(json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":"fixture note","value":"Purpose"}})),
+            Some(json!({"note":{"expected":"fixture note","value":"Purpose"}})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1523,7 +1549,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::PATCH,
             &path,
-            Some(json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":"fixture note","value":"Stale"}})),
+            Some(json!({"note":{"expected":"fixture note","value":"Stale"}})),
         )
         .await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
@@ -1533,7 +1559,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::PATCH,
             &path,
-            Some(json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":"Purpose","value":null}})),
+            Some(json!({"note":{"expected":"Purpose","value":null}})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1544,7 +1570,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::DELETE,
             &format!("/api/lists/{}/items", fixture.list_key),
-            Some(json!({"list_ref":"ignored","record_ref":ACTION})),
+            Some(json!({"record_ref":ACTION})),
         )
         .await;
     assert_eq!(status, StatusCode::OK);
@@ -1552,9 +1578,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         (Method::GET, None),
         (
             Method::PATCH,
-            Some(
-                json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":null,"value":"Removed"}}),
-            ),
+            Some(json!({"note":{"expected":null,"value":"Removed"}})),
         ),
     ] {
         let (status, body) = fixture.json(method, &path, request).await;
@@ -1569,23 +1593,23 @@ async fn saved_edit_routes_reject_blind_and_malformed_updates_without_a_compatib
     for (path, request) in [
         (
             format!("/api/lists/{}", fixture.list_key),
-            json!({"list_key":"ignored","name":"Overwrite","slug":"research","tags":[]}),
+            json!({"name":"Overwrite","slug":"research","tags":[]}),
         ),
         (
             format!("/api/encounters/{}", fixture.encounter_key),
-            json!({"encounter_key":"ignored","name":"Overwrite","slug":"ambush","status":"draft"}),
+            json!({"name":"Overwrite","slug":"ambush","status":"draft"}),
         ),
         (
             format!("/api/lists/{}/items/{ACTION}/note", fixture.list_key),
-            json!({"list_ref":"ignored","record_key":"ignored","note":null}),
+            json!({"note":null}),
         ),
         (
             format!("/api/lists/{}/items/{ACTION}/note", fixture.list_key),
-            json!({"list_ref":"ignored","record_key":"ignored","note":["fixture note",null]}),
+            json!({"note":["fixture note",null]}),
         ),
         (
             format!("/api/lists/{}/items/{ACTION}/note", fixture.list_key),
-            json!(["ignored", "ignored", {"expected":"fixture note","value":null}]),
+            json!([{"expected":"fixture note","value":null}]),
         ),
     ] {
         let (status, body) = fixture.json(Method::PATCH, &path, Some(request)).await;
@@ -1595,12 +1619,76 @@ async fn saved_edit_routes_reject_blind_and_malformed_updates_without_a_compatib
 }
 
 #[tokio::test]
+async fn routes_reject_retired_body_targets_before_writing() {
+    let fixture = Fixture::new();
+    let list = format!("/api/lists/{}", fixture.list_key);
+    let encounter = format!("/api/encounters/{}", fixture.encounter_key);
+    let participant = format!("{encounter}/participants/{}", fixture.participant_key);
+    let detail = fixture.service.encounter(&fixture.encounter_key).unwrap();
+
+    for (method, path, key, matching, valid) in [
+        (
+            Method::PATCH,
+            list.clone(),
+            "list_key",
+            &fixture.list_key,
+            json!({"name":{"expected":"Research","value":"Changed"}}),
+        ),
+        (
+            Method::PATCH,
+            format!("{list}/items/{ACTION}/note"),
+            "list_ref",
+            &fixture.list_key,
+            json!({"note":{"expected":"fixture note","value":null}}),
+        ),
+        (
+            Method::PATCH,
+            encounter,
+            "encounter_key",
+            &fixture.encounter_key,
+            json!({"name":{"expected":"Ambush","value":"Changed"}}),
+        ),
+        (
+            Method::PATCH,
+            participant,
+            "participant_key",
+            &fixture.participant_key,
+            participant_edit(&detail.participants[0], "Changed"),
+        ),
+    ] {
+        for value in [matching.as_str(), "different-target"] {
+            let mut request = valid.clone();
+            request[key] = json!(value);
+            let (status, body) = fixture.json(method.clone(), &path, Some(request)).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "{path}: {body}");
+            assert_eq!(body["code"], "invalid_request");
+        }
+    }
+
+    let path = format!("{list}/items/{ACTION}/note");
+    for value in [ACTION, SECOND_ACTION] {
+        let request = json!({"record_key":value,"note":{"expected":"fixture note","value":null}});
+        let (status, body) = fixture.json(Method::PATCH, &path, Some(request)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+
+    let (_, list) = fixture.json(Method::GET, &list, None).await;
+    assert_eq!(list["list"]["name"], "Research");
+    let (_, note) = fixture.json(Method::GET, &path, None).await;
+    assert_eq!(note["note"], "fixture note");
+    assert_eq!(
+        fixture.service.encounter(&fixture.encounter_key).unwrap(),
+        detail
+    );
+}
+
+#[tokio::test]
 async fn list_settings_patches_merge_disjoint_fields_and_reject_stale_batches() {
     let fixture = Fixture::new();
     let path = format!("/api/lists/{}", fixture.list_key);
     for patch in [
-        json!({"list_key":"ignored","name":{"expected":"Research","value":"New name"}}),
-        json!({"list_key":"ignored","description":{"expected":null,"value":"New description"}}),
+        json!({"name":{"expected":"Research","value":"New name"}}),
+        json!({"description":{"expected":null,"value":"New description"}}),
     ] {
         let (status, body) = fixture.json(Method::PATCH, &path, Some(patch)).await;
         assert_eq!(status, StatusCode::OK, "{body}");
@@ -1610,7 +1698,7 @@ async fn list_settings_patches_merge_disjoint_fields_and_reject_stale_batches() 
             Method::PATCH,
             &path,
             Some(json!({
-                "list_key":"ignored",
+
                 "name":{"expected":"Research","value":"Stale name"},
                 "description":{"expected":"New description","value":null}
             })),

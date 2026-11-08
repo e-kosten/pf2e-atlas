@@ -13,7 +13,10 @@ export function EncounterParticipantName({
 }: {
   participant: EncounterParticipantView;
   disabled: boolean;
-  onUpdate: (request: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantRequest,
+  ) => Promise<boolean>;
 }) {
   const [error, setError] = useState<string>();
   return (
@@ -35,7 +38,10 @@ export function EncounterParticipantName({
               throw new Error("Participant name is required");
             }
             if (name === participant.display_name) return true;
-            return onUpdate(participantUpdate(participant, { display_name: name }));
+            return onUpdate(
+              participant.participant_key,
+              participantUpdate(participant, { display_name: name }),
+            );
           }}
         />
       </h2>

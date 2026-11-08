@@ -10,13 +10,14 @@ impl AtlasAppService {
     pub fn apply_encounter_hp_action(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: ApplyEncounterHpActionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         if matches!(
             &request.action,
             EncounterHpAction::Damage { .. } | EncounterHpAction::Heal { .. }
         ) {
-            return self.record_hp_amount(encounter_ref, request);
+            return self.record_hp_amount(encounter_ref, participant_key, request);
         }
         let detail = self.with_state(|session| {
             session
@@ -28,7 +29,7 @@ impl AtlasAppService {
         let existing = detail
             .participants
             .iter()
-            .find(|p| p.participant_key == request.participant_key)
+            .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| {
                 AppServiceError::new(
                     atlas_app_model::AppErrorCode::EncounterParticipantNotFound,
@@ -38,7 +39,7 @@ impl AtlasAppService {
         if request.expected_revision != existing.revision {
             return Err(
                 atlas_local_state::LocalStateError::StaleParticipantRevision {
-                    participant_key: request.participant_key,
+                    participant_key: participant_key.into(),
                     expected_revision: request.expected_revision,
                     actual_revision: existing.revision,
                 }
@@ -46,7 +47,6 @@ impl AtlasAppService {
             );
         }
         let mut update = UpdateEncounterParticipantRequest {
-            participant_key: existing.participant_key.clone(),
             expected_revision: request.expected_revision,
             hp_edit: false,
             max_hp_edit: false,
@@ -122,7 +122,7 @@ impl AtlasAppService {
         }
         // Reuse provenance/derivation policy and the local-state revision check
         // under its write transaction. Never hydrate presentation after commit.
-        self.update_encounter_participant(&detail.encounter.encounter_key, update)
+        self.update_encounter_participant(&detail.encounter.encounter_key, participant_key, update)
     }
 }
 

@@ -200,13 +200,15 @@ impl Fixture {
             .encounter
             .encounter_key;
         service
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: encounter_key.clone(),
-                display_name: "Kyra".into(),
-                max_hp: Some(24),
-                current_hp: Some(20),
-                initiative: Some(15),
-            })
+            .add_encounter_manual_participant(
+                &encounter_key,
+                AddEncounterManualParticipantRequest {
+                    display_name: "Kyra".into(),
+                    max_hp: Some(24),
+                    current_hp: Some(20),
+                    initiative: Some(15),
+                },
+            )
             .unwrap();
         let participant_key = service.encounter(&encounter_key).unwrap().participants[0]
             .participant_key
@@ -222,11 +224,13 @@ impl Fixture {
             .list
             .list_key;
         service
-            .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: list_key.clone(),
-                record_ref: ACTION.into(),
-                note: Some("fixture note".into()),
-            })
+            .add_saved_list_item(
+                &list_key,
+                AddSavedListItemRequest {
+                    record_ref: ACTION.into(),
+                    note: Some("fixture note".into()),
+                },
+            )
             .unwrap();
         Self {
             service,

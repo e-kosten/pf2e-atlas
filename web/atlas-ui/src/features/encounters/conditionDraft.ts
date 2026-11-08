@@ -1,9 +1,9 @@
+import type { UpdateConditionDraft } from "./useConditionEventPreview";
 import type {
   ConditionActionView,
   ConditionParametersInputView,
   EncounterConditionDefinitionView,
   EncounterParticipantConditionView,
-  UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
 import type { ConditionEventInput } from "./useConditionEventPreview";
 
@@ -79,8 +79,8 @@ export function editableConditionParameters(
 export function conditionUpdate(
   condition: EncounterParticipantConditionView,
   revision: number,
-  changes: Partial<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>,
-): Omit<UpdateEncounterParticipantConditionRequest, "request_id"> {
+  changes: Partial<UpdateConditionDraft>,
+): UpdateConditionDraft {
   return {
     expected_encounter_revision: revision,
     event_intent: "apply",

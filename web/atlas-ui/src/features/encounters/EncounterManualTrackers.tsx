@@ -16,6 +16,7 @@ import { EncounterModal } from "./EncounterModal";
 import { conditionDurationLabel } from "./conditionDurationLabel";
 
 export type ManualTrackerHandler = (
+  participantKey: string,
   request: Omit<UpdateEncounterManualTrackerRequest, "request_id">,
 ) => Promise<{ active: boolean; refreshed: boolean }>;
 type Values = {
@@ -103,8 +104,7 @@ export function EncounterManualTrackers({
       fallback: editing ? opener.current : addTrigger.current,
     };
     try {
-      const result = await onChange({
-        participant_key: participant.participant_key,
+      const result = await onChange(participant.participant_key, {
         expected_encounter_revision: editing ? editor!.revision : encounterRevision,
         expected_participant_revision: editing
           ? editor!.participantRevision

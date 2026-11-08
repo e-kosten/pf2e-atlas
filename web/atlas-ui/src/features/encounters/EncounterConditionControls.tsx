@@ -1,3 +1,7 @@
+import type {
+  AddConditionDraft,
+  UpdateConditionDraft,
+} from "./useConditionEventPreview";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
@@ -15,11 +19,9 @@ import { Pencil, Plus, X } from "lucide-react";
 import { Button, ConfigProvider, Popover, Space, Tooltip } from "antd";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
-  AddEncounterParticipantConditionRequest,
   EncounterConditionDefinitionView,
   EncounterParticipantConditionView,
   EncounterParticipantView,
-  UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
 import { EncounterConditionEditor } from "./EncounterConditionEditor";
 import { EncounterConditionValue } from "./EncounterConditionValue";
@@ -61,9 +63,7 @@ export function EncounterConditionControls({
     label: string;
   }>;
   standardRecoveryDc?: number;
-  onAddCondition: (
-    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
-  ) => Promise<boolean>;
+  onAddCondition: (condition: AddConditionDraft) => Promise<boolean>;
   onPreviewCondition: (
     participantKey: string,
     request: import("./useConditionEventPreview").ConditionEventInput,
@@ -87,7 +87,7 @@ export function EncounterConditionControls({
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
+    condition: UpdateConditionDraft,
   ) => Promise<boolean>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   participants: EncounterParticipantView[];
@@ -160,8 +160,7 @@ export function EncounterConditionControls({
       ? current.conditions.find((c) => c.condition_id === editor.conditionId)
       : undefined;
   const open = editor !== null;
-  const [inlineRequest, setInlineRequest] =
-    useState<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>();
+  const [inlineRequest, setInlineRequest] = useState<UpdateConditionDraft>();
   const [valueResetEpoch, setValueResetEpoch] = useState(0);
   const cancelInlineEdit = () => {
     setInlineRequest(undefined);
@@ -178,7 +177,7 @@ export function EncounterConditionControls({
   };
   const update = (
     condition: EncounterParticipantConditionView,
-    changes: Partial<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>,
+    changes: Partial<UpdateConditionDraft>,
     revision = encounterRevision,
   ) => {
     const request = conditionUpdate(condition, revision, changes);
@@ -432,12 +431,7 @@ export function EncounterConditionControls({
                     onClick={() => {
                       void onUpdateCondition(
                         current.participant_key,
-                        preview.apply(
-                          inlineRequest! as Omit<
-                            UpdateEncounterParticipantConditionRequest,
-                            "request_id"
-                          >,
-                        ),
+                        preview.apply(inlineRequest!),
                       )
                         .then((ok) => {
                           if (ok) cancelInlineEdit();

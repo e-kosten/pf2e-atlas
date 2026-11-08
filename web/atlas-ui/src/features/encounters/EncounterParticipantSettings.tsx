@@ -45,7 +45,10 @@ export function EncounterParticipantSettings({
   pending: boolean;
   error?: string;
   recovery?: ReactNode;
-  onUpdate: (request: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantRequest,
+  ) => Promise<boolean>;
   onLifeSettings?: (
     settings: Omit<
       import("../../generated/atlas").SetEncounterLifeSettingsRequest,
@@ -142,7 +145,7 @@ export function EncounterParticipantSettings({
           }
           onSave={async (request) => {
             if (disabled || pending) return;
-            const refreshed = await onUpdate(request);
+            const refreshed = await onUpdate(participant.participant_key, request);
             if (refreshed) setOpen(false);
             else setCommitted(true);
           }}

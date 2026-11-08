@@ -71,13 +71,15 @@ fn fixture_with_items(
         .encounter
         .encounter_key;
     service
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: key.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            participant_variant: None,
-            initiative: Some(20),
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                participant_variant: None,
+                initiative: Some(20),
+            },
+        )
         .unwrap();
     (service, artifact, key)
 }
@@ -99,7 +101,6 @@ fn request(
         request_id: id.into(),
         expected_encounter_revision: detail.revision,
         expected_participant_revision: participant.revision,
-        participant_key: participant.participant_key.clone(),
         navigation: ability.navigation.clone(),
         rule_ordinal: ability.rule_ordinal,
         action,
@@ -143,7 +144,7 @@ fn source_switches_and_uses_persist_without_materializing_editable_conditions() 
         },
     );
     service
-        .update_encounter_ability_state(&key, mounted)
+        .update_encounter_ability_state(&key, &initial.participants[0].participant_key, mounted)
         .unwrap();
     let after = service.encounter(&key).unwrap();
     assert_eq!(
@@ -163,10 +164,10 @@ fn source_switches_and_uses_persist_without_materializing_editable_conditions() 
         EncounterAbilityStateAction::SpendUse,
     );
     service
-        .update_encounter_ability_state(&key, spend.clone())
+        .update_encounter_ability_state(&key, &after.participants[0].participant_key, spend.clone())
         .unwrap();
     service
-        .update_encounter_ability_state(&key, spend.clone())
+        .update_encounter_ability_state(&key, &after.participants[0].participant_key, spend.clone())
         .unwrap();
     assert_eq!(
         remaining(&service.encounter(&key).unwrap(), "Daily ability"),
@@ -180,7 +181,11 @@ fn source_switches_and_uses_persist_without_materializing_editable_conditions() 
     changed_intent.action = EncounterAbilityStateAction::RestoreUse;
     assert!(
         service
-            .update_encounter_ability_state(&key, changed_intent)
+            .update_encounter_ability_state(
+                &key,
+                &after.participants[0].participant_key,
+                changed_intent
+            )
             .is_err()
     );
     let current = service.encounter(&key).unwrap();
@@ -191,7 +196,11 @@ fn source_switches_and_uses_persist_without_materializing_editable_conditions() 
         EncounterAbilityStateAction::SpendUse,
     );
     stale.navigation.source_fingerprint = Some("another source".into());
-    assert!(service.update_encounter_ability_state(&key, stale).is_err());
+    assert!(
+        service
+            .update_encounter_ability_state(&key, &current.participants[0].participant_key, stale)
+            .is_err()
+    );
     assert_eq!(
         remaining(&service.encounter(&key).unwrap(), "Daily ability"),
         2
@@ -212,10 +221,14 @@ fn selecting_drained_applies_only_the_increase_and_never_repeats_on_read_or_retr
         },
     );
     service
-        .update_encounter_ability_state(&key, select.clone())
+        .update_encounter_ability_state(
+            &key,
+            &initial.participants[0].participant_key,
+            select.clone(),
+        )
         .unwrap();
     service
-        .update_encounter_ability_state(&key, select)
+        .update_encounter_ability_state(&key, &initial.participants[0].participant_key, select)
         .unwrap();
     for _ in 0..2 {
         let after = service.encounter(&key).unwrap();
@@ -231,8 +244,7 @@ fn selecting_drained_applies_only_the_increase_and_never_repeats_on_read_or_retr
         assert!(after.participants[0].conditions.is_empty());
     }
     let after = service.encounter(&key).unwrap();
-    service.add_encounter_participant_condition(&key,serde_json::from_value(json!({"request_id":"external-drained","expected_encounter_revision":after.revision,
-        "participant_key":after.participants[0].participant_key,"condition_ref":ConditionId::Drained.definition().record_key,"value":1})).unwrap()).unwrap();
+    service.add_encounter_participant_condition(&key,&after.participants[0].participant_key, serde_json::from_value(json!({"request_id":"external-drained","expected_encounter_revision":after.revision,"condition_ref":ConditionId::Drained.definition().record_key,"value":1})).unwrap()).unwrap();
     let overlapping = service.encounter(&key).unwrap();
     assert_eq!(overlapping.participants[0].current_hp, Some(45));
     assert_eq!(
@@ -253,6 +265,7 @@ fn advancing_initiative_refreshes_turn_uses_and_preserves_daily_expenditure() {
         service
             .update_encounter_ability_state(
                 &key,
+                &detail.participants[0].participant_key,
                 request(&detail, label, id, EncounterAbilityStateAction::SpendUse),
             )
             .unwrap();
@@ -279,6 +292,7 @@ fn restoring_a_full_capacity_is_rejected_without_overflow_or_a_write() {
     let error = service
         .update_encounter_ability_state(
             &key,
+            &before.participants[0].participant_key,
             request(
                 &before,
                 "Large capacity",
@@ -302,13 +316,15 @@ fn restoring_a_full_capacity_is_rejected_without_overflow_or_a_write() {
 fn round_uses_stay_spent_until_the_owners_next_turn() {
     let (service, _artifact, key) = fixture();
     service
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: key.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            participant_variant: None,
-            initiative: Some(10),
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                participant_variant: None,
+                initiative: Some(10),
+            },
+        )
         .unwrap();
     let advance = |id: &str| {
         let detail = service.encounter(&key).unwrap();
@@ -332,6 +348,7 @@ fn round_uses_stay_spent_until_the_owners_next_turn() {
     service
         .update_encounter_ability_state(
             &key,
+            &initial.participants[0].participant_key,
             request(
                 &initial,
                 "Round ability",
@@ -362,6 +379,7 @@ fn round_uses_stay_spent_until_the_owners_next_turn() {
     service
         .update_encounter_ability_state(
             &key,
+            &owner_turn.participants[0].participant_key,
             request(
                 &owner_turn,
                 "Round ability",
@@ -412,7 +430,6 @@ fn participant_update(participant: &EncounterParticipantView) -> UpdateEncounter
         max_hp_edit: false,
         variant_edit: false,
         use_derived_max: false,
-        participant_key: participant.participant_key.clone(),
         display_name: participant.display_name.clone(),
         side: participant.side,
         participant_variant: participant.participant_variant,
@@ -433,7 +450,9 @@ fn derived_maximum_reset_preserves_pristine_source_drained_capacity() {
     let initial = service.encounter(&key).unwrap();
     let mut update = participant_update(&initial.participants[0]);
     update.use_derived_max = true;
-    service.update_encounter_participant(&key, update).unwrap();
+    service
+        .update_encounter_participant(&key, &initial.participants[0].participant_key, update)
+        .unwrap();
     let after = service.encounter(&key).unwrap();
     assert_eq!(
         (
@@ -451,7 +470,9 @@ fn pristine_variant_edit_uses_conditioned_capacity_at_the_new_level() {
     let mut update = participant_update(&initial.participants[0]);
     update.participant_variant = EncounterParticipantVariantView::Elite;
     update.variant_edit = true;
-    service.update_encounter_participant(&key, update).unwrap();
+    service
+        .update_encounter_participant(&key, &initial.participants[0].participant_key, update)
+        .unwrap();
     let after = service.encounter(&key).unwrap();
     assert_eq!(
         (
@@ -467,28 +488,34 @@ fn running_variant_edit_preserves_damage_below_conditioned_capacity() {
     let (service, _artifact, key) = fixture_with_drained(true);
     let initial = service.encounter(&key).unwrap();
     service
-        .update_encounter(UpdateEncounterRequest {
-            round_duration_seconds: None,
-            encounter_key: key.clone(),
-            slug: None,
-            name: None,
-            description: None,
-            note: None,
-            status: Some(FieldEdit {
-                expected: initial.encounter.status,
-                value: EncounterStatusView::Running,
-            }),
-        })
+        .update_encounter(
+            &key,
+            UpdateEncounterRequest {
+                round_duration_seconds: None,
+                slug: None,
+                name: None,
+                description: None,
+                note: None,
+                status: Some(FieldEdit {
+                    expected: initial.encounter.status,
+                    value: EncounterStatusView::Running,
+                }),
+            },
+        )
         .unwrap();
     let mut damage = participant_update(&initial.participants[0]);
     damage.current_hp = Some(35);
     damage.hp_edit = true;
-    service.update_encounter_participant(&key, damage).unwrap();
+    service
+        .update_encounter_participant(&key, &initial.participants[0].participant_key, damage)
+        .unwrap();
     let damaged = service.encounter(&key).unwrap();
     let mut update = participant_update(&damaged.participants[0]);
     update.participant_variant = EncounterParticipantVariantView::Elite;
     update.variant_edit = true;
-    service.update_encounter_participant(&key, update).unwrap();
+    service
+        .update_encounter_participant(&key, &damaged.participants[0].participant_key, update)
+        .unwrap();
     let after = service.encounter(&key).unwrap();
     assert_eq!(
         (
@@ -522,7 +549,6 @@ fn prone_request(
     serde_json::from_value(json!({
         "request_id": id,
         "expected_encounter_revision":detail.revision,
-        "participant_key":detail.participants[0].participant_key,
         "condition_ref":ConditionId::Prone.definition().record_key
     }))
     .unwrap()
@@ -535,10 +561,14 @@ fn predicate_activation_charges_drained_once_and_deactivation_never_heals() {
     assert_eq!(initial.participants[0].current_hp, Some(50));
     let add = prone_request(&initial, "prone-activates-drained");
     service
-        .add_encounter_participant_condition(&key, add.clone())
+        .add_encounter_participant_condition(
+            &key,
+            &initial.participants[0].participant_key,
+            add.clone(),
+        )
         .unwrap();
     service
-        .add_encounter_participant_condition(&key, add)
+        .add_encounter_participant_condition(&key, &initial.participants[0].participant_key, add)
         .unwrap();
     let active = service.encounter(&key).unwrap();
     assert_eq!(active.participants[0].current_hp, Some(45));
@@ -580,7 +610,11 @@ fn removing_a_predicate_condition_charges_new_drained_once_with_known_level() {
     let initial = service.encounter(&key).unwrap();
     assert_eq!(initial.participants[0].current_hp, Some(45));
     service
-        .add_encounter_participant_condition(&key, prone_request(&initial, "disable-drained"))
+        .add_encounter_participant_condition(
+            &key,
+            &initial.participants[0].participant_key,
+            prone_request(&initial, "disable-drained"),
+        )
         .unwrap();
     let inactive = service.encounter(&key).unwrap();
     assert_eq!(inactive.participants[0].current_hp, Some(45));
@@ -608,7 +642,11 @@ fn corrected_predicate_activation_changes_capacity_without_charging_hp() {
     let mut correction = prone_request(&initial, "correct-prone");
     correction.event_intent = ConditionEventIntentView::Correction;
     service
-        .add_encounter_participant_condition(&key, correction)
+        .add_encounter_participant_condition(
+            &key,
+            &initial.participants[0].participant_key,
+            correction,
+        )
         .unwrap();
     let active = service.encounter(&key).unwrap();
     assert_eq!(active.participants[0].current_hp, Some(50));

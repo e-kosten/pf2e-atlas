@@ -48,7 +48,6 @@ pub struct SavedListCreateView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct UpdateSavedListRequest {
-    pub list_key: String,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -100,11 +99,10 @@ pub struct SavedListDetailView {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct FilterSavedListRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sort: Option<atlas_domain::ResultSort>,
-    pub list_ref: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -113,9 +111,8 @@ pub struct FilterSavedListRequest {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AddSavedListItemRequest {
-    pub list_ref: String,
     pub record_ref: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
@@ -140,9 +137,8 @@ pub struct BatchSavedListItemInput {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RemoveSavedListItemRequest {
-    pub list_ref: String,
     pub record_ref: String,
 }
 
@@ -150,7 +146,6 @@ pub struct RemoveSavedListItemRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ReorderSavedListItemRequest {
-    pub list_ref: String,
     pub record_ref: String,
     pub target_record_ref: String,
     pub placement: ReorderSavedListItemPlacementView,
@@ -448,8 +443,6 @@ mod tests {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateSavedListItemNoteRequest {
-    pub list_ref: String,
-    pub record_key: String,
     pub note: crate::FieldEdit<Option<String>>,
 }
 

@@ -36,7 +36,6 @@ it("saves an explicitly changed round duration in seconds", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith({
-      encounter_key: "clock",
       round_duration_seconds: { expected: 6, value: 30 },
     }),
   );

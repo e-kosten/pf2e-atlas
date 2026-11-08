@@ -39,6 +39,5 @@ pub struct UpdateEncounterManualTrackerRequest {
     pub request_id: String,
     pub expected_encounter_revision: i64,
     pub expected_participant_revision: i64,
-    pub participant_key: String,
     pub action: EncounterManualTrackerAction,
 }

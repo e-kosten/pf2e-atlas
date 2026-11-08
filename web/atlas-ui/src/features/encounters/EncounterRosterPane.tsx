@@ -91,7 +91,10 @@ export function EncounterRosterPane({
   ) => Promise<boolean>;
   onSelect: (participantKey: string) => void;
   onSetTurn: (participant: EncounterParticipantView) => void;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantRequest,
+  ) => Promise<unknown>;
   onRoll: (
     request: import("../../generated/atlas").RollInitiativeRequest,
   ) => Promise<import("../../generated/atlas").InitiativeRollView>;
@@ -149,7 +152,6 @@ export function EncounterRosterPane({
     setAdded("");
     try {
       const saved = await onAddRecord({
-        encounter_ref: slug,
         record_ref,
         quantity,
         ...(participant_variant === null ? {} : { participant_variant }),
@@ -172,7 +174,6 @@ export function EncounterRosterPane({
     if (disabled) return;
     try {
       const saved = await onAddManual({
-        encounter_ref: slug,
         display_name: values.name,
         ...(values.maxHp == null ? {} : { max_hp: values.maxHp }),
         ...(values.initiative == null ? {} : { initiative: values.initiative }),
@@ -226,6 +227,7 @@ export function EncounterRosterPane({
                 compact
                 onSave={(value) =>
                   onUpdate(
+                    participant.participant_key,
                     participantUpdate(participant, {
                       initiative: value,
                     }),
@@ -294,6 +296,7 @@ export function EncounterRosterPane({
               onSetTurn={() => onSetTurn(participant)}
               onToggleDim={() =>
                 onUpdate(
+                  participant.participant_key,
                   participantUpdate(participant, { hidden: !participant.hidden }),
                 )
               }

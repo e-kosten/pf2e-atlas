@@ -148,13 +148,15 @@ mod tests {
             EncounterParticipantVariantView::Elite,
         ] {
             f.worker
-                .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-                    encounter_ref: encounter.encounter_key.clone(),
-                    record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-                    quantity: 1,
-                    initiative: None,
-                    participant_variant: Some(variant),
-                })
+                .add_encounter_record_participant(
+                    &encounter.encounter_key,
+                    AddEncounterRecordParticipantRequest {
+                        record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                        quantity: 1,
+                        initiative: None,
+                        participant_variant: Some(variant),
+                    },
+                )
                 .unwrap();
         }
         let before = f.worker.encounter(&encounter.encounter_key).unwrap();

@@ -8,9 +8,12 @@ impl AtlasAppService {
     pub fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: ApplyEncounterSpellActionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         let encounter_ref = encounter_ref.to_owned();
+        let participant_key = participant_key.to_owned();
+
         let (encounter_key, participant_key, expected_revision, reference_revision, change) = self
             .with_workspace(
                 &crate::ReadExecutionContext::uncancellable(),
@@ -23,7 +26,7 @@ impl AtlasAppService {
                     let participant = encounter
                         .participants
                         .iter()
-                        .find(|p| p.participant_key == request.participant_key)
+                        .find(|p| p.participant_key == participant_key)
                         .ok_or_else(|| {
                             AppServiceError::invalid_request(
                                 "Participant is no longer in this encounter",
@@ -32,7 +35,7 @@ impl AtlasAppService {
                     if participant.revision != request.expected_revision {
                         return Err(
                             atlas_local_state::LocalStateError::StaleParticipantRevision {
-                                participant_key: request.participant_key,
+                                participant_key,
                                 expected_revision: request.expected_revision,
                                 actual_revision: participant.revision,
                             }

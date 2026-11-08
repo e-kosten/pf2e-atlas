@@ -39,9 +39,9 @@ describe("record route views", () => {
     );
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
     apiMocks.addSavedListItem.mockImplementation(
-      ({ record_ref, list_ref }: { record_ref: string; list_ref: string }) =>
+      (listRef: string, { record_ref }: { record_ref: string }) =>
         Promise.resolve({
-          list_key: list_ref,
+          list_key: listRef,
           slug: "research",
           record_key: record_ref,
           outcome: "added",
@@ -136,8 +136,7 @@ describe("record route views", () => {
 
     await addCurrentRecordToList();
 
-    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "list_research",
+    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith("list_research", {
       record_ref: "spell:heal",
     });
   });
@@ -198,8 +197,7 @@ describe("record route views", () => {
     fireEvent.click(await screen.findByRole("link", { name: "Linked Record" }));
     await screen.findByRole("heading", { name: "linked" });
     await addCurrentRecordToList(1);
-    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "list_research",
+    expect(apiMocks.addSavedListItem).toHaveBeenCalledWith("list_research", {
       record_ref: "spell:linked",
     });
     await waitFor(() =>

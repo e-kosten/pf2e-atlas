@@ -264,9 +264,10 @@ impl AtlasAppService {
     pub fn update_turn_resources(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: UpdateTurnResourcesRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let intent = serde_json::json!({"action":"turn_resources","request":request});
+        let intent = serde_json::json!({"action":"turn_resources","request":event_execution::receipt_request(&request, "participant_key", participant_key)});
         if let Some(receipt) =
             event_execution::recover(self, encounter_ref, &request.request_id, &intent)?
         {
@@ -279,7 +280,7 @@ impl AtlasAppService {
         let participant = snapshot
             .participants
             .iter()
-            .find(|p| p.participant_key == request.participant_key)
+            .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| AppServiceError::invalid_request("participant no longer exists"))?;
         if participant.participant_kind == ParticipantKind::Hazard {
             return Err(AppServiceError::invalid_request(

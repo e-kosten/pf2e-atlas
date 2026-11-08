@@ -187,44 +187,40 @@ export async function deleteEncounter(
 }
 
 export async function updateEncounter(
+  encounterRef: string,
   request: UpdateEncounterRequest,
 ): Promise<EncounterMutationView> {
-  return http.updateEncounter(request.encounter_key, checkRequest(request), {
+  return http.updateEncounter(encounterRef, checkRequest(request), {
     intent: "action",
   });
 }
 
 export async function addEncounterRecordParticipant(
+  encounterRef: string,
   request: AddEncounterRecordParticipantRequest,
 ): Promise<EncounterMutationView> {
-  return http.addEncounterRecordParticipant(
-    request.encounter_ref,
-    checkRequest(request),
-    {
-      intent: "action",
-    },
-  );
+  return http.addEncounterRecordParticipant(encounterRef, checkRequest(request), {
+    intent: "action",
+  });
 }
 
 export async function addEncounterManualParticipant(
+  encounterRef: string,
   request: AddEncounterManualParticipantRequest,
 ): Promise<EncounterMutationView> {
-  return http.addEncounterManualParticipant(
-    request.encounter_ref,
-    checkRequest(request),
-    {
-      intent: "action",
-    },
-  );
+  return http.addEncounterManualParticipant(encounterRef, checkRequest(request), {
+    intent: "action",
+  });
 }
 
 export async function applyEncounterHpAction(
   encounterRef: string,
+  participantKey: string,
   request: import("../generated/atlas").ApplyEncounterHpActionRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
   return http.applyEncounterHpAction(
     encounterRef,
-    request.participant_key,
+    participantKey,
     checkRequest(request),
     { intent: "action" },
   );
@@ -232,11 +228,12 @@ export async function applyEncounterHpAction(
 
 export async function applyEncounterSpellAction(
   encounterRef: string,
+  participantKey: string,
   request: import("../generated/atlas").ApplyEncounterSpellActionRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
   return http.applyEncounterSpellAction(
     encounterRef,
-    request.participant_key,
+    participantKey,
     checkRequest(request),
     { intent: "action" },
   );
@@ -244,11 +241,12 @@ export async function applyEncounterSpellAction(
 
 export async function updateEncounterParticipant(
   encounterRef: string,
+  participantKey: string,
   request: UpdateEncounterParticipantRequest,
 ): Promise<EncounterMutationView> {
   return http.updateEncounterParticipant(
     encounterRef,
-    request.participant_key,
+    participantKey,
     checkRequest(request),
     { intent: "action" },
   );
@@ -300,20 +298,22 @@ export function rollInitiative(
 }
 
 export async function setEncounterTurn(
+  encounterRef: string,
   request: SetEncounterTurnRequest,
 ): Promise<EncounterMutationView> {
-  return http.setEncounterTurn(request.encounter_ref, checkRequest(request), {
+  return http.setEncounterTurn(encounterRef, checkRequest(request), {
     intent: "action",
   });
 }
 
 export async function addEncounterParticipantCondition(
   encounterRef: string,
+  participantKey: string,
   request: AddEncounterParticipantConditionRequest,
 ): Promise<EncounterMutationView> {
   return http.addEncounterParticipantCondition(
     encounterRef,
-    request.participant_key,
+    participantKey,
     checkRequest(request),
     { intent: "action" },
   );
@@ -328,39 +328,49 @@ function conditionPath(conditionId: number): string {
 export async function updateEncounterParticipantCondition(
   encounterRef: string,
   participantKey: string,
+  conditionId: number,
   request: UpdateEncounterParticipantConditionRequest,
 ): Promise<EncounterMutationView> {
   return http.updateEncounterParticipantCondition(
     encounterRef,
     participantKey,
-    conditionPath(request.condition_id),
+    conditionPath(conditionId),
     checkRequest(request),
     { intent: "action" },
   );
 }
 
-export async function previewEncounterCondition(
+export async function previewEncounterConditionAdd(
   encounterRef: string,
   participantKey: string,
-  request:
-    | AddEncounterParticipantConditionRequest
-    | UpdateEncounterParticipantConditionRequest,
+  request: AddEncounterParticipantConditionRequest,
 ): Promise<import("../generated/atlas").ConditionEventPreviewView> {
   return checkEncounterResponse(
-    await ("condition_id" in request
-      ? http.previewEncounterConditionUpdate(
-          encounterRef,
-          participantKey,
-          conditionPath(request.condition_id),
-          checkRequest(request),
-          { intent: "read" },
-        )
-      : http.previewEncounterConditionAdd(
-          encounterRef,
-          participantKey,
-          checkRequest(request),
-          { intent: "read" },
-        )),
+    await http.previewEncounterConditionAdd(
+      encounterRef,
+      participantKey,
+      checkRequest(request),
+      {
+        intent: "read",
+      },
+    ),
+  );
+}
+
+export async function previewEncounterConditionUpdate(
+  encounterRef: string,
+  participantKey: string,
+  conditionId: number,
+  request: UpdateEncounterParticipantConditionRequest,
+): Promise<import("../generated/atlas").ConditionEventPreviewView> {
+  return checkEncounterResponse(
+    await http.previewEncounterConditionUpdate(
+      encounterRef,
+      participantKey,
+      conditionPath(conditionId),
+      checkRequest(request),
+      { intent: "read" },
+    ),
   );
 }
 
@@ -525,10 +535,13 @@ export async function getSavedList(listRef: string): Promise<SavedListDetailView
 }
 
 export async function filterSavedList(
+  listRef: string,
   request: FilterSavedListRequest,
+  signal?: AbortSignal,
 ): Promise<SavedListDetailView> {
   return checkedSavedListDetail(
-    await http.filterSavedList(request.list_ref, checkRequest(request), {
+    await http.filterSavedList(listRef, checkRequest(request), {
+      signal,
       intent: "read",
     }),
   );
@@ -541,9 +554,10 @@ export async function createSavedList(
 }
 
 export async function updateSavedList(
+  listRef: string,
   request: UpdateSavedListRequest,
 ): Promise<SavedListUpdateView> {
-  return http.updateSavedList(request.list_key, checkRequest(request), {
+  return http.updateSavedList(listRef, checkRequest(request), {
     intent: "action",
   });
 }
@@ -553,25 +567,28 @@ export async function deleteSavedList(listRef: string): Promise<DeleteSavedListV
 }
 
 export async function addSavedListItem(
+  listRef: string,
   request: AddSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return http.addSavedListItem(request.list_ref, checkRequest(request), {
+  return http.addSavedListItem(listRef, checkRequest(request), {
     intent: "action",
   });
 }
 
 export async function removeSavedListItem(
+  listRef: string,
   request: RemoveSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return http.removeSavedListItem(request.list_ref, checkRequest(request), {
+  return http.removeSavedListItem(listRef, checkRequest(request), {
     intent: "action",
   });
 }
 
 export async function reorderSavedListItem(
+  listRef: string,
   request: ReorderSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return http.reorderSavedListItem(request.list_ref, checkRequest(request), {
+  return http.reorderSavedListItem(listRef, checkRequest(request), {
     intent: "action",
   });
 }
@@ -669,14 +686,13 @@ export async function getSavedListItemNote(
 }
 
 export async function updateSavedListItemNote(
+  listRef: string,
+  recordKey: string,
   request: UpdateSavedListItemNoteRequest,
 ): Promise<SavedListItemNoteView> {
-  return http.updateSavedListItemNote(
-    request.list_ref,
-    request.record_key,
-    checkRequest(request),
-    { intent: "action" },
-  );
+  return http.updateSavedListItemNote(listRef, recordKey, checkRequest(request), {
+    intent: "action",
+  });
 }
 
 export async function getDefinitionDetail(
@@ -726,11 +742,12 @@ export async function getTraitRecords(
 
 export async function updateEncounterManualTracker(
   encounterRef: string,
+  participantKey: string,
   request: import("../generated/atlas").UpdateEncounterManualTrackerRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
   return http.updateEncounterManualTracker(
     encounterRef,
-    request.participant_key,
+    participantKey,
     checkRequest(request),
     { intent: "action" },
   );
@@ -738,11 +755,12 @@ export async function updateEncounterManualTracker(
 
 export async function updateEncounterAbilityState(
   encounterRef: string,
+  participantKey: string,
   request: import("../generated/atlas").UpdateEncounterAbilityStateRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
   return http.updateEncounterAbilityState(
     encounterRef,
-    request.participant_key,
+    participantKey,
     checkRequest(request),
     { intent: "action" },
   );
@@ -750,14 +768,12 @@ export async function updateEncounterAbilityState(
 
 export async function updateTurnResources(
   encounterRef: string,
+  participantKey: string,
   request: import("../generated/atlas").UpdateTurnResourcesRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
-  return http.updateTurnResources(
-    encounterRef,
-    request.participant_key,
-    checkRequest(request),
-    { intent: "action" },
-  );
+  return http.updateTurnResources(encounterRef, participantKey, checkRequest(request), {
+    intent: "action",
+  });
 }
 
 export async function setEncounterDifficulty(

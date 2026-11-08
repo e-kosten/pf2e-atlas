@@ -1,3 +1,7 @@
+import type {
+  AddConditionDraft,
+  UpdateConditionDraft,
+} from "./useConditionEventPreview";
 import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import type { EncounterMutationCommand } from "./useEncounterMutations";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -26,11 +30,9 @@ import { ActorDefenses } from "../../shared/records/ActorReference";
 import { RecordRarity } from "../../shared/records/RecordRarity";
 import { TraitBadge } from "../../shared/records/TraitBadge";
 import type {
-  AddEncounterParticipantConditionRequest,
   EncounterHpAction,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
-  UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import {
@@ -103,9 +105,7 @@ export function EncounterInspectorPane({
   error?: string;
   errorKind?: EncounterMutationCommand["kind"];
   spellError?: string;
-  onAddCondition: (
-    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
-  ) => Promise<boolean>;
+  onAddCondition: (condition: AddConditionDraft) => Promise<boolean>;
   onRemoveCondition: (
     participantKey: string,
     conditionId: number,
@@ -113,9 +113,12 @@ export function EncounterInspectorPane({
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
+    condition: UpdateConditionDraft,
   ) => Promise<boolean>;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantRequest,
+  ) => Promise<boolean>;
   onLifeSettings: (
     participantKey: string,
     settings: Omit<
@@ -324,16 +327,17 @@ function EncounterParticipantSurface({
     label: string;
   }>;
   standardRecoveryDc?: number;
-  onAddCondition: (
-    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
-  ) => Promise<boolean>;
+  onAddCondition: (condition: AddConditionDraft) => Promise<boolean>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemoveCondition: (
     participantKey: string,
     conditionId: number,
     expectedRevision: number,
   ) => Promise<boolean>;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantRequest,
+  ) => Promise<boolean>;
   onLifeSettings: (
     participantKey: string,
     settings: Omit<
@@ -372,7 +376,7 @@ function EncounterParticipantSurface({
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
+    condition: UpdateConditionDraft,
   ) => Promise<boolean>;
   participant: EncounterParticipantView;
   onResolveHpLifecycle: React.ComponentProps<typeof EncounterLifeStatus>["onResolve"];
@@ -385,7 +389,7 @@ function EncounterParticipantSurface({
   const errorFor = (...kinds: EncounterMutationCommand["kind"][]) =>
     errorKind && kinds.includes(errorKind) ? error : undefined;
   const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
-    onUpdate(participantUpdate(participant, changes));
+    onUpdate(participant.participant_key, participantUpdate(participant, changes));
   const presentation = participant.presentation;
   const body = presentation?.body;
   const actor =

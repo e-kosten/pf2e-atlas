@@ -676,7 +676,6 @@ export interface AddEncounterManualParticipantRequest {
   /** @nullable */
   current_hp?: number | null;
   display_name: string;
-  encounter_ref: string;
   /** @nullable */
   initiative?: number | null;
   /** @nullable */
@@ -863,7 +862,6 @@ export interface AddEncounterParticipantConditionRequest {
   note?: string | null;
   origin?: ConditionOriginViewInputSchema | null;
   parameters?: ConditionParametersInputView;
-  participant_key: string;
   request_id: string;
   scope?: ConditionScopeView;
   /** @nullable */
@@ -887,7 +885,6 @@ export const EncounterParticipantVariantView = {
 } as const;
 
 export interface AddEncounterRecordParticipantRequest {
-  encounter_ref: string;
   /** @nullable */
   initiative?: number | null;
   participant_variant?: EncounterParticipantVariantView | null;
@@ -897,7 +894,6 @@ export interface AddEncounterRecordParticipantRequest {
 }
 
 export interface AddSavedListItemRequest {
-  list_ref: string;
   /** @nullable */
   note?: string | null;
   record_ref: string;
@@ -1160,7 +1156,6 @@ export interface ApplyEncounterHpActionRequest {
   action: EncounterHpAction;
   context?: HpEventContextViewInputSchema | null;
   expected_revision: number;
-  participant_key: string;
   request_id: string;
 }
 
@@ -1254,7 +1249,6 @@ export type EncounterSpellAction = {
 export interface ApplyEncounterSpellActionRequest {
   action: EncounterSpellAction;
   expected_revision: number;
-  participant_key: string;
 }
 
 /**
@@ -4141,7 +4135,6 @@ export type ResultSort = {
 
 export interface FilterSavedListRequest {
   filter?: QueryPredicateInputSchema | null;
-  list_ref: string;
   /** @nullable */
   query?: string | null;
   sort?: ResultSort | null;
@@ -4716,7 +4709,6 @@ export interface RemoveEncounterParticipantConditionRequest {
 }
 
 export interface RemoveSavedListItemRequest {
-  list_ref: string;
   record_ref: string;
 }
 
@@ -4743,7 +4735,6 @@ export const ReorderSavedListItemPlacementView = {
 } as const;
 
 export interface ReorderSavedListItemRequest {
-  list_ref: string;
   placement: ReorderSavedListItemPlacementView;
   record_ref: string;
   target_record_ref: string;
@@ -5209,7 +5200,6 @@ export interface SetEncounterLifeSettingsRequest {
 }
 
 export interface SetEncounterTurnRequest {
-  encounter_ref: string;
   participant_key: string;
 }
 
@@ -5320,7 +5310,6 @@ export interface UpdateEncounterAbilityStateRequest {
   expected_encounter_revision: number;
   expected_participant_revision: number;
   navigation: RecordNavigationViewInputSchema;
-  participant_key: string;
   request_id: string;
   /**
      * @minimum 0
@@ -5333,12 +5322,10 @@ export interface UpdateEncounterManualTrackerRequest {
   action: EncounterManualTrackerAction;
   expected_encounter_revision: number;
   expected_participant_revision: number;
-  participant_key: string;
   request_id: string;
 }
 
 export interface UpdateEncounterParticipantConditionRequest {
-  condition_id: number;
   /** @nullable */
   condition_ref?: string | null;
   decisions?: ConditionApplicationDecisionsView;
@@ -5376,7 +5363,6 @@ export interface UpdateEncounterParticipantRequest {
   max_hp_edit?: boolean;
   /** @nullable */
   note?: string | null;
-  participant_key: string;
   participant_variant: EncounterParticipantVariantView;
   side: EncounterParticipantSideView;
   temporary_hp: number;
@@ -5386,7 +5372,6 @@ export interface UpdateEncounterParticipantRequest {
 
 export interface UpdateEncounterRequest {
   description?: FieldEditOptionString;
-  encounter_key: string;
   name?: FieldEditString;
   note?: FieldEditOptionString;
   round_duration_seconds?: FieldEditI64;
@@ -5401,14 +5386,11 @@ export interface UpdatePartyRequest {
 }
 
 export interface UpdateSavedListItemNoteRequest {
-  list_ref: string;
   note: FieldEditOptionString;
-  record_key: string;
 }
 
 export interface UpdateSavedListRequest {
   description?: FieldEditOptionString;
-  list_key: string;
   name?: FieldEditString;
   slug?: FieldEditString;
   tags?: FieldEditVecString;
@@ -5417,7 +5399,6 @@ export interface UpdateSavedListRequest {
 export interface UpdateTurnResourcesRequest {
   action: TurnResourceAction;
   expected_encounter_revision: number;
-  participant_key: string;
   request_id: string;
   /** @nullable */
   turn_key?: string | null;

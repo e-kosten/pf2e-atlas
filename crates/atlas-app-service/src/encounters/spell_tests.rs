@@ -27,13 +27,15 @@ fn casting_fixture(items: serde_json::Value) -> (crate::test_support::FixtureWor
         .encounter;
     fixture
         .worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     (fixture, encounter.slug)
 }
@@ -59,8 +61,8 @@ fn cast_spell(
     selection.spell_rank = Some(rank);
     fixture.worker.apply_encounter_spell_action(
         encounter,
+        &participant.participant_key,
         ApplyEncounterSpellActionRequest {
-            participant_key: participant.participant_key.clone(),
             expected_revision: participant.revision,
             action: EncounterSpellAction::Cast { selection },
         },
@@ -204,13 +206,15 @@ fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participa
         .unwrap()
         .encounter;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 2,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 2,
+                initiative: None,
+            },
+        )
         .unwrap();
     let read = || f.worker.encounter(&encounter.slug).unwrap();
     let current = read();
@@ -224,8 +228,8 @@ fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participa
     let cast = |revision, selection| {
         f.worker.apply_encounter_spell_action(
             &encounter.slug,
+            &p.participant_key,
             ApplyEncounterSpellActionRequest {
-                participant_key: p.participant_key.clone(),
                 expected_revision: revision,
                 action: EncounterSpellAction::Cast { selection },
             },
@@ -277,8 +281,8 @@ fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participa
     f.worker
         .apply_encounter_spell_action(
             &encounter.slug,
+            &p.participant_key,
             ApplyEncounterSpellActionRequest {
-                participant_key: p.participant_key.clone(),
                 expected_revision: empty.participants[0].revision,
                 action: EncounterSpellAction::Undo {
                     resource_key: key.clone(),
@@ -307,8 +311,8 @@ fn recorded_use_is_persistent_shared_within_entry_and_isolated_between_participa
     f.worker
         .apply_encounter_spell_action(
             &encounter.slug,
+            &p.participant_key,
             ApplyEncounterSpellActionRequest {
-                participant_key: p.participant_key.clone(),
                 expected_revision: undone.participants[0].revision,
                 action: EncounterSpellAction::SetEntryResources {
                     entry_id: "eeeeeeeeeeeeeeee".into(),
@@ -355,13 +359,15 @@ fn missing_innate_counts_use_rank_independent_markers_without_inventing_limits()
         .unwrap()
         .encounter;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 2,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 2,
+                initiative: None,
+            },
+        )
         .unwrap();
     let read = || f.worker.encounter(&encounter.slug).unwrap();
     let initial = read();
@@ -381,8 +387,8 @@ fn missing_innate_counts_use_rank_independent_markers_without_inventing_limits()
     let mark = |revision, selection, expended| {
         f.worker.apply_encounter_spell_action(
             &encounter.slug,
+            &participant.participant_key,
             ApplyEncounterSpellActionRequest {
-                participant_key: participant.participant_key.clone(),
                 expected_revision: revision,
                 action: EncounterSpellAction::SetExpended {
                     selection,
@@ -462,13 +468,15 @@ fn resource_editor_saves_one_complete_entry_atomically() {
         .unwrap()
         .encounter;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     let read = || f.worker.encounter(&encounter.slug).unwrap();
     let initial = read();
@@ -477,8 +485,8 @@ fn resource_editor_saves_one_complete_entry_atomically() {
     let save = |remaining| {
         f.worker.apply_encounter_spell_action(
             &encounter.slug,
+            &p.participant_key,
             ApplyEncounterSpellActionRequest {
-                participant_key: p.participant_key.clone(),
                 expected_revision: p.revision,
                 action: EncounterSpellAction::SetEntryResources {
                     entry_id: "eeeeeeeeeeeeeeee".into(),
@@ -530,7 +538,7 @@ fn defeated_projects_cast_restriction_but_allows_recording_table_use() {
     update.defeated = true;
     fixture
         .worker
-        .update_encounter_participant(&encounter, update)
+        .update_encounter_participant(&encounter, &initial.participants[0].participant_key, update)
         .unwrap();
     let current = fixture.worker.encounter(&encounter).unwrap();
     let p = &current.participants[0];
@@ -551,8 +559,8 @@ fn defeated_projects_cast_restriction_but_allows_recording_table_use() {
         .worker
         .apply_encounter_spell_action(
             &encounter,
+            &p.participant_key,
             ApplyEncounterSpellActionRequest {
-                participant_key: p.participant_key.clone(),
                 expected_revision: p.revision,
                 action: EncounterSpellAction::Cast { selection },
             },
@@ -690,8 +698,8 @@ fn casting_advisory_read_survives_last_use_without_weakening_mutation_guards() {
             .worker
             .apply_encounter_spell_action(
                 &encounter,
+                &participant.participant_key,
                 ApplyEncounterSpellActionRequest {
-                    participant_key: participant.participant_key.clone(),
                     expected_revision: participant.revision,
                     action: EncounterSpellAction::Cast { selection },
                 },
@@ -715,8 +723,8 @@ fn casting_advisory_read_survives_last_use_without_weakening_mutation_guards() {
             .worker
             .apply_encounter_spell_action(
                 &encounter,
+                &participant.participant_key,
                 ApplyEncounterSpellActionRequest {
-                    participant_key: participant.participant_key.clone(),
                     expected_revision: participant.revision,
                     action: EncounterSpellAction::Cast {
                         selection: request.selection.clone()

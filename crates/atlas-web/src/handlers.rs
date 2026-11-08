@@ -85,11 +85,10 @@ pub(crate) async fn filter_saved_list(
     Path(list_ref): Path<String>,
     payload: Result<Json<FilterSavedListRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.list_ref = list_ref;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.filter_saved_list(request)).await?,
+        call_service(state, move || service.filter_saved_list(&list_ref, request)).await?,
     ))
 }
 
@@ -111,11 +110,10 @@ pub(crate) async fn update_saved_list(
     Path(list_ref): Path<String>,
     payload: Result<Json<SavedEditPayload<UpdateSavedListRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(SavedEditPayload(mut request)) = payload.map_err(WebError::invalid_request)?;
-    request.list_key = list_ref;
+    let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.update_saved_list(request)).await?,
+        call_service(state, move || service.update_saved_list(&list_ref, request)).await?,
     ))
 }
 
@@ -125,11 +123,13 @@ pub(crate) async fn add_saved_list_item(
     Path(list_ref): Path<String>,
     payload: Result<Json<AddSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.list_ref = list_ref;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.add_saved_list_item(request)).await?,
+        call_service(state, move || {
+            service.add_saved_list_item(&list_ref, request)
+        })
+        .await?,
     ))
 }
 
@@ -139,11 +139,13 @@ pub(crate) async fn remove_saved_list_item(
     Path(list_ref): Path<String>,
     payload: Result<Json<RemoveSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.list_ref = list_ref;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.remove_saved_list_item(request)).await?,
+        call_service(state, move || {
+            service.remove_saved_list_item(&list_ref, request)
+        })
+        .await?,
     ))
 }
 
@@ -153,11 +155,13 @@ pub(crate) async fn reorder_saved_list_item(
     Path(list_ref): Path<String>,
     payload: Result<Json<ReorderSavedListItemRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.list_ref = list_ref;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.reorder_saved_list_item(request)).await?,
+        call_service(state, move || {
+            service.reorder_saved_list_item(&list_ref, request)
+        })
+        .await?,
     ))
 }
 
@@ -232,11 +236,13 @@ pub(crate) async fn update_encounter(
     Path(encounter_ref): Path<String>,
     payload: Result<Json<SavedEditPayload<UpdateEncounterRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(SavedEditPayload(mut request)) = payload.map_err(WebError::invalid_request)?;
-    request.encounter_key = encounter_ref;
+    let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.update_encounter(request)).await?,
+        call_service(state, move || {
+            service.update_encounter(&encounter_ref, request)
+        })
+        .await?,
     ))
 }
 
@@ -246,12 +252,11 @@ pub(crate) async fn add_encounter_record_participant(
     Path(encounter_ref): Path<String>,
     payload: Result<Json<AddEncounterRecordParticipantRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.encounter_ref = encounter_ref;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.add_encounter_record_participant(request)
+            service.add_encounter_record_participant(&encounter_ref, request)
         })
         .await?,
     ))
@@ -263,12 +268,11 @@ pub(crate) async fn add_encounter_manual_participant(
     Path(encounter_ref): Path<String>,
     payload: Result<Json<AddEncounterManualParticipantRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.encounter_ref = encounter_ref;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.add_encounter_manual_participant(request)
+            service.add_encounter_manual_participant(&encounter_ref, request)
         })
         .await?,
     ))
@@ -280,12 +284,11 @@ pub(crate) async fn update_encounter_participant(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<UpdateEncounterParticipantRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.update_encounter_participant(&encounter_ref, request)
+            service.update_encounter_participant(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))
@@ -313,12 +316,11 @@ pub(crate) async fn apply_encounter_hp_action(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<ApplyEncounterHpActionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.apply_encounter_hp_action(&encounter_ref, request)
+            service.apply_encounter_hp_action(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))
@@ -330,12 +332,11 @@ pub(crate) async fn apply_encounter_spell_action(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<ApplyEncounterSpellActionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.apply_encounter_spell_action(&encounter_ref, request)
+            service.apply_encounter_spell_action(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))
@@ -388,11 +389,13 @@ pub(crate) async fn set_encounter_turn(
     Path(encounter_ref): Path<String>,
     payload: Result<Json<SetEncounterTurnRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.encounter_ref = encounter_ref;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.set_encounter_turn(request)).await?,
+        call_service(state, move || {
+            service.set_encounter_turn(&encounter_ref, request)
+        })
+        .await?,
     ))
 }
 
@@ -402,12 +405,11 @@ pub(crate) async fn add_encounter_participant_condition(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<AddEncounterParticipantConditionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.add_encounter_participant_condition(&encounter_ref, request)
+            service.add_encounter_participant_condition(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))
@@ -419,14 +421,14 @@ pub(crate) async fn update_encounter_participant_condition(
     Path((encounter_ref, participant_key, condition_id)): Path<(String, String, i64)>,
     payload: Result<Json<UpdateEncounterParticipantConditionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.condition_id = condition_id;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
             service.update_encounter_participant_condition(
                 &encounter_ref,
                 &participant_key,
+                condition_id,
                 request,
             )
         })
@@ -688,12 +690,11 @@ pub(crate) async fn preview_encounter_condition_add(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<atlas_app_model::AddEncounterParticipantConditionRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.preview_encounter_condition_add(&encounter_ref, request)
+            service.preview_encounter_condition_add(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))
@@ -707,12 +708,16 @@ pub(crate) async fn preview_encounter_condition_update(
         JsonRejection,
     >,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.condition_id = condition_id;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.preview_encounter_condition_update(&encounter_ref, &participant_key, request)
+            service.preview_encounter_condition_update(
+                &encounter_ref,
+                &participant_key,
+                condition_id,
+                request,
+            )
         })
         .await?,
     ))
@@ -992,12 +997,13 @@ pub(crate) async fn update_saved_list_item_note(
     Path((list_ref, record_key)): Path<(String, String)>,
     payload: Result<Json<SavedEditPayload<UpdateSavedListItemNoteRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(SavedEditPayload(mut request)) = payload.map_err(WebError::invalid_request)?;
-    request.list_ref = list_ref;
-    request.record_key = record_key;
+    let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.update_saved_list_item_note(request)).await?,
+        call_service(state, move || {
+            service.update_saved_list_item_note(&list_ref, &record_key, request)
+        })
+        .await?,
     ))
 }
 
@@ -1067,12 +1073,11 @@ pub(crate) async fn update_encounter_manual_tracker(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<atlas_app_model::UpdateEncounterManualTrackerRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.update_encounter_manual_tracker(&encounter_ref, request)
+            service.update_encounter_manual_tracker(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))
@@ -1084,12 +1089,11 @@ pub(crate) async fn update_encounter_ability_state(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<atlas_app_model::UpdateEncounterAbilityStateRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.update_encounter_ability_state(&encounter_ref, request)
+            service.update_encounter_ability_state(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))
@@ -1101,12 +1105,11 @@ pub(crate) async fn update_turn_resources(
     Path((encounter_ref, participant_key)): Path<(String, String)>,
     payload: Result<Json<atlas_app_model::UpdateTurnResourcesRequest>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
-    request.participant_key = participant_key;
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {
-            service.update_turn_resources(&encounter_ref, request)
+            service.update_turn_resources(&encounter_ref, &participant_key, request)
         })
         .await?,
     ))

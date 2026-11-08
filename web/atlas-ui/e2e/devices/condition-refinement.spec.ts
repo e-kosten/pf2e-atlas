@@ -89,7 +89,6 @@ test.describe(() => {
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Precedence hero",
             initiative: 20,
             current_hp: 40,
@@ -116,7 +115,6 @@ test.describe(() => {
           data: {
             request_id: `source-${index}`,
             expected_encounter_revision: detail.revision,
-            participant_key: actor.participant_key,
             condition_ref: definition.condition_ref,
             event_intent: "apply",
             decisions: { keep_upright: false },
@@ -307,7 +305,6 @@ test("delayed condition previews retain geometry, focus and the HP opt-out", asy
   try {
     await page.request.post(`${path}/participants/manual`, {
       data: {
-        encounter_ref: encounter.encounter_key,
         display_name: "Preview hero",
         max_hp: 40,
         current_hp: 40,
@@ -439,7 +436,6 @@ test("Quickened keeps action restrictions through edits and clears hidden guidan
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Quickened hero",
             max_hp: 40,
             current_hp: 40,
@@ -464,7 +460,6 @@ test("Quickened keeps action restrictions through edits and clears hidden guidan
           {
             data: {
               request_id: "quickened-source",
-              participant_key: actor.participant_key,
               expected_encounter_revision: detail.revision,
               condition_ref: definition.condition_ref,
               event_intent: "apply",

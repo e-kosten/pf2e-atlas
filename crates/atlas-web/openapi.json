@@ -452,6 +452,7 @@
         "type": "object"
       },
       "AddEncounterManualParticipantRequest": {
+        "additionalProperties": false,
         "properties": {
           "current_hp": {
             "format": "int64",
@@ -461,9 +462,6 @@
             ]
           },
           "display_name": {
-            "type": "string"
-          },
-          "encounter_ref": {
             "type": "string"
           },
           "initiative": {
@@ -482,7 +480,6 @@
           }
         },
         "required": [
-          "encounter_ref",
           "display_name"
         ],
         "type": "object"
@@ -547,9 +544,6 @@
           "parameters": {
             "$ref": "#/components/schemas/ConditionParametersInputView"
           },
-          "participant_key": {
-            "type": "string"
-          },
           "request_id": {
             "type": "string"
           },
@@ -572,8 +566,7 @@
         },
         "required": [
           "request_id",
-          "expected_encounter_revision",
-          "participant_key"
+          "expected_encounter_revision"
         ],
         "type": "object"
       },
@@ -594,10 +587,8 @@
         "type": "object"
       },
       "AddEncounterRecordParticipantRequest": {
+        "additionalProperties": false,
         "properties": {
-          "encounter_ref": {
-            "type": "string"
-          },
           "initiative": {
             "format": "int64",
             "type": [
@@ -626,17 +617,14 @@
           }
         },
         "required": [
-          "encounter_ref",
           "record_ref",
           "quantity"
         ],
         "type": "object"
       },
       "AddSavedListItemRequest": {
+        "additionalProperties": false,
         "properties": {
-          "list_ref": {
-            "type": "string"
-          },
           "note": {
             "type": [
               "string",
@@ -648,7 +636,6 @@
           }
         },
         "required": [
-          "list_ref",
           "record_ref"
         ],
         "type": "object"
@@ -920,16 +907,12 @@
             "format": "int64",
             "type": "integer"
           },
-          "participant_key": {
-            "type": "string"
-          },
           "request_id": {
             "type": "string"
           }
         },
         "required": [
           "request_id",
-          "participant_key",
           "expected_revision",
           "action"
         ],
@@ -960,13 +943,9 @@
           "expected_revision": {
             "format": "int64",
             "type": "integer"
-          },
-          "participant_key": {
-            "type": "string"
           }
         },
         "required": [
-          "participant_key",
           "expected_revision",
           "action"
         ],
@@ -9363,6 +9342,7 @@
         "type": "object"
       },
       "FilterSavedListRequest": {
+        "additionalProperties": false,
         "properties": {
           "filter": {
             "oneOf": [
@@ -9373,9 +9353,6 @@
                 "type": "null"
               }
             ]
-          },
-          "list_ref": {
-            "type": "string"
           },
           "query": {
             "type": [
@@ -9394,9 +9371,6 @@
             ]
           }
         },
-        "required": [
-          "list_ref"
-        ],
         "type": "object"
       },
       "FilterUnitFieldView": {
@@ -14746,16 +14720,13 @@
         "type": "object"
       },
       "RemoveSavedListItemRequest": {
+        "additionalProperties": false,
         "properties": {
-          "list_ref": {
-            "type": "string"
-          },
           "record_ref": {
             "type": "string"
           }
         },
         "required": [
-          "list_ref",
           "record_ref"
         ],
         "type": "object"
@@ -14796,9 +14767,6 @@
       "ReorderSavedListItemRequest": {
         "additionalProperties": false,
         "properties": {
-          "list_ref": {
-            "type": "string"
-          },
           "placement": {
             "$ref": "#/components/schemas/ReorderSavedListItemPlacementView"
           },
@@ -14810,7 +14778,6 @@
           }
         },
         "required": [
-          "list_ref",
           "record_ref",
           "target_record_ref",
           "placement"
@@ -16539,16 +16506,13 @@
         "type": "object"
       },
       "SetEncounterTurnRequest": {
+        "additionalProperties": false,
         "properties": {
-          "encounter_ref": {
-            "type": "string"
-          },
           "participant_key": {
             "type": "string"
           }
         },
         "required": [
-          "encounter_ref",
           "participant_key"
         ],
         "type": "object"
@@ -18770,9 +18734,6 @@
           "navigation": {
             "$ref": "#/components/schemas/RecordNavigationViewInputSchema"
           },
-          "participant_key": {
-            "type": "string"
-          },
           "request_id": {
             "type": "string"
           },
@@ -18788,7 +18749,6 @@
           "request_id",
           "expected_encounter_revision",
           "expected_participant_revision",
-          "participant_key",
           "navigation",
           "action"
         ],
@@ -18808,9 +18768,6 @@
             "format": "int64",
             "type": "integer"
           },
-          "participant_key": {
-            "type": "string"
-          },
           "request_id": {
             "type": "string"
           }
@@ -18819,7 +18776,6 @@
           "request_id",
           "expected_encounter_revision",
           "expected_participant_revision",
-          "participant_key",
           "action"
         ],
         "type": "object"
@@ -18827,10 +18783,6 @@
       "UpdateEncounterParticipantConditionRequest": {
         "additionalProperties": false,
         "properties": {
-          "condition_id": {
-            "format": "int64",
-            "type": "integer"
-          },
           "condition_ref": {
             "type": [
               "string",
@@ -18908,12 +18860,12 @@
         "required": [
           "request_id",
           "expected_encounter_revision",
-          "condition_id",
           "name"
         ],
         "type": "object"
       },
       "UpdateEncounterParticipantRequest": {
+        "additionalProperties": false,
         "properties": {
           "current_hp": {
             "format": "int64",
@@ -18964,9 +18916,6 @@
               "null"
             ]
           },
-          "participant_key": {
-            "type": "string"
-          },
           "participant_variant": {
             "$ref": "#/components/schemas/EncounterParticipantVariantView"
           },
@@ -18986,7 +18935,6 @@
         },
         "required": [
           "expected_revision",
-          "participant_key",
           "display_name",
           "side",
           "participant_variant",
@@ -19002,9 +18950,6 @@
         "properties": {
           "description": {
             "$ref": "#/components/schemas/FieldEdit_Option_String"
-          },
-          "encounter_key": {
-            "type": "string"
           },
           "name": {
             "$ref": "#/components/schemas/FieldEdit_String"
@@ -19022,9 +18967,6 @@
             "$ref": "#/components/schemas/FieldEdit_EncounterStatusView"
           }
         },
-        "required": [
-          "encounter_key"
-        ],
         "type": "object"
       },
       "UpdatePartyRequest": {
@@ -19053,19 +18995,11 @@
       "UpdateSavedListItemNoteRequest": {
         "additionalProperties": false,
         "properties": {
-          "list_ref": {
-            "type": "string"
-          },
           "note": {
             "$ref": "#/components/schemas/FieldEdit_Option_String"
-          },
-          "record_key": {
-            "type": "string"
           }
         },
         "required": [
-          "list_ref",
-          "record_key",
           "note"
         ],
         "type": "object"
@@ -19075,9 +19009,6 @@
         "properties": {
           "description": {
             "$ref": "#/components/schemas/FieldEdit_Option_String"
-          },
-          "list_key": {
-            "type": "string"
           },
           "name": {
             "$ref": "#/components/schemas/FieldEdit_String"
@@ -19089,12 +19020,10 @@
             "$ref": "#/components/schemas/FieldEdit_Vec_String"
           }
         },
-        "required": [
-          "list_key"
-        ],
         "type": "object"
       },
       "UpdateTurnResourcesRequest": {
+        "additionalProperties": false,
         "properties": {
           "action": {
             "$ref": "#/components/schemas/TurnResourceAction"
@@ -19102,9 +19031,6 @@
           "expected_encounter_revision": {
             "format": "int64",
             "type": "integer"
-          },
-          "participant_key": {
-            "type": "string"
           },
           "request_id": {
             "type": "string"
@@ -19119,7 +19045,6 @@
         "required": [
           "request_id",
           "expected_encounter_revision",
-          "participant_key",
           "action"
         ],
         "type": "object"

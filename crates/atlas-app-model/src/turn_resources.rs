@@ -105,10 +105,10 @@ pub enum TurnResourceKind {
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateTurnResourcesRequest {
     pub request_id: String,
     pub expected_encounter_revision: i64,
-    pub participant_key: String,
     pub turn_key: Option<String>,
     pub action: TurnResourceAction,
 }

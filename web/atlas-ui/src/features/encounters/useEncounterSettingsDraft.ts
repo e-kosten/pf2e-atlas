@@ -148,7 +148,6 @@ export function useEncounterSettingsDraft({
     const roundDuration = edit("round_duration_seconds", (value) => value);
     try {
       await onSave({
-        encounter_key: encounter.encounter_key,
         ...(name && { name }),
         ...(description && { description }),
         ...(note && { note }),

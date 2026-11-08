@@ -11,9 +11,19 @@ import type {
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
-export type ConditionEventInput =
-  | Omit<AddEncounterParticipantConditionRequest, "request_id">
-  | Omit<UpdateEncounterParticipantConditionRequest, "request_id">;
+export type AddConditionDraft = Omit<
+  AddEncounterParticipantConditionRequest,
+  "request_id"
+> & {
+  participant_key: string;
+};
+export type UpdateConditionDraft = Omit<
+  UpdateEncounterParticipantConditionRequest,
+  "request_id"
+> & {
+  condition_id: number;
+};
+export type ConditionEventInput = AddConditionDraft | UpdateConditionDraft;
 // Notes are persisted metadata, not input to application consequences.
 const identityOf = (request: ConditionEventInput) =>
   JSON.stringify({ ...request, note: undefined });

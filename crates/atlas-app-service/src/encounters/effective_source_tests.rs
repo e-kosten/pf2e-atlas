@@ -46,13 +46,15 @@ fn fixture(items: serde_json::Value) -> (FixtureWorker, String, String) {
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: key.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 2,
-            initiative: Some(20),
-            participant_variant: None,
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 2,
+                initiative: Some(20),
+                participant_variant: None,
+            },
+        )
         .unwrap();
     let p = f.worker.encounter(&key).unwrap().participants[0]
         .participant_key
@@ -97,9 +99,9 @@ fn correct_hp(f: &FixtureWorker, key: &str, p: &str, hp: i64) {
     f.worker
         .apply_encounter_hp_action(
             key,
+            p,
             ApplyEncounterHpActionRequest {
                 request_id: crate::test_support::next_request_id(),
-                participant_key: p.into(),
                 expected_revision: before
                     .participants
                     .iter()
@@ -125,12 +127,12 @@ fn add(
     f.worker
         .add_encounter_participant_condition(
             key,
+            p,
             AddEncounterParticipantConditionRequest {
                 request_id: crate::test_support::next_request_id(),
                 expected_encounter_revision: f.worker.encounter(key).unwrap().revision,
                 event_intent: intent,
                 decisions: Default::default(),
-                participant_key: p.into(),
                 condition_ref: Some(rule.definition().record_key.into()),
                 name: None,
                 value,
@@ -163,7 +165,6 @@ fn toggle_request(
         request_id: crate::test_support::next_request_id(),
         expected_encounter_revision: current.revision,
         expected_participant_revision: participant.revision,
-        participant_key: p.into(),
         navigation: ability.navigation.clone(),
         rule_ordinal: ability.rule_ordinal,
         action: EncounterAbilityStateAction::SetOption {
@@ -282,14 +283,14 @@ fn activating_doomed_checks_mortality_without_saving_an_inherited_condition_row(
     let request = toggle_request(&f, &key, &p, None);
     let receipt = f
         .worker
-        .update_encounter_ability_state(&key, request.clone())
+        .update_encounter_ability_state(&key, &p, request.clone())
         .unwrap();
     let after = f.worker.encounter(&key).unwrap();
     assert_eq!(after.participants[0].mortality, MortalityStateView::Dead);
     assert!(after.participants[0].conditions.is_empty());
     assert_eq!(
         f.worker
-            .update_encounter_ability_state(&key, request)
+            .update_encounter_ability_state(&key, &p, request)
             .unwrap(),
         receipt
     );
@@ -323,7 +324,7 @@ fn activating_stunned_deducts_current_stock_and_preserves_its_authored_cause() {
     );
     let request = toggle_request(&f, &key, &p, None);
     f.worker
-        .update_encounter_ability_state(&key, request.clone())
+        .update_encounter_ability_state(&key, &p, request.clone())
         .unwrap();
     let after = f.worker.encounter(&key).unwrap();
     assert_eq!(
@@ -336,7 +337,7 @@ fn activating_stunned_deducts_current_stock_and_preserves_its_authored_cause() {
     );
     assert!(after.participants[0].conditions.is_empty());
     f.worker
-        .update_encounter_ability_state(&key, request)
+        .update_encounter_ability_state(&key, &p, request)
         .unwrap();
     assert_eq!(f.worker.encounter(&key).unwrap(), after);
 }
@@ -366,7 +367,7 @@ fn supported_source_detection_options_reach_strike_context_and_contextual_ac() {
         let (f, key, p) = fixture(items);
         let request = toggle_request(&f, &key, &p, selection);
         f.worker
-            .update_encounter_ability_state(&key, request)
+            .update_encounter_ability_state(&key, &p, request)
             .unwrap();
         let current = f.worker.encounter(&key).unwrap();
         let observer = &current.participants[1];
@@ -597,19 +598,18 @@ fn manual_source_counter_controls_casting_and_preserves_independent_conditions()
             request_id: crate::test_support::next_request_id(),
             expected_encounter_revision: before.revision,
             expected_participant_revision: participant.revision,
-            participant_key: p.clone(),
             navigation: source.source,
             rule_ordinal: source.editable_rule_ordinal,
             action: EncounterAbilityStateAction::SetConditionValue { value },
         };
         f.worker
-            .update_encounter_ability_state(&key, request.clone())
+            .update_encounter_ability_state(&key, &p, request.clone())
             .unwrap();
         let mut stale = request;
         stale.request_id = crate::test_support::next_request_id();
         assert!(
             f.worker
-                .update_encounter_ability_state(&key, stale)
+                .update_encounter_ability_state(&key, &p, stale)
                 .is_err()
         );
         expected = (value, next_hint);

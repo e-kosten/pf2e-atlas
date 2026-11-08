@@ -498,10 +498,13 @@ describe("list views", () => {
       screen.getByRole("button", { name: "Advanced filters" }),
     ).toBeInTheDocument();
     await waitFor(() =>
-      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
-        list_ref: "research",
-        filter: undefined,
-      }),
+      expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+        "research",
+        {
+          filter: undefined,
+        },
+        expect.any(AbortSignal),
+      ),
     );
     expect(
       screen.queryByRole("columnheader", { name: "Status" }),
@@ -516,8 +519,7 @@ describe("list views", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
 
     await waitFor(() =>
-      expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
-        list_ref: "list_research",
+      expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith("list_research", {
         record_ref: "actions:testAction1",
       }),
     );
@@ -877,7 +879,7 @@ describe("list views", () => {
     );
     const length = history.length;
     apiMocks.filterSavedList.mockImplementation(
-      async (request: { sort?: ResultSort }) => ({
+      async (_listRef: string, request: { sort?: ResultSort }) => ({
         ...savedListDetailFixture(),
         sort: request.sort ?? { kind: "saved_order" },
       }),
@@ -1082,7 +1084,7 @@ describe("list views", () => {
 
   it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {
     apiMocks.filterSavedList.mockImplementation(
-      async (request: { sort?: ResultSort }) => ({
+      async (_listRef: string, request: { sort?: ResultSort }) => ({
         ...savedListDetailFixture(),
         sort: request.sort ?? { kind: "saved_order" },
       }),
@@ -1101,12 +1103,14 @@ describe("list views", () => {
     const note = screen.getByRole("textbox", { name: "Note" });
     fireEvent.change(note, { target: { value: "Keep this unsaved note" } });
     expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+      expect.any(String),
       expect.objectContaining({
         sort: {
           kind: "attributes",
           rules: [{ field: "level", direction: "desc" }],
         } satisfies ResultSort,
       }),
+      expect.any(AbortSignal),
     );
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "href",
@@ -1125,7 +1129,7 @@ describe("list views", () => {
   it("preserves selected membership and nested reading while filters hide the selected member", async () => {
     history.replaceState(null, "", "/lists/research/records/actions:testAction1");
     apiMocks.filterSavedList.mockImplementation(
-      async (request: { query?: string }) => ({
+      async (_listRef: string, request: { query?: string }) => ({
         ...savedListDetailFixture(),
         items: request.query ? [] : savedListDetailFixture().items,
       }),
@@ -1173,10 +1177,13 @@ describe("list views", () => {
     );
 
     await waitFor(() =>
-      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
-        list_ref: "research",
-        filter: undefined,
-      }),
+      expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+        "research",
+        {
+          filter: undefined,
+        },
+        expect.any(AbortSignal),
+      ),
     );
     const search = await screen.findByRole("searchbox", { name: "Search records" });
     fireEvent.change(search, {
@@ -1185,11 +1192,14 @@ describe("list views", () => {
     fireEvent.keyDown(search, { key: "Enter", keyCode: 13 });
 
     await waitFor(() =>
-      expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
-        list_ref: "list_research",
-        query: "Test Action 2",
-        filter: undefined,
-      }),
+      expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
+        "list_research",
+        {
+          query: "Test Action 2",
+          filter: undefined,
+        },
+        expect.any(AbortSignal),
+      ),
     );
   });
 
@@ -1217,8 +1227,7 @@ describe("list views", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
       await waitFor(() =>
-        expect(apiMocks.updateSavedList).toHaveBeenCalledWith({
-          list_key: "list_research",
+        expect(apiMocks.updateSavedList).toHaveBeenCalledWith("list_research", {
           name: { expected: "Research", value: name },
           description: {
             expected: savedListDetailFixture().list.description ?? null,
@@ -1244,25 +1253,24 @@ describe("list views", () => {
     });
 
     const original = savedListDetailFixture();
-    apiMocks.filterSavedList.mockImplementation(
-      async (request: { list_ref: string }) =>
-        request.list_ref === original.list.list_key
-          ? {
-              ...original,
-              list: { ...original.list, slug: "renamed", name: "Renamed Research" },
-            }
-          : {
-              ...original,
-              list: {
-                ...original.list,
-                list_key: "list_other",
-                name: "Replacement list",
-              },
-              items: original.items.map((item) => ({
-                ...item,
-                note: "Replacement note",
-              })),
+    apiMocks.filterSavedList.mockImplementation(async (listRef: string) =>
+      listRef === original.list.list_key
+        ? {
+            ...original,
+            list: { ...original.list, slug: "renamed", name: "Renamed Research" },
+          }
+        : {
+            ...original,
+            list: {
+              ...original.list,
+              list_key: "list_other",
+              name: "Replacement list",
             },
+            items: original.items.map((item) => ({
+              ...item,
+              note: "Replacement note",
+            })),
+          },
     );
     const search = screen.getByRole("searchbox", { name: "Search records" });
     fireEvent.change(search, { target: { value: "New search" } });
@@ -1271,7 +1279,9 @@ describe("list views", () => {
       await screen.findByRole("heading", { name: "Renamed Research" }),
     ).toBeVisible();
     expect(apiMocks.filterSavedList).toHaveBeenLastCalledWith(
-      expect.objectContaining({ list_ref: "list_research", query: "New search" }),
+      "list_research",
+      expect.objectContaining({ query: "New search" }),
+      expect.any(AbortSignal),
     );
     expect(screen.queryByText("Replacement list")).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
@@ -1286,11 +1296,13 @@ describe("list views", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
-      expect(apiMocks.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith({
-        list_ref: "list_research",
-        record_key: "actions:testAction1",
-        note: { expected: null, value: "My original list note" },
-      }),
+      expect(apiMocks.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith(
+        "list_research",
+        "actions:testAction1",
+        {
+          note: { expected: null, value: "My original list note" },
+        },
+      ),
     );
     await waitFor(() =>
       expect(screen.queryByRole("textbox", { name: "Note" })).toBeNull(),
@@ -1361,11 +1373,13 @@ describe("list views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     const keep = await screen.findByRole("button", { name: "Keep mine for Name" });
     const request = {
-      list_key: "list_research",
       name: { expected: "Research", value: "My name" },
       description: { expected: "Saved description", value: null },
     };
-    expect(apiMocks.updateSavedList).toHaveBeenCalledExactlyOnceWith(request);
+    expect(apiMocks.updateSavedList).toHaveBeenCalledExactlyOnceWith(
+      "list_research",
+      request,
+    );
     expect(apiMocks.getSavedList).toHaveBeenLastCalledWith("list_research");
     const review = screen.getByRole("group", { name: "Name" });
     expect(review).toHaveTextContent("Saved name");
@@ -1384,7 +1398,7 @@ describe("list views", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => {
-      expect(apiMocks.updateSavedList).toHaveBeenLastCalledWith({
+      expect(apiMocks.updateSavedList).toHaveBeenLastCalledWith("list_research", {
         ...request,
         name: { expected: "Saved name", value: "My name" },
       });
@@ -1529,8 +1543,7 @@ describe("list views", () => {
     });
     fireEvent.click(add);
     expect(await within(dialog).findByText("Already in this list.")).toBeVisible();
-    expect(apiMocks.addSavedListItem).toHaveBeenLastCalledWith({
-      list_ref: "list_research",
+    expect(apiMocks.addSavedListItem).toHaveBeenLastCalledWith("list_research", {
       record_ref: "rules:nested",
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
@@ -1570,8 +1583,7 @@ describe("list views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() =>
-      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        list_ref: "list_research",
+      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith("list_research", {
         record_ref: "actions:testAction1",
       }),
     );

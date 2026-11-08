@@ -109,10 +109,11 @@ export function useListEntryNote({
   const save = useMutation({
     mutationFn: ({
       request,
+      draft,
     }: {
       request: UpdateSavedListItemNoteRequest;
       draft: Draft;
-    }) => updateSavedListItemNote(request),
+    }) => updateSavedListItemNote(draft.entry.listRef, draft.entry.recordKey, request),
     retry: false,
     onSuccess: (view, { draft: saved }) => {
       client.setQueryData(noteQuery(saved.entry).queryKey, view);
@@ -138,8 +139,6 @@ export function useListEntryNote({
     save.mutate({
       draft,
       request: {
-        list_ref: draft.entry.listRef,
-        record_key: draft.entry.recordKey,
         note: { expected, value: noteValue(draft.text) },
       },
     });

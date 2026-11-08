@@ -8,7 +8,8 @@ import type {
   EncounterParticipantView,
 } from "../../generated/atlas";
 vi.mock("../../api/atlasApi", () => ({
-  previewEncounterCondition: vi.fn().mockResolvedValue({ consequences: [] }),
+  previewEncounterConditionAdd: vi.fn().mockResolvedValue({ consequences: [] }),
+  previewEncounterConditionUpdate: vi.fn().mockResolvedValue({ consequences: [] }),
 }));
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterConditionValue } from "./EncounterConditionValue";

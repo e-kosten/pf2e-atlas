@@ -64,7 +64,7 @@ function setup(initialNote?: typeof entry) {
 beforeEach(() => {
   vi.resetAllMocks();
   api.getSavedListItemNote.mockResolvedValue(entry);
-  api.updateSavedListItemNote.mockImplementation((request) =>
+  api.updateSavedListItemNote.mockImplementation((_listRef, _recordKey, request) =>
     Promise.resolve({ ...entry, note: request.note.value }),
   );
 });
@@ -106,11 +106,13 @@ it("retains the draft on failure, retries, and clears a blank note without losin
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(await screen.findByText("Unable to save note")).toBeVisible();
   expect(screen.getByRole("textbox")).toHaveValue("New purpose");
-  expect(api.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith({
-    list_ref: "list_research",
-    record_key: "actions:one",
-    note: { expected: entry.note, value: "New purpose" },
-  });
+  expect(api.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith(
+    "list_research",
+    "actions:one",
+    {
+      note: { expected: entry.note, value: "New purpose" },
+    },
+  );
   // Keep the refreshed server value aligned with the successful mutation.
   api.getSavedListItemNote.mockResolvedValue({ ...entry, note: "New purpose" });
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -125,11 +127,13 @@ it("retains the draft on failure, retries, and clears a blank note without losin
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Add note" })).toHaveFocus(),
   );
-  expect(api.updateSavedListItemNote).toHaveBeenLastCalledWith({
-    list_ref: "list_research",
-    record_key: "actions:one",
-    note: { expected: "New purpose", value: null },
-  });
+  expect(api.updateSavedListItemNote).toHaveBeenLastCalledWith(
+    "list_research",
+    "actions:one",
+    {
+      note: { expected: "New purpose", value: null },
+    },
+  );
 });
 
 it("isolates late mutation completions from a different selected entry", async () => {
@@ -213,11 +217,13 @@ it("overwrites against the reviewed saved note and reopens review after another 
     within(footer).queryByRole("button", { name: "Save" }),
   ).not.toBeInTheDocument();
   fireEvent.click(reopen);
-  expect(api.updateSavedListItemNote).toHaveBeenLastCalledWith({
-    list_ref: "list_research",
-    record_key: "actions:one",
-    note: { expected: entry.note, value: "My plan" },
-  });
+  expect(api.updateSavedListItemNote).toHaveBeenLastCalledWith(
+    "list_research",
+    "actions:one",
+    {
+      note: { expected: entry.note, value: "My plan" },
+    },
+  );
 
   api.getSavedListItemNote.mockResolvedValue({
     ...entry,
@@ -239,11 +245,13 @@ it("overwrites against the reviewed saved note and reopens review after another 
   api.updateSavedListItemNote.mockRejectedValueOnce(conflict);
   fireEvent.click(overwrite);
   expect(await screen.findByText("Second saved change")).toBeVisible();
-  expect(api.updateSavedListItemNote).toHaveBeenLastCalledWith({
-    list_ref: "list_research",
-    record_key: "actions:one",
-    note: { expected: "First saved change", value: "My plan" },
-  });
+  expect(api.updateSavedListItemNote).toHaveBeenLastCalledWith(
+    "list_research",
+    "actions:one",
+    {
+      note: { expected: "First saved change", value: "My plan" },
+    },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Use saved" }));
   expect(screen.queryByRole("textbox", { name: "Note" })).not.toBeInTheDocument();
   await waitFor(() =>
@@ -279,11 +287,13 @@ it.each([
     });
     expect(edit).toHaveFocus();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(api.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith({
-      list_ref: "list_research",
-      record_key: "actions:one",
-      note: { expected: entry.note, value: saved },
-    });
+    expect(api.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith(
+      "list_research",
+      "actions:one",
+      {
+        note: { expected: entry.note, value: saved },
+      },
+    );
   },
 );
 

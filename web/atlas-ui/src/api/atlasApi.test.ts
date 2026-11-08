@@ -75,11 +75,11 @@ it("sends the list-item DELETE body and never replays an incompatible mutation",
       headers: { [API_CONTRACT_HEADER]: "old-contract" },
     }),
   );
-  const request = { list_ref: "list with/slash", record_ref: "actions:seek" };
-  await expect(removeSavedListItem(request)).rejects.toMatchObject({
+  const request = { record_ref: "actions:seek" };
+  await expect(removeSavedListItem("list with/slash", request)).rejects.toMatchObject({
     backendContract: "old-contract",
   });
-  await expect(removeSavedListItem(request)).rejects.toMatchObject({
+  await expect(removeSavedListItem("list with/slash", request)).rejects.toMatchObject({
     backendContract: "old-contract",
   });
   expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -492,11 +492,11 @@ describe("source-backed API transport", () => {
     expect(
       await updateEncounterParticipant(
         "test",
+        participant.participant_key,
         participantUpdate(participant, { current_hp: 19 }),
       ),
     ).toEqual({ encounter_key: "encounter-test" });
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({
-      participant_key: "ghoul",
       expected_revision: 7,
       current_hp: 19,
     });
@@ -524,7 +524,6 @@ describe("source-backed API transport", () => {
   });
   const participantRequest: UpdateEncounterParticipantRequest = {
     expected_revision: 7,
-    participant_key: "ghoul",
     display_name: "Ghoul",
     side: "enemy",
     participant_variant: "normal",
@@ -548,8 +547,7 @@ describe("source-backed API transport", () => {
       path: "/api/encounters/test",
       method: "PATCH",
       call: () =>
-        updateEncounter({
-          encounter_key: "test",
+        updateEncounter("test", {
           name: { expected: "Old name", value: "Test" },
         }),
     },
@@ -558,8 +556,7 @@ describe("source-backed API transport", () => {
       path: "/api/encounters/test/participants/record",
       method: "POST",
       call: () =>
-        addEncounterRecordParticipant({
-          encounter_ref: "test",
+        addEncounterRecordParticipant("test", {
           record_ref: "actors:ghoul",
           quantity: 2,
         }),
@@ -568,14 +565,13 @@ describe("source-backed API transport", () => {
       name: "manual addition",
       path: "/api/encounters/test/participants/manual",
       method: "POST",
-      call: () =>
-        addEncounterManualParticipant({ encounter_ref: "test", display_name: "PC" }),
+      call: () => addEncounterManualParticipant("test", { display_name: "PC" }),
     },
     {
       name: "participant edit",
       path: "/api/encounters/test/participants/ghoul",
       method: "PATCH",
-      call: () => updateEncounterParticipant("test", participantRequest),
+      call: () => updateEncounterParticipant("test", "ghoul", participantRequest),
     },
     {
       name: "reorder",
@@ -598,15 +594,14 @@ describe("source-backed API transport", () => {
       name: "turn",
       path: "/api/encounters/test/turn",
       method: "POST",
-      call: () => setEncounterTurn({ encounter_ref: "test", participant_key: "ghoul" }),
+      call: () => setEncounterTurn("test", { participant_key: "ghoul" }),
     },
     {
       name: "condition addition",
       path: "/api/encounters/test/participants/ghoul/conditions",
       method: "POST",
       call: () =>
-        addEncounterParticipantCondition("test", {
-          participant_key: "ghoul",
+        addEncounterParticipantCondition("test", "ghoul", {
           expected_encounter_revision: 8,
           name: "Condition",
           request_id: "condition-test",
@@ -623,9 +618,8 @@ describe("source-backed API transport", () => {
       path: "/api/encounters/test/participants/ghoul/conditions/9",
       method: "PATCH",
       call: () =>
-        updateEncounterParticipantCondition("test", "ghoul", {
+        updateEncounterParticipantCondition("test", "ghoul", 9, {
           expected_encounter_revision: 8,
-          condition_id: 9,
           name: "Condition",
           request_id: "condition-test",
           parameters: { kind: "none" },
@@ -659,13 +653,11 @@ describe("source-backed API transport", () => {
   );
   it("sends both clock values as JSON numbers and preserves a nullable metadata clear", async () => {
     respond({ encounter_key: "encounter-test" });
-    await updateEncounter({
-      encounter_key: "test",
+    await updateEncounter("test", {
       round_duration_seconds: { expected: 6, value: 12 },
       note: { expected: "Old note", value: null },
     });
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-      encounter_key: "test",
       round_duration_seconds: { expected: 6, value: 12 },
       note: { expected: "Old note", value: null },
     });
@@ -674,9 +666,8 @@ describe("source-backed API transport", () => {
   it("sends HP intent and formula text unchanged with the participant revision", async () => {
     respond({ encounter_key: "encounter-test" });
     await expect(
-      applyEncounterHpAction("test", {
+      applyEncounterHpAction("test", "ghoul", {
         request_id: "hp-action-test",
-        participant_key: "ghoul",
         expected_revision: 7,
         action: { kind: "damage", amount: " 10 - 3 " },
       }),
@@ -688,7 +679,6 @@ describe("source-backed API transport", () => {
     );
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
       request_id: "hp-action-test",
-      participant_key: "ghoul",
       expected_revision: 7,
       action: { kind: "damage", amount: " 10 - 3 " },
     });
@@ -702,7 +692,7 @@ describe("source-backed API transport", () => {
     };
     respond(conflict, 409);
     await expect(
-      updateEncounterParticipant("test", participantRequest),
+      updateEncounterParticipant("test", "ghoul", participantRequest),
     ).rejects.toMatchObject({
       status: 409,
       appError: conflict,
@@ -726,7 +716,7 @@ describe("source-backed API transport", () => {
   });
   it("rejects unsafe expected revision before issuing a write", async () => {
     await expect(
-      updateEncounterParticipant("test", {
+      updateEncounterParticipant("test", "ghoul", {
         ...participantRequest,
         expected_revision: 9007199254740992,
       }),
@@ -759,8 +749,7 @@ describe("source-backed API transport", () => {
     respond({});
     for (const max_hp of [9007199254740992, -9007199254740992]) {
       await expect(
-        addEncounterManualParticipant({
-          encounter_ref: "test",
+        addEncounterManualParticipant("test", {
           display_name: "Manual",
           max_hp,
         }),
@@ -1012,11 +1001,22 @@ describe("source-backed API transport", () => {
       }),
     ).toMatchObject({ catalog_version: 4 });
   });
+  it("passes cancellation through a saved-list filter without treating it as a write", async () => {
+    const controller = new AbortController();
+    const aborted = new DOMException("Canceled", "AbortError");
+    fetchMock.mockImplementationOnce(async (_path, init) => {
+      expect(init.signal).toBe(controller.signal);
+      controller.abort();
+      throw aborted;
+    });
+    await expect(filterSavedList("research", {}, controller.signal)).rejects.toBe(
+      aborted,
+    );
+  });
   it("preserves useful saved-list CRUD requests", async () => {
     respond({ items: [] });
     await createSavedList({ slug: "research", name: "Research", tags: [] });
-    await filterSavedList({
-      list_ref: "Research/雪%",
+    await filterSavedList("Research/雪%", {
       filter: { kind: "state_match", field: "level", state: "missing" },
     });
     await deleteSavedList("Research/雪%");
@@ -1036,7 +1036,6 @@ describe("source-backed API transport", () => {
         path: "/api/lists/Research%2F%E9%9B%AA%25/filter",
         method: "POST",
         body: {
-          list_ref: "Research/雪%",
           filter: { kind: "state_match", field: "level", state: "missing" },
         },
       },
@@ -1416,10 +1415,9 @@ it("normalizes persistent Add/Edit choices without losing source identity", asyn
       ],
     },
   });
-  const result = await api.previewEncounterCondition("test", "actor", {
+  const result = await api.previewEncounterConditionAdd("test", "actor", {
     request_id: "preview",
     expected_encounter_revision: 2,
-    participant_key: "actor",
     event_intent: "apply",
     decisions: { keep_upright: false },
     condition_ref: "conditionitems:lDVqvLKA6eF3Df60",
@@ -1660,10 +1658,9 @@ it.each([0, 2, null])(
         },
       ],
     });
-    const result = await api.previewEncounterCondition("test", "actor", {
+    const result = await api.previewEncounterConditionAdd("test", "actor", {
       request_id: "preview-stunned",
       expected_encounter_revision: 2,
-      participant_key: "actor",
       condition_ref: "conditionitems:dfCMdR4wnpbYNTix",
       value: 2,
       event_intent: "apply",

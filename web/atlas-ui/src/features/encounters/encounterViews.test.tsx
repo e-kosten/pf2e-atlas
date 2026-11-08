@@ -103,7 +103,8 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   deleteEncounter: apiMocks.deleteEncounter,
   getEncounter: apiMocks.getEncounter,
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
-  previewEncounterCondition: apiMocks.previewEncounterCondition,
+  previewEncounterConditionAdd: apiMocks.previewEncounterCondition,
+  previewEncounterConditionUpdate: apiMocks.previewEncounterCondition,
   getEncounterConditionConsequences: apiMocks.getEncounterConditionConsequences,
   encounterCastingReminders: apiMocks.encounterCastingReminders,
   getEncounters: apiMocks.getEncounters,
@@ -395,17 +396,19 @@ describe("encounter views", () => {
       apiMocks.removeEncounterParticipantCondition,
     ])
       mutation.mockResolvedValue(receipt);
-    apiMocks.updateEncounterParticipant.mockImplementation((_ref, request) => {
-      serverEncounter = {
-        ...serverEncounter,
-        participants: serverEncounter.participants.map((p) =>
-          p.participant_key === request.participant_key
-            ? { ...p, ...request, revision: p.revision + 1 }
-            : p,
-        ),
-      };
-      return Promise.resolve(receipt);
-    });
+    apiMocks.updateEncounterParticipant.mockImplementation(
+      (_ref, participantKey, request) => {
+        serverEncounter = {
+          ...serverEncounter,
+          participants: serverEncounter.participants.map((p) =>
+            p.participant_key === participantKey
+              ? { ...p, ...request, revision: p.revision + 1 }
+              : p,
+          ),
+        };
+        return Promise.resolve(receipt);
+      },
+    );
     apiMocks.deleteEncounter.mockResolvedValue({
       ...receipt,
       slug: "ambush",
@@ -455,8 +458,8 @@ describe("encounter views", () => {
     ).toHaveAttribute("aria-pressed", "true");
     expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledExactlyOnceWith(
       "encounter_ambush",
+      "participant_a",
       expect.objectContaining({
-        participant_key: "participant_a",
         expected_revision: 0,
         display_name: "Goblin captain",
         hp_edit: false,
@@ -528,6 +531,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterSpellAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
           action: { kind: "cast", selection: spell.navigation },
         }),
@@ -629,10 +633,12 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(location.pathname).toBe("/encounters/new-ambush"));
-    expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
-      encounter_key: "encounter_ambush",
-      name: { expected: "Ambush", value: "Renamed Ambush" },
-    });
+    expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
+      "encounter_ambush",
+      {
+        name: { expected: "Ambush", value: "Renamed Ambush" },
+      },
+    );
   });
 
   it.each(["page", "modal"] as const)(
@@ -702,10 +708,12 @@ describe("encounter views", () => {
       expect(editor.getByLabelText("Name")).toBe(name);
       fireEvent.click(editor.getByRole("button", { name: "Save" }));
       await waitFor(() =>
-        expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
-          encounter_key: "encounter_ambush",
-          name: { expected: "Ambush", value: "My name" },
-        }),
+        expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
+          "encounter_ambush",
+          {
+            name: { expected: "Ambush", value: "My name" },
+          },
+        ),
       );
       if (surface === "page") {
         await waitFor(() =>
@@ -810,7 +818,6 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledExactlyOnceWith({
-        encounter_key: "encounter_ambush",
         name: { expected: "Ambush", value: "My name" },
         note: { expected: " New server note ", value: null },
       }),
@@ -877,8 +884,7 @@ describe("encounter views", () => {
 
     fireEvent.click(save);
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, {
-        encounter_key: "encounter_ambush",
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, "encounter_ambush", {
         name: { expected: "Other name", value: "My name" },
         description: { expected: "Road fight", value: "My description" },
       }),
@@ -893,8 +899,7 @@ describe("encounter views", () => {
     expect(apiMocks.updateEncounter).toHaveBeenCalledTimes(2);
     fireEvent.click(save);
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(3, {
-        encounter_key: "encounter_ambush",
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(3, "encounter_ambush", {
         name: { expected: "Newer name", value: "My name" },
         description: { expected: "Road fight", value: "My description" },
       }),
@@ -946,8 +951,7 @@ describe("encounter views", () => {
 
     fireEvent.click(save);
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, {
-        encounter_key: "encounter_ambush",
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, "encounter_ambush", {
         name: { expected: "Other name", value: "My name" },
       }),
     );
@@ -998,8 +1002,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Actions for Kyra" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Set turn to Kyra" }));
     await waitFor(() =>
-      expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
-        encounter_ref: "encounter_ambush",
+      expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
         participant_key: "participant_b",
       }),
     );
@@ -1280,17 +1283,19 @@ describe("encounter views", () => {
   it("dims and restores a roster row without changing initiative or the current turn", async () => {
     const initial = encounterDetailFixture();
     apiMocks.getEncounter.mockResolvedValue(initial);
-    apiMocks.updateEncounterParticipant.mockImplementation(async (_ref, request) => {
-      apiMocks.getEncounter.mockResolvedValue({
-        ...initial,
-        participants: initial.participants.map((p) =>
-          p.participant_key === request.participant_key
-            ? { ...p, hidden: request.hidden, revision: p.revision + 1 }
-            : p,
-        ),
-      });
-      return { encounter_key: initial.encounter.encounter_key };
-    });
+    apiMocks.updateEncounterParticipant.mockImplementation(
+      async (_ref, participantKey, request) => {
+        apiMocks.getEncounter.mockResolvedValue({
+          ...initial,
+          participants: initial.participants.map((p) =>
+            p.participant_key === participantKey
+              ? { ...p, hidden: request.hidden, revision: p.revision + 1 }
+              : p,
+          ),
+        });
+        return { encounter_key: initial.encounter.encounter_key };
+      },
+    );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -1303,8 +1308,8 @@ describe("encounter views", () => {
     );
     expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
       "encounter_ambush",
+      "participant_a",
       expect.objectContaining({
-        participant_key: "participant_a",
         hidden: true,
         initiative: 18,
       }),
@@ -1321,6 +1326,7 @@ describe("encounter views", () => {
     );
     expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
       "encounter_ambush",
+      "participant_a",
       expect.objectContaining({ hidden: false, initiative: 18 }),
     );
   });
@@ -1409,8 +1415,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_b",
         expect.objectContaining({
-          participant_key: "participant_b",
           initiative: 18,
           hp_edit: false,
           variant_edit: false,
@@ -1534,8 +1540,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_b",
         expect.objectContaining({
-          participant_key: "participant_b",
           action: { kind: "set_values", current: { input: "20" } },
         }),
       ),
@@ -1574,6 +1580,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledExactlyOnceWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
           display_name: "Goblin Scout",
           expected_revision: 0,
@@ -1597,8 +1604,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           action: { kind: "set_values", maximum: { input: "30" } },
         }),
       ),
@@ -1611,8 +1618,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           action: { kind: "use_derived_maximum" },
         }),
       ),
@@ -1641,8 +1648,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           participant_variant: "elite",
           variant_edit: true,
           hp_edit: false,
@@ -1662,8 +1669,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           action: { kind: "set_values", current: { input: "8" } },
         }),
       ),
@@ -1797,10 +1804,12 @@ describe("encounter views", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
-        encounter_key: "encounter_ambush",
-        status: { expected: "draft", value: "complete" },
-      }),
+      expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
+        "encounter_ambush",
+        {
+          status: { expected: "draft", value: "complete" },
+        },
+      ),
     );
   });
 
@@ -2132,12 +2141,15 @@ describe("encounter views", () => {
     fireEvent.change(hp, { target: { value: "50 - 7" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
-      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith("encounter_ambush", {
-        request_id: expect.any(String),
-        participant_key: "participant_a",
-        expected_revision: 0,
-        action: { kind: "set_values", current: { input: "50 - 7" } },
-      }),
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
+        "encounter_ambush",
+        "participant_a",
+        {
+          request_id: expect.any(String),
+          expected_revision: 0,
+          action: { kind: "set_values", current: { input: "50 - 7" } },
+        },
+      ),
     );
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Edit HP" })).not.toBeInTheDocument(),
@@ -2148,6 +2160,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "set_values", temporary: "4 + 2" } }),
       ),
     );
@@ -2167,6 +2180,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "heal", amount: "8 + 2" } }),
       ),
     );
@@ -2176,6 +2190,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "damage", amount: "8 + 2" } }),
       ),
     );
@@ -2185,6 +2200,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "heal", amount: "3" } }),
       ),
     );
@@ -2248,12 +2264,14 @@ describe("encounter views", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
     await waitFor(() =>
-      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith({
-        encounter_ref: "encounter_ambush",
-        record_ref: "actors:goblin",
-        quantity: 2,
-        participant_variant: "elite",
-      }),
+      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith(
+        "encounter_ambush",
+        {
+          record_ref: "actors:goblin",
+          quantity: 2,
+          participant_variant: "elite",
+        },
+      ),
     );
     await waitFor(() =>
       expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
@@ -2266,11 +2284,13 @@ describe("encounter views", () => {
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await waitFor(() =>
-      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenLastCalledWith({
-        encounter_ref: "encounter_ambush",
-        record_ref: "actors:goblin",
-        quantity: 3,
-      }),
+      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenLastCalledWith(
+        "encounter_ambush",
+        {
+          record_ref: "actors:goblin",
+          quantity: 3,
+        },
+      ),
     );
     await waitFor(() =>
       expect(within(dialog).getByRole("button", { name: "Done" })).toBeEnabled(),
@@ -2491,6 +2511,7 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
           expected_encounter_revision: 0,
           note: "My stale note",
@@ -2514,6 +2535,7 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
           expected_encounter_revision: 9,
           note: "Reviewed note",
@@ -2559,7 +2581,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledTimes(2),
     );
-    expect(apiMocks.addEncounterParticipantCondition.mock.calls[1][1]).toMatchObject({
+    expect(apiMocks.addEncounterParticipantCondition.mock.calls[1][2]).toMatchObject({
       condition_ref: "conditionitems:TBSHQspnbcqxsmjL",
       value: 2,
       duration: undefined,
@@ -2790,8 +2812,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           condition_ref: "conditionitems:fesd1n5eVhpCSS18",
           value: 2,
           duration: {
@@ -2804,13 +2826,13 @@ describe("encounter views", () => {
       ),
     );
     expect(
-      apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
+      apiMocks.addEncounterParticipantCondition.mock.calls[0][2],
     ).not.toHaveProperty("name");
   }, 10_000);
 
   it("edits and removes conditions for the current participant", async () => {
     apiMocks.updateEncounterParticipantCondition.mockImplementation(
-      async (_ref, participantKey, request) => {
+      async (_ref, participantKey, conditionId, request) => {
         serverEncounter = {
           ...serverEncounter,
           participants: serverEncounter.participants.map((participant) =>
@@ -2818,7 +2840,7 @@ describe("encounter views", () => {
               ? {
                   ...participant,
                   conditions: participant.conditions.map((condition) =>
-                    condition.condition_id === request.condition_id
+                    condition.condition_id === conditionId
                       ? { ...condition, ...request }
                       : condition,
                   ),
@@ -2845,15 +2867,15 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
-          condition_id: 7,
           name: "Frightened",
           value: 2,
         }),
       ),
     );
     expect(
-      apiMocks.updateEncounterParticipantCondition.mock.calls[0][2],
+      apiMocks.updateEncounterParticipantCondition.mock.calls[0][3],
     ).not.toHaveProperty("condition_key");
 
     await waitFor(() =>
@@ -2878,8 +2900,8 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
-          condition_id: 7,
           name: "Frightened",
           duration: {
             amount: 4,
@@ -3229,10 +3251,12 @@ describe("encounter views", () => {
     }
     fireEvent.click(within(dialog).getByRole("button", { name: "OK" }));
     await waitFor(() =>
-      expect(apiMocks.addEncounterManualParticipant).toHaveBeenCalledExactlyOnceWith({
-        encounter_ref: "encounter_ambush",
-        display_name: "Mira",
-      }),
+      expect(apiMocks.addEncounterManualParticipant).toHaveBeenCalledExactlyOnceWith(
+        "encounter_ambush",
+        {
+          display_name: "Mira",
+        },
+      ),
     );
   });
 
@@ -3254,6 +3278,7 @@ describe("encounter views", () => {
     expect(amount).toHaveValue("");
     expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledExactlyOnceWith(
       "encounter_ambush",
+      "participant_a",
       expect.objectContaining({ action: { kind: "heal", amount: "-5" } }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter refresh" }));
@@ -3314,14 +3339,14 @@ describe("encounter views", () => {
     expect(note).toHaveValue("My note");
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
     const previewCalls = apiMocks.previewEncounterCondition.mock.calls.length;
-    const firstRequest = apiMocks.updateEncounterParticipantCondition.mock.calls[0][2];
+    const firstRequest = apiMocks.updateEncounterParticipantCondition.mock.calls[0][3];
     await clickConditionApply();
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledTimes(2),
     );
     expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls);
     expect(
-      apiMocks.updateEncounterParticipantCondition.mock.calls[1][2].request_id,
+      apiMocks.updateEncounterParticipantCondition.mock.calls[1][3].request_id,
     ).toBe(firstRequest.request_id);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
@@ -3333,7 +3358,7 @@ describe("encounter views", () => {
     );
     expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls);
     expect(
-      apiMocks.updateEncounterParticipantCondition.mock.calls[2][2].request_id,
+      apiMocks.updateEncounterParticipantCondition.mock.calls[2][3].request_id,
     ).not.toBe(firstRequest.request_id);
   });
   it("does not navigate an old successful Save over a newly selected editor", async () => {

@@ -490,7 +490,6 @@ pub struct EncounterReferenceRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct UpdateEncounterRequest {
-    pub encounter_key: String,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -653,9 +652,8 @@ pub struct EncounterParticipantConditionView {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AddEncounterRecordParticipantRequest {
-    pub encounter_ref: String,
     pub record_ref: String,
     pub quantity: u32,
     /// Omitted inherits the source adjustment; a supplied choice replaces it.
@@ -667,9 +665,8 @@ pub struct AddEncounterRecordParticipantRequest {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AddEncounterManualParticipantRequest {
-    pub encounter_ref: String,
     pub display_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_hp: Option<i64>,
@@ -681,7 +678,7 @@ pub struct AddEncounterManualParticipantRequest {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct UpdateEncounterParticipantRequest {
     pub expected_revision: i64,
     // Explicit manual HP edit even when the entered value is unchanged.
@@ -694,7 +691,6 @@ pub struct UpdateEncounterParticipantRequest {
     // Discard an explicit capacity override and derive it from authored data.
     #[serde(default)]
     pub use_derived_max: bool,
-    pub participant_key: String,
     pub display_name: String,
     pub side: EncounterParticipantSideView,
     pub participant_variant: EncounterParticipantVariantView,
@@ -773,7 +769,6 @@ pub struct ApplyEncounterHpActionRequest {
     pub request_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context: Option<crate::HpEventContextView>,
-    pub participant_key: String,
     pub expected_revision: i64,
     pub action: EncounterHpAction,
 }
@@ -798,7 +793,6 @@ pub struct AddEncounterParticipantConditionRequest {
     pub event_intent: ConditionEventIntentView,
     #[serde(default)]
     pub decisions: crate::ConditionApplicationDecisionsView,
-    pub participant_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub condition_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -834,7 +828,6 @@ pub struct UpdateEncounterParticipantConditionRequest {
     #[serde(default)]
     pub decisions: crate::ConditionApplicationDecisionsView,
     pub expected_encounter_revision: i64,
-    pub condition_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub condition_ref: Option<String>,
     pub name: String,
@@ -860,9 +853,8 @@ pub struct UpdateEncounterParticipantConditionRequest {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SetEncounterTurnRequest {
-    pub encounter_ref: String,
     pub participant_key: String,
 }
 
@@ -882,7 +874,7 @@ mod tests {
 
     #[test]
     fn condition_duration_rejects_fractional_missing_and_retired_inputs() {
-        let request = json!({"request_id":"duration","expected_encounter_revision":1,"participant_key":"p","name":"Custom","duration":{"amount":2,"unit":"rounds","timing":{"participant_key":"p","event":"end"}}});
+        let request = json!({"request_id":"duration","expected_encounter_revision":1,"name":"Custom","duration":{"amount":2,"unit":"rounds","timing":{"participant_key":"p","event":"end"}}});
         let parsed =
             serde_json::from_value::<AddEncounterParticipantConditionRequest>(request.clone())
                 .unwrap();
@@ -915,7 +907,7 @@ mod tests {
     #[test]
     fn hp_action_requires_revision_and_explicit_correction_input() {
         let mut request = json!({
-            "request_id":"hp-action", "participant_key":"one", "expected_revision":7,
+            "request_id":"hp-action", "expected_revision":7,
             "action":{"kind":"damage","amount":"1+2"},
         });
         let decoded =
@@ -977,7 +969,7 @@ mod tests {
     #[test]
     fn participant_edit_revision_is_required_and_round_trips_as_a_json_integer() {
         let mut wire = json!({
-            "participant_key":"participant_one", "display_name":"One", "side":"enemy",
+            "display_name":"One", "side":"enemy",
             "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hazard_disabled":false, "hidden":false,
         });
         assert!(serde_json::from_value::<UpdateEncounterParticipantRequest>(wire.clone()).is_err());
@@ -1049,7 +1041,6 @@ pub struct EncounterSpellRankView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ApplyEncounterSpellActionRequest {
-    pub participant_key: String,
     pub expected_revision: i64,
     pub action: EncounterSpellAction,
 }

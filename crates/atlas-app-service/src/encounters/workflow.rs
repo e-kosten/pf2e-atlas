@@ -218,11 +218,12 @@ impl AtlasAppService {
 
     pub fn update_encounter(
         &self,
+        encounter_ref: &str,
         request: UpdateEncounterRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.save_encounter_metadata(&request.encounter_key, |current| {
-            if current.encounter_key != request.encounter_key {
-                return Err(encounter_not_found(&request.encounter_key));
+        self.save_encounter_metadata(encounter_ref, |current| {
+            if current.encounter_key != encounter_ref {
+                return Err(encounter_not_found(encounter_ref));
             }
             let mut check = SavedEditCheck::default();
             let slug = request
@@ -316,9 +317,10 @@ impl AtlasAppService {
 
     pub fn add_encounter_record_participant(
         &self,
+        encounter_ref: &str,
         request: AddEncounterRecordParticipantRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let encounter_ref = request.encounter_ref.clone();
+        let encounter_ref = encounter_ref.to_owned();
         let record_ref = request.record_ref.clone();
         let (receipt, record, baseline, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
@@ -383,11 +385,11 @@ impl AtlasAppService {
 
     pub fn add_encounter_manual_participant(
         &self,
+        encounter_ref: &str,
         request: AddEncounterManualParticipantRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
-            let receipt =
-                encounter_receipt(&session.local_state()?.encounters(), &request.encounter_ref)?;
+            let receipt = encounter_receipt(&session.local_state()?.encounters(), encounter_ref)?;
             session.local_state()?.encounters().add_participant(
                 &receipt.encounter_key,
                 AddEncounterParticipant {
@@ -416,6 +418,7 @@ impl AtlasAppService {
     pub fn update_encounter_participant(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: UpdateEncounterParticipantRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         let detail = self.with_state(|session| {
@@ -429,21 +432,21 @@ impl AtlasAppService {
         let existing = detail
             .participants
             .iter()
-            .find(|participant| participant.participant_key == request.participant_key)
+            .find(|participant| participant.participant_key == participant_key)
             .cloned()
             .ok_or_else(|| {
                 AppServiceError::new(
                     AppErrorCode::EncounterParticipantNotFound,
                     format!(
                         "encounter participant `{}` was not found in encounter `{encounter_ref}`",
-                        request.participant_key
+                        participant_key
                     ),
                 )
             })?;
         if request.expected_revision != existing.revision {
             return Err(
                 atlas_local_state::LocalStateError::StaleParticipantRevision {
-                    participant_key: request.participant_key,
+                    participant_key: participant_key.into(),
                     expected_revision: request.expected_revision,
                     actual_revision: existing.revision,
                 }
@@ -577,7 +580,7 @@ impl AtlasAppService {
             if let Some(participant) = current
                 .participants
                 .iter()
-                .find(|participant| participant.participant_key == request.participant_key)
+                .find(|participant| participant.participant_key == participant_key)
                 && participant.revision != request.expected_revision
             {
                 return Err(
@@ -603,7 +606,7 @@ impl AtlasAppService {
                 .encounters()
                 .update_participant(UpdateEncounterParticipant {
                     expected_revision: request.expected_revision,
-                    participant_key: request.participant_key.clone(),
+                    participant_key: participant_key.to_owned(),
                     display_name: request.display_name,
                     side: participant_side(request.side),
                     participant_variant: new_variant,
@@ -625,10 +628,7 @@ impl AtlasAppService {
                 .ok_or_else(|| {
                     AppServiceError::new(
                         AppErrorCode::EncounterParticipantNotFound,
-                        format!(
-                            "encounter participant `{}` was not found",
-                            request.participant_key
-                        ),
+                        format!("encounter participant `{}` was not found", participant_key),
                     )
                 })?;
             super::hp_events::retire_stale_hp_decisions(
@@ -701,17 +701,19 @@ impl AtlasAppService {
     pub fn add_encounter_participant_condition(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: AddEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.commit_condition_add(encounter_ref, request)
+        self.commit_condition_add(encounter_ref, participant_key, request)
     }
     pub fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
+        condition_id: i64,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.commit_condition_update(encounter_ref, participant_key, request)
+        self.commit_condition_update(encounter_ref, participant_key, condition_id, request)
     }
     pub fn remove_encounter_participant_condition(
         &self,
@@ -725,20 +727,21 @@ impl AtlasAppService {
 
     pub fn set_encounter_turn(
         &self,
+        encounter_ref: &str,
         request: SetEncounterTurnRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
             let store = session.local_state()?;
             let encounter = store
                 .encounters()
-                .advance_turn(&request.encounter_ref, |snapshot| {
+                .advance_turn(encounter_ref, |snapshot| {
                     atlas_local_state::EncounterTurnState {
                         participant_key: Some(request.participant_key),
                         round_number: snapshot.encounter.round_number,
                         mark_running: false,
                     }
                 })?
-                .ok_or_else(|| encounter_not_found(&request.encounter_ref))?;
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
             Ok(EncounterMutationView {
                 encounter_key: encounter.encounter_key,
             })
@@ -1293,13 +1296,15 @@ mod immunity_override_tests {
             .unwrap()
             .encounter;
         worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: encounter.encounter_key.clone(),
-                display_name: "Immune participant".into(),
-                max_hp: Some(10),
-                current_hp: Some(10),
-                initiative: None,
-            })
+            .add_encounter_manual_participant(
+                &encounter.encounter_key,
+                AddEncounterManualParticipantRequest {
+                    display_name: "Immune participant".into(),
+                    max_hp: Some(10),
+                    current_hp: Some(10),
+                    initiative: None,
+                },
+            )
             .unwrap();
         let snapshot = worker
             .with_state(|session| {
