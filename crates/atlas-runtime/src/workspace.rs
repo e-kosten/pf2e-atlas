@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_index::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_local_state::SAVED_STATE_CLOSEOUT_SCHEMA_VERSION;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -267,6 +267,16 @@ const MIGRATIONS: &[Migration] = &[
         name: "native-token-count-digest",
         sql: atlas_index::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL,
         backfill: None,
+    },
+    Migration {
+        version: atlas_local_state::SAVED_STATE_CLOSEOUT_SCHEMA_VERSION,
+        name: "saved-state-closeout",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "saved-state-closeout/v1",
+            apply: atlas_local_state::backfill_saved_state_closeout,
+        }),
     },
 ];
 

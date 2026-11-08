@@ -2656,6 +2656,53 @@ fn recovery_keeps_unchanged_ties_reserved_while_restoring_changed_initiatives()
 }
 
 #[test]
+fn reset_to_unset_initiative_keeps_positive_orders_and_can_export() -> crate::LocalStateResult<()> {
+    let store = fixture("reset-unset-initiative")?;
+    for name in ["First", "Second"] {
+        let p = store
+            .encounters()
+            .add_participant("test", creature(name, None, 20))?;
+        let mut update = edit(&p);
+        update.initiative = Some(15);
+        store.encounters().update_participant(update)?;
+    }
+    let mut connection = store.connection()?;
+    let transaction = connection.transaction()?;
+    let domain = EncountersWrite::from_connection(&transaction, 1);
+    let before = domain.get_with_participants("test")?.unwrap();
+    let replacements = before
+        .participants
+        .iter()
+        .map(|participant| {
+            let key = participant.participant_key.clone();
+            let baseline = domain.participant_baseline(&key)?.unwrap();
+            Ok((key, baseline))
+        })
+        .collect::<crate::LocalStateResult<Vec<_>>>()?;
+    domain.apply_recovery(ApplyEncounterRecovery {
+        encounter_key: &before.encounter.encounter_key,
+        expected_revision: before.encounter.revision,
+        reset_encounter: true,
+        end_turn: true,
+        replacements: &replacements,
+    })?;
+    transaction.commit()?;
+    let after = store.encounters().get_with_participants("test")?.unwrap();
+    assert_eq!(
+        after
+            .participants
+            .iter()
+            .map(|p| (p.initiative, p.initiative_order))
+            .collect::<Vec<_>>(),
+        [(None, 1), (None, 2)]
+    );
+    let mut exported = EncountersRead::from_connection(&connection, 1).export_document("test")?;
+    let bytes = exported.encode()?;
+    EncounterDocument::read(bytes.as_slice())?;
+    Ok(())
+}
+
+#[test]
 fn recovery_failure_rolls_back_all_participants() -> crate::LocalStateResult<()> {
     let store = fixture("recovery-rollback")?;
     let one = store

@@ -154,7 +154,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             initiative,initiative_order,max_hp,current_hp,temporary_hp,note,
             hp_origin,variant_origin,created_at,updated_at)
          SELECT id,'kept-participant',?2,'creature','elite',0,'Wounded creature',
-            'Test Creature','creature','enemy',21,0,40,13,5,'Do not reset HP',
+            'Test Creature','creature','enemy',21,1,40,13,5,'Do not reset HP',
             'explicit','explicit','before','before'
          FROM encounters WHERE encounter_key=?1",
             rusqlite::params![encounter.encounter_key, key.to_string()],

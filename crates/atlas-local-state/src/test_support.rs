@@ -36,6 +36,10 @@ impl TestStore {
             conn.pragma_update(None, "foreign_keys", true)?;
             conn.execute_batch(TURN_RECEIPTS_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL)?;
+            let transaction = conn.unchecked_transaction()?;
+            backfill_saved_state_closeout(&transaction)
+                .map_err(|error| LocalStateError::IncompatibleSchema(error.to_string()))?;
+            transaction.commit()?;
         }
         Ok(store)
     }
