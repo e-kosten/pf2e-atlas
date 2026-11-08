@@ -36,11 +36,6 @@
   min-width: 0;
 }
 
-.encounter-ability-states h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
 .encounter-ability-states__row {
   display: flex;
   align-items: center;

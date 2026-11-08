@@ -30,7 +30,9 @@ export function EncounterAbilityStates({
   if (!configurable?.length) return null;
   return (
     <section className="encounter-ability-states" aria-labelledby={headingId}>
-      <h3 id={headingId}>Ability states</h3>
+      <h3 className="encounter-inspector-heading" id={headingId}>
+        Ability states
+      </h3>
       {configurable.map((ability) => (
         <div
           key={JSON.stringify([

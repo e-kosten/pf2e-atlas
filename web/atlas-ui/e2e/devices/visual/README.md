@@ -5,6 +5,30 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Encounter inspector typography
+
+The visible Turn heading, larger inspector and roster typography, and removed
+desktop Participant pane header change the encounter behind the condition
+checkpoints. Review covered all 40 pairs per platform across the four projects.
+Condition controls, focus cues, and recovery anchors remain visible. All 12
+macOS capture cases and all 12 ordinary macOS comparisons passed. The Linux
+capture passed all 12 cases. The ordinary comparison keeps its existing
+assertions and pixel tolerance.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.65.0, source
+  `7bf98618a356e6e947d7e84e449e01700763ca30`.
+  Fixture SHA-256:
+  `dc202d313716fb390eb8cc97fd065eb63a9c9751ea884ae763d526e45a8a2619`.
+- Ubuntu 24.04 x64, Playwright 1.65.0,
+  [capture 42515921993](https://github.com/e-kosten/pf2e-atlas/actions/runs/42515921993)
+  using CI 42514322353's authenticated fixture, synthetic merge
+  `530d6a6c14d1f81ba40b4d29c30a31ec8062b8d4`.
+  Fixture SHA-256:
+  `8d6fe3b427a3458c6064e2c453d553ccd7358a18192b08b0701cbf31dc6e22c8`.
+
+Both use frontend index SHA-256:
+`45175fb2ea99643bfdf5fdab5dfd66655d4c4dc13352b1e8bc8fd9d280ff4736`.
+
 ## Dotted action-count explanation
 
 The desktop Quickened dialog leaves the action-count explanation visible behind
