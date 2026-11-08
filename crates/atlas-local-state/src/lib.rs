@@ -29,11 +29,11 @@ pub use encounters::{
     ParticipantAbilityState, ParticipantEventChange, ParticipantHpOrigin,
     ParticipantInitiativeRoll, ParticipantKind, ParticipantSide, ParticipantVariant,
     ParticipantVariantOrigin, PendingConsequence, PersistentDamageOutcome,
-    PersistentDamageProtection, PersistentPrecedenceChange, PersistentPreparationContext,
-    PersistentRecovery, PersistentSourcePrecedence, PreparedConditionEvent,
-    PreparedPersistentRecovery, ReorderEncounterParticipant, ReorderPlacement,
-    ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,
-    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
+    PersistentDamageProtection, PersistentPrecedenceChange, PersistentRecovery,
+    PersistentSourcePrecedence, PreparedConditionEvent, ReorderEncounterParticipant,
+    ReorderPlacement, ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence,
+    SpellResource, UpdateEncounter, UpdateEncounterParticipant,
+    UpdateEncounterParticipantCondition, WakingRule,
 };
 pub use encounters::{ApplyEncounterRecovery, ParticipantGameplay};
 pub use encounters::{
@@ -58,8 +58,8 @@ pub use schema::{
     PERSISTENT_PREPARATION_SCHEMA_SQL,
 };
 pub use schema::{
-    ENCOUNTER_CLOCK_SCHEMA_SQL, ENCOUNTER_RECOVERY_SCHEMA_SQL, MANUAL_TRACKERS_SCHEMA_SQL,
-    TURN_RECEIPTS_SCHEMA_SQL,
+    ENCOUNTER_CLOCK_SCHEMA_SQL, ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL,
+    ENCOUNTER_RECOVERY_SCHEMA_SQL, MANUAL_TRACKERS_SCHEMA_SQL, TURN_RECEIPTS_SCHEMA_SQL,
 };
 pub use slug::derive_slug;
 pub use store::{LocalStateRead, LocalStateWrite};

@@ -62,11 +62,14 @@ export function EncounterPersistentTurnReview({
       {review && (
         <>
           <EncounterPersistentDamageBatch
-            key={`${participant.participant_key}:${review.round_number}`}
+            key={JSON.stringify([
+              encounterRef,
+              participant.participant_key,
+              boundaryKey,
+              review.round_number.toString(),
+            ])}
             encounterRef={encounterRef}
             onRecover={onRecover}
-            preparedDamage={review.prepared_damage}
-            preparedRecovery={review.prepared_recovery}
             recoveryResults={review.recovery_results}
             episodes={review.episodes}
             participant={{

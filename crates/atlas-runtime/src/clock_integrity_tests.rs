@@ -150,7 +150,7 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
     assert_eq!(
         read.connection()
             .query_row(
-                "SELECT count(*) FROM encounter_turn_receipts WHERE encounter_id=41",
+                "SELECT count(*) FROM encounter_command_receipts WHERE family='turn' AND encounter_id=41",
                 [],
                 |r| r.get::<_, usize>(0)
             )
@@ -175,7 +175,6 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
             .unwrap(),
         77
     );
-    assert_eq!(read.connection().query_row("SELECT intent_json FROM encounter_recovery_receipts WHERE encounter_id=41 AND request_id='rest'",[],|r|r.get::<_,String>(0)).unwrap(),r#"{"rest":true}"#);
     assert!(
         !read
             .connection()
@@ -268,9 +267,11 @@ fn legacy22_clock_conversion_precedes_receipt_compaction_and_preserves_latest_co
     );
     assert_eq!(
         read.connection()
-            .query_row("SELECT count(*) FROM encounter_turn_receipts", [], |r| {
-                r.get::<_, usize>(0)
-            })
+            .query_row(
+                "SELECT count(*) FROM encounter_command_receipts WHERE family='turn'",
+                [],
+                |r| { r.get::<_, usize>(0) }
+            )
             .unwrap(),
         2
     );

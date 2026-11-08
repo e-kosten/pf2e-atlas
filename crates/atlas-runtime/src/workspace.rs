@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 34;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 35;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -239,6 +239,12 @@ const MIGRATIONS: &[Migration] = &[
             id: "retire-trait-similarity/v1",
             apply: atlas_index::retire_trait_similarity,
         }),
+    },
+    Migration {
+        version: 35,
+        name: "encounter-command-receipts",
+        sql: atlas_local_state::ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL,
+        backfill: None,
     },
 ];
 
@@ -623,8 +629,9 @@ mod tests {
         };
         let receipts = retained(write.connection());
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
-        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        // Test the published strike-retirement migration at its own schema.
+        workspace.migrate(&MIGRATIONS[..17], |_| Ok(())).unwrap();
+        let read = workspace.read(17).unwrap();
         assert_eq!(saved_state(read.connection()), before);
         assert_eq!(retained(read.connection()), receipts);
         let strike_count: i64 = read.connection().query_row("SELECT COUNT(*) FROM encounter_roll_receipts WHERE request_id IN ('attack','damage')", [], |row| row.get(0)).unwrap();
@@ -639,8 +646,8 @@ mod tests {
         );
         drop(read);
         // Reopening an already migrated workspace preserves the surviving receipts.
-        let reopened = initialize_workspace(&path).unwrap();
-        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        workspace.migrate(&MIGRATIONS[..17], |_| Ok(())).unwrap();
+        let read = workspace.read(17).unwrap();
         assert_eq!(retained(read.connection()), receipts);
     }
 
@@ -1017,7 +1024,7 @@ mod tests {
                     ("removed-application".into(), Some(99))
                 ]
             );
-            let receipt: String = read.connection().query_row("SELECT receipt_json FROM encounter_event_receipts WHERE request_id='kept-request'", [], |row| row.get(0)).unwrap();
+            let receipt: String = read.connection().query_row("SELECT receipt_json FROM encounter_command_receipts WHERE family='event' AND request_id='kept-request'", [], |row| row.get(0)).unwrap();
             assert_eq!(receipt, r#"{"version":1,"payload":{}}"#);
         }
         let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
@@ -1041,9 +1048,11 @@ mod tests {
         assert_eq!(markers, 0);
         let receipts: i64 = write
             .connection()
-            .query_row("SELECT count(*) FROM encounter_event_receipts", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT count(*) FROM encounter_command_receipts WHERE family='event'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(
             receipts, 1,
@@ -1055,9 +1064,11 @@ mod tests {
             .unwrap();
         let receipts: i64 = write
             .connection()
-            .query_row("SELECT count(*) FROM encounter_event_receipts", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT count(*) FROM encounter_command_receipts WHERE family='event'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(receipts, 0);
         write.commit().unwrap();
@@ -1104,7 +1115,7 @@ mod tests {
         let receipt: String = read
             .connection()
             .query_row(
-                "SELECT receipt_json FROM encounter_event_receipts WHERE request_id='kept-request'",
+                "SELECT receipt_json FROM encounter_command_receipts WHERE family='event' AND request_id='kept-request'",
                 [],
                 |r| r.get(0),
             )
@@ -1138,7 +1149,7 @@ mod tests {
         write.commit().unwrap();
         let workspace = initialize_workspace(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let row=read.connection().query_row("SELECT p.current_hp,p.temporary_hp,c.round_number,c.kind,c.request_id,r.receipt_json FROM encounter_participants p JOIN encounter_boundary_claims c ON c.participant_key=p.participant_key JOIN encounter_event_receipts r ON r.encounter_id=c.encounter_id AND r.request_id=c.request_id",[],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?))).unwrap();
+        let row=read.connection().query_row("SELECT p.current_hp,p.temporary_hp,c.round_number,c.kind,c.request_id,r.receipt_json FROM encounter_participants p JOIN encounter_boundary_claims c ON c.participant_key=p.participant_key JOIN encounter_command_receipts r ON r.encounter_id=c.encounter_id AND r.family='event' AND r.request_id=c.request_id",[],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?))).unwrap();
         assert_eq!(
             row,
             (

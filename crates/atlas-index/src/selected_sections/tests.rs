@@ -55,7 +55,25 @@ fn digest(c: &Connection, tables: &[&str]) -> String {
     crate::codec::sha256(&bytes)
 }
 fn saved(c: &Connection) -> String {
-    let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND (name LIKE 'saved_%' OR name LIKE 'encounter%' OR name LIKE 'party%' OR name='parties') ORDER BY name").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    // Receipt and outgoing-turn layouts intentionally change in schema 35.
+    // Runtime migration tests compare their logical rows across that upgrade.
+    let tables = c
+        .prepare(
+            "SELECT name FROM sqlite_schema
+             WHERE type='table'
+               AND (name LIKE 'saved_%' OR name LIKE 'encounter%' OR name LIKE 'party%' OR name='parties')
+               AND name NOT IN (
+                   'encounter_roll_receipts', 'encounter_recovery_receipts',
+                   'encounter_turn_receipts', 'encounter_event_receipts',
+                   'encounter_command_receipts', 'encounter_outgoing_turns'
+               )
+             ORDER BY name",
+        )
+        .unwrap()
+        .query_map([], |r| r.get::<_, String>(0))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
     digest(c, &tables.iter().map(String::as_str).collect::<Vec<_>>())
 }
 fn numerical(c: &Connection, _: &IndexBuildInput) -> String {

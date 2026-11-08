@@ -104,35 +104,24 @@ system's ability baseline before condition/variant adjustments. Unknown inputs
 remain unavailable for automatic rolling. Each participant rolls independently.
 
 Initiative options return the artifact generation used to hydrate their source
-modifiers. Source-based rolls must submit that generation, compared against the
-same hydration snapshot that resolves the roll. Saved-receipt recovery precedes
-this guard, so publication of a new artifact cannot reroll a committed request.
-Explicit manual-modifier requests remain source-free and need no generation.
+modifiers. Source-based rolls submit that generation. Explicit manual modifiers
+remain source-free. One guarded write validates the complete batch, rolls dice
+and saves initiative using the existing tie-order policy. The immediate response
+contains the outcomes. After an uncertain response, the browser reloads the roster
+before offering a fresh roll. The encounter and participant revisions prevent an
+old request from changing initiative again.
 
-The saved-domain schema stores initiative roll receipts. A canonical encounter key
-and request ID identify an operation; the original intent is saved alongside the
-resolved inputs and outcomes. Matching retries recover the receipt before source
-hydration and revision checks. Reusing an ID with different intent conflicts.
-The immediate write transaction repeats recovery, validates the complete batch,
-evaluates and saves each initiative using existing tie-order policy, then stores
-the receipt. Any failure rolls back the whole batch. Source/artifact I/O remains
-outside that transaction. Current turn, HP and spell resources are unchanged.
+Persistent damage and recovery previews and rolls use guarded reads. The browser
+retains unfinished rolls for the active review and submits the reviewed values on
+Apply. Rust checks the draft against the current encounter and recalculates
+protections and consequences. ADR0055 owns that workflow.
 
-Persistent damage/recovery preparation uses the same guarded receipt storage with
-an explicit receipt-only write. Its callback can return outcomes only, so it
-cannot change HP, conditions, pending consequences or the encounter revision.
-Independent preparation claims deduplicate per-type rolls, while the ordinary
-damage/recovery claims remain unconsumed until final application. Read-only draft
-previews do not write receipts or roll dice. ADR0055 owns source binding and the
-single final HP/recovery event.
-Final application reads and validates preparation claims in its workspace write
-snapshot after receipt recovery. Encounter revision alone cannot detect a new
-receipt-only preparation; no earlier read can authorize omitting that result.
-
-Receipts are retained for the encounter lifetime and cascade on encounter deletion;
-there is no automatic time-based pruning and no recovery guarantee after deletion.
-Consumers refresh independently after a successful receipt. Retrying a lost
-response uses the same request ID and intent, not a fresh roll request.
+The shared command receipt store keeps Next-turn acknowledgments and committed
+encounter event outcomes in distinct request namespaces. These receipts live for
+the encounter lifetime and cascade on deletion. A matching retry recovers before
+the source and revision guards. Reusing a request ID with different intent
+conflicts within its command family. Committed effects and their receipt share
+one transaction.
 
 Strike rolls resolve the selected embedded activity through the same encounter
 projection used for display. Variant and condition adjustments belong in that
@@ -159,11 +148,9 @@ An uncertain response cannot be recovered: Roll again makes a fresh request agai
 current source and encounter state. Failed rerolls retain the previous displayed
 result with local error feedback.
 
-Durable receipts belong to actions that update saved encounter state or establish
-prepared outcomes consumed by a later state change. Initiative, event and
-persistent-damage/recovery preparation receipts retain their existing guarantees.
-Workspace migration 17 removes only identified obsolete display-only strike
-receipts; no state-changing or preparation receipts are removed.
+Workspace migration 17 removed identified obsolete display-only strike receipts.
+Migration 35 retires initiative, rest/reset and preparation-only receipts and
+consolidates Next-turn and committed event receipts.
 
 Reference table rolls are stateless app-service reads. A checked artifact
 generation and selected table supply the formula and inclusive result ranges;

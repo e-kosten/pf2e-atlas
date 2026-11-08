@@ -1,6 +1,6 @@
 //! Atomic prepared condition events with recovery before revision checks.
 use super::event_model::*;
-use super::{EncountersRead, EncountersWrite, receipt_codec, storage};
+use super::{EncountersRead, EncountersWrite, command_receipts, receipt_codec, storage};
 use crate::{LocalStateError, LocalStateResult};
 use rusqlite::{OptionalExtension, params};
 
@@ -11,16 +11,14 @@ impl EncountersRead<'_> {
         request_id: &str,
         intent: &serde_json::Value,
     ) -> LocalStateResult<Option<EncounterEventReceipt>> {
-        super::initiative_rolls::validate_request(request_id, intent)?;
-        let row: Option<(String,String)> = self.connection.query_row("SELECT intent_json,receipt_json FROM encounter_event_receipts WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND request_id=?2", params![encounter_key,request_id], |row| Ok((row.get(0)?,row.get(1)?))).optional()?;
-        row.map(|(saved, receipt)| {
-            if serde_json::from_str::<serde_json::Value>(&saved)? != *intent {
-                return Err(LocalStateError::InvalidRollRequest(
-                    "event request ID was reused with different intent",
-                ));
-            }
-            receipt_codec::decode(&receipt)
-        })
+        command_receipts::recover(
+            self.connection,
+            encounter_key,
+            command_receipts::Family::Event,
+            request_id,
+            intent,
+        )?
+        .map(command_receipts::StoredReceipt::event)
         .transpose()
     }
     pub fn boundary_receipt(
@@ -28,7 +26,7 @@ impl EncountersRead<'_> {
         key: &str,
         claim: &EncounterBoundaryClaim,
     ) -> LocalStateResult<Option<EncounterEventReceipt>> {
-        let payload:Option<String>=self.connection.query_row("SELECT r.receipt_json FROM encounter_boundary_claims c JOIN encounter_event_receipts r ON r.encounter_id=c.encounter_id AND r.request_id=c.request_id WHERE c.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND c.participant_key=?2 AND c.round_number=?3 AND c.kind=?4 AND c.scope_key=?5",params![key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key],|row|row.get(0)).optional()?;
+        let payload:Option<String>=self.connection.query_row("SELECT r.receipt_json FROM encounter_boundary_claims c JOIN encounter_command_receipts r ON r.encounter_id=c.encounter_id AND r.family='event' AND r.request_id=c.request_id WHERE c.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND c.participant_key=?2 AND c.round_number=?3 AND c.kind=?4 AND c.scope_key=?5",params![key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key],|row|row.get(0)).optional()?;
         payload.map(|text| receipt_codec::decode(&text)).transpose()
     }
     pub fn boundary_claims(
@@ -44,8 +42,6 @@ impl EncountersRead<'_> {
         rows.map(|row| {
             let (kind, scope_key) = row?;
             let kind = match kind.as_str() {
-                "prepared_persistent_damage" => EncounterBoundaryKind::PreparedPersistentDamage,
-                "prepared_persistent_recovery" => EncounterBoundaryKind::PreparedPersistentRecovery,
                 "persistent_damage" => EncounterBoundaryKind::PersistentDamage,
                 "persistent_recovery" => EncounterBoundaryKind::PersistentRecovery,
                 "turn_start" => EncounterBoundaryKind::TurnStart,
@@ -161,57 +157,6 @@ impl EncountersWrite<'_> {
         intent: &serde_json::Value,
         expected_revision: i64,
         boundary: ConditionEventBoundary<'_>,
-        evaluate: impl FnOnce() -> LocalStateResult<PreparedConditionEvent>,
-    ) -> LocalStateResult<EncounterEventReceipt> {
-        self.write_condition_event(
-            encounter_key,
-            request_id,
-            intent,
-            expected_revision,
-            boundary,
-            true,
-            evaluate,
-        )
-    }
-
-    /// Store actual preparation outcomes and claims without changing gameplay or its revision.
-    pub fn prepare_condition_event_with_claims(
-        &self,
-        encounter_key: &str,
-        request_id: &str,
-        intent: &serde_json::Value,
-        expected_revision: i64,
-        boundary: ConditionEventBoundary<'_>,
-        evaluate: impl FnOnce() -> LocalStateResult<Vec<ConditionEventOutcome>>,
-    ) -> LocalStateResult<EncounterEventReceipt> {
-        self.write_condition_event(
-            encounter_key,
-            request_id,
-            intent,
-            expected_revision,
-            boundary,
-            false,
-            || {
-                Ok(PreparedConditionEvent {
-                    outcomes: evaluate()?,
-                    ..Default::default()
-                })
-            },
-        )
-    }
-
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "shared atomic event guards for writes and receipt-only preparation"
-    )]
-    fn write_condition_event(
-        &self,
-        encounter_key: &str,
-        request_id: &str,
-        intent: &serde_json::Value,
-        expected_revision: i64,
-        boundary: ConditionEventBoundary<'_>,
-        advances_revision: bool,
         evaluate: impl FnOnce() -> LocalStateResult<PreparedConditionEvent>,
     ) -> LocalStateResult<EncounterEventReceipt> {
         let ConditionEventBoundary {
@@ -489,9 +434,7 @@ impl EncountersWrite<'_> {
             for key in changes.resolved_pending_keys {
                 self.connection.execute("DELETE FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND consequence_key=?2",params![encounter_key,key])?;
             }
-            if advances_revision {
-                self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE encounter_key=?1",[encounter_key])?;
-            }
+            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE encounter_key=?1",[encounter_key])?;
             let receipt = EncounterEventReceipt {
                 encounter_key: encounter_key.into(),
                 request_id: request_id.into(),
@@ -499,7 +442,13 @@ impl EncountersWrite<'_> {
                 outcomes: changes.outcomes,
                 pending: changes.pending,
             };
-            self.connection.execute("INSERT INTO encounter_event_receipts(encounter_id,request_id,intent_json,receipt_json) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1",params![encounter_key,request_id,serde_json::to_string(intent)?,receipt_codec::encode(&receipt)?])?;
+            command_receipts::insert(
+                self.connection,
+                encounter_key,
+                request_id,
+                intent,
+                command_receipts::Outcome::Event(&receipt),
+            )?;
             Ok(receipt)
         })
     }

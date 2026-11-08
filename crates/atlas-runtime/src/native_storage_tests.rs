@@ -1010,7 +1010,7 @@ fn trait_similarity_retirement_preserves_document_values_on_historical_upgrade()
             );
         }
         workspace.migrate(MIGRATIONS, |_| Ok(())).unwrap();
-        let read = workspace.read(34).unwrap();
+        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(read.workspace_key().unwrap(), key);
         assert_eq!(read.reference_revision().unwrap(), revision + 1);
         assert_eq!(

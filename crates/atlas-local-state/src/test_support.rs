@@ -35,6 +35,7 @@ impl TestStore {
             transaction.commit()?;
             conn.pragma_update(None, "foreign_keys", true)?;
             conn.execute_batch(TURN_RECEIPTS_SCHEMA_SQL)?;
+            conn.execute_batch(ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL)?;
         }
         Ok(store)
     }
@@ -197,37 +198,18 @@ impl TestEncounters<'_> {
         transaction.commit()?;
         Ok(())
     }
-    pub fn initiative_roll_receipt(
-        &self,
-        encounter_key: &str,
-        request_id: &str,
-        request: &serde_json::Value,
-    ) -> LocalStateResult<Option<InitiativeRollReceipt>> {
-        let mut connection = self.0.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
-        let domain = EncountersRead::from_connection(&transaction);
-        let result = domain.initiative_roll_receipt(encounter_key, request_id, request)?;
-        transaction.commit()?;
-        Ok(result)
-    }
     pub fn roll_initiative(
         &self,
         encounter_key: &str,
         request_id: &str,
-        request: &serde_json::Value,
         expected_revision: i64,
         resolved: &[ResolvedInitiativeRoll],
     ) -> LocalStateResult<InitiativeRollReceipt> {
         let mut connection = self.0.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let domain = EncountersWrite::from_connection(&transaction);
-        let result = domain.roll_initiative(
-            encounter_key,
-            request_id,
-            request,
-            expected_revision,
-            resolved,
-        )?;
+        let result =
+            domain.roll_initiative(encounter_key, request_id, expected_revision, resolved)?;
         transaction.commit()?;
         Ok(result)
     }

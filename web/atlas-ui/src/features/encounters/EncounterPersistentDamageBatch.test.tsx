@@ -5,6 +5,23 @@ import type {
   PersistentDamageResultView,
 } from "../../generated/atlas";
 import { EncounterPersistentDamageBatch } from "./EncounterPersistentDamageBatch";
+const draftContext = {
+  encounter_key: "encounter",
+  participant_key: "actor",
+  boundary_key: null,
+  round_number: 1n,
+  record_key: null,
+  artifact_generation: "generation",
+};
+const fireRoll = {
+  formula: "1d6",
+  total: 5,
+  expression: {
+    kind: "dice" as const,
+    dice: [{ sides: 6, value: 5, kept: true }],
+    total: 5,
+  },
+};
 const api = vi.hoisted(() => ({ prepareEncounterPersistentDamage: vi.fn() }));
 vi.mock("../../api/atlasApi", () => api);
 afterEach(() => vi.restoreAllMocks());
@@ -22,6 +39,8 @@ beforeEach(() => {
   api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
     complete: request.groups.length === 2,
     recovery: null,
+    draft_context: draftContext,
+    recovery_draft: null,
     damage: {
       encounter_key: "encounter",
       request_id: request.request_id,
@@ -454,6 +473,8 @@ it("shows immunity before damage and retains the recorded reason when reference 
   api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
     complete: true,
     recovery: null,
+    draft_context: draftContext,
+    recovery_draft: null,
     damage: {
       encounter_key: "encounter",
       request_id: request.request_id,
@@ -463,7 +484,7 @@ it("shows immunity before damage and retains the recorded reason when reference 
           damage_type: "fire",
           source_condition_id: 7n,
           amount: 0n,
-          roll: null,
+          roll: fireRoll,
           table_resolved: false,
           protection,
         },
@@ -518,6 +539,8 @@ it("explains unresolved protections and starts with an editable table amount", a
   api.prepareEncounterPersistentDamage.mockResolvedValue({
     complete: true,
     recovery: null,
+    draft_context: draftContext,
+    recovery_draft: null,
     damage: { ...result, total: 3n },
   });
   fireEvent.click(await screen.findByRole("button", { name: "Apply 3 damage" }));
@@ -541,6 +564,15 @@ it("prepares recovery after one type while another amount is unresolved, then ap
     const preview = await original(ref, request);
     return {
       ...preview,
+      recovery_draft: request.recovery
+        ? {
+            context: draftContext,
+            source_condition_id: 7n,
+            dc: 0n,
+            dc_override: 0n,
+            roll: null,
+          }
+        : null,
       recovery: request.recovery
         ? {
             encounter_key: "encounter",
@@ -607,7 +639,11 @@ it("prepares recovery after one type while another amount is unresolved, then ap
   await waitFor(() => expect(onApply).toHaveBeenCalledOnce());
   expect(onApply.mock.calls[0][0]).toMatchObject({
     recoveries: [
-      { kind: "prepared", episode_id: "fire", request_id: expect.any(String) },
+      {
+        kind: "prepared",
+        episode_id: "fire",
+        draft: { context: draftContext, source_condition_id: 7n, dc: 0n },
+      },
     ],
     groups: [
       { episode_id: "fire", damage: { kind: "table_result", amount: 5n } },
@@ -622,6 +658,8 @@ it("shows the backend's refreshed protections and amount while retaining prepare
     return {
       complete: request.groups.length === 1,
       recovery: null,
+      draft_context: draftContext,
+      recovery_draft: null,
       damage: {
         encounter_key: "encounter",
         request_id: request.request_id,
@@ -634,7 +672,7 @@ it("shows the backend's refreshed protections and amount while retaining prepare
                 damage_type: "fire",
                 source_condition_id: 7n,
                 amount: refreshed ? 0n : 5n,
-                roll: null,
+                roll: fireRoll,
                 table_resolved: false,
                 protection: { immune: refreshed, weakness: 0n, resistance: 0n },
               },

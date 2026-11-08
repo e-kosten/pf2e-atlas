@@ -2010,9 +2010,9 @@ Inline table rolls and flat checks under an existing section retain useful local
 labels without acquiring another popover heading.
 
 Initiative uses the encounter mutation owner and backend-resolved choices.
-Preserve a request ID and unchanged intent for retry after an uncertain response.
-A new deliberate roll gets a new ID. A batch shows participant-attributed results;
-there is no combined batch total. Ordinary manual initiative entry remains valid.
+After an uncertain response, reload the current initiative and let the GM review
+it before an explicit fresh roll. A batch shows participant-attributed results.
+Ordinary manual initiative entry remains valid.
 
 Essential creature ability and hazard rules remain inline through the shared
 bounded reading owner; additional reference navigation is explicit. HP mutations
@@ -2196,7 +2196,7 @@ wrap and retain normal action sizes.
 State labels on the same action share an intrinsic footprint: Roll recovery and
 View result reserve the wider label's width. Do not let a result label wrap its
 neighboring Clear effect action and recenter the entire modal.
-Manual drafts and prepared dice survive method switches.
+Manual drafts and prepared dice survive method switches within the active review. A page reload clears unfinished drafts.
 Applied outcomes own their recorded facts. A table total without saved protection
 must not acquire today's immunity, weakness or resistance attribution; current
 IWR advice belongs to editing. An actual recovery check keeps its DC and result
@@ -2214,7 +2214,7 @@ Do not include failed recoveries or independent expired-condition actions in tha
 summary. The final command applies HP consequences once,
 then queued recoveries, atomically. Do not simulate prepared rolls as table totals
 or write HP per row. Rust owns IWR, shared Hardness, Dying, source/generation guards
-and durable roll receipts. Retain a prepared raw roll when only protections change;
+and durable receipts for committed effects. Retain a browser-held raw roll when only protections change;
 recalculate protections in Rust rather than rerolling. Changed formulas or active
 sources need review and an explicit table result, not reuse of unrelated dice.
 If a supplied protection requires table resolution, the shared selector uses table

@@ -40,3 +40,6 @@ pub const ENCOUNTER_RECOVERY_SCHEMA_SQL: &str = include_str!("encounter_recovery
 
 /// Lifetime turn request receipts and one current outgoing context per encounter.
 pub const TURN_RECEIPTS_SCHEMA_SQL: &str = include_str!("turn_receipts.sql");
+
+pub const ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL: &str =
+    include_str!("encounter_command_receipts.sql");

@@ -615,6 +615,25 @@ fn switch_source_petrified_off(f: &FixtureWorker, key: &str) {
         .unwrap();
 }
 
+fn damage_draft(
+    preparation: &PreparedPersistentDamageView,
+    episode_id: &str,
+) -> PersistentDamageInput {
+    let outcome = preparation
+        .damage
+        .groups
+        .iter()
+        .find(|group| group.episode_id == episode_id)
+        .unwrap();
+    PersistentDamageInput::Prepared {
+        draft: PersistentDamageDraft {
+            context: preparation.draft_context.clone(),
+            source_condition_id: outcome.source_condition_id,
+            roll: outcome.roll.clone().unwrap(),
+        },
+    }
+}
+
 #[test]
 fn source_petrified_protects_prepared_damage_and_the_final_packet_once() {
     let (f, _artifact, key, participant) = source_petrified_fixture(Some(true));
@@ -656,9 +675,7 @@ fn source_petrified_protects_prepared_damage_and_the_final_packet_once() {
         (2, 8)
     );
     assert_eq!(snapshot(&f, &key), before);
-    request.groups[0].damage = PersistentDamageInput::Prepared {
-        request_id: "prepare-source-statue-fire".into(),
-    };
+    request.groups[0].damage = damage_draft(&prepared, &request.groups[0].episode_id);
     let result = f
         .worker
         .apply_persistent_damage(&key, request.clone())
@@ -728,7 +745,8 @@ fn source_petrified_off_preserves_damage_and_temporary_petrified_has_the_same_pr
 fn prepared_persistent_damage_revalues_source_petrified_after_switching_off() {
     let (f, _artifact, key, participant) = source_petrified_fixture(Some(true));
     let mut request = source_statue_damage(&f, &key, &participant);
-    f.worker
+    let prepared = f
+        .worker
         .prepare_persistent_damage(
             &key,
             PreparePersistentDamageRequest {
@@ -744,11 +762,100 @@ fn prepared_persistent_damage_revalues_source_petrified_after_switching_off() {
         .unwrap();
     switch_source_petrified_off(&f, &key);
     request.expected_encounter_revision = snapshot(&f, &key).encounter.revision;
-    request.groups[0].damage = PersistentDamageInput::Prepared {
-        request_id: "prepare-before-switching-off".into(),
-    };
+    request.groups[0].damage = damage_draft(&prepared, &request.groups[0].episode_id);
     let result = f.worker.apply_persistent_damage(&key, request).unwrap();
     assert_eq!((result.total, result.hardness_absorbed), (30, 0));
+}
+
+#[test]
+fn prepared_damage_expires_across_reference_generations_with_the_same_formula() {
+    let (f, _artifact, key, participant) = source_petrified_fixture(Some(true));
+    let before = snapshot(&f, &key);
+    let mut apply = source_statue_damage(&f, &key, &participant);
+    let prepare = |generation, groups| PreparePersistentDamageRequest {
+        request_id: "prepare-across-reference-updates".into(),
+        expected_encounter_revision: before.encounter.revision,
+        participant_key: participant.clone(),
+        boundary_key: None,
+        artifact_generation: generation,
+        groups,
+        recovery: None,
+    };
+    let rolled = f
+        .worker
+        .prepare_persistent_damage(
+            &key,
+            prepare(
+                apply.artifact_generation.clone(),
+                vec![apply.groups[0].clone()],
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        rolled.draft_context.artifact_generation,
+        apply.artifact_generation
+    );
+    assert_eq!(
+        rolled.draft_context.record_key,
+        before.participants[0].record_key
+    );
+
+    let workspace = atlas_runtime::initialize_workspace(f.worker.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",
+            [],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    apply.artifact_generation = f.worker.encounter(&key).unwrap().artifact_generation;
+    assert_ne!(
+        rolled.draft_context.artifact_generation,
+        apply.artifact_generation
+    );
+    let stale = damage_draft(&rolled, &apply.groups[0].episode_id);
+    let mut stale_preview = apply.groups[0].clone();
+    stale_preview.damage = stale.clone();
+    let err = f
+        .worker
+        .prepare_persistent_damage(
+            &key,
+            prepare(apply.artifact_generation.clone(), vec![stale_preview]),
+        )
+        .unwrap_err();
+    assert!(
+        err.into_app_error()
+            .message
+            .contains("Prepared damage source or turn changed")
+    );
+    let current = f
+        .worker
+        .prepare_persistent_damage(
+            &key,
+            prepare(
+                apply.artifact_generation.clone(),
+                vec![apply.groups[0].clone()],
+            ),
+        )
+        .unwrap();
+    assert_eq!(rolled.damage.groups[0].roll, current.damage.groups[0].roll);
+    apply.groups[0].damage = stale;
+    let err = f
+        .worker
+        .apply_persistent_damage(&key, apply.clone())
+        .unwrap_err();
+    assert!(
+        err.into_app_error()
+            .message
+            .contains("Prepared damage source or turn changed")
+    );
+    assert_eq!(snapshot(&f, &key), before);
+    apply.groups[0].damage = damage_draft(&current, &apply.groups[0].episode_id);
+    assert!(f.worker.apply_persistent_damage(&key, apply).is_ok());
 }
 
 #[test]
@@ -1697,28 +1804,28 @@ fn prepared_recovery_keeps_damage_due_and_commits_all_changes_once() {
         before,
         "Preparation must preserve HP, conditions and revisions"
     );
-    assert_eq!(
+    let mut another_draft = prepare;
+    another_draft.request_id = "another-recovery-roll".into();
+    assert!(
         f.worker
-            .prepare_persistent_damage(&key, prepare.clone())
-            .unwrap(),
-        result
+            .prepare_persistent_damage(&key, another_draft)
+            .is_ok()
     );
-    let mut duplicate = prepare;
-    duplicate.request_id = "another-recovery-roll".into();
-    assert!(f.worker.prepare_persistent_damage(&key, duplicate).is_err());
     let review = f
         .worker
         .persistent_damage_review(&key, &participant, None)
         .unwrap();
     assert_eq!(review.damage_groups.len(), 2);
-    assert_eq!(review.prepared_recovery.len(), 1);
+    assert!(review.damage_result.is_none());
+    assert!(review.recovery_results.is_empty());
     damage.recoveries = vec![
         PersistentRecoveryInput::Prepared {
             episode_id: "episode-fire".into(),
-            request_id: "prepare-recovery".into(),
+            draft: result.recovery_draft.unwrap(),
         },
         PersistentRecoveryInput::Clear {
             episode_id: "episode-acid".into(),
+            draft: None,
         },
     ];
     let applied = f
@@ -1845,9 +1952,7 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
         );
         groups.push(PersistentDamageGroupInput {
             episode_id: episode.into(),
-            damage: PersistentDamageInput::Prepared {
-                request_id: format!("prepare-{episode}"),
-            },
+            damage: damage_draft(&result, episode),
         });
     }
     assert_eq!(snapshot(&f, &key), before);
@@ -1855,7 +1960,8 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
         .worker
         .persistent_damage_review(&key, &actor.participant_key, None)
         .unwrap();
-    assert_eq!(review.prepared_damage.len(), 2);
+    assert!(review.damage_result.is_none());
+    assert!(!review.damage_applied);
     let request = ApplyPersistentDamageRequest {
         request_id: "apply-prepared-statue".into(),
         expected_encounter_revision: before.encounter.revision,
@@ -1866,6 +1972,24 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
         recoveries: vec![],
         context: Default::default(),
     };
+    for change in [
+        |draft: &mut PersistentDamageDraft| draft.context.participant_key = "another actor".into(),
+        |draft: &mut PersistentDamageDraft| draft.context.round_number += 1,
+        |draft: &mut PersistentDamageDraft| {
+            draft.context.record_key = Some("actors:wrong-record".into());
+        },
+        |draft: &mut PersistentDamageDraft| draft.source_condition_id += 1,
+        |draft: &mut PersistentDamageDraft| draft.roll.formula = "5+5".into(),
+        |draft: &mut PersistentDamageDraft| draft.roll.total += 1,
+    ] {
+        let mut invalid = request.clone();
+        let PersistentDamageInput::Prepared { draft } = &mut invalid.groups[0].damage else {
+            panic!("expected a browser draft");
+        };
+        change(draft);
+        assert!(f.worker.apply_persistent_damage(&key, invalid).is_err());
+        assert_eq!(snapshot(&f, &key), before);
+    }
     let result = f
         .worker
         .apply_persistent_damage(&key, request.clone())
@@ -1883,6 +2007,12 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
             .unwrap(),
         result
     );
+    let mut mismatch = request.clone();
+    let PersistentDamageInput::Prepared { draft } = &mut mismatch.groups[0].damage else {
+        panic!("expected a browser draft");
+    };
+    draft.roll.total += 1;
+    assert!(f.worker.apply_persistent_damage(&key, mismatch).is_err());
     let mut stale = request;
     stale.request_id = "different-boundary-request".into();
     stale.expected_encounter_revision = snapshot(&f, &key).encounter.revision;
@@ -1907,110 +2037,49 @@ fn table_clear_retains_a_failed_prepared_check_without_repeating_damage() {
         let (f, key, participant) = fixture();
         let before = snapshot(&f, &key);
         let mut damage = batch(&f, &key, &participant);
-        let prepared = if roll.is_none() {
-            f.worker
-                .prepare_persistent_damage(
-                    &key,
-                    PreparePersistentDamageRequest {
-                        request_id: "failed-recovery".into(),
-                        expected_encounter_revision: before.encounter.revision,
-                        participant_key: participant.clone(),
-                        boundary_key: None,
-                        artifact_generation: None,
-                        groups: vec![damage.groups[0].clone()],
-                        recovery: Some(PreparedPersistentRecoveryInput {
-                            episode_id: "episode-fire".into(),
-                            dc_override: Some(dc),
-                        }),
-                    },
-                )
-                .unwrap()
-                .recovery
-                .unwrap()
-        } else {
-            let saved_recovery = atlas_local_state::PreparedPersistentRecovery {
-                episode_id: "episode-fire".into(),
-                damage_type: "fire".into(),
-                dc,
-                roll: roll.clone(),
-                success: false,
-            };
-            let claim = atlas_local_state::EncounterBoundaryClaim {
-                participant_key: participant.clone(),
-                round_number: before.encounter.round_number,
-                kind: atlas_local_state::EncounterBoundaryKind::PreparedPersistentRecovery,
-                scope_key: "current:episode-fire".into(),
-            };
-            f.worker
-                .with_write(|session| {
-                    session
-                        .local_state()
-                        .encounters()
-                        .prepare_condition_event_with_claims(
-                            &key,
-                            "failed-recovery",
-                            &serde_json::json!({"fixture":"rolled-recovery-failure"}),
-                            before.encounter.revision,
-                            atlas_local_state::ConditionEventBoundary {
-                                claims: &[claim],
-                                outgoing_boundary_key: None,
-                            },
-                            || {
-                                Ok(vec![
-                                    atlas_local_state::ConditionEventOutcome::PersistentPrepared {
-                                        context: Box::new(
-                                            atlas_local_state::PersistentPreparationContext {
-                                                participant_key: participant.clone(),
-                                                record_key: None,
-                                                boundary_key: None,
-                                                artifact_generation: None,
-                                            },
-                                        ),
-                                        groups: vec![atlas_local_state::PersistentDamageOutcome {
-                                            episode_id: "episode-fire".into(),
-                                            damage_type: "fire".into(),
-                                            source_condition_id: before.participants[0].conditions
-                                                [0]
-                                            .condition_id,
-                                            roll: None,
-                                            amount: 4,
-                                            table_resolved: true,
-                                            protection: None,
-                                        }],
-                                        hardness: 0,
-                                        complete: false,
-                                        recovery: Some(saved_recovery),
-                                    },
-                                ])
-                            },
-                        )?;
-                    Ok(())
-                })
-                .unwrap();
-            f.worker
-                .persistent_damage_review(&key, &participant, None)
-                .unwrap()
-                .prepared_recovery
-                .remove(0)
+        let prepared = f
+            .worker
+            .prepare_persistent_damage(
+                &key,
+                PreparePersistentDamageRequest {
+                    request_id: "failed-recovery".into(),
+                    expected_encounter_revision: before.encounter.revision,
+                    participant_key: participant.clone(),
+                    boundary_key: None,
+                    artifact_generation: None,
+                    groups: vec![damage.groups[0].clone()],
+                    recovery: Some(PreparedPersistentRecoveryInput {
+                        episode_id: "episode-fire".into(),
+                        dc_override: Some(100),
+                    }),
+                },
+            )
+            .unwrap()
+            .recovery_draft
+            .unwrap();
+        let draft = PersistentRecoveryDraft {
+            dc,
+            dc_override: Some(dc),
+            roll: roll.clone(),
+            ..prepared
         };
         assert_eq!(snapshot(&f, &key), before);
-        assert_eq!(
-            (prepared.dc, &prepared.roll, prepared.success),
-            (Some(dc), &roll, false)
-        );
         for recoveries in [
-            vec![],
             vec![PersistentRecoveryInput::Prepared {
                 episode_id: "episode-fire".into(),
-                request_id: "unrelated-preparation".into(),
+                draft: PersistentRecoveryDraft {
+                    dc: dc - 1,
+                    ..draft.clone()
+                },
             }],
             vec![
                 PersistentRecoveryInput::Clear {
                     episode_id: "episode-fire".into(),
+                    draft: None,
                 },
                 PersistentRecoveryInput::Prepared {
                     episode_id: "episode-fire".into(),
-                    request_id: "failed-recovery".into(),
+                    draft: draft.clone(),
                 },
             ],
         ] {
@@ -2021,6 +2090,7 @@ fn table_clear_retains_a_failed_prepared_check_without_repeating_damage() {
         }
         damage.recoveries = vec![PersistentRecoveryInput::Clear {
             episode_id: "episode-fire".into(),
+            draft: Some(draft),
         }];
         let applied = f
             .worker
@@ -2046,7 +2116,7 @@ fn table_clear_retains_a_failed_prepared_check_without_repeating_damage() {
             .unwrap();
         assert_eq!(
             (retained.dc, &retained.roll, retained.success),
-            (prepared.dc, &prepared.roll, false)
+            (Some(dc), &roll, false)
         );
         assert_eq!(
             f.worker.apply_persistent_damage(&key, damage).unwrap(),
@@ -2063,84 +2133,69 @@ fn table_clear_retains_a_failed_prepared_check_without_repeating_damage() {
 }
 
 #[test]
-fn concurrent_preparation_cannot_be_omitted_or_lost_by_table_clear() {
-    for clearing in [false, true] {
-        let (f, key, participant) = fixture();
-        let before = snapshot(&f, &key);
-        let mut damage = batch(&f, &key, &participant);
-        if clearing {
-            damage.recoveries = vec![PersistentRecoveryInput::Clear {
-                episode_id: "episode-fire".into(),
-            }];
-        }
-        let prepare = PreparePersistentDamageRequest {
-            request_id: "concurrent-recovery".into(),
-            expected_encounter_revision: before.encounter.revision,
-            participant_key: participant.clone(),
-            boundary_key: None,
-            artifact_generation: None,
-            groups: vec![damage.groups[0].clone()],
-            recovery: Some(PreparedPersistentRecoveryInput {
-                episode_id: "episode-fire".into(),
-                dc_override: Some(100),
-            }),
-        };
-        let barrier = std::sync::Barrier::new(2);
-        let (applied, prepared) = std::thread::scope(|scope| {
-            let apply = scope.spawn(|| {
-                barrier.wait();
-                f.worker.apply_persistent_damage(&key, damage)
-            });
-            let preparation = scope.spawn(|| {
-                barrier.wait();
-                f.worker.prepare_persistent_damage(&key, prepare)
-            });
-            (apply.join().unwrap(), preparation.join().unwrap())
+fn independent_drafts_allow_only_one_damage_application_per_boundary() {
+    let (f, key, participant) = fixture();
+    let before = snapshot(&f, &key);
+    let prepare = |id: &str, dc| {
+        f.worker
+            .prepare_persistent_damage(
+                &key,
+                PreparePersistentDamageRequest {
+                    request_id: id.into(),
+                    expected_encounter_revision: before.encounter.revision,
+                    participant_key: participant.clone(),
+                    boundary_key: None,
+                    artifact_generation: None,
+                    groups: vec![batch(&f, &key, &participant).groups.remove(0)],
+                    recovery: Some(PreparedPersistentRecoveryInput {
+                        episode_id: "episode-fire".into(),
+                        dc_override: Some(dc),
+                    }),
+                },
+            )
+            .unwrap()
+            .recovery_draft
+            .unwrap()
+    };
+    let mut first = batch(&f, &key, &participant);
+    first.recoveries = vec![PersistentRecoveryInput::Prepared {
+        episode_id: "episode-fire".into(),
+        draft: prepare("first-prep", 0),
+    }];
+    let mut second = batch(&f, &key, &participant);
+    second.request_id = "second-apply".into();
+    second.recoveries = vec![PersistentRecoveryInput::Prepared {
+        episode_id: "episode-fire".into(),
+        draft: prepare("second-prep", 100),
+    }];
+    assert_eq!(snapshot(&f, &key), before);
+    let barrier = std::sync::Barrier::new(2);
+    let (applied_first, applied_second) = std::thread::scope(|scope| {
+        let apply = scope.spawn(|| {
+            barrier.wait();
+            f.worker.apply_persistent_damage(&key, first.clone())
         });
-        let review = f
-            .worker
-            .persistent_damage_review(&key, &participant, None)
-            .unwrap();
-        if clearing {
-            assert!(
-                applied.is_ok(),
-                "Table Clear must remain usable: {applied:?}"
-            );
-            let result = review
-                .recovery_results
-                .iter()
-                .find(|result| result.episode_id == "episode-fire")
-                .unwrap();
-            if let Ok(prepared) = prepared {
-                let check = prepared.recovery.unwrap();
-                assert_eq!(
-                    (result.dc, &result.roll, result.success),
-                    (check.dc, &check.roll, check.success)
-                );
-            } else {
-                assert_eq!(
-                    (result.dc, &result.roll, result.success),
-                    (None, &None, true)
-                );
-            }
-            assert!(snapshot(&f, &key).participants[0].conditions.iter().all(|condition| {
-                !matches!(&condition.parameters, ConditionParameters::PersistentDamage { damage_type, .. } if damage_type == "fire")
-            }));
-        } else {
-            assert_ne!(
-                applied.is_ok(),
-                prepared.is_ok(),
-                "An omitted check and its damage cannot both commit: {applied:?}, {prepared:?}"
-            );
-            if prepared.is_ok() {
-                assert_eq!(snapshot(&f, &key), before);
-                assert!(!review.damage_applied);
-            } else {
-                assert!(review.damage_applied);
-                assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(0));
-            }
-        }
-    }
+        let other = scope.spawn(|| {
+            barrier.wait();
+            f.worker.apply_persistent_damage(&key, second.clone())
+        });
+        (apply.join().unwrap(), other.join().unwrap())
+    });
+    assert_ne!(applied_first.is_ok(), applied_second.is_ok());
+    let (winner, result) = match applied_first {
+        Ok(result) => (first, result),
+        Err(_) => (second, applied_second.unwrap()),
+    };
+    assert_eq!(
+        f.worker.apply_persistent_damage(&key, winner).unwrap(),
+        result
+    );
+    let review = f
+        .worker
+        .persistent_damage_review(&key, &participant, None)
+        .unwrap();
+    assert_eq!(review.damage_result, Some(result));
+    assert_eq!(review.recovery_results.len(), 1);
 }
 
 #[test]

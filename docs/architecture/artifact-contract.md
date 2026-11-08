@@ -845,13 +845,16 @@ so a retry cannot grant the same consequence again. Unconscious-created Prone
 remains after waking. Persistent-damage comparisons retain exact episode/source
 membership; boundary claims prevent replaying completed turn processing.
 
-`encounter_turn_receipts` retains compact Next-turn request/intent/boundary identities
-for the encounter lifetime. `encounter_outgoing_turns` holds at most one typed
-pre-advance snapshot per encounter and references its receipt. Advancement commits
-the receipt, context replacement and next turn together. Migration 26 preserves
-every historical receipt and only the maximum-ID snapshot per encounter, including
-boundaries without review. Reset/rest clears current context and retains receipts;
-retries recover before revision/source guards. Only the current completed boundary
+`encounter_command_receipts` retains Next-turn request, intent and boundary
+identities alongside committed event outcomes in distinct command families.
+`encounter_outgoing_turns` holds at most one typed pre-advance snapshot per
+encounter and references its turn receipt. Advancement commits the receipt,
+context replacement and next turn together. Migration 26 introduced the compact
+turn receipts and retained the latest snapshot per encounter. Migration 35
+consolidates the durable receipts and removes the obsolete initiative, rest/reset
+and preparation-only records. Rest/reset clears current context and retains
+committed event and turn receipts. Retries recover before revision/source guards.
+Only the current completed boundary
 is actionable; closing the notification changes no saved state.
 There is no acknowledgment queue or persisted action-attempt/relationship workflow.
 Spell reminders and optional strike context are read-only projections. Spell

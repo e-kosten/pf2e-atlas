@@ -297,11 +297,12 @@ it("retains the displayed damage after a failed reroll and loses it on unmount",
 
 function renderInitiative(
   onRoll: (request: RollInitiativeRequest) => Promise<InitiativeRollView>,
+  initiative?: bigint,
 ) {
   render(
     <InitiativeRollModal
       encounterKey="e"
-      participants={[participant]}
+      participants={[{ ...participant, initiative }]}
       onClose={vi.fn()}
       onRoll={onRoll}
       disabled={false}
@@ -310,7 +311,7 @@ function renderInitiative(
     { wrapper },
   );
 }
-it("initiative retries the same request, then makes a fresh deliberate reroll", async () => {
+it("initiative reloads after an uncertain save and rolls again only on request", async () => {
   const onRoll = vi
     .fn<(request: RollInitiativeRequest) => Promise<InitiativeRollView>>()
     .mockRejectedValueOnce(new TypeError("Network interrupted"))
@@ -323,9 +324,14 @@ it("initiative retries the same request, then makes a fresh deliberate reroll", 
     }));
   renderInitiative(onRoll);
   fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
-  await screen.findByRole("button", { name: "Reroll" });
-  expect(onRoll.mock.calls[1][0]).toEqual(onRoll.mock.calls[0][0]);
+  expect(
+    await screen.findByText(/Review current initiative before rolling again/),
+  ).toBeVisible();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Roll" })).toBeEnabled(),
+  );
+  expect(onRoll).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   expect(onRoll.mock.calls[0][0]).toMatchObject({
     request_id: expect.stringMatching(/\S+/),
     artifact_generation: "generation",
@@ -340,12 +346,34 @@ it("initiative retries the same request, then makes a fresh deliberate reroll", 
       },
     ],
   });
-  fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
-  await waitFor(() => expect(onRoll).toHaveBeenCalledTimes(3));
-  expect(onRoll.mock.calls[2][0].request_id).not.toBe(
+  fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+  await screen.findByRole("button", { name: "Reroll" });
+  expect(onRoll).toHaveBeenCalledTimes(2);
+  expect(onRoll.mock.calls[1][0].request_id).not.toBe(
     onRoll.mock.calls[0][0].request_id,
   );
 });
+it("an uncertain reroll clears the old reveal and shows the current roster total", async () => {
+  const onRoll = vi
+    .fn<(request: RollInitiativeRequest) => Promise<InitiativeRollView>>()
+    .mockImplementationOnce(async (request) => ({
+      request_id: request.request_id,
+      encounter_key: "e",
+      rolls: [
+        { participant_key: "p", display_name: "Goblin", basis: "Perception", outcome },
+      ],
+    }))
+    .mockRejectedValueOnce(new TypeError("Network interrupted"));
+  renderInitiative(onRoll, 12n);
+  fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
+  const reroll = await screen.findByRole("button", { name: "Reroll" });
+  expect(screen.getByLabelText("Goblin initiative total")).toHaveValue("19");
+  fireEvent.click(reroll);
+  await screen.findByText(/Review current initiative before rolling again/);
+  expect(screen.getByLabelText("Goblin initiative total")).toHaveValue("12");
+  expect(onRoll).toHaveBeenCalledTimes(2);
+});
+
 it("initiative stops resubmission after a typed revision conflict", async () => {
   const onRoll = vi.fn().mockRejectedValue(
     new AtlasApiError(409, "Changed", {

@@ -152,7 +152,7 @@ it("keeps every source and queues a table recovery without dropping its damage f
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
         expected_encounter_revision: 1n,
-        recoveries: [{ kind: "clear", episode_id: "fire" }],
+        recoveries: [{ kind: "clear", episode_id: "fire", draft: null }],
         groups: [
           { episode_id: "fire", damage: { kind: "table_result", amount: 2n } },
           {

@@ -43,23 +43,13 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: RollInitiativeRequest,
     ) -> AppServiceResult<InitiativeRollView> {
-        let intent = serde_json::to_value(&request)
-            .map_err(|e| AppServiceError::invalid_request(e.to_string()))?;
-        let (encounter, recovered) = self.with_state(|session| {
-            let encounters = session.local_state().encounters();
-            let encounter = encounters
+        let encounter = self.with_state(|session| {
+            session
+                .local_state()
+                .encounters()
                 .get(encounter_ref)?
-                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-            let recovered = encounters.initiative_roll_receipt(
-                &encounter.encounter_key,
-                &request.request_id,
-                &intent,
-            )?;
-            Ok((encounter, recovered))
+                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))
         })?;
-        if let Some(receipt) = recovered {
-            return Ok(receipt_view(receipt));
-        }
         let key = &encounter.encounter_key;
         if request.participants.is_empty() || request.participants.len() > 200 {
             return Err(AppServiceError::invalid_request(
@@ -139,18 +129,12 @@ impl AtlasAppService {
         }
         self.with_write(|session| {
             let encounters = session.local_state().encounters();
-            if let Some(receipt) =
-                encounters.initiative_roll_receipt(key, &request.request_id, &intent)?
-            {
-                return Ok(receipt_view(receipt));
-            }
             if let Some(revision) = reference_revision {
                 session.require_reference_revision(revision)?;
             }
             Ok(receipt_view(encounters.roll_initiative(
                 key,
                 &request.request_id,
-                &intent,
                 request.expected_revision,
                 &resolved,
             )?))

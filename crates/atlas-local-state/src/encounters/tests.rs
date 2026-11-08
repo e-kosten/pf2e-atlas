@@ -72,7 +72,8 @@ fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
 }
 
 #[test]
-fn concurrent_initiative_retries_commit_one_receipt() -> Result<(), Box<dyn std::error::Error>> {
+fn concurrent_initiative_requests_with_one_revision_commit_one_batch()
+-> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("concurrent-roll")?;
     store
         .encounters()
@@ -90,7 +91,6 @@ fn concurrent_initiative_retries_commit_one_receipt() -> Result<(), Box<dyn std:
                 store.encounters().roll_initiative(
                     &snapshot.encounter.encounter_key,
                     "same-request",
-                    &serde_json::json!({"initiative":true}),
                     snapshot.encounter.revision,
                     &[ResolvedInitiativeRoll {
                         participant_key: participant.participant_key.clone(),
@@ -105,9 +105,27 @@ fn concurrent_initiative_retries_commit_one_receipt() -> Result<(), Box<dyn std:
     let results = handles
         .into_iter()
         .map(|h| h.join().unwrap())
-        .collect::<Result<Vec<_>, _>>()?;
-    assert_eq!(results[0], results[1]);
+        .collect::<Vec<_>>();
+    assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+    assert_eq!(
+        results
+            .iter()
+            .filter(|result| matches!(
+                result,
+                Err(crate::LocalStateError::StaleEncounterRevision { .. })
+            ))
+            .count(),
+        1
+    );
+    let result = results
+        .iter()
+        .find_map(|result| result.as_ref().ok())
+        .unwrap();
     let saved = store.encounters().get_with_participants("test")?.unwrap();
+    assert_eq!(
+        saved.participants[0].initiative,
+        Some(i64::from(result.rolls[0].outcome.total))
+    );
     assert_eq!(saved.encounter.revision, snapshot.encounter.revision + 1);
     assert_eq!(
         saved.participants[0].revision,
@@ -117,7 +135,7 @@ fn concurrent_initiative_retries_commit_one_receipt() -> Result<(), Box<dyn std:
 }
 
 #[test]
-fn initiative_receipts_recover_without_reroll_and_conflict_on_changed_intent()
+fn initiative_saves_the_batch_and_rejects_a_stale_retry_after_reopen()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("roll-retry")?;
     store
@@ -138,11 +156,9 @@ fn initiative_receipts_recover_without_reroll_and_conflict_on_changed_intent()
             formula: "1d20+5".into(),
         })
         .collect::<Vec<_>>();
-    let intent = serde_json::json!({"participants": ["first", "second"]});
     let receipt = store.encounters().roll_initiative(
         key,
         "request-1",
-        &intent,
         before.encounter.revision,
         &resolved,
     )?;
@@ -166,39 +182,26 @@ fn initiative_receipts_recover_without_reroll_and_conflict_on_changed_intent()
         before.encounter.current_turn_participant_key
     );
     assert_eq!(saved.encounter.round_number, before.encounter.round_number);
-    // Reopen to prove persistence; the old revision and even absent source inputs
-    // cannot force another roll once this request has committed.
     let reopened = TestStore::open(store.path())?;
-    assert_eq!(
-        reopened
-            .encounters()
-            .roll_initiative(key, "request-1", &intent, -1, &[])?,
-        receipt
-    );
+    assert!(matches!(
+        reopened.encounters().roll_initiative(
+            key,
+            "request-1",
+            before.encounter.revision,
+            &resolved
+        ),
+        Err(crate::LocalStateError::StaleEncounterRevision { .. })
+    ));
     assert_eq!(
         reopened.encounters().get_with_participants(key)?.unwrap(),
         saved
-    );
-    assert!(matches!(
-        reopened.encounters().initiative_roll_receipt(
-            key,
-            "request-1",
-            &serde_json::json!({"changed":true})
-        ),
-        Err(crate::LocalStateError::RollRequestConflict)
-    ));
-    reopened.encounters().delete(key)?;
-    assert!(
-        reopened
-            .encounters()
-            .initiative_roll_receipt(key, "request-1", &intent)?
-            .is_none()
     );
     Ok(())
 }
 
 #[test]
-fn initiative_batch_and_receipt_rollback_together() -> Result<(), Box<dyn std::error::Error>> {
+fn initiative_validates_all_participants_before_saving_the_batch()
+-> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("roll-rollback")?;
     store
         .encounters()
@@ -218,16 +221,11 @@ fn initiative_batch_and_receipt_rollback_together() -> Result<(), Box<dyn std::e
             formula: "20".into(),
         })
         .collect::<Vec<_>>();
-    let intent = serde_json::json!({"roll":"both"});
     resolved[1].expected_revision += 1;
     assert!(matches!(
-        store.encounters().roll_initiative(
-            key,
-            "retry",
-            &intent,
-            before.encounter.revision,
-            &resolved
-        ),
+        store
+            .encounters()
+            .roll_initiative(key, "retry", before.encounter.revision, &resolved),
         Err(crate::LocalStateError::StaleParticipantRevision { .. })
     ));
     assert_eq!(
@@ -235,33 +233,10 @@ fn initiative_batch_and_receipt_rollback_together() -> Result<(), Box<dyn std::e
         before
     );
     resolved[1].expected_revision -= 1;
-    store.connection()?.execute_batch("CREATE TRIGGER fail_receipt BEFORE INSERT ON encounter_roll_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END;")?;
-    assert!(
+    let receipt =
         store
             .encounters()
-            .roll_initiative(key, "retry", &intent, before.encounter.revision, &resolved)
-            .is_err()
-    );
-    assert_eq!(
-        store.encounters().get_with_participants(key)?.unwrap(),
-        before
-    );
-    assert!(
-        store
-            .encounters()
-            .initiative_roll_receipt(key, "retry", &intent)?
-            .is_none()
-    );
-    store
-        .connection()?
-        .execute_batch("DROP TRIGGER fail_receipt")?;
-    let receipt = store.encounters().roll_initiative(
-        key,
-        "retry",
-        &intent,
-        before.encounter.revision,
-        &resolved,
-    )?;
+            .roll_initiative(key, "retry", before.encounter.revision, &resolved)?;
     assert_eq!(receipt.rolls.len(), 2);
     assert!(
         store
@@ -1264,7 +1239,7 @@ fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
     );
     assert_eq!(
         store.connection()?.query_row(
-            "SELECT count(*) FROM encounter_turn_receipts",
+            "SELECT count(*) FROM encounter_command_receipts WHERE family='turn'",
             [],
             |row| row.get::<_, i64>(0)
         )?,
@@ -1627,7 +1602,7 @@ fn caught_batch_add_error_cannot_commit_earlier_participants_or_identities()
 }
 
 #[test]
-fn caught_receipt_insert_error_cannot_commit_initiative_changes()
+fn caught_second_participant_update_failure_cannot_commit_partial_initiative()
 -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("receipt-savepoint")?;
     store
@@ -1638,13 +1613,22 @@ fn caught_receipt_insert_error_cannot_commit_initiative_changes()
         .add_participant("test", creature("Two", Some(10), 20))?;
     let before = store.encounters().get_with_participants("test")?.unwrap();
     let mut connection = store.connection()?;
-    connection.execute_batch("CREATE TRIGGER reject_receipt BEFORE INSERT ON encounter_roll_receipts BEGIN SELECT RAISE(ABORT,'receipt rejected'); END;")?;
+    connection.execute_batch(
+        "CREATE TEMP TABLE initiative_failure(participant_key TEXT);
+         CREATE TEMP TRIGGER reject_initiative BEFORE UPDATE OF initiative ON encounter_participants
+         WHEN OLD.participant_key=(SELECT participant_key FROM initiative_failure)
+              AND NEW.initiative IS NOT OLD.initiative
+         BEGIN SELECT RAISE(ABORT,'initiative update rejected'); END;",
+    )?;
+    connection.execute(
+        "INSERT INTO initiative_failure VALUES(?1)",
+        [&before.participants[1].participant_key],
+    )?;
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     let domain = EncountersWrite::from_connection(&tx);
     let result = domain.roll_initiative(
         &before.encounter.encounter_key,
         "failed-request",
-        &serde_json::json!({"roll":true}),
         before.encounter.revision,
         &before
             .participants
@@ -1653,7 +1637,7 @@ fn caught_receipt_insert_error_cannot_commit_initiative_changes()
                 participant_key: p.participant_key.clone(),
                 expected_revision: p.revision,
                 basis: "Perception".into(),
-                formula: "1d20+4".into(),
+                formula: "20".into(),
             })
             .collect::<Vec<_>>(),
     );
@@ -1662,16 +1646,6 @@ fn caught_receipt_insert_error_cannot_commit_initiative_changes()
     assert_eq!(
         store.encounters().get_with_participants("test")?.unwrap(),
         before
-    );
-    assert!(
-        store
-            .encounters()
-            .initiative_roll_receipt(
-                &before.encounter.encounter_key,
-                "failed-request",
-                &serde_json::json!({"roll":true})
-            )?
-            .is_none()
     );
     Ok(())
 }
@@ -1946,7 +1920,7 @@ fn consumed_application_claim_and_stock_roll_back_when_receipt_fails()
         ..Default::default()
     };
     let intent = serde_json::json!({"application":"consumed"});
-    store.connection()?.execute_batch("CREATE TRIGGER reject_consumed_receipt BEFORE INSERT ON encounter_event_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END;")?;
+    store.connection()?.execute_batch("CREATE TRIGGER reject_consumed_receipt BEFORE INSERT ON encounter_command_receipts WHEN NEW.family='event' BEGIN SELECT RAISE(ABORT,'receipt failure'); END;")?;
     // Catch the action error and commit its caller's transaction: the savepoint
     // must already have restored both the identity claim and resource write.
     let mut connection = store.connection()?;
@@ -2382,7 +2356,7 @@ fn failed_receipt_rolls_back_ability_state_and_participant_revision()
         .encounters()
         .add_participant("test", creature("One", None, 20))?;
     let snapshot = store.encounters().get_with_participants("test")?.unwrap();
-    store.connection()?.execute_batch("CREATE TRIGGER reject_ability_receipt BEFORE INSERT ON encounter_event_receipts BEGIN SELECT RAISE(ABORT,'reject receipt'); END;")?;
+    store.connection()?.execute_batch("CREATE TRIGGER reject_ability_receipt BEFORE INSERT ON encounter_command_receipts WHEN NEW.family='event' BEGIN SELECT RAISE(ABORT,'reject receipt'); END;")?;
     let changes = PreparedConditionEvent {
         ability_states: vec![AbilityStateChange {
             participant_key: participant.participant_key.clone(),
@@ -2460,8 +2434,7 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
     let baseline = domain.participant_baseline(&one.participant_key)?.unwrap();
     domain.apply_recovery(ApplyEncounterRecovery {
         encounter_key: &snapshot.encounter.encounter_key,
-        request_id: "reset-one",
-        intent: &serde_json::json!({"reset":"one"}),
+
         expected_revision: snapshot.encounter.revision,
         reset_encounter: false,
         end_turn: true,
@@ -2508,39 +2481,17 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
     );
     let mut c = store.connection()?;
     let tx = c.transaction()?;
-    // A retry after subsequent state is safe even with the old encounter revision.
     let domain = EncountersWrite::from_connection(&tx);
-    domain.apply_recovery(ApplyEncounterRecovery {
-        encounter_key: &saved.encounter.encounter_key,
-        request_id: "reset-one",
-        intent: &serde_json::json!({"reset":"one"}),
-        expected_revision: snapshot.encounter.revision,
-        reset_encounter: false,
-        end_turn: true,
-        replacements: &[],
-    })?;
-    assert!(
-        domain
-            .apply_recovery(ApplyEncounterRecovery {
-                encounter_key: &saved.encounter.encounter_key,
-                request_id: "different",
-                intent: &serde_json::json!({}),
-                expected_revision: snapshot.encounter.revision,
-                reset_encounter: false,
-                end_turn: true,
-                replacements: &[],
-            })
-            .is_err()
-    );
-    assert!(
-        domain
-            .recovery_applied(
-                &saved.encounter.encounter_key,
-                "reset-one",
-                &serde_json::json!({"reset":"two"})
-            )
-            .is_err()
-    );
+    assert!(matches!(
+        domain.apply_recovery(ApplyEncounterRecovery {
+            encounter_key: &saved.encounter.encounter_key,
+            expected_revision: snapshot.encounter.revision,
+            reset_encounter: false,
+            end_turn: true,
+            replacements: &[],
+        }),
+        Err(crate::LocalStateError::StaleEncounterRevision { .. })
+    ));
     tx.commit()?;
     assert_eq!(
         store.encounters().get_with_participants("test")?.unwrap(),
@@ -2594,8 +2545,7 @@ fn recovery_keeps_unchanged_ties_reserved_while_restoring_changed_initiatives()
         .collect::<crate::LocalStateResult<Vec<_>>>()?;
     domain.apply_recovery(ApplyEncounterRecovery {
         encounter_key: &before.encounter.encounter_key,
-        request_id: "restore-tied-initiatives",
-        intent: &serde_json::json!({"reset":true}),
+
         expected_revision: before.encounter.revision,
         reset_encounter: true,
         end_turn: true,
@@ -2626,8 +2576,7 @@ fn recovery_keeps_unchanged_ties_reserved_while_restoring_changed_initiatives()
 }
 
 #[test]
-fn recovery_failure_rolls_back_all_participants_and_does_not_consume_request()
--> crate::LocalStateResult<()> {
+fn recovery_failure_rolls_back_all_participants() -> crate::LocalStateResult<()> {
     let store = fixture("recovery-rollback")?;
     let one = store
         .encounters()
@@ -2652,8 +2601,7 @@ fn recovery_failure_rolls_back_all_participants_and_does_not_consume_request()
         domain
             .apply_recovery(ApplyEncounterRecovery {
                 encounter_key: &before.encounter.encounter_key,
-                request_id: "rollback",
-                intent: &serde_json::json!({}),
+
                 expected_revision: before.encounter.revision,
                 reset_encounter: true,
                 end_turn: true,
@@ -2661,11 +2609,6 @@ fn recovery_failure_rolls_back_all_participants_and_does_not_consume_request()
             })
             .is_err()
     );
-    assert!(!domain.recovery_applied(
-        &before.encounter.encounter_key,
-        "rollback",
-        &serde_json::json!({})
-    )?);
     // The caller may still commit unrelated work after the domain savepoint fails.
     tx.commit()?;
     assert_eq!(

@@ -19,10 +19,10 @@ consequences before submission. The browser collects selected participants and
 explicit healing amounts or a full-HP policy, without reimplementing recovery arithmetic. A full
 encounter revision guards the complete snapshot; source-derived rest plans also
 guard the reference revision. One local-state savepoint writes all replacements,
-invalidates superseded decisions and saves a request identity. Identical retries
-recover before guards, preventing repeated healing/reduction; intent reuse fails.
-Historical roll/event and Next-turn receipts survive reset/rest so old retries
-cannot reapply events or advance a restarted encounter.
+invalidates superseded decisions and advances the encounter revision. After an
+uncertain response, the browser reloads and requires a new review before another
+rest or reset. Committed event and Next-turn receipts survive rest/reset so old
+retries cannot reapply events or advance a restarted encounter.
 
 Whole reset returns to Draft/round 1 and releases all boundary claims. Participant
 reset preserves the encounter's round and ends its active turn only when that

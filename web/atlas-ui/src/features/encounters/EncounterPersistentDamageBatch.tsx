@@ -2,7 +2,7 @@ import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Alert, Button, Form, InputNumber, Segmented, Space, Tooltip } from "antd";
 import { Undo2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
   ApplyPersistentDamageRequest,
   EncounterParticipantView,
@@ -14,7 +14,9 @@ import type {
   PersistentRecoveryResultView,
   PersistentRecoveryInput,
   PreparePersistentDamageRequest,
-  PreparedPersistentDamageGroupView,
+  PersistentDamageDraft,
+  PersistentDamageOutcomeView,
+  PersistentRecoveryDraft,
   PreparedPersistentDamageView,
   RecoverPersistentDamageRequest,
 } from "../../generated/atlas";
@@ -46,8 +48,6 @@ export function EncounterPersistentDamageBatch({
   onApply,
   onRecover,
   savedResult,
-  preparedDamage = [],
-  preparedRecovery = [],
   recoveryResults = [],
   episodes = [],
   displayGroups = participant.persistent_damage_groups,
@@ -70,8 +70,6 @@ export function EncounterPersistentDamageBatch({
     request: Omit<RecoverPersistentDamageRequest, "request_id">,
   ) => Promise<PersistentRecoveryResultView>;
   savedResult?: PersistentDamageResultView | null;
-  preparedDamage?: PreparedPersistentDamageGroupView[];
-  preparedRecovery?: PersistentRecoveryResultView[];
   recoveryResults?: PersistentRecoveryResultView[];
   episodes?: PersistentEpisodeReviewView[];
   displayGroups?: PersistentDamageGroupView[];
@@ -90,24 +88,34 @@ export function EncounterPersistentDamageBatch({
     (g) => resolutions[g.episode_id]?.kind === "table",
   );
   const mode: Values["mode"] = requiresTable ? "table" : draftMode;
-  const [rolls, setRolls] = useState<Record<string, PreparedPersistentDamageGroupView>>(
-    () => Object.fromEntries(preparedDamage.map((r) => [r.group.episode_id, r])),
-  );
+  const [rolls, setRolls] = useState<
+    Record<string, { draft: PersistentDamageDraft; group: PersistentDamageOutcomeView }>
+  >({});
   const [recoveries, setRecoveries] = useState<
-    Record<string, PersistentRecoveryResultView>
-  >(() => Object.fromEntries(preparedRecovery.map((r) => [r.episode_id, r])));
+    Record<
+      string,
+      { draft: PersistentRecoveryDraft; result: PersistentRecoveryResultView }
+    >
+  >({});
   const [clears, setClears] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<string>();
   const damageRoll = useDiceRoll<PreparedPersistentDamageView>();
   const [rollingEpisode, setRollingEpisode] = useState<string>();
   const [error, setError] = useState<string>();
-  const requests = useRef(new Map<string, PreparePersistentDamageRequest>());
   const membership = participant.persistent_damage_groups
     .map((g) => `${g.episode_id}:${g.sources.map((s) => s.condition_id).join(",")}`)
     .join(";");
-  const [anchor, setAnchor] = useState({ membership, revision: encounterRevision });
+  const [anchor, setAnchor] = useState({
+    membership,
+    revision: encounterRevision,
+    generation,
+    boundaryKey,
+  });
   const changed =
-    anchor.membership !== membership || anchor.revision !== encounterRevision;
+    anchor.membership !== membership ||
+    anchor.revision !== encounterRevision ||
+    anchor.generation !== generation ||
+    anchor.boundaryKey !== boundaryKey;
   const [result, setResult] = useState<PersistentDamageResultView | null>(null);
   const committed = result ?? savedResult;
   const applied = damageApplied || !!committed;
@@ -133,7 +141,7 @@ export function EncounterPersistentDamageBatch({
                   episode_id: group.episode_id,
                   damage: {
                     kind: "prepared" as const,
-                    request_id: prepared.request_id,
+                    draft: prepared.draft,
                   },
                 },
               ]
@@ -193,7 +201,8 @@ export function EncounterPersistentDamageBatch({
   const current = preview?.inputs === groups ? preview : undefined;
   const clearingTypes = participant.persistent_damage_groups
     .filter(
-      (group) => clears[group.episode_id] || recoveries[group.episode_id]?.success,
+      (group) =>
+        clears[group.episode_id] || recoveries[group.episode_id]?.result.success,
     )
     .map(
       (group) =>
@@ -209,9 +218,10 @@ export function EncounterPersistentDamageBatch({
   ) => {
     if (!ready)
       throw new Error("Wait for the current update before preparing another result.");
-    let request = requests.current.get(slot);
-    if (!request) {
-      request = {
+    setBusy(slot);
+    setError(undefined);
+    try {
+      return await prepareEncounterPersistentDamage(encounterRef, {
         request_id: crypto.randomUUID(),
         expected_encounter_revision: anchor.revision,
         participant_key: participant.participant_key,
@@ -219,15 +229,7 @@ export function EncounterPersistentDamageBatch({
         artifact_generation: generation,
         groups: inputs,
         recovery,
-      };
-      requests.current.set(slot, request);
-    }
-    setBusy(slot);
-    setError(undefined);
-    try {
-      const completed = await prepareEncounterPersistentDamage(encounterRef, request);
-      requests.current.delete(slot);
-      return completed;
+      });
     } finally {
       setBusy(undefined);
     }
@@ -247,19 +249,55 @@ export function EncounterPersistentDamageBatch({
           description="Review the current damage and recovery before applying."
           action={
             <Button
+              disabled={!!busy || damageRoll.busy || pending}
               onClick={() => {
                 form.resetFields();
+                const sameContext =
+                  anchor.generation === generation &&
+                  anchor.boundaryKey === boundaryKey;
+                const sources = participant.persistent_damage_groups.map((group) => ({
+                  episode: group.episode_id,
+                  selected: group.sources.find(
+                    (source) => source.condition_id === group.selected_source_id,
+                  ),
+                }));
                 setRolls(
                   Object.fromEntries(
-                    preparedDamage.map((r) => [r.group.episode_id, r]),
+                    sources.flatMap(({ episode, selected }) => {
+                      const roll = rolls[episode];
+                      return sameContext &&
+                        roll &&
+                        selected &&
+                        roll.draft.source_condition_id === selected.condition_id &&
+                        roll.draft.roll.formula === selected.formula
+                        ? [[episode, roll]]
+                        : [];
+                    }),
                   ),
                 );
                 setRecoveries(
-                  Object.fromEntries(preparedRecovery.map((r) => [r.episode_id, r])),
+                  Object.fromEntries(
+                    sources.flatMap(({ episode, selected }) => {
+                      const recovery = recoveries[episode];
+                      return sameContext &&
+                        recovery &&
+                        selected &&
+                        recovery.draft.source_condition_id === selected.condition_id &&
+                        (recovery.draft.dc_override ?? selected.recovery_dc) ===
+                          recovery.draft.dc
+                        ? [[episode, recovery]]
+                        : [];
+                    }),
+                  ),
                 );
                 setClears({});
-                requests.current.clear();
-                setAnchor({ membership, revision: encounterRevision });
+                setRollingEpisode(undefined);
+                setAnchor({
+                  membership,
+                  revision: encounterRevision,
+                  generation,
+                  boundaryKey,
+                });
                 setError(undefined);
               }}
             >
@@ -289,13 +327,19 @@ export function EncounterPersistentDamageBatch({
                 participant.persistent_damage_groups.flatMap<PersistentRecoveryInput>(
                   (g) =>
                     clears[g.episode_id]
-                      ? [{ kind: "clear" as const, episode_id: g.episode_id }]
+                      ? [
+                          {
+                            kind: "clear" as const,
+                            episode_id: g.episode_id,
+                            draft: recoveries[g.episode_id]?.draft ?? null,
+                          },
+                        ]
                       : recoveries[g.episode_id]
                         ? [
                             {
                               kind: "prepared" as const,
                               episode_id: g.episode_id,
-                              request_id: recoveries[g.episode_id].request_id,
+                              draft: recoveries[g.episode_id].draft,
                             },
                           ]
                         : [],
@@ -469,14 +513,16 @@ export function EncounterPersistentDamageBatch({
                                   const outcome = damage.groups.find(
                                     (g) => g.episode_id === group.episode_id,
                                   );
-                                  if (outcome)
-                                    setRolls((previous) => ({
-                                      ...previous,
-                                      [group.episode_id]: {
-                                        request_id: damage.request_id,
-                                        group: outcome,
-                                      },
-                                    }));
+                                  if (!outcome?.roll) return;
+                                  const draft: PersistentDamageDraft = {
+                                    context: completed.draft_context,
+                                    source_condition_id: outcome.source_condition_id,
+                                    roll: outcome.roll,
+                                  };
+                                  setRolls((previous) => ({
+                                    ...previous,
+                                    [group.episode_id]: { draft, group: outcome },
+                                  }));
                                 }}
                               >
                                 Roll
@@ -491,7 +537,7 @@ export function EncounterPersistentDamageBatch({
               </>
             );
             const episode = episodes.find((e) => e.episode_id === group.episode_id);
-            const staged = recoveries[group.episode_id];
+            const staged = recoveries[group.episode_id]?.result;
             const pendingClear = !!clears[group.episode_id] || !!staged?.success;
             const hasDamage = groups.some((g) => g.episode_id === group.episode_id);
             const recovery = (
@@ -574,12 +620,12 @@ export function EncounterPersistentDamageBatch({
                                   dc_override: request.dc_override,
                                 },
                               );
-                              if (!completed.recovery)
+                              const { recovery, recovery_draft: draft } = completed;
+                              if (!recovery || !draft)
                                 throw new Error("Recovery result is unavailable.");
-                              const recovery = completed.recovery;
                               setRecoveries((previous) => ({
                                 ...previous,
-                                [group.episode_id]: recovery,
+                                [group.episode_id]: { result: recovery, draft },
                               }));
                               return recovery;
                             }

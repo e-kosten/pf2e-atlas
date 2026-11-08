@@ -112,6 +112,68 @@ impl PreparedRoll {
         self.evaluate(diceng::RandomRng::new())
     }
 
+    /// Re-evaluate submitted faces with the same engine used to roll the formula.
+    /// This verifies the shape and arithmetic, without establishing who drew the faces.
+    pub fn validate_outcome(&self, outcome: &RollOutcome) -> Result<(), DiceError> {
+        fn collect_faces(
+            expression: &RollExpression,
+            faces: &mut Vec<i32>,
+            depth: usize,
+        ) -> Result<(), DiceError> {
+            if depth > crate::validation::MAX_DEPTH {
+                return Err(DiceError::Limit);
+            }
+            match expression {
+                RollExpression::Number { .. } => {}
+                RollExpression::Dice { dice, .. } => {
+                    if faces.len() + dice.len() > crate::validation::MAX_DICE as usize {
+                        return Err(DiceError::Limit);
+                    }
+                    faces.extend(dice.iter().map(|die| die.value));
+                }
+                RollExpression::Binary { left, right, .. } => {
+                    collect_faces(left, faces, depth + 1)?;
+                    collect_faces(right, faces, depth + 1)?;
+                }
+                RollExpression::Negate { inner, .. } => collect_faces(inner, faces, depth + 1)?,
+            }
+            Ok(())
+        }
+
+        struct SubmittedFaces<'a> {
+            faces: &'a mut std::vec::IntoIter<i32>,
+            valid: &'a mut bool,
+        }
+        impl diceng::DiceRng for SubmittedFaces<'_> {
+            fn roll(&mut self, sides: u32) -> u32 {
+                if let Some(face) = self.faces.next().and_then(|face| u32::try_from(face).ok())
+                    && (1..=sides).contains(&face)
+                {
+                    return face;
+                }
+                *self.valid = false;
+                // Complete this bounded evaluation, then reject the whole outcome.
+                1
+            }
+        }
+
+        if self.formula != outcome.formula {
+            return Err(DiceError::ResultShape);
+        }
+        let mut faces = Vec::new();
+        collect_faces(&outcome.expression, &mut faces, 0)?;
+        let mut faces = faces.into_iter();
+        let mut valid = true;
+        let rebuilt = self.evaluate(SubmittedFaces {
+            faces: &mut faces,
+            valid: &mut valid,
+        })?;
+        if !valid || faces.next().is_some() || &rebuilt != outcome {
+            return Err(DiceError::ResultShape);
+        }
+        Ok(())
+    }
+
     fn evaluate(&self, rng: impl diceng::DiceRng) -> Result<RollOutcome, DiceError> {
         let result = diceng::Roller::new(rng).roll(&self.expression);
         Ok(RollOutcome {
@@ -310,6 +372,26 @@ mod tests {
             assert_eq!(r.total, total, "{formula} with {values:?}");
         }
     }
+    #[test]
+    fn submitted_outcomes_reuse_formula_arithmetic_and_keep_rules() {
+        let formula = "2d20kh1-2";
+        let expected = fixed(formula, vec![3, 19]);
+        let dice = prepare(formula).unwrap();
+        assert!(dice.validate_outcome(&expected).is_ok());
+        let mut wrong_total = expected.clone();
+        wrong_total.total += 1;
+        assert!(dice.validate_outcome(&wrong_total).is_err());
+        let mut wrong_keep = expected;
+        let RollExpression::Binary { left, .. } = &mut wrong_keep.expression else {
+            panic!("expected a subtraction");
+        };
+        let RollExpression::Dice { dice: faces, .. } = left.as_mut() else {
+            panic!("expected a dice pool");
+        };
+        faces[0].kept = true;
+        assert!(dice.validate_outcome(&wrong_keep).is_err());
+    }
+
     #[test]
     fn rejects_unbounded_unsupported_and_unsafe_before_rolling() {
         for formula in [

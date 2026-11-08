@@ -16,8 +16,6 @@ pub enum LocalStateError {
     ActionRequiresTransaction,
     #[error("Unsupported stored roll receipt version {0}")]
     UnsupportedReceiptVersion(u32),
-    #[error("This roll request ID was already used for a different request")]
-    RollRequestConflict,
     #[error("Invalid roll request: {0}")]
     InvalidRollRequest(&'static str),
     #[error("{0}")]

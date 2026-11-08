@@ -26,23 +26,6 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: ApplyEncounterRecoveryRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let intent =
-            serde_json::to_value(&request).map_err(atlas_local_state::LocalStateError::from)?;
-        let key = self.with_state(|session| {
-            let store = session.local_state().encounters();
-            let encounter = store
-                .get(encounter_ref)?
-                .ok_or_else(|| projection::encounter_not_found(encounter_ref))?;
-            Ok((
-                encounter.encounter_key.clone(),
-                store.recovery_applied(&encounter.encounter_key, &request.request_id, &intent)?,
-            ))
-        })?;
-        if key.1 {
-            return Ok(EncounterMutationView {
-                encounter_key: key.0,
-            });
-        }
         let plan = self.prepare_encounter_recovery(
             encounter_ref,
             &PreviewEncounterRecoveryRequest {
@@ -56,21 +39,12 @@ impl AtlasAppService {
             ));
         }
         self.with_write(|session| {
-            // Retry recovery precedes source/revision checks, including after another rest.
-            let store = session.local_state().encounters();
-            if store.recovery_applied(&key.0, &request.request_id, &intent)? {
-                return Ok(EncounterMutationView {
-                    encounter_key: key.0.clone(),
-                });
-            }
             if let Some(revision) = plan.reference_revision {
                 session.require_reference_revision(revision)?;
             }
             session.local_state().encounters().apply_recovery(
                 atlas_local_state::ApplyEncounterRecovery {
-                    encounter_key: &key.0,
-                    request_id: &request.request_id,
-                    intent: &intent,
+                    encounter_key: &plan.view.encounter_key,
                     expected_revision: request.expected_encounter_revision,
                     reset_encounter: plan.reset_encounter,
                     end_turn: plan.end_turn,
@@ -78,7 +52,7 @@ impl AtlasAppService {
                 },
             )?;
             Ok(EncounterMutationView {
-                encounter_key: key.0.clone(),
+                encounter_key: plan.view.encounter_key,
             })
         })
     }
@@ -469,7 +443,6 @@ mod tests {
             (Some(19), Some(19))
         );
         let request = ApplyEncounterRecoveryRequest {
-            request_id: "night-one".into(),
             expected_encounter_revision: revision,
             action: full_action,
         };
@@ -480,12 +453,11 @@ mod tests {
         assert_eq!(conditions.len(), 1);
         assert_eq!(conditions[0].name, "Drained");
         assert_eq!(conditions[0].value, Some(1));
-        w.apply_encounter_recovery(&key, request).unwrap();
+        assert!(w.apply_encounter_recovery(&key, request).is_err());
         assert_eq!(w.encounter(&key).unwrap(), after);
         w.apply_encounter_recovery(
             &key,
             ApplyEncounterRecoveryRequest {
-                request_id: "reset".into(),
                 expected_encounter_revision: after.revision,
                 action: EncounterRecoveryAction::ResetEncounter,
             },

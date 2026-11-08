@@ -433,8 +433,6 @@ it("loads the new boundary's dependent models before revealing reminders and nev
             damage_applied: false,
             damage_result: null,
             recovery_results: [],
-            prepared_damage: [],
-            prepared_recovery: [],
           });
       }),
   );

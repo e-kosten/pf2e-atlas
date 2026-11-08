@@ -1102,8 +1102,6 @@ it("reads persistent total and one shared Hardness deduction from the server", a
       ],
     },
     recovery_results: [],
-    prepared_damage: [],
-    prepared_recovery: [],
   });
   const review = await api.getEncounterPersistentReview("test", "actor");
   expect(review.round_number).toBe(2n);
@@ -1308,8 +1306,7 @@ it("normalizes the executable persistent-damage groups returned by turn review",
     episodes: [],
     damage_result: null,
     recovery_results: [],
-    prepared_damage: [],
-    prepared_recovery: [],
+
     damage_groups: [
       {
         episode_id: "fire",
@@ -1406,8 +1403,6 @@ it("normalizes reviewed and recorded protection facts", async () => {
       ],
     },
     recovery_results: [],
-    prepared_damage: [],
-    prepared_recovery: [],
   });
   const review = await api.getEncounterPersistentReview("encounter", "actor");
   expect(review.episodes[0].damage_resolution).toEqual({
@@ -1432,8 +1427,7 @@ it.each([null, undefined])(
       episodes: [],
       damage_result: null,
       recovery_results: [],
-      prepared_damage: [],
-      prepared_recovery: [],
+
       damage_groups: [
         {
           episode_id: "fire",
@@ -1453,7 +1447,32 @@ it.each([null, undefined])(
 
 it("normalizes prepared damage and recovery without changing their recorded identities", async () => {
   const api = await import("./atlasApi");
+  const context = {
+    encounter_key: "encounter",
+    participant_key: "actor",
+    boundary_key: "boundary",
+    round_number: 2,
+    record_key: "npc:test",
+    artifact_generation: "generation",
+  };
+  const roll = {
+    formula: "1d6",
+    total: 4,
+    expression: {
+      kind: "dice" as const,
+      total: 4,
+      dice: [{ sides: 6, value: 4, kept: true }],
+    },
+  };
   respond({
+    draft_context: context,
+    recovery_draft: {
+      context,
+      source_condition_id: 9,
+      dc: 15,
+      dc_override: null,
+      roll: null,
+    },
     complete: false,
     damage: {
       encounter_key: "encounter",
@@ -1491,7 +1510,14 @@ it("normalizes prepared damage and recovery without changing their recorded iden
     groups: [
       {
         episode_id: "fire",
-        damage: { kind: "prepared", request_id: "prepared-damage" },
+        damage: {
+          kind: "prepared",
+          draft: {
+            context: { ...context, round_number: 2n },
+            source_condition_id: 9n,
+            roll,
+          },
+        },
       },
     ],
     recovery: null,
@@ -1500,6 +1526,13 @@ it("normalizes prepared damage and recovery without changing their recorded iden
     source_condition_id: 9n,
     amount: 4n,
     protection: { weakness: 2n, resistance: 3n },
+  });
+  expect(prepared.draft_context.round_number).toBe(2n);
+  expect(prepared.recovery_draft).toMatchObject({
+    context: { round_number: 2n },
+    source_condition_id: 9n,
+    dc: 15n,
+    dc_override: null,
   });
   expect(prepared.recovery).toMatchObject({
     request_id: "prepared-recovery",
@@ -1519,7 +1552,10 @@ it("normalizes prepared damage and recovery without changing their recorded iden
         groups: [
           {
             episode_id: "fire",
-            damage: { kind: "prepared", request_id: "prepared-damage" },
+            damage: {
+              kind: "prepared",
+              draft: { context, source_condition_id: 9, roll },
+            },
           },
         ],
         recovery: null,

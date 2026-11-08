@@ -14,6 +14,7 @@ import {
 import type { TableColumnsType } from "antd";
 import { EncounterOriginalRecord } from "./EncounterOriginalRecord";
 import { EncounterModal } from "./EncounterModal";
+import { isUnconfirmedMutation } from "../../api/apiError";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import type {
   EncounterDetailView,
@@ -34,7 +35,7 @@ export function EncounterRecoveryModal({
   mode: Mode;
   mutations: Pick<
     ReturnType<typeof useEncounterMutations>,
-    "run" | "pending" | "previewRecovery"
+    "run" | "pending" | "previewRecovery" | "refreshError" | "retryRefresh"
   >;
   onClose: () => void;
 }) {
@@ -49,6 +50,7 @@ export function EncounterRecoveryModal({
   const [healingMode, setHealingMode] = useState<OvernightHealingMode>("natural");
   const [healing, setHealing] = useState<Record<string, bigint | null>>({});
   const [submitError, setSubmitError] = useState<unknown>(null);
+  const [uncertain, setUncertain] = useState(false);
   const stale = encounter.revision !== snapshot.revision;
   const action: EncounterRecoveryAction = rest
     ? {
@@ -77,7 +79,7 @@ export function EncounterRecoveryModal({
       identity,
     ],
     queryFn: ({ signal }) => mutations.previewRecovery(request, signal),
-    enabled: !stale && (!rest || chosen.length > 0),
+    enabled: !uncertain && !stale && (!rest || chosen.length > 0),
     // The creation snapshot and participant identities stay fixed for this review.
     // Retain their last preview while changing healing inputs; submission waits.
     placeholderData: keepPreviousData,
@@ -219,12 +221,13 @@ export function EncounterRecoveryModal({
       footer={
         <Space>
           <Button disabled={busy} onClick={onClose}>
-            Cancel
+            {uncertain ? "Close" : "Cancel"}
           </Button>
           <Button
             type="primary"
             loading={busy}
             disabled={
+              uncertain ||
               stale ||
               hasBlankDraft ||
               preview.isFetching ||
@@ -237,6 +240,7 @@ export function EncounterRecoveryModal({
                 const result = await mutations.run({ kind: "recovery", request });
                 if (result.active) onClose();
               } catch (error) {
+                setUncertain(isUnconfirmedMutation(error));
                 setSubmitError(error);
               }
             }}
@@ -283,14 +287,35 @@ export function EncounterRecoveryModal({
             />
           </div>
         )}
-        {stale && (
+        {stale && !uncertain && (
           <p role="alert">
             Encounter changed. Close this review and reopen it to use the current
             values.
           </p>
         )}
         {submitError != null && (
-          <ErrorNotice error={submitError} title="Recovery could not save" />
+          <ErrorNotice
+            error={submitError}
+            title={
+              uncertain ? "Recovery could not be confirmed" : "Recovery could not save"
+            }
+            outcome={uncertain ? "uncertain" : undefined}
+            type={uncertain ? "warning" : "error"}
+            description={
+              uncertain
+                ? mutations.refreshError
+                  ? "Refresh the encounter to see the current values."
+                  : "Close and reopen this review to see the current values."
+                : undefined
+            }
+            action={
+              uncertain && mutations.refreshError ? (
+                <Button disabled={busy} onClick={() => void mutations.retryRefresh()}>
+                  Retry encounter refresh
+                </Button>
+              ) : undefined
+            }
+          />
         )}
         {preview.error && !stale && (
           <ErrorNotice

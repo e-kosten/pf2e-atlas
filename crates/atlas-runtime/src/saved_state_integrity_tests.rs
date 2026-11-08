@@ -52,7 +52,7 @@ INSERT INTO encounter_condition_applications VALUES(1,'actor','removed','conditi
 INSERT INTO encounter_event_receipts VALUES(1,'event','{"event":1}','{"version":1,"payload":{"kept":"event"}}');
 INSERT INTO encounter_pending_consequences VALUES(1,'pending','actor','{"version":1,"payload":{"kept":"pending"}}');
 INSERT INTO encounter_persistent_precedence VALUES(11,'episode','[31,32]');
-INSERT INTO encounter_boundary_claims VALUES(1,'actor',4,'prepared_persistent_damage','fire','event');
+INSERT INTO encounter_boundary_claims VALUES(1,'actor',4,'persistent_damage','','event');
 INSERT INTO encounter_outgoing_turns VALUES(41,1,'boundary','turn','{"turn":1}','{"version":1,"payload":{"kept":"outgoing"}}',1);
 INSERT INTO encounter_ability_states VALUES('actor','owner',-1,'{"version":1,"payload":{"kept":"ability"}}');
 INSERT INTO encounter_participant_baselines VALUES('actor','{"version":1,"payload":{"kept":"baseline"}}');
@@ -189,11 +189,19 @@ fn main24_upgrade_preserves_deleted_condition_high_water_and_allocates_above_it(
             Value::Integer(DELETED_CONDITION_ID),
         ]]
     );
-    // Migration 26 intentionally reshapes outgoing turns; its receipt/payload
-    // preservation is covered separately. Every other saved table stays exact.
+    // The outgoing context and receipt migrations have their own tests. All
+    // other saved rows stay exact through the direct upgrade.
     let saved = SAVED_TABLES
         .iter()
-        .filter(|table| **table != "encounter_outgoing_turns")
+        .filter(|table| {
+            !matches!(
+                **table,
+                "encounter_outgoing_turns"
+                    | "encounter_roll_receipts"
+                    | "encounter_recovery_receipts"
+                    | "encounter_event_receipts"
+            )
+        })
         .map(|table| (*table, rows(read.connection(), table)))
         .collect::<Vec<_>>();
     let ledger = rows(read.connection(), "schema_migrations");

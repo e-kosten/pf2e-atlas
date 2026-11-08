@@ -972,6 +972,94 @@ async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt(
 }
 
 #[tokio::test]
+async fn persistent_preparation_routes_round_trip_a_browser_draft() {
+    let fixture = Fixture::new();
+    let participant = &fixture.participant_key;
+    let revision = fixture.service.encounter("ambush").unwrap().revision;
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            &format!("/api/encounters/ambush/participants/{participant}/conditions"),
+            Some(json!({
+                "participant_key": participant,
+                "request_id": "persistent-condition",
+                "expected_encounter_revision": revision,
+                "condition_ref": "conditionitems:lDVqvLKA6eF3Df60",
+                "parameters": {
+                    "kind": "persistent_damage", "formula": "1d6", "damage_type": "fire",
+                    "multiplier": "normal", "recovery": {"kind": "standard"}
+                }
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let before = fixture.service.encounter("ambush").unwrap();
+    let episode = &before.participants[0].persistent_damage_groups[0].episode_id;
+    let group = json!({"episode_id": episode, "damage": {"kind": "table_result", "amount": 4}});
+    let (status, preparation) = fixture
+        .json(
+            Method::POST,
+            "/api/encounters/ambush/persistent-preparation",
+            Some(json!({
+                "request_id": "review-recovery",
+                "expected_encounter_revision": before.revision,
+                "participant_key": participant,
+                "groups": [group.clone()],
+                "recovery": {"episode_id": episode, "dc_override": 0}
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{preparation}");
+    assert_eq!(
+        preparation["recovery_draft"]["context"]["participant_key"],
+        *participant
+    );
+    assert_eq!(preparation["recovery_draft"]["dc"], 0);
+    assert!(preparation["recovery_draft"]["roll"].is_null());
+    assert_eq!(
+        fixture.service.encounter("ambush").unwrap().revision,
+        before.revision
+    );
+    let mut apply = json!({
+        "request_id": "apply-recovery-draft",
+        "expected_encounter_revision": before.revision,
+        "participant_key": participant,
+        "groups": [group],
+        "recoveries": [{"kind": "prepared", "episode_id": episode, "request_id": "review-recovery"}],
+        "context": {}
+    });
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/encounters/ambush/persistent-damage",
+            Some(apply.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    apply["recoveries"][0] = json!({
+        "kind": "prepared", "episode_id": episode, "draft": preparation["recovery_draft"]
+    });
+    let (status, committed) = fixture
+        .json(
+            Method::POST,
+            "/api/encounters/ambush/persistent-damage",
+            Some(apply.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{committed}");
+    assert_eq!(committed["total"], 4);
+    let (status, replay) = fixture
+        .json(
+            Method::POST,
+            "/api/encounters/ambush/persistent-damage",
+            Some(apply),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{replay}");
+    assert_eq!(replay, committed);
+}
+
+#[tokio::test]
 async fn dice_routes_forward_typed_requests_and_conflicts() {
     let fixture = Fixture::new();
     let (status, body) = fixture
