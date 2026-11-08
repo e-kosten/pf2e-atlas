@@ -67,7 +67,8 @@ impl EncountersWrite<'_> {
             {
                 return Ok(Some(encounter));
             }
-            let Some(snapshot) = storage::get_with_participants(self.connection, encounter_ref)?
+            let Some(mut snapshot) =
+                storage::get_with_participants(self.connection, encounter_ref)?
             else {
                 return Ok(None);
             };
@@ -79,9 +80,18 @@ impl EncountersWrite<'_> {
                 });
             }
             let (update, review_needed) = choose(&snapshot)?;
+            let next_participant_key = update.turn.participant_key.clone();
+            let requires_review = review_needed && next_participant_key.is_some();
+            if !requires_review {
+                let outgoing = snapshot.encounter.current_turn_participant_key.as_deref();
+                snapshot.participants.retain(|participant| {
+                    let key = Some(participant.participant_key.as_str());
+                    key == outgoing || key == next_participant_key.as_deref()
+                });
+            }
             let saved = SavedOutgoingTurn {
                 boundary_key: format!("turn_{:016x}", rand::random::<u64>()),
-                next_participant_key: update.turn.participant_key.clone(),
+                next_participant_key,
                 snapshot,
             };
             command_receipts::insert(
@@ -91,7 +101,7 @@ impl EncountersWrite<'_> {
                 intent,
                 command_receipts::Outcome::Turn(&saved.boundary_key),
             )?;
-            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.next_participant_key.is_some())])?;
+            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(requires_review)])?;
             for (condition_id, amount) in update.durations {
                 storage::update_duration_amount(self.connection, condition_id, amount)?;
             }

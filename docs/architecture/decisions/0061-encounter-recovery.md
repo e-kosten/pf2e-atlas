@@ -27,8 +27,12 @@ retries cannot reapply events or advance a restarted encounter.
 Whole reset returns to Draft/round 1 and releases all boundary claims. Participant
 reset preserves the encounter's round and ends its active turn only when that
 participant owns it. Rest ends the active turn while preserving encounter status,
-round and initiative. Outgoing turn snapshots include the roster and are cleared
-by either operation. Turn allocations are cleared when their turn ends.
+round and initiative. Either operation clears the current turn boundary snapshot.
+Snapshots for turns with a pending review keep the full frozen roster. A new
+snapshot without a review keeps the frozen encounter, outgoing participant and
+incoming participant, which are enough to use the explicit boundary. Portable
+exports carry this reduced snapshot alongside the complete live roster.
+Turn allocations are cleared when their turn ends.
 Ending the turn also clears encounter boundary claims so restarting the retained
 round can allocate actions and process remaining conditions without stale claims.
 Reset assigns positive initiative order in each restored bucket, including unset

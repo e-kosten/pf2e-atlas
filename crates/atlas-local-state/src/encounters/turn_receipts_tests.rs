@@ -40,6 +40,12 @@ fn only_current_boundary_is_actionable_even_when_it_has_no_review() -> crate::Lo
     let participant = store
         .encounters()
         .add_participant("test", creature("Actor", Some(10), 20))?;
+    let incoming = store
+        .encounters()
+        .add_participant("test", creature("Incoming", Some(8), 20))?;
+    let unrelated = store
+        .encounters()
+        .add_participant("test", creature("Unrelated", Some(6), 20))?;
     store
         .encounters()
         .set_current_turn("test", Some(&participant.participant_key))?;
@@ -47,7 +53,8 @@ fn only_current_boundary_is_actionable_even_when_it_has_no_review() -> crate::Lo
     let connection = store.connection()?;
     let read = EncountersRead::from_connection(&connection);
     let first = read.latest_outgoing_turn("test")?.unwrap();
-    advance(&store, &participant.participant_key, "second", false)?;
+    assert_eq!(first.snapshot.participants.len(), 3);
+    advance(&store, &incoming.participant_key, "second", false)?;
     assert!(read.outgoing_turn("test", &first.boundary_key)?.is_none());
     assert!(read.latest_outgoing_turn("test")?.is_none());
     let latest: String = connection.query_row(
@@ -57,6 +64,29 @@ fn only_current_boundary_is_actionable_even_when_it_has_no_review() -> crate::Lo
     )?;
     let current = read.outgoing_turn("test", &latest)?.unwrap();
     assert_eq!(current.boundary_key, latest);
+    assert_eq!(
+        current
+            .snapshot
+            .participants
+            .iter()
+            .map(|p| p.participant_key.as_str())
+            .collect::<Vec<_>>(),
+        [
+            participant.participant_key.as_str(),
+            incoming.participant_key.as_str()
+        ]
+    );
+    assert!(
+        store
+            .encounters()
+            .get_with_participants("test")?
+            .unwrap()
+            .participants
+            .iter()
+            .any(|p| p.participant_key == unrelated.participant_key)
+    );
+    let mut exported = read.export_document("test")?;
+    EncounterDocument::read(exported.encode()?.as_slice())?;
     assert_eq!(
         connection.query_row("SELECT count(*) FROM encounter_outgoing_turns", [], |row| {
             row.get::<_, i64>(0)
