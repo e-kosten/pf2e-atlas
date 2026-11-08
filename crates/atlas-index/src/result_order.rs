@@ -71,14 +71,13 @@ fn key_values(keys: &[RecordKey]) -> Result<String, IndexError> {
     )?)
 }
 impl SqliteIndexReader {
-    /// Order every supplied candidate at once. A missing candidate is reported by the caller's length/identity check.
+    /// Order matching product keys, preserving request multiplicity. Callers can
+    /// detect missing candidates by comparing the result and request lengths.
     pub fn order_record_keys(
         &self,
         keys: &[RecordKey],
         sort: ResultSort,
     ) -> Result<Vec<RecordKey>, IndexError> {
-        sort.validate()
-            .map_err(|message| IndexError::Invalid(message.into()))?;
         if let ResultSort::Random { seed } = sort {
             self.count_statement();
             let mut statement = self.native()?.prepare("SELECT r.key FROM records r JOIN json_each(?) requested ON requested.value=r.key WHERE r.document_kind<>'Macro'")?;

@@ -430,21 +430,21 @@ fn boolean_relationship_proofs_follow_successful_sql_branches_and_polarity() {
         (format!("{a} && !(level > 100)"), 0, vec![]),
         (format!("({a} && !(level > 100)) || {a}"), 1, vec![1]),
     ] {
-        let filter = service.parse_where(&text).unwrap().predicate().clone();
+        let filter = atlas_index::parse_where(&text).unwrap();
         let result = service
             .list_records(ListRecordsRequest::new(
-                Some(&filter),
+                Some(filter.predicate()),
                 SearchPage::default(),
             ))
             .unwrap();
         assert_eq!(result.total, expected_roots, "{text}");
-        let clauses = atlas_domain::relationship_clauses(&filter).unwrap();
+        let clauses = atlas_domain::relationship_clauses(filter.predicate()).unwrap();
         let expected_proofs = expected_proofs
             .into_iter()
             .map(|i| clauses[i].0)
             .collect::<Vec<_>>();
         let proofs = service
-            .relationship_proofs(&filter, std::slice::from_ref(&source))
+            .relationship_proofs(filter.predicate(), std::slice::from_ref(&source))
             .unwrap();
         assert_eq!(
             proofs.iter().map(|(_, id)| id.as_str()).collect::<Vec<_>>(),

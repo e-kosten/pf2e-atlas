@@ -318,7 +318,7 @@ fn finish_build(
     } = inputs;
     drop(capture);
     tracing::info!(target:"atlas_build_diagnostic",stage="source_preparation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
-    tracing::info!(target:"atlas_build_diagnostic",reused_sections=prepared.reused_sections,selection_calls=prepared.work.selection_calls,"Prepared shared passage layouts");
+    tracing::info!(target:"atlas_build_diagnostic",reused_sections=prepared.reused_sections,"Prepared shared passage layouts");
     let record_count = prepared.spool.record_count();
     let pack_count = prepared.spool.pack_count();
     let admission = prepared.spool.context().admission.clone().ok_or_else(|| {

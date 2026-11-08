@@ -96,11 +96,6 @@ impl AtlasRetrievalService {
                 "prepared query does not match requested text/profile",
             ));
         }
-        if self.index.context().search_profile(id)? != &prepared.profile {
-            return Err(SearchError::vector_readiness_required(
-                "query model changed during preparation; retry",
-            ));
-        }
         Ok(prepared.vector.clone())
     }
     /// Durable workspace identity and the revision of this admitted snapshot.
@@ -123,10 +118,6 @@ impl AtlasRetrievalService {
         let query = atlas_index::validate_query(predicate)?;
         self.check_relationship_leaves(predicate)?;
         Ok(query)
-    }
-    pub fn parse_where(&self, source: &str) -> Result<atlas_index::ValidatedQuery, SearchError> {
-        let query = atlas_index::parse_where(source)?;
-        self.validate_filter(query.predicate())
     }
     pub(crate) fn predicate(
         &self,

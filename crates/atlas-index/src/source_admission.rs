@@ -107,7 +107,6 @@ pub(crate) fn validate_root_count(
     roots: usize,
 ) -> Result<(), IndexError> {
     if let Some(admission) = &context.admission {
-        admission.validate()?;
         if admission.admitted_records != roots {
             return Err(IndexError::Invalid(
                 "source admission root count differs from publication".into(),
@@ -125,7 +124,7 @@ pub(crate) fn validate_root_count(
 mod tests {
     use super::*;
     #[test]
-    fn root_counts_use_checked_admission_and_preserve_unknown_historical_bound() {
+    fn root_counts_match_admission_and_preserve_unknown_historical_bound() {
         let mut context = crate::foundation_tests::fixture(false).context;
         context.source_file_count = 1;
         assert!(validate_root_count(&context, 2).is_err());
@@ -140,8 +139,9 @@ mod tests {
         });
         assert!(validate_root_count(&context, 2).is_ok());
         assert!(validate_root_count(&context, 1).is_err());
+        assert!(crate::writer::validate_context(&context).is_ok());
         context.admission.as_mut().unwrap().discovered_files = 1;
-        assert!(validate_root_count(&context, 2).is_err());
+        assert!(crate::writer::validate_context(&context).is_err());
     }
     #[test]
     fn complete_discovery_requires_every_declaration_and_exact_publication_identity() {

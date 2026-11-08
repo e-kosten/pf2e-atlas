@@ -293,7 +293,7 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
     let (_dir, service) = service(fixture);
     let legacy_ref = legacy.to_string();
     for (expression, accepted) in [("level >= 1", true), ("level == 2", false)] {
-        let filter = service.parse_where(expression).unwrap();
+        let filter = atlas_index::parse_where(expression).unwrap();
         let result = service
             .resolve_record_ref(ResolveRecordRefRequest {
                 record_ref: &legacy_ref,
@@ -384,7 +384,7 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
     );
     let only = search(&mut service, "Unremastered");
     assert_eq!(only.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
-    let filter = service.parse_where("level == 1").unwrap();
+    let filter = atlas_index::parse_where("level == 1").unwrap();
     let filtered = service
         .search_text(TextSearchRequest {
             content_scope: atlas_domain::SearchContentScope::All,
@@ -743,8 +743,7 @@ fn contextual_numeric_bounds_restore_target_clause_over_structured_eligibility()
         ],
         false,
     ));
-    let mut predicate = service
-        .parse_where("level == 1")
+    let mut predicate = atlas_index::parse_where("level == 1")
         .unwrap()
         .predicate()
         .clone();
@@ -913,9 +912,7 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
             Some("/system/description/gm"),
         ),
     ] {
-        let filter = service
-            .parse_where(&format!("source.pack.id == '{pack}'"))
-            .unwrap();
+        let filter = atlas_index::parse_where(&format!("source.pack.id == '{pack}'")).unwrap();
         service.index.reset_read_metrics();
         let result = service
             .search_text(TextSearchRequest {
@@ -1267,7 +1264,7 @@ fn similar_keeps_matching_relationship_roots_and_applies_only_explicit_filters()
     )
     .unwrap();
     let (_, service) = service(fixture);
-    let filtered = service.parse_where("level >= 2").unwrap();
+    let filtered = atlas_index::parse_where("level >= 2").unwrap();
     let result = service
         .similar_records(SimilarRecordRequest {
             content_scope: atlas_domain::SearchContentScope::All,

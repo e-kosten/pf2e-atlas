@@ -26,9 +26,12 @@ regressions for the changed boundary. Independent final review is required befor
 merge readiness; it does not replace early discovery of domain/transport assumptions.
 
 Review refactors against the intended end state: inspect callers, tests and docs
-for obsolete paths and mixed ownership. For storage, search or ingest changes,
-account for required migrations, generated artifacts, fixture/index refreshes and
-setup notes. Passing tests do not by themselves prove these obligations complete.
+for obsolete paths and mixed ownership. Use the
+[validation ownership and test seams guidance](code-guidelines.md#validation-ownership-and-test-seams)
+to check what each runtime guard proves and which tests need a dedicated seam.
+For storage, search or ingest changes, account for required migrations,
+generated artifacts, fixture/index refreshes and setup notes. Passing tests do
+not by themselves prove these obligations complete.
 
 ## Local Rust gate
 

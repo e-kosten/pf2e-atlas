@@ -1,7 +1,7 @@
 //! Attribute order consumes an accepted matching set without choosing its members.
 use crate::{AtlasRetrievalService, SearchError, SourceUnitPrice};
 use atlas_domain::{RecordKey, ResultSort};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 impl AtlasRetrievalService {
     pub(crate) fn validate_search_sort(sort: &ResultSort) -> Result<(), SearchError> {
@@ -20,9 +20,7 @@ impl AtlasRetrievalService {
         sort: ResultSort,
     ) -> Result<Vec<RecordKey>, SearchError> {
         let ordered = self.index.order_record_keys(keys, sort)?;
-        if ordered.len() != keys.len()
-            || ordered.iter().collect::<BTreeSet<_>>() != keys.iter().collect::<BTreeSet<_>>()
-        {
+        if ordered.len() != keys.len() {
             return Err(SearchError::artifact_contract_violation(
                 "ordered candidates have missing or unexpected record keys",
             ));
@@ -46,7 +44,6 @@ impl AtlasRetrievalService {
         roots: Vec<crate::text::RankedRoot>,
         sort: ResultSort,
     ) -> Result<Vec<crate::text::RankedRoot>, SearchError> {
-        Self::validate_search_sort(&sort)?;
         if matches!(sort, ResultSort::Relevance {}) {
             return Ok(roots);
         }

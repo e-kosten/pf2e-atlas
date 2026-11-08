@@ -256,8 +256,8 @@ impl crate::AtlasRetrievalService {
         self.configurable_similar_impl::<true>(request)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn configurable_similar_exact(
+    #[cfg(test)]
+    fn configurable_similar_exact(
         &self,
         request: ConfigurableSimilarRequest<'_>,
     ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
@@ -333,7 +333,7 @@ impl crate::AtlasRetrievalService {
             }));
         }
         let profile = self.resolve_search_profile(request.search_profile, true)?;
-        let inventory = self.similarity_parts(request.seed, Some(&profile))?;
+        let inventory = self.index.similarity_parts(request.seed, Some(&profile))?;
         let Some(source_sections) = source_sections else {
             return Err(SearchError::artifact_contract_violation(
                 "content comparison source mode was not resolved",
