@@ -942,7 +942,10 @@ generation in the same transaction. The migration preserves document vectors,
 saved state and the published vocabulary compatibility ID.
 
 One concrete publication owns build-local selection. Same-attempt selections win,
-then unpublished cache, then compatible published values in ordinary ingest.
+then exact published values, then unpublished cache and compatible published values.
+Malformed pending bytes are cache misses. A mismatched input descriptor is also
+a miss after confirming it has no published checksum, native vector or consumer.
+The cache writer rechecks that condition before replacing the descriptor.
 Newly inferred and cache-hit bytes become owned staging independent of eviction.
 Reused published vectors remain stable handles. Explicit reference repair uses
 only private inference staging. Per-batch sessions close before inference.

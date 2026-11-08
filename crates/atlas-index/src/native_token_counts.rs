@@ -193,7 +193,7 @@ pub(crate) fn audit(
 }
 
 fn invalid(message: &str) -> IndexError {
-    IndexError::InvalidNativeTokenCountDigest(message.into())
+    IndexError::ReferenceRepairRequired(message.into())
 }
 
 #[cfg(test)]

@@ -131,7 +131,18 @@ impl NativeInput {
 }
 struct InputRow {
     id: i64,
+    token_count: Option<usize>,
     published_checksum: Option<Vec<u8>>,
+}
+impl InputRow {
+    fn check_count(&self, input: &NativeInput) -> Result<(), IndexError> {
+        if self.token_count != Some(input.token_count) {
+            return Err(IndexError::ReferenceRepairRequired(
+                "native input token count mismatch".into(),
+            ));
+        }
+        Ok(())
+    }
 }
 pub(crate) struct SelectedNative {
     pub checksum: Vec<u8>,
@@ -169,23 +180,28 @@ impl<'session> NativeModel<'session> {
             native_exists,
         })
     }
-    fn find(&self, input: &NativeInput) -> Result<Option<InputRow>, IndexError> {
+    fn lookup(&self, input: &NativeInput) -> Result<Option<InputRow>, IndexError> {
         let Some(model_id) = self.id else {
             return Ok(None);
         };
-        let row: Option<(i64, usize, Option<Vec<u8>>)> = self.connection.prepare_cached("SELECT input_id,token_count,CASE WHEN published_hash IS NULL THEN NULL WHEN typeof(published_hash)='blob' AND length(published_hash)=32 THEN published_hash ELSE zeroblob(0) END FROM embedding_inputs WHERE model_id=? AND input_hash=?")?
-            .query_row(params![model_id,input.hash()], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))).optional()?;
-        match row {
-            Some((id, tokens, published_checksum)) if tokens == input.token_count => {
-                Ok(Some(InputRow {
-                    id,
-                    published_checksum,
-                }))
-            }
-            Some(_) => Err(invalid("native input token count mismatch")),
-            None => Ok(None),
-        }
+        Ok(self.connection.prepare_cached("SELECT input_id,token_count,CASE WHEN published_hash IS NULL THEN NULL WHEN typeof(published_hash)='blob' AND length(published_hash)=32 THEN published_hash ELSE zeroblob(0) END FROM embedding_inputs WHERE model_id=? AND input_hash=?")?
+            .query_row(params![model_id,input.hash()], |row| {
+                Ok(InputRow {
+                    id: row.get(0)?,
+                    token_count: row.get_ref(1)?.as_i64().ok().and_then(|n| usize::try_from(n).ok()),
+                    published_checksum: row.get(2)?,
+                })
+            }).optional()?)
     }
+    fn find(&self, input: &NativeInput) -> Result<Option<InputRow>, IndexError> {
+        self.lookup(input)?
+            .map(|row| {
+                row.check_count(input)?;
+                Ok(row)
+            })
+            .transpose()
+    }
+    #[cfg(test)]
     pub fn input_id(&self, input: &NativeInput) -> Result<Option<i64>, IndexError> {
         Ok(self.find(input)?.map(|row| row.id))
     }
@@ -207,14 +223,16 @@ impl<'session> NativeModel<'session> {
                         ))?
                         .query_row([row.id], |r| r.get(0))?;
                 if consumers || native {
-                    return Err(invalid(
-                        "published native checksum missing for existing value or consumer",
+                    return Err(IndexError::ReferenceRepairRequired(
+                        "published native checksum missing for existing value or consumer".into(),
                     ));
                 }
                 Ok(None)
             }
             Some(hash) if hash.len() == 32 => Ok(Some(hash.clone())),
-            Some(_) => Err(invalid("published native checksum length mismatch")),
+            Some(_) => Err(IndexError::ReferenceRepairRequired(
+                "published native checksum length mismatch".into(),
+            )),
         }
     }
     pub fn published_checksum(&self, input: &NativeInput) -> Result<Option<Vec<u8>>, IndexError> {
@@ -244,14 +262,18 @@ impl<'session> NativeModel<'session> {
     }
     /// Reuse pending inference only for an unpublished exact input.
     pub fn select(&self, input: &NativeInput) -> Result<Option<SelectedNative>, IndexError> {
-        let Some(row) = self.find(input)? else {
+        let Some(row) = self.lookup(input)? else {
             return Ok(None);
         };
         if let Some(checksum) = self.checksum(&row)? {
+            row.check_count(input)?;
             return Ok(Some(SelectedNative {
                 checksum,
                 staged: None,
             }));
+        }
+        if row.token_count != Some(input.token_count) {
+            return Ok(None);
         }
         Ok(self.cache(row.id)?.map(|cached| SelectedNative {
             checksum: cached.checksum,
@@ -263,12 +285,13 @@ impl<'session> NativeModel<'session> {
         &self,
         input: &NativeInput,
     ) -> Result<Option<SelectedNative>, IndexError> {
-        let Some(row) = self.find(input)? else {
+        let Some(row) = self.lookup(input)? else {
             return Ok(None);
         };
         let Some(checksum) = self.checksum(&row)? else {
             return Ok(None);
         };
+        row.check_count(input)?;
         let vector = self.read(row.id)?;
         Ok(Some(SelectedNative {
             checksum,
@@ -300,8 +323,20 @@ impl<'session> NativeModel<'session> {
             .ok_or_else(|| invalid("native write model missing"))?;
         self.connection.prepare_cached("INSERT INTO embedding_inputs(model_id,input_hash,token_count) VALUES(?,?,?) ON CONFLICT DO NOTHING")?
             .execute(params![model_id,input.hash(),input.token_count])?;
-        self.input_id(input)?
-            .ok_or_else(|| invalid("native input registration missing"))
+        let row = self
+            .lookup(input)?
+            .ok_or_else(|| invalid("native input registration missing"))?;
+        if row.token_count != Some(input.token_count) {
+            if self.checksum(&row)?.is_some() {
+                row.check_count(input)?;
+            }
+            // Callers replace the pending payload in this transaction or publish a new value.
+            self.connection.execute(
+                "UPDATE embedding_inputs SET token_count=? WHERE input_id=?",
+                params![input.token_count, row.id],
+            )?;
+        }
+        Ok(row.id)
     }
     pub fn ensure_table(&mut self) -> Result<(), IndexError> {
         if !self.native_exists {
@@ -692,6 +727,55 @@ mod tests {
                 .to_string()
                 .contains("published native checksum length mismatch")
         );
+    }
+
+    #[test]
+    fn a_mismatched_count_is_disposable_only_without_published_evidence() {
+        let (c, model, input) = fixture();
+        let key = NativeModelKey::new(0, &model).unwrap();
+        let input = NativeInput::new(&model, &input).unwrap();
+        let binding = NativeModel::bind(&c, &key, false).unwrap();
+
+        for bad_count in [rusqlite::types::Value::Integer(4), "bad".to_owned().into()] {
+            c.execute("UPDATE embedding_inputs SET token_count=?", [bad_count])
+                .unwrap();
+            assert!(binding.select(&input).unwrap().is_none());
+            assert!(binding.copy_published(&input).unwrap().is_none());
+            assert!(
+                binding.input_id(&input).is_err(),
+                "selection must not change the row"
+            );
+            assert_eq!(binding.ensure_input(&input).unwrap(), 7);
+            assert_eq!(binding.input_id(&input).unwrap(), Some(7));
+        }
+
+        c.execute_batch(
+            "UPDATE embedding_inputs SET token_count=4; INSERT INTO semantic_units VALUES(7)",
+        )
+        .unwrap();
+        assert!(binding.select(&input).is_err());
+        assert!(binding.ensure_input(&input).is_err());
+        c.execute_batch(
+            "DELETE FROM semantic_units; UPDATE embedding_inputs SET published_hash=zeroblob(32)",
+        )
+        .unwrap();
+        for error in [
+            binding.select(&input).err().unwrap(),
+            binding.copy_published(&input).err().unwrap(),
+            binding.ensure_input(&input).unwrap_err(),
+        ] {
+            assert!(
+                error
+                    .to_string()
+                    .contains("repair with atlas index rebuild")
+            );
+        }
+        let count: i64 = c
+            .query_row("SELECT token_count FROM embedding_inputs", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(count, 4);
     }
 
     #[test]
