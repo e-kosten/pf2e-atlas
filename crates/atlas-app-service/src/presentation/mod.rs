@@ -334,15 +334,10 @@ pub(crate) fn record_presentation(
         }
         RecordBodyView::Activity(activity) => {
             label_traits(activity);
-            if owners.len() == 1 {
-                if let (Some(parent), SourceNodeView::Item(item)) = (record.node_at(&[]), node) {
-                    activity.ability_group = actor::ability_group_in_actor(parent, item);
-                }
-                activity_references::resolve_owned_strike_effects(
-                    record,
-                    std::slice::from_mut(activity.as_mut()),
-                    retrieval.source_fingerprint(),
-                );
+            if owners.len() == 1
+                && let (Some(parent), SourceNodeView::Item(item)) = (record.node_at(&[]), node)
+            {
+                activity.ability_group = actor::ability_group_in_actor(parent, item);
             }
             if matches!(node, SourceNodeView::Item(item) if matches!(selected_item_body(item), SelectedItemBody::Activity { casting_context: true }))
                 && owners.len() == 1
@@ -394,7 +389,8 @@ pub(crate) fn record_presentation(
         }
         _ => {}
     }
-    activity_references::resolve(&mut body, record.key(), retrieval)?;
+    activity_references::resolve_strike_effects(&mut body, record, owners, retrieval)?;
+    activity_references::resolve_self_effects(&mut body, record.key(), retrieval)?;
     reference_profiles::resolve_links(&mut body, retrieval)?;
     Ok(RecordPresentationView {
         grants: None,

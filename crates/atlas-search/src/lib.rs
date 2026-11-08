@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+mod bestiary_glossary;
 mod configurable_similarity;
 mod discovery;
 mod error;

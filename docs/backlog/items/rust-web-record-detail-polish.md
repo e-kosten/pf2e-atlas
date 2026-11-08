@@ -109,9 +109,8 @@ The audit traces root groups and immediate owned melee/action/feat/effect/lore,
 casting, spell and physical-item families. It is not certification that every
 nested DTO member is rendered. Rule elements, source snapshots and platform
 configuration are not automatically user-facing facts or permission to extend
-encounter mechanics. Unresolved glossary attack effects remain under the
-[localization-backed rules work](rust-localization-backed-rules-terms.md); exact
-unique owned-slug links do not establish a general glossary resolver.
+encounter mechanics. Attack effect links use the shared record presentation
+policy in [ADR0047](../../architecture/decisions/0047-semantic-record-presentation.md).
 
 ## Related
 

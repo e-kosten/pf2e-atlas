@@ -348,6 +348,7 @@ dependencies = [
  "atlas-foundry-model",
  "ego-tree",
  "html2text",
+ "icu_properties",
  "scraper",
  "serde",
  "serde_json",

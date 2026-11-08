@@ -2660,3 +2660,145 @@ fn embedded_publication_edition_uses_its_own_source_metadata() {
         ));
     }
 }
+
+#[test]
+fn strike_effect_links_use_owned_items_before_the_exact_glossary() {
+    use atlas_search::test_support::{
+        ReferencePreparation, hash, input, open_input_fixture, reference_inventory_identity,
+    };
+    const GLOSSARY: &str = "bestiary-ability-glossary-srd";
+    const ACTOR: &str = "actors:actor00000000001";
+    let worker = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            let mut records = vec![record(
+                "actors",
+                "Actor",
+                json!({
+                    "_id": "actor00000000001", "type": "npc", "name": "Necrohusk",
+                    "items": [
+                        {"type":"action","name":"Vile Innards","system":{"slug":null}},
+                        {"_id":"alias00000000001","type":"action","name":"Renamed Ability","system":{"slug":"original-name"}},
+                        {"_id":"draft00000000001","type":"consumable","name":"Bottled Fog","system":{}},
+                        {"_id":"first00000000001","type":"action","name":"Ambiguous"},
+                        {"_id":"second0000000001","type":"action","name":"First Copy","system":{"slug":"duplicate"}},
+                        {"_id":"third00000000001","type":"action","name":"Second Copy","system":{"slug":"duplicate"}},
+                        {"_id":"wrong00000000001","type":"action","name":"Malformed","system":{"slug":3}},
+                        {"_id":"cond000000000001","type":"condition","name":"Renamed Condition","system":{"slug":"off-guard"}},
+                        {"_id":"fist000000000001","type":"melee","name":"Grab","system":{"slug":"grab"}},
+                        {"_id":"strike0000000001","type":"melee","name":"Ichor Spit","system":{"attackEffects":{"value":[
+                            "Vile Innards","OriginalName","bottled-fog","grab","Grab","duplicate",
+                            "glossary-collision","unrelated","ambiguous","malformed","vile-innards","off-guard"
+                        ]}}}
+                    ]
+                }),
+            )];
+            for (pack, id, name) in [
+                (GLOSSARY, "grab000000000001", "Grab"),
+                (GLOSSARY, "duplicate0000001", "Duplicate"),
+                (GLOSSARY, "vile000000000002", "Vile Innards"),
+                (GLOSSARY, "collision0000001", "Glossary Collision"),
+                (GLOSSARY, "collision0000002", "Glossary-Collision"),
+                (
+                    "bestiary-family-ability-glossary",
+                    "other00000000001",
+                    "Unrelated",
+                ),
+            ] {
+                records.push(record(
+                    pack,
+                    "Item",
+                    json!({
+                        "_id":id,"type":"action","name":name,"system":{}
+                    }),
+                ));
+            }
+            let mut data = input(records, false);
+            let (expected_entry_count, entry_keys_sha256) =
+                reference_inventory_identity(std::iter::empty())?;
+            data.context.reference_preparation = Some(ReferencePreparation {
+                source_package: Some("pf2e".into()),
+                pack_systems: Default::default(),
+                recipe: "test".into(),
+                input_hash: hash(b"test"),
+                coverage: atlas_search::ReferenceCoverage::Complete,
+                expected_entry_count,
+                entry_keys_sha256,
+            });
+            Ok(open_input_fixture(data)?)
+        },
+    ));
+    let detail = worker.worker.record_detail(ACTOR).unwrap();
+    let activities = actor(&detail.presentation)
+        .activities
+        .value
+        .as_ref()
+        .unwrap();
+    let strike = activities.iter().find(|a| a.title == "Ichor Spit").unwrap();
+    let effects = strike.strike_effects.value.as_ref().unwrap();
+    let expected = [
+        ("Vile Innards", "Vile Innards", Some(ACTOR)),
+        ("OriginalName", "Renamed Ability", Some(ACTOR)),
+        ("bottled-fog", "Bottled Fog", Some(ACTOR)),
+        (
+            "grab",
+            "Grab",
+            Some("bestiary-ability-glossary-srd:grab000000000001"),
+        ),
+        ("Grab", "Grab", None),
+        ("duplicate", "duplicate", None),
+        ("glossary-collision", "glossary-collision", None),
+        ("unrelated", "unrelated", None),
+        ("ambiguous", "ambiguous", None),
+        ("malformed", "malformed", None),
+        ("vile-innards", "Vile Innards", Some(ACTOR)),
+        ("off-guard", "Renamed Condition", Some(ACTOR)),
+    ];
+    assert_eq!(
+        effects
+            .iter()
+            .map(|e| (
+                e.authored_target.value.as_deref().unwrap(),
+                e.name.value.as_deref().unwrap(),
+                e.navigation.as_ref().map(|n| n.record_key.as_str()),
+            ))
+            .collect::<Vec<_>>(),
+        expected,
+    );
+    assert_eq!(
+        effects[0].navigation.as_ref(),
+        Some(
+            &activities
+                .iter()
+                .find(|a| a.title == "Vile Innards")
+                .unwrap()
+                .navigation
+        )
+    );
+    assert!(
+        effects[0]
+            .navigation
+            .as_ref()
+            .unwrap()
+            .source_fingerprint
+            .is_some()
+    );
+    assert!(effects[3].navigation.as_ref().unwrap().owners.is_empty());
+    let selected = worker
+        .worker
+        .record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
+            record_key: ACTOR.into(),
+            owners: strike.navigation.owners.clone(),
+            spell_rank: None,
+            fields: vec![],
+            passage: None,
+            source_fingerprint: strike.navigation.source_fingerprint.clone(),
+        })
+        .unwrap();
+    let RecordBodyView::Activity(selected) = selected.presentation.body else {
+        panic!("expected selected strike");
+    };
+    assert_eq!(selected.strike_effects, strike.strike_effects);
+}

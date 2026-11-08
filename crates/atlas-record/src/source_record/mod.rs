@@ -17,6 +17,8 @@ mod query;
 mod relationships;
 mod resolver;
 mod search_selection;
+mod slug;
+pub use slug::foundry_slug;
 mod shield_content;
 mod similarity;
 #[cfg(test)]

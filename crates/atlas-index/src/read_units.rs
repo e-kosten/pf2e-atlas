@@ -427,6 +427,37 @@ impl SqliteIndexReader {
             })
             .collect()
     }
+    /// Read authored names and keys for a bounded Item pack lookup.
+    /// An extra row lets the caller detect a result that exceeded its bound.
+    pub fn item_names_in_pack(
+        &self,
+        pack: &str,
+        limit: usize,
+    ) -> Result<Option<Vec<(RecordKey, String)>>, IndexError> {
+        if !(1..=256).contains(&limit) {
+            return Err(IndexError::Limit(
+                "item name lookup limit must be 1..=256".into(),
+            ));
+        }
+        let c = self.native()?;
+        self.count_statement();
+        let mut statement = c.prepare(
+            "SELECT key,name FROM records WHERE pack_id=? AND document_kind='Item' AND name_state='value' LIMIT ?",
+        )?;
+        let rows = statement
+            .query_map(rusqlite::params![pack, (limit + 1) as i64], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        if rows.len() > limit {
+            return Ok(None);
+        }
+        rows.into_iter()
+            .map(|(key, name)| Ok((parse_key(key)?, name)))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Some)
+    }
+
     /// Bounded indexed candidates; the caller verifies the declared name convention and typed category/group.
     pub fn variant_candidates(
         &self,
