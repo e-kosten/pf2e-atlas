@@ -40,6 +40,7 @@ impl TestStore {
             backfill_saved_state_closeout(&transaction)
                 .map_err(|error| LocalStateError::IncompatibleSchema(error.to_string()))?;
             transaction.commit()?;
+            conn.execute_batch(MANUAL_TRACKER_ORDER_SCHEMA_SQL)?;
         }
         Ok(store)
     }
@@ -489,6 +490,7 @@ mod tests {
         connection.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
         connection.execute_batch(ENCOUNTER_RECOVERY_SCHEMA_SQL)?;
         connection.execute_batch(MANUAL_TRACKERS_SCHEMA_SQL)?;
+        connection.execute_batch(MANUAL_TRACKER_ORDER_SCHEMA_SQL)?;
         connection.execute_batch(ENCOUNTER_CLOCK_SCHEMA_SQL)?;
         backfill_encounter_clock(&connection).expect("fresh workspace clock backfill");
         Ok(connection)

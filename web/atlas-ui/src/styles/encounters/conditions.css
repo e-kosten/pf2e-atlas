@@ -335,3 +335,62 @@
 .encounter-persistent-damage-control__value .atlas-roll__total > button {
   width: 100%;
 }
+
+/* Share action columns across active rows, including grouped persistent sources. */
+.encounter-condition-list:has(.encounter-condition-row--active) {
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  column-gap: 0;
+
+  > .encounter-condition-row--inherent {
+    grid-column: 1 / -1;
+  }
+}
+
+.encounter-condition-group,
+.encounter-condition-row--active {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  column-gap: 0;
+}
+
+.encounter-condition-row--active {
+  > .encounter-condition-actions {
+    display: grid;
+    grid-column: 3 / -1;
+    grid-template-columns: subgrid;
+    column-gap: 0;
+    justify-items: end;
+  }
+
+  .encounter-condition-recovery-action {
+    grid-column: 1;
+  }
+
+  .encounter-condition-edit {
+    grid-column: 2;
+  }
+
+  .encounter-condition-remove {
+    grid-column: 3;
+  }
+
+  :is(
+    .encounter-condition-recovery-action,
+    .encounter-condition-edit,
+    .encounter-condition-remove
+  ) {
+    margin-inline-start: 4px;
+  }
+
+  > .encounter-condition-row__name {
+    margin-inline-end: 8px;
+    text-align: start;
+  }
+}
+
+@container condition-list (min-width: 20rem) {
+  .encounter-condition-row--active.encounter-condition-row--valued {
+    grid-template-columns: subgrid;
+  }
+}

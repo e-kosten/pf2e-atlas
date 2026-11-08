@@ -62,18 +62,28 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
         },
         progress: TrackerProgress::Seconds(23),
     };
-    write
-        .connection()
-        .execute(
-            "INSERT INTO encounter_manual_trackers VALUES('actor','timer',?1)",
-            [envelope(serde_json::json!(tracker))],
-        )
-        .unwrap();
+    let mut earlier_key = tracker.clone();
+    earlier_key.tracker_key = "alarm".into();
+    earlier_key.name = "Alarm".into();
+    for tracker in [tracker, earlier_key] {
+        write
+            .connection()
+            .execute(
+                "INSERT INTO encounter_manual_trackers VALUES('actor',?1,?2)",
+                params![tracker.tracker_key, envelope(serde_json::json!(tracker))],
+            )
+            .unwrap();
+    }
+    project_legacy_tracker_order(write.connection());
     let saved = LocalStateWrite::for_local(&write)
         .unwrap()
         .encounters()
         .get_with_participants("clock")
         .unwrap()
+        .unwrap();
+    write
+        .connection()
+        .execute_batch("DROP VIEW temp.encounter_manual_trackers")
         .unwrap();
     let baseline = ParticipantGameplay::from(&saved.participants[0]);
     let baseline_json = envelope(serde_json::json!(baseline));

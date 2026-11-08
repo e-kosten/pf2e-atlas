@@ -250,3 +250,77 @@ fn copy_remaps_pending_decisions_and_preserves_source_bound_receipts() -> crate:
     tx.commit()?;
     Ok(())
 }
+
+#[test]
+fn tracker_order_survives_updates_recovery_and_export_restore() -> crate::LocalStateResult<()> {
+    let store = fixture("portable-tracker-order")?;
+    let actor = store
+        .encounters()
+        .add_participant("test", creature("Actor", Some(12), 24))?;
+    let mut db = store.connection()?;
+    let tx = db.transaction()?;
+    let writer = EncountersWrite::from_connection(&tx, 1);
+    let encounter = writer.get("test")?.unwrap();
+    let key = &encounter.encounter_key;
+    let tracker = |key: &str, name: &str| ManualTracker {
+        tracker_key: key.into(),
+        name: name.into(),
+        duration: ConditionDuration {
+            amount: 2,
+            unit: ConditionDurationUnit::Rounds,
+            timing: Some(ConditionTiming {
+                participant_key: actor.participant_key.clone(),
+                event: ConditionTurnEvent::End,
+            }),
+            remaining_seconds: None,
+        },
+        progress: TrackerProgress::Rounds(2),
+    };
+    let save = |tracker_key: &str, value: Option<ManualTracker>| {
+        writer.save_manual_tracker(
+            key,
+            &ManualTrackerChange {
+                participant_key: actor.participant_key.clone(),
+                tracker_key: tracker_key.into(),
+                value,
+            },
+        )
+    };
+    let trackers = |key: &str| -> crate::LocalStateResult<Vec<String>> {
+        Ok(writer.get_with_participants(key)?.unwrap().participants[0]
+            .manual_trackers
+            .iter()
+            .map(|tracker| tracker.name.clone())
+            .collect())
+    };
+
+    save("z", Some(tracker("z", "First")))?;
+    save("a", Some(tracker("a", "Second")))?;
+    let mut renamed = tracker("z", "Renamed");
+    renamed.progress = TrackerProgress::Rounds(1);
+    save("z", Some(renamed))?;
+    assert_eq!(trackers(key)?, ["Renamed", "Second"]);
+    save("z", None)?;
+    save("z", Some(tracker("z", "Re-added")))?;
+    assert_eq!(trackers(key)?, ["Second", "Re-added"]);
+
+    let snapshot = writer.get_with_participants(key)?.unwrap();
+    let mut gameplay = ParticipantGameplay::from(&snapshot.participants[0]);
+    gameplay.manual_trackers.reverse();
+    writer.apply_recovery(ApplyEncounterRecovery {
+        encounter_key: key,
+        expected_revision: snapshot.encounter.revision,
+        reset_encounter: false,
+        end_turn: false,
+        replacements: &[(actor.participant_key.clone(), gameplay)],
+    })?;
+    assert_eq!(trackers(key)?, ["Re-added", "Second"]);
+
+    let bytes = writer.export_document(key)?.encode()?;
+    let copied = writer.import_document(
+        EncounterDocument::read(bytes.as_slice())?,
+        Some("tracker-order-copy".into()),
+    )?;
+    assert_eq!(trackers(&copied.encounter_key)?, ["Re-added", "Second"]);
+    Ok(())
+}

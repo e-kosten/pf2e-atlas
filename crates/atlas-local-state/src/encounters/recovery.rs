@@ -268,10 +268,11 @@ fn replace(
         "DELETE FROM encounter_manual_trackers WHERE participant_key=?1",
         [key],
     )?;
-    for tracker in &s.manual_trackers {
+    for (position, tracker) in (1_i64..).zip(&s.manual_trackers) {
         c.execute(
-            "INSERT INTO encounter_manual_trackers VALUES(?1,?2,?3)",
-            params![key, tracker.tracker_key, receipt_codec::encode(tracker)?],
+            "INSERT INTO encounter_manual_trackers(participant_key,tracker_key,payload_json,position)
+             VALUES(?1,?2,?3,?4)",
+            params![key, tracker.tracker_key, receipt_codec::encode(tracker)?, position],
         )?;
     }
     Ok(())

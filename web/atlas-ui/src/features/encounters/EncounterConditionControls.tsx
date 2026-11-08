@@ -218,12 +218,16 @@ export function EncounterConditionControls({
             onResolve={onResolveDrained}
           />
         ));
+    const contextualAction = hpAction?.length
+      ? hpAction
+      : (recoveryAction ?? recoveryControls.conditionActions(condition.condition_id));
     return (
       <span className="encounter-condition-actions">
-        {hpAction && hpAction.length > 0
-          ? hpAction
-          : (recoveryAction ??
-            recoveryControls.conditionActions(condition.condition_id))}{" "}
+        {contextualAction && (
+          <span className="encounter-condition-recovery-action">
+            {contextualAction}
+          </span>
+        )}
         <EncounterRowAction
           tooltip="Edit"
           hideTooltip={open}
@@ -379,7 +383,7 @@ export function EncounterConditionControls({
     return (
       <div
         className={[
-          "encounter-condition-row",
+          "encounter-condition-row encounter-condition-row--active",
           hasValue && "encounter-condition-row--valued",
           (presentation?.superseded || cleared) &&
             "encounter-condition-row--superseded",
@@ -711,7 +715,7 @@ export function EncounterConditionControls({
               return condition ? [{ condition, source }] : [];
             });
             return (
-              <div key={group.episode_id}>
+              <div className="encounter-condition-group" key={group.episode_id}>
                 {conditions.map(({ condition, source }) =>
                   renderCondition(condition, {
                     immunityNote: group.immunity_note,

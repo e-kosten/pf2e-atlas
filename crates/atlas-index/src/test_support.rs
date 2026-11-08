@@ -299,6 +299,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: crate::backfill_search_schema_closeout,
         }),
     },
+    Migration {
+        version: atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_VERSION,
+        name: "manual-tracker-order",
+        sql: atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
