@@ -6,16 +6,22 @@ use serde_json::json;
 const ACTOR: &str = "actors:testCreature1000";
 fn request(generation: &str, selection: EmbeddedReadingSelection) -> EmbeddedReadingRequest {
     EmbeddedReadingRequest {
-        parent: RecordNavigationView {
-            spell_rank: None,
+        parent: EmbeddedReadingParent {
             record_key: ACTOR.into(),
-            owners: vec![],
-            field: None,
-            passage: None,
-            source_fingerprint: None,
         },
         artifact_generation: generation.into(),
         selection,
+    }
+}
+
+fn activity_address(navigation: &RecordNavigationView) -> EmbeddedActivityAddress {
+    let [owner] = navigation.owners.as_slice() else {
+        panic!("immediate owner")
+    };
+    EmbeddedActivityAddress {
+        record_key: navigation.record_key.clone(),
+        owner: owner.clone(),
+        source_fingerprint: navigation.source_fingerprint.clone(),
     }
 }
 
@@ -93,7 +99,7 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
             EmbeddedReadingSelection::Abilities {
                 group: None,
                 cursor: None,
-                target: Some(last.clone()),
+                target: Some(activity_address(&last)),
             },
         ))
         .unwrap();
@@ -141,7 +147,9 @@ fn finite_batches_decode_once_and_direct_late_targets_skip_predecessors() {
         f.worker
             .embedded_reading(request(
                 &detail.artifact_generation,
-                EmbeddedReadingSelection::Activity { navigation: stale }
+                EmbeddedReadingSelection::Activity {
+                    address: activity_address(&stale)
+                }
             ))
             .unwrap_err()
             .to_string()
@@ -251,7 +259,7 @@ fn requested_strike_content_has_no_baseline_activity_facts_in_response() {
         .embedded_reading(request(
             &detail.artifact_generation,
             EmbeddedReadingSelection::Activity {
-                navigation: strike.navigation.clone(),
+                address: activity_address(&strike.navigation),
             },
         ))
         .unwrap();
@@ -352,7 +360,9 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
         .record_detail("tables:table00000000000")
         .unwrap();
     let mut request = EmbeddedReadingRequest {
-        parent: detail.selected,
+        parent: EmbeddedReadingParent {
+            record_key: detail.selected.record_key,
+        },
         artifact_generation: detail.artifact_generation,
         selection: EmbeddedReadingSelection::TableResults { cursor: None },
     };
@@ -524,7 +534,7 @@ fn ability_groups_filter_before_paging_and_target_the_same_source_identity() {
         next.entries.last().unwrap().navigation,
         activities[99].navigation
     );
-    let target = read(None, Some(activities[99].navigation.clone()));
+    let target = read(None, Some(activity_address(&activities[99].navigation)));
     assert_eq!(target.start, 32);
     assert_eq!(
         target.entries.last().unwrap().navigation,
@@ -537,7 +547,7 @@ fn ability_groups_filter_before_paging_and_target_the_same_source_identity() {
                 EmbeddedReadingSelection::Abilities {
                     group: Some(ActorAbilityGroupView::Supporting),
                     cursor: None,
-                    target: Some(activities[99].navigation.clone())
+                    target: Some(activity_address(&activities[99].navigation))
                 }
             ))
             .is_err()
@@ -684,7 +694,7 @@ fn actor_root_text_is_bounded_attributed_and_independent_of_owned_items() {
         (1, 1)
     );
     assert!(metrics.sql_statements <= 6, "{metrics:?}");
-    let mut stale = request("stale", EmbeddedReadingSelection::ActorContent);
+    let stale = request("stale", EmbeddedReadingSelection::ActorContent);
     assert_eq!(
         f.worker
             .embedded_reading(stale.clone())
@@ -693,9 +703,13 @@ fn actor_root_text_is_bounded_attributed_and_independent_of_owned_items() {
             .code,
         AppErrorCode::ArtifactGenerationChanged
     );
-    stale.artifact_generation = detail.artifact_generation;
-    stale.parent.field = Some("/system/details/routine".into());
-    assert!(f.worker.embedded_reading(stale).is_err());
+    let mut invalid = serde_json::to_value(request(
+        &detail.artifact_generation,
+        EmbeddedReadingSelection::ActorContent,
+    ))
+    .unwrap();
+    invalid["parent"]["field"] = json!("/system/details/routine");
+    assert!(serde_json::from_value::<EmbeddedReadingRequest>(invalid).is_err());
 }
 
 #[test]

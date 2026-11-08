@@ -26,7 +26,7 @@ import {
   isArtifactGenerationChanged,
   retireReferenceQueries,
 } from "../queries/referenceQueries";
-import { recordDetailQueryOptions } from "./recordDetailQuery";
+import { recordDetailQueryOptions, recordSelection } from "./recordDetailQuery";
 
 type EncounterPreviewContext = {
   encounterRef: string;
@@ -178,14 +178,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         {
           artifact_generation: requestedContext!.generation!,
           condition_id: requestedContext!.conditionId,
-          selection: {
-            record_key: recordKey!,
-            spell_rank: selection!.spell_rank,
-            embedded_path: selection!.embedded_path,
-            fields: selection!.field ? [selection!.field] : [],
-            passage: selection!.passage,
-            source_fingerprint: selection!.source_fingerprint,
-          },
+          selection: recordSelection({ ...selection!, record_key: recordKey! }),
         },
         signal,
       ),

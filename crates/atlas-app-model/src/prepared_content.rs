@@ -80,7 +80,7 @@ pub enum ContentControlKindView {
         #[cfg_attr(feature = "openapi", schema(required))]
         literal: Option<ContentRollPresentationView>,
         #[cfg_attr(feature = "openapi", schema(required))]
-        roll: Option<RollContentRequest>,
+        roll: Option<ContentRollOffer>,
     },
     Command {
         command: String,
@@ -89,7 +89,7 @@ pub enum ContentControlKindView {
         #[cfg_attr(feature = "openapi", schema(required))]
         literal: Option<ContentRollPresentationView>,
         #[cfg_attr(feature = "openapi", schema(required))]
-        roll: Option<RollContentRequest>,
+        roll: Option<ContentRollOffer>,
     },
     Template {
         #[cfg_attr(feature = "openapi", schema(required))]
@@ -122,10 +122,18 @@ pub struct ContentRollComponentView {
     pub unit: Option<RollUnitView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RollContentRequest {
+    pub offer: ContentRollOffer,
+}
+
 /// Selects an authored interaction, never a caller-supplied executable formula.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RollContentRequest {
+#[serde(deny_unknown_fields)]
+pub struct ContentRollOffer {
     pub content_interpretation_version: String,
     pub source: crate::ContentLocationView,
     pub source_fingerprint: String,

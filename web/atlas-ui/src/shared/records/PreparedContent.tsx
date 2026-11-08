@@ -320,7 +320,7 @@ export function PreparedContentBody({
           (formula ?? marker).after(host);
           portals.push(
             createPortal(
-              <ContentRoll request={control.roll} presentation={control.literal} />,
+              <ContentRoll offer={control.roll} presentation={control.literal} />,
               host,
               identity,
             ),

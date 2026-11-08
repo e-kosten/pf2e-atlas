@@ -697,7 +697,7 @@ it.each(["source", "participant"] as const)(
     );
     expect(await screen.findByRole("status", { name: "1d6: 4" })).toBeVisible();
     expect(roll).toHaveBeenCalledTimes(1);
-    expect(roll).toHaveBeenCalledWith(request);
+    expect(roll).toHaveBeenCalledWith({ offer: request });
     const changed = structuredClone(field);
     if (
       changed.body.kind === "html" &&
@@ -847,7 +847,7 @@ it.each(["r", "gmr", "br"])(
     ).toContainElement(button);
     fireEvent.click(button);
     expect(await screen.findByRole("status", { name: "1d4: 3 rounds" })).toBeVisible();
-    expect(roll).toHaveBeenCalledWith(request);
+    expect(roll).toHaveBeenCalledWith({ offer: request });
     roll.mockRestore();
   },
 );

@@ -1,6 +1,8 @@
 use crate::projection::{navigation_fingerprint, relationship_views};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
-use atlas_app_model::{AppErrorCode, RecordDetailRequest, RecordDetailView, RecordNavigationView};
+use atlas_app_model::{
+    AppErrorCode, RecordDetailRequest, RecordDetailView, RecordNavigationView, RecordSelection,
+};
 use atlas_domain::OwnedContentIdentity;
 use atlas_domain::{QueryPredicate, RecordKey, SourcePassageAddress};
 use atlas_record::source_content::SourceContentLocator;
@@ -108,7 +110,9 @@ impl AtlasAppService {
         request: RecordDetailRequest,
     ) -> AppServiceResult<RecordDetailView> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            read_record_detail(r, request).map(|(_, view)| view)
+            let generation = request.expected_artifact_generation.clone();
+            read_record_detail(r, request.into_selection(), generation.as_deref())
+                .map(|(_, view)| view)
         })
     }
 }
@@ -116,9 +120,10 @@ impl AtlasAppService {
 /// Decode the selected parent once, retaining it for workflows that compose runtime facts.
 pub(crate) fn read_record_detail(
     r: &atlas_search::AtlasRetrievalService,
-    request: RecordDetailRequest,
+    request: RecordSelection,
+    expected_artifact_generation: Option<&str>,
 ) -> AppServiceResult<(atlas_search::SourceRecordDetail, RecordDetailView)> {
-    let (loaded, view) = LoadedRecordDetail::read(r, request)?;
+    let (loaded, view) = LoadedRecordDetail::read(r, request, expected_artifact_generation)?;
     Ok((loaded.detail, view))
 }
 
@@ -130,7 +135,8 @@ pub(crate) struct LoadedRecordDetail<'a> {
 impl<'a> LoadedRecordDetail<'a> {
     pub(crate) fn read(
         r: &'a atlas_search::AtlasRetrievalService,
-        request: RecordDetailRequest,
+        request: RecordSelection,
+        expected_artifact_generation: Option<&str>,
     ) -> AppServiceResult<(Self, RecordDetailView)> {
         let key = validate_selection(r, &request)?;
         let detail = r
@@ -148,18 +154,19 @@ impl<'a> LoadedRecordDetail<'a> {
             retrieval: r,
             detail,
         };
-        let view = loaded.project(request)?;
+        let view = loaded.project(request, expected_artifact_generation)?;
         Ok((loaded, view))
     }
 
     pub(crate) fn project(
         &self,
-        request: RecordDetailRequest,
+        request: RecordSelection,
+        expected_artifact_generation: Option<&str>,
     ) -> AppServiceResult<RecordDetailView> {
         let r = self.retrieval;
         let detail = &self.detail;
         crate::definitions::check_generation(
-            request.expected_artifact_generation.as_deref(),
+            expected_artifact_generation,
             &r.artifact_generation()?,
         )?;
         let key = validate_selection(r, &request)?;
@@ -169,11 +176,14 @@ impl<'a> LoadedRecordDetail<'a> {
             ));
         }
         let whole_document = request.fields.is_empty() && request.passage.is_none();
-        let node = detail.source.node_at(&request.owners).ok_or_else(|| {
-            AppServiceError::invalid_request(
-                "selected document does not exist in this source snapshot",
-            )
-        })?;
+        let node = detail
+            .source
+            .node_at(&request.address.owners)
+            .ok_or_else(|| {
+                AppServiceError::invalid_request(
+                    "selected document does not exist in this source snapshot",
+                )
+            })?;
         let selections = node.content_selections();
         if request
             .fields
@@ -209,7 +219,7 @@ impl<'a> LoadedRecordDetail<'a> {
             })
             .map(|s| SourceContentLocator {
                 record: key.clone(),
-                owners: request.owners.clone(),
+                owners: request.address.owners.clone(),
                 field: s.field.to_string(),
             })
             .collect();
@@ -219,7 +229,7 @@ impl<'a> LoadedRecordDetail<'a> {
             &detail.source,
             node,
             &summary,
-            &request.owners,
+            &request.address.owners,
             vec![],
             r,
         )?;
@@ -234,7 +244,7 @@ impl<'a> LoadedRecordDetail<'a> {
         let mut context = crate::prepared_content::PreparedContentContext::source(
             r,
             &detail.source,
-            &request.owners,
+            &request.address.owners,
             spell_rank,
         );
         if context.formula.item_is_spell {
@@ -243,7 +253,7 @@ impl<'a> LoadedRecordDetail<'a> {
         }
         let mut fields = crate::prepared_content::prepared_fields(
             &key,
-            &request.owners,
+            &request.address.owners,
             &selected,
             &content.content.fields,
             &content.bounded,
@@ -348,7 +358,7 @@ impl<'a> LoadedRecordDetail<'a> {
         presentation.content = fields;
         let relationships = r.read_non_content_relationships(&SourceRelationshipRequest {
             record: key.clone(),
-            owners: Some(request.owners.clone()),
+            owners: Some(request.address.owners.clone()),
             field: if request.fields.len() == 1 {
                 Some(request.fields[0].clone())
             } else {
@@ -361,7 +371,7 @@ impl<'a> LoadedRecordDetail<'a> {
         let mut view = RecordDetailView {
             remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
             source_remaster_context: None,
-            encounter_adjustment: (request.owners.is_empty()
+            encounter_adjustment: (request.address.owners.is_empty()
                 && matches!(
                     detail.summary.record_kind.as_value(),
                     Some(atlas_domain::RecordKind::Creature)
@@ -385,8 +395,11 @@ impl<'a> LoadedRecordDetail<'a> {
             selected: RecordNavigationView {
                 spell_rank,
                 record_key: key.to_string(),
-                source_fingerprint: navigation_fingerprint(&request.owners, r.source_fingerprint()),
-                owners: request.owners,
+                source_fingerprint: navigation_fingerprint(
+                    &request.address.owners,
+                    r.source_fingerprint(),
+                ),
+                owners: request.address.owners,
                 field: if request.fields.len() == 1 {
                     Some(request.fields[0].clone())
                 } else {
@@ -428,16 +441,18 @@ impl<'a> LoadedRecordDetail<'a> {
 
 fn validate_selection(
     r: &atlas_search::AtlasRetrievalService,
-    request: &RecordDetailRequest,
+    request: &RecordSelection,
 ) -> AppServiceResult<RecordKey> {
-    validate_request(request)?;
-    let key = RecordKey::parse(&request.record_key)
+    validate_address_bounds(&request.address.owners)?;
+    validate_field_bounds(&request.fields)?;
+    let key = RecordKey::parse(&request.address.record_key)
         .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
     if request
+        .address
         .owners
         .iter()
         .any(|o| matches!(o.identity, OwnedContentIdentity::SnapshotLocal { .. }))
-        && request.source_fingerprint.as_deref() != Some(r.source_fingerprint())
+        && request.address.source_fingerprint.as_deref() != Some(r.source_fingerprint())
     {
         return Err(AppServiceError::invalid_request(
             "snapshot-local navigation belongs to a different artifact; reopen the search result or parent record",
@@ -445,15 +460,24 @@ fn validate_selection(
     }
     Ok(key)
 }
-pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {
-    if r.owners.len() > 32
-        || r.fields.len() > 256
-        || r.fields.iter().any(|f| f.len() > 512)
-        || r.owners.iter().any(|o| {
-            o.collection.len() > 512
-                || matches!(&o.identity,OwnedContentIdentity::Stable(id) if id.len()>512)
+pub(crate) fn validate_address_bounds(
+    owners: &[atlas_domain::OwnedContentLocator],
+) -> AppServiceResult<()> {
+    if owners.len() > 32
+        || owners.iter().any(|owner| {
+            owner.collection.len() > 512
+                || matches!(&owner.identity, OwnedContentIdentity::Stable(id) if id.len() > 512)
         })
     {
+        return Err(AppServiceError::invalid_request(
+            "detail selection exceeds its embedded path or field bounds",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_field_bounds(fields: &[String]) -> AppServiceResult<()> {
+    if fields.len() > 256 || fields.iter().any(|field| field.len() > 512) {
         return Err(AppServiceError::invalid_request(
             "detail selection exceeds its embedded path or field bounds",
         ));

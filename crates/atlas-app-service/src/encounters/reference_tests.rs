@@ -97,7 +97,8 @@ fn addressed_condition_formula_includes_the_creatures_authored_condition_value()
                     passage: None,
                     spell_rank: None,
                     source_fingerprint: None,
-                },
+                }
+                .into_selection(),
             },
         )
         .unwrap();
@@ -176,7 +177,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             fields: vec![],
             passage: None,
             source_fingerprint: None,
-        },
+        }
+        .into_selection(),
     };
     let selected_request = request("wwwwwwwwwwwwwwww");
     let selected_encounter = encounter.slug.clone();
@@ -285,7 +287,10 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             .encounter_reference(&encounter.slug, &participant.participant_key, request(id))
             .unwrap();
         assert_eq!(f.worker.last_read_metrics().source_body_decodes, 1);
-        assert_eq!(selected.selected.owners, request(id).selection.owners);
+        assert_eq!(
+            selected.selected.owners,
+            request(id).selection.address.owners
+        );
         match selected.presentation.body {
             RecordBodyView::Activity(entry) => {
                 assert_eq!(entry.attack, activities[index].attack);
@@ -343,7 +348,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         }))
     );
     let mut foreign = request("eeeeeeeeeeeeeeee");
-    foreign.selection.record_key = "equipment:oooooooooooooooo".into();
+    foreign.selection.address.record_key = "equipment:oooooooooooooooo".into();
     assert!(
         f.worker
             .encounter_reference(&encounter.slug, &participant.participant_key, foreign)
@@ -385,7 +390,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                     fields: vec![],
                     passage: None,
                     source_fingerprint: None,
-                },
+                }
+                .into_selection(),
             },
         )
         .unwrap();
@@ -458,7 +464,8 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
             fields: vec![],
             passage: None,
             source_fingerprint: None,
-        },
+        }
+        .into_selection(),
     };
     let selected_a = a
         .worker
@@ -541,12 +548,15 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         .worker
         .encounter_reference(&encounter.slug, &participant_key, request_b.clone())
         .unwrap();
-    assert_eq!(selected_b.selected.owners, request_b.selection.owners);
+    assert_eq!(
+        selected_b.selected.owners,
+        request_b.selection.address.owners
+    );
     assert_eq!(selected_b.presentation.identity.title, "Stable ability");
 
-    request_b.selection.owners[0].identity =
+    request_b.selection.address.owners[0].identity =
         atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 };
-    request_b.selection.source_fingerprint = Some("old-source-fingerprint".into());
+    request_b.selection.address.source_fingerprint = Some("old-source-fingerprint".into());
     let navigation_error = b
         .worker
         .encounter_reference(&encounter.slug, &participant_key, request_b)
@@ -622,7 +632,8 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             passage: None,
             spell_rank: None,
             source_fingerprint: None,
-        },
+        }
+        .into_selection(),
     };
     let selected = f
         .worker
@@ -750,7 +761,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     let condition = &current.participants[0].conditions[0];
     let mut request = request;
     request.condition_id = Some(condition.condition_id);
-    request.selection.record_key = condition.condition_key.clone().unwrap();
+    request.selection.address.record_key = condition.condition_key.clone().unwrap();
     let selected = f
         .worker
         .encounter_reference(
@@ -816,7 +827,8 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
                     passage: None,
                     spell_rank: None,
                     source_fingerprint: None,
-                },
+                }
+                .into_selection(),
             },
         )
         .unwrap();

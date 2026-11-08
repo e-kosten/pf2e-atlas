@@ -1,6 +1,7 @@
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    AppRecoverableAction, RecordBodyView, RecordDetailRequest, RollTableRequest, TableRollView,
+    AppRecoverableAction, RecordAddress, RecordBodyView, RecordSelection, RollTableRequest,
+    TableRollView,
 };
 
 impl AtlasAppService {
@@ -8,7 +9,7 @@ impl AtlasAppService {
     pub fn roll_table(&self, request: RollTableRequest) -> AppServiceResult<TableRollView> {
         self.with_retrieval(&ReadExecutionContext::uncancellable(), move |retrieval| {
             let (loaded, detail) =
-                crate::records::LoadedRecordDetail::read(retrieval, request.selection)?;
+                crate::records::LoadedRecordDetail::read(retrieval, request.selection, None)?;
             if detail.artifact_generation != request.artifact_generation {
                 return Err(AppServiceError::artifact_generation_changed(
                     &request.artifact_generation,
@@ -35,15 +36,19 @@ impl AtlasAppService {
                 match row.range.value {
                     None => invalid_ranges.push(navigation),
                     Some(range) if contains(range, outcome.total.into()) => {
-                        let result = loaded.project(RecordDetailRequest {
-                            expected_artifact_generation: None,
-                            spell_rank: None,
-                            record_key: navigation.record_key,
-                            owners: navigation.owners,
-                            fields: vec![],
-                            passage: None,
-                            source_fingerprint: navigation.source_fingerprint,
-                        })?;
+                        let result = loaded.project(
+                            RecordSelection {
+                                address: RecordAddress {
+                                    record_key: navigation.record_key,
+                                    owners: navigation.owners,
+                                    source_fingerprint: navigation.source_fingerprint,
+                                },
+                                spell_rank: None,
+                                fields: vec![],
+                                passage: None,
+                            },
+                            None,
+                        )?;
                         matches.push(result);
                     }
                     Some(_) => {}
@@ -80,6 +85,7 @@ mod tests {
 mod service_tests {
     use super::*;
     use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+    use atlas_app_model::RecordDetailRequest;
     use atlas_search::test_support::{open_source_fixture, record};
     use serde_json::json;
 
@@ -132,7 +138,8 @@ mod service_tests {
                 fields: vec![],
                 passage: None,
                 source_fingerprint: None,
-            },
+            }
+            .into_selection(),
         };
         let rolled = fixture.worker.roll_table(request.clone()).unwrap();
         assert_eq!(fixture.worker.last_read_metrics().source_body_decodes, 1);
@@ -181,7 +188,7 @@ mod service_tests {
             2,
             "reference rolls do not consume results even on non-replacing tables"
         );
-        request.selection.record_key = "tables:table00000000001".into();
+        request.selection.address.record_key = "tables:table00000000001".into();
         assert!(
             fixture
                 .worker
@@ -230,7 +237,8 @@ mod service_tests {
                 fields: vec![],
                 passage: None,
                 source_fingerprint: None,
-            },
+            }
+            .into_selection(),
         }
     }
 
@@ -336,7 +344,7 @@ mod service_tests {
         let request = request(&fixture, "tables:table00000000000");
         let mut invalid = Vec::new();
         let mut selection = request.selection.clone();
-        selection.record_key = "invalid-key".into();
+        selection.address.record_key = "invalid-key".into();
         invalid.push(selection);
         let mut selection = request.selection.clone();
         selection.fields = vec!["/undeclared".into()];
@@ -345,13 +353,13 @@ mod service_tests {
         selection.fields = vec!["/description".into(); 257];
         invalid.push(selection);
         let mut selection = request.selection.clone();
-        selection.owners = vec![atlas_domain::OwnedContentLocator {
+        selection.address.owners = vec![atlas_domain::OwnedContentLocator {
             collection: "/results".into(),
             identity: atlas_domain::OwnedContentIdentity::Stable("missing".into()),
         }];
         invalid.push(selection);
         let mut selection = request.selection.clone();
-        selection.owners = vec![atlas_domain::OwnedContentLocator {
+        selection.address.owners = vec![atlas_domain::OwnedContentLocator {
             collection: "/results".into(),
             identity: atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 },
         }];
@@ -375,7 +383,15 @@ mod service_tests {
         for selection in invalid {
             let expected = fixture
                 .worker
-                .record_detail_at(selection.clone())
+                .record_detail_at(RecordDetailRequest {
+                    expected_artifact_generation: None,
+                    record_key: selection.address.record_key.clone(),
+                    owners: selection.address.owners.clone(),
+                    source_fingerprint: selection.address.source_fingerprint.clone(),
+                    spell_rank: selection.spell_rank,
+                    fields: selection.fields.clone(),
+                    passage: selection.passage.clone(),
+                })
                 .unwrap_err()
                 .into_app_error();
             let actual = fixture
@@ -408,12 +424,18 @@ mod service_tests {
         let error = fixture
             .worker
             .with_retrieval(&ReadExecutionContext::uncancellable(), move |r| {
-                let (loaded, _) = crate::records::LoadedRecordDetail::read(r, selection.clone())?;
-                loaded.project(RecordDetailRequest {
-                    expected_artifact_generation: None,
-                    record_key: "tables:table00000000001".into(),
-                    ..selection
-                })
+                let (loaded, _) =
+                    crate::records::LoadedRecordDetail::read(r, selection.clone(), None)?;
+                loaded.project(
+                    RecordSelection {
+                        address: RecordAddress {
+                            record_key: "tables:table00000000001".into(),
+                            ..selection.address
+                        },
+                        ..selection
+                    },
+                    None,
+                )
             })
             .unwrap_err()
             .into_app_error();

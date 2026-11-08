@@ -483,7 +483,7 @@ pub struct EncounterReferenceRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub condition_id: Option<i64>,
     pub artifact_generation: String,
-    pub selection: crate::RecordDetailRequest,
+    pub selection: crate::RecordSelection,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

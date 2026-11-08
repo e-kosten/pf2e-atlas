@@ -4,15 +4,32 @@ use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct EmbeddedReadingRequest {
-    pub parent: RecordNavigationView,
+    pub parent: EmbeddedReadingParent,
     pub artifact_generation: String,
     pub selection: EmbeddedReadingSelection,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub struct EmbeddedReadingParent {
+    pub record_key: String,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EmbeddedActivityAddress {
+    pub record_key: String,
+    pub owner: atlas_domain::OwnedContentLocator,
+    pub source_fingerprint: Option<String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EmbeddedReadingSelection {
     /// Root authored actor text; effective runtime facts remain in the encounter.
     ActorContent,
@@ -22,10 +39,10 @@ pub enum EmbeddedReadingSelection {
     Abilities {
         group: Option<crate::ActorAbilityGroupView>,
         cursor: Option<EmbeddedReadingCursor>,
-        target: Option<RecordNavigationView>,
+        target: Option<EmbeddedActivityAddress>,
     },
     Activity {
-        navigation: RecordNavigationView,
+        address: EmbeddedActivityAddress,
     },
 }
 

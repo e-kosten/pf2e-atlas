@@ -58,8 +58,8 @@ pub(crate) fn read_encounter_reference(
             .ok_or_else(|| {
                 AppServiceError::invalid_request("condition is no longer on this participant")
             })?;
-        if condition.condition_key.as_deref() != Some(request.selection.record_key.as_str())
-            || !request.selection.owners.is_empty()
+        if condition.condition_key.as_deref() != Some(request.selection.address.record_key.as_str())
+            || !request.selection.address.owners.is_empty()
         {
             return Err(AppServiceError::invalid_request(
                 "selected reference does not belong to this condition",
@@ -88,7 +88,8 @@ pub(crate) fn read_encounter_reference(
         )?
         .remove(participant_key)
         .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable);
-        let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
+        let (source, mut selected) =
+            crate::records::read_record_detail(r, request.selection, None)?;
         let badge_value = super::conditions::condition_rule_for_key(
             condition.condition_key.as_deref(),
         )
@@ -110,7 +111,7 @@ pub(crate) fn read_encounter_reference(
         )?;
         return Ok(selected);
     }
-    if participant.record_key.as_deref() != Some(request.selection.record_key.as_str()) {
+    if participant.record_key.as_deref() != Some(request.selection.address.record_key.as_str()) {
         return Err(AppServiceError::invalid_request(
             "selected reference does not belong to this participant",
         ));
@@ -125,7 +126,7 @@ pub(crate) fn read_encounter_reference(
             AppRecoverableAction::ReloadRecord,
         ));
     }
-    let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
+    let (source, mut selected) = crate::records::read_record_detail(r, request.selection, None)?;
     let root_node = source
         .source
         .node_at(&[])

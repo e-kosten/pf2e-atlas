@@ -73,6 +73,27 @@ pub struct RecordNavigationView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct RecordAddress {
+    pub record_key: String,
+    #[serde(default, rename = "embedded_path")]
+    pub owners: Vec<OwnedContentLocator>,
+    pub source_fingerprint: Option<String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecordSelection {
+    pub address: RecordAddress,
+    pub spell_rank: Option<u8>,
+    #[serde(default)]
+    pub fields: Vec<String>,
+    pub passage: Option<SourcePassageAddress>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RecordDetailRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_artifact_generation: Option<String>,
@@ -88,6 +109,21 @@ pub struct RecordDetailRequest {
     pub passage: Option<SourcePassageAddress>,
     pub source_fingerprint: Option<String>,
 }
+impl RecordDetailRequest {
+    pub fn into_selection(self) -> RecordSelection {
+        RecordSelection {
+            address: RecordAddress {
+                record_key: self.record_key,
+                owners: self.owners,
+                source_fingerprint: self.source_fingerprint,
+            },
+            spell_rank: self.spell_rank,
+            fields: self.fields,
+            passage: self.passage,
+        }
+    }
+}
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordDetailView {

@@ -341,7 +341,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         &fixture,
         Method::POST,
         &format!("/api/encounters/ambush/participants/{actor_key}/reference"),
-        Some(json!({"artifact_generation":generation,"selection":{"record_key":ACTOR,"embedded_path":[],"fields":[],"passage":null,"source_fingerprint":fixture.source_fingerprint}})),
+        Some(json!({"artifact_generation":generation,"selection":{"address":{"record_key":ACTOR,"embedded_path":[],"source_fingerprint":fixture.source_fingerprint},"fields":[],"passage":null}})),
     ).await;
     let armor = &record_detail["presentation"]["body"]["value"]["armor_class"];
     assert_eq!(armor["value"], 17);
@@ -352,7 +352,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         &fixture,
         Method::POST,
         "/api/rolls/table",
-        Some(json!({"artifact_generation":generation,"selection":{"record_key":TABLE,"embedded_path":[],"fields":[],"passage":null,"source_fingerprint":null}})),
+        Some(json!({"artifact_generation":generation,"selection":{"address":{"record_key":TABLE,"embedded_path":[],"source_fingerprint":null},"fields":[],"passage":null}})),
     ).await;
     assert!((1..=2).contains(&table["outcome"]["total"].as_i64().unwrap()));
     assert_eq!(table["matches"].as_array().unwrap().len(), 1);

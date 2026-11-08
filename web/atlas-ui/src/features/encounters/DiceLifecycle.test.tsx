@@ -465,11 +465,13 @@ it("reopens retained attacks in the result view after switching context owners",
     reference: {
       artifact_generation: "generation",
       selection: {
-        record_key: "creatures:actor",
-        embedded_path: [],
+        address: {
+          record_key: "creatures:actor",
+          embedded_path: [],
+          source_fingerprint: null,
+        },
         fields: [],
         passage: null,
-        source_fingerprint: null,
       },
     },
   });
@@ -598,11 +600,13 @@ it("prepares checks during roll reveal and keeps the result view until the reque
     reference: {
       artifact_generation: "generation",
       selection: {
-        record_key: "creatures:actor",
-        embedded_path: [],
+        address: {
+          record_key: "creatures:actor",
+          embedded_path: [],
+          source_fingerprint: null,
+        },
         fields: [],
         passage: null,
-        source_fingerprint: null,
       },
     },
   });

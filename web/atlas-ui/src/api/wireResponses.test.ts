@@ -43,14 +43,19 @@ const traitRequest = {
   ranking: null,
 };
 const actorKey = "actors:cccccccccccccccc";
+const detailRequest = {
+  record_key: actorKey,
+  embedded_path: [],
+  fields: [],
+  passage: null,
+  source_fingerprint: null,
+};
 const referenceRequest = {
   artifact_generation: "fixture-generation",
   selection: {
-    record_key: actorKey,
-    embedded_path: [],
+    address: { record_key: actorKey, embedded_path: [], source_fingerprint: null },
     fields: [],
     passage: null,
-    source_fingerprint: null,
   },
 };
 
@@ -138,7 +143,7 @@ it.each([false, true])(
     respond(wire.record_detail);
     const detail = await getRecordDetail(
       actorKey,
-      selected ? referenceRequest.selection : undefined,
+      selected ? detailRequest : undefined,
     );
     expect(detail.record.record_key).toBe(actorKey);
     expectRuntimePresentation(detail.presentation);
@@ -153,7 +158,13 @@ it("converts nested table details using the shared serialized DTO and retains nu
   });
   const request = {
     artifact_generation: "fixture-generation",
-    selection: { ...referenceRequest.selection, record_key: "tables:dddddddddddddddd" },
+    selection: {
+      ...referenceRequest.selection,
+      address: {
+        ...referenceRequest.selection.address,
+        record_key: "tables:dddddddddddddddd",
+      },
+    },
   };
   const actual = await rollTable(request);
   expect(actual.outcome.total).toBe(11);

@@ -398,11 +398,13 @@ describe("source-backed API transport", () => {
       const reference = await getEncounterReference("test", "ghoul", {
         artifact_generation: "generation-test",
         selection: {
-          record_key: "actors:ghoul",
-          embedded_path: [],
+          address: {
+            record_key: "actors:ghoul",
+            embedded_path: [],
+            source_fingerprint: null,
+          },
           fields: [],
           passage: null,
-          source_fingerprint: null,
         },
       });
       const referenceBody = reference.presentation.body;
@@ -1216,11 +1218,13 @@ it("normalizes both reference checks while sending only the selected strike and 
     reference: {
       artifact_generation: "current",
       selection: {
-        record_key: "actors:a",
+        address: {
+          record_key: "actors:a",
+          embedded_path: [],
+          source_fingerprint: null,
+        },
         fields: [],
-        embedded_path: [],
         passage: null,
-        source_fingerprint: null,
       },
     },
   };

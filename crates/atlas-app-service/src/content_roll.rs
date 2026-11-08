@@ -1,14 +1,14 @@
 //! Stateless reference dice: resolve checked source, validate the whole pool, then roll.
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
-    ContentControlKindView, ContentRollComponentResultView, ContentRollResultView,
-    PreparedFieldBodyView, RecordDetailRequest, RollContentRequest,
+    ContentControlKindView, ContentRollComponentResultView, ContentRollOffer,
+    ContentRollResultView, PreparedFieldBodyView, RecordAddress, RecordSelection,
 };
 
 impl AtlasAppService {
     pub fn roll_content(
         &self,
-        request: RollContentRequest,
+        request: ContentRollOffer,
     ) -> AppServiceResult<ContentRollResultView> {
         self.with_workspace(&ReadExecutionContext::uncancellable(), move |workspace| {
             if request.source_fingerprint != workspace.retrieval_mut().source_fingerprint() {
@@ -16,14 +16,15 @@ impl AtlasAppService {
                     "This source changed. Reopen the record before rolling.",
                 ));
             }
-            let selection = RecordDetailRequest {
-                expected_artifact_generation: None,
-                record_key: request.source.record.to_string(),
-                owners: request.source.owners.clone(),
+            let selection = RecordSelection {
+                address: RecordAddress {
+                    record_key: request.source.record.to_string(),
+                    owners: request.source.owners.clone(),
+                    source_fingerprint: Some(request.source_fingerprint.clone()),
+                },
                 fields: vec![request.source.field.clone()],
                 passage: None,
                 spell_rank: request.spell_rank,
-                source_fingerprint: Some(request.source_fingerprint.clone()),
             };
             let detail = if let Some(binding) = &request.encounter {
                 crate::encounters::reference::read_encounter_reference(
@@ -37,7 +38,7 @@ impl AtlasAppService {
                     },
                 )?
             } else {
-                crate::records::read_record_detail(workspace.retrieval_mut(), selection)?.1
+                crate::records::read_record_detail(workspace.retrieval_mut(), selection, None)?.1
             };
             let control = detail
                 .presentation

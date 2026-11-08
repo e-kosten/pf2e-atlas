@@ -1,7 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
 import { referenceQueryMeta } from "../queries/referenceQueries";
-import type { RecordDetailRequest, RecordNavigationView } from "../../generated/atlas";
+import type {
+  RecordDetailRequest,
+  RecordNavigationView,
+  RecordSelection,
+} from "../../generated/atlas";
 
 export function recordDetailQueryOptions(
   recordKey: string | null,
@@ -46,4 +50,17 @@ export function recordDetailRequest(
 ): RecordDetailRequest {
   const { field, ...address } = selection;
   return { ...address, fields: field ? [field] : [] };
+}
+
+export function recordSelection(navigation: RecordNavigationView): RecordSelection {
+  return {
+    address: {
+      record_key: navigation.record_key,
+      embedded_path: navigation.embedded_path,
+      source_fingerprint: navigation.source_fingerprint,
+    },
+    fields: navigation.field ? [navigation.field] : [],
+    passage: navigation.passage,
+    spell_rank: navigation.spell_rank,
+  };
 }

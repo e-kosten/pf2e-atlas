@@ -959,8 +959,11 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
             &crate::ReadExecutionContext::uncancellable(),
             move |workspace| {
                 workspace.retrieval().reset_read_metrics();
-                let (_, source) =
-                    crate::records::read_record_detail(workspace.retrieval_mut(), source_request)?;
+                let (_, source) = crate::records::read_record_detail(
+                    workspace.retrieval_mut(),
+                    source_request.into_selection(),
+                    None,
+                )?;
                 Ok((source, workspace.retrieval().read_metrics()))
             },
         )
@@ -2643,7 +2646,8 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
                 fields: vec![],
                 passage: None,
                 source_fingerprint: None,
-            },
+            }
+            .into_selection(),
         },
         attack_number: 1,
         mode: RollMode::Normal,

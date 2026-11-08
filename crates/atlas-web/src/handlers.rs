@@ -610,7 +610,7 @@ pub(crate) async fn roll_content(
     let Json(request) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
-        call_service(state, move || service.roll_content(request)).await?,
+        call_service(state, move || service.roll_content(request.offer)).await?,
     ))
 }
 

@@ -96,10 +96,6 @@ export type RecordDetailRequest = AppFields<
   Models.RecordDetailRequest,
   { passage: Models.SourcePassageAddress | null }
 >;
-export type EmbeddedReadingRequest = AppFields<
-  Models.EmbeddedReadingRequest,
-  { parent: Models.RecordNavigationView }
->;
 export type SearchCriteria = AppFields<
   Models.SearchCriteria,
   { filter: Models.QueryPredicate | null; similarity: Models.SimilarityOptions | null }

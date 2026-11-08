@@ -271,7 +271,8 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
                 passage: None,
                 source_fingerprint: None,
                 spell_rank: None,
-            },
+            }
+            .into_selection(),
         },
         attack_number: 1,
         mode: RollMode::Normal,

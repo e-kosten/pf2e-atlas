@@ -82,7 +82,7 @@ function presentation(body: Atlas.PreparedFieldBodyView): Atlas.RecordPresentati
   };
 }
 
-const rollSelection: Atlas.RollContentRequest = {
+const rollSelection: Atlas.ContentRollOffer = {
   content_interpretation_version: "test-content-version",
   source,
   source_fingerprint: "prepared-snapshot",
@@ -188,7 +188,7 @@ async function readPreparedBody(
     };
     respond(response);
     const result = await getEmbeddedReading({
-      parent: navigation,
+      parent: { record_key: navigation.record_key },
       artifact_generation: generation,
       selection: { kind: "actor_content" },
     });

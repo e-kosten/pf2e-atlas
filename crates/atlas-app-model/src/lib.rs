@@ -137,8 +137,9 @@ pub use similarity::{
 };
 
 pub use embedded_reading::{
-    EmbeddedReadingBatchView, EmbeddedReadingCursor, EmbeddedReadingEntryView,
-    EmbeddedReadingRequest, EmbeddedReadingSelection,
+    EmbeddedActivityAddress, EmbeddedReadingBatchView, EmbeddedReadingCursor,
+    EmbeddedReadingEntryView, EmbeddedReadingParent, EmbeddedReadingRequest,
+    EmbeddedReadingSelection,
 };
 pub use encounter::{
     ActionBudgetView, AddEncounterManualParticipantRequest,
@@ -192,10 +193,10 @@ pub use list::{
 };
 pub use prepared_content::{
     CheckDetailsView, ContentControlKindView, ContentControlView, ContentRollComponentResultView,
-    ContentRollComponentView, ContentRollEncounterContext, ContentRollPresentationView,
-    ContentRollResultView, PreparedContentFieldView, PreparedFieldBodyView, PreparedInclusionView,
-    PreparedReferenceView, PreparedSectionRenderingView, RollContentRequest, RollUnitView,
-    RoutineHeaderView,
+    ContentRollComponentView, ContentRollEncounterContext, ContentRollOffer,
+    ContentRollPresentationView, ContentRollResultView, PreparedContentFieldView,
+    PreparedFieldBodyView, PreparedInclusionView, PreparedReferenceView,
+    PreparedSectionRenderingView, RollContentRequest, RollUnitView, RoutineHeaderView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
@@ -220,10 +221,10 @@ pub use presentation::{
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
-    ContentLocationView, EffectReferenceLabelView, RecordBadgeView, RecordDetailRequest,
-    RecordDetailView, RecordEditionView, RecordNavigationView, RecordRefResolutionView,
-    RecordRelationshipView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
-    RecordSummaryView,
+    ContentLocationView, EffectReferenceLabelView, RecordAddress, RecordBadgeView,
+    RecordDetailRequest, RecordDetailView, RecordEditionView, RecordNavigationView,
+    RecordRefResolutionView, RecordRelationshipView, RecordResolutionAmbiguousView,
+    RecordResolutionCandidateView, RecordSelection, RecordSummaryView,
 };
 pub use search::{
     ConnectionScopeUnavailableReason, ConnectionScopeView, RelationshipClausePresentationView,

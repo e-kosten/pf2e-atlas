@@ -1370,7 +1370,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
     let(status,body)=fixture.json(Method::POST,"/api/encounters/ambush/initiative",Some(json!({"request_id":"initiative-id","artifact_generation":null,"expected_revision":detail.revision,"participants":[{"participant_key":fixture.participant_key,"expected_revision":detail.participants[0].revision,"statistic":"manual","modifier_override":2,"mode":"normal"}]}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["request_id"], "initiative-id");
-    let selection = json!({"record_key":TABLE,"embedded_path":[],"fields":[],"passage":null,"source_fingerprint":null});
+    let selection = json!({"address":{"record_key":TABLE,"embedded_path":[],"source_fingerprint":null},"fields":[],"passage":null});
     let generation = fixture.service.readiness().artifact_generation.unwrap();
     let (status, body) = fixture
         .json(
@@ -1411,7 +1411,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
         .iter()
         .find(|p| p.record_key.as_deref() == Some(ACTOR))
         .unwrap();
-    let reference = json!({"artifact_generation":generation,"selection":{"record_key":ACTOR,"embedded_path":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"fields":[],"passage":null,"source_fingerprint":fixture.source_fingerprint}});
+    let reference = json!({"artifact_generation":generation,"selection":{"address":{"record_key":ACTOR,"embedded_path":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"source_fingerprint":fixture.source_fingerprint},"fields":[],"passage":null}});
     let (status, options) = fixture
         .json(
             Method::POST,
@@ -1764,15 +1764,69 @@ async fn similarity_inventory_route_rejects_invalid_seeds() {
 #[tokio::test]
 async fn content_roll_reference_roll_transport_checks_the_request_shape() {
     let fixture = Fixture::new();
-    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":atlas_record::source_content::CONTENT_INTERPRETATION_VERSION,"ordinal":0,"authored_formula":"1d6[fire]"}))).await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert!(body["components"].is_array());
+    let (status, detail) = fixture
+        .json(Method::GET, &format!("/api/records/{ACTION}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    let offer = detail["presentation"]["content"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|field| field["body"]["controls"].as_array())
+        .flatten()
+        .find_map(|control| {
+            control["control"]
+                .get("roll")
+                .filter(|roll| !roll.is_null())
+        })
+        .unwrap();
     let (status, body) = fixture
         .json(
             Method::POST,
             "/api/rolls/content",
-            Some(json!({"formula":"100d100"})),
+            Some(json!({"offer": offer})),
         )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body["components"].is_array());
+    let mut tampered = offer.clone();
+    tampered["authored_formula"] = json!("100d100");
+    let mut stale = offer.clone();
+    stale["source_fingerprint"] = json!("old");
+    for rejected in [
+        offer.clone(),
+        json!({"offer": tampered}),
+        json!({"offer": stale}),
+    ] {
+        let (status, body) = fixture
+            .json(Method::POST, "/api/rolls/content", Some(rejected))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+}
+
+#[tokio::test]
+async fn embedded_reading_accepts_a_root_address_and_rejects_read_options_on_it() {
+    let fixture = Fixture::new();
+    let generation = fixture.service.readiness().artifact_generation.unwrap();
+    let mut request = json!({
+        "parent": {"record_key": ACTOR},
+        "artifact_generation": generation,
+        "selection": {"kind": "actor_content"},
+    });
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/records/embedded-reading",
+            Some(request.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["parent"]["record_key"], ACTOR);
+    assert_eq!(body["parent"]["embedded_path"], json!([]));
+    request["parent"]["field"] = json!("/system/details/publicNotes");
+    let (status, body) = fixture
+        .json(Method::POST, "/api/records/embedded-reading", Some(request))
         .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
 }

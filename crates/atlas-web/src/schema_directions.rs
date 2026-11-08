@@ -87,7 +87,7 @@ const INPUT_FIELDS: &[InputFields] = &[
         nullable: &["spell_rank"],
     },
     InputFields {
-        component: "RollContentRequest",
+        component: "ContentRollOffer",
         optional: &["authored_command"],
         nullable: &["spell_rank", "encounter"],
     },

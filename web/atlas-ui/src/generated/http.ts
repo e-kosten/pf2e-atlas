@@ -1821,7 +1821,7 @@ export interface ContentLocationView {
 /**
  * Selects an authored interaction, never a caller-supplied executable formula.
  */
-export interface RollContentRequest {
+export interface ContentRollOffer {
   /** @nullable */
   authored_command: string | null;
   authored_formula: string;
@@ -1846,14 +1846,14 @@ export type ContentControlKindView = {
   kind: 'damage';
   literal: ContentRollPresentationView | null;
   options: {[key: string]: string};
-  roll: RollContentRequest | null;
+  roll: ContentRollOffer | null;
 } | {
   arguments: string;
   command: string;
   kind: 'command';
   literal: ContentRollPresentationView | null;
   options: {[key: string]: string};
-  roll: RollContentRequest | null;
+  roll: ContentRollOffer | null;
 } | {
   kind: 'template';
   options: {[key: string]: string};
@@ -1882,6 +1882,22 @@ export interface ContentRollEncounterContextInputSchema {
   encounter_ref: string;
   participant_key: string;
   participant_revision: number;
+}
+
+/**
+ * Selects an authored interaction, never a caller-supplied executable formula.
+ */
+export interface ContentRollOfferInputSchema {
+  /** @nullable */
+  authored_command?: string | null;
+  authored_formula: string;
+  content_interpretation_version: string;
+  encounter?: ContentRollEncounterContextInputSchema | null;
+  /** @minimum 0 */
+  ordinal: number;
+  source: ContentLocationView;
+  source_fingerprint: string;
+  spell_rank?: number | null;
 }
 
 export interface ContentRollResultView {
@@ -2421,6 +2437,13 @@ export type DiscoverFilterValuesRequest = {
   text?: string | null;
 };
 
+export interface EmbeddedActivityAddress {
+  owner: OwnedContentLocator;
+  record_key: string;
+  /** @nullable */
+  source_fingerprint?: string | null;
+}
+
 export interface RoutineHeaderView {
   actions: string;
   traits: RecordBadgeView[];
@@ -2463,6 +2486,10 @@ export interface EmbeddedReadingBatchView {
   total: number;
 }
 
+export interface EmbeddedReadingParent {
+  record_key: string;
+}
+
 export type EmbeddedReadingSelection = {
   kind: 'actor_content';
 } | {
@@ -2472,15 +2499,15 @@ export type EmbeddedReadingSelection = {
   cursor?: EmbeddedReadingCursor | null;
   group?: ActorAbilityGroupView | null;
   kind: 'abilities';
-  target?: RecordNavigationViewInputSchema | null;
+  target?: EmbeddedActivityAddress | null;
 } | {
+  address: EmbeddedActivityAddress;
   kind: 'activity';
-  navigation: RecordNavigationViewInputSchema;
 };
 
 export interface EmbeddedReadingRequest {
   artifact_generation: string;
-  parent: RecordNavigationViewInputSchema;
+  parent: EmbeddedReadingParent;
   selection: EmbeddedReadingSelection;
 }
 
@@ -3635,17 +3662,18 @@ export interface EncounterRecoveryPreviewView {
   rules_reference: RecordNavigationView | null;
 }
 
-export interface RecordDetailRequest {
+export interface RecordAddress {
   embedded_path?: OwnedContentLocator[];
-  /** @nullable */
-  expected_artifact_generation?: string | null;
-  fields?: string[];
-  passage?: SourcePassageAddressInputSchema | null;
   record_key: string;
   /** @nullable */
   source_fingerprint?: string | null;
+}
+
+export interface RecordSelection {
+  address: RecordAddress;
+  fields?: string[];
+  passage?: SourcePassageAddressInputSchema | null;
   /**
-     * Selected casting rank for a spell or its explicitly linked effect preview.
      * @minimum 0
      * @nullable
      */
@@ -3659,7 +3687,7 @@ export interface EncounterReferenceRequest {
   artifact_generation: string;
   /** @nullable */
   condition_id?: number | null;
-  selection: RecordDetailRequest;
+  selection: RecordSelection;
 }
 
 export interface EncounterTargetingRequirementsView {
@@ -4492,6 +4520,23 @@ export interface PreviewEncounterRecoveryRequest {
   expected_encounter_revision: number;
 }
 
+export interface RecordDetailRequest {
+  embedded_path?: OwnedContentLocator[];
+  /** @nullable */
+  expected_artifact_generation?: string | null;
+  fields?: string[];
+  passage?: SourcePassageAddressInputSchema | null;
+  record_key: string;
+  /** @nullable */
+  source_fingerprint?: string | null;
+  /**
+     * Selected casting rank for a spell or its explicitly linked effect preview.
+     * @minimum 0
+     * @nullable
+     */
+  spell_rank?: number | null;
+}
+
 export interface RemasterExplanationLinkView {
   label: string;
   navigation: RecordNavigationView;
@@ -4756,20 +4801,8 @@ export interface ResolveEncounterHpLifecycleRequest {
   resolution?: HpLifecycleResolutionView;
 }
 
-/**
- * Selects an authored interaction, never a caller-supplied executable formula.
- */
-export interface RollContentRequestInputSchema {
-  /** @nullable */
-  authored_command?: string | null;
-  authored_formula: string;
-  content_interpretation_version: string;
-  encounter?: ContentRollEncounterContextInputSchema | null;
-  /** @minimum 0 */
-  ordinal: number;
-  source: ContentLocationView;
-  source_fingerprint: string;
-  spell_rank?: number | null;
+export interface RollContentRequest {
+  offer: ContentRollOfferInputSchema;
 }
 
 export type StrikeRollKind = typeof StrikeRollKind[keyof typeof StrikeRollKind];
@@ -4811,7 +4844,7 @@ export interface RollInitiativeRequest {
 
 export interface RollTableRequest {
   artifact_generation: string;
-  selection: RecordDetailRequest;
+  selection: RecordSelection;
 }
 
 export interface SavedListSummaryView {
@@ -7926,7 +7959,7 @@ export const getRollContentUrl = () => {
   return `/api/rolls/content`
 }
 
-export const rollContent = async (rollContentRequestInputSchema: RollContentRequestInputSchema, options?: Parameters<typeof fetchGenerated>[1]): Promise<ContentRollResultView> => {
+export const rollContent = async (rollContentRequest: RollContentRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<ContentRollResultView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7947,7 +7980,7 @@ return fetchGenerated<ContentRollResultView>(getRollContentUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(rollContentRequestInputSchema)
+    body: JSON.stringify(rollContentRequest)
   }
 );}
 

@@ -1,3 +1,4 @@
+import { recordSelection } from "./recordDetailQuery";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { ErrorNotice } from "../feedback/ErrorNotice";
@@ -49,7 +50,7 @@ export function RollTableReading({
     queryFn: ({ pageParam, signal }) =>
       getEmbeddedReading(
         {
-          parent: context.parent,
+          parent: { record_key: context.parent.record_key },
           artifact_generation: context.generation,
           selection: pageParam,
         },
@@ -80,13 +81,12 @@ export function RollTableReading({
   return (
     <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
       <TableRollControl
-        selection={{
-          record_key: selection.record_key,
-          embedded_path: selection.embedded_path,
-          fields: [],
+        selection={recordSelection({
+          ...selection,
+          field: null,
           passage: null,
-          source_fingerprint: selection.source_fingerprint,
-        }}
+          spell_rank: undefined,
+        })}
         artifactGeneration={context.generation}
         formula={table.formula.value}
         rollNote={table.roll_note}

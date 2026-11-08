@@ -400,7 +400,8 @@ fn supported_source_detection_options_reach_strike_context_and_contextual_ac() {
                                 spell_rank: None,
                                 fields: vec![],
                                 passage: None,
-                            },
+                            }
+                            .into_selection(),
                         },
                     },
                     target_key: Some(p.clone()),

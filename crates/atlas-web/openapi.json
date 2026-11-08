@@ -2917,7 +2917,7 @@
               "roll": {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/RollContentRequest"
+                    "$ref": "#/components/schemas/ContentRollOffer"
                   },
                   {
                     "type": "null"
@@ -2970,7 +2970,7 @@
               "roll": {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/RollContentRequest"
+                    "$ref": "#/components/schemas/ContentRollOffer"
                   },
                   {
                     "type": "null"
@@ -3167,6 +3167,109 @@
           "participant_key",
           "participant_revision",
           "artifact_generation"
+        ],
+        "type": "object"
+      },
+      "ContentRollOffer": {
+        "additionalProperties": false,
+        "description": "Selects an authored interaction, never a caller-supplied executable formula.",
+        "properties": {
+          "authored_command": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authored_formula": {
+            "type": "string"
+          },
+          "content_interpretation_version": {
+            "type": "string"
+          },
+          "encounter": {
+            "$ref": "#/components/schemas/ContentRollEncounterContext"
+          },
+          "ordinal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ContentLocationView"
+          },
+          "source_fingerprint": {
+            "type": "string"
+          },
+          "spell_rank": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content_interpretation_version",
+          "source",
+          "source_fingerprint",
+          "ordinal",
+          "authored_formula",
+          "authored_command"
+        ],
+        "type": "object"
+      },
+      "ContentRollOfferInputSchema": {
+        "additionalProperties": false,
+        "description": "Selects an authored interaction, never a caller-supplied executable formula.",
+        "properties": {
+          "authored_command": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authored_formula": {
+            "type": "string"
+          },
+          "content_interpretation_version": {
+            "type": "string"
+          },
+          "encounter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentRollEncounterContextInputSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ordinal": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ContentLocationView"
+          },
+          "source_fingerprint": {
+            "type": "string"
+          },
+          "spell_rank": {
+            "anyOf": [
+              {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "content_interpretation_version",
+          "source",
+          "source_fingerprint",
+          "ordinal",
+          "authored_formula"
         ],
         "type": "object"
       },
@@ -3767,6 +3870,28 @@
         ],
         "type": "object"
       },
+      "EmbeddedActivityAddress": {
+        "additionalProperties": false,
+        "properties": {
+          "owner": {
+            "$ref": "#/components/schemas/OwnedContentLocator"
+          },
+          "record_key": {
+            "type": "string"
+          },
+          "source_fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "record_key",
+          "owner"
+        ],
+        "type": "object"
+      },
       "EmbeddedReadingBatchView": {
         "properties": {
           "artifact_generation": {
@@ -3871,13 +3996,26 @@
         ],
         "type": "object"
       },
+      "EmbeddedReadingParent": {
+        "additionalProperties": false,
+        "properties": {
+          "record_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_key"
+        ],
+        "type": "object"
+      },
       "EmbeddedReadingRequest": {
+        "additionalProperties": false,
         "properties": {
           "artifact_generation": {
             "type": "string"
           },
           "parent": {
-            "$ref": "#/components/schemas/RecordNavigationViewInputSchema"
+            "$ref": "#/components/schemas/EmbeddedReadingParent"
           },
           "selection": {
             "$ref": "#/components/schemas/EmbeddedReadingSelection"
@@ -3893,6 +4031,7 @@
       "EmbeddedReadingSelection": {
         "oneOf": [
           {
+            "additionalProperties": false,
             "description": "Root authored actor text; effective runtime facts remain in the encounter.",
             "properties": {
               "kind": {
@@ -3908,6 +4047,7 @@
             "type": "object"
           },
           {
+            "additionalProperties": false,
             "properties": {
               "cursor": {
                 "oneOf": [
@@ -3932,6 +4072,7 @@
             "type": "object"
           },
           {
+            "additionalProperties": false,
             "properties": {
               "cursor": {
                 "oneOf": [
@@ -3962,7 +4103,7 @@
               "target": {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/RecordNavigationViewInputSchema"
+                    "$ref": "#/components/schemas/EmbeddedActivityAddress"
                   },
                   {
                     "type": "null"
@@ -3976,19 +4117,20 @@
             "type": "object"
           },
           {
+            "additionalProperties": false,
             "properties": {
+              "address": {
+                "$ref": "#/components/schemas/EmbeddedActivityAddress"
+              },
               "kind": {
                 "enum": [
                   "activity"
                 ],
                 "type": "string"
-              },
-              "navigation": {
-                "$ref": "#/components/schemas/RecordNavigationViewInputSchema"
               }
             },
             "required": [
-              "navigation",
+              "address",
               "kind"
             ],
             "type": "object"
@@ -5688,7 +5830,7 @@
             ]
           },
           "selection": {
-            "$ref": "#/components/schemas/RecordDetailRequest"
+            "$ref": "#/components/schemas/RecordSelection"
           }
         },
         "required": [
@@ -13051,6 +13193,30 @@
         ],
         "type": "string"
       },
+      "RecordAddress": {
+        "additionalProperties": false,
+        "properties": {
+          "embedded_path": {
+            "items": {
+              "$ref": "#/components/schemas/OwnedContentLocator"
+            },
+            "type": "array"
+          },
+          "record_key": {
+            "type": "string"
+          },
+          "source_fingerprint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "record_key"
+        ],
+        "type": "object"
+      },
       "RecordBadgeView": {
         "properties": {
           "help": {
@@ -13770,6 +13936,42 @@
           "target",
           "url",
           "effect_label"
+        ],
+        "type": "object"
+      },
+      "RecordSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/RecordAddress"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "passage": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SourcePassageAddressInputSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spell_rank": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "address"
         ],
         "type": "object"
       },
@@ -14926,103 +15128,14 @@
         "type": "string"
       },
       "RollContentRequest": {
-        "description": "Selects an authored interaction, never a caller-supplied executable formula.",
+        "additionalProperties": false,
         "properties": {
-          "authored_command": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "authored_formula": {
-            "type": "string"
-          },
-          "content_interpretation_version": {
-            "type": "string"
-          },
-          "encounter": {
-            "$ref": "#/components/schemas/ContentRollEncounterContext"
-          },
-          "ordinal": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "source": {
-            "$ref": "#/components/schemas/ContentLocationView"
-          },
-          "source_fingerprint": {
-            "type": "string"
-          },
-          "spell_rank": {
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
+          "offer": {
+            "$ref": "#/components/schemas/ContentRollOfferInputSchema"
           }
         },
         "required": [
-          "content_interpretation_version",
-          "source",
-          "source_fingerprint",
-          "ordinal",
-          "authored_formula",
-          "authored_command"
-        ],
-        "type": "object"
-      },
-      "RollContentRequestInputSchema": {
-        "description": "Selects an authored interaction, never a caller-supplied executable formula.",
-        "properties": {
-          "authored_command": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "authored_formula": {
-            "type": "string"
-          },
-          "content_interpretation_version": {
-            "type": "string"
-          },
-          "encounter": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ContentRollEncounterContextInputSchema"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "ordinal": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "source": {
-            "$ref": "#/components/schemas/ContentLocationView"
-          },
-          "source_fingerprint": {
-            "type": "string"
-          },
-          "spell_rank": {
-            "anyOf": [
-              {
-                "format": "int32",
-                "minimum": 0,
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "content_interpretation_version",
-          "source",
-          "source_fingerprint",
-          "ordinal",
-          "authored_formula"
+          "offer"
         ],
         "type": "object"
       },
@@ -15376,7 +15489,7 @@
             "type": "string"
           },
           "selection": {
-            "$ref": "#/components/schemas/RecordDetailRequest"
+            "$ref": "#/components/schemas/RecordSelection"
           }
         },
         "required": [
@@ -23392,7 +23505,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RollContentRequestInputSchema"
+                "$ref": "#/components/schemas/RollContentRequest"
               }
             }
           },

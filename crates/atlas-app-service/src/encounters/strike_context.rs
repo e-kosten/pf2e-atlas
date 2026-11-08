@@ -230,7 +230,8 @@ mod tests {
                     spell_rank: None,
                     fields: vec![],
                     passage: None,
-                },
+                }
+                .into_selection(),
             },
             attack_number: 1,
             mode: RollMode::Normal,
@@ -316,7 +317,11 @@ mod tests {
         );
         let mut invalid_source = roll.clone();
         invalid_source.request_id = "invalid-source".into();
-        invalid_source.reference.selection.source_fingerprint = Some("wrong-source".into());
+        invalid_source
+            .reference
+            .selection
+            .address
+            .source_fingerprint = Some("wrong-source".into());
         assert!(
             fixture
                 .worker

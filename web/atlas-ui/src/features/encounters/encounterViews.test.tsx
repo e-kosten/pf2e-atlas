@@ -1952,11 +1952,13 @@ describe("encounter views", () => {
       expect.objectContaining({
         artifact_generation: initial.artifact_generation,
         selection: {
-          record_key: claw.navigation.record_key,
-          embedded_path: claw.navigation.embedded_path,
+          address: {
+            record_key: claw.navigation.record_key,
+            embedded_path: claw.navigation.embedded_path,
+            source_fingerprint: claw.navigation.source_fingerprint,
+          },
           fields: [],
           passage: claw.navigation.passage,
-          source_fingerprint: claw.navigation.source_fingerprint,
         },
       }),
       expect.any(AbortSignal),
@@ -2014,7 +2016,9 @@ describe("encounter views", () => {
     parent.presentation = initial.participants[0].presentation!;
     apiMocks.getEncounterReference.mockImplementation(
       (_encounter, _participant, request) =>
-        Promise.resolve(request.selection.embedded_path.length ? selected : parent),
+        Promise.resolve(
+          request.selection.address.embedded_path.length ? selected : parent,
+        ),
     );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -2063,7 +2067,9 @@ describe("encounter views", () => {
         expect.objectContaining({
           condition_id: 7,
           selection: expect.objectContaining({
-            record_key: "conditionitems:TBSHQspnbcqxsmjL",
+            address: expect.objectContaining({
+              record_key: "conditionitems:TBSHQspnbcqxsmjL",
+            }),
           }),
         }),
         expect.any(AbortSignal),

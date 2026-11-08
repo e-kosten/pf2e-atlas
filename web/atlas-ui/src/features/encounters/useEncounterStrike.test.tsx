@@ -16,11 +16,13 @@ vi.mock("../../api/atlasApi", async (original) => ({
 const reference = {
   artifact_generation: "generation",
   selection: {
-    record_key: "creatures:actor",
-    embedded_path: [],
+    address: {
+      record_key: "creatures:actor",
+      embedded_path: [],
+      source_fingerprint: null,
+    },
     fields: [],
     passage: null,
-    source_fingerprint: null,
   },
 };
 const participants = [

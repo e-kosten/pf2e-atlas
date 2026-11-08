@@ -142,6 +142,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
 // enum branches open. QueryExpression is closed at its flattened wrapper.
 pub(crate) const CLOSED_TAGGED_SCHEMAS: &[&str] = &[
     "DiscoverFilterValuesRequest",
+    "EmbeddedReadingSelection",
     "EncounterAbilityStateAction",
     "EncounterHpAction",
     "EncounterManualTrackerAction",
