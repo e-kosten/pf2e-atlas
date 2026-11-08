@@ -58,10 +58,6 @@
     display: block;
   }
 
-  .encounter-detail-view .workspace-pane--results .pane-header {
-    display: none;
-  }
-
   .atlas-app:has(.encounter-detail-view:not(.encounter-detail-view--participant)) {
     height: 100dvh;
     min-height: 0;
