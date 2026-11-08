@@ -822,6 +822,58 @@ describe("shared common and maintained advanced filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(trigger).toHaveFocus());
   });
+  it("applies related filters as one condition and discards a cancelled edit", async () => {
+    const change = renderControls(
+      editorFixture([fieldFixture("armor.ac_bonus", "number", "Armor bonus")]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    chooseActorMetricOption("Add condition", "Related entries");
+    fireEvent.click(screen.getByRole("button", { name: "Configure related entries" }));
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Related entries" }),
+    );
+    chooseActorMetricOption("Relationship", "Links to");
+    const apply = dialog.getByRole("button", { name: "Apply" });
+    expect(apply).toBeDisabled();
+    fireEvent.mouseDown(dialog.getByRole("combobox", { name: "Add condition" }));
+    fireEvent.click(screen.getAllByText("Armor bonus", { exact: true }).slice(-1)[0]);
+    fireEvent.change(dialog.getByRole("textbox", { name: "Armor bonus" }), {
+      target: { value: "3" },
+    });
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(apply);
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "related_match",
+            direction: "incoming",
+            include_contents: true,
+            predicate: expect.objectContaining({
+              kind: "all_of",
+              children: [
+                expect.objectContaining({
+                  kind: "compare",
+                  field: "armor.ac_bonus",
+                  value: 3,
+                }),
+              ],
+            }),
+          }),
+        }),
+      ),
+    );
+    const launcher = screen.getByRole("button", { name: "Edit related entries" });
+    await waitFor(() => expect(launcher).toHaveFocus());
+    change.mockClear();
+    fireEvent.click(launcher);
+    chooseActorMetricOption("Relationship", "Linked from");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(launcher).toHaveFocus());
+    expect(change).not.toHaveBeenCalled();
+    expect(screen.getByText(/Links to · Armor bonus/)).toBeInTheDocument();
+  });
+
   it("offers scoped fields without another collection inside an Exists condition", async () => {
     const collection = fieldFixture(
       "embedded.equipment",
@@ -852,8 +904,9 @@ describe("shared common and maintained advanced filters", () => {
       },
     });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    const selectors = screen.getAllByRole("combobox", { name: "Filter field" });
-    fireEvent.mouseDown(selectors[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Edit related entries" }));
+    const dialog = await screen.findByRole("dialog", { name: "Related entries" });
+    fireEvent.mouseDown(within(dialog).getByRole("combobox", { name: "Filter field" }));
     await waitFor(() =>
       expect(
         screen.getByRole("option", { name: "Embedded item name" }),

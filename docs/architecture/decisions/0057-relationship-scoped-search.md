@@ -43,6 +43,20 @@ or parents. Selected fields/passages/rank remain checked reading context; an out
 field can restrict the source occurrence, while an incoming reading field does not
 invent a field-addressed destination edge.
 
+Filtered reference predicates use the same direction and source-contents scope.
+**Links to** with conditions requires an edge to a related root itself.
+**Linked from** with conditions evaluates the referring root, with Whole entry
+also admitting occurrences from its descendants. A single related root must
+satisfy the complete predicate. Indexed resolved occurrences supply eligibility
+before ranking and pagination. A true witness wins, an unknown witness without
+a true witness yields unknown, and the absence of either yields false.
+The related predicate can use structured root fields and local member conditions.
+Further reference traversal and embedded-record traversal are out of scope.
+
+The editor also offers **Contains** for authored immediate child entries. It uses
+the existing collection Exists predicate and applies all child conditions to one
+member. Presence is an Exists with a true child predicate.
+
 Shared retrieval admission checks every relationship target and exact source
 selection through checked index readers and existing record policy, including
 leaves under NOT or a branch that cannot match. Missing/stale targets are errors,
@@ -60,13 +74,15 @@ eligibility requires the matching edge.
 
 ## Evidence, counts and selection lifetime
 
-Search returns human presentations for every relationship clause, including
+Search returns human presentations for every exact relationship clause, including
 negative leaves, unmatched OR branches and zero-result searches. These annotations
 are not an alternate eligibility input. They retain clause ID, exact leaf and
 artifact generation. Catalog discovery can report an unavailable presentation
 without concealing ordinary editor fields or fabricating a new selection.
 
-Per-root occurrence evidence belongs only to positive relationship leaves that
+Filtered references and Contains have no per-result witness presentation in the
+initial editor. Per-root occurrence evidence belongs only to positive exact
+relationship leaves that
 participate in successful Boolean proofs. Shared compiled SQL truth, including
 ordinary NULL semantics, determines that attribution. A true link in a failed AND
 branch does not explain an OR result. Double negation can yield positive evidence;
@@ -98,8 +114,10 @@ The full expression participates in request, URL and browser-cache identity.
 
 ## Web and CLI composition
 
-The toolbar's Links picker and Advanced's structural Record links condition edit
-one tree, retaining unfinished siblings in the existing editor owner. Common
+The toolbar's Links picker and Advanced's Related entries condition edit one
+tree, retaining unfinished siblings in the existing editor owner. The Related
+entries dialog keeps an unapplied draft and uses existing field labels for short
+row summaries. Filtered references remain in Advanced. Common
 positive conjunctions support direct chips. Conditions that cannot be represented by independent chips mark the Advanced
 button as applied; Advanced retains the complete Boolean expression for editing. Global Clear filters clears ordinary and link conditions
 while retaining text/Similar and result order.
@@ -146,7 +164,8 @@ Duplicate suppression applies only where direct conjunction identity makes it sa
 
 CLI CEL and structured web requests target the same predicate. CEL links_to and
 linked_from accept canonical keys or literal typed selections with independent
-source scope. Strict-name convenience flags add conjunctive root conditions through
+source scope. CEL links_to_matching and linked_from_matching accept a structured
+root expression and the same optional scope. Strict-name convenience flags add conjunctive root conditions through
 the existing resolver. Names never inherit candidate filters. Artifact-free
 print-filter accepts canonical conditions; name resolution requires the explicit
 runtime operation. No unresolved-name AST or alternate relationship parser is added.

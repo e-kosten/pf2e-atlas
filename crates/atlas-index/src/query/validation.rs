@@ -65,6 +65,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
     fn visit(
         p: &QueryPredicate,
         scope: Option<&str>,
+        inside_related: bool,
         depth: usize,
         nodes: &mut usize,
         ids: &mut HashSet<String>,
@@ -146,7 +147,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
         };
         let result = (|| match &p.expression {
             QueryExpression::Relationship { relationship } => {
-                if scope.is_some() {
+                if scope.is_some() || inside_related {
                     return Err(error(
                         "mixed_scope",
                         "Link conditions apply to records, not collection members",
@@ -163,6 +164,23 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                 let s = &relationship.selection;
                 if s.owners.len()>32 || s.field.as_ref().is_some_and(|f|f.len()>512) || s.owners.iter().any(|o|o.collection.len()>512 || matches!(&o.identity,atlas_domain::OwnedContentIdentity::Stable(id) if id.len()>512)) { return Err(error("relationship_selection","Link selection exceeds its address bounds",None)); }
                 Ok(())
+            }
+            QueryExpression::RelatedMatch { predicate, .. } => {
+                if scope.is_some() || inside_related {
+                    return Err(error(
+                        "mixed_scope",
+                        "Related filters apply to result records",
+                        None,
+                    ));
+                }
+                if p.clause_id.is_none() {
+                    return Err(error(
+                        "clause_id",
+                        "Link conditions require a clause ID",
+                        None,
+                    ));
+                }
+                visit(predicate, None, true, depth + 1, nodes, ids, scopes, bytes)
             }
             QueryExpression::BooleanConstant { .. } => Ok(()),
             QueryExpression::Compare { field, op, value } => {
@@ -224,7 +242,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                 scope_id,
                 predicate,
             } => {
-                if scope.is_some() {
+                if scope.is_some() || (inside_related && collection.starts_with("embedded.")) {
                     return Err(error(
                         "nested_exists",
                         "Nested collection scopes are unsupported",
@@ -249,6 +267,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                 visit(
                     predicate,
                     Some(collection),
+                    inside_related,
                     depth + 1,
                     nodes,
                     ids,
@@ -265,13 +284,29 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
                     ));
                 }
                 for child in children {
-                    visit(child, scope, depth + 1, nodes, ids, scopes, bytes)?;
+                    visit(
+                        child,
+                        scope,
+                        inside_related,
+                        depth + 1,
+                        nodes,
+                        ids,
+                        scopes,
+                        bytes,
+                    )?;
                 }
                 Ok(())
             }
-            QueryExpression::Not { predicate } => {
-                visit(predicate, scope, depth + 1, nodes, ids, scopes, bytes)
-            }
+            QueryExpression::Not { predicate } => visit(
+                predicate,
+                scope,
+                inside_related,
+                depth + 1,
+                nodes,
+                ids,
+                scopes,
+                bytes,
+            ),
         })();
         result.map_err(|mut e| {
             if e.clause_id.is_none() {
@@ -283,6 +318,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
     visit(
         predicate,
         None,
+        false,
         0,
         &mut nodes,
         &mut ids,
@@ -291,7 +327,7 @@ pub fn validate_query(predicate: &QueryPredicate) -> Result<ValidatedQuery, Quer
     )?;
     fn count_links(p: &QueryPredicate) -> usize {
         match &p.expression {
-            QueryExpression::Relationship { .. } => 1,
+            QueryExpression::Relationship { .. } | QueryExpression::RelatedMatch { .. } => 1,
             QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
                 children.iter().map(count_links).sum()
             }

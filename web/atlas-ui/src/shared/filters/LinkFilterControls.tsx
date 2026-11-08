@@ -2,7 +2,7 @@ import { chipLinkClauses } from "./filterControls";
 import { Button, Space, Tooltip, Typography } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import type { QueryPredicate } from "../../generated/atlas";
-import { linkClauses, type LinkLeaf } from "./linkPredicates";
+import { countLinkConditions, type LinkLeaf } from "./linkPredicates";
 
 export function LinkFilterControls({
   filter,
@@ -18,7 +18,7 @@ export function LinkFilterControls({
   limit?: number;
 }) {
   const clauses = chipLinkClauses(filter);
-  const linkCount = linkClauses(filter).length;
+  const linkCount = countLinkConditions(filter);
   const limitReached = linkCount > 0 && limit !== undefined && linkCount >= limit;
   if (!clauses.length && !limitReached) return null;
   return (

@@ -618,7 +618,13 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
       !!response.request().postDataJSON()?.connection_scope,
   );
   await expect(advanced.getByText(/Wovenwood Shield.*Whole entry/)).toBeVisible();
-  await advanced.getByRole("button", { name: "Edit link", exact: true }).click();
+  await advanced
+    .getByRole("button", { name: "Edit related entries", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Related entries", exact: true })
+    .getByRole("button", { name: "Choose record", exact: true })
+    .click();
   const picker = page.getByRole("dialog", { name: "Edit link condition", exact: true });
   await expect(
     picker.getByText("Searching all entries · Complex filter"),

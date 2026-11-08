@@ -65,6 +65,7 @@ import {
   commonDraftRange,
   BOOLEAN_CONDITION,
   LINK_CONDITION,
+  RELATED_CONDITION,
   emptyGroup,
   isClearedOperand,
   numericLiteral,
@@ -94,8 +95,13 @@ import {
   type LinkPickerProps,
 } from "./LinkPickerContext";
 import { LinkFilterControls } from "./LinkFilterControls";
-import { linkClauses, type LinkLeaf } from "./linkPredicates";
+import { countLinkConditions, type LinkLeaf } from "./linkPredicates";
 import { sameRelationship } from "./linkPredicates";
+import {
+  RelatedEntryEditor,
+  RelatedEntrySummary,
+  isEmbeddedEntryField,
+} from "./RelatedEntryEditor";
 import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
 import { transitionOperand } from "./operatorTransitions";
 import { ActorMetricPicker } from "./ActorMetricPicker";
@@ -110,7 +116,11 @@ const getAdvancedPopupContainer = (trigger?: HTMLElement) =>
   trigger?.closest<HTMLElement>(".advanced-filter-drawer-root") ?? document.body;
 
 const LinkEditingContext = createContext<{
-  open: (rule: PredicateRule, replace: (next: PredicateRule) => void) => void;
+  open: (
+    rule: PredicateRule,
+    replace: (next: PredicateRule) => void,
+    opener?: HTMLElement,
+  ) => void;
   title: (leaf: LinkLeaf) => string;
 } | null>(null);
 
@@ -215,10 +225,12 @@ export function FilterControls({
       opener,
       advanced = false,
       initialExcluded = false,
+      initialScope,
     }: {
       opener?: HTMLElement;
       advanced?: boolean;
       initialExcluded?: boolean;
+      initialScope?: LinkPickerProps["initialScope"];
     } = {},
   ) {
     if (!Picker) throw new Error("Link condition picker provider is required");
@@ -231,6 +243,7 @@ export function FilterControls({
       open: true,
       initial,
       initialExcluded,
+      initialScope,
       parent: {
         ...parentContext,
         filter: workspace.fixedFilter
@@ -302,7 +315,11 @@ export function FilterControls({
   }
   const linkEditing = {
     title: linkTitle,
-    open: (rule: PredicateRule, replace: (next: PredicateRule) => void) => {
+    open: (
+      rule: PredicateRule,
+      replace: (next: PredicateRule) => void,
+      opener?: HTMLElement,
+    ) => {
       const initial = rule.value?.selection
         ? ({ ...rule.value, direction: rule.operator } as QueryRelationship)
         : undefined;
@@ -311,12 +328,6 @@ export function FilterControls({
         initial,
         id,
         (relationship, excluded) => {
-          if (
-            initial &&
-            sameRelationship(initial, relationship) &&
-            excluded === !!rule.meta?.atlasExcluded
-          )
-            return null;
           replace({
             ...rule,
             id,
@@ -326,7 +337,18 @@ export function FilterControls({
           });
           return null;
         },
-        { advanced: true, initialExcluded: !!rule.meta?.atlasExcluded },
+        {
+          advanced: true,
+          initialExcluded: !!rule.meta?.atlasExcluded,
+          opener,
+          initialScope:
+            rule.operator === "incoming" || rule.operator === "outgoing"
+              ? {
+                  direction: rule.operator,
+                  include_contents: rule.value?.include_contents ?? true,
+                }
+              : undefined,
+        },
       );
     },
   };
@@ -439,7 +461,7 @@ export function FilterControls({
             ref={linksTrigger}
             onClick={() => {
               const limit = editor?.limits.relationship_leaves;
-              if (limit !== undefined && linkClauses(search.filter).length >= limit) {
+              if (limit !== undefined && countLinkConditions(search.filter) >= limit) {
                 setAdvanced(true);
                 return;
               }
@@ -842,6 +864,7 @@ type BuilderContext = {
   query: RuleGroupType;
   scope: string | null;
   narrowFields: boolean;
+  relatedTarget: boolean;
   workspace: FilterPanelState;
   addCondition: (path: number[], fieldId: string) => void;
   pendingConditionRef: RefObject<string | null>;
@@ -854,6 +877,7 @@ function StructuredBuilder({
   onChange,
   scope = null,
   useApplicability = false,
+  relatedTarget = false,
   workspace,
 }: {
   editor: FilterEditorView;
@@ -861,6 +885,7 @@ function StructuredBuilder({
   onChange: (query: RuleGroupType) => void;
   scope?: string | null;
   useApplicability?: boolean;
+  relatedTarget?: boolean;
   workspace: FilterPanelState;
 }) {
   const pendingConditionRef = useRef<string | null>(null);
@@ -888,11 +913,14 @@ function StructuredBuilder({
         autoSelectField={false}
         enableMountQueryChange={false}
         fields={[
-          ...(scope === null
+          ...(scope === null && !relatedTarget
             ? [
                 {
-                  label: "Record links",
-                  options: [{ name: LINK_CONDITION, label: "Record links" }],
+                  label: "Related entries",
+                  options: [
+                    { name: RELATED_CONDITION, label: "Related entries" },
+                    { name: LINK_CONDITION, label: "Related entries" },
+                  ],
                 },
               ]
             : []),
@@ -915,7 +943,7 @@ function StructuredBuilder({
           { name: "or", label: "At least one condition matches" },
         ]}
         getOperators={(id) =>
-          id === LINK_CONDITION
+          id === LINK_CONDITION || id === RELATED_CONDITION
             ? [
                 { name: "incoming", label: "Links to" },
                 { name: "outgoing", label: "Linked from" },
@@ -935,6 +963,7 @@ function StructuredBuilder({
             query,
             scope,
             narrowFields: useApplicability && isPositiveConjunction(query, visible),
+            relatedTarget,
             workspace,
             pendingConditionRef,
             addCondition: (path, fieldId) => {
@@ -950,7 +979,7 @@ function StructuredBuilder({
                     id,
                     field: fieldId,
                     operator:
-                      fieldId === LINK_CONDITION
+                      fieldId === LINK_CONDITION || fieldId === RELATED_CONDITION
                         ? "incoming"
                         : (operator?.operator ?? "eq"),
                     value: operator
@@ -1070,9 +1099,21 @@ function FilterRule(props: RuleProps) {
           (field && (contextualFieldLabel(field) ?? field.label).length > 24) ||
           undefined
         }
-        data-link-condition={props.rule.field === LINK_CONDITION || undefined}
+        data-link-condition={
+          props.rule.field === LINK_CONDITION ||
+          props.rule.field === RELATED_CONDITION ||
+          isEmbeddedEntryField(field) ||
+          undefined
+        }
       >
         <RuleComponents {...rule} />
+        {(draftRule.field === RELATED_CONDITION ||
+          (draftRule.operator === "exists" && isEmbeddedEntryField(field))) && (
+          <RelatedEntrySummary
+            rule={draftRule}
+            fields={editor.groups.flatMap((group) => group.fields)}
+          />
+        )}
         {relationship && (
           <Typography.Text type="secondary" className="filter-link-summary">
             {direction} {title ?? "Record unavailable"} ·{" "}
@@ -1128,7 +1169,8 @@ function filterFieldGroups(
     editor,
     scope,
     narrowFields,
-  }: Pick<BuilderContext, "editor" | "scope" | "narrowFields">,
+    relatedTarget,
+  }: Pick<BuilderContext, "editor" | "scope" | "narrowFields" | "relatedTarget">,
   addingCondition: boolean,
   includeConstant = false,
 ): {
@@ -1144,6 +1186,7 @@ function filterFieldGroups(
           .filter(
             (field) =>
               field.definition.scope === scope &&
+              !isEmbeddedEntryField(field) &&
               (scope === null || field.definition.field_type !== "collection") &&
               (!addingCondition || !narrowFields || field.applicable) &&
               (!field.unit_fields.length ||
@@ -1183,15 +1226,16 @@ function filterFieldGroups(
           }),
       }))
       .filter((group) => group.options.length),
-    ...(scope === null
+    ...(scope === null && !relatedTarget
       ? [
           {
-            label: "Record links",
+            label: "Relationships",
             options: [
               {
-                value: LINK_CONDITION,
-                label: "Record links",
-                searchText: "Record links",
+                value: RELATED_CONDITION,
+                label: "Related entries",
+                searchText:
+                  "Related entries record links contains abilities spells equipment",
               },
             ],
           },
@@ -1217,15 +1261,23 @@ function filterFieldListHeight() {
   return Math.min(420, Math.max(144, Math.floor(window.innerHeight * 0.56)));
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
-  const { editor, scope, narrowFields } = props.context as BuilderContext;
+  const { editor, scope, narrowFields, relatedTarget } =
+    props.context as BuilderContext;
   const editing = useContext(RuleEditContext);
   const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
   const addingCondition = !props.value || props.value === "~";
   const groups = filterFieldGroups(
-    { editor, scope, narrowFields },
+    { editor, scope, narrowFields, relatedTarget },
     addingCondition,
     props.value === BOOLEAN_CONDITION,
   );
+  const related =
+    props.value === LINK_CONDITION ||
+    editor.groups.some((group) =>
+      group.fields.some(
+        (field) => field.definition.id === props.value && isEmbeddedEntryField(field),
+      ),
+    );
   const chooser = (
     <Select
       className={selectedKind ? undefined : props.className}
@@ -1246,14 +1298,16 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
         return option?.rowLabel ?? label;
       }}
       value={
-        selectedKind
-          ? ACTOR_METRIC_CHOOSERS[selectedKind]
-          : props.value === "~"
-            ? undefined
-            : (editor.groups
-                .flatMap((group) => group.fields)
-                .find((field) => field.definition.id === props.value)?.unit_fields[0]
-                ?.field_id ?? props.value)
+        related
+          ? RELATED_CONDITION
+          : selectedKind
+            ? ACTOR_METRIC_CHOOSERS[selectedKind]
+            : props.value === "~"
+              ? undefined
+              : (editor.groups
+                  .flatMap((group) => group.fields)
+                  .find((field) => field.definition.id === props.value)?.unit_fields[0]
+                  ?.field_id ?? props.value)
       }
       onChange={(value) => {
         if (isActorMetricChooser(value) && editing) {
@@ -1317,8 +1371,15 @@ function RemoveCondition(props: ActionProps) {
   );
 }
 function GroupMatchSelector(props: CombinatorSelectorProps) {
-  const { replaceGroup } = props.context as BuilderContext;
+  const { replaceGroup, relatedTarget } = props.context as BuilderContext;
   const group = props.ruleGroup as RuleGroupType;
+  if (
+    relatedTarget &&
+    group.rules.length < 2 &&
+    group.combinator === "and" &&
+    !group.not
+  )
+    return null;
   return (
     <Select
       className="filter-text-select filter-match-mode"
@@ -1432,11 +1493,12 @@ function booleanComparison(
 function BuilderOperatorSelector(props: OperatorSelectorProps) {
   const editing = useContext(RuleEditContext);
   if (isActorMetricChooser(props.field)) return null;
-  if (props.field === LINK_CONDITION) return null;
+  if (props.field === LINK_CONDITION || props.field === RELATED_CONDITION) return null;
   const { editor } = props.context as BuilderContext;
   const field = editor.groups
     .flatMap((group) => group.fields)
     .find((field) => field.definition.id === props.field);
+  if (isEmbeddedEntryField(field) && props.value === "exists") return null;
   if (editing && (levelBounds(editing.rule) || booleanComparison(field, editing.rule)))
     return null;
   const excluded = !!editing?.rule.meta?.atlasExcluded;
@@ -1501,45 +1563,66 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
     />
   );
 }
+function countOtherLinkRules(group: RuleGroupType, ruleId: string | undefined): number {
+  return group.rules.reduce((count, node) => {
+    if ("rules" in node) return count + countOtherLinkRules(node, ruleId);
+    if (node.id === ruleId) return count;
+    if (node.field === LINK_CONDITION && node.value?.selection) return count + 1;
+    if (node.field === RELATED_CONDITION && node.value?.query) return count + 1;
+    return count;
+  }, 0);
+}
 function BuilderValueEditor(props: ValueEditorProps) {
-  const { token } = theme.useToken();
   const editing = useContext(RuleEditContext);
   const { editor, query, scope, workspace } = props.context as BuilderContext;
   const [editingRange, setEditingRange] = useState(false);
   const links = useContext(LinkEditingContext);
-  if (props.field === LINK_CONDITION) {
-    const hasSelection = !!props.rule.value?.selection;
+  const fields = editor.groups.flatMap((group) => group.fields);
+  const embedded = fields.find(
+    (field) => field.definition.id === props.field && isEmbeddedEntryField(field),
+  );
+  if (
+    editing &&
+    scope === null &&
+    ((embedded && props.operator === "exists") ||
+      props.field === RELATED_CONDITION ||
+      props.field === LINK_CONDITION)
+  ) {
     return (
-      <div className="filter-rule-value">
-        {scope !== null ? (
-          <Typography.Text type="danger" role="status">
-            Link conditions belong outside collection conditions.
-          </Typography.Text>
-        ) : (
-          <Button
-            disabled={props.disabled}
-            styles={{
-              root: {
-                maxWidth: "100%",
-                height: "auto",
-                minHeight: token.controlHeight,
-                whiteSpace: "normal",
-                textAlign: "start",
-                overflowWrap: "anywhere",
-              },
+      <RelatedEntryEditor
+        rule={editing.rule}
+        fields={fields}
+        linkLimitReached={
+          countOtherLinkRules(query, editing.rule.id) >=
+          editor.limits.relationship_leaves
+        }
+        disabled={props.disabled}
+        onApply={(next) => editing.replace(next, false)}
+        onExact={(next, opener) =>
+          links?.open(
+            next,
+            (replacement) => editing.replace(replacement, false),
+            opener,
+          )
+        }
+        renderConditions={(draft, change, memberScope) => (
+          <StructuredBuilder
+            editor={editor}
+            query={draft}
+            onChange={change}
+            scope={memberScope}
+            relatedTarget
+            workspace={{
+              ...workspace,
+              filterCountsEnabled: false,
+              vocabularyScope: { kind: "artifact" },
             }}
-            onClick={() => {
-              if (!links || !editing)
-                throw new Error("Link condition picker provider is required");
-              links.open(editing.rule, editing.replace);
-            }}
-          >
-            {hasSelection ? "Edit link" : "Choose record"}
-          </Button>
+          />
         )}
-      </div>
+      />
     );
   }
+
   if (props.field === BOOLEAN_CONDITION)
     return (
       <Select
@@ -1554,12 +1637,9 @@ function BuilderValueEditor(props: ValueEditorProps) {
         onChange={props.handleOnChange}
       />
     );
-  const field = editor.groups
-    .flatMap((group) => group.fields)
-    .find(
-      (field) =>
-        field.definition.id === props.field && field.definition.scope === scope,
-    );
+  const field = fields.find(
+    (field) => field.definition.id === props.field && field.definition.scope === scope,
+  );
   if (!field)
     return props.field === "~" || isActorMetricChooser(props.field) ? null : (
       <Typography.Text type="danger" role="status" className="filter-rule-value">

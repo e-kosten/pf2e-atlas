@@ -136,6 +136,31 @@ fn lower(
             QueryExpression::BooleanConstant { value: *v.inner() }
         }
         Expr::Call(c) if c.target.is_none() => match c.func_name.as_str() {
+            "links_to_matching" | "linked_from_matching"
+                if (1..=2).contains(&c.args.len()) && var.is_none() =>
+            {
+                let include_contents = match c.args.get(1).map(literal).transpose()? {
+                    None => true,
+                    Some(QueryLiteral::String(scope)) if scope == "whole_entry" => true,
+                    Some(QueryLiteral::String(scope)) if scope == "main_entry" => false,
+                    _ => {
+                        return Err(error(
+                            "relationship_scope",
+                            "Use whole_entry or main_entry for link scope",
+                            None,
+                        ));
+                    }
+                };
+                QueryExpression::RelatedMatch {
+                    direction: if c.func_name == "links_to_matching" {
+                        atlas_domain::QueryRelationshipDirection::Incoming
+                    } else {
+                        atlas_domain::QueryRelationshipDirection::Outgoing
+                    },
+                    include_contents,
+                    predicate: Box::new(lower(&c.args[0], None, depth + 1, nodes)?),
+                }
+            }
             "links_to" | "linked_from" => {
                 if var.is_some() {
                     return Err(error(

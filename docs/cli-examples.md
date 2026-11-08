@@ -366,9 +366,20 @@ Replace example keys with returned identities. The optional scope is `whole_entr
 (default) or `main_entry`. Exact selection maps accept `record_key`, `embedded_path`,
 `field`, `passage`, `source_fingerprint` and optional `spell_rank`. Copy addresses
 and fingerprints from returned navigation; do not invent embedded identities.
+For a related entry that meets structured conditions, use
+`links_to_matching` or `linked_from_matching`. The expression applies to one
+standalone entry on the other end of the reference. For example, find entries
+that link to a rare spell, or entries linked from a creature of level 5 or higher.
+
+```bash
+atlas search --where 'links_to_matching(kind == "spell" && rarity == "rare")'
+atlas search --where 'linked_from_matching(kind == "creature" && level_or_rank >= 5, "main_entry")'
+```
+
 Link functions operate on result roots and cannot appear inside authored
 collection `exists` expressions. `--print-filter` works without opening a workspace
-and requires canonical keys, including when using convenience flags.
+and requires canonical keys for exact reference targets, including when using
+convenience flags.
 
 ### Search JSON and occurrence paging
 

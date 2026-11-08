@@ -6,6 +6,7 @@ export type LinkPickerProps = {
   open: boolean;
   parent: StaticSearchContext;
   initial?: QueryRelationship;
+  initialScope?: Pick<QueryRelationship, "direction" | "include_contents">;
   initialExcluded?: boolean;
   onCancel: () => void;
   afterClose?: () => void;

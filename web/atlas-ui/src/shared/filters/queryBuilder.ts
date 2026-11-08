@@ -12,6 +12,7 @@ import type {
 // A structural builder condition, never a backend catalog field.
 export const BOOLEAN_CONDITION = "atlas:boolean-constant";
 export const LINK_CONDITION = "atlas:record-link";
+export const RELATED_CONDITION = "atlas:related-entries";
 type PredicateGroup = RuleGroupType & {
   atlasSinglePredicate?: boolean;
   atlasNotClauseId?: string;
@@ -309,6 +310,24 @@ export function builderPredicate(
           ? { kind: "not", clause_id: rule.meta.atlasNotClauseId, predicate }
           : predicate,
       );
+    if (node.field === RELATED_CONDITION) {
+      if (!node.value) continue;
+      if (
+        scope !== null ||
+        (node.operator !== "incoming" && node.operator !== "outgoing")
+      )
+        throw new Error("Choose a related entry condition");
+      const predicate = node.value?.query && builderPredicate(node.value.query, fields);
+      if (!predicate) throw new Error("Choose related entry filters");
+      append({
+        kind: "related_match",
+        clause_id: node.id || crypto.randomUUID(),
+        direction: node.operator,
+        include_contents: node.value.includeContents,
+        predicate,
+      });
+      continue;
+    }
     if (node.field === LINK_CONDITION) {
       if (scope !== null)
         throw new Error("Link conditions belong outside collection conditions.");
@@ -493,6 +512,16 @@ function predicateNode(
     predicate.kind === "not"
   )
     return predicateBuilder(predicate, fields, scope);
+  if (predicate.kind === "related_match")
+    return {
+      id: predicate.clause_id,
+      field: RELATED_CONDITION,
+      operator: predicate.direction,
+      value: {
+        includeContents: predicate.include_contents,
+        query: predicateBuilder(predicate.predicate, fields),
+      },
+    };
   if (predicate.kind === "relationship")
     return {
       id: predicate.clause_id,

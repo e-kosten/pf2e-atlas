@@ -181,6 +181,8 @@ fn cel_supported_examples_and_fail_closed_limits() {
         "'fire' in traits && rarity != 'common'",
         "hazard.complexity==false && hazard.hardness>=10",
         "spell.rank >= 3 && 'arcane' in spell.traditions",
+        "links_to_matching(kind == 'spell' && rarity == 'rare')",
+        "linked_from_matching(kind == 'creature' && level_or_rank >= 5, 'main_entry')",
         "embedded.spells.exists(i, i.source.type=='spell' && i.spell.rank>=3 && 'arcane' in i.spell.traditions)",
         "!embedded.spells.exists(i,i.availability['spell.rank']=='invalid')",
         "availability['defenses.hp.maximum']=='null'",
@@ -1951,4 +1953,66 @@ fn armor_group_filters_root_and_immediate_equipment_without_promoting_membership
         ),
         vec![1, 2]
     );
+}
+
+#[test]
+fn filtered_links_preserve_direction_scope_and_unknown_witnesses() {
+    let db = database();
+    for id in [1, 2, 5, 6, 8] {
+        root(&db, id, "npc", "common");
+    }
+    root(&db, 3, "weapon", "uncommon");
+    root(&db, 4, "weapon", "common");
+    root(&db, 7, "weapon", "rare");
+    root(&db, 9, "armor", "rare");
+    db.execute(
+        "UPDATE records SET rarity_state='missing',rarity=NULL WHERE record_id=4",
+        [],
+    )
+    .unwrap();
+    db.execute_batch(
+        "INSERT INTO relationship_occurrences(record_id,owners_json,field_path,ordinal,origin,kind,resolution,target_record_id,target_owners_json)
+         VALUES (1,'[{}]','/description',0,'content','Reference','resolved_record',3,NULL),
+                (1,'[{}]','/description',1,'content','Reference','resolved_record',3,NULL),
+                (2,'[]','/description',0,'content','Reference','resolved_record',4,NULL),
+                (5,'[]','/description',0,'content','Reference','resolved_owned',3,'[{}]'),
+                (6,'[]','/description',0,'content','Reference','resolved_record',7,NULL),
+                (8,'[]','/description',0,'content','Reference','unresolved',NULL,NULL),
+                (1,'[{}]','/description',2,'content','Reference','resolved_record',4,NULL),
+                (1,'[{}]','/description',3,'content','Reference','resolved_record',9,NULL);",
+    ).unwrap();
+    assert_eq!(
+        result(
+            &db,
+            "source.type == 'npc' && links_to_matching(rarity == 'uncommon')"
+        ),
+        vec![1]
+    );
+    assert!(result(&db, "links_to_matching(rarity == 'uncommon', 'main_entry')").is_empty());
+    assert_eq!(
+        result(
+            &db,
+            "source.type == 'npc' && !links_to_matching(rarity == 'uncommon')"
+        ),
+        vec![5, 6, 8]
+    );
+    assert_eq!(
+        result(&db, "linked_from_matching(source.type == 'npc')"),
+        vec![3, 4, 7, 9]
+    );
+    assert_eq!(
+        result(
+            &db,
+            "linked_from_matching(source.type == 'npc', 'main_entry')"
+        ),
+        vec![3, 4, 7]
+    );
+    assert!(
+        result(
+            &db,
+            "links_to_matching(source.type == 'armor' && rarity == 'uncommon')"
+        )
+        .is_empty()
+    );
+    assert!(parse_where("links_to_matching(links_to_matching(rarity == 'common'))").is_err());
 }
