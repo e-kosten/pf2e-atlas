@@ -2,18 +2,19 @@ use atlas_app_model::{
     AddEncounterManualParticipantRequest, AddEncounterParticipantConditionRequest,
     AddEncounterRecordParticipantRequest, AdvanceEncounterTurnRequest, AppErrorCode,
     CreateEncounterRequest, DeleteEncounterView, EncounterCreateView, EncounterDetailView,
-    EncounterIndexView, EncounterMutationView, EncounterTurnReviewView,
+    EncounterIndexView, EncounterMutationView, EncounterTurnReviewView, FieldEdit,
     ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest,
 };
 use atlas_local_state::{
-    AddEncounterParticipant, EncounterParticipantCondition, EncounterStatus, NewEncounter,
-    ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
+    AddEncounterParticipant, Encounter, EncounterParticipantCondition, EncounterStatus,
+    NewEncounter, ParticipantKind, ParticipantSide, ReorderEncounterParticipant,
     UpdateEncounter as LocalUpdateEncounter, UpdateEncounterParticipant, derive_slug,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
+use crate::saved_edit::SavedEditCheck;
 use crate::service::AtlasAppService;
 
 use super::conditions::{condition_catalog, modeled_condition_by_ref};
@@ -25,6 +26,16 @@ use super::projection::{
 };
 use super::timing::{turn_review, turn_update};
 use super::turns::next_turn_after_removed;
+
+#[derive(Default)]
+struct EncounterMetadataEdit {
+    slug: Option<String>,
+    name: Option<String>,
+    description: Option<Option<String>>,
+    note: Option<Option<String>>,
+    status: Option<EncounterStatus>,
+    round_duration_seconds: Option<i64>,
+}
 
 impl AtlasAppService {
     pub fn encounter_condition_definitions(
@@ -195,24 +206,12 @@ impl AtlasAppService {
         description: Option<Option<String>>,
         note: Option<Option<String>>,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.with_write(move |session| {
-            let encounters = session.local_state()?.encounters();
-            let current = encounters
-                .get(encounter_ref)?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            let encounter = encounters
-                .update(LocalUpdateEncounter {
-                    encounter_key: current.encounter_key,
-                    round_duration_seconds: None,
-                    slug: current.slug,
-                    name: name.unwrap_or(current.name),
-                    description: description.unwrap_or(current.description),
-                    note: note.unwrap_or(current.note),
-                    status: current.status,
-                })?
-                .ok_or_else(|| encounter_not_found(encounter_ref))?;
-            Ok(EncounterMutationView {
-                encounter_key: encounter.encounter_key,
+        self.save_encounter_metadata(encounter_ref, |_| {
+            Ok(EncounterMetadataEdit {
+                name,
+                description,
+                note,
+                ..Default::default()
             })
         })
     }
@@ -221,30 +220,96 @@ impl AtlasAppService {
         &self,
         request: UpdateEncounterRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.with_write(move |session| {
-            if let Some(seconds) = request.round_duration_seconds {
-                let snapshot = session
-                    .local_state()?
-                    .encounters()
-                    .get_with_participants(&request.encounter_key)?
-                    .ok_or_else(|| encounter_not_found(&request.encounter_key))?;
+        self.save_encounter_metadata(&request.encounter_key, |current| {
+            if current.encounter_key != request.encounter_key {
+                return Err(encounter_not_found(&request.encounter_key));
+            }
+            let mut check = SavedEditCheck::default();
+            let slug = request
+                .slug
+                .map(|edit| check.value("slug", &current.slug, edit));
+            let name = request
+                .name
+                .map(|edit| check.value("name", &current.name, edit));
+            let description = request
+                .description
+                .map(|edit| check.value("description", &current.description, edit));
+            let note = request
+                .note
+                .map(|edit| check.value("note", &current.note, edit));
+            let status = request.status.map(|edit| {
+                check.value(
+                    "status",
+                    &current.status,
+                    FieldEdit {
+                        expected: encounter_status_local(edit.expected),
+                        value: encounter_status_local(edit.value),
+                    },
+                )
+            });
+            let round_duration_seconds = request.round_duration_seconds.map(|edit| {
+                check.value(
+                    "round_duration_seconds",
+                    &current.round_duration_seconds,
+                    edit,
+                )
+            });
+            check.finish()?;
+            Ok(EncounterMetadataEdit {
+                slug,
+                name,
+                description,
+                note,
+                status,
+                round_duration_seconds,
+            })
+        })
+    }
+
+    fn save_encounter_metadata(
+        &self,
+        encounter_ref: &str,
+        edit: impl FnOnce(&Encounter) -> AppServiceResult<EncounterMetadataEdit>,
+    ) -> AppServiceResult<EncounterMutationView> {
+        self.with_write(|session| {
+            let encounters = session.local_state()?.encounters();
+            let current = encounters
+                .get(encounter_ref)?
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+            let edit = edit(&current)?;
+            let round_duration_seconds = edit
+                .round_duration_seconds
+                .filter(|&seconds| seconds != current.round_duration_seconds);
+            if let Some(seconds) = round_duration_seconds {
+                let snapshot = encounters
+                    .get_with_participants(&current.encounter_key)?
+                    .ok_or_else(|| encounter_not_found(encounter_ref))?;
                 super::timing::validate_round_clock(&snapshot, seconds)?;
             }
-            let encounter = session
-                .local_state()?
-                .encounters()
-                .update(LocalUpdateEncounter {
-                    encounter_key: request.encounter_key.clone(),
-                    round_duration_seconds: request.round_duration_seconds,
-                    slug: request.slug,
-                    name: request.name,
-                    description: request.description,
-                    note: request.note,
-                    status: encounter_status_local(request.status),
-                })?
-                .ok_or_else(|| encounter_not_found(&request.encounter_key))?;
+            let changed = round_duration_seconds.is_some()
+                || edit.slug.as_ref().is_some_and(|slug| slug != &current.slug)
+                || edit.name.as_ref().is_some_and(|name| name != &current.name)
+                || edit
+                    .description
+                    .as_ref()
+                    .is_some_and(|description| description != &current.description)
+                || edit.note.as_ref().is_some_and(|note| note != &current.note)
+                || edit.status.is_some_and(|status| status != current.status);
+            if changed {
+                encounters
+                    .update(LocalUpdateEncounter {
+                        encounter_key: current.encounter_key.clone(),
+                        round_duration_seconds,
+                        slug: edit.slug.unwrap_or(current.slug),
+                        name: edit.name.unwrap_or(current.name),
+                        description: edit.description.unwrap_or(current.description),
+                        note: edit.note.unwrap_or(current.note),
+                        status: edit.status.unwrap_or(current.status),
+                    })?
+                    .ok_or_else(|| encounter_not_found(encounter_ref))?;
+            }
             Ok(EncounterMutationView {
-                encounter_key: encounter.encounter_key,
+                encounter_key: current.encounter_key,
             })
         })
     }

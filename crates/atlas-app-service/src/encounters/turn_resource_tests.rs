@@ -150,15 +150,25 @@ fn turn_preparation_cannot_retarget_a_reassigned_slug() {
             .update_encounter(UpdateEncounterRequest {
                 round_duration_seconds: None,
                 encounter_key: encounter.encounter_key.clone(),
-                slug: slug.into(),
-                name: encounter.name.clone(),
+                slug: Some(FieldEdit {
+                    expected: encounter.slug.clone(),
+                    value: slug.into(),
+                }),
+                name: None,
                 description: None,
                 note: None,
-                status: EncounterStatusView::Draft,
+                status: None,
             })
             .unwrap();
     };
-    rename(&a, &a.slug);
+    f.worker
+        .edit_encounter_metadata(
+            &a.encounter_key,
+            None,
+            Some(Some("Initial metadata change".into())),
+            None,
+        )
+        .unwrap();
     let saved = |key: &str| {
         f.worker
             .with_state(|session| {

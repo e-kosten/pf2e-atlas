@@ -470,11 +470,14 @@ fn running_variant_edit_preserves_damage_below_conditioned_capacity() {
         .update_encounter(UpdateEncounterRequest {
             round_duration_seconds: None,
             encounter_key: key.clone(),
-            slug: initial.encounter.slug.clone(),
-            name: initial.encounter.name.clone(),
+            slug: None,
+            name: None,
             description: None,
             note: None,
-            status: EncounterStatusView::Running,
+            status: Some(FieldEdit {
+                expected: initial.encounter.status,
+                value: EncounterStatusView::Running,
+            }),
         })
         .unwrap();
     let mut damage = participant_update(&initial.participants[0]);

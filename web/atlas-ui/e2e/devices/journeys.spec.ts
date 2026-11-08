@@ -522,12 +522,12 @@ test("list drops retain order and geometry through delayed writes and refreshes"
           record_key: string;
         }[]
       ).map((item) => item.record_key);
-    await page.route(`**/api/lists/${slug}/items/reorder`, async (route) => {
+    await page.route(`**/api/lists/${list.list_key}/items/reorder`, async (route) => {
       writes += 1;
       await writeGate;
       await route.continue();
     });
-    await page.route(`**/api/lists/${slug}/filter`, async (route) => {
+    await page.route(`**/api/lists/${list.list_key}/filter`, async (route) => {
       refreshStarted = true;
       await readGate;
       await route.continue();
@@ -909,7 +909,7 @@ test("list tags, editing and explicit Add survive constrained space", async ({
       releaseAdd = resolve;
     });
     await page.route(
-      (url) => url.pathname === `/api/lists/${list.slug}/items`,
+      (url) => url.pathname === `/api/lists/${list.list_key}/items`,
       async (route) => {
         if (route.request().method() === "POST") {
           addArrived = true;
@@ -1474,14 +1474,13 @@ test("named parties add everyone directly and archive views stay separate", asyn
     await expect(page.locator("[data-participant-key]")).toHaveCount(3);
     await page.reload();
     await expect(page.locator("[data-participant-key]")).toHaveCount(3);
+    const current = await (await page.request.get(path)).json();
     expect(
       (
         await page.request.patch(path, {
           data: {
             encounter_key: encounter.encounter_key,
-            slug: encounter.slug,
-            name,
-            status: "archived",
+            status: { expected: current.encounter.status, value: "archived" },
           },
         })
       ).ok(),
@@ -1687,7 +1686,8 @@ test(
         if (
           request.method() === "POST" &&
           (request.url().endsWith("/api/search/page") ||
-            request.url().endsWith(`/api/lists/${slug}/filter`))
+            request.url().endsWith(`/api/lists/${slug}/filter`) ||
+            request.url().endsWith(`/api/lists/${list.list_key}/filter`))
         )
           executed.push(request.url());
       });

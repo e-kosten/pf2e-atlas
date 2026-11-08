@@ -155,8 +155,10 @@ pub(crate) fn update_list(
     );
     match result {
         Ok(updated) => {
-            if updated > 0 {
-                replace_tags(connection, owner_id, &list.list_key, list.tags)?;
+            if updated > 0
+                && let Some(tags) = list.tags
+            {
+                replace_tags(connection, owner_id, &list.list_key, tags)?;
             }
             Ok(updated > 0)
         }

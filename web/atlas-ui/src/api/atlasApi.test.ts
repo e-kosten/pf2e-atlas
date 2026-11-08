@@ -527,9 +527,7 @@ describe("source-backed API transport", () => {
       call: () =>
         updateEncounter({
           encounter_key: "test",
-          slug: "test",
-          name: "Test",
-          status: "draft",
+          name: { expected: "Old name", value: "Test" },
         }),
     },
     {
@@ -636,6 +634,20 @@ describe("source-backed API transport", () => {
       expect(fetchMock).toHaveBeenCalledWith(path, expect.objectContaining({ method }));
     },
   );
+  it("sends both clock values as JSON numbers and preserves a nullable metadata clear", async () => {
+    respond({ encounter_key: "encounter-test" });
+    await updateEncounter({
+      encounter_key: "test",
+      round_duration_seconds: { expected: 6n, value: 12n },
+      note: { expected: "Old note", value: null },
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      encounter_key: "test",
+      round_duration_seconds: { expected: 6, value: 12 },
+      note: { expected: "Old note", value: null },
+    });
+  });
+
   it("sends HP intent and formula text unchanged with the participant revision", async () => {
     respond({ encounter_key: "encounter-test" });
     await expect(

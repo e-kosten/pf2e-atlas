@@ -90,6 +90,7 @@ export type { EncounterParticipantView } from "../../../../crates/atlas-app-mode
 export type { EncounterStatusView } from "../../../../crates/atlas-app-model/bindings/EncounterStatusView";
 export type { EncounterSummaryView } from "../../../../crates/atlas-app-model/bindings/EncounterSummaryView";
 export type { EncounterMutationView } from "../../../../crates/atlas-app-model/bindings/EncounterMutationView";
+export type { FieldEdit } from "../../../../crates/atlas-app-model/bindings/FieldEdit";
 export type { FacetUnavailableReason } from "../../../../crates/atlas-app-model/bindings/FacetUnavailableReason";
 export type { FactView } from "../../../../crates/atlas-app-model/bindings/FactView";
 export type { FilterChoiceView } from "../../../../crates/atlas-app-model/bindings/FilterChoiceView";

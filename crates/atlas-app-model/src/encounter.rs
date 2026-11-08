@@ -452,21 +452,51 @@ pub struct EncounterReferenceRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct UpdateEncounterRequest {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub round_duration_seconds: Option<i64>,
     pub encounter_key: String,
-    pub slug: String,
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
     #[ts(optional)]
-    pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slug: Option<crate::FieldEdit<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
     #[ts(optional)]
-    pub note: Option<String>,
-    pub status: EncounterStatusView,
+    pub name: Option<crate::FieldEdit<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[ts(optional)]
+    pub description: Option<crate::FieldEdit<Option<String>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[ts(optional)]
+    pub note: Option<crate::FieldEdit<Option<String>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[ts(optional)]
+    pub status: Option<crate::FieldEdit<EncounterStatusView>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[ts(optional)]
+    pub round_duration_seconds: Option<crate::FieldEdit<i64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -1,11 +1,18 @@
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { SavedEditConflictReview } from "../../shared/feedback/SavedEditConflictReview";
+import {
+  useEncounterSettingsDraft,
+  type EncounterSettingsValues,
+} from "./useEncounterSettingsDraft";
 import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, InputNumber, Popconfirm, Select } from "antd";
-import { useEffect, useId, useRef } from "react";
+import type { FormInstance } from "antd";
+import { useId, useState } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
+  EncounterDetailView,
   EncounterStatusView,
   EncounterSummaryView,
   UpdateEncounterRequest,
@@ -13,14 +20,6 @@ import type {
 
 type CreateEncounterForm = {
   name: string;
-};
-
-type EditEncounterFormValues = {
-  roundDurationSeconds: number;
-  name: string;
-  description?: string;
-  note?: string;
-  status: EncounterStatusView;
 };
 
 export function CreateEncounterModal({
@@ -82,6 +81,7 @@ export function EditEncounterModal({
   onCancel,
   onDelete,
   onSave,
+  onRefreshConflict,
   disabled = false,
   pending = false,
   error,
@@ -92,25 +92,32 @@ export function EditEncounterModal({
   onCancel: () => void;
   onDelete?: () => Promise<unknown>;
   onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
+  onRefreshConflict: () => Promise<EncounterDetailView | undefined>;
   disabled?: boolean;
   pending?: boolean;
   error?: string;
 }) {
   const formId = useId();
+  const [saveBlocked, setSaveBlocked] = useState(false);
+  const cancel = () => {
+    setSaveBlocked(false);
+    onCancel();
+  };
   return (
     <EncounterModal
       title="Settings"
       open={open}
       destroyOnHidden
-      onCancel={onCancel}
+      onCancel={cancel}
       footer={
         <EncounterEditActions
           name={encounter.name}
           formId={formId}
-          onCancel={onCancel}
+          onCancel={cancel}
           onDelete={onDelete}
           disabled={disabled}
           pending={pending}
+          saveBlocked={saveBlocked}
         />
       }
       closable={!pending}
@@ -118,8 +125,11 @@ export function EditEncounterModal({
       mask={{ closable: !pending }}
     >
       <EditEncounterForm
+        key={encounter.encounter_key}
         externalFormId={formId}
         hideActions
+        onConflictChange={setSaveBlocked}
+        onRefreshConflict={onRefreshConflict}
         encounter={encounter}
         disabled={disabled}
         pending={pending}
@@ -139,10 +149,12 @@ export function EditEncounterForm({
   onCancel,
   onDelete,
   onSave,
+  onRefreshConflict,
   disabled = false,
   pending = false,
   error,
   externalFormId,
+  onConflictChange,
   hideActions = false,
 }: {
   encounter: EncounterSummaryView;
@@ -150,121 +162,112 @@ export function EditEncounterForm({
   onCancel?: () => void;
   onDelete?: () => Promise<unknown>;
   onSave: (encounter: UpdateEncounterRequest) => Promise<unknown>;
+  onRefreshConflict: () => Promise<EncounterDetailView | undefined>;
   disabled?: boolean;
   pending?: boolean;
   error?: string;
   externalFormId?: string;
+  onConflictChange?: (blocked: boolean) => void;
   hideActions?: boolean;
 }) {
   const generatedFormId = useId();
   const formId = externalFormId ?? generatedFormId;
-  const [form] = Form.useForm<EditEncounterFormValues>();
-  const initializedKey = useRef<string | null>(null);
-  useEffect(() => {
-    const values = {
-      name: encounter.name,
-      roundDurationSeconds: Number(encounter.round_duration_seconds),
-      description: encounter.description,
-      note: encounterNote,
-      status: encounter.status,
-    };
-    if (initializedKey.current !== encounter.encounter_key) {
-      form.resetFields();
-      form.setFieldsValue(values);
-      form.setFields(
-        (Object.keys(values) as Array<keyof EditEncounterFormValues>).map((name) => ({
-          name,
-          touched: false,
-        })),
-      );
-      initializedKey.current = encounter.encounter_key;
-    } else {
-      for (const field of Object.keys(values) as Array<keyof EditEncounterFormValues>) {
-        if (!form.isFieldTouched(field)) form.setFieldValue(field, values[field]);
-      }
-    }
-  }, [encounter, encounterNote, form]);
+  const [form] = Form.useForm<EncounterSettingsValues>();
+  const draft = useEncounterSettingsDraft({
+    encounter,
+    encounterNote,
+    form,
+    onSave,
+    onRefreshConflict,
+    onConflictChange,
+  });
   return (
-    <Form
-      name={formId}
-      id={formId}
-      disabled={disabled}
-      form={form}
-      layout="vertical"
-      onFinish={async (values) => {
-        if (disabled) return;
-        try {
-          await onSave({
-            encounter_key: encounter.encounter_key,
-            ...(form.isFieldTouched("roundDurationSeconds")
-              ? { round_duration_seconds: BigInt(values.roundDurationSeconds) }
-              : {}),
-            slug: encounter.slug,
-            name: values.name,
-            ...(values.description ? { description: values.description } : {}),
-            ...(values.note ? { note: values.note } : {}),
-            status: values.status,
-          });
-          form.setFields(
-            (Object.keys(values) as Array<keyof EditEncounterFormValues>).map(
-              (name) => ({ name, touched: false }),
-            ),
-          );
-        } catch {
-          /* The owner displays the failure; keep this draft. */
-        }
-      }}
-    >
-      {error && (
-        <ErrorNotice
-          error={error}
-          title="Encounter change could not be confirmed"
-          description={error}
-        />
-      )}
-      <Form.Item name="name" label="Name" rules={[{ required: true }]}>
-        <Input />
-      </Form.Item>
-      <Form.Item name="description" label="Description">
-        <Input />
-      </Form.Item>
-      <Form.Item name="note" label="Note">
-        <Input.TextArea />
-      </Form.Item>
-      <Form.Item
-        name="roundDurationSeconds"
-        label="Seconds per round"
-        rules={[
-          { required: true, type: "number", min: 1, max: 86400, transform: Number },
-          {
-            validator: (_, value) =>
-              Number.isSafeInteger(value)
-                ? Promise.resolve()
-                : Promise.reject(new Error("Enter a whole number of seconds.")),
-          },
-        ]}
+    <>
+      {draft.conflict && <EncounterSettingsConflict draft={draft} form={form} />}
+      <Form
+        name={formId}
+        id={formId}
+        disabled={disabled}
+        form={form}
+        layout="vertical"
+        onFinish={(values) => {
+          if (!disabled) void draft.submit(values);
+        }}
       >
-        <InputNumber min={1} max={86400} precision={0} />
-      </Form.Item>
-      <Form.Item name="status" label="Status" rules={[{ required: true }]}>
-        <Select<EncounterStatusView>
-          options={["draft", "running", "complete", "archived"].map((value) => ({
-            value: value as EncounterStatusView,
-            label: encounterStatusLabels[value as EncounterStatusView],
-          }))}
-        />
-      </Form.Item>
-      {!hideActions && (
-        <EncounterEditActions
-          name={encounter.name}
-          formId={formId}
-          onCancel={onCancel}
-          onDelete={onDelete}
-          disabled={disabled}
-          pending={pending}
-        />
-      )}
-    </Form>
+        {error && (
+          <ErrorNotice
+            error={error}
+            title="Encounter change could not be confirmed"
+            description={error}
+          />
+        )}
+        <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+          <Input />
+        </Form.Item>
+        <Form.Item name="description" label="Description">
+          <Input />
+        </Form.Item>
+        <Form.Item name="note" label="Note">
+          <Input.TextArea />
+        </Form.Item>
+        <Form.Item
+          name="round_duration_seconds"
+          label="Seconds per round"
+          rules={[
+            { required: true, type: "number", min: 1, max: 86400, transform: Number },
+            {
+              validator: (_, value) =>
+                Number.isSafeInteger(value)
+                  ? Promise.resolve()
+                  : Promise.reject(new Error("Enter a whole number of seconds.")),
+            },
+          ]}
+        >
+          <InputNumber min={1} max={86400} precision={0} />
+        </Form.Item>
+        <Form.Item name="status" label="Status" rules={[{ required: true }]}>
+          <Select<EncounterStatusView>
+            options={["draft", "running", "complete", "archived"].map((value) => ({
+              value: value as EncounterStatusView,
+              label: encounterStatusLabels[value as EncounterStatusView],
+            }))}
+          />
+        </Form.Item>
+        {!hideActions && (
+          <EncounterEditActions
+            name={encounter.name}
+            formId={formId}
+            onCancel={onCancel}
+            onDelete={onDelete}
+            disabled={disabled}
+            pending={pending}
+            saveBlocked={!!draft.conflict}
+          />
+        )}
+      </Form>
+    </>
+  );
+}
+
+function EncounterSettingsConflict({
+  draft,
+  form,
+}: {
+  draft: ReturnType<typeof useEncounterSettingsDraft>;
+  form: FormInstance<EncounterSettingsValues>;
+}) {
+  Form.useWatch(
+    (values: EncounterSettingsValues) =>
+      draft.conflict?.fields.map((field) => values[field]),
+    form,
+  );
+  return (
+    <SavedEditConflictReview
+      fields={draft.reviewFields()}
+      loading={draft.conflict?.loading}
+      refreshFailed={!draft.conflict?.loading && !draft.conflict?.saved}
+      onRetry={draft.retryConflict}
+    />
   );
 }
 
@@ -275,6 +278,7 @@ function EncounterEditActions({
   onDelete,
   disabled,
   pending,
+  saveBlocked,
 }: {
   name: string;
   formId: string;
@@ -282,6 +286,7 @@ function EncounterEditActions({
   onDelete?: () => Promise<unknown>;
   disabled: boolean;
   pending: boolean;
+  saveBlocked: boolean;
 }) {
   return (
     <div className="encounter-actions">
@@ -308,7 +313,7 @@ function EncounterEditActions({
         </Popconfirm>
       ) : null}
       <Button
-        disabled={disabled}
+        disabled={disabled || saveBlocked}
         loading={pending}
         type="primary"
         htmlType="submit"

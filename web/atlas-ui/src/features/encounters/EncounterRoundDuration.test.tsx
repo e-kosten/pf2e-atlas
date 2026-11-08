@@ -24,6 +24,7 @@ it("saves an explicitly changed round duration in seconds", async () => {
       open
       onCancel={vi.fn()}
       onSave={onSave}
+      onRefreshConflict={vi.fn()}
     />,
   );
   expect(screen.getByRole("spinbutton", { name: "Seconds per round" })).toHaveValue(
@@ -34,9 +35,10 @@ it("saves an explicitly changed round duration in seconds", async () => {
   });
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() =>
-    expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ round_duration_seconds: 30n }),
-    ),
+    expect(onSave).toHaveBeenCalledWith({
+      encounter_key: "clock",
+      round_duration_seconds: { expected: 6n, value: 30n },
+    }),
   );
 });
 
@@ -49,6 +51,7 @@ it("keeps the current duration visible and omits it from unrelated edits", async
       open
       onCancel={vi.fn()}
       onSave={onSave}
+      onRefreshConflict={vi.fn()}
     />,
   );
   expect(screen.getByRole("spinbutton", { name: "Seconds per round" })).toHaveValue(

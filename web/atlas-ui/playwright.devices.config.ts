@@ -8,6 +8,7 @@ const touchSpecs = [
   "reader-typography.spec.ts",
   "modal-layout.spec.ts",
   "list-metadata.spec.ts",
+  "saved-edit-conflicts.spec.ts",
   "feedback.spec.ts",
   "spell-effects.spec.ts",
   "conditions.spec.ts",

@@ -202,7 +202,7 @@ fn failed_tag_insert_rolls_back_creation_and_metadata_replacement()
                 slug: "changed".into(),
                 name: "Changed".into(),
                 description: None,
-                tags: vec!["first".into(), "reject".into()],
+                tags: Some(vec!["first".into(), "reject".into()]),
             })
             .is_err()
     );
@@ -419,7 +419,7 @@ fn update_list_renames_and_edits_description_by_key() -> Result<(), Box<dyn std:
             slug: "new-name".to_string(),
             name: "New Name".to_string(),
             description: Some("New description".to_string()),
-            tags: vec!["updated".to_string()],
+            tags: Some(vec!["updated".to_string()]),
         })?
         .expect("list should update");
 
@@ -461,7 +461,7 @@ fn update_list_rejects_duplicate_slug() -> Result<(), Box<dyn std::error::Error>
         slug: "second".to_string(),
         name: "Conflict".to_string(),
         description: None,
-        tags: vec![],
+        tags: Some(vec![]),
     });
     assert!(matches!(result, Err(LocalStateError::ListAlreadyExists(_))));
     Ok(())

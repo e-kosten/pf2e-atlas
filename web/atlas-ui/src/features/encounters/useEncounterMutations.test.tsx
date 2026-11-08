@@ -95,7 +95,7 @@ it("guards same-tick duplicates and remains pending until canonical receipt refr
     await saving;
   });
   await waitFor(() => expect(result.current.pending).toBe(false));
-  expect(client.getQueryData(["encounter", "old-slug"])).toEqual(view);
+  expect(client.getQueryData(["encounter", "old-slug"])).toBeUndefined();
   expect(client.getQueryData(["encounter", "encounter-key"])).toEqual(view);
 });
 it("reports committed refresh failure and retries only its read", async () => {
@@ -158,9 +158,7 @@ it("does not treat an unrelated metadata 409 as a participant conflict", async (
         kind: "metadata",
         request: {
           encounter_key: "encounter-key",
-          slug: "old-slug",
-          name: "PC",
-          status: "draft",
+          slug: { expected: "old-slug", value: "new-slug" },
         },
       }),
     ).rejects.toBe(error);

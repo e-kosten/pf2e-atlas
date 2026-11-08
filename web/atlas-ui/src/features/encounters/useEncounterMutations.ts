@@ -1,3 +1,4 @@
+import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -222,7 +223,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   const [refreshError, setRefreshError] = useState<Error | null>(null);
   const refreshSucceeded = useRef(true);
   const [refreshOrigin, setRefreshOrigin] = useState<
-    "saved" | "conflict" | "uncertain"
+    "saved" | "conflict" | "metadata-conflict" | "uncertain"
   >("saved");
   const [refreshing, setRefreshing] = useState(false);
   const refreshKey = useRef<string | undefined>(undefined);
@@ -230,20 +231,13 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   const currentRef = encounterKey ?? encounterRef;
   const refresh = async (key = refreshKey.current ?? currentRef) => {
     await queryClient.invalidateQueries({ queryKey: ["encounters"] });
-    await queryClient.cancelQueries({
-      queryKey: ["encounter", encounterRef],
-      exact: true,
-    });
-    if (key !== encounterRef) {
-      await queryClient.cancelQueries({ queryKey: ["encounter", key], exact: true });
-    }
+    await queryClient.cancelQueries({ queryKey: ["encounter", key], exact: true });
     const view = await queryClient.fetchQuery({
       queryKey: ["encounter", key],
       queryFn: () => getEncounter(key),
       staleTime: 0,
       retry: false,
     });
-    queryClient.setQueryData(["encounter", encounterRef], view);
     setRefreshError(null);
     return view;
   };
@@ -402,10 +396,6 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       refreshSucceeded.current = true;
       if (command.kind === "delete") {
         queryClient.removeQueries({
-          queryKey: ["encounter", encounterRef],
-          exact: true,
-        });
-        queryClient.removeQueries({
           queryKey: ["encounter", receipt.encounter_key],
           exact: true,
         });
@@ -501,7 +491,15 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       setRefreshing(false);
     }
   };
+  const refreshMetadataConflict = () => {
+    refreshKey.current = currentRef;
+    setRefreshOrigin("metadata-conflict");
+    return retryRefresh();
+  };
   const conflict = isEncounterConflict(mutation.error);
+  const metadataConflict =
+    mutation.variables?.kind === "metadata" &&
+    savedEditConflictFields(mutation.error) !== null;
   return {
     run,
     previewCondition,
@@ -510,19 +508,28 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     pending: mutation.isPending || refreshing,
     error: mutation.error,
     errorKind: mutation.variables?.kind,
-    errorMessage: conflict
-      ? "Encounter changed. Review the refreshed values before retrying your edit."
-      : mutation.error
-        ? userErrorMessage(mutation.error)
-        : undefined,
+    errorMessage: metadataConflict
+      ? undefined
+      : conflict
+        ? "Encounter changed. Review the refreshed values before retrying your edit."
+        : mutation.error
+          ? userErrorMessage(mutation.error)
+          : undefined,
     refreshError,
-    refreshOutcome: refreshOrigin === "conflict" ? ("changed" as const) : refreshOrigin,
+    metadataRefreshFailed: !!refreshError && refreshOrigin === "metadata-conflict",
+    refreshOutcome:
+      refreshOrigin === "conflict" || refreshOrigin === "metadata-conflict"
+        ? ("changed" as const)
+        : refreshOrigin,
     refreshMessage:
       refreshOrigin === "saved"
         ? "Saved, but the encounter could not refresh"
         : refreshOrigin === "uncertain"
           ? "Change could not be confirmed and the encounter could not refresh"
-          : "Participant changed; current encounter could not load",
+          : refreshOrigin === "metadata-conflict"
+            ? "Encounter changed; current settings could not load"
+            : "Participant changed; current encounter could not load",
     retryRefresh,
+    refreshMetadataConflict,
   };
 }

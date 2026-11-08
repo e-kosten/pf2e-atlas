@@ -4,7 +4,7 @@ use atlas_app_model::{
     ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest, CreateEncounterRequest,
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     FilterSavedListRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
-    ReorderSavedListItemRequest, SearchResultsRequest, SetEncounterTurnRequest,
+    ReorderSavedListItemRequest, SavedEditPayload, SearchResultsRequest, SetEncounterTurnRequest,
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
     UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
@@ -101,9 +101,9 @@ pub(crate) async fn create_saved_list(
 pub(crate) async fn update_saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
-    payload: Result<Json<UpdateSavedListRequest>, JsonRejection>,
+    payload: Result<Json<SavedEditPayload<UpdateSavedListRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    let Json(SavedEditPayload(mut request)) = payload.map_err(WebError::invalid_request)?;
     request.list_key = list_ref;
     let service = state.service.clone();
     Ok(Json(
@@ -212,9 +212,9 @@ pub(crate) async fn delete_encounter(
 pub(crate) async fn update_encounter(
     State(state): State<AtlasWebState>,
     Path(encounter_ref): Path<String>,
-    payload: Result<Json<UpdateEncounterRequest>, JsonRejection>,
+    payload: Result<Json<SavedEditPayload<UpdateEncounterRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    let Json(SavedEditPayload(mut request)) = payload.map_err(WebError::invalid_request)?;
     request.encounter_key = encounter_ref;
     let service = state.service.clone();
     Ok(Json(
@@ -922,9 +922,9 @@ pub(crate) async fn saved_list_item_note(
 pub(crate) async fn update_saved_list_item_note(
     State(state): State<AtlasWebState>,
     Path((list_ref, record_key)): Path<(String, String)>,
-    payload: Result<Json<UpdateSavedListItemNoteRequest>, JsonRejection>,
+    payload: Result<Json<SavedEditPayload<UpdateSavedListItemNoteRequest>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(mut request) = payload.map_err(WebError::invalid_request)?;
+    let Json(SavedEditPayload(mut request)) = payload.map_err(WebError::invalid_request)?;
     request.list_ref = list_ref;
     request.record_key = record_key;
     let service = state.service.clone();

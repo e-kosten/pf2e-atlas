@@ -10,7 +10,7 @@ import {
   ReferenceSelectionStatus,
   hasReferenceSelectionStatus,
 } from "../../shared/records/ReferenceSelectionStatus";
-import { ListEntryNote } from "./ListEntryNote";
+import { ListEntryNoteEditor, useListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
   keepPreviousData,
@@ -56,6 +56,8 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
+  const [resolvedListKey, setResolvedListKey] = useState<string>();
+  const listRef = resolvedListKey ?? route.slug;
   const [filters, setFilters] = useState<SearchFormState>(() =>
     decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
   );
@@ -94,10 +96,15 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     () => encodeSearchExecutionState(activeFilters),
     [activeFilters],
   );
-  const filterDiscovery = useSavedListFilterDiscovery(route.slug, filters);
+  const filterDiscovery = useSavedListFilterDiscovery(
+    listRef,
+    filters,
+    !!resolvedListKey,
+  );
   const list = useQuery({
-    queryKey: ["saved-list", route.slug, filterToken],
+    queryKey: ["saved-list", listRef, filterToken],
     placeholderData: keepPreviousData,
+    refetchOnMount: resolvedListKey ? undefined : "always",
     enabled:
       !filters.filterWasReset &&
       !activeFilters.filterWasReset &&
@@ -105,7 +112,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     queryFn: async () => {
       const query = listSearchQuery(activeFilters);
       const view = await filterSavedList({
-        list_ref: route.slug,
+        list_ref: listRef,
         ...(activeFilters.sort ? { sort: activeFilters.sort } : {}),
         ...(query ? { query } : {}),
         ...(buildFilter(activeFilters) ? { filter: buildFilter(activeFilters)! } : {}),
@@ -115,10 +122,45 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       return view;
     },
   });
-  const selectedItem = list.data?.items.find(
+  if (
+    !resolvedListKey &&
+    list.isFetchedAfterMount &&
+    list.isSuccess &&
+    !list.isPlaceholderData
+  ) {
+    setResolvedListKey(list.data.list.list_key);
+  }
+  const listView = resolvedListKey ? list.data : undefined;
+  const listIdentity = listView?.list;
+  const selectedItem = listView?.items.find(
     (item) => item.record_key === route.selectedRecordKey,
   );
-  usePageTitle(list.data?.list.name ?? "List");
+  const listLoading = list.isLoading || (!resolvedListKey && list.isFetching);
+  const selectedRecordKey = route.selectedRecordKey;
+  const noteHidden =
+    !!route.selection && route.selection.record_key !== selectedRecordKey;
+  const entryNote = useListEntryNote({
+    selected:
+      selectedRecordKey && listIdentity && listIdentity.list_key === resolvedListKey
+        ? {
+            listRef: listIdentity.list_key,
+            recordKey: selectedRecordKey,
+            initialNote: selectedItem
+              ? {
+                  list_key: listIdentity.list_key,
+                  slug: listIdentity.slug,
+                  record_key: selectedItem.record_key,
+                  title: selectedItem.snapshot.title,
+                  note: selectedItem.note ?? null,
+                }
+              : undefined,
+            initialNoteUpdatedAt: list.dataUpdatedAt,
+          }
+        : undefined,
+    selectedRecordKey,
+    listRouteRef: route.slug,
+  });
+  usePageTitle(listIdentity?.name ?? "List");
   const inspectSelection = reading.select;
   const selectedRoute = useRef<
     | {
@@ -201,14 +243,12 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   };
   const removeItem = useMutation({
     mutationFn: (recordKey: string) =>
-      removeSavedListItem({ list_ref: route.slug, record_ref: recordKey }),
+      removeSavedListItem({ list_ref: listRef, record_ref: recordKey }),
     onSuccess: async (view, recordKey) => {
-      await invalidateSavedListQueries(queryClient, [
-        route.slug,
-        view.slug,
-        view.list_key,
-      ]);
       if (recordKey === route.selectedRecordKey) {
+        entryNote.retainAfterRemoval(recordKey);
+        selection.cancel();
+        reading.select(null);
         navigateDestination(
           listDestination({
             slug: route.slug,
@@ -217,6 +257,11 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           }),
         );
       }
+      await invalidateSavedListQueries(queryClient, [
+        route.slug,
+        view.slug,
+        view.list_key,
+      ]);
     },
   });
   const reorderItem = useMutation({
@@ -226,7 +271,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       placement: "before" | "after";
     }) =>
       reorderSavedListItem({
-        list_ref: route.slug,
+        list_ref: listRef,
         record_ref: input.recordKey,
         target_record_ref: input.targetRecordKey,
         placement: input.placement,
@@ -237,7 +282,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const canReorder =
     effectiveResultSort(filters, "saved_list").kind === "saved_order" &&
     effectiveResultSort(activeFilters, "saved_list").kind === "saved_order" &&
-    list.data?.sort.kind === "saved_order" &&
+    listView?.sort.kind === "saved_order" &&
     !filters.filterError &&
     !activeFilters.filterError &&
     !filters.query.trim() &&
@@ -263,22 +308,24 @@ export function ListDetailView({ route }: ListDetailViewProps) {
             filterDiscoveryLoading: filterDiscovery.loading,
             filterDiscoveryError: filterDiscovery.errorMessage,
           }}
-          list={list.data?.list}
-          loading={list.isLoading}
+          list={listView?.list}
+          loading={listLoading}
           onAddRecords={() => setAddOpen(true)}
         />
-        {list.data?.reference_error && (
+        {listView?.reference_error && (
           <Alert type="warning" title="Reference details could not be checked" />
         )}
         <ListRecordPicker
           key={route.slug}
-          list={list.data?.list}
+          list={listView?.list}
           open={addOpen}
           onClose={() => setAddOpen(false)}
         />
+        {narrow && entryNote.detached && <ListEntryNoteEditor state={entryNote} />}
         <BrowseReader
           reading={addressableReading}
           onClearSelection={() => {
+            entryNote.finish();
             selection.cancel();
             reading.select(null);
             void atlasRouter.navigate({
@@ -295,44 +342,21 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           readerStatus={!narrow && <ReferenceSelectionStatus selection={selection} />}
           selectedRecordKey={route.selectedRecordKey}
           readerFooter={
-            route.selectedRecordKey &&
-            list.data &&
-            (list.data.list.slug === route.slug ||
-              list.data.list.list_key === route.slug) ? (
-              <ListEntryNote
-                key={JSON.stringify([list.data.list.list_key, route.selectedRecordKey])}
-                listRef={list.data.list.list_key}
-                recordKey={route.selectedRecordKey}
-                initialNote={
-                  selectedItem
-                    ? {
-                        list_key: list.data.list.list_key,
-                        slug: list.data.list.slug,
-                        record_key: selectedItem.record_key,
-                        title: selectedItem.snapshot.title,
-                        note: selectedItem.note ?? null,
-                      }
-                    : undefined
-                }
-                initialNoteUpdatedAt={list.dataUpdatedAt}
-                hidden={Boolean(
-                  route.selection &&
-                  route.selection.record_key !== route.selectedRecordKey,
-                )}
-              />
+            entryNote.entry && !(narrow && entryNote.detached) ? (
+              <ListEntryNoteEditor state={entryNote} hidden={noteHidden} />
             ) : undefined
           }
           resultsLabel="Saved records"
-          resultsIdentity={list.data?.items}
-          resultsLoading={list.isLoading || list.isFetching}
+          resultsIdentity={listView?.items}
+          resultsLoading={listLoading || list.isFetching}
           resultsHeader={
             <div className="result-pane-header">
               {narrow && hasReferenceSelectionStatus(selection.current) ? (
                 <ReferenceSelectionStatus selection={selection} />
               ) : (
                 <span>
-                  {list.data
-                    ? `${list.data.items.length.toLocaleString()} saved records`
+                  {listView
+                    ? `${listView.items.length.toLocaleString()} saved records`
                     : "Saved records"}
                 </span>
               )}
@@ -353,9 +377,9 @@ export function ListDetailView({ route }: ListDetailViewProps) {
               list.isPlaceholderData ||
               Boolean(list.error)
             }
-            items={list.data?.items ?? []}
-            loading={list.isLoading || list.isFetching}
-            unavailable={Boolean(list.error && !list.data)}
+            items={listView?.items ?? []}
+            loading={listLoading || list.isFetching}
+            unavailable={Boolean(list.error && !listView)}
             filtered={Boolean(filters.query.trim() || buildFilter(filters))}
             removingKey={removeItem.isPending ? removeItem.variables : null}
             selectedRecordKey={route.selectedRecordKey}
@@ -382,7 +406,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
                 : undefined
             }
             onSelect={(recordKey) => {
-              const item = list.data?.items.find(
+              const item = listView?.items.find(
                 (item) => item.record_key === recordKey,
               );
               void selection.select({

@@ -16,7 +16,8 @@ use atlas_domain::RecordKey;
 use atlas_local_state::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
     NewSavedList, ReorderSavedListItem, ResolvedSavedListItem, SavedList, SavedListItem,
-    SavedListItemPlacement, SavedListItemStatus, UpdateSavedList, hydrate_saved_list_item,
+    SavedListItemPlacement, SavedListItemStatus, SavedListWithItems, UpdateSavedList,
+    hydrate_saved_list_item,
 };
 use atlas_search::{GetRecordsRequest, RecordRefResolutionResult, ResolveRecordRefRequest};
 use serde_json::json;
@@ -24,6 +25,7 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 use crate::error::{AppServiceError, AppServiceResult};
+use crate::saved_edit::SavedEditCheck;
 use crate::service::AtlasAppService;
 
 impl AtlasAppService {
@@ -180,18 +182,7 @@ impl AtlasAppService {
                 .saved_lists()
                 .get_with_items(list_ref)?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
-            let item = saved
-                .items
-                .into_iter()
-                .find(|item| item.record_key == record_key)
-                .ok_or_else(|| AppServiceError::invalid_request("record is not in this list"))?;
-            Ok(SavedListItemNoteView {
-                list_key: saved.list.list_key,
-                slug: saved.list.slug,
-                record_key: item.record_key,
-                title: item.record_title_snapshot,
-                note: item.note,
-            })
+            saved_list_note_view(saved, record_key)
         })
     }
 
@@ -199,29 +190,48 @@ impl AtlasAppService {
         &self,
         request: UpdateSavedListItemNoteRequest,
     ) -> AppServiceResult<SavedListItemNoteView> {
-        self.with_write(|session| {
-            let store = session.local_state()?;
-            let saved = store
-                .saved_lists()
-                .get_with_items(&request.list_ref)?
-                .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
-            let item = saved
-                .items
-                .into_iter()
-                .find(|item| item.record_key == request.record_key)
-                .ok_or_else(|| AppServiceError::invalid_request("record is not in this list"))?;
-            store.saved_lists().update_item_note(
-                &saved.list.list_key,
-                &request.record_key,
-                request.note.as_deref(),
-            )?;
-            Ok(SavedListItemNoteView {
-                list_key: saved.list.list_key,
-                slug: saved.list.slug,
-                record_key: request.record_key,
-                title: item.record_title_snapshot,
-                note: request.note,
+        self.save_list_item_note(&request.list_ref, &request.record_key, |current| {
+            let mut check = SavedEditCheck::default();
+            let value = check.value("note", current, request.note);
+            check.finish()?;
+            Ok(value)
+        })
+    }
+
+    pub fn set_saved_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+        note: Option<String>,
+    ) -> AppServiceResult<SavedListItemNoteView> {
+        self.save_list_item_note(list_ref, record_key, |_| Ok(note))
+            .map_err(|error| {
+                if error.app_error().code == AppErrorCode::SavedListItemNotFound {
+                    AppServiceError::invalid_request("record is not in this list")
+                } else {
+                    error
+                }
             })
+    }
+
+    fn save_list_item_note(
+        &self,
+        list_ref: &str,
+        record_key: &str,
+        value: impl FnOnce(&Option<String>) -> AppServiceResult<Option<String>>,
+    ) -> AppServiceResult<SavedListItemNoteView> {
+        self.with_write(|session| {
+            let lists = session.local_state()?.saved_lists();
+            let saved = lists
+                .get_with_items(list_ref)?
+                .ok_or_else(|| saved_list_not_found(list_ref))?;
+            let mut view = saved_list_note_view(saved, record_key)?;
+            let next = value(&view.note)?;
+            if next != view.note {
+                lists.update_item_note(&view.list_key, record_key, next.as_deref())?;
+                view.note = next;
+            }
+            Ok(view)
         })
     }
 
@@ -229,19 +239,71 @@ impl AtlasAppService {
         &self,
         request: UpdateSavedListRequest,
     ) -> AppServiceResult<SavedListUpdateView> {
-        self.with_write(move |session| {
-            let store = session.local_state()?;
-            let list_key = request.list_key;
-            let list = store
-                .saved_lists()
+        self.save_list_metadata(&request.list_key, |current| {
+            if current.list_key != request.list_key {
+                return Err(saved_list_not_found(&request.list_key));
+            }
+            let mut check = SavedEditCheck::default();
+            let slug = request
+                .slug
+                .map(|edit| check.value("slug", &current.slug, edit));
+            let name = request
+                .name
+                .map(|edit| check.value("name", &current.name, edit));
+            let description = request
+                .description
+                .map(|edit| check.value("description", &current.description, edit));
+            let tags = request
+                .tags
+                .map(|edit| check.value("tags", &current.tags, edit));
+            check.finish()?;
+            Ok(ListMetadataEdit {
+                slug,
+                name,
+                description,
+                tags,
+            })
+        })
+    }
+
+    pub fn edit_saved_list_metadata(
+        &self,
+        list_ref: &str,
+        slug: Option<String>,
+        name: Option<String>,
+        description: Option<Option<String>>,
+        tags: Option<Vec<String>>,
+    ) -> AppServiceResult<SavedListUpdateView> {
+        self.save_list_metadata(list_ref, |_| {
+            Ok(ListMetadataEdit {
+                slug,
+                name,
+                description,
+                tags,
+            })
+        })
+    }
+
+    fn save_list_metadata(
+        &self,
+        list_ref: &str,
+        edit: impl FnOnce(&SavedList) -> AppServiceResult<ListMetadataEdit>,
+    ) -> AppServiceResult<SavedListUpdateView> {
+        self.with_write(|session| {
+            let lists = session.local_state()?.saved_lists();
+            let current = lists
+                .get(list_ref)?
+                .ok_or_else(|| saved_list_not_found(list_ref))?;
+            let edit = edit(&current)?;
+            let list = lists
                 .update(UpdateSavedList {
-                    list_key: list_key.clone(),
-                    slug: request.slug,
-                    name: request.name,
-                    description: request.description,
-                    tags: request.tags,
+                    list_key: current.list_key,
+                    slug: edit.slug.unwrap_or(current.slug),
+                    name: edit.name.unwrap_or(current.name),
+                    description: edit.description.unwrap_or(current.description),
+                    tags: edit.tags,
                 })?
-                .ok_or_else(|| saved_list_not_found(&list_key))?;
+                .ok_or_else(|| saved_list_not_found(list_ref))?;
             Ok(SavedListUpdateView {
                 list: saved_list_summary(list),
             })
@@ -964,6 +1026,36 @@ fn record_resolution_ambiguous_error(
         )
         .with_details(details),
     )
+}
+
+struct ListMetadataEdit {
+    slug: Option<String>,
+    name: Option<String>,
+    description: Option<Option<String>>,
+    tags: Option<Vec<String>>,
+}
+
+fn saved_list_note_view(
+    saved: SavedListWithItems,
+    record_key: &str,
+) -> AppServiceResult<SavedListItemNoteView> {
+    let item = saved
+        .items
+        .into_iter()
+        .find(|item| item.record_key == record_key)
+        .ok_or_else(|| {
+            AppServiceError::new(
+                AppErrorCode::SavedListItemNotFound,
+                "This record is no longer in the saved list.",
+            )
+        })?;
+    Ok(SavedListItemNoteView {
+        list_key: saved.list.list_key,
+        slug: saved.list.slug,
+        record_key: item.record_key,
+        title: item.record_title_snapshot,
+        note: item.note,
+    })
 }
 
 fn saved_list_not_found(list_ref: &str) -> AppServiceError {
