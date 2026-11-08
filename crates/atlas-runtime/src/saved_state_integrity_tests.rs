@@ -340,7 +340,8 @@ fn integrity_constraints_reject_invalid_writes_and_defer_current_turn_until_comm
     assert!(write.commit().is_err());
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(
-        LocalStateRead::new(&read)
+        LocalStateRead::for_local(&read)
+            .unwrap()
             .encounters()
             .get("one")
             .unwrap()
@@ -358,7 +359,7 @@ fn integrity_constraints_allow_current_participant_and_encounter_deletion() {
         populate(&workspace, 24);
         initialize_workspace(workspace.path()).unwrap();
         let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let state = LocalStateWrite::new(&write);
+        let state = LocalStateWrite::for_local(&write).unwrap();
         if remove_encounter {
             assert!(state.encounters().delete("one").unwrap());
         } else {
@@ -406,7 +407,8 @@ fn integrity_constraints_allow_current_participant_and_encounter_deletion() {
         );
         if !remove_encounter {
             assert!(
-                LocalStateRead::new(&read)
+                LocalStateRead::for_local(&read)
+                    .unwrap()
                     .encounters()
                     .get("one")
                     .unwrap()

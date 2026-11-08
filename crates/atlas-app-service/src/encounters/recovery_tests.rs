@@ -62,7 +62,7 @@ fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_u
     let mut participant = worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?
                 .unwrap()
@@ -148,7 +148,7 @@ fn add_condition(
     fixture
         .worker
         .with_write(|session| {
-            session.local_state().encounters().add_condition(
+            session.local_state()?.encounters().add_condition(
                 atlas_local_state::AddEncounterParticipantCondition {
                     participant_key: participant.into(),
                     condition_key: Some(definition.record_key.into()),
@@ -407,7 +407,7 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
         let saved = worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&key)?
                     .unwrap())
@@ -436,7 +436,7 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
         let after = worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&key)?
                     .unwrap())

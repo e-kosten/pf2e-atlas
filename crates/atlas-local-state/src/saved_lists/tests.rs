@@ -8,11 +8,71 @@ use super::*;
 use crate::{LocalStateError, TestStore};
 
 #[test]
+fn list_slugs_replacements_and_membership_stay_within_the_owner()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = TestStore::open(temp_path("saved-lists-owner"))?;
+    let mut connection = store.connection()?;
+    let transaction = connection.transaction()?;
+    transaction.execute(
+        "INSERT INTO principals (id, principal_key, name) VALUES (2, 'second', 'Second')",
+        [],
+    )?;
+    let first = SavedListsWrite::from_connection(&transaction, 1);
+    let second = SavedListsWrite::from_connection(&transaction, 2);
+    let original = first.import(ImportSavedList {
+        slug: "supplies".into(),
+        name: "First supplies".into(),
+        description: None,
+        tags: vec!["first".into()],
+        replace: false,
+        items: vec![ImportSavedListItem {
+            record_key: "actions:first".into(),
+            note: Some("First note".into()),
+            record_title_snapshot: "First".into(),
+            record_kind_snapshot: None,
+        }],
+    })?;
+    let own = second.create_with_generated_slug(NewSavedList {
+        slug: String::new(),
+        name: "Supplies".into(),
+        description: None,
+        tags: vec![],
+    })?;
+    assert_eq!(own.slug, original.list.slug);
+    assert!(second.get_with_items(&original.list.list_key)?.is_none());
+    assert!(matches!(
+        second.update_item_note(&original.list.list_key, "actions:first", Some("Changed")),
+        Err(LocalStateError::ListNotFound(_))
+    ));
+    let replaced = second.import(ImportSavedList {
+        slug: "supplies".into(),
+        name: "Second supplies".into(),
+        description: None,
+        tags: vec!["second".into()],
+        replace: true,
+        items: vec![],
+    })?;
+    assert_eq!(replaced.list.list_key, own.list_key);
+    assert_eq!(second.list()?, vec![replaced.list]);
+    assert_eq!(first.get_with_items("supplies")?.as_ref(), Some(&original));
+
+    let membership = second.bind_record_membership(&original.list.list_key)?;
+    let contains = membership.contains_sql(&transaction)?;
+    let count: i64 = transaction.query_row(
+        &format!("SELECT COUNT(*) FROM record_identity r WHERE {contains}"),
+        [],
+        |row| row.get(0),
+    )?;
+    assert_eq!(count, 0);
+    Ok(())
+}
+
+#[test]
 fn saved_lists_order_by_recent_changes_with_slug_ties() -> Result<(), Box<dyn std::error::Error>> {
     let store = TestStore::open(temp_path("saved-lists-recency"))?;
     let mut connection = store.connection()?;
     let transaction = connection.transaction()?;
-    let lists = SavedListsWrite::from_connection(&transaction);
+    let lists = SavedListsWrite::from_connection(&transaction, 1);
     for slug in ["zulu", "middle", "alpha"] {
         lists.create(NewSavedList {
             slug: slug.into(),
@@ -290,7 +350,7 @@ fn failed_saved_list_reorder_rolls_back_inside_the_callers_transaction()
     let mut connection = store.connection()?;
     connection.execute_batch("CREATE TRIGGER reject_position BEFORE UPDATE OF position ON saved_list_items WHEN NEW.position=2 BEGIN SELECT RAISE(ABORT,'injected reorder failure'); END;")?;
     let transaction = connection.transaction()?;
-    let lists = SavedListsWrite::from_connection(&transaction);
+    let lists = SavedListsWrite::from_connection(&transaction, 1);
     assert!(
         lists
             .reorder_item(

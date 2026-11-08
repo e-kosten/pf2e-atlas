@@ -25,7 +25,7 @@ INSERT INTO encounter_event_receipts VALUES(1,'event','{"event":1}','{"version":
 INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_damage','fire','event');
 "#).unwrap();
     // The writer owns the transaction; use its saved-domain reader on the same snapshot.
-    let state = atlas_local_state::LocalStateWrite::new(&write);
+    let state = atlas_local_state::LocalStateWrite::for_local(&write).unwrap();
     let mut latest = Vec::new();
     for id in 1..=4i64 {
         let encounter = if id % 2 == 0 { 2 } else { 1 };
@@ -72,7 +72,7 @@ INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_da
     drop(read);
     let workspace = initialize_workspace(workspace.path()).unwrap();
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-    let store = LocalStateRead::new(&read);
+    let store = LocalStateRead::for_local(&read).unwrap();
     assert!(
         store
             .encounters()
@@ -125,7 +125,7 @@ INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_da
             [],
         )
         .unwrap();
-    let store = atlas_local_state::LocalStateWrite::new(&write);
+    let store = atlas_local_state::LocalStateWrite::for_local(&write).unwrap();
     assert_eq!(
         store
             .encounters()
@@ -292,7 +292,7 @@ fn command_receipt_upgrade_preserves_committed_bytes_and_drops_preparation() {
             ),
             before_claim,
         );
-        let store = LocalStateRead::new(&read);
+        let store = LocalStateRead::for_local(&read).unwrap();
         let encounters = store.encounters();
         assert_eq!(
             encounters

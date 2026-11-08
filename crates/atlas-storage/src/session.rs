@@ -13,14 +13,14 @@ impl<'a> RecordMembership<'a> {
     pub fn bind(
         connection: &'a Connection,
         select_keys: &str,
-        owner: &str,
+        params: impl rusqlite::Params,
     ) -> crate::StorageResult<Self> {
         connection.execute_batch(
             "CREATE TEMP TABLE atlas_record_membership(key TEXT PRIMARY KEY) WITHOUT ROWID",
         )?;
         connection.execute(
             &format!("INSERT INTO temp.atlas_record_membership(key) {select_keys}"),
-            [owner],
+            params,
         )?;
         Ok(Self { connection })
     }

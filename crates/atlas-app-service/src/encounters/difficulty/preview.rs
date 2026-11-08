@@ -14,7 +14,7 @@ impl AtlasAppService {
         }
         let initial = self.with_state(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::super::projection::encounter_not_found(encounter_ref))
@@ -45,7 +45,7 @@ fn read_preview(
     reference: EncounterDifficultyReference,
 ) -> AppServiceResult<EncounterDifficultyView> {
     let snapshot = session
-        .local_state()
+        .local_state()?
         .encounters()
         .get_with_participants(encounter_ref)?
         .ok_or_else(|| super::super::projection::encounter_not_found(encounter_ref))?;

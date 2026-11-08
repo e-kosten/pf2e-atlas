@@ -39,18 +39,20 @@ pub struct AbilityStateChange {
 
 pub(super) fn read(
     connection: &Connection,
+    owner_id: i64,
     key: &str,
 ) -> LocalStateResult<Vec<ParticipantAbilityState>> {
-    let mut statement = connection.prepare("SELECT payload_json FROM encounter_ability_states WHERE participant_key=?1 ORDER BY owner_key,rule_ordinal")?;
-    let rows = statement.query_map([key], |row| row.get::<_, String>(0))?;
+    let mut statement = connection.prepare("SELECT a.payload_json FROM encounter_ability_states a JOIN encounter_participants p USING(participant_key) JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2 ORDER BY owner_key,rule_ordinal")?;
+    let rows = statement.query_map(params![key, owner_id], |row| row.get::<_, String>(0))?;
     rows.map(|row| receipt_codec::decode(&row?)).collect()
 }
 pub(super) fn read_for_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: &str,
 ) -> LocalStateResult<std::collections::BTreeMap<String, Vec<ParticipantAbilityState>>> {
-    let mut statement = connection.prepare("SELECT p.participant_key,a.payload_json FROM encounter_participants p JOIN encounter_ability_states a USING(participant_key) WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,a.owner_key,a.rule_ordinal")?;
-    let rows = statement.query_map([encounter], |row| {
+    let mut statement = connection.prepare("SELECT p.participant_key,a.payload_json FROM encounter_participants p JOIN encounter_ability_states a USING(participant_key) WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY p.participant_key,a.owner_key,a.rule_ordinal")?;
+    let rows = statement.query_map(params![encounter, owner_id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
     let mut grouped = std::collections::BTreeMap::<String, Vec<ParticipantAbilityState>>::new();
@@ -71,8 +73,8 @@ impl EncountersWrite<'_> {
         change: &AbilityStateChange,
     ) -> LocalStateResult<()> {
         let changed = self.connection.execute(
-            "UPDATE encounter_participants SET revision=revision+1 WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2)",
-            params![change.participant_key,encounter_key],
+            "UPDATE encounter_participants SET revision=revision+1 WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2 AND owner_id=?3)",
+            params![change.participant_key,encounter_key,self.owner_id],
         )?;
         if changed != 1 {
             return Err(LocalStateError::InvalidRollRequest(

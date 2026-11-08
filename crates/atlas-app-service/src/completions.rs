@@ -9,7 +9,7 @@ pub fn complete_saved_list_slugs(
     let runtime = AtlasRuntime::resolve(crate::service::runtime_options(options))?;
     let session = runtime.read_state()?;
     Ok(session
-        .local_state()
+        .local_state()?
         .saved_lists()
         .list()?
         .into_iter()

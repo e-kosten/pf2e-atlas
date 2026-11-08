@@ -20,14 +20,20 @@ impl EncountersRead<'_> {
         request_id: &str,
         intent: &serde_json::Value,
     ) -> LocalStateResult<Option<Encounter>> {
-        recover_advance(self.connection, encounter_ref, request_id, intent)
+        recover_advance(
+            self.connection,
+            self.owner_id,
+            encounter_ref,
+            request_id,
+            intent,
+        )
     }
     pub fn outgoing_turn(
         &self,
         encounter_ref: &str,
         boundary_key: &str,
     ) -> LocalStateResult<Option<SavedOutgoingTurn>> {
-        let payload:Option<String> = self.connection.query_row("SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounter_command_receipts r ON r.encounter_id=t.encounter_id AND r.family='turn' AND r.request_id=t.request_id JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND r.boundary_key=?2",params![encounter_ref,boundary_key],|row|row.get(0)).optional()?;
+        let payload:Option<String> = self.connection.query_row("SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounter_command_receipts r ON r.encounter_id=t.encounter_id AND r.family='turn' AND r.request_id=t.request_id JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND r.boundary_key=?2 AND e.owner_id=?3",params![encounter_ref,boundary_key,self.owner_id],|row|row.get(0)).optional()?;
         payload
             .map(|payload| receipt_codec::decode(&payload))
             .transpose()
@@ -37,8 +43,8 @@ impl EncountersRead<'_> {
         encounter_ref: &str,
     ) -> LocalStateResult<Option<SavedOutgoingTurn>> {
         let payload: Option<String> = self.connection.query_row(
-            "SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.requires_review=1",
-            [encounter_ref], |row| row.get(0)).optional()?;
+            "SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.requires_review=1 AND e.owner_id=?2",
+            params![encounter_ref,self.owner_id], |row| row.get(0)).optional()?;
         payload
             .map(|payload| receipt_codec::decode(&payload))
             .transpose()
@@ -51,7 +57,13 @@ impl EncountersWrite<'_> {
         request_id: &str,
         intent: &serde_json::Value,
     ) -> LocalStateResult<Option<Encounter>> {
-        recover_advance(self.connection, encounter_ref, request_id, intent)
+        recover_advance(
+            self.connection,
+            self.owner_id,
+            encounter_ref,
+            request_id,
+            intent,
+        )
     }
     pub fn advance_turn_once(
         &self,
@@ -62,13 +74,17 @@ impl EncountersWrite<'_> {
         choose: impl FnOnce(&EncounterWithParticipants) -> LocalStateResult<(EncounterTurnUpdate, bool)>,
     ) -> LocalStateResult<Option<Encounter>> {
         crate::atomic_action::run(self.connection, || {
-            if let Some(encounter) =
-                recover_advance(self.connection, encounter_ref, request_id, intent)?
-            {
+            if let Some(encounter) = recover_advance(
+                self.connection,
+                self.owner_id,
+                encounter_ref,
+                request_id,
+                intent,
+            )? {
                 return Ok(Some(encounter));
             }
             let Some(mut snapshot) =
-                storage::get_with_participants(self.connection, encounter_ref)?
+                storage::get_with_participants(self.connection, self.owner_id, encounter_ref)?
             else {
                 return Ok(None);
             };
@@ -96,24 +112,32 @@ impl EncountersWrite<'_> {
             };
             command_receipts::insert(
                 self.connection,
+                self.owner_id,
                 &saved.snapshot.encounter.encounter_key,
                 request_id,
                 intent,
                 command_receipts::Outcome::Turn(&saved.boundary_key),
             )?;
-            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(requires_review)])?;
+            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 AND owner_id=?5 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(requires_review),self.owner_id])?;
             for (condition_id, amount) in update.durations {
-                storage::update_duration_amount(self.connection, condition_id, amount)?;
+                storage::update_duration_amount(
+                    self.connection,
+                    self.owner_id,
+                    &saved.snapshot.encounter.encounter_key,
+                    condition_id,
+                    amount,
+                )?;
             }
             storage::set_turn_state(
                 self.connection,
+                self.owner_id,
                 encounter_ref,
                 update.turn.participant_key.as_deref(),
                 Some(update.turn.round_number),
                 update.turn.mark_running,
             )?;
             if let Some(start) = update.start_event {
-                let current = storage::get(self.connection, encounter_ref)?
+                let current = storage::get(self.connection, self.owner_id, encounter_ref)?
                     .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
                 self.apply_claimed_condition_event(
                     &current.encounter_key,
@@ -130,19 +154,21 @@ impl EncountersWrite<'_> {
             for change in &update.manual_trackers {
                 self.save_manual_tracker(&saved.snapshot.encounter.encounter_key, change)?;
             }
-            storage::get(self.connection, encounter_ref)
+            storage::get(self.connection, self.owner_id, encounter_ref)
         })
     }
 }
 
 fn recover_advance(
     connection: &rusqlite::Connection,
+    owner_id: i64,
     encounter_ref: &str,
     request_id: &str,
     intent: &serde_json::Value,
 ) -> LocalStateResult<Option<Encounter>> {
     if command_receipts::recover(
         connection,
+        owner_id,
         encounter_ref,
         command_receipts::Family::Turn,
         request_id,
@@ -152,5 +178,5 @@ fn recover_advance(
     {
         return Ok(None);
     }
-    storage::get(connection, encounter_ref)
+    storage::get(connection, owner_id, encounter_ref)
 }

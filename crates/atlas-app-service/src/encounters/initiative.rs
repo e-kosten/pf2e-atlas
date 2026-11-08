@@ -12,7 +12,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<InitiativeOptionsView> {
         let initial = self.with_state(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))
@@ -29,7 +29,7 @@ impl AtlasAppService {
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
                 let snapshot = session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&encounter_ref)?
                     .ok_or_else(|| super::projection::encounter_not_found(&encounter_ref))?;
@@ -45,7 +45,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<InitiativeRollView> {
         let encounter = self.with_state(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))
@@ -66,7 +66,7 @@ impl AtlasAppService {
                 &crate::ReadExecutionContext::uncancellable(),
                 move |session| {
                     let snapshot = session
-                        .local_state()
+                        .local_state()?
                         .encounters()
                         .get_with_participants(&key)?
                         .ok_or_else(|| super::projection::encounter_not_found(&key))?;
@@ -128,7 +128,7 @@ impl AtlasAppService {
             });
         }
         self.with_write(|session| {
-            let encounters = session.local_state().encounters();
+            let encounters = session.local_state()?.encounters();
             if let Some(revision) = reference_revision {
                 session.require_reference_revision(revision)?;
             }

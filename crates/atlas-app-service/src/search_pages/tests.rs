@@ -1426,7 +1426,7 @@ fn connected_picker_uses_complete_static_scope_and_its_own_filters_before_paging
     worker
         .with_write(|write| {
             Ok(write
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .import(atlas_local_state::ImportSavedList {
                     slug: "connected-parent".into(),

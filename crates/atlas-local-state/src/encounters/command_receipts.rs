@@ -55,6 +55,7 @@ impl StoredReceipt {
 
 pub(super) fn recover(
     connection: &Connection,
+    owner_id: i64,
     encounter_ref: &str,
     family: Family,
     request_id: &str,
@@ -66,8 +67,8 @@ pub(super) fn recover(
             "SELECT r.intent_json,r.receipt_json FROM encounter_command_receipts r
              JOIN encounters e ON e.id=r.encounter_id
              WHERE (e.encounter_key=?1 OR (?2='turn' AND e.slug=?1))
-               AND r.family=?2 AND r.request_id=?3",
-            params![encounter_ref, family.as_str(), request_id],
+               AND r.family=?2 AND r.request_id=?3 AND e.owner_id=?4",
+            params![encounter_ref, family.as_str(), request_id, owner_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?;
@@ -82,6 +83,7 @@ pub(super) fn recover(
 
 pub(super) fn insert(
     connection: &Connection,
+    owner_id: i64,
     encounter_key: &str,
     request_id: &str,
     intent: &serde_json::Value,
@@ -94,7 +96,7 @@ pub(super) fn insert(
     connection.execute(
         "INSERT INTO encounter_command_receipts
              (encounter_id,family,request_id,intent_json,boundary_key,receipt_json)
-         SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1",
+         SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1 AND owner_id=?7",
         params![
             encounter_key,
             family.as_str(),
@@ -102,6 +104,7 @@ pub(super) fn insert(
             serde_json::to_string(intent)?,
             boundary,
             receipt,
+            owner_id,
         ],
     )?;
     Ok(())

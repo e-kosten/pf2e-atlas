@@ -36,7 +36,7 @@ fn add(f: &FixtureWorker, key: &str, name: &str, value: Option<i64>) -> i64 {
         .unwrap();
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().add_condition(
+            Ok(session.local_state()?.encounters().add_condition(
                 atlas_local_state::AddEncounterParticipantCondition {
                     participant_key: key.into(),
                     condition_key: Some(definition.condition_ref),
@@ -163,7 +163,7 @@ fn turn_preparation_cannot_retarget_a_reassigned_slug() {
         f.worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(key)?
                     .unwrap())
@@ -480,7 +480,7 @@ fn a_condition_blocks_permission_without_erasing_reaction_stock() {
     f.worker
         .with_write(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .remove_condition(&a, condition)?;
             Ok(())
@@ -502,7 +502,7 @@ fn a_condition_blocks_permission_without_erasing_reaction_stock() {
     f.worker
         .with_write(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .remove_condition(&a, stunned)?;
             Ok(())
@@ -997,7 +997,7 @@ fn inherent_slowed_and_temporary_slowed_share_one_allocation_without_saving_dupl
         f.worker
             .with_write(|session| {
                 session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .remove_condition(&p, equal_source)?;
                 Ok(())
@@ -1011,7 +1011,7 @@ fn inherent_slowed_and_temporary_slowed_share_one_allocation_without_saving_dupl
         f.worker
             .with_write(|session| {
                 session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .remove_condition(&p, temporary)?;
                 Ok(())

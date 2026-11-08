@@ -1,11 +1,15 @@
 use crate::{LocalStateResult, Party, PartyMember, PartyMemberInput};
 use rusqlite::{Connection, OptionalExtension, params};
 
-pub(super) fn get(connection: &Connection, key: &str) -> LocalStateResult<Option<Party>> {
+pub(super) fn get(
+    connection: &Connection,
+    owner_id: i64,
+    key: &str,
+) -> LocalStateResult<Option<Party>> {
     let party = connection
         .query_row(
-            "SELECT party_key, name, revision FROM parties WHERE owner_id=1 AND party_key=?1",
-            [key],
+            "SELECT party_key, name, revision FROM parties WHERE owner_id=?2 AND party_key=?1",
+            params![key, owner_id],
             |row| {
                 Ok(Party {
                     party_key: row.get(0)?,
@@ -34,24 +38,29 @@ pub(super) fn get(connection: &Connection, key: &str) -> LocalStateResult<Option
     Ok(Some(party))
 }
 
-pub(super) fn list(connection: &Connection) -> LocalStateResult<Vec<Party>> {
+pub(super) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<Vec<Party>> {
     let mut statement = connection.prepare(
-        "SELECT party_key FROM parties WHERE owner_id=1 ORDER BY name COLLATE NOCASE, party_key",
+        "SELECT party_key FROM parties WHERE owner_id=?1 ORDER BY name COLLATE NOCASE, party_key",
     )?;
     let keys = statement
-        .query_map([], |row| row.get::<_, String>(0))?
+        .query_map([owner_id], |row| row.get::<_, String>(0))?
         .collect::<Result<Vec<_>, _>>()?;
     keys.into_iter()
-        .map(|key| get(connection, &key)?.ok_or(crate::LocalStateError::PartyNotFound(key)))
+        .map(|key| {
+            get(connection, owner_id, &key)?.ok_or(crate::LocalStateError::PartyNotFound(key))
+        })
         .collect()
 }
 
 pub(super) fn replace_members(
     connection: &Connection,
-    key: &str,
+    owned_party_key: &str,
     members: &[PartyMemberInput],
 ) -> LocalStateResult<()> {
-    connection.execute("DELETE FROM party_members WHERE party_key=?1", [key])?;
+    connection.execute(
+        "DELETE FROM party_members WHERE party_key=?1",
+        [owned_party_key],
+    )?;
     for (position, member) in members.iter().enumerate() {
         let member_key = member
             .member_key
@@ -59,7 +68,7 @@ pub(super) fn replace_members(
             .unwrap_or_else(|| new_key("member"));
         connection.execute(
             "INSERT INTO party_members(member_key,party_key,position,name,level) VALUES(?1,?2,?3,?4,?5)",
-            params![member_key, key, position as i64, member.name.trim(), member.level],
+            params![member_key, owned_party_key, position as i64, member.name.trim(), member.level],
         )?;
     }
     Ok(())

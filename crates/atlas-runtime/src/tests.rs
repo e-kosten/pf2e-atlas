@@ -91,7 +91,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     }
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
     let write = workspace.write(initial_schema).unwrap();
-    let state = LocalStateWrite::new(&write);
+    let state = LocalStateWrite::for_local(&write).unwrap();
     let list = state
         .saved_lists()
         .create(NewSavedList {
@@ -312,7 +312,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     assert!(!runtime.upgrade_workspace_if_present().unwrap());
     {
         let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
-        let state = LocalStateRead::new(&read);
+        let state = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(
             state
                 .saved_lists()
@@ -1325,7 +1325,8 @@ fn incompatible_supplied_source_preserves_published_reference_and_saved_state() 
     assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-    LocalStateWrite::new(&write)
+    LocalStateWrite::for_local(&write)
+        .unwrap()
         .saved_lists()
         .create(NewSavedList {
             slug: "keep".into(),
@@ -1334,7 +1335,8 @@ fn incompatible_supplied_source_preserves_published_reference_and_saved_state() 
             tags: vec![],
         })
         .unwrap();
-    LocalStateWrite::new(&write)
+    LocalStateWrite::for_local(&write)
+        .unwrap()
         .encounters()
         .create(NewEncounter {
             slug: "keep-encounter".into(),
@@ -1369,7 +1371,8 @@ fn incompatible_supplied_source_preserves_published_reference_and_saved_state() 
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(read.reference_revision().unwrap(), before);
     assert_eq!(
-        LocalStateRead::new(&read)
+        LocalStateRead::for_local(&read)
+            .unwrap()
             .saved_lists()
             .list()
             .unwrap()
@@ -1377,7 +1380,8 @@ fn incompatible_supplied_source_preserves_published_reference_and_saved_state() 
         1
     );
     assert_eq!(
-        LocalStateRead::new(&read)
+        LocalStateRead::for_local(&read)
+            .unwrap()
             .encounters()
             .list()
             .unwrap()
@@ -1450,7 +1454,7 @@ fn explicit_setup_replaces_prior_model_and_preserves_saved_state() {
     assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-    let state = LocalStateWrite::new(&write);
+    let state = LocalStateWrite::for_local(&write).unwrap();
     let list = state
         .saved_lists()
         .create(NewSavedList {
@@ -1506,7 +1510,7 @@ fn explicit_setup_replaces_prior_model_and_preserves_saved_state() {
     assert!(report.ready, "{report:?}");
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert!(read.reference_revision().unwrap() > before);
-    let state = LocalStateRead::new(&read);
+    let state = LocalStateRead::for_local(&read).unwrap();
     assert_eq!(state.saved_lists().list().unwrap(), vec![list]);
     assert_eq!(state.encounters().list().unwrap(), vec![encounter]);
     assert_eq!(

@@ -161,7 +161,7 @@ impl AtlasAppService {
             })?;
         let boundary = self.with_state(|session| {
             super::outgoing_turns::boundary(
-                &session.local_state().encounters(),
+                &session.local_state()?.encounters(),
                 &snapshot.encounter.encounter_key,
                 request.boundary_key.as_deref(),
                 &request.participant_key,
@@ -352,7 +352,7 @@ impl AtlasAppService {
         let complete = request.groups.len() == groups.len();
         if rolling.is_some() || recovery.is_some() {
             self.with_state(|session| {
-                let store = session.local_state().encounters();
+                let store = session.local_state()?.encounters();
                 let current = store
                     .get(&context.encounter_key)?
                     .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;

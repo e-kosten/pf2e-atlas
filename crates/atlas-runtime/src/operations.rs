@@ -14,8 +14,8 @@ impl WorkspaceRead {
     pub fn retrieval_mut(&mut self) -> &mut AtlasRetrievalService {
         &mut self.retrieval
     }
-    pub fn local_state(&self) -> LocalStateRead<'_> {
-        LocalStateRead::new(self.retrieval.workspace_session())
+    pub fn local_state(&self) -> atlas_local_state::LocalStateResult<LocalStateRead<'_>> {
+        LocalStateRead::for_local(self.retrieval.workspace_session())
     }
     pub fn reference_revision(&self) -> Result<u64, RuntimeError> {
         Ok(self.retrieval.workspace_session().reference_revision()?)
@@ -33,8 +33,8 @@ impl StateRead {
     pub fn exact_records(&self) -> Result<ExactRecordRead<'_>, RuntimeError> {
         ExactRecordRead::open(self.session.connection())
     }
-    pub fn local_state(&self) -> LocalStateRead<'_> {
-        LocalStateRead::new(&self.session)
+    pub fn local_state(&self) -> atlas_local_state::LocalStateResult<LocalStateRead<'_>> {
+        LocalStateRead::for_local(&self.session)
     }
     pub fn reference_revision(&self) -> Result<u64, RuntimeError> {
         Ok(self.session.reference_revision()?)
@@ -80,8 +80,8 @@ pub struct WorkspaceWrite {
     session: WriteSession,
 }
 impl WorkspaceWrite {
-    pub fn local_state(&self) -> LocalStateWrite<'_> {
-        LocalStateWrite::new(&self.session)
+    pub fn local_state(&self) -> atlas_local_state::LocalStateResult<LocalStateWrite<'_>> {
+        LocalStateWrite::for_local(&self.session)
     }
     pub fn exact_records(&self) -> Result<ExactRecordRead<'_>, RuntimeError> {
         ExactRecordRead::open(self.session.connection())

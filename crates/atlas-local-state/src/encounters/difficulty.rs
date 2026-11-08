@@ -31,7 +31,7 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<Encounter> {
         crate::atomic_action::run(self.connection, || {
             reference.validate()?;
-            let encounter = storage::get(self.connection, encounter_ref)?
+            let encounter = storage::get(self.connection, self.owner_id, encounter_ref)?
                 .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_ref.into()))?;
             if encounter.revision != expected_revision {
                 return Err(LocalStateError::StaleEncounterRevision {
@@ -40,8 +40,8 @@ impl EncountersWrite<'_> {
                     actual_revision: encounter.revision,
                 });
             }
-            self.connection.execute("UPDATE encounters SET difficulty_party_level=?1, difficulty_party_size=?2, revision=revision+1, updated_at=?3 WHERE owner_id=1 AND encounter_key=?4", rusqlite::params![reference.party_level, reference.party_size, storage::now_rfc3339()?, encounter.encounter_key])?;
-            storage::get(self.connection, &encounter.encounter_key)?
+            self.connection.execute("UPDATE encounters SET difficulty_party_level=?1, difficulty_party_size=?2, revision=revision+1, updated_at=?3 WHERE owner_id=?5 AND encounter_key=?4", rusqlite::params![reference.party_level, reference.party_size, storage::now_rfc3339()?, encounter.encounter_key,self.owner_id])?;
+            storage::get(self.connection, self.owner_id, &encounter.encounter_key)?
                 .ok_or(LocalStateError::EncounterNotFound(encounter.encounter_key))
         })
     }

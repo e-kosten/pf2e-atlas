@@ -174,6 +174,26 @@ the affected row's identity. It preserves all data on failure and does not infer
 a repair. The retired adjustment table is removed only when empty; historical
 rows require an explicit preservation decision.
 
+### Saved-state ownership
+
+Product access to saved lists, parties and encounters uses an owner bound to the
+consuming transaction. The local CLI and web runtime resolve the seeded `local`
+principal by key when they request saved-state capabilities. Missing local
+ownership fails that access. The caller's document, slug, stable key or child ID
+does not establish ownership.
+
+Bind the owner explicitly on root inserts and root lookups and mutations.
+Access children through an owned parent in the same transaction, including
+list-scoped retrieval and filtering, encounter turn snapshots and receipt
+recovery. Verify the parent before inspecting a stored receipt, then preserve
+receipt recovery before the existing revision and reference checks. Import uses
+the destination scope.
+
+Public reference-only reads do not acquire a saved owner. Workspace-wide
+maintenance, migrations and backups operate on the complete workspace. When
+adding saved access paths, cover the scope using a foreign owner's key or child
+ID, or a slug shared by two owners as appropriate to the operation.
+
 ## Development snapshots
 
 Whole-workspace developer seeds are storage-owned snapshots, not a second live

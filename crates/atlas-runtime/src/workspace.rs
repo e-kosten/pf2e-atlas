@@ -424,7 +424,8 @@ mod tests {
             })
         ));
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let encounter = LocalStateRead::new(&read)
+        let encounter = LocalStateRead::for_local(&read)
+            .unwrap()
             .encounters()
             .get_with_participants("e")
             .unwrap()
@@ -462,7 +463,8 @@ mod tests {
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let saved = LocalStateRead::new(&read)
+        let saved = LocalStateRead::for_local(&read)
+            .unwrap()
             .encounters()
             .get_with_participants("legacy")
             .unwrap()
@@ -517,7 +519,7 @@ mod tests {
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let local = LocalStateWrite::new(&write);
+        let local = LocalStateWrite::for_local(&write).unwrap();
         let saved = local
             .encounters()
             .get_with_participants("legacy")
@@ -616,7 +618,7 @@ mod tests {
         };
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let local = LocalStateRead::new(&read);
+        let local = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(saved_row(read.connection()), before);
         let upgraded_encounter = local
             .encounters()
@@ -657,7 +659,8 @@ mod tests {
         let workspace = Workspace::at(&path).unwrap();
         workspace.migrate(&MIGRATIONS[..17], |_| Ok(())).unwrap();
         let write = workspace.write(17).unwrap();
-        LocalStateWrite::new(&write)
+        LocalStateWrite::for_local(&write)
+            .unwrap()
             .saved_lists()
             .create(NewSavedList {
                 slug: "campaign".into(),
@@ -669,11 +672,22 @@ mod tests {
         write.commit().unwrap();
         let before = {
             let read = workspace.read(17).unwrap();
-            serde_json::to_value(LocalStateRead::new(&read).saved_lists().list().unwrap()).unwrap()
+            serde_json::to_value(
+                LocalStateRead::for_local(&read)
+                    .unwrap()
+                    .saved_lists()
+                    .list()
+                    .unwrap(),
+            )
+            .unwrap()
         };
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let after = LocalStateRead::new(&read).saved_lists().list().unwrap();
+        let after = LocalStateRead::for_local(&read)
+            .unwrap()
+            .saved_lists()
+            .list()
+            .unwrap();
         assert_eq!(serde_json::to_value(after).unwrap(), before);
     }
 
@@ -841,7 +855,8 @@ mod tests {
             atlas_index::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
         }
         let write = workspace.write(19).unwrap();
-        LocalStateWrite::new(&write)
+        LocalStateWrite::for_local(&write)
+            .unwrap()
             .saved_lists()
             .create(NewSavedList {
                 slug: "kept".into(),
@@ -911,11 +926,17 @@ mod tests {
         assert_eq!(vectors(read.connection()), before);
         assert_eq!(read.reference_revision().unwrap(), revision as u64 + 1);
         assert_eq!(
-            LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
+            LocalStateRead::for_local(&read)
+                .unwrap()
+                .saved_lists()
+                .list()
+                .unwrap()[0]
+                .name,
             "Kept"
         );
         assert_eq!(
-            LocalStateRead::new(&read)
+            LocalStateRead::for_local(&read)
+                .unwrap()
                 .encounters()
                 .get_with_participants("kept-encounter")
                 .unwrap()
@@ -959,7 +980,12 @@ mod tests {
         assert_eq!(main_ledger(read.connection()), published_history);
         assert_eq!(vectors(read.connection()), before);
         assert_eq!(
-            LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
+            LocalStateRead::for_local(&read)
+                .unwrap()
+                .saved_lists()
+                .list()
+                .unwrap()[0]
+                .name,
             "Kept"
         );
     }
@@ -979,7 +1005,8 @@ mod tests {
         atlas_index::test_support::publish_input_in(&workspace, WORKSPACE_SCHEMA_VERSION, &input)
             .unwrap();
         let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-        LocalStateWrite::new(&write)
+        LocalStateWrite::for_local(&write)
+            .unwrap()
             .saved_lists()
             .create(NewSavedList {
                 slug: "kept".into(),
@@ -1102,7 +1129,8 @@ mod tests {
         {
             let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
             assert_eq!(snapshot(read.connection()), before);
-            let detail = LocalStateRead::new(&read)
+            let detail = LocalStateRead::for_local(&read)
+                .unwrap()
                 .encounters()
                 .get_with_participants("kept")
                 .unwrap()
@@ -1206,7 +1234,8 @@ mod tests {
         write.commit().unwrap();
         let workspace = initialize_workspace(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let detail = LocalStateRead::new(&read)
+        let detail = LocalStateRead::for_local(&read)
+            .unwrap()
             .encounters()
             .get_with_participants("kept")
             .unwrap()
@@ -1283,7 +1312,7 @@ mod tests {
         let workspace = Workspace::at(&path).unwrap();
         workspace.migrate(&MIGRATIONS[..2], |_| Ok(())).unwrap();
         let write = workspace.write(2).unwrap();
-        let state = LocalStateWrite::new(&write);
+        let state = LocalStateWrite::for_local(&write).unwrap();
         let list = state
             .saved_lists()
             .create(NewSavedList {
@@ -1297,7 +1326,7 @@ mod tests {
         write.commit().unwrap();
         let workspace = initialize_workspace(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let state = LocalStateRead::new(&read);
+        let state = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(state.saved_lists().list().unwrap(), vec![list]);
         let encounters = state.encounters().list().unwrap();
         assert_eq!(encounters.len(), 1);
@@ -1321,7 +1350,8 @@ mod tests {
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let detail = LocalStateRead::new(&read)
+        let detail = LocalStateRead::for_local(&read)
+            .unwrap()
             .encounters()
             .get_with_participants("e")
             .unwrap()
@@ -1350,7 +1380,8 @@ mod tests {
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let detail = LocalStateRead::new(&read)
+        let detail = LocalStateRead::for_local(&read)
+            .unwrap()
             .encounters()
             .get_with_participants("e")
             .unwrap()
@@ -1414,7 +1445,8 @@ mod tests {
         let recovered = initialize_workspace(workspace.path()).unwrap();
         let read = recovered.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert!(
-            LocalStateRead::new(&read)
+            LocalStateRead::for_local(&read)
+                .unwrap()
                 .saved_lists()
                 .list()
                 .unwrap()
@@ -1433,7 +1465,8 @@ mod tests {
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let party = LocalStateWrite::new(&write)
+        let party = LocalStateWrite::for_local(&write)
+            .unwrap()
             .parties()
             .create(
                 "Party",
@@ -1448,7 +1481,7 @@ mod tests {
         drop(upgraded);
         let reopened = initialize_workspace(&path).unwrap();
         let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let state = LocalStateRead::new(&read);
+        let state = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(state.parties().get(&party.party_key).unwrap(), party);
         assert_eq!(
             state.encounters().get("kept").unwrap().unwrap().status,
@@ -1485,7 +1518,7 @@ mod tests {
         write.commit().unwrap();
         let upgraded = initialize_workspace(workspace.path()).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let state = LocalStateRead::new(&read);
+        let state = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(state.parties().get(&party.party_key).unwrap(), party);
         let detail = state
             .encounters()

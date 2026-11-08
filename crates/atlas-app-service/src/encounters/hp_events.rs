@@ -18,7 +18,7 @@ impl AtlasAppService {
         }
         let snapshot = self.with_state(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))
@@ -94,12 +94,12 @@ impl AtlasAppService {
     ) -> AppServiceResult<Vec<PendingHpLifecycleView>> {
         let (encounter, pending) = self.with_state(|session| {
             let encounter = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
             let pending = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .pending_condition_consequences(&encounter.encounter.encounter_key)?;
             Ok((encounter, pending))
@@ -190,12 +190,12 @@ impl AtlasAppService {
     ) -> AppServiceResult<PendingHpLifecycleView> {
         let pending = self.with_state(|session| {
             let encounter = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .pending_condition_consequences(&encounter.encounter_key)?
                 .into_iter()
@@ -206,7 +206,7 @@ impl AtlasAppService {
         })?;
         let participants = self.with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?
@@ -325,12 +325,12 @@ impl AtlasAppService {
         }
         let (snapshot, pending) = self.with_state(|session| {
             let snapshot = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
             let pending = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .pending_condition_consequences(&snapshot.encounter.encounter_key)?
                 .into_iter()
@@ -472,7 +472,7 @@ pub(super) fn retire_stale_hp_decisions(
     encounter_key: &str,
     prepared_sources: &[(&str, &rules::source_conditions::SourceConditions)],
 ) -> AppServiceResult<()> {
-    let store = session.local_state().encounters();
+    let store = session.local_state()?.encounters();
     let pending = store.pending_condition_consequences(encounter_key)?;
     if !pending
         .iter()
@@ -1159,7 +1159,7 @@ mod hp_lifecycle_tests {
         let mut saved = worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&key)?
                     .unwrap()
@@ -1233,7 +1233,7 @@ mod hp_lifecycle_tests {
         // Saved state can contain unknown counters; recovery must explain the actual issue.
         let wounded = worker
             .with_write(|session| {
-                Ok(session.local_state().encounters().add_condition(
+                Ok(session.local_state()?.encounters().add_condition(
                     atlas_local_state::AddEncounterParticipantCondition {
                         participant_key: participant.clone(),
                         condition_key: Some(
@@ -1260,7 +1260,7 @@ mod hp_lifecycle_tests {
             worker
                 .with_state(|session| {
                     Ok(session
-                        .local_state()
+                        .local_state()?
                         .encounters()
                         .get_with_participants(&key)?
                         .unwrap())
@@ -1292,7 +1292,7 @@ mod hp_lifecycle_tests {
         assert_eq!(snapshot(), before);
         worker
             .with_state(|session| {
-                let store = session.local_state().encounters();
+                let store = session.local_state()?.encounters();
                 assert!(
                     store
                         .condition_event_receipt(&key, &request.request_id, &intent)?
@@ -1310,7 +1310,7 @@ mod hp_lifecycle_tests {
             .with_write(|session| {
                 assert!(
                     session
-                        .local_state()
+                        .local_state()?
                         .encounters()
                         .remove_condition(&participant, wounded.condition_id)?
                 );
@@ -1342,7 +1342,7 @@ mod hp_lifecycle_tests {
         let mut saved = worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&key)?
                     .unwrap()
@@ -1374,7 +1374,7 @@ mod hp_lifecycle_tests {
         let participant = worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&key)?
                     .unwrap()
@@ -1614,7 +1614,7 @@ mod hp_lifecycle_tests {
                 .with_state(|session| {
                     assert!(
                         session
-                            .local_state()
+                            .local_state()?
                             .encounters()
                             .pending_condition_consequences(&key)?
                             .is_empty()
@@ -1638,7 +1638,7 @@ mod hp_lifecycle_tests {
         );
         worker
             .with_write(|session| {
-                let store = session.local_state().encounters();
+                let store = session.local_state()?.encounters();
                 let snapshot = store.get_with_participants(&key)?.unwrap();
                 let mut change = atlas_local_state::ParticipantEventChange::preserving(
                     &snapshot.participants[0],
@@ -1667,7 +1667,7 @@ mod hp_lifecycle_tests {
             .with_state(|session| {
                 assert_eq!(
                     session
-                        .local_state()
+                        .local_state()?
                         .encounters()
                         .pending_condition_consequences(&key)?
                         .len(),
@@ -1689,7 +1689,7 @@ mod hp_lifecycle_tests {
             .with_state(|session| {
                 assert!(
                     session
-                        .local_state()
+                        .local_state()?
                         .encounters()
                         .pending_condition_consequences(&key)?
                         .is_empty()
@@ -1756,7 +1756,7 @@ mod hp_lifecycle_tests {
         let mut participant = worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&key)?
                     .unwrap()

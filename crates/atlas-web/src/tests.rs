@@ -1355,7 +1355,22 @@ async fn response_json(response: Response) -> (StatusCode, Value) {
 #[tokio::test]
 async fn source_free_saved_state_works_without_reference_readiness() {
     let fixture = Fixture::without_reference();
-    atlas_runtime::initialize_workspace(fixture.service.workspace_path()).unwrap();
+    let workspace = atlas_runtime::initialize_workspace(fixture.service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute_batch(
+            "UPDATE principals SET id = 7 WHERE principal_key = 'local';
+         INSERT INTO principals VALUES (1, 'other', 'Other');
+         INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at)
+         VALUES (1,'foreign-list','offline','Other list','now','now');
+         INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
+         VALUES (1,'foreign-encounter','offline','Other encounter','draft','now','now');",
+        )
+        .unwrap();
+    write.commit().unwrap();
     assert_ne!(
         fixture.service.readiness().status,
         atlas_app_model::AppReadinessStatus::Ready
@@ -1378,9 +1393,97 @@ async fn source_free_saved_state_works_without_reference_readiness() {
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["encounter"]["slug"], "offline");
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/parties",
+            Some(json!({"name":"Offline party","members":[]})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let read = workspace
+        .read(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    let owners: (i64, i64, i64) = read
+        .connection()
+        .query_row(
+            "SELECT (SELECT owner_id FROM saved_lists WHERE name='Offline'),
+                (SELECT owner_id FROM encounters WHERE name='Offline'),
+                (SELECT owner_id FROM parties WHERE name='Offline party')",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(owners, (7, 7, 7));
     let(status,body)=fixture.json(Method::POST,"/api/search/page",Some(json!({"criteria":{"kind":"list_records","filter":null},"page":{"number":1,"size":10}}))).await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
     assert_eq!(body["code"], "index_unavailable");
+}
+
+#[tokio::test]
+async fn missing_local_principal_blocks_saved_access_but_not_reference_reads() {
+    let fixture = Fixture::new();
+    let workspace = atlas_runtime::initialize_workspace(fixture.service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE principals SET principal_key = 'other' WHERE principal_key = 'local'",
+            [],
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let (status, body) = fixture.json(Method::GET, "/api/lists", None).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
+    assert_eq!(body["code"], "internal_error");
+    let (status, body) = fixture
+        .json(Method::GET, &format!("/api/records/{ACTION}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, body) = fixture.json(
+        Method::POST,
+        "/api/search/page",
+        Some(json!({"criteria":{"kind":"list_records","filter":null},"page":{"number":1,"size":10}})),
+    ).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+}
+
+#[tokio::test]
+async fn saved_list_vocabulary_respects_ownership() {
+    let fixture = Fixture::new();
+    let workspace = atlas_runtime::initialize_workspace(fixture.service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute_batch(
+            "INSERT INTO principals VALUES (7, 'other', 'Other');
+         INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at)
+         VALUES (7,'foreign-list','research','Other research','now','now');",
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    for (list_ref, expected_status) in [
+        ("research", StatusCode::OK),
+        ("foreign-list", StatusCode::NOT_FOUND),
+    ] {
+        let (status, body) = fixture
+            .json(
+                Method::POST,
+                "/api/filters/values",
+                Some(
+                    json!({"kind":"vocabulary","scope":{"kind":"saved_list","list_ref":list_ref},
+                        "field_id":"traits","text":"fire","limit":20}),
+                ),
+            )
+            .await;
+        assert_eq!(status, expected_status, "{body}");
+    }
 }
 
 #[tokio::test]

@@ -62,8 +62,12 @@ pub struct ApplyEncounterRecovery<'a> {
     pub replacements: &'a [(String, ParticipantGameplay)],
 }
 
-pub(super) fn capture_baseline(connection: &Connection, key: &str) -> LocalStateResult<()> {
-    let p = storage::participant(connection, key)?
+pub(super) fn capture_baseline(
+    connection: &Connection,
+    owner_id: i64,
+    key: &str,
+) -> LocalStateResult<()> {
+    let p = storage::participant(connection, owner_id, key)?
         .ok_or_else(|| LocalStateError::ParticipantNotFound(key.into()))?;
     connection.execute("INSERT INTO encounter_participant_baselines(participant_key,payload_json) VALUES(?1,?2) ON CONFLICT(participant_key) DO UPDATE SET payload_json=excluded.payload_json",
         params![key, receipt_codec::encode(&ParticipantGameplay::from(&p))?])?;
@@ -74,8 +78,11 @@ impl EncountersRead<'_> {
         let payload: Option<String> = self
             .connection
             .query_row(
-                "SELECT payload_json FROM encounter_participant_baselines WHERE participant_key=?1",
-                [key],
+                "SELECT b.payload_json FROM encounter_participant_baselines b
+                 JOIN encounter_participants p USING(participant_key)
+                 JOIN encounters e ON e.id=p.encounter_id
+                 WHERE p.participant_key=?1 AND e.owner_id=?2",
+                params![key, self.owner_id],
                 |r| r.get(0),
             )
             .optional()?;
@@ -103,8 +110,6 @@ impl EncountersWrite<'_> {
                     actual_revision: snapshot.encounter.revision,
                 });
             }
-            let encounter_id = storage::encounter_id(self.connection, key)?
-                .ok_or_else(|| LocalStateError::EncounterNotFound(key.into()))?;
             let mut seen = std::collections::BTreeSet::new();
             for (participant, _) in replacements {
                 if !seen.insert(participant)
@@ -124,7 +129,7 @@ impl EncountersWrite<'_> {
                     .iter()
                     .any(|p| &p.participant_key == participant && p.initiative != state.initiative)
                 {
-                    self.connection.execute("UPDATE encounter_participants SET initiative=NULL,initiative_order=-id WHERE participant_key=?1", [participant])?;
+                    self.connection.execute("UPDATE encounter_participants SET initiative=NULL,initiative_order=-id WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2 AND owner_id=?3)", params![participant,snapshot.encounter.encounter_key,self.owner_id])?;
                 }
             }
             for (participant, state) in replacements {
@@ -133,44 +138,64 @@ impl EncountersWrite<'_> {
                     .iter()
                     .find(|p| &p.participant_key == participant && p.initiative == state.initiative)
                     .map(|p| p.initiative_order);
-                let order = match order {
-                    Some(order) => order,
-                    None => storage::next_initiative_order(
-                        self.connection,
-                        encounter_id,
-                        state.initiative,
-                    )?,
-                };
-                replace(self.connection, participant, state, order)?;
+                replace(
+                    self.connection,
+                    self.owner_id,
+                    &snapshot.encounter.encounter_key,
+                    participant,
+                    state,
+                    order,
+                )?;
                 for table in [
                     "encounter_pending_consequences",
                     "encounter_boundary_claims",
                     "encounter_condition_applications",
                 ] {
                     self.connection.execute(
-                        &format!("DELETE FROM {table} WHERE participant_key=?1"),
-                        [participant],
+                        &format!("DELETE FROM {table} WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2 AND owner_id=?3)"),
+                        params![participant, snapshot.encounter.encounter_key, self.owner_id],
                     )?;
                 }
             }
             // Clear superseded context; lifetime turn receipts survive reset/rest.
-            self.connection.execute("DELETE FROM encounter_outgoing_turns WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;
+            self.connection.execute("DELETE FROM encounter_outgoing_turns WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2)", params![key,self.owner_id])?;
             if end_turn || reset_encounter {
-                self.connection.execute("UPDATE encounter_participants SET turn_resources_json=NULL,revision=revision+1 WHERE turn_resources_json IS NOT NULL AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;
+                self.connection.execute("UPDATE encounter_participants SET turn_resources_json=NULL,revision=revision+1 WHERE turn_resources_json IS NOT NULL AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2)", params![key,self.owner_id])?;
             }
             if end_turn || reset_encounter {
-                self.connection.execute("DELETE FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;
+                self.connection.execute("DELETE FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2)", params![key,self.owner_id])?;
             }
-            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),status=CASE WHEN ?2 THEN 'draft' ELSE status END,round_number=CASE WHEN ?2 THEN 1 ELSE round_number END,current_turn_participant_key=CASE WHEN ?3 OR ?2 THEN NULL ELSE current_turn_participant_key END WHERE encounter_key=?1", params![key,reset_encounter,end_turn])?;
+            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),status=CASE WHEN ?2 THEN 'draft' ELSE status END,round_number=CASE WHEN ?2 THEN 1 ELSE round_number END,current_turn_participant_key=CASE WHEN ?3 OR ?2 THEN NULL ELSE current_turn_participant_key END WHERE encounter_key=?1 AND owner_id=?4", params![key,reset_encounter,end_turn,self.owner_id])?;
             Ok(())
         })
     }
 }
-fn replace(c: &Connection, key: &str, s: &ParticipantGameplay, order: i64) -> LocalStateResult<()> {
-    c.execute("UPDATE encounter_participants SET participant_variant=?2,variant_origin=?3,level_override=?4,hp_origin=?5,max_hp=?6,current_hp=?7,temporary_hp=?8,initiative=?9,initiative_order=?10,defeated=?11,hazard_disabled=?12,mortality=?13,track_dying=?14,base_death_threshold=?15,turn_resources_json=NULL,revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE participant_key=?1",
-        params![key,s.participant_variant.as_str(),s.variant_origin.as_str(),s.level_override,s.hp_origin.as_str(),s.max_hp,s.current_hp,s.temporary_hp,s.initiative,order,s.defeated,s.hazard_disabled, if s.mortality==MortalityState::Dead {"dead"} else {"alive"},s.track_dying,s.base_death_threshold])?;
+fn replace(
+    c: &Connection,
+    owner_id: i64,
+    encounter_key: &str,
+    key: &str,
+    s: &ParticipantGameplay,
+    preserved_order: Option<i64>,
+) -> LocalStateResult<()> {
+    let (participant_id, encounter_id) = c
+        .query_row(
+            "SELECT p.id,p.encounter_id FROM encounter_participants p
+             JOIN encounters e ON e.id=p.encounter_id
+             WHERE p.participant_key=?1 AND e.encounter_key=?2 AND e.owner_id=?3",
+            params![key, encounter_key, owner_id],
+            |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
+        )
+        .optional()?
+        .ok_or_else(|| LocalStateError::ParticipantNotFound(key.into()))?;
+    let order = match preserved_order {
+        Some(order) => order,
+        None => storage::next_initiative_order(c, encounter_id, s.initiative)?,
+    };
+    c.execute("UPDATE encounter_participants SET participant_variant=?2,variant_origin=?3,level_override=?4,hp_origin=?5,max_hp=?6,current_hp=?7,temporary_hp=?8,initiative=?9,initiative_order=?10,defeated=?11,hazard_disabled=?12,mortality=?13,track_dying=?14,base_death_threshold=?15,turn_resources_json=NULL,revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?1",
+        params![participant_id,s.participant_variant.as_str(),s.variant_origin.as_str(),s.level_override,s.hp_origin.as_str(),s.max_hp,s.current_hp,s.temporary_hp,s.initiative,order,s.defeated,s.hazard_disabled, if s.mortality==MortalityState::Dead {"dead"} else {"alive"},s.track_dying,s.base_death_threshold])?;
     // Keep surviving condition identities so unaffected workflow references stay valid.
-    let p = storage::participant(c, key)?
+    let p = storage::participant(c, owner_id, key)?
         .ok_or_else(|| LocalStateError::ParticipantNotFound(key.into()))?;
     for old in &p.conditions {
         if let Some(new) = s
@@ -178,11 +203,11 @@ fn replace(c: &Connection, key: &str, s: &ParticipantGameplay, order: i64) -> Lo
             .iter()
             .find(|v| v.condition_id == old.condition_id)
         {
-            c.execute("UPDATE encounter_participant_conditions SET value=?2,duration_amount=?3,duration_unit=?4,duration_remaining_seconds=?5 WHERE id=?1",params![old.condition_id,new.value,new.duration.as_ref().map(|d|d.amount),new.duration.as_ref().map(|d|d.unit.as_str()),new.duration.as_ref().and_then(|d|d.remaining_seconds)])?;
+            c.execute("UPDATE encounter_participant_conditions SET value=?2,duration_amount=?3,duration_unit=?4,duration_remaining_seconds=?5 WHERE id=?1 AND participant_id=?6",params![old.condition_id,new.value,new.duration.as_ref().map(|d|d.amount),new.duration.as_ref().map(|d|d.unit.as_str()),new.duration.as_ref().and_then(|d|d.remaining_seconds),participant_id])?;
         } else {
             c.execute(
-                "DELETE FROM encounter_participant_conditions WHERE id=?1",
-                [old.condition_id],
+                "DELETE FROM encounter_participant_conditions WHERE id=?1 AND participant_id=?2",
+                params![old.condition_id, participant_id],
             )?;
         }
     }
@@ -191,16 +216,38 @@ fn replace(c: &Connection, key: &str, s: &ParticipantGameplay, order: i64) -> Lo
         "encounter_expended_spells",
         "encounter_persistent_precedence",
     ] {
-        c.execute(&format!("DELETE FROM {table} WHERE participant_id=(SELECT id FROM encounter_participants WHERE participant_key=?1)"), [key])?;
+        c.execute(
+            &format!("DELETE FROM {table} WHERE participant_id=?1"),
+            [participant_id],
+        )?;
     }
     for r in &s.spell_resources {
-        c.execute("INSERT INTO encounter_spell_resources VALUES((SELECT id FROM encounter_participants WHERE participant_key=?1),?2,?3,?4,?5)",params![key,r.key,r.capacity,r.remaining,r.undo_remaining])?;
+        c.execute(
+            "INSERT INTO encounter_spell_resources VALUES(?1,?2,?3,?4,?5)",
+            params![
+                participant_id,
+                r.key,
+                r.capacity,
+                r.remaining,
+                r.undo_remaining
+            ],
+        )?;
     }
     for spell in &s.expended_spells {
-        c.execute("INSERT INTO encounter_expended_spells VALUES((SELECT id FROM encounter_participants WHERE participant_key=?1),?2)",params![key,spell])?;
+        c.execute(
+            "INSERT INTO encounter_expended_spells VALUES(?1,?2)",
+            params![participant_id, spell],
+        )?;
     }
     for p in &s.persistent_precedence {
-        c.execute("INSERT INTO encounter_persistent_precedence VALUES((SELECT id FROM encounter_participants WHERE participant_key=?1),?2,?3)",params![key,p.episode_id,serde_json::to_string(&p.source_order)?])?;
+        c.execute(
+            "INSERT INTO encounter_persistent_precedence VALUES(?1,?2,?3)",
+            params![
+                participant_id,
+                p.episode_id,
+                serde_json::to_string(&p.source_order)?
+            ],
+        )?;
     }
     c.execute(
         "DELETE FROM encounter_ability_states WHERE participant_key=?1",

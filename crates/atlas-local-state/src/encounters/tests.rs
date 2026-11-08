@@ -47,7 +47,7 @@ fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
         "INSERT INTO encounter_ability_states(participant_key,owner_key,rule_ordinal,payload_json) VALUES(?1,'ability',-1,'invalid')",
         [&first.participant_key],
     )?;
-    let read = EncountersRead::from_connection(&connection);
+    let read = EncountersRead::from_connection(&connection, 1);
     assert!(read.get_with_participants("running").is_err());
     let rows = read.list_with_participant_counts()?;
     assert_eq!(
@@ -68,6 +68,86 @@ fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
         rows.iter().map(|row| &row.encounter).collect::<Vec<_>>(),
         read.list()?.iter().collect::<Vec<_>>()
     );
+    Ok(())
+}
+
+#[test]
+fn encounters_bind_creation_and_child_access_to_the_selected_owner() -> crate::LocalStateResult<()>
+{
+    let store = fixture("encounter-owner-scope")?;
+    let local_participant = store
+        .encounters()
+        .add_participant("test", creature("Local", None, 6))?;
+    let mut connection = store.connection()?;
+    connection.execute(
+        "INSERT INTO principals VALUES(2, 'other', 'Other owner')",
+        [],
+    )?;
+    let transaction = connection.transaction()?;
+    let local = EncountersWrite::from_connection(&transaction, 1);
+    let other = EncountersWrite::from_connection(&transaction, 2);
+    let local_encounter = local.get("test")?.expect("local encounter");
+    let foreign = other.create(NewEncounter {
+        slug: local_encounter.slug.clone(),
+        name: "Other".into(),
+        description: None,
+        note: None,
+    })?;
+    let foreign_participant = other.add_participant("test", creature("Other", None, 9))?;
+    let foreign_condition = other.add_condition(AddEncounterParticipantCondition {
+        participant_key: foreign_participant.participant_key.clone(),
+        condition_key: None,
+        name: "Timed".into(),
+        value: None,
+        source_participant_key: None,
+        scope: ConditionScope::default(),
+        extra_action: ConditionExtraAction::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
+        duration: Some(ConditionDuration {
+            amount: 2,
+            unit: ConditionDurationUnit::Rounds,
+            timing: None,
+            remaining_seconds: None,
+        }),
+        note: None,
+    })?;
+
+    assert_eq!(
+        local.get("test")?.unwrap().encounter_key,
+        local_encounter.encounter_key
+    );
+    assert_eq!(
+        other.get("test")?.unwrap().encounter_key,
+        foreign.encounter_key
+    );
+    assert!(
+        local
+            .get_with_participants(&foreign.encounter_key)?
+            .is_none()
+    );
+    assert!(!local.delete(&foreign.encounter_key)?);
+    assert!(
+        local
+            .update_participant(edit(&foreign_participant))?
+            .is_none()
+    );
+    assert!(matches!(
+        local.set_current_turn("test", Some(&foreign_participant.participant_key)),
+        Err(crate::LocalStateError::ParticipantNotFound(_))
+    ));
+    assert!(!local.remove_condition(
+        &foreign_participant.participant_key,
+        foreign_condition.condition_id,
+    )?);
+    assert!(!local.remove_condition(
+        &local_participant.participant_key,
+        foreign_condition.condition_id,
+    )?);
+    let detail = other.get_with_participants("test")?.unwrap();
+    assert_eq!(detail.participants[0].conditions, vec![foreign_condition]);
+    transaction.commit()?;
     Ok(())
 }
 
@@ -1538,7 +1618,7 @@ fn caught_resource_replacement_error_cannot_commit_partial_replacement()
     let before = store.encounters().get_with_participants("test")?.unwrap();
     let mut connection = store.connection()?;
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-    let result = EncountersWrite::from_connection(&tx).replace_spell_resources(
+    let result = EncountersWrite::from_connection(&tx, 1).replace_spell_resources(
         &participant.participant_key,
         participant.revision,
         &[
@@ -1580,7 +1660,7 @@ fn caught_batch_add_error_cannot_commit_earlier_participants_or_identities()
     let mut connection = store.connection()?;
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     tx.execute("INSERT INTO principals VALUES(2,'retained','Retained')", [])?;
-    let result = EncountersWrite::from_connection(&tx)
+    let result = EncountersWrite::from_connection(&tx, 1)
         .add_participants("test", vec![creature("Good", None, 20), bad]);
     assert!(result.is_err());
     tx.commit()?;
@@ -1625,7 +1705,7 @@ fn caught_second_participant_update_failure_cannot_commit_partial_initiative()
         [&before.participants[1].participant_key],
     )?;
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-    let domain = EncountersWrite::from_connection(&tx);
+    let domain = EncountersWrite::from_connection(&tx, 1);
     let result = domain.roll_initiative(
         &before.encounter.encounter_key,
         "failed-request",
@@ -1925,7 +2005,7 @@ fn consumed_application_claim_and_stock_roll_back_when_receipt_fails()
     // must already have restored both the identity claim and resource write.
     let mut connection = store.connection()?;
     let transaction = connection.transaction()?;
-    let domain = EncountersWrite::from_connection(&transaction);
+    let domain = EncountersWrite::from_connection(&transaction, 1);
     assert!(
         domain
             .apply_condition_event(
@@ -2128,7 +2208,7 @@ fn boundary_claim_rejects_new_request_before_evaluation_and_saved_outcome_is_rea
     let evaluations = std::cell::Cell::new(0);
     let mut connection = store.connection()?;
     let tx = connection.transaction()?;
-    let domain = EncountersWrite::from_connection(&tx);
+    let domain = EncountersWrite::from_connection(&tx, 1);
     let receipt = domain.apply_condition_event_with_claims(
         key,
         "boundary-first",
@@ -2185,7 +2265,7 @@ fn failed_boundary_evaluation_does_not_consume_claim() -> Result<(), Box<dyn std
     };
     let mut connection = store.connection()?;
     let tx = connection.transaction()?;
-    let domain = EncountersWrite::from_connection(&tx);
+    let domain = EncountersWrite::from_connection(&tx, 1);
     assert!(
         domain
             .apply_condition_event_with_claims(
@@ -2219,7 +2299,7 @@ fn difficulty_reference_is_guarded_persistent_and_does_not_overwrite_encounter_m
     let initial = store.encounters().get("test")?.unwrap();
     let mut connection = store.connection()?;
     let tx = connection.transaction()?;
-    let saved = EncountersWrite::from_connection(&tx).set_difficulty_reference(
+    let saved = EncountersWrite::from_connection(&tx, 1).set_difficulty_reference(
         "test",
         initial.revision,
         EncounterDifficultyReference {
@@ -2239,7 +2319,7 @@ fn difficulty_reference_is_guarded_persistent_and_does_not_overwrite_encounter_m
         saved.difficulty_reference
     );
     let tx = connection.transaction()?;
-    let state = EncountersWrite::from_connection(&tx);
+    let state = EncountersWrite::from_connection(&tx, 1);
     assert!(matches!(
         state.set_difficulty_reference("test", initial.revision, Default::default()),
         Err(crate::LocalStateError::StaleEncounterRevision { .. })
@@ -2262,7 +2342,7 @@ fn difficulty_reference_is_guarded_persistent_and_does_not_overwrite_encounter_m
     tx.commit()?;
     assert_eq!(store.encounters().get("test")?.unwrap(), saved);
     let tx = connection.transaction()?;
-    EncountersWrite::from_connection(&tx).set_difficulty_reference(
+    EncountersWrite::from_connection(&tx, 1).set_difficulty_reference(
         "test",
         saved.revision,
         Default::default(),
@@ -2419,7 +2499,7 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
     {
         let mut c = store.connection()?;
         let tx = c.transaction()?;
-        EncountersWrite::from_connection(&tx).set_turn_state(
+        EncountersWrite::from_connection(&tx, 1).set_turn_state(
             "test",
             Some(&one.participant_key),
             4,
@@ -2430,7 +2510,7 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
     let snapshot = store.encounters().get_with_participants("test")?.unwrap();
     let mut c = store.connection()?;
     let tx = c.transaction()?;
-    let domain = EncountersWrite::from_connection(&tx);
+    let domain = EncountersWrite::from_connection(&tx, 1);
     let baseline = domain.participant_baseline(&one.participant_key)?.unwrap();
     domain.apply_recovery(ApplyEncounterRecovery {
         encounter_key: &snapshot.encounter.encounter_key,
@@ -2481,7 +2561,7 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
     );
     let mut c = store.connection()?;
     let tx = c.transaction()?;
-    let domain = EncountersWrite::from_connection(&tx);
+    let domain = EncountersWrite::from_connection(&tx, 1);
     assert!(matches!(
         domain.apply_recovery(ApplyEncounterRecovery {
             encounter_key: &saved.encounter.encounter_key,
@@ -2532,7 +2612,7 @@ fn recovery_keeps_unchanged_ties_reserved_while_restoring_changed_initiatives()
         .unwrap();
     let mut connection = store.connection()?;
     let transaction = connection.transaction()?;
-    let domain = EncountersWrite::from_connection(&transaction);
+    let domain = EncountersWrite::from_connection(&transaction, 1);
     let replacements = before
         .participants
         .iter()
@@ -2634,7 +2714,7 @@ fn recovery_failure_rolls_back_all_participants() -> crate::LocalStateResult<()>
     let before = store.encounters().get_with_participants("test")?.unwrap();
     let mut c = store.connection()?;
     let tx = c.transaction()?;
-    let domain = EncountersWrite::from_connection(&tx);
+    let domain = EncountersWrite::from_connection(&tx, 1);
     let mut a = ParticipantGameplay::from(&one);
     a.current_hp = Some(3);
     let mut b = ParticipantGameplay::from(&two);
@@ -2674,7 +2754,7 @@ fn creation_baseline_captures_final_derived_hp_and_is_not_fabricated_for_legacy_
     let p = store.encounters().add_participant("test", input)?;
     let mut c = store.connection()?;
     let tx = c.transaction()?;
-    let domain = EncountersWrite::from_connection(&tx);
+    let domain = EncountersWrite::from_connection(&tx, 1);
     domain.initialize_participant_hp(&p.participant_key, Some(30))?;
     assert_eq!(
         domain
@@ -2714,7 +2794,7 @@ fn stored_closed_enums_reject_corruption_instead_of_reinterpreting_saved_gamepla
             ),
             [&participant.participant_key],
         )?;
-        let error = EncountersRead::from_connection(&connection)
+        let error = EncountersRead::from_connection(&connection, 1)
             .get_with_participants("test")
             .unwrap_err();
         assert!(error.to_string().contains(column), "{error}");
@@ -2725,7 +2805,7 @@ fn stored_closed_enums_reject_corruption_instead_of_reinterpreting_saved_gamepla
     }
     connection.execute("UPDATE encounters SET status='corrupt'", [])?;
     assert!(
-        EncountersRead::from_connection(&connection)
+        EncountersRead::from_connection(&connection, 1)
             .get("test")
             .unwrap_err()
             .to_string()

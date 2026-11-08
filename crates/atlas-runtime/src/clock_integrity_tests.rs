@@ -69,7 +69,8 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
             [envelope(serde_json::json!(tracker))],
         )
         .unwrap();
-    let saved = LocalStateWrite::new(&write)
+    let saved = LocalStateWrite::for_local(&write)
+        .unwrap()
         .encounters()
         .get_with_participants("clock")
         .unwrap()
@@ -114,7 +115,7 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
     atlas_index::test_support::publish_input_in(&upgraded, WORKSPACE_SCHEMA_VERSION, &input)
         .unwrap();
     let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-    let domain = LocalStateRead::new(&read);
+    let domain = LocalStateRead::for_local(&read).unwrap();
     assert_eq!(
         domain
             .encounters()

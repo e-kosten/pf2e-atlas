@@ -51,7 +51,7 @@ fn only_current_boundary_is_actionable_even_when_it_has_no_review() -> crate::Lo
         .set_current_turn("test", Some(&participant.participant_key))?;
     advance(&store, &participant.participant_key, "first", true)?;
     let connection = store.connection()?;
-    let read = EncountersRead::from_connection(&connection);
+    let read = EncountersRead::from_connection(&connection, 1);
     let first = read.latest_outgoing_turn("test")?.unwrap();
     assert_eq!(first.snapshot.participants.len(), 3);
     advance(&store, &incoming.participant_key, "second", false)?;
@@ -117,7 +117,7 @@ fn context_failure_rolls_back_new_receipt_and_preserves_previous_boundary()
         .set_current_turn("test", Some(&participant.participant_key))?;
     advance(&store, &participant.participant_key, "first", true)?;
     let connection = store.connection()?;
-    let before = EncountersRead::from_connection(&connection).latest_outgoing_turn("test")?;
+    let before = EncountersRead::from_connection(&connection, 1).latest_outgoing_turn("test")?;
     let state = store.encounters().get_with_participants("test")?.unwrap();
     connection.execute_batch("CREATE TRIGGER reject_current_context BEFORE UPDATE ON encounter_outgoing_turns BEGIN SELECT RAISE(ABORT,'context failure'); END;")?;
     assert!(advance(&store, &participant.participant_key, "second", true).is_err());
@@ -126,7 +126,7 @@ fn context_failure_rolls_back_new_receipt_and_preserves_previous_boundary()
         state
     );
     assert_eq!(
-        EncountersRead::from_connection(&connection).latest_outgoing_turn("test")?,
+        EncountersRead::from_connection(&connection, 1).latest_outgoing_turn("test")?,
         before
     );
     assert_eq!(
@@ -174,7 +174,7 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
             .add_participant("test", creature("Actor", Some(10), 20))?;
         let mut connection = store.connection()?;
         let transaction = connection.transaction()?;
-        let domain = EncountersWrite::from_connection(&transaction);
+        let domain = EncountersWrite::from_connection(&transaction, 1);
         let tracker = ManualTracker {
             tracker_key: "timer".into(),
             name: "Timer".into(),
@@ -197,7 +197,7 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
                 value: Some(tracker.clone()),
             },
         )?;
-        super::super::recovery::capture_baseline(&transaction, &actor.participant_key)?;
+        super::super::recovery::capture_baseline(&transaction, 1, &actor.participant_key)?;
         let current = domain.get("test")?.unwrap();
         let mut elapsed = tracker.clone();
         elapsed.progress = TrackerProgress::Rounds(0);
@@ -342,5 +342,206 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
         );
         transaction.commit()?;
     }
+    Ok(())
+}
+
+#[test]
+fn receipt_recovery_scopes_shared_slugs_and_request_ids_to_the_owner() -> crate::LocalStateResult<()>
+{
+    let store = fixture("receipt-owner-scope")?;
+    let mut connection = store.connection()?;
+    connection.execute_batch(
+        "UPDATE principals SET principal_key='other' WHERE id=1;
+         INSERT INTO principals VALUES(7, 'local', 'Local owner');",
+    )?;
+    let transaction = connection.transaction()?;
+    let other = EncountersWrite::from_connection(&transaction, 1);
+    let local = EncountersWrite::from_connection(&transaction, 7);
+    let foreign = other.get("test")?.unwrap();
+    let owned = local.create(NewEncounter {
+        slug: foreign.slug.clone(),
+        name: "Local encounter".into(),
+        description: None,
+        note: None,
+    })?;
+    let request_id = "shared-request";
+    let foreign_intent = serde_json::json!({"owner":"other"});
+    let local_intent = serde_json::json!({"owner":"local"});
+    let advance = |domain: &EncountersWrite<'_>, intent: &serde_json::Value| {
+        let actor = domain.add_participant("test", creature("Actor", Some(10), 20))?;
+        let current = domain.get("test")?.unwrap();
+        domain.advance_turn_once("test", request_id, intent, current.revision, |_| {
+            Ok((
+                EncounterTurnUpdate {
+                    turn: EncounterTurnState {
+                        participant_key: Some(actor.participant_key),
+                        round_number: 2,
+                        mark_running: true,
+                    },
+                    manual_trackers: vec![],
+                    durations: vec![],
+                    start_event: None,
+                    start_claims: vec![],
+                },
+                true,
+            ))
+        })
+    };
+    let advanced_other = advance(&other, &foreign_intent)?.unwrap();
+    let foreign_boundary = other.latest_outgoing_turn("test")?.unwrap().boundary_key;
+    let foreign_event = other.apply_condition_event(
+        &foreign.encounter_key,
+        request_id,
+        &foreign_intent,
+        advanced_other.revision,
+        PreparedConditionEvent::default(),
+    )?;
+
+    assert!(
+        local
+            .advance_turn_receipt("test", request_id, &local_intent)?
+            .is_none()
+    );
+    assert!(
+        local
+            .advance_turn_receipt(&foreign.encounter_key, request_id, &local_intent)?
+            .is_none()
+    );
+    assert!(
+        local
+            .condition_event_receipt(&foreign.encounter_key, request_id, &local_intent)?
+            .is_none()
+    );
+    assert!(
+        local
+            .latest_outgoing_turn(&foreign.encounter_key)?
+            .is_none()
+    );
+    assert!(local.outgoing_turn("test", &foreign_boundary)?.is_none());
+
+    let advanced_local = advance(&local, &local_intent)?.unwrap();
+    let local_event = local.apply_condition_event(
+        &owned.encounter_key,
+        request_id,
+        &local_intent,
+        advanced_local.revision,
+        PreparedConditionEvent::default(),
+    )?;
+    assert_eq!(
+        local
+            .advance_turn_receipt("test", request_id, &local_intent)?
+            .unwrap()
+            .encounter_key,
+        owned.encounter_key
+    );
+    assert_eq!(
+        other
+            .advance_turn_receipt("test", request_id, &foreign_intent)?
+            .unwrap()
+            .encounter_key,
+        foreign.encounter_key
+    );
+    assert_eq!(
+        local.apply_condition_event_with(
+            &owned.encounter_key,
+            request_id,
+            &local_intent,
+            owned.revision,
+            || {
+                panic!("a recovered event must not be evaluated again");
+            }
+        )?,
+        local_event
+    );
+    assert_eq!(
+        other.condition_event_receipt(&foreign.encounter_key, request_id, &foreign_intent)?,
+        Some(foreign_event)
+    );
+    assert_eq!(
+        local
+            .latest_outgoing_turn("test")?
+            .unwrap()
+            .snapshot
+            .encounter
+            .encounter_key,
+        owned.encounter_key
+    );
+    Ok(())
+}
+
+#[test]
+fn a_turn_callback_cannot_tick_a_condition_in_another_encounter() -> crate::LocalStateResult<()> {
+    let store = fixture("turn-condition-owner-scope")?;
+    let actor = store
+        .encounters()
+        .add_participant("test", creature("Actor", Some(10), 20))?;
+    let mut connection = store.connection()?;
+    connection.execute(
+        "INSERT INTO principals VALUES(2, 'other', 'Other owner')",
+        [],
+    )?;
+    let transaction = connection.transaction()?;
+    let local = EncountersWrite::from_connection(&transaction, 1);
+    let other = EncountersWrite::from_connection(&transaction, 2);
+    let foreign = other.create(NewEncounter {
+        slug: "test".into(),
+        name: "Other encounter".into(),
+        description: None,
+        note: None,
+    })?;
+    let foreign_actor =
+        other.add_participant(&foreign.encounter_key, creature("Foreign", None, 20))?;
+    let condition = other.add_condition(AddEncounterParticipantCondition {
+        participant_key: foreign_actor.participant_key,
+        condition_key: None,
+        name: "Timed".into(),
+        value: None,
+        source_participant_key: None,
+        scope: ConditionScope::default(),
+        extra_action: ConditionExtraAction::default(),
+        immunity_override: false,
+        parameters: Default::default(),
+        origin: None,
+        duration: Some(ConditionDuration {
+            amount: 2,
+            unit: ConditionDurationUnit::Rounds,
+            timing: None,
+            remaining_seconds: None,
+        }),
+        note: None,
+    })?;
+    let condition_id = condition.condition_id;
+    let before = local.get("test")?.unwrap();
+    let foreign_before = other.get_with_participants("test")?.unwrap();
+    let intent = serde_json::json!({"condition":condition_id});
+    let result =
+        local.advance_turn_once("test", "wrong-condition", &intent, before.revision, |_| {
+            Ok((
+                EncounterTurnUpdate {
+                    turn: EncounterTurnState {
+                        participant_key: Some(actor.participant_key),
+                        round_number: 2,
+                        mark_running: true,
+                    },
+                    durations: vec![(condition_id, 1)],
+                    manual_trackers: vec![],
+                    start_event: None,
+                    start_claims: vec![],
+                },
+                true,
+            ))
+        });
+    assert!(matches!(
+        result,
+        Err(crate::LocalStateError::InvalidRollRequest(_))
+    ));
+    assert_eq!(local.get("test")?, Some(before));
+    assert_eq!(other.get_with_participants("test")?, Some(foreign_before));
+    assert!(
+        local
+            .advance_turn_receipt("test", "wrong-condition", &intent)?
+            .is_none()
+    );
+    assert!(local.latest_outgoing_turn("test")?.is_none());
     Ok(())
 }
