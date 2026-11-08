@@ -255,7 +255,12 @@ export function RelatedEntryEditor({
 
   return (
     <div className="filter-rule-value">
-      <Button ref={opener} disabled={disabled} onClick={begin}>
+      <Button
+        className="filter-related-action"
+        ref={opener}
+        disabled={disabled}
+        onClick={begin}
+      >
         {configured ? "Edit related entries" : "Configure related entries"}
       </Button>
       <AtlasModal

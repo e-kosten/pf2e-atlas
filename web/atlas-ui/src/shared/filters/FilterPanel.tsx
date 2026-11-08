@@ -1,3 +1,4 @@
+import { FilterFieldSelect } from "./FilterFieldSelect";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
@@ -1050,7 +1051,8 @@ const RuleEditContext = createContext<{
 } | null>(null);
 function FilterRule(props: RuleProps) {
   const rule = useRule(props);
-  const { editor, replaceRule, pendingConditionRef } = props.context as BuilderContext;
+  const { editor, replaceRule, pendingConditionRef, scope } =
+    props.context as BuilderContext;
   const field = editor.groups
     .flatMap((group) => group.fields)
     .find((candidate) => candidate.definition.id === props.rule.field);
@@ -1102,12 +1104,14 @@ function FilterRule(props: RuleProps) {
         ref={row}
         className={rule.outerClassName}
         data-rule-id={props.rule.id}
-        data-wide-field={
-          (field && (contextualFieldLabel(field) ?? field.label).length > 24) ||
-          undefined
-        }
-        data-link-condition={
-          draftRule.field === LINK_CONDITION || relatedEntryRule || undefined
+        data-filter-layout={
+          draftRule.field === LINK_CONDITION || relatedEntryRule
+            ? "relationship"
+            : scope === null && actorMetricKind(draftRule.field)
+              ? "grouped"
+              : field && (contextualFieldLabel(field) ?? field.label).length > 24
+                ? "wide-label"
+                : undefined
         }
       >
         <RuleComponents {...rule} />
@@ -1274,9 +1278,6 @@ function filterFieldGroups(
       : []),
   ];
 }
-function filterFieldListHeight() {
-  return Math.min(420, Math.max(144, Math.floor(window.innerHeight * 0.56)));
-}
 function BuilderFieldSelector(props: FieldSelectorProps) {
   const { editor, scope, narrowFields, relatedTarget } =
     props.context as BuilderContext;
@@ -1294,12 +1295,10 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
     ),
   );
   const chooser = (
-    <Select
+    <FilterFieldSelect
       className={selectedKind ? undefined : props.className}
       aria-label="Filter field"
       placeholder="Choose a filter…"
-      listHeight={filterFieldListHeight()}
-      popupMatchSelectWidth={Math.min(320, window.innerWidth - 32)}
       styles={{
         content: { whiteSpace: "normal", overflowWrap: "anywhere" },
         popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
@@ -1432,7 +1431,7 @@ function FilterGroupBody(props: UseRuleGroup) {
     <>
       <RuleGroupBodyComponents {...props} />
       <Space className="filter-group-actions">
-        <Select
+        <FilterFieldSelect
           className="filter-text-select filter-add-condition"
           aria-label="Add condition"
           placeholder="Add condition"
@@ -1444,8 +1443,6 @@ function FilterGroupBody(props: UseRuleGroup) {
           value={null}
           open={choosingField}
           onOpenChange={setChoosingField}
-          listHeight={filterFieldListHeight()}
-          popupMatchSelectWidth={Math.min(320, window.innerWidth - 32)}
           showSearch={{ optionFilterProp: "searchText" }}
           options={filterFieldGroups(context, true)}
           disabled={props.disabled}

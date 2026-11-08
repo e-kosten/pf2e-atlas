@@ -186,7 +186,13 @@
   border-inline-start: 2px solid var(--line);
   border-radius: var(--radius-sm);
   min-width: 0;
+  padding: 8px;
   container-type: inline-size;
+}
+@container (width < 400px) {
+  .advanced-filters .ruleGroup {
+    padding-inline: 4px;
+  }
 }
 .advanced-filters .ruleGroup-header {
   display: flex;
@@ -222,9 +228,6 @@
 .filter-field-family > :first-child {
   flex: 0 1 110px;
 }
-.advanced-filters .rule:has(> .filter-field-family) > .rule-fields {
-  grid-column: 1 / -2;
-}
 .advanced-filters .rule > .rule-operators {
   grid-column: 1;
   grid-row: 2;
@@ -248,7 +251,19 @@
   margin-block-start: 8px;
 }
 .filter-add-condition {
-  min-width: 144px;
+  min-width: min(144px, 100%);
+}
+.filter-related-action {
+  max-inline-size: 100%;
+  block-size: auto;
+  min-block-size: var(--control-height);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.filter-link-summary {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  overflow-wrap: anywhere;
 }
 @container (min-width: 480px) {
   .advanced-filters .rule {
@@ -265,6 +280,42 @@
   }
   .advanced-filters .rule > .filter-collection-condition:has(> .queryBuilder) {
     grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .advanced-filters
+    .rule:is([data-filter-layout="relationship"], :not(:has(> .rule-operators)))
+    > .filter-rule-value {
+    grid-column: 2 / -2;
+  }
+  .advanced-filters
+    .rule:is([data-filter-layout="grouped"], [data-filter-layout="wide-label"])
+    > .rule-fields {
+    grid-column: 1 / -2;
+  }
+  .advanced-filters
+    .rule:is(
+      [data-filter-layout="grouped"],
+      [data-filter-layout="wide-label"]:has(> .rule-operators)
+    ) {
+    grid-template-columns: fit-content(36%) minmax(0, 1fr) auto;
+  }
+  .advanced-filters
+    .rule:is([data-filter-layout="grouped"], [data-filter-layout="wide-label"])
+    > .rule-operators {
+    grid-column: 1;
+    grid-row: 2;
+    width: fit-content;
+  }
+  .advanced-filters
+    .rule:is(
+      [data-filter-layout="grouped"],
+      [data-filter-layout="wide-label"]:has(> .rule-operators)
+    )
+    > .filter-rule-value {
+    grid-column: 2 / -2;
+    grid-row: 2;
+  }
+  .filter-link-summary {
     grid-row: 2;
   }
 }
@@ -637,20 +688,6 @@
   width: 100%;
 }
 
-@container (min-width: 480px) {
-  .advanced-filters .rule:not(:has(> .rule-operators)) > .filter-rule-value {
-    grid-column: 2 / -2;
-  }
-  .advanced-filters .rule[data-wide-field] > .rule-fields {
-    grid-column: 1 / -2;
-  }
-}
-
-.filter-link-summary {
-  grid-column: 1 / -1;
-  grid-row: 4;
-  overflow-wrap: anywhere;
-}
 .filter-text-select {
   transition: background-color var(--filter-action-motion);
 }
@@ -684,30 +721,4 @@
     > .ruleGroup-header > [data-filter-remove]:is(:hover, :focus-visible)
   )::before {
   opacity: 1;
-}
-@container (min-width: 480px) {
-  .advanced-filters .rule[data-link-condition] > .filter-rule-value {
-    grid-column: 2 / -2;
-    grid-row: 1;
-  }
-  .filter-link-summary {
-    grid-row: 2;
-  }
-  .advanced-filters
-    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family)) {
-    grid-template-columns: fit-content(36%) minmax(0, 1fr) auto;
-  }
-  .advanced-filters
-    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family))
-    > .rule-operators {
-    grid-column: 1;
-    grid-row: 2;
-    width: fit-content;
-  }
-  .advanced-filters
-    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family))
-    > .filter-rule-value {
-    grid-column: 2 / -2;
-    grid-row: 2;
-  }
 }
