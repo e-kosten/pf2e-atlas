@@ -1,5 +1,5 @@
-import { Button, Checkbox, Modal, Select, Space, Typography } from "antd";
-import { useRef, useState, type ReactNode } from "react";
+import { Button, Checkbox, Modal, Select, Typography, type SelectProps } from "antd";
+import { useId, useRef, useState, type ReactNode } from "react";
 import type { RuleGroupType } from "react-querybuilder";
 import type {
   FilterEditorFieldView,
@@ -117,6 +117,26 @@ type Draft = {
   includeContents: boolean;
   excluded: boolean;
 };
+
+function RelatedEntrySelect<Value extends string>({
+  label,
+  ...props
+}: SelectProps<Value> & { label: string }) {
+  const id = useId();
+  return (
+    <div className="related-entry-editor__field">
+      <label htmlFor={id}>{label}</label>
+      <Select
+        {...props}
+        id={id}
+        styles={{
+          root: { width: "100%" },
+          popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
+        }}
+      />
+    </div>
+  );
+}
 
 export function RelatedEntryEditor({
   rule,
@@ -253,6 +273,7 @@ export function RelatedEntryEditor({
       </Button>
       <Modal
         title="Related entries"
+        width={640}
         open={open}
         onCancel={() => setOpen(false)}
         onOk={apply}
@@ -267,81 +288,91 @@ export function RelatedEntryEditor({
         destroyOnHidden
       >
         {draft && (
-          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-            <Select
-              aria-label="Relationship"
-              value={draft.relation}
-              options={[
-                { value: "contains", label: "Contains" },
-                { value: "incoming", label: "Links to" },
-                { value: "outgoing", label: "Linked from" },
-              ]}
-              onChange={(relation: Draft["relation"]) => {
-                const changedScope =
-                  (draft.relation === "contains") !== (relation === "contains");
-                setDraft({
-                  ...draft,
-                  relation,
-                  ...(changedScope ? { query: emptyGroup(), mode: "filters" } : {}),
-                });
-              }}
-            />
-            {draft.relation === "contains" && (
-              <Select
-                aria-label="Entry type"
-                placeholder="Choose an entry type…"
-                value={draft.collection}
-                options={collections.map((field) => ({
-                  value: field.definition.id,
-                  label: field.label,
-                }))}
-                onChange={(collection) =>
-                  setDraft({ ...draft, collection, query: emptyGroup() })
-                }
-              />
-            )}
-            {(collection || draft.relation !== "contains") && (
-              <Select
-                aria-label="Match related entry"
-                value={draft.mode}
+          <div className="related-entry-editor">
+            <div className="related-entry-editor__choices">
+              <RelatedEntrySelect
+                label="Relationship"
+                value={draft.relation}
                 options={[
-                  { value: "filters", label: "Match conditions" },
-                  draft.relation === "contains"
-                    ? { value: "any", label: "Any entry of this type" }
-                    : { value: "exact", label: "Choose a record" },
+                  { value: "contains", label: "Contains" },
+                  { value: "incoming", label: "Links to" },
+                  { value: "outgoing", label: "Linked from" },
                 ]}
-                onChange={(mode: Draft["mode"]) => setDraft({ ...draft, mode })}
+                onChange={(relation: Draft["relation"]) => {
+                  const changedScope =
+                    (draft.relation === "contains") !== (relation === "contains");
+                  setDraft({
+                    ...draft,
+                    relation,
+                    ...(changedScope ? { query: emptyGroup(), mode: "filters" } : {}),
+                  });
+                }}
               />
-            )}
+              {draft.relation === "contains" && (
+                <RelatedEntrySelect
+                  label="Entry type"
+                  placeholder="Choose a type…"
+                  value={draft.collection}
+                  showSearch={{ optionFilterProp: "label" }}
+                  options={collections.map((field) => ({
+                    value: field.definition.id,
+                    label: field.label,
+                  }))}
+                  onChange={(collection) =>
+                    setDraft({ ...draft, collection, query: emptyGroup() })
+                  }
+                />
+              )}
+              {(collection || draft.relation !== "contains") && (
+                <RelatedEntrySelect
+                  label="Which related entries?"
+                  value={draft.mode}
+                  options={[
+                    { value: "filters", label: "Entries matching filters" },
+                    draft.relation === "contains"
+                      ? { value: "any", label: "Any entry of this type" }
+                      : { value: "exact", label: "A specific record" },
+                  ]}
+                  onChange={(mode: Draft["mode"]) => setDraft({ ...draft, mode })}
+                />
+              )}
+              {draft.relation !== "contains" && (
+                <RelatedEntrySelect
+                  label="Link scope"
+                  value={draft.includeContents ? "whole" : "main"}
+                  options={[
+                    { value: "whole", label: "Whole entry" },
+                    { value: "main", label: "Main entry only" },
+                  ]}
+                  onChange={(value) =>
+                    setDraft({ ...draft, includeContents: value === "whole" })
+                  }
+                />
+              )}
+            </div>
             {draft.relation !== "contains" && (
-              <Select
-                aria-label={
-                  draft.relation === "incoming"
-                    ? "Check links in results"
-                    : "Check links in the source entries"
-                }
-                value={draft.includeContents ? "whole" : "main"}
-                options={[
-                  { value: "whole", label: "Whole entry" },
-                  { value: "main", label: "Main entry only" },
-                ]}
-                onChange={(value) =>
-                  setDraft({ ...draft, includeContents: value === "whole" })
-                }
-              />
+              <Typography.Text type="secondary">
+                {draft.relation === "incoming"
+                  ? "Check links in each search result"
+                  : "Check links in the related entry"}
+                {draft.includeContents ? " and its contents." : " itself."}
+              </Typography.Text>
             )}
             {draft.mode === "filters" && scope !== undefined && (
-              <section
-                className="advanced-filters"
-                aria-label="Related entry conditions"
-              >
-                <Typography.Text strong>Conditions on the same entry</Typography.Text>
+              <>
+                <div>
+                  <Typography.Text strong>Related entry filters</Typography.Text>
+                  <br />
+                  <Typography.Text type="secondary">
+                    Atlas checks the conditions against one related entry at a time.
+                  </Typography.Text>
+                </div>
                 {renderConditions(
                   draft.query,
                   (query) => setDraft({ ...draft, query }),
                   scope,
                 )}
-              </section>
+              </>
             )}
             {exceedsLinkLimit && (
               <Typography.Text role="status">
@@ -356,7 +387,7 @@ export function RelatedEntryEditor({
             >
               Exclude matching records
             </Checkbox>
-          </Space>
+          </div>
         )}
       </Modal>
     </div>

@@ -384,7 +384,7 @@ it("composes a nested picker through the same provider and Escape preserves the 
   });
   fireEvent.click(configure);
   await selectSortOption("Relationship", "Links to");
-  await selectSortOption("Match related entry", "Choose a record");
+  await selectSortOption("Which related entries?", "A specific record");
   fireEvent.click(screen.getByRole("button", { name: "Choose record" }));
   const dialogs = await screen.findAllByRole("dialog", { name: "Add link condition" });
   const inner = dialogs[dialogs.length - 1];
@@ -406,9 +406,7 @@ it("requires a new exact selection when scope changes in the compact editor", as
   fireEvent.click(screen.getByRole("button", { name: "Edit related entries" }));
   await screen.findByRole("dialog", { name: "Related entries" });
   await selectSortOption(
-    existing.direction === "outgoing"
-      ? "Check links in the source entries"
-      : "Check links in results",
+    "Link scope",
     existing.include_contents ? "Main entry only" : "Whole entry",
   );
   fireEvent.click(screen.getByRole("button", { name: "Choose record" }));

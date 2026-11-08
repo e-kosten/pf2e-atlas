@@ -156,7 +156,6 @@ export function FilterControls({
 }) {
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
-  const { token } = theme.useToken();
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -583,16 +582,7 @@ export function FilterControls({
           open={advanced}
           onClose={() => setAdvanced(false)}
         >
-          <section
-            className="advanced-filters"
-            aria-label="Advanced filters"
-            style={
-              {
-                "--filter-action-hover": token.colorFillTertiary,
-                "--filter-action-motion": `${token.motionDurationMid} ${token.motionEaseInOut}`,
-              } as CSSProperties
-            }
-          >
+          <AdvancedFilterSurface label="Advanced filters">
             {prepared.error &&
               !search.filterError &&
               search.filter &&
@@ -605,7 +595,7 @@ export function FilterControls({
             {advancedEditor}
             {Picker && picker?.advanced && <LinkPicker {...picker} key={picker.key} />}
             {inlineError}
-          </section>
+          </AdvancedFilterSurface>
         </Drawer>
         {!advanced && prepared.error && inlineError}
         {workspace.filterDiscoveryError && (
@@ -856,6 +846,30 @@ function CommonRange({
         </Typography.Text>
       )}
     </div>
+  );
+}
+
+function AdvancedFilterSurface({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  const { token } = theme.useToken();
+  return (
+    <section
+      className="advanced-filters"
+      aria-label={label}
+      style={
+        {
+          "--filter-action-hover": token.colorFillTertiary,
+          "--filter-action-motion": `${token.motionDurationMid} ${token.motionEaseInOut}`,
+        } as CSSProperties
+      }
+    >
+      {children}
+    </section>
   );
 }
 
@@ -1371,15 +1385,8 @@ function RemoveCondition(props: ActionProps) {
   );
 }
 function GroupMatchSelector(props: CombinatorSelectorProps) {
-  const { replaceGroup, relatedTarget } = props.context as BuilderContext;
+  const { replaceGroup } = props.context as BuilderContext;
   const group = props.ruleGroup as RuleGroupType;
-  if (
-    relatedTarget &&
-    group.rules.length < 2 &&
-    group.combinator === "and" &&
-    !group.not
-  )
-    return null;
   return (
     <Select
       className="filter-text-select filter-match-mode"
@@ -1606,18 +1613,20 @@ function BuilderValueEditor(props: ValueEditorProps) {
           )
         }
         renderConditions={(draft, change, memberScope) => (
-          <StructuredBuilder
-            editor={editor}
-            query={draft}
-            onChange={change}
-            scope={memberScope}
-            relatedTarget
-            workspace={{
-              ...workspace,
-              filterCountsEnabled: false,
-              vocabularyScope: { kind: "artifact" },
-            }}
-          />
+          <AdvancedFilterSurface label="Related entry filters">
+            <StructuredBuilder
+              editor={editor}
+              query={draft}
+              onChange={change}
+              scope={memberScope}
+              relatedTarget
+              workspace={{
+                ...workspace,
+                filterCountsEnabled: false,
+                vocabularyScope: { kind: "artifact" },
+              }}
+            />
+          </AdvancedFilterSurface>
         )}
       />
     );

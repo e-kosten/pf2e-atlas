@@ -18,6 +18,26 @@
 .advanced-filters {
   container-type: inline-size;
 }
+.related-entry-editor {
+  display: grid;
+  gap: 16px;
+  container-type: inline-size;
+}
+.related-entry-editor__choices,
+.related-entry-editor__field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.related-entry-editor__field {
+  gap: 4px;
+}
+@container (min-width: 440px) {
+  .related-entry-editor__choices {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+  }
+}
 .common-filters {
   gap: 20px;
 }
