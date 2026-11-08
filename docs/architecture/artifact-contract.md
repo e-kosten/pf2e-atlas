@@ -183,10 +183,12 @@ never supplies executable SQL.
 The shared header contains `workspace` and `schema_migrations`. Durable intent
 lives in `requested_reference_config`; resumable inference uses
 `pending_embedding_values`, joined to exact
-`embedding_models`/`embedding_inputs` metadata. Pending vector checksums are
-independent of published checksums, so cached inference stays separate from
-current search results. Successful complete source-ingest publication removes pending
-numerical values; schema and metadata-only upgrades preserve them. Saved-domain
+`embedding_models`/`embedding_inputs` metadata. Ordinary builds reuse the exact
+published vector when present and cache completed inference only for unpublished
+inputs. They discard legacy overlaps when preparing a publication and treat
+malformed pending payloads as cache misses. Successful complete source-ingest
+publication removes pending numerical values; schema and metadata-only upgrades
+preserve them. Saved-domain
 tables include a seeded local principal
 and non-null ownership, with owner-scoped slug uniqueness.
 

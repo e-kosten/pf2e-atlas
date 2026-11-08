@@ -154,9 +154,9 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
 }
 
 #[test]
-fn pending_cache_precedes_published_and_cross_batch_selection_survives_eviction() {
+fn ordinary_preparation_clears_legacy_overlaps_and_keeps_unpublished_cache() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("forced.sqlite");
+    let path = directory.path().join("legacy-overlap.sqlite");
     let input = crate::foundation_tests::fixture(true);
     publish_input(&path, &input).unwrap();
     let workspace = initialize_workspace(&path).unwrap();
@@ -164,66 +164,68 @@ fn pending_cache_precedes_published_and_cross_batch_selection_survives_eviction(
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
     let desc = descriptor(unit);
-    let mut forced = vec![0.; model.dimensions];
-    forced[9] = 1.;
+    let unpublished = NativeInputDescriptor {
+        input_sha256: crate::codec::sha256(b"unpublished input"),
+        ..desc.clone()
+    };
+    let scratch = BuildScratch::new(&owner).unwrap();
     {
-        let scratch = BuildScratch::new(&owner).unwrap();
-        let metadata = publication_spool_in(
-            scratch.path(),
-            &input,
-            ArtifactInstance::new(
-                workspace
-                    .read(TEST_WORKSPACE_SCHEMA_VERSION)
-                    .unwrap()
-                    .workspace_key()
-                    .unwrap(),
-                1,
-            ),
-        )
-        .unwrap();
-        let mut publication = PreparedPublication::new_in(
+        let mut publication = fixture_publication(
             &owner,
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
-            metadata,
+            &input,
         )
         .unwrap();
+        let mut alternative = vec![0.; model.dimensions];
+        alternative[9] = 1.;
         publication
-            .stage_inferred(model, &[(&desc, &forced)])
+            .stage_inferred(
+                model,
+                &[(&desc, &alternative), (&unpublished, &alternative)],
+            )
             .unwrap();
-        assert_eq!(raw_value(&workspace, model, &desc), unit.vector);
-        publication.cache_limit = 0;
-        publication.evict_cache().unwrap();
-        assert_eq!(count(&workspace, "pending_embedding_values"), 0);
-        assert_eq!(
-            publication
-                .select_native(model, std::slice::from_ref(&desc))
-                .unwrap(),
-            [NativeValueSelection::AlreadySelected]
-        );
-        assert!(
-            publication
-                .stage_inferred(model, &[(&desc, &unit.vector)])
-                .is_err()
-        );
-        // Restore the expensive result durably before abandoning this attempt.
-        publication.cache_limit = CACHE_PAYLOAD_LIMIT;
-        publication
-            .stage_inferred(model, &[(&desc, &forced)])
+        assert_eq!(count(&workspace, "pending_embedding_values"), 1);
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let published_id = crate::native_values::lookup_input(write.connection(), model, &desc)
+            .unwrap()
             .unwrap();
+        let bytes = crate::read_units::vector_bytes(&alternative);
+        let checksum = crate::embedding_values::hash_bytes(&bytes);
+        write
+            .connection()
+            .execute(
+                "INSERT INTO pending_embedding_values VALUES(?,?,?,0)",
+                params![published_id, bytes, checksum],
+            )
+            .unwrap();
+        write.commit().unwrap();
     }
-    let scratch = BuildScratch::new(&owner).unwrap();
-    let publication = prepare_publication_in(
+    assert_eq!(count(&workspace, "pending_embedding_values"), 2);
+    let mut retry = fixture_publication(
         &owner,
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &input,
     )
     .unwrap();
-    assert!(publication.logical_native_bytes().unwrap() > 0);
-    publication.publish().unwrap();
-    assert_eq!(raw_value(&workspace, model, &desc), forced);
-    assert_eq!(count(&workspace, "pending_embedding_values"), 0);
+    assert_eq!(count(&workspace, "pending_embedding_values"), 1);
+    assert_eq!(
+        retry
+            .select_native(model, std::slice::from_ref(&desc))
+            .unwrap(),
+        [NativeValueSelection::Reused]
+    );
+    assert_eq!(retry.logical_native_bytes().unwrap(), 0);
+    assert_eq!(
+        retry.select_native(model, &[unpublished]).unwrap(),
+        [NativeValueSelection::Reused]
+    );
+    assert_eq!(
+        retry.logical_native_bytes().unwrap(),
+        (model.dimensions * 4) as u64
+    );
+    assert_eq!(raw_value(&workspace, model, &desc), unit.vector);
 }
 
 #[test]
@@ -273,14 +275,13 @@ fn failed_publication_reopens_exact_prior_state_without_repairing_old_damage() {
                 .execute("UPDATE records SET content_hash='already-damaged'", [])
                 .unwrap();
         }
-        let mut before = reference_preservation_rows(write.connection()).unwrap();
-        before.remove("pending_embedding_values");
         write.commit().unwrap();
         let owner = workspace.update_owner().unwrap();
         let scratch = BuildScratch::new(&owner).unwrap();
         let mut next = crate::foundation_tests::fixture(true);
         next.context.source_revision = Some("changed-context".into());
         for unit in &mut next.semantic_units {
+            unit.input_hash = crate::codec::sha256(unit.input_hash.as_bytes());
             unit.vector = vec![0.; 768];
             unit.vector[11] = 1.;
         }
@@ -291,8 +292,10 @@ fn failed_publication_reopens_exact_prior_state_without_repairing_old_damage() {
             &next,
         )
         .unwrap();
-        let pending = count(&workspace, "pending_embedding_values");
-        assert!(pending > 0);
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let before = reference_preservation_rows(read.connection()).unwrap();
+        assert!(!before["pending_embedding_values"].is_empty());
+        drop(read);
         let error = publication.publish().unwrap_err();
         assert!(
             error.to_string().contains("injected publication failure"),
@@ -300,16 +303,9 @@ fn failed_publication_reopens_exact_prior_state_without_repairing_old_damage() {
         );
         let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(read.reference_revision().unwrap(), 1);
-        let mut after = reference_preservation_rows(read.connection()).unwrap();
-        after.remove("pending_embedding_values");
-        assert_eq!(after, before);
         assert_eq!(
-            read.connection()
-                .query_row("SELECT count(*) FROM pending_embedding_values", [], |row| {
-                    row.get::<_, usize>(0)
-                })
-                .unwrap(),
-            pending
+            reference_preservation_rows(read.connection()).unwrap(),
+            before
         );
         assert_eq!(
             crate::validate_reference(read.connection()).is_err(),
@@ -388,8 +384,11 @@ fn conflicting_batch_tokens_or_values_fail_before_any_cache_write() {
 fn real_scratch_sqlite_full_keeps_committed_cache_and_old_publication() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("full.sqlite");
-    let input = crate::foundation_tests::fixture(true);
+    let mut input = crate::foundation_tests::fixture(true);
     publish_input(&path, &input).unwrap();
+    for unit in &mut input.semantic_units {
+        unit.input_hash = crate::codec::sha256(unit.input_hash.as_bytes());
+    }
     let workspace = initialize_workspace(&path).unwrap();
     let owner = workspace.update_owner().unwrap();
     let scratch = BuildScratch::new(&owner).unwrap();
@@ -510,8 +509,10 @@ fn empty_requested_profile_has_one_empty_native_table_and_no_target_history() {
 fn zero_profile_preparation_keeps_retry_cache_until_successful_complete_publication() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("zero-profile.sqlite");
-    let input = crate::foundation_tests::fixture(true);
+    let mut input = crate::foundation_tests::fixture(true);
     publish_input(&path, &input).unwrap();
+    let published = descriptor(&input.semantic_units[0]);
+    input.semantic_units[0].input_hash = crate::codec::sha256(b"unpublished input");
     let workspace = initialize_workspace(&path).unwrap();
     let owner = workspace.update_owner().unwrap();
     {
@@ -533,14 +534,7 @@ fn zero_profile_preparation_keeps_retry_cache_until_successful_complete_publicat
         prepare_publication_in(&owner, TEST_WORKSPACE_SCHEMA_VERSION, scratch.path(), &next)
             .unwrap();
     assert_eq!(count(&workspace, "pending_embedding_values"), before);
-    assert!(
-        !raw_value(
-            &workspace,
-            &input.context.search_profiles[0],
-            &descriptor(&input.semantic_units[0])
-        )
-        .is_empty()
-    );
+    assert!(!raw_value(&workspace, &input.context.search_profiles[0], &published).is_empty());
     publication.publish().unwrap();
     assert_eq!(count(&workspace, "pending_embedding_values"), 0);
     assert_eq!(count(&workspace, "embedding_inputs"), 0);
@@ -550,55 +544,86 @@ fn zero_profile_preparation_keeps_retry_cache_until_successful_complete_publicat
 }
 
 #[test]
-fn active_cache_corruption_never_falls_back_and_staged_oversize_rolls_back_publication() {
+fn malformed_pending_payloads_are_recomputed() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("corrupt-selection.sqlite");
+    let path = directory.path().join("corrupt-cache.sqlite");
     let input = crate::foundation_tests::fixture(true);
-    publish_input(&path, &input).unwrap();
     let workspace = initialize_workspace(&path).unwrap();
     let owner = workspace.update_owner().unwrap();
     let model = &input.context.search_profiles[0];
-    let desc = descriptor(&input.semantic_units[0]);
-    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    let id = crate::native_values::lookup_input(write.connection(), model, &desc)
-        .unwrap()
+    let unit = &input.semantic_units[0];
+    let desc = descriptor(unit);
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let mut first = fixture_publication(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+    )
+    .unwrap();
+    first
+        .stage_inferred(model, &[(&desc, &unit.vector)])
         .unwrap();
-    write
-        .connection()
-        .execute(
-            "INSERT INTO pending_embedding_values VALUES(?,zeroblob(8388608),zeroblob(32),0)",
-            [id],
-        )
-        .unwrap();
-    write.commit().unwrap();
-    {
-        let scratch = BuildScratch::new(&owner).unwrap();
-        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        let expected = ArtifactInstance::new(read.workspace_key().unwrap(), 1);
-        drop(read);
-        let metadata = publication_spool_in(scratch.path(), &input, expected).unwrap();
-        let mut publication = PreparedPublication::new_in(
+    drop(first);
+
+    let malformed = [
+        (vec![0; 8 * 1024 * 1024], vec![0; 32]),
+        (crate::read_units::vector_bytes(&unit.vector), vec![0; 32]),
+        {
+            let bytes = crate::read_units::vector_bytes(&vec![f32::NAN; model.dimensions]);
+            let hash = crate::embedding_values::hash_bytes(&bytes);
+            (bytes, hash)
+        },
+    ];
+    for (bytes, hash) in malformed {
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        write
+            .connection()
+            .execute(
+                "UPDATE pending_embedding_values SET vector=?,vector_hash=?",
+                params![bytes, hash],
+            )
+            .unwrap();
+        write.commit().unwrap();
+
+        let mut retry = fixture_publication(
             &owner,
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
-            metadata,
+            &input,
         )
         .unwrap();
-        assert!(
-            publication
+        assert_eq!(
+            retry
                 .select_native(model, std::slice::from_ref(&desc))
-                .unwrap_err()
-                .to_string()
-                .contains("cached native length mismatch")
+                .unwrap(),
+            [NativeValueSelection::Missing]
         );
-        assert_eq!(publication.logical_native_bytes().unwrap(), 0);
+        retry
+            .stage_inferred(model, &[(&desc, &unit.vector)])
+            .unwrap();
     }
-    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    write
-        .connection()
-        .execute("DELETE FROM pending_embedding_values", [])
-        .unwrap();
-    write.commit().unwrap();
+    let publication = prepare_publication_in(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+    )
+    .unwrap();
+    publication.publish().unwrap();
+    assert_eq!(raw_value(&workspace, model, &desc), unit.vector);
+    assert_eq!(count(&workspace, "pending_embedding_values"), 0);
+}
+
+#[test]
+fn oversized_staged_vector_rolls_back_publication() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("corrupt-selection.sqlite");
+    let mut input = crate::foundation_tests::fixture(true);
+    publish_input(&path, &input).unwrap();
+    input.semantic_units[0].input_hash = crate::codec::sha256(b"unpublished input");
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
     let scratch = BuildScratch::new(&owner).unwrap();
     let publication = prepare_publication_with_inferred_values(
         &owner,
@@ -697,8 +722,10 @@ fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows
     for field in ["selected_hash", "input_hash"] {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("metadata-bounds.sqlite");
-        let input = crate::foundation_tests::fixture(true);
+        let mut input = crate::foundation_tests::fixture(true);
         publish_input(&path, &input).unwrap();
+        let published = descriptor(&input.semantic_units[0]);
+        input.semantic_units[0].input_hash = crate::codec::sha256(b"unpublished input");
         let workspace = initialize_workspace(&path).unwrap();
         let owner = workspace.update_owner().unwrap();
         let scratch = BuildScratch::new(&owner).unwrap();
@@ -786,7 +813,7 @@ fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows
                 .unwrap(),
             pending
         );
-        let id = crate::native_values::lookup_input(maintenance.connection(), model, &desc)
+        let id = crate::native_values::lookup_input(maintenance.connection(), model, &published)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -978,33 +1005,27 @@ fn inferred_batches_rebind_after_every_cache_entry_and_model_are_evicted() {
 }
 
 #[test]
-fn current_fixture_publication_installs_explicit_values_over_pending_cache() {
+fn explicit_fixture_publication_installs_its_value_over_unpublished_cache() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("explicit-fixture-values.sqlite");
-    let input = crate::foundation_tests::fixture(true);
+    let mut input = crate::foundation_tests::fixture(true);
     publish_input(&path, &input).unwrap();
-    let workspace = initialize_workspace(&path).unwrap();
+    input.semantic_units[0].input_hash = crate::codec::sha256(b"unpublished input");
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
     let desc = descriptor(unit);
     let mut pending = vec![0.; model.dimensions];
     pending[23] = 1.;
     assert_ne!(pending, unit.vector);
+    let workspace = initialize_workspace(&path).unwrap();
     {
         let owner = workspace.update_owner().unwrap();
         let scratch = BuildScratch::new(&owner).unwrap();
-        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        let expected = ArtifactInstance::new(
-            read.workspace_key().unwrap(),
-            read.reference_revision().unwrap(),
-        );
-        drop(read);
-        let metadata = publication_spool_in(scratch.path(), &input, expected).unwrap();
-        let mut publication = PreparedPublication::new_in(
+        let mut publication = fixture_publication(
             &owner,
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
-            metadata,
+            &input,
         )
         .unwrap();
         publication
@@ -1012,18 +1033,9 @@ fn current_fixture_publication_installs_explicit_values_over_pending_cache() {
             .unwrap();
     }
     assert_eq!(count(&workspace, "pending_embedding_values"), 1);
-    assert_eq!(raw_value(&workspace, model, &desc), unit.vector);
     publish_input(&path, &input).unwrap();
     assert_eq!(raw_value(&workspace, model, &desc), unit.vector);
     assert_eq!(count(&workspace, "pending_embedding_values"), 0);
-    assert_eq!(
-        workspace
-            .read(TEST_WORKSPACE_SCHEMA_VERSION)
-            .unwrap()
-            .reference_revision()
-            .unwrap(),
-        2
-    );
 }
 
 #[test]

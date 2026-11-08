@@ -222,8 +222,9 @@ into the owned publication. They do not replay a second full rich-record stream.
 Ingest prepares current literal inputs with pinned tokenizers. One concrete
 `PreparedPublication` binds context/inventory, expected workspace generation,
 metadata streams and compact build-local selection. Selection first reuses its own
-chosen checksum, then unpublished recovery results, then compatible published
-values. Missing inputs undergo the normal bounded native guard before inference.
+chosen checksum, then an exact published value, then valid pending inference for
+the exact input, then a compatible published value from a prior layout. Missing
+inputs undergo the normal bounded native guard before inference.
 Passage-layout reuse is separate. Explicit reference repair infers each distinct
 input privately from the configured source and models.
 
@@ -231,8 +232,8 @@ A published hit retains a stable input/checksum handle. A cache hit or newly inf
 result becomes an owned staged value before eviction can affect it. Per-batch SQL
 sessions close before inference. Full model keys are immutable; registry IDs are
 resolved within each admitted session and released before cache collection. The
-recovery cache keeps one value per exact
-model/input key and evicts oldest entries under a coarse 1 GiB raw-payload cap.
+recovery cache keeps one value per unpublished exact model/input key and evicts
+oldest entries under a coarse 1 GiB raw-payload cap.
 This cap limits optional reuse, not required staging or physical disk allocation.
 There is no durable target-membership lifecycle or history of failed build targets.
 
@@ -272,7 +273,7 @@ maintenance preserve numerical ownership; no shadow-table writes are permitted.
 See [ADR0065](decisions/0065-input-owned-reference-publication.md).
 
 Schema migration performs typed backfills inside the checksum-verified migration
-transaction, preserving native values and unfinished forced work without requiring
+transaction, preserving native values and retry cache entries without requiring
 source/model assets. Explicit setup/build reclaims at least 32 MiB of free SQLite
 pages through storage-owned maintenance after a successful update. Before closing
 admission, storage checks workspace and SQLite temporary-volume capacity against

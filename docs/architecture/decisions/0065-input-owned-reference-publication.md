@@ -4,7 +4,10 @@ Status: accepted
 
 Schema 34 retired the trait-seeded Similar workflow and its numerical storage.
 See the [artifact contract](../artifact-contract.md#native-embedding-storage)
-for the current migration behavior. The original trait Similar design follows.
+for the current migration behavior. Ordinary builds now give exact published
+vectors precedence and keep retry cache entries only for unpublished inputs.
+They discard legacy overlaps during preparation and recompute malformed
+cache entries if needed. The original design follows.
 
 ## Context
 
