@@ -168,7 +168,6 @@ impl<'owner> PreparedPublication<'owner> {
         &mut self,
         model: &SourceSearchProfileIdentity,
         inputs: &[NativeInputDescriptor],
-        reuse_published: bool,
     ) -> Result<Vec<NativeValueSelection>, IndexError> {
         bounded(inputs.len())?;
         let ordinal = self.model_key(model)?;
@@ -197,14 +196,10 @@ impl<'owner> PreparedPublication<'owner> {
             &self.models[ordinal],
             false,
         )?;
-        let previous = if reuse_published {
-            self.previous_layouts[ordinal]
-                .as_ref()
-                .map(|key| crate::native_values::NativeModel::bind(read.connection(), key, false))
-                .transpose()?
-        } else {
-            None
-        };
+        let previous = self.previous_layouts[ordinal]
+            .as_ref()
+            .map(|key| crate::native_values::NativeModel::bind(read.connection(), key, false))
+            .transpose()?;
         let selected_tx = rusqlite::Transaction::new_unchecked(
             &self.selected,
             rusqlite::TransactionBehavior::Immediate,
@@ -216,7 +211,7 @@ impl<'owner> PreparedPublication<'owner> {
                 output.push(NativeValueSelection::AlreadySelected);
                 continue;
             }
-            let selected = match binding.select(&input, reuse_published)? {
+            let selected = match binding.select(&input)? {
                 Some(selected) => Some(selected),
                 None => previous
                     .as_ref()

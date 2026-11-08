@@ -231,11 +231,7 @@ impl<'session> NativeModel<'session> {
         }))
     }
     /// One exact input lookup, retaining pending-over-published precedence.
-    pub fn select(
-        &self,
-        input: &NativeInput,
-        reuse_published: bool,
-    ) -> Result<Option<SelectedNative>, IndexError> {
+    pub fn select(&self, input: &NativeInput) -> Result<Option<SelectedNative>, IndexError> {
         let Some(row) = self.find(input)? else {
             return Ok(None);
         };
@@ -244,9 +240,6 @@ impl<'session> NativeModel<'session> {
                 checksum: cached.checksum,
                 staged: Some(cached.bytes),
             }));
-        }
-        if !reuse_published {
-            return Ok(None);
         }
         let Some(hash) = self.checksum(&row)? else {
             return Ok(None);
@@ -675,7 +668,7 @@ mod tests {
         let keys = NativeModelKey::all(std::slice::from_ref(&model)).unwrap();
         let binding = NativeModel::bind(&c, &keys[0], false).unwrap();
         let checked = NativeInput::new(&model, &input).unwrap();
-        let selected = binding.select(&checked, true).unwrap().unwrap();
+        let selected = binding.select(&checked).unwrap().unwrap();
         assert_eq!(selected.staged.as_deref(), Some(bytes.as_slice()));
         assert_eq!(selected.checksum, hash);
         assert_eq!(
@@ -706,7 +699,7 @@ mod tests {
             .unwrap();
         assert!(
             binding
-                .select(&checked, true)
+                .select(&checked)
                 .err()
                 .unwrap()
                 .to_string()

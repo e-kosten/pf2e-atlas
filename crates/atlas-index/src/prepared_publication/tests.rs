@@ -61,14 +61,9 @@ fn published_reuse_has_no_staged_vector_copy_and_semantic_swaps_keep_exact_value
     for unit in &mut next.semantic_units {
         unit.vector = vectors[&unit.input_hash].clone();
     }
-    let publication = prepare_publication_in(
-        &owner,
-        TEST_WORKSPACE_SCHEMA_VERSION,
-        scratch.path(),
-        &next,
-        true,
-    )
-    .unwrap();
+    let publication =
+        prepare_publication_in(&owner, TEST_WORKSPACE_SCHEMA_VERSION, scratch.path(), &next)
+            .unwrap();
     assert_eq!(publication.logical_native_bytes().unwrap(), 0);
     publication.publish().unwrap();
     for unit in &next.semantic_units {
@@ -122,16 +117,10 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         false,
     )
     .unwrap();
-    assert_eq!(
-        publication
-            .select_native(&model, std::slice::from_ref(&desc), false)
-            .unwrap(),
-        [NativeValueSelection::Missing]
-    );
     for unit in &input.semantic_units {
         assert_eq!(
             publication
-                .select_native(&model, &[descriptor(unit)], true)
+                .select_native(&model, &[descriptor(unit)])
                 .unwrap(),
             [NativeValueSelection::Reused]
         );
@@ -158,14 +147,14 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
     .unwrap();
     assert_eq!(
         incompatible
-            .select_native(&input.context.search_profiles[0], &[desc], true)
+            .select_native(&input.context.search_profiles[0], &[desc])
             .unwrap(),
         [NativeValueSelection::Missing]
     );
 }
 
 #[test]
-fn forced_cache_precedes_published_and_cross_batch_selection_survives_eviction() {
+fn pending_cache_precedes_published_and_cross_batch_selection_survives_eviction() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("forced.sqlite");
     let input = crate::foundation_tests::fixture(true);
@@ -199,12 +188,6 @@ fn forced_cache_precedes_published_and_cross_batch_selection_survives_eviction()
             metadata,
         )
         .unwrap();
-        assert_eq!(
-            publication
-                .select_native(model, std::slice::from_ref(&desc), false)
-                .unwrap(),
-            [NativeValueSelection::Missing]
-        );
         publication
             .stage_inferred(model, &[(&desc, &forced)])
             .unwrap();
@@ -214,7 +197,7 @@ fn forced_cache_precedes_published_and_cross_batch_selection_survives_eviction()
         assert_eq!(count(&workspace, "pending_embedding_values"), 0);
         assert_eq!(
             publication
-                .select_native(model, std::slice::from_ref(&desc), false)
+                .select_native(model, std::slice::from_ref(&desc))
                 .unwrap(),
             [NativeValueSelection::AlreadySelected]
         );
@@ -235,7 +218,6 @@ fn forced_cache_precedes_published_and_cross_batch_selection_survives_eviction()
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &input,
-        false,
     )
     .unwrap();
     assert!(publication.logical_native_bytes().unwrap() > 0);
@@ -257,7 +239,6 @@ fn cache_eviction_collects_unpublished_metadata_without_invalidating_owned_stagi
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
             &input,
-            false,
         )
         .unwrap();
         publication.cache_limit = 0;
@@ -303,12 +284,11 @@ fn failed_publication_reopens_exact_prior_state_without_repairing_old_damage() {
             unit.vector = vec![0.; 768];
             unit.vector[11] = 1.;
         }
-        let publication = prepare_publication_in(
+        let publication = prepare_publication_with_inferred_values(
             &owner,
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
             &next,
-            false,
         )
         .unwrap();
         let pending = count(&workspace, "pending_embedding_values");
@@ -509,7 +489,6 @@ fn empty_requested_profile_has_one_empty_native_table_and_no_target_history() {
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &input,
-        true,
     )
     .unwrap()
     .publish()
@@ -537,12 +516,11 @@ fn zero_profile_preparation_keeps_retry_cache_until_successful_complete_publicat
     let owner = workspace.update_owner().unwrap();
     {
         let scratch = BuildScratch::new(&owner).unwrap();
-        let publication = prepare_publication_in(
+        let publication = prepare_publication_with_inferred_values(
             &owner,
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
             &input,
-            false,
         )
         .unwrap();
         assert!(count(&workspace, "pending_embedding_values") > 0);
@@ -551,14 +529,9 @@ fn zero_profile_preparation_keeps_retry_cache_until_successful_complete_publicat
     let before = count(&workspace, "pending_embedding_values");
     let next = crate::foundation_tests::fixture(false);
     let scratch = BuildScratch::new(&owner).unwrap();
-    let publication = prepare_publication_in(
-        &owner,
-        TEST_WORKSPACE_SCHEMA_VERSION,
-        scratch.path(),
-        &next,
-        true,
-    )
-    .unwrap();
+    let publication =
+        prepare_publication_in(&owner, TEST_WORKSPACE_SCHEMA_VERSION, scratch.path(), &next)
+            .unwrap();
     assert_eq!(count(&workspace, "pending_embedding_values"), before);
     assert!(
         !raw_value(
@@ -613,7 +586,7 @@ fn active_cache_corruption_never_falls_back_and_staged_oversize_rolls_back_publi
         .unwrap();
         assert!(
             publication
-                .select_native(model, std::slice::from_ref(&desc), true)
+                .select_native(model, std::slice::from_ref(&desc))
                 .unwrap_err()
                 .to_string()
                 .contains("cached native length mismatch")
@@ -627,12 +600,11 @@ fn active_cache_corruption_never_falls_back_and_staged_oversize_rolls_back_publi
         .unwrap();
     write.commit().unwrap();
     let scratch = BuildScratch::new(&owner).unwrap();
-    let publication = prepare_publication_in(
+    let publication = prepare_publication_with_inferred_values(
         &owner,
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &input,
-        false,
     )
     .unwrap();
     publication.selected.execute("UPDATE selected SET vector=zeroblob(8388608) WHERE input_hash=(SELECT min(input_hash) FROM selected)",[]).unwrap();
@@ -691,16 +663,11 @@ fn empty_and_oversized_batches_do_not_open_the_workspace() {
     publication.workspace = Workspace::at(&missing).unwrap();
     let model = &input.context.search_profiles[0];
     let desc = descriptor(&input.semantic_units[0]);
-    assert!(
-        publication
-            .select_native(model, &[], true)
-            .unwrap()
-            .is_empty()
-    );
+    assert!(publication.select_native(model, &[]).unwrap().is_empty());
     publication.stage_inferred(model, &[]).unwrap();
     assert!(
         publication
-            .select_native(model, &vec![desc.clone(); 129], true)
+            .select_native(model, &vec![desc.clone(); 129])
             .unwrap_err()
             .to_string()
             .contains("batch exceeds its bound")
@@ -717,7 +684,7 @@ fn empty_and_oversized_batches_do_not_open_the_workspace() {
     wrong_model.revision.push_str("-different");
     assert!(
         publication
-            .select_native(&wrong_model, std::slice::from_ref(&desc), true)
+            .select_native(&wrong_model, std::slice::from_ref(&desc))
             .unwrap_err()
             .to_string()
             .contains("model differs from publication")
@@ -735,12 +702,11 @@ fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows
         let workspace = initialize_workspace(&path).unwrap();
         let owner = workspace.update_owner().unwrap();
         let scratch = BuildScratch::new(&owner).unwrap();
-        let publication = prepare_publication_in(
+        let publication = prepare_publication_with_inferred_values(
             &owner,
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
             &input,
-            false,
         )
         .unwrap();
         let model = &input.context.search_profiles[0];
@@ -879,7 +845,7 @@ fn selection_rejects_missing_published_checksum_for_native_or_document_consumers
         )
         .unwrap();
         let error = publication
-            .select_native(model, std::slice::from_ref(&desc), true)
+            .select_native(model, std::slice::from_ref(&desc))
             .unwrap_err();
         assert!(
             error
@@ -932,7 +898,7 @@ fn unpublished_input_without_consumers_is_missing_and_cache_only_input_is_reused
     .unwrap();
     assert_eq!(
         publication
-            .select_native(model, std::slice::from_ref(&desc), true)
+            .select_native(model, std::slice::from_ref(&desc))
             .unwrap(),
         [NativeValueSelection::Missing]
     );
@@ -962,7 +928,7 @@ fn unpublished_input_without_consumers_is_missing_and_cache_only_input_is_reused
     .unwrap();
     assert_eq!(
         retry
-            .select_native(model, std::slice::from_ref(&desc), true)
+            .select_native(model, std::slice::from_ref(&desc))
             .unwrap(),
         [NativeValueSelection::Reused]
     );
@@ -1002,7 +968,7 @@ fn inferred_batches_rebind_after_every_cache_entry_and_model_are_evicted() {
         assert_eq!(count(&workspace, "embedding_models"), 0);
         assert_eq!(
             publication
-                .select_native(value.model, std::slice::from_ref(&value.input), false)
+                .select_native(value.model, std::slice::from_ref(&value.input))
                 .unwrap(),
             [NativeValueSelection::AlreadySelected]
         );
@@ -1093,7 +1059,7 @@ fn rebuild_ignores_corrupt_native_registry_and_pending_values() {
     for unit in &input.semantic_units {
         let desc = descriptor(unit);
         if publication
-            .select_native(model, std::slice::from_ref(&desc), true)
+            .select_native(model, std::slice::from_ref(&desc))
             .unwrap()
             == [NativeValueSelection::Missing]
         {

@@ -79,8 +79,8 @@ impl NativeExecution<'_, '_> {
         let Self {
             publication,
             raw_inputs,
-            options,
             semantic_units,
+            ..
         } = self;
         let profile = atlas_embedding::profile_for_model(config.model);
         let model = publication
@@ -151,7 +151,7 @@ impl NativeExecution<'_, '_> {
                 .collect::<Vec<_>>();
             let selection_started = std::time::Instant::now();
             let selected = publication
-                .select_native(&model, &requested, options.reuse_embeddings)
+                .select_native(&model, &requested)
                 .map_err(index)?;
             selection_elapsed += selection_started.elapsed();
             if selected.len() != positions.len() {

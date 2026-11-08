@@ -172,7 +172,6 @@ impl AtlasRuntime {
                 manifest_path: config.manifest_path,
                 locale: config.indexing_locale,
                 search_profiles,
-                reuse_embeddings: false,
                 reuse_passage_layouts: false,
                 embedding_batch_size: 32,
             },

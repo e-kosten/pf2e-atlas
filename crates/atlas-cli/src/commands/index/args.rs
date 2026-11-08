@@ -51,11 +51,6 @@ pub(crate) struct BuildIndexOptions {
     pub(crate) embedding_batch_size: usize,
     #[arg(
         long,
-        help = "Regenerate embeddings instead of reusing compatible cached rows"
-    )]
-    pub(crate) no_reuse_embeddings: bool,
-    #[arg(
-        long,
         help = "Build without requesting additional embedding models; existing models are preserved"
     )]
     pub(crate) no_embeddings: bool,

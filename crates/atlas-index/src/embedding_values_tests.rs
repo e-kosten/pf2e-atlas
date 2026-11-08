@@ -18,7 +18,7 @@ fn reused_fixture_values(
     let mut output = std::collections::BTreeMap::new();
     for input in inputs {
         let descriptor = crate::native_values::NativeInput::new(model, &input.descriptor())?;
-        let Some(selected) = binding.select(&descriptor, true)? else {
+        let Some(selected) = binding.select(&descriptor)? else {
             continue;
         };
         let vector = match selected.staged {
@@ -106,7 +106,7 @@ fn published_values_supply_exact_reuse_without_a_checkpoint_corpus() {
     );
 }
 #[test]
-fn forced_computation_survives_reopen_without_mutating_published_values() {
+fn pending_vector_survives_reopen_without_mutating_published_values() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("atlas.sqlite");
     let mut input = crate::foundation_tests::fixture(true);
@@ -148,7 +148,6 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &input,
-        false,
     )
     .unwrap();
     assert!(
@@ -195,7 +194,6 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &input,
-        false,
     )
     .unwrap()
     .publish()

@@ -251,7 +251,6 @@ pub fn rebuild_artifact(
 ) -> Result<BuildArtifactReport, IngestError> {
     let started = Instant::now();
     let workspace = atlas_storage::Workspace::at(owner.path())?;
-    options.reuse_embeddings = false;
     options.reuse_passage_layouts = false;
     let scratch = atlas_index::BuildScratch::new(owner).map_err(index_error)?;
     let inputs = CapturedBuildInputs::capture(options)?;

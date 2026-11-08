@@ -58,8 +58,8 @@ These are logical relationships. A registry input can have a published vector
 and a pending replacement; only the published value is searchable. Repeated
 occurrences and trait chunks retain separate attribution while sharing that value.
 
-A forced result can differ for the same input. Bind the selected checksum as well
-as model/input/token identity. Keep new or forced bytes in owned attempt staging,
+A newly inferred result can differ for the same input. Bind the selected checksum as well
+as model/input/token identity. Keep newly inferred bytes in owned attempt staging,
 then replace the active value only inside atomic publication. Every new-generation
 consumer must use that selected value. Preserve ordered/repeated trait weights
 and invalidate numerical derivatives even when input text hashes are unchanged.
@@ -93,8 +93,8 @@ work, but cannot publish partial reference data.
 
 Inference runs outside database transactions in bounded batches. Reuse precedence
 is same-attempt selection, matching unpublished recovery value, compatible
-published value when reuse is enabled, then inference. Forced execution deduplicates
-within the attempt. Cache hits and new inference become owned staged bytes before
+published value during ordinary ingest, then inference. Explicit reference repair
+deduplicates within its private attempt. Cache hits and new inference become owned staged bytes before
 cache eviction can invalidate selection.
 
 Retain one recovery value per exact model/input key across failed attempts. Use

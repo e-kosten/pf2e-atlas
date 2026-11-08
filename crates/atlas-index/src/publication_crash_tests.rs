@@ -155,12 +155,11 @@ fn publication_crashes_preserve_exact_old_or_new_state_and_allow_the_next_build(
         let workspace = initialize_workspace(&path).unwrap();
         let owner = workspace.update_owner().unwrap();
         let scratch = BuildScratch::new(&owner).unwrap();
-        prepare_publication_in(
+        prepare_publication_with_inferred_values(
             &owner,
             TEST_WORKSPACE_SCHEMA_VERSION,
             scratch.path(),
             &next_input(),
-            false,
         )
         .unwrap()
         .publish()
@@ -176,12 +175,11 @@ fn publication_crashes_preserve_exact_old_or_new_state_and_allow_the_next_build(
     save_list(&control_workspace);
     let owner = control_workspace.update_owner().unwrap();
     let scratch = BuildScratch::new(&owner).unwrap();
-    let publication = prepare_publication_in(
+    let publication = prepare_publication_with_inferred_values(
         &owner,
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &next_input(),
-        false,
     )
     .unwrap();
     let read = control_workspace

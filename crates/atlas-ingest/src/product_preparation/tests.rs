@@ -45,7 +45,6 @@ impl SourceFixture {
             manifest_path: None,
             locale: "en".into(),
             search_profiles: vec![],
-            reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 8,
         }
@@ -487,7 +486,7 @@ fn prepared_frames(prepared: &PreparedSourceBuild) -> Vec<String> {
 
 #[test]
 #[ignore = "requires pinned BGE tokenizer only; private structural publication, no weights/inference"]
-fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessions() {
+fn production_layout_batches_preserve_preparation_and_bound_sessions() {
     for count in [1usize, 32, 129] {
         let fixture = uniform_source(count);
         let mut options = tokenizer_only_options(&fixture);
@@ -502,77 +501,74 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
         let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
         let mut expected = None;
         let mut expected_native = None;
-        for numerical in [true, false] {
-            for layouts in [true, false] {
-                options.reuse_embeddings = numerical;
-                options.reuse_passage_layouts = layouts;
-                let (prepared, connections) =
-                    atlas_storage::diagnostics::count_workspace_connections(|| {
-                        prepare(
-                            &CapturedBuildInputs::capture(options.clone())?,
-                            &reuse,
-                            scratch.path(),
-                        )
-                    })
-                    .unwrap();
-                let prepared = prepared.unwrap();
-                let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
-                assert_eq!(prepared.work.admitted_record_reads, count);
-                assert_eq!(prepared.work.largest_admitted_batch, count.min(32));
-                assert!(prepared.work.largest_content_overlap.total() <= 32);
-                assert_eq!(prepared.work.alias_journal_reads, 0);
-                assert_eq!(prepared.work.reusable_record_read_calls, count);
-                assert_eq!(prepared.work.reusable_record_read_batches, batches);
-                assert_eq!(
-                    prepared.work.reusable_layout_read_calls,
-                    if layouts { count } else { 0 }
-                );
-                assert_eq!(
-                    prepared.work.reusable_layout_read_batches,
-                    if layouts { batches } else { 0 }
-                );
-                assert_eq!(
-                    connections as usize,
-                    1 + batches + if layouts { batches } else { 0 }
-                );
-                assert_eq!(prepared.source_report.reused_admissions, count);
-                assert_eq!(prepared.spool.record_count(), count);
-                assert_eq!(prepared.reused_sections > 0, layouts);
-                assert!(prepared.work.largest_semantic_overlap.raw_sources <= 32);
-                assert!(prepared.work.largest_semantic_overlap.retained_records <= 32);
-                assert_eq!(
-                    prepared.work.largest_semantic_overlap.prepared_records,
-                    count.min(32)
-                );
-                assert_eq!(
-                    prepared.work.largest_semantic_overlap.layout_roots,
-                    if layouts { count.min(32) } else { 0 }
-                );
-                assert!(prepared.work.largest_semantic_overlap.total() <= 64);
-                let frames = prepared_frames(&prepared);
-                if let Some(expected) = &expected {
-                    assert_eq!(&frames, expected);
-                } else {
-                    expected = Some(frames);
-                }
-                let mut actual_native = Vec::new();
-                prepared
-                    .native_inputs
-                    .visit(&mut |input| {
-                        actual_native.push(serde_json::to_string(&input)?);
-                        Ok(())
-                    })
-                    .unwrap();
-                if let Some(expected) = &expected_native {
-                    assert_eq!(&actual_native, expected);
-                } else {
-                    expected_native = Some(actual_native);
-                }
-                eprintln!(
-                    "layout_batches records={count} numerical={numerical} layouts={layouts} batches={batches} workspace_connections={} overlap={:?}",
-                    connections, prepared.work.largest_semantic_overlap
-                );
+        for layouts in [true, false] {
+            options.reuse_passage_layouts = layouts;
+            let (prepared, connections) =
+                atlas_storage::diagnostics::count_workspace_connections(|| {
+                    prepare(
+                        &CapturedBuildInputs::capture(options.clone())?,
+                        &reuse,
+                        scratch.path(),
+                    )
+                })
+                .unwrap();
+            let prepared = prepared.unwrap();
+            let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
+            assert_eq!(prepared.work.admitted_record_reads, count);
+            assert_eq!(prepared.work.largest_admitted_batch, count.min(32));
+            assert!(prepared.work.largest_content_overlap.total() <= 32);
+            assert_eq!(prepared.work.alias_journal_reads, 0);
+            assert_eq!(prepared.work.reusable_record_read_calls, count);
+            assert_eq!(prepared.work.reusable_record_read_batches, batches);
+            assert_eq!(
+                prepared.work.reusable_layout_read_calls,
+                if layouts { count } else { 0 }
+            );
+            assert_eq!(
+                prepared.work.reusable_layout_read_batches,
+                if layouts { batches } else { 0 }
+            );
+            assert_eq!(
+                connections as usize,
+                1 + batches + if layouts { batches } else { 0 }
+            );
+            assert_eq!(prepared.source_report.reused_admissions, count);
+            assert_eq!(prepared.spool.record_count(), count);
+            assert_eq!(prepared.reused_sections > 0, layouts);
+            assert!(prepared.work.largest_semantic_overlap.raw_sources <= 32);
+            assert!(prepared.work.largest_semantic_overlap.retained_records <= 32);
+            assert_eq!(
+                prepared.work.largest_semantic_overlap.prepared_records,
+                count.min(32)
+            );
+            assert_eq!(
+                prepared.work.largest_semantic_overlap.layout_roots,
+                if layouts { count.min(32) } else { 0 }
+            );
+            assert!(prepared.work.largest_semantic_overlap.total() <= 64);
+            let frames = prepared_frames(&prepared);
+            if let Some(expected) = &expected {
+                assert_eq!(&frames, expected);
+            } else {
+                expected = Some(frames);
             }
+            let mut actual_native = Vec::new();
+            prepared
+                .native_inputs
+                .visit(&mut |input| {
+                    actual_native.push(serde_json::to_string(&input)?);
+                    Ok(())
+                })
+                .unwrap();
+            if let Some(expected) = &expected_native {
+                assert_eq!(&actual_native, expected);
+            } else {
+                expected_native = Some(actual_native);
+            }
+            eprintln!(
+                "layout_batches records={count} layouts={layouts} batches={batches} workspace_connections={} overlap={:?}",
+                connections, prepared.work.largest_semantic_overlap
+            );
         }
     }
 }
@@ -619,16 +615,13 @@ fn excluded_changed_renamed_duplicates_do_not_read_corrupt_layouts_but_active_ro
             .all(|frame| !frame.contains("items:0000000000000001"))
     );
     fs::remove_file(fixture.0.path().join("packs/items/duplicate.json")).unwrap();
-    for numerical in [true, false] {
-        options.reuse_embeddings = numerical;
-        let error = prepare_fixture(&options)
-            .err()
-            .expect("active corrupt layout must fail");
-        assert!(
-            error.to_string().contains("canonical section ownership"),
-            "{error}"
-        );
-    }
+    let error = prepare_fixture(&options)
+        .err()
+        .expect("active corrupt layout must fail");
+    assert!(
+        error.to_string().contains("canonical section ownership"),
+        "{error}"
+    );
     options.reuse_passage_layouts = false;
     assert_eq!(prepare_fixture(&options).unwrap().spool.record_count(), 3);
     options.reuse_passage_layouts = true;

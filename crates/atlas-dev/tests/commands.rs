@@ -44,7 +44,6 @@ impl Fixture {
                 manifest_path: None,
                 locale: "en".into(),
                 search_profiles: vec![],
-                reuse_embeddings: false,
                 reuse_passage_layouts: false,
                 embedding_batch_size: 16,
             },

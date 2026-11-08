@@ -9,7 +9,6 @@ pub struct BuildArtifactOptions {
     pub locale: String,
     /// Empty builds a complete lexical artifact without native vector activation.
     pub search_profiles: Vec<EmbeddingRuntimeConfig>,
-    pub reuse_embeddings: bool,
     /// Disable to rerun passage splitting while retaining compatible vector reuse.
     pub reuse_passage_layouts: bool,
     pub embedding_batch_size: usize,

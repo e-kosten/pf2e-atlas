@@ -48,7 +48,6 @@ mod tests {
             manifest_path: None,
             locale: "en".into(),
             search_profiles: vec![],
-            reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 32,
         };

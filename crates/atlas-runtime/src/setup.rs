@@ -170,7 +170,6 @@ pub(crate) fn ensure_setup(
                 manifest_path: configuration.manifest_path.clone(),
                 locale: configuration.indexing_locale.clone(),
                 search_profiles: configurations.clone(),
-                reuse_embeddings: true,
                 reuse_passage_layouts: !options.force_rebuild,
                 embedding_batch_size: options.embedding_batch_size,
             })
