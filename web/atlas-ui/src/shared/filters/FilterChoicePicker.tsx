@@ -135,10 +135,11 @@ function FilterChoicePicker({
           field.definition.scope,
         )[0] ?? null);
   const narrowingKey = narrowingContext
-    ? JSON.stringify(
-        [scope, field.definition.id, { ...narrowingContext, filter: null }],
-        (_, value) => (typeof value === "bigint" ? value.toString() : value),
-      )
+    ? JSON.stringify([
+        scope,
+        field.definition.id,
+        { ...narrowingContext, filter: null },
+      ])
     : null;
   const showAllValues = narrowingKey !== null && fullCatalogKey === narrowingKey;
   // Keep the requested catalog through edits within this chooser session.
@@ -263,12 +264,10 @@ function FilterChoicePicker({
   const displayedChoices = offSearch.length
     ? choices.filter((choice) => !offSearch.includes(choice))
     : choices;
-  const total = query.data?.values.total_values ?? 0n;
-  const displayedTotal = query.data?.contextual
-    ? total - BigInt(offSearch.length)
-    : total;
+  const total = query.data?.values.total_values ?? 0;
+  const displayedTotal = query.data?.contextual ? total - offSearch.length : total;
   const pageSize = BigInt(VOCABULARY_PAGE_SIZE);
-  const pages = (total + pageSize - 1n) / pageSize;
+  const pages = (BigInt(total) + pageSize - 1n) / pageSize;
   const literal = text.trim();
   const matchingValue =
     literal &&
@@ -423,7 +422,7 @@ function FilterChoicePicker({
               {query.data && (
                 <Typography.Text type="secondary" role="status">
                   {new Intl.NumberFormat().format(displayedTotal)}{" "}
-                  {displayedTotal === 1n ? "value" : "values"}
+                  {displayedTotal === 1 ? "value" : "values"}
                   {scope.kind === "saved_list" ? " in this list" : ""}
                   {pages > 1n
                     ? " · Page " +
@@ -452,7 +451,9 @@ function FilterChoicePicker({
               <Button
                 size="small"
                 aria-label="More values"
-                disabled={BigInt(offset) + pageSize >= total || query.isFetching}
+                disabled={
+                  BigInt(offset) + pageSize >= BigInt(total) || query.isFetching
+                }
                 onClick={() => setOffset(offset + VOCABULARY_PAGE_SIZE)}
               >
                 Next

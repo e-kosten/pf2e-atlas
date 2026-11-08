@@ -92,7 +92,7 @@ describe("AtlasApp routing", () => {
     apiMocks.discoverFilterEditor.mockResolvedValue(emptyFilterEditor());
     apiMocks.discoverFilterValues.mockResolvedValue({
       field_id: "kind",
-      matching_record_count: 0n,
+      matching_record_count: 0,
       options: [],
     });
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
@@ -292,7 +292,7 @@ describe("AtlasApp routing", () => {
     );
     apiMocks.searchPage.mockResolvedValue({
       ...searchResultsPage(),
-      page: { ...searchResultsPage().page, number: 2, total: 50n },
+      page: { ...searchResultsPage().page, number: 2, total: 50 },
     });
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
     expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
@@ -884,7 +884,7 @@ describe("AtlasApp routing", () => {
         budgets: [{ label: "Extreme", xp: 160 }],
       };
       apiMocks.getEncounter.mockResolvedValue({
-        revision: 1n,
+        revision: 1,
         artifact_generation: "generation-a",
         difficulty,
       });
@@ -1026,7 +1026,7 @@ function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
       number: 1,
       size: 25,
       count: recordKeys.length,
-      total: BigInt(recordKeys.length),
+      total: recordKeys.length,
       has_more: false,
       next_page: null,
     },

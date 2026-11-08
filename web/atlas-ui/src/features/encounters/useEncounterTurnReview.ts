@@ -23,9 +23,9 @@ export function useEncounterTurnReview({
   onPresent,
 }: {
   encounterRef: string;
-  expectedRevision: bigint;
+  expectedRevision: number;
   mutations: ReturnType<typeof useEncounterMutations>;
-  onAdvance: (expectedRevision: bigint) => Promise<boolean>;
+  onAdvance: (expectedRevision: number) => Promise<boolean>;
   onFinish?: () => void;
   onPresent?: (participantKey: string, event: ConditionTurnEvent) => void;
 }) {
@@ -44,7 +44,7 @@ export function useEncounterTurnReview({
   const advancing = useRef(false);
   const unseen = useRef<{
     encounterRef: string;
-    sourceRevision: bigint;
+    sourceRevision: number;
     previousBoundary?: string;
   } | null>(null);
   useEffect(() => {

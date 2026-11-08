@@ -112,7 +112,7 @@ export type EncounterMutationCommand =
   | { kind: "reorder"; request: ReorderEncounterParticipantRequest }
   | { kind: "remove"; participantKey: string }
   | { kind: "turn"; participantKey: string }
-  | { kind: "advance"; expectedRevision: bigint }
+  | { kind: "advance"; expectedRevision: number }
   | {
       kind: "add-condition";
       request: Omit<AddEncounterParticipantConditionRequest, "request_id">;
@@ -125,8 +125,8 @@ export type EncounterMutationCommand =
   | {
       kind: "remove-condition";
       participantKey: string;
-      conditionId: bigint;
-      expectedRevision: bigint;
+      conditionId: number;
+      expectedRevision: number;
     }
   | {
       kind: "life-settings";
@@ -172,9 +172,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   const inFlight = useRef(false);
   const eventRequests = useRef(new Map<string, { identity: string; id: string }>());
   const commandIdentity = (command: EncounterMutationCommand) =>
-    JSON.stringify(command, (_key, value) =>
-      typeof value === "bigint" ? value.toString() : value,
-    );
+    JSON.stringify(command);
   const requestSlot = (command: EncounterMutationCommand) => {
     switch (command.kind) {
       case "add-condition":

@@ -44,7 +44,7 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
   getEncounterConditionLifecycleActions: vi
     .fn()
-    .mockResolvedValue({ encounter_revision: 1n, actions: [] }),
+    .mockResolvedValue({ encounter_revision: 1, actions: [] }),
   getEncounterHpLifecycle: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("./EncounterParticipantSettings", () => ({
@@ -78,7 +78,7 @@ it("keeps retained spell content read-only after a contextual refresh fails and 
   const props = {
     disabled: false,
     encounterKey: "encounter",
-    encounterRevision: 1n,
+    encounterRevision: 1,
     participants: [],
     participant: encounterParticipant({
       participant_key: "one",
@@ -152,7 +152,7 @@ it("labels multiple inline options and keeps a single option beside its existing
   const props = {
     disabled: false,
     encounterKey: "encounter",
-    encounterRevision: 1n,
+    encounterRevision: 1,
     artifactGeneration: "test-generation",
     participants: [participant],
     participant,
@@ -202,7 +202,7 @@ it("omits the encounter durability section when a hazard has no HP controls or d
   const props = {
     disabled: false,
     encounterKey: "encounter",
-    encounterRevision: 1n,
+    encounterRevision: 1,
     participants: [participant],
     participant,
     preview: { open: vi.fn(), destination: null },

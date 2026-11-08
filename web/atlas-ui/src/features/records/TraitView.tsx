@@ -296,7 +296,7 @@ function TraitAssociatedRecords({
         route={fullSearch}
         summary={
           data
-            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "entry" : "entries"}`
+            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1 ? "entry" : "entries"}`
             : undefined
         }
       >

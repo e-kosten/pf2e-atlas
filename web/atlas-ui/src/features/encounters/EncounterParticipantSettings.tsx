@@ -19,7 +19,7 @@ import type {
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { Settings } from "lucide-react";
-import { optionalBigIntInput, participantUpdate } from "./participantEdits";
+import { optionalIntegerInput, participantUpdate } from "./participantEdits";
 
 type ParticipantValues = {
   name: string;
@@ -204,7 +204,7 @@ function ParticipantSettingsForm({
         disabled={disabled || pending}
         onFinish={async (values) => {
           if (disabled) return;
-          const initiative = optionalBigIntInput(values.initiative ?? "");
+          const initiative = optionalIntegerInput(values.initiative ?? "");
           if (initiative === null) return;
           try {
             await onSave(
@@ -238,7 +238,7 @@ function ParticipantSettingsForm({
           rules={[
             {
               validator: (_rule, value: string | undefined) =>
-                optionalBigIntInput(value ?? "") === null
+                optionalIntegerInput(value ?? "") === null
                   ? Promise.reject(new Error("Enter a whole number or leave blank."))
                   : Promise.resolve(),
             },
@@ -294,7 +294,7 @@ function LifeSettings({
   >;
 }) {
   const [threshold, setThreshold] = useState<number | null>(
-    Number(participant.base_death_threshold),
+    participant.base_death_threshold,
   );
   const [error, setError] = useState<string>();
   const [pendingMortality, setPendingMortality] =
@@ -333,11 +333,11 @@ function LifeSettings({
                   threshold != null &&
                   threshold > 0 &&
                   Number.isSafeInteger(threshold) &&
-                  threshold !== Number(participant.base_death_threshold)
+                  threshold !== participant.base_death_threshold
                 )
                   void save({
                     track_dying: true,
-                    base_death_threshold: BigInt(threshold),
+                    base_death_threshold: threshold,
                   });
               }}
             />

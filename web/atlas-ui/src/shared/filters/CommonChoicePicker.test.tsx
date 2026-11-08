@@ -133,10 +133,10 @@ describe("compact common choice picker", () => {
         value: {
           field: "traits",
           options: [
-            { value: "fire", distinct_roots: 4n, selected: false },
-            { value: "cold", distinct_roots: 0n, selected: false },
+            { value: "fire", distinct_roots: 4, selected: false },
+            { value: "cold", distinct_roots: 0, selected: false },
           ],
-          total_values: 2n,
+          total_values: 2,
           exhaustive: true,
           count_basis: "exact counterfactual displayed roots",
         },
@@ -157,7 +157,7 @@ describe("compact common choice picker", () => {
             values: {
               field: request.field_id,
               selected_values: request.selected_values ?? [],
-              total_values: 90n,
+              total_values: 90,
               options: request.offset
                 ? [{ value: "second-page", label: "Second-page" }]
                 : [
@@ -590,7 +590,7 @@ describe("compact common choice picker", () => {
       values: {
         field: "traits",
         selected_values: ["fire"],
-        total_values: 90n,
+        total_values: 90,
         options: [
           { value: "fire", label: "Fire" },
           { value: "cold", label: "Cold" },

@@ -56,7 +56,7 @@ export function EncounterPersistentDamageBatch({
 }: {
   encounterRef: string;
   participant: EncounterParticipantView;
-  encounterRevision: bigint;
+  encounterRevision: number;
   boundaryKey?: string | null;
   generation: string | null;
   damageApplied: boolean;
@@ -129,7 +129,7 @@ export function EncounterPersistentDamageBatch({
               ? [
                   {
                     episode_id: group.episode_id,
-                    damage: { kind: "table_result" as const, amount: BigInt(amount) },
+                    damage: { kind: "table_result" as const, amount: amount },
                   },
                 ]
               : [];
@@ -413,8 +413,8 @@ export function EncounterPersistentDamageBatch({
               ? `Immune to ${label.toLowerCase()}`
               : protection
                 ? [
-                    protection.weakness > 0n && `Weakness ${protection.weakness}`,
-                    protection.resistance > 0n && `Resistance ${protection.resistance}`,
+                    protection.weakness > 0 && `Weakness ${protection.weakness}`,
+                    protection.resistance > 0 && `Resistance ${protection.resistance}`,
                   ]
                     .filter(Boolean)
                     .join(" · ")
@@ -478,7 +478,7 @@ export function EncounterPersistentDamageBatch({
                               )}
                               {!rollPending &&
                                 (!rolled.roll ||
-                                  BigInt(rolled.roll.total) !== rolled.amount) && (
+                                  rolled.roll.total !== rolled.amount) && (
                                   <strong>{rolled.amount.toString()} damage</strong>
                                 )}
                             </>
@@ -699,7 +699,7 @@ export function EncounterPersistentDamageBatch({
         {committed && (
           <p className="encounter-persistent-total">
             Total: {committed.total.toString()} damage applied
-            {committed.hardness_absorbed > 0n
+            {committed.hardness_absorbed > 0
               ? ` · Hardness absorbed ${committed.hardness_absorbed}`
               : ""}
           </p>
@@ -723,7 +723,7 @@ export function EncounterPersistentDamageBatch({
               ) : current?.value ? (
                 <span>
                   Total: <strong>{current.value.damage.total.toString()} damage</strong>
-                  {current.value.damage.hardness_absorbed > 0n
+                  {current.value.damage.hardness_absorbed > 0
                     ? ` · Hardness absorbs ${current.value.damage.hardness_absorbed}`
                     : ""}
                   {!current.value.complete

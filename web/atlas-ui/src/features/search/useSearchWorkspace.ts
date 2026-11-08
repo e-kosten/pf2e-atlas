@@ -444,7 +444,7 @@ export function useSearchWorkspace({
       (atlasRouter.latestLocation.search.search_profile ?? null) !== urlProfile
     )
       return;
-    const lastPage = response.page.total === 0n ? 1n : totalPages(response.page);
+    const lastPage = response.page.total === 0 ? 1 : totalPages(response.page);
     if (lastPage < 1n || BigInt(pageNumber) <= lastPage) return;
     // Only the settled response for this exact request may reduce the URL page.
     void atlasRouter.navigate({

@@ -27,7 +27,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
               ? "Top matches"
               : workspace.resultPage?.coverage?.exhaustive === false
                 ? `Top ${page.total.toLocaleString()} matches`
-                : `${page.total.toLocaleString()} ${page.total === 1n ? "record" : "records"}`
+                : `${page.total.toLocaleString()} ${page.total === 1 ? "record" : "records"}`
             : "Results"}
       </span>
       <div className="pager pager--compact">
@@ -36,7 +36,7 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
           setSearch={workspace.setSearch}
           disabled={workspace.resultsRecovering}
         />
-        {page && page.total > 0n && (
+        {page && page.total > 0 && (
           <>
             <Select
               aria-label="Records per page"

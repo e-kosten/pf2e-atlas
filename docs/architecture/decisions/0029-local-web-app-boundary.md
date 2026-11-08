@@ -51,9 +51,9 @@ The app-service handle is cloneable for Axum request handlers, but it must not f
 
 The annotated HTTP handlers and Rust DTO schemas own the browser contract.
 Orval generates Fetch operations and TypeScript models from the exported document.
-JSON integers travel as numbers. The transport checks safe integer bounds, and
-the frontend API boundary converts fields used as `bigint` by application code.
-Orval produces both projections from the same document. Request schemas account
+The frontend uses the generated wire types directly. JSON integers travel as
+numbers, and the API boundary checks safe integer bounds in both directions.
+Request schemas account
 for what Serde accepts, including omissions and explicit nulls. Response schemas
 account for what Serde emits. For a DTO used in both directions, declare its
 emitted shape on the Rust type and record any accepted omissions or nulls in

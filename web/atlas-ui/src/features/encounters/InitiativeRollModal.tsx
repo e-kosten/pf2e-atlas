@@ -121,7 +121,7 @@ export function InitiativePopover({
               onSetTotal={(_key, value) =>
                 onUpdate(
                   participantUpdate(participant, {
-                    initiative: value === undefined ? undefined : BigInt(value),
+                    initiative: value,
                   }),
                 )
               }

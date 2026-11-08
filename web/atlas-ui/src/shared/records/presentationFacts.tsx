@@ -104,14 +104,14 @@ export function NumberFact({
             ...adjustment.applied.map((modifier, index) => ({
               key: `applied-${index}`,
               label: modifier.label,
-              value: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit}`,
+              value: `${modifier.value > 0 ? "+" : ""}${modifier.value}${unit}`,
               note: modifier.modifier_type,
             })),
             ...adjustment.suppressed.map((modifier, index) => ({
               key: `suppressed-${index}`,
               label: modifier.label,
               value: "—",
-              note: `${modifier.value > 0n ? "+" : ""}${modifier.value}${unit} ${modifier.modifier_type} · Overridden`,
+              note: `${modifier.value > 0 ? "+" : ""}${modifier.value}${unit} ${modifier.modifier_type} · Overridden`,
               muted: true,
             })),
             ...adjustment.notes.map((note, index) => ({

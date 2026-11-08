@@ -5,7 +5,7 @@ import type { ComponentProps } from "react";
 import { renderEncounter as render } from "./encounterTestFixtures";
 const previewCondition = vi.fn().mockResolvedValue({
   encounter_key: "encounter",
-  encounter_revision: 1n,
+  encounter_revision: 1,
   consequences: [],
 });
 function EncounterConditionEditor(
@@ -16,7 +16,7 @@ function EncounterConditionEditor(
 ) {
   return (
     <ConditionEditor
-      revision={1n}
+      revision={1}
       participantKey="actor"
       onPreview={previewCondition}
       {...props}
@@ -41,14 +41,14 @@ it("preserves duration Stunned without manufacturing a numeric value", async () 
   render(
     <EncounterConditionEditor
       condition={{
-        condition_id: 1n,
+        condition_id: 1,
         immunity_override: false,
         parameters: { kind: "none" },
         condition_key: "conditionitems:stunned",
         name: "Stunned",
         scope: { kind: "everyone" },
         extra_action: { kind: "unspecified" },
-        duration: { amount: 1n, unit: "minutes", timing: null },
+        duration: { amount: 1, unit: "minutes", timing: null },
         created_at: "now",
         updated_at: "now",
       }}
@@ -62,7 +62,7 @@ it("preserves duration Stunned without manufacturing a numeric value", async () 
           supports_extra_action: false,
           eligibility: { kind: "available" },
           has_value: true,
-          default_value: 1n,
+          default_value: 1,
           automation_level: "automated",
           applies_to: [],
           categories: [],
@@ -81,7 +81,7 @@ it("preserves duration Stunned without manufacturing a numeric value", async () 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         value: undefined,
-        duration: { amount: 1n, unit: "minutes", timing: null },
+        duration: { amount: 1, unit: "minutes", timing: null },
       }),
     ),
   );
@@ -92,7 +92,7 @@ it("retains restricted extra actions and scoped participants independently of so
   render(
     <EncounterConditionEditor
       condition={{
-        condition_id: 2n,
+        condition_id: 2,
         immunity_override: false,
         parameters: { kind: "none" },
         condition_key: "conditionitems:example",
@@ -180,7 +180,7 @@ it("offers a deliberate override through the submit action", async () => {
   render(
     <EncounterConditionEditor
       condition={{
-        condition_id: 3n,
+        condition_id: 3,
         immunity_override: false,
         parameters: { kind: "none" },
         condition_key: "conditionitems:immune-example",
@@ -244,7 +244,7 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
   render(
     <EncounterConditionEditor
       condition={{
-        condition_id: 4n,
+        condition_id: 4,
         name: "Example",
         scope: { kind: "everyone" },
         extra_action: { kind: "unspecified" },
@@ -275,7 +275,7 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         duration: {
-          amount: 1n,
+          amount: 1,
           unit: "rounds",
           timing: { event: "end", participant_key: "a" },
         },
@@ -290,7 +290,7 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         duration: {
-          amount: 1n,
+          amount: 1,
           unit: "rounds",
           timing: { event: "start", participant_key: "b" },
         },
@@ -314,7 +314,7 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         duration: {
-          amount: 0n,
+          amount: 0,
           unit: "rounds",
           timing: { event: "start", participant_key: "b" },
         },
@@ -323,7 +323,7 @@ it("defaults round timing to self and lets the GM choose another boundary and tu
   );
   expect(
     previewCondition.mock.calls.every(
-      ([request]) => !request.duration || request.duration.amount >= 0n,
+      ([request]) => !request.duration || request.duration.amount >= 0,
     ),
   ).toBe(true);
 });
@@ -383,7 +383,7 @@ it("keeps the fascinating subject separate from the effect's causal source", asy
   render(
     <EncounterConditionEditor
       condition={{
-        condition_id: 20n,
+        condition_id: 20,
         condition_key: "conditions:fascinated",
         name: "Fascinated",
         parameters: {
@@ -431,7 +431,7 @@ it("edits a Fleeing subject independently of its causal source", async () => {
   render(
     <EncounterConditionEditor
       condition={{
-        condition_id: 21n,
+        condition_id: 21,
         condition_key: "conditions:fleeing",
         name: "Fleeing",
         parameters: {
@@ -479,7 +479,7 @@ function persistentEditor(unknown = false) {
       condition={
         unknown
           ? {
-              condition_id: 1n,
+              condition_id: 1,
               condition_key: "persistent",
               name: "Persistent Damage",
               parameters: {
@@ -493,7 +493,7 @@ function persistentEditor(unknown = false) {
               extra_action: { kind: "unspecified" },
               immunity_override: false,
               note: "Existing note",
-              duration: { amount: 2n, unit: "minutes", timing: null },
+              duration: { amount: 2, unit: "minutes", timing: null },
               created_at: "now",
               updated_at: "now",
             }
@@ -515,7 +515,7 @@ function persistentEditor(unknown = false) {
         },
       ]}
       damageTypes={[{ value: "fire", label: "Fire" }]}
-      standardRecoveryDc={15n}
+      standardRecoveryDc={15}
       participants={[]}
       disabled={false}
       pending={false}
@@ -555,7 +555,7 @@ it("offers one numeric default flat-check DC and one-row damage fields without r
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         parameters: expect.objectContaining({
-          recovery: { kind: "specified", dc: 20n },
+          recovery: { kind: "specified", dc: 20 },
         }),
       }),
     ),
@@ -576,7 +576,7 @@ it("keeps an existing unknown recovery DC blank while preserving unrelated sourc
           recovery: { kind: "source_dependent" },
         }),
         note: "Existing note",
-        duration: expect.objectContaining({ amount: 2n }),
+        duration: expect.objectContaining({ amount: 2 }),
       }),
     ),
   );
@@ -602,7 +602,7 @@ it("accepts incomplete persistent damage without eager required-field errors", a
           formula: null,
           damage_type: null,
           multiplier: "normal",
-          recovery: { kind: "specified", dc: 15n },
+          recovery: { kind: "specified", dc: 15 },
         },
       }),
     ),
@@ -614,14 +614,14 @@ it("switches duration Stunned to an exclusive action value", async () => {
   render(
     <EncounterConditionEditor
       condition={{
-        condition_id: 91n,
+        condition_id: 91,
         condition_key: "conditionitems:stunned",
         name: "Stunned",
         immunity_override: false,
         parameters: { kind: "none" },
         scope: { kind: "everyone" },
         extra_action: { kind: "unspecified" },
-        duration: { amount: 1n, unit: "minutes", timing: null },
+        duration: { amount: 1, unit: "minutes", timing: null },
         created_at: "now",
         updated_at: "now",
       }}
@@ -635,7 +635,7 @@ it("switches duration Stunned to an exclusive action value", async () => {
           supports_extra_action: false,
           eligibility: { kind: "available" },
           has_value: true,
-          default_value: 1n,
+          default_value: 1,
           automation_level: "automated",
           applies_to: [],
           categories: [],
@@ -654,10 +654,10 @@ it("switches duration Stunned to an exclusive action value", async () => {
   ).toHaveValue("1");
   expect(screen.queryByRole("button", { name: "Add duration" })).toBeNull();
   expect(screen.queryByRole("spinbutton", { name: "Duration amount" })).toBeNull();
-  await apply({ value: 1n, duration: undefined });
+  await apply({ value: 1, duration: undefined });
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ value: 1n, duration: undefined }),
+      expect.objectContaining({ value: 1, duration: undefined }),
     ),
   );
 });
@@ -676,7 +676,7 @@ it("selects duration Stunned when switching from another timed condition", async
           supports_extra_action: false,
           eligibility: { kind: "available" },
           has_value: true,
-          default_value: 1n,
+          default_value: 1,
           automation_level: "automated",
           applies_to: [],
           categories: [],
@@ -690,7 +690,7 @@ it("selects duration Stunned when switching from another timed condition", async
           supports_extra_action: false,
           eligibility: { kind: "available" },
           has_value: true,
-          default_value: 1n,
+          default_value: 1,
           automation_level: "automated",
           applies_to: [],
           categories: [],
@@ -717,7 +717,7 @@ it("selects duration Stunned when switching from another timed condition", async
   await apply({
     value: undefined,
     duration: {
-      amount: 1n,
+      amount: 1,
       unit: "rounds",
       timing: { event: "end", participant_key: "actor" },
     },
@@ -726,7 +726,7 @@ it("selects duration Stunned when switching from another timed condition", async
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         value: undefined,
-        duration: expect.objectContaining({ amount: 1n }),
+        duration: expect.objectContaining({ amount: 1 }),
       }),
     ),
   );

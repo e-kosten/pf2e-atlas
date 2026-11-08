@@ -1,14 +1,17 @@
+import wire from "./__fixtures__/wire-conversion.json";
 import type * as Atlas from "../generated/atlas";
-import { summaryFixture } from "../test/fixtures";
-import { getEmbeddedReading, getRecordDetail, getTraitDetail } from "./atlasApi";
+import { detailFixture, summaryFixture } from "../test/fixtures";
+import {
+  getEmbeddedReading,
+  getEncounter,
+  getRecordDetail,
+  getTraitDetail,
+} from "./atlasApi";
 import {
   API_CONTRACT,
   API_CONTRACT_HEADER,
   clearCompatibilityFailure,
 } from "./compatibility";
-import { convertConditionParameters } from "./encounterConversion";
-import { convertNumberFact, convertRecordPresentation } from "./presentationConversion";
-import type { Wire } from "./wire";
 
 const fetchMock = vi.fn();
 const generation = "prepared-context-generation";
@@ -50,10 +53,10 @@ function known<T>(value: T): Atlas.FactView<T> {
 function unavailable(): { state: "not_applicable"; value: null } {
   return { state: "not_applicable", value: null };
 }
-function numeric(value: number): Wire<Atlas.NumberFactView> {
+function numeric(value: number): Atlas.NumberFactView {
   return { state: "value", value, adjustment: null };
 }
-function adjusted(modifier: number): Wire<Atlas.NumberFactView> {
+function adjusted(modifier: number): Atlas.NumberFactView {
   return {
     state: "value",
     value: 0.5,
@@ -69,9 +72,7 @@ function adjusted(modifier: number): Wire<Atlas.NumberFactView> {
     },
   };
 }
-function presentation(
-  body: Wire<Atlas.PreparedFieldBodyView>,
-): Wire<Atlas.RecordPresentationView> {
+function presentation(body: Atlas.PreparedFieldBodyView): Atlas.RecordPresentationView {
   return {
     classification: "Reference",
     identity,
@@ -81,7 +82,7 @@ function presentation(
   };
 }
 
-const rollSelection: Wire<Atlas.RollContentRequest> = {
+const rollSelection: Atlas.RollContentRequest = {
   content_interpretation_version: "test-content-version",
   source,
   source_fingerprint: "prepared-snapshot",
@@ -90,7 +91,7 @@ const rollSelection: Wire<Atlas.RollContentRequest> = {
   authored_command: null,
   spell_rank: 3,
 };
-const preparedBody: Wire<Atlas.PreparedFieldBodyView> = {
+const preparedBody: Atlas.PreparedFieldBodyView = {
   kind: "html",
   html: "<p>Prepared rolls</p>",
   controls: [
@@ -161,7 +162,7 @@ async function readPreparedBody(
 ): Promise<Atlas.PreparedFieldBodyView> {
   const content = presentation(preparedBody).content;
   if (root === "record") {
-    const response: Wire<Atlas.RecordDetailView> = {
+    const response: Atlas.RecordDetailView = {
       artifact_generation: generation,
       record: identity,
       selected: navigation,
@@ -174,7 +175,7 @@ async function readPreparedBody(
     return (await getRecordDetail(identity.record_key)).presentation.content[0].body;
   }
   if (root === "embedded") {
-    const response: Wire<Atlas.EmbeddedReadingBatchView> = {
+    const response: Atlas.EmbeddedReadingBatchView = {
       artifact_generation: generation,
       parent: navigation,
       availability: "value",
@@ -194,7 +195,7 @@ async function readPreparedBody(
     expect(result.total).toBe(1);
     return result.entries[0].content[0].body;
   }
-  const response: Wire<Atlas.TraitDetailView> = {
+  const response: Atlas.TraitDetailView = {
     artifact_generation: generation,
     trait_key: "trait:fire",
     label: "Fire",
@@ -213,7 +214,7 @@ async function readPreparedBody(
 }
 
 it.each(["record", "embedded", "trait"] as const)(
-  "converts direct and included roll contexts through the %s response adapter",
+  "preserves direct and included roll contexts through the %s API",
   async (root) => {
     const result = await readPreparedBody(root);
     if (result.kind !== "html") throw new Error("Expected prepared HTML");
@@ -229,12 +230,12 @@ it.each(["record", "embedded", "trait"] as const)(
     expect(direct.roll?.encounter).toEqual({
       encounter_ref: "encounter",
       participant_key: "participant",
-      participant_revision: 9007199254740991n,
+      participant_revision: 9007199254740991,
       artifact_generation: generation,
-      condition_id: 9n,
+      condition_id: 9,
     });
     expect(included.roll?.encounter).toMatchObject({
-      participant_revision: 0n,
+      participant_revision: 0,
       condition_id: null,
     });
     expect(absent.roll).not.toHaveProperty("encounter");
@@ -245,19 +246,16 @@ it.each(["record", "embedded", "trait"] as const)(
   },
 );
 
-it.each([Number.MIN_SAFE_INTEGER, -2, 0, Number.MAX_SAFE_INTEGER])(
-  "converts modifier %s without changing number-valued effective/authored facts",
-  (modifier) => {
-    const result = convertNumberFact(adjusted(modifier));
-    expect(result.value).toBe(0.5);
-    expect(result.adjustment?.authored).toBe(-1.5);
-    expect(result.adjustment?.applied[0].value).toBe(BigInt(modifier));
-    expect(result.adjustment?.suppressed[0].value).toBe(0n);
-  },
-);
+async function readPresentation(input: Atlas.RecordPresentationView) {
+  respond({
+    ...detailFixture(identity.record_key, identity.title),
+    presentation: input,
+  });
+  return (await getRecordDetail(identity.record_key)).presentation;
+}
 
-it("converts nested kit adjustments through physical and recursive item branches", () => {
-  const input: Wire<Atlas.RecordPresentationView> = {
+it("preserves nested kit adjustments through physical and recursive item branches", async () => {
+  const input: Atlas.RecordPresentationView = {
     ...presentation({ kind: "plain", text: "A kit" }),
     body: {
       kind: "physical_reference",
@@ -288,7 +286,7 @@ it("converts nested kit adjustments through physical and recursive item branches
       },
     },
   };
-  const result = convertRecordPresentation(input);
+  const result = await readPresentation(input);
   if (
     result.body.kind !== "physical_reference" ||
     result.body.value.details?.kind !== "kit"
@@ -296,52 +294,55 @@ it("converts nested kit adjustments through physical and recursive item branches
     throw new Error("Expected kit presentation");
   const pack = result.body.value.details.value.items.value?.[0];
   const rope = pack?.items.value?.[0];
-  expect(pack?.quantity.adjustment?.applied[0].value).toBe(-2n);
-  expect(rope?.quantity.adjustment?.applied[0].value).toBe(0n);
+  expect(pack?.quantity.adjustment?.applied[0].value).toBe(-2);
+  expect(rope?.quantity.adjustment?.applied[0].value).toBe(0);
   expect(rope?.items.value).toBeNull();
   expect(result.body.value.bulk.value).toBe(0.1);
   expect(result.content[0].body).toEqual({ kind: "plain", text: "A kit" });
 });
 
-it("keeps table-result weight numeric through its presentation branch", () => {
-  const input: Wire<Atlas.RecordPresentationView> = {
+it("keeps table-result weight numeric through its presentation branch", async () => {
+  const input: Atlas.RecordPresentationView = {
     ...presentation({ kind: "plain", text: "A lantern flashes." }),
     body: {
       kind: "table_result",
       value: { range: known("1–2"), weight: numeric(1), result_type: known("text") },
     },
   };
-  const result = convertRecordPresentation(input);
+  const result = await readPresentation(input);
   if (result.body.kind !== "table_result") throw new Error("Expected table result");
   expect(result.body.value.weight.value).toBe(1);
 });
 
-it("preserves absent condition parameters while converting zero and nested union integers", () => {
+it("preserves absent condition fields, zero, and nested union integers", async () => {
   type Parameters = Atlas.EncounterParticipantConditionView["parameters"];
-  const absent: Wire<Parameters> = { kind: "sickened" };
-  const zero: Wire<Parameters> = { kind: "sickened", recovery_dc: 0 };
-  const frightened: Wire<Parameters> = {
+  const absent: Parameters = { kind: "sickened" };
+  const zero: Parameters = { kind: "sickened", recovery_dc: 0 };
+  const frightened: Parameters = {
     kind: "frightened",
     recovery: { kind: "end_turn", minimum: 0 },
   };
-  const reminder: Wire<Parameters> = {
+  const reminder: Parameters = {
     kind: "persistent_damage_reminder",
     formula: null,
     damage_type: null,
     multiplier: "normal",
     recovery: { kind: "specified", dc: 15 },
   };
-  expect(convertConditionParameters(absent)).not.toHaveProperty("recovery_dc");
-  expect(convertConditionParameters(zero)).toEqual({
-    kind: "sickened",
-    recovery_dc: 0n,
+  respond({
+    ...wire.encounter,
+    participants: [
+      {
+        ...wire.encounter.participants[0],
+        conditions: [absent, zero, frightened, reminder].map((parameters) => ({
+          ...wire.encounter.participants[0].conditions[0],
+          parameters,
+        })),
+      },
+    ],
   });
-  expect(convertConditionParameters(frightened)).toEqual({
-    kind: "frightened",
-    recovery: { kind: "end_turn", minimum: 0n },
-  });
-  expect(convertConditionParameters(reminder)).toMatchObject({
-    formula: null,
-    recovery: { kind: "specified", dc: 15n },
-  });
+  const encounter = await getEncounter("fixture-encounter");
+  expect(
+    encounter.participants[0].conditions.map((condition) => condition.parameters),
+  ).toEqual([absent, zero, frightened, reminder]);
 });

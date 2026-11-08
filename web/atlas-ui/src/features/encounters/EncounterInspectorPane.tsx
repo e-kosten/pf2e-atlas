@@ -91,7 +91,7 @@ export function EncounterInspectorPane({
   onAbilityState?: AbilityStateHandler;
   onManualTracker?: ManualTrackerHandler;
   disabled: boolean;
-  encounterRevision: bigint;
+  encounterRevision: number;
   currentTurnKey?: string | null;
   encounterKey: string;
   artifactGeneration: string | null;
@@ -108,8 +108,8 @@ export function EncounterInspectorPane({
   ) => Promise<boolean>;
   onRemoveCondition: (
     participantKey: string,
-    conditionId: bigint,
-    expectedRevision: bigint,
+    conditionId: number,
+    expectedRevision: number,
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
@@ -150,7 +150,7 @@ export function EncounterInspectorPane({
   onSpellAction: (
     participant: EncounterParticipantView,
     action: import("../../generated/atlas").EncounterSpellAction,
-    expectedRevision?: bigint,
+    expectedRevision?: number,
   ) => Promise<boolean>;
   onTurnResources?: (
     participant: EncounterParticipantView,
@@ -167,7 +167,7 @@ export function EncounterInspectorPane({
     value: string;
     label: string;
   }>;
-  standardRecoveryDc?: bigint;
+  standardRecoveryDc?: number;
   preview: ReturnType<typeof useRecordPreview>;
 }) {
   if (!participant) {
@@ -305,7 +305,7 @@ function EncounterParticipantSurface({
   onAbilityState?: AbilityStateHandler;
   onManualTracker?: ManualTrackerHandler;
   disabled: boolean;
-  encounterRevision: bigint;
+  encounterRevision: number;
   currentTurnKey?: string | null;
   encounterKey: string;
   artifactGeneration: string | null;
@@ -323,15 +323,15 @@ function EncounterParticipantSurface({
     value: string;
     label: string;
   }>;
-  standardRecoveryDc?: bigint;
+  standardRecoveryDc?: number;
   onAddCondition: (
     condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
   ) => Promise<boolean>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemoveCondition: (
     participantKey: string,
-    conditionId: bigint,
-    expectedRevision: bigint,
+    conditionId: number,
+    expectedRevision: number,
   ) => Promise<boolean>;
   onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
   onLifeSettings: (
@@ -360,7 +360,7 @@ function EncounterParticipantSurface({
   onSpellAction: (
     participant: EncounterParticipantView,
     action: import("../../generated/atlas").EncounterSpellAction,
-    expectedRevision?: bigint,
+    expectedRevision?: number,
   ) => Promise<boolean>;
   onTurnResources?: (
     participant: EncounterParticipantView,

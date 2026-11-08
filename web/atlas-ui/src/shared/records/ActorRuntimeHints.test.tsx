@@ -6,17 +6,13 @@ import {
   ActorSecondaryFacts,
 } from "./ActorReference";
 import { actorFixture, activityFixture, knownFact } from "../../test/fixtures";
-import type {
-  ActorRuntimeView,
-  RuntimeCountView,
-  ActorPresentationView,
-} from "../../generated/atlas";
+import type { ActorRuntimeView, RuntimeCountView } from "../../generated/atlas";
 
 function runtime(): ActorRuntimeView {
   const count = (label: string): RuntimeCountView => ({
     label,
-    base_value: 0n,
-    adjusted_value: 0n,
+    base_value: 0,
+    adjusted_value: 0,
     segments: [],
     adjustments: [],
     suppressed_adjustments: [],
@@ -96,14 +92,14 @@ it("separates current reactions and Stunned restrictions from the next-turn acti
   budget.actions = {
     ...budget.actions,
     label: "Actions",
-    base_value: 3n,
-    adjusted_value: 2n,
+    base_value: 3,
+    adjusted_value: 2,
   };
   budget.reactions = {
     ...budget.reactions,
     label: "Reactions",
-    base_value: 1n,
-    adjusted_value: 0n,
+    base_value: 1,
+    adjusted_value: 0,
   };
   budget.can_act = { available: false, source: "encounter_state", reason: "Stunned." };
   budget.can_react = {
@@ -112,13 +108,7 @@ it("separates current reactions and Stunned restrictions from the next-turn acti
     reason: "Stunned.",
   };
   budget.extra_action_unavailable_reason = "Lost to Stunned";
-  // The HTTP contract carries JSON numbers even where generated Rust bindings use bigint.
-  const wireActor: ActorPresentationView = JSON.parse(
-    JSON.stringify(actor, (_key, value) =>
-      typeof value === "bigint" ? Number(value) : value,
-    ),
-  );
-  render(<ActorCombatBudget actor={wireActor} />);
+  render(<ActorCombatBudget actor={actor} />);
   const turn = screen.getByRole("region", { name: "Turn" });
   expect(within(turn).getByText("Cannot act or react · Stunned")).toBeVisible();
   expect(within(turn).getByText("At turn start")).toBeVisible();
@@ -135,7 +125,7 @@ it("keeps available reactions distinct from the at-turn-start action forecast", 
   const budget = actor.runtime.action_budget!;
   budget.can_act = { available: true, source: "encounter_state", reason: undefined };
   budget.can_react = { available: true, source: "encounter_state", reason: undefined };
-  budget.reactions = { ...budget.reactions, base_value: 1n, adjusted_value: 1n };
+  budget.reactions = { ...budget.reactions, base_value: 1, adjusted_value: 1 };
   render(<ActorCombatBudget actor={actor} />);
   const turn = screen.getByRole("region", { name: "Turn" });
   expect(within(turn).getByText("Reactions now").parentElement).toHaveTextContent("1");

@@ -19,7 +19,7 @@ const ability: EncounterAbilityStateView = {
   },
   label: "Speed Surge",
   rule_ordinal: null,
-  state: { kind: "uses", remaining: 1n, maximum: 3n, interval: "day" },
+  state: { kind: "uses", remaining: 1, maximum: 3, interval: "day" },
 };
 it("spends explicitly and retains the control through a canonical update", async () => {
   const onChange = vi.fn().mockResolvedValue(true);
@@ -37,7 +37,7 @@ it("spends explicitly and retains the control through a canonical update", async
     <EncounterAbilityControls
       ability={{
         ...ability,
-        state: { kind: "uses", remaining: 0n, maximum: 3n, interval: "day" },
+        state: { kind: "uses", remaining: 0, maximum: 3, interval: "day" },
       }}
       disabled={false}
       onChange={onChange}

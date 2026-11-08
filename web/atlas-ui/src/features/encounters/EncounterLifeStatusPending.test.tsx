@@ -20,15 +20,15 @@ const context = {
 const row: PendingHpLifecycleView = {
   consequence_key: "damage-1",
   participant_key: "actor",
-  before_hp: 8n,
-  after_hp: 0n,
+  before_hp: 8,
+  after_hp: 0,
   initiative_only: false,
   required_facts: ["lethality"],
   knockout_options: [],
   context,
 };
 const actor = encounterParticipant({
-  current_hp: 0n,
+  current_hp: 0,
   manual_trackers: [],
   knockout_options: [
     {
@@ -64,13 +64,13 @@ function setup(value = row) {
           participant={actor}
           onSave={vi.fn()}
           onDefeated={vi.fn()}
-          revision={4n}
+          revision={4}
           participants={[
             actor,
             encounterParticipant({
               participant_key: "ogre",
               display_name: "Ogre",
-              initiative: 20n,
+              initiative: 20,
             }),
           ]}
           currentTurnKey="ogre"

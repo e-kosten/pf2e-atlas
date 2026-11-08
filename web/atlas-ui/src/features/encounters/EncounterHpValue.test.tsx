@@ -13,7 +13,7 @@ function mount() {
     <>
       <EncounterHpValue
         label="Current HP"
-        value={42n}
+        value={42}
         disabled={false}
         onCommit={onCommit}
       />

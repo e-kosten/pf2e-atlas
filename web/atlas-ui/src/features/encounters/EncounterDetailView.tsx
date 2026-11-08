@@ -123,7 +123,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   );
   const strikes = useEncounterStrike({
     encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
-    revision: encounter.data?.revision ?? 0n,
+    revision: encounter.data?.revision ?? 0,
     generation: encounter.data?.artifact_generation ?? null,
     participants: encounter.data?.participants ?? [],
     mutations,
@@ -197,7 +197,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       followAfterRefresh.current = false;
     }
   };
-  const advanceTurn = async (expectedRevision: bigint) => {
+  const advanceTurn = async (expectedRevision: number) => {
     // Pin the outgoing inspector before the canonical current turn changes.
     if (encounter.data?.current_turn_participant_key)
       setSelectedParticipantKey(encounter.data.current_turn_participant_key);
@@ -232,7 +232,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     },
     onFinish: () =>
       followTurn(client.getQueryData<typeof encounter.data>(["encounter", route.slug])),
-    expectedRevision: encounter.data?.revision ?? 0n,
+    expectedRevision: encounter.data?.revision ?? 0,
   });
   const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;
@@ -552,7 +552,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 }}
                 encounterKey={encounter.data?.encounter.encounter_key ?? route.slug}
                 artifactGeneration={encounter.data?.artifact_generation ?? null}
-                encounterRevision={encounter.data?.revision ?? 0n}
+                encounterRevision={encounter.data?.revision ?? 0}
                 pending={mutations.pending}
                 recovery={recovery}
                 spellError={
@@ -823,7 +823,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               await mutations.run({
                 kind: "participant",
                 request: participantUpdate(participant, {
-                  initiative: value === undefined ? undefined : BigInt(value),
+                  initiative: value,
                 }),
               });
             }}

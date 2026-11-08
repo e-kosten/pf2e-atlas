@@ -8,17 +8,15 @@ import { EncounterPersistentRecovery } from "./EncounterPersistentRecovery";
 const group: PersistentDamageGroupView = {
   episode_id: "fire-episode",
   damage_type: "fire",
-  selected_source_id: 7n,
-  sources: [
-    { condition_id: 7n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
-  ],
+  selected_source_id: 7,
+  sources: [{ condition_id: 7, formula: "1d6", multiplier: "normal", recovery_dc: 15 }],
 };
 const receipt: PersistentRecoveryResultView = {
   encounter_key: "encounter",
   request_id: "receipt",
   episode_id: "fire-episode",
   damage_type: "fire",
-  dc: 15n,
+  dc: 15,
   roll: null,
   success: true,
 };
@@ -32,7 +30,7 @@ function setup(current = group, mode: "explicit" | "end_turn" = "explicit") {
         mode={mode}
         available={true}
         participantKey="actor"
-        encounterRevision={11n}
+        encounterRevision={11}
         disabled={false}
         pending={false}
         damageType="Fire"
@@ -52,7 +50,7 @@ it("rolls recovery without requiring a table result and preserves the episode id
       resolution: "roll",
       mode: "explicit",
       boundary_key: null,
-      expected_encounter_revision: 11n,
+      expected_encounter_revision: 11,
       participant_key: "actor",
       episode_id: "fire-episode",
       dc_override: null,
@@ -87,21 +85,21 @@ it("requests a missing DC for the precedence-selected source without another sou
   fireEvent.click(screen.getByRole("button", { name: "Roll" }));
   await waitFor(() =>
     expect(onRecover).toHaveBeenCalledWith(
-      expect.objectContaining({ dc_override: 10n }),
+      expect.objectContaining({ dc_override: 10 }),
     ),
   );
 });
 
 it("uses the edited DC and keeps the previous result's DC when preparing another roll", async () => {
   const { onRecover } = setup();
-  onRecover.mockResolvedValueOnce({ ...receipt, dc: 10n, success: false });
+  onRecover.mockResolvedValueOnce({ ...receipt, dc: 10, success: false });
   fireEvent.change(await screen.findByRole("spinbutton", { name: "Recovery DC" }), {
     target: { value: "10" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Roll" }));
   await waitFor(() =>
     expect(onRecover).toHaveBeenCalledWith(
-      expect.objectContaining({ dc_override: 10n }),
+      expect.objectContaining({ dc_override: 10 }),
     ),
   );
   await screen.findByText("Still active · DC 10");
@@ -120,7 +118,7 @@ it("presents a recorded end-turn check as a result without asserting the effect 
         available={false}
         recordedResult={{ ...receipt, success: false }}
         participantKey="actor"
-        encounterRevision={12n}
+        encounterRevision={12}
         disabled={false}
         pending={false}
         damageType="Fire"
@@ -140,7 +138,7 @@ it.each([true, false])(
   "hands focus from the submitted form to its retained end-turn result (success=%s)",
   async (success) => {
     const { onRecover } = setup(group, "end_turn");
-    onRecover.mockResolvedValueOnce({ ...receipt, success, dc: success ? 0n : 100n });
+    onRecover.mockResolvedValueOnce({ ...receipt, success, dc: success ? 0 : 100 });
     const roll = await screen.findByRole("button", { name: /^Roll$/ });
     roll.focus();
     fireEvent.click(roll);
@@ -167,7 +165,7 @@ it("preserves a focus destination chosen while end-turn recovery is pending", as
   render(<button>Another task</button>);
   const outside = screen.getByRole("button", { name: "Another task" });
   outside.focus();
-  resolve({ ...receipt, dc: 0n });
+  resolve({ ...receipt, dc: 0 });
   await screen.findByRole("button", { name: "View Fire recovery" });
   expect(outside).toHaveFocus();
 });
@@ -184,7 +182,7 @@ it("waits for the canonical update to enable the retained result before restorin
         mode="end_turn"
         available={true}
         participantKey="actor"
-        encounterRevision={11n}
+        encounterRevision={11}
         disabled={pending}
         pending={pending}
         damageType="Fire"
@@ -220,7 +218,7 @@ it("clears the episode from a table outcome without requiring a recovery DC", as
       resolution: "clear",
       mode: "explicit",
       boundary_key: null,
-      expected_encounter_revision: 11n,
+      expected_encounter_revision: 11,
       participant_key: "actor",
       episode_id: "fire-episode",
       dc_override: null,
@@ -232,7 +230,7 @@ it("clears the episode from a table outcome without requiring a recovery DC", as
 
 it("allows clearing after a failed check at the updated encounter revision", async () => {
   const onRecover = vi.fn().mockResolvedValueOnce({ ...receipt, success: false });
-  const content = (revision: bigint) => (
+  const content = (revision: number) => (
     <ConfigProvider theme={{ token: { motion: false } }}>
       <EncounterPersistentRecovery
         group={group}
@@ -247,18 +245,18 @@ it("allows clearing after a failed check at the updated encounter revision", asy
       />
     </ConfigProvider>
   );
-  const view = render(content(11n));
+  const view = render(content(11));
   fireEvent.click(screen.getByRole("button", { name: "Roll Fire recovery" }));
   fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
   await screen.findByText("Still active · DC 15");
-  view.rerender(content(12n));
+  view.rerender(content(12));
   onRecover.mockResolvedValueOnce({ ...receipt, dc: null });
   fireEvent.click(screen.getByRole("button", { name: "Clear effect" }));
   await waitFor(() =>
     expect(onRecover).toHaveBeenLastCalledWith(
       expect.objectContaining({
         resolution: "clear",
-        expected_encounter_revision: 12n,
+        expected_encounter_revision: 12,
         dc_override: null,
       }),
     ),

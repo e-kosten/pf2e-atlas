@@ -174,8 +174,8 @@ export function EncounterRosterPane({
       const saved = await onAddManual({
         encounter_ref: slug,
         display_name: values.name,
-        ...(values.maxHp == null ? {} : { max_hp: BigInt(values.maxHp) }),
-        ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
+        ...(values.maxHp == null ? {} : { max_hp: values.maxHp }),
+        ...(values.initiative == null ? {} : { initiative: values.initiative }),
       });
       if (saved) {
         setPcOpen(false);
@@ -227,7 +227,7 @@ export function EncounterRosterPane({
                 onSave={(value) =>
                   onUpdate(
                     participantUpdate(participant, {
-                      initiative: value === undefined ? undefined : BigInt(value),
+                      initiative: value,
                     }),
                   )
                 }
@@ -607,7 +607,7 @@ function encounterRecordPickerRequest(query: string): SearchResultsRequest {
   };
 }
 
-function inputNumberValue(value: bigint | undefined): string {
+function inputNumberValue(value: number | undefined): string {
   return value === undefined ? "" : value.toString();
 }
 function rosterRowClass(
@@ -721,8 +721,7 @@ function rosterHpTone(participant: EncounterParticipantView): string {
     maximum.value <= 0
   )
     return "";
-  const ratio =
-    (Number(participant.current_hp) + Number(participant.temporary_hp)) / maximum.value;
+  const ratio = (participant.current_hp + participant.temporary_hp) / maximum.value;
   return ratio <= 0.25
     ? "encounter-roster__hp--critical"
     : ratio <= 0.5

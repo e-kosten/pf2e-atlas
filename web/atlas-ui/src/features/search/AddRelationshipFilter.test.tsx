@@ -139,7 +139,7 @@ beforeEach(() => {
       number: request.page.number,
       size: request.page.size,
       count: 1,
-      total: 1n,
+      total: 1,
       has_more: false,
       next_page: null,
     },

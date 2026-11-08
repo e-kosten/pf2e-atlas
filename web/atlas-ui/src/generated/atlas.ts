@@ -1,22 +1,6 @@
-import type * as Models from "./models";
+import type * as Models from "./http";
 
-export type * from "./models";
-
-// These views already use numbers in the application. Other integer fields
-// converted at the API boundary use the schema-only bigint projection.
-
-export type { SavedListCreateView } from "./http";
-export type { SavedListDetailView } from "./http";
-export type { SavedListIndexView } from "./http";
-export type { SavedListItemView } from "./http";
-export type { SavedListSummaryView } from "./http";
-export type { SavedListUpdateView } from "./http";
-
-export type { PartyView } from "./http";
-export type { PartyIndexView } from "./http";
-export type { CreatePartyRequest } from "./http";
-export type { UpdatePartyRequest } from "./http";
-export type { AddEncounterPartyRequest } from "./http";
+export type * from "./http";
 
 export type StrikeRangeView = NonNullable<Models.FactViewStrikeRangeView["value"]>;
 export type ActionCostView = NonNullable<Models.FactViewActionCostView["value"]>;

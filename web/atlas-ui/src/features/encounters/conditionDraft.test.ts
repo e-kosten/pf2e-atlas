@@ -6,7 +6,7 @@ import {
 } from "./conditionDraft";
 
 const condition: EncounterParticipantConditionView = {
-  condition_id: 7n,
+  condition_id: 7,
   condition_key: "conditionitems:persistent",
   name: "Persistent Damage",
   scope: { kind: "everyone" },
@@ -20,7 +20,7 @@ const condition: EncounterParticipantConditionView = {
     recovery: { kind: "standard" },
     episode_id: "episode",
   },
-  duration: { amount: 2n, unit: "rounds", timing: null },
+  duration: { amount: 2, unit: "rounds", timing: null },
   created_at: "now",
   updated_at: "now",
 };
@@ -32,7 +32,7 @@ const fields: ConditionFormValues = {
   note: "updated",
 };
 const draft = (values = fields, source = condition, durationEdited = false) =>
-  conditionDraft(values, durationEdited, 4n, "actor", undefined, source);
+  conditionDraft(values, durationEdited, 4, "actor", undefined, source);
 
 it.each(["standard", "source_dependent"] as const)(
   "preserves %s recovery and unresolved duration during an unrelated note edit",
@@ -70,7 +70,7 @@ it("distinguishes an explicitly cleared DC or duration from an untouched field",
   expect(
     draft({ ...fields, persistentRecoveryDcEdited: true, persistentRecoveryDc: 12 })
       .parameters,
-  ).toMatchObject({ recovery: { kind: "specified", dc: 12n } });
+  ).toMatchObject({ recovery: { kind: "specified", dc: 12 } });
 });
 it("sends incomplete and complete damage through the same edit input, without resolved identity", () => {
   expect(draft({ ...fields, persistentFormula: "" }).parameters).toEqual({

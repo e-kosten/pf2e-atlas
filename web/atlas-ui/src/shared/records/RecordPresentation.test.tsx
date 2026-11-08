@@ -534,7 +534,7 @@ describe("semantic family presentation", () => {
               source: "condition:frightened",
               label: "Frightened",
               modifier_type: "status",
-              value: -1n,
+              value: -1,
             },
           ],
           suppressed: [
@@ -542,7 +542,7 @@ describe("semantic family presentation", () => {
               source: "condition:sickened",
               label: "Sickened",
               modifier_type: "status",
-              value: -1n,
+              value: -1,
             },
           ],
           notes: [

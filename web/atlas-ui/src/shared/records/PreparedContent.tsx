@@ -307,7 +307,7 @@ export function PreparedContentBody({
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
         if (control.roll) {
-          const identity = `${namespace ?? "host"}:${JSON.stringify(control.roll, (_key, value) => (typeof value === "bigint" ? value.toString() : value))}`;
+          const identity = `${namespace ?? "host"}:${JSON.stringify(control.roll)}`;
           activeRolls.add(identity);
           let host = rollHosts.current.get(identity);
           if (!host) {

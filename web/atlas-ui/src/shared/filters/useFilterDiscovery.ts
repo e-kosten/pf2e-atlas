@@ -183,7 +183,7 @@ export function useFilterOptionCounts(
           option.distinct_roots,
         ]),
       )
-    : new Map<string, bigint>();
+    : new Map<string, number>();
 }
 
 function discoveryIdentity(value?: {
@@ -216,7 +216,7 @@ type OptionPage = {
   contextual: boolean;
   pageKey: string;
   offset: number;
-  counts?: ReadonlyMap<string, bigint>;
+  counts?: ReadonlyMap<string, number>;
 };
 function searchPageKey(text: string, offset: number) {
   return JSON.stringify([text, offset]);

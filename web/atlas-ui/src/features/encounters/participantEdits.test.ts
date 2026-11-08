@@ -14,12 +14,12 @@ describe("participantEdits", () => {
       variant_edit: false,
       use_derived_max: false,
     });
-    expect(participantUpdate(unknown, { current_hp: 0n })).toMatchObject({
+    expect(participantUpdate(unknown, { current_hp: 0 })).toMatchObject({
       hp_edit: true,
-      current_hp: 0n,
+      current_hp: 0,
       max_hp: undefined,
     });
-    expect(participantUpdate(unknown, { max_hp: 12n })).toMatchObject({
+    expect(participantUpdate(unknown, { max_hp: 12 })).toMatchObject({
       max_hp_edit: true,
     });
     expect(participantUpdate(unknown, { participant_variant: "normal" })).toMatchObject(
@@ -31,18 +31,16 @@ describe("participantEdits", () => {
     });
   });
   it("preserves unchanged participant update fields", () => {
-    expect(
-      participantUpdate(participantFixture(), { current_hp: BigInt(12) }),
-    ).toMatchObject({
+    expect(participantUpdate(participantFixture(), { current_hp: 12 })).toMatchObject({
       participant_key: "participant-1",
-      expected_revision: 0n,
+      expected_revision: 0,
       display_name: "Goblin 1",
       side: "enemy",
       participant_variant: "normal",
-      initiative: BigInt(18),
-      max_hp: BigInt(40),
-      current_hp: BigInt(12),
-      temporary_hp: BigInt(0),
+      initiative: 18,
+      max_hp: 40,
+      current_hp: 12,
+      temporary_hp: 0,
       defeated: false,
       hazard_disabled: false,
       hidden: false,
@@ -52,15 +50,15 @@ describe("participantEdits", () => {
   it("binds replacements to the viewed participant identity and revision", () => {
     const changes = {
       participant_key: "different-participant",
-      expected_revision: 999n,
-      current_hp: 12n,
+      expected_revision: 999,
+      current_hp: 12,
     };
     expect(
-      participantUpdate(participantFixture({ revision: 7n }), changes),
+      participantUpdate(participantFixture({ revision: 7 }), changes),
     ).toMatchObject({
       participant_key: "participant-1",
-      expected_revision: 7n,
-      current_hp: 12n,
+      expected_revision: 7,
+      current_hp: 12,
     });
   });
 });
@@ -75,11 +73,11 @@ function participantFixture(
     persistent_damage_groups: [],
     track_dying: false,
     mortality: "alive",
-    base_death_threshold: 4n,
-    revision: 0n,
+    base_death_threshold: 4,
+    revision: 0,
     participant_key: "participant-1",
-    position: BigInt(1),
-    initiative_order: BigInt(1),
+    position: 1,
+    initiative_order: 1,
     display_name: "Goblin 1",
     hp_origin: "explicit",
     variant_origin: "explicit",
@@ -88,10 +86,10 @@ function participantFixture(
     participant_variant: "normal",
     record_key: "pack:goblin",
     status: "active",
-    initiative: BigInt(18),
-    max_hp: BigInt(40),
-    current_hp: BigInt(30),
-    temporary_hp: BigInt(0),
+    initiative: 18,
+    max_hp: 40,
+    current_hp: 30,
+    temporary_hp: 0,
     defeated: false,
     hazard_disabled: false,
     cast_unavailable_reason: null,

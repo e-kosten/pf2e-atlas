@@ -49,7 +49,7 @@ export function EncounterConditionControls({
   disabled: boolean;
   onAbilityState?: import("./EncounterAbilityControls").AbilityStateHandler;
   encounterRef: string;
-  encounterRevision: bigint;
+  encounterRevision: number;
   pending: boolean;
   addDisabled: boolean;
   error?: string;
@@ -60,7 +60,7 @@ export function EncounterConditionControls({
     value: string;
     label: string;
   }>;
-  standardRecoveryDc?: bigint;
+  standardRecoveryDc?: number;
   onAddCondition: (
     condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
   ) => Promise<boolean>;
@@ -82,8 +82,8 @@ export function EncounterConditionControls({
   ) => Promise<import("../../generated/atlas").PersistentRecoveryResultView>;
   onRemoveCondition: (
     participantKey: string,
-    conditionId: bigint,
-    expectedRevision: bigint,
+    conditionId: number,
+    expectedRevision: number,
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
@@ -101,8 +101,8 @@ export function EncounterConditionControls({
   const [editor, setEditor] = useState<
     | "add"
     | {
-        conditionId: bigint;
-        revision: bigint;
+        conditionId: number;
+        revision: number;
       }
     | null
   >(null);
@@ -306,12 +306,12 @@ export function EncounterConditionControls({
       )}
       {condition.duration && (
         <span className="encounter-condition-meta">
-          {(condition.duration.unit === "rounds" && condition.duration.amount === 0n) ||
-          condition.duration.remaining_rounds === 0n
+          {(condition.duration.unit === "rounds" && condition.duration.amount === 0) ||
+          condition.duration.remaining_rounds === 0
             ? "Duration ended"
             : conditionDurationLabel(condition.duration)}
           {condition.duration.remaining_rounds !== undefined &&
-          condition.duration.remaining_rounds > 0n
+          condition.duration.remaining_rounds > 0
             ? ` · ${condition.duration.remaining_rounds} rounds remaining`
             : ""}
           {condition.duration.unit === "rounds" && condition.duration.timing === null
@@ -570,7 +570,7 @@ export function EncounterConditionControls({
             const save =
               ordinal == null || !onAbilityState
                 ? undefined
-                : (value: bigint | null) =>
+                : (value: number | null) =>
                     onAbilityState(
                       { navigation: condition.source, rule_ordinal: ordinal },
                       { kind: "set_condition_value", value },
@@ -619,7 +619,7 @@ export function EncounterConditionControls({
                   {ordinal != null
                     ? condition.value === null
                       ? "Activation tied to "
-                      : condition.value === 0n
+                      : condition.value === 0
                         ? "Inactive · Source: "
                         : "Source: "
                     : condition.unavailable_reason

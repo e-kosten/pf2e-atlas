@@ -9,7 +9,7 @@ export function InitiativeValueField({
   compact = false,
 }: {
   name: string;
-  value: number | bigint | undefined;
+  value: number | number | undefined;
   disabled: boolean;
   onSave: (value: number | undefined) => Promise<unknown>;
   compact?: boolean;

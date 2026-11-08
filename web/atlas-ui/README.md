@@ -44,7 +44,7 @@ ATLAS_API_PROXY=http://127.0.0.1:4728 npm run dev
 ## DTOs
 
 The annotated Rust HTTP routes own the OpenAPI document. After a route or
-schema change, regenerate the document, Fetch client, and models from the repository root.
+schema change, regenerate the document and Fetch client from the repository root.
 
 ```bash
 npm --prefix dev-tools/openapi ci --ignore-scripts
@@ -53,9 +53,8 @@ npm --prefix dev-tools/openapi run check
 ```
 
 Feature code imports application types through `src/generated/atlas.ts`.
-Orval generates the HTTP client and numeric wire types in `http.ts` and the
-application models in `models.ts` from the same document. The frontend API
-boundary checks JSON numbers and converts fields used as `bigint` in the UI.
+Orval generates the HTTP client and wire types in `http.ts`. The frontend API
+boundary checks JSON numbers before sending requests and after parsing responses.
 Commit all regenerated files together. The generation check compares each file
 against a fresh export.
 

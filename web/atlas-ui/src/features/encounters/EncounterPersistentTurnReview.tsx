@@ -26,7 +26,7 @@ export function EncounterPersistentTurnReview({
   encounterRef: string;
   participant: EncounterParticipantView;
   participants?: EncounterParticipantView[];
-  encounterRevision: bigint;
+  encounterRevision: number;
   boundaryKey?: string | null;
   generation: string | null;
   damageTypes: Array<{ value: string; label: string }>;

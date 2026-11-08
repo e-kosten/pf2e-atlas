@@ -20,15 +20,15 @@ function recoveryMutations(run = vi.fn()) {
 }
 const encounter = {
   encounter: { encounter_key: "encounter" } as EncounterSummaryView,
-  revision: 3n,
+  revision: 3,
   participants: [
-    encounterParticipant({ display_name: "Kyra", max_hp: 20n, current_hp: 10n }),
+    encounterParticipant({ display_name: "Kyra", max_hp: 20, current_hp: 10 }),
     encounterParticipant({
       participant_key: "enemy",
       display_name: "Goblin",
       side: "enemy",
-      max_hp: 10n,
-      current_hp: 3n,
+      max_hp: 10,
+      current_hp: 3,
     }),
   ],
 };
@@ -38,15 +38,15 @@ function restPreview(_ref: string, request: { action: EncounterRecoveryAction })
   const full = request.action.healing_mode === "full";
   return Promise.resolve({
     encounter_key: "encounter",
-    encounter_revision: 3n,
+    encounter_revision: 3,
     can_apply: full || request.action.participants.every((p) => p.healing !== null),
     changes: ["End the current turn"],
     participants: request.action.participants.map((p) => ({
       participant_key: p.participant_key,
       display_name: p.participant_key === "actor" ? "Kyra" : "Goblin",
-      current_hp: 10n,
-      resulting_hp: full ? 20n : p.healing == null ? 10n : 15n,
-      resulting_max_hp: 20n,
+      current_hp: 10,
+      resulting_hp: full ? 20 : p.healing == null ? 10 : 15,
+      resulting_max_hp: 20,
       healing: p.healing,
       changes: ["Remove Fatigued"],
       unavailable_reason:
@@ -81,11 +81,11 @@ it("selects every participant and submits entered recovery only for those left s
     expect(run).toHaveBeenCalledExactlyOnceWith({
       kind: "recovery",
       request: {
-        expected_encounter_revision: 3n,
+        expected_encounter_revision: 3,
         action: {
           kind: "rest_overnight",
           healing_mode: "natural",
-          participants: [{ participant_key: "actor", healing: 5n }],
+          participants: [{ participant_key: "actor", healing: 5 }],
         },
       },
     }),
@@ -113,7 +113,7 @@ it("offers full HP without requiring individual amounts", async () => {
     expect(run).toHaveBeenCalledWith({
       kind: "recovery",
       request: {
-        expected_encounter_revision: 3n,
+        expected_encounter_revision: 3,
         action: {
           kind: "rest_overnight",
           healing_mode: "full",
@@ -129,16 +129,16 @@ it("offers full HP without requiring individual amounts", async () => {
 it("shows a missing baseline and prevents a partial encounter reset", async () => {
   api.previewEncounterRecovery.mockResolvedValue({
     encounter_key: "encounter",
-    encounter_revision: 3n,
+    encounter_revision: 3,
     can_apply: false,
     changes: [],
     participants: [
       {
         participant_key: "actor",
         display_name: "Kyra",
-        current_hp: 10n,
-        resulting_hp: 10n,
-        resulting_max_hp: 20n,
+        current_hp: 10,
+        resulting_hp: 10,
+        resulting_max_hp: 20,
         healing: null,
         changes: [],
         unavailable_reason: "No creation baseline was saved",
@@ -167,7 +167,7 @@ it("keeps a cleared calculated amount blank and associates its shared validation
       can_apply: true,
       participants: result.participants.map((p) => ({
         ...p,
-        healing: 5n,
+        healing: 5,
         unavailable_reason: null,
       })),
     };

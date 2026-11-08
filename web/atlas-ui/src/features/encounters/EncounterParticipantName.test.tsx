@@ -113,7 +113,7 @@ it("keeps a pending save read-only and restores focus after canonical refresh", 
   expect(onUpdate).toHaveBeenCalledOnce();
   rerender(
     <EncounterParticipantName
-      participant={{ ...participant, display_name: "Captain", revision: 2n }}
+      participant={{ ...participant, display_name: "Captain", revision: 2 }}
       disabled={false}
       onUpdate={onUpdate}
     />,

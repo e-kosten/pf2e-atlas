@@ -31,7 +31,7 @@ export function participantUpdate(
   };
 }
 
-export function optionalBigIntInput(value: string): bigint | undefined | null {
+export function optionalIntegerInput(value: string): number | undefined | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return undefined;
@@ -39,17 +39,14 @@ export function optionalBigIntInput(value: string): bigint | undefined | null {
   if (!/^-?\d+$/.test(trimmed)) {
     return null;
   }
-  return BigInt(trimmed);
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
-export function asNumber(value: bigint | undefined): number {
-  return value === undefined ? 0 : Number(value);
+export function asNumber(value: number | undefined): number {
+  return value === undefined ? 0 : value;
 }
 
-export function optionalNumber(value: bigint | undefined): number | undefined {
-  return value === undefined ? undefined : Number(value);
-}
-
-export function displayNumber(value: bigint | undefined): string {
+export function displayNumber(value: number | undefined): string {
   return value === undefined ? "--" : value.toString();
 }

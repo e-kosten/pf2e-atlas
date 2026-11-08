@@ -7,12 +7,12 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
   const participant = encounterParticipant({
     participant_key: "dragon",
     display_name: "Dragon",
-    revision: 3n,
+    revision: 3,
   });
   const props = {
     participant,
     participants: [participant],
-    encounterRevision: 7n,
+    encounterRevision: 7,
     disabled: false,
     pending: false,
     onChange,
@@ -28,14 +28,14 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
   fireEvent.click(screen.getByRole("button", { name: "Save tracker" }));
   await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
   expect(onChange.mock.calls[0][0]).toMatchObject({
-    expected_encounter_revision: 7n,
-    expected_participant_revision: 3n,
+    expected_encounter_revision: 7,
+    expected_participant_revision: 3,
     participant_key: "dragon",
     action: {
       kind: "add",
       name: "Breath ready",
       duration: {
-        amount: 3n,
+        amount: 3,
         unit: "rounds",
         timing: { participant_key: "dragon", event: "start" },
       },
@@ -44,8 +44,8 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
   rerender(
     <EncounterManualTrackers
       {...props}
-      encounterRevision={9n}
-      participant={{ ...participant, revision: 5n }}
+      encounterRevision={9}
+      participant={{ ...participant, revision: 5 }}
       error="Check current values before trying again."
     />,
   );
@@ -56,7 +56,7 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
   onChange.mockResolvedValue({ active: true, refreshed: true });
   fireEvent.click(screen.getByRole("button", { name: "Save tracker" }));
   await waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
-  expect(onChange.mock.calls[1][0].expected_encounter_revision).toBe(9n);
+  expect(onChange.mock.calls[1][0].expected_encounter_revision).toBe(9);
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 
@@ -69,11 +69,11 @@ it("keeps a ready tracker visible and sends separate restart and removal actions
         tracker_key: "breath",
         name: "Breath ready",
         duration: {
-          amount: 1n,
+          amount: 1,
           unit: "minutes",
           timing: { participant_key: "dragon", event: "end" },
         },
-        remaining_rounds: 0n,
+        remaining_rounds: 0,
         timing_label: "End of Dragon’s turn",
         timing_available: true,
       },
@@ -83,7 +83,7 @@ it("keeps a ready tracker visible and sends separate restart and removal actions
     <EncounterManualTrackers
       participant={participant}
       participants={[participant]}
-      encounterRevision={7n}
+      encounterRevision={7}
       disabled={false}
       pending={false}
       onChange={onChange}
@@ -120,7 +120,7 @@ it("prevents resubmitting a saved tracker while its failed refresh recovers", as
   const props = {
     participant,
     participants: [participant],
-    encounterRevision: 1n,
+    encounterRevision: 1,
     disabled: false,
     pending: false,
     onChange,
@@ -154,7 +154,7 @@ it("prevents resubmitting a saved tracker while its failed refresh recovers", as
     />,
   );
   expect(screen.getByRole("button", { name: /Save tracker/ })).toBeDisabled();
-  rerender(<EncounterManualTrackers {...props} encounterRevision={2n} />);
+  rerender(<EncounterManualTrackers {...props} encounterRevision={2} />);
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(onChange).toHaveBeenCalledTimes(1);
 });

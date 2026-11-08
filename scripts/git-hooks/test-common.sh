@@ -272,7 +272,6 @@ for entry in \
   'dev-tools/source-contracts/tests/fixture.md:00100000000' \
   'dev-tools/release/src/check.ts:00010000000' \
   'crates/atlas-foundry-model/src/lib.rs:10100010000' \
-  'web/atlas-ui/src/generated/models.ts:11000010000' \
   'crates/atlas-web/openapi.json:11000010000' \
   'web/atlas-ui/src/generated/http.ts:11000010000' \
   'dev-tools/openapi/package-lock.json:11000010010' \

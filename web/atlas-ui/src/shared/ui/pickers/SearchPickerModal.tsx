@@ -598,7 +598,7 @@ export function SearchPickerModal<FormValues>({
                         setPageNumber(1);
                       }}
                     />
-                    {recordResults.data && recordResults.data.page.total > 0n && (
+                    {recordResults.data && recordResults.data.page.total > 0 && (
                       <div
                         className="pager__navigation"
                         role="group"
@@ -609,7 +609,7 @@ export function SearchPickerModal<FormValues>({
                           size="small"
                           current={pageNumber}
                           pageSize={search.pageSize}
-                          total={Number(recordResults.data?.page?.total ?? 0)}
+                          total={recordResults.data?.page?.total ?? 0}
                           disabled={
                             disabled ||
                             recordResults.isFetching ||

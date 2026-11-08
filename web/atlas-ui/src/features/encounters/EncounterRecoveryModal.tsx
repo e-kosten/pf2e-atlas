@@ -48,7 +48,7 @@ export function EncounterRecoveryModal({
   );
   const [chosen, setChosen] = useState(() => candidates.map((p) => p.participant_key));
   const [healingMode, setHealingMode] = useState<OvernightHealingMode>("natural");
-  const [healing, setHealing] = useState<Record<string, bigint | null>>({});
+  const [healing, setHealing] = useState<Record<string, number | null>>({});
   const [submitError, setSubmitError] = useState<unknown>(null);
   const [uncertain, setUncertain] = useState(false);
   const stale = encounter.revision !== snapshot.revision;
@@ -68,9 +68,7 @@ export function EncounterRecoveryModal({
           participant_key: typeof mode === "object" ? mode.participantKey : "",
         };
   const request = { expected_encounter_revision: snapshot.revision, action };
-  const identity = JSON.stringify(request, (_key, value) =>
-    typeof value === "bigint" ? value.toString() : value,
-  );
+  const identity = JSON.stringify(request);
   const preview = useQuery({
     meta: referenceQueryMeta,
     queryKey: [
@@ -191,7 +189,7 @@ export function EncounterRecoveryModal({
                   if (value == null || /^\d+$/.test(String(value)))
                     setHealing((values) => ({
                       ...values,
-                      [p.participant_key]: value == null ? null : BigInt(value),
+                      [p.participant_key]: value == null ? null : Number(value),
                     }));
                 }}
               />

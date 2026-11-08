@@ -28,7 +28,7 @@ const participants = [
   { participant_key: "target", display_name: "Target creature" },
 ] as EncounterParticipantView[];
 function Harness({
-  revision = 4n,
+  revision = 4,
   generation = "generation",
   rollId = "original",
 } = {}) {
@@ -61,7 +61,7 @@ function Harness({
 function setup(overrides = {}) {
   api.previewEncounterStrikeContext.mockResolvedValue({
     options: { attacks: [], unavailable: null },
-    targeting_check: { dc: 11n, sources: [{ condition_id: 4n, name: "Undetected" }] },
+    targeting_check: { dc: 11, sources: [{ condition_id: 4, name: "Undetected" }] },
     action: {
       issues: [],
       confused: false,
@@ -75,7 +75,7 @@ function setup(overrides = {}) {
     ...overrides,
   });
   api.rollFlatCheck.mockResolvedValue({
-    dc: 11n,
+    dc: 11,
     success: true,
     outcome: { formula: "1d20", total: 15, expression: { kind: "number", value: 15 } },
   });
@@ -98,7 +98,7 @@ it("offers reference checks without requiring guessed-location answers or commit
   ).not.toBeInTheDocument();
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Roll" }));
-  await waitFor(() => expect(api.rollFlatCheck).toHaveBeenCalledWith({ dc: 11n }));
+  await waitFor(() => expect(api.rollFlatCheck).toHaveBeenCalledWith({ dc: 11 }));
   await screen.findByText("Success");
   expect(api.previewEncounterStrikeContext).toHaveBeenCalledWith(
     "encounter",
@@ -177,7 +177,7 @@ it("keeps same-target checks and dice results mounted through a revision refresh
         reject = fail;
       }),
   );
-  view.rerender(<Harness revision={5n} />);
+  view.rerender(<Harness revision={5} />);
   expect(screen.getByRole("combobox", { name: "Strike target" })).toBe(target);
   expect(screen.getByText("Success")).toBeInTheDocument();
   expect(reroll).toBeDisabled();

@@ -116,7 +116,7 @@ describe("list views", () => {
         number: 1,
         size: 25,
         count: 2,
-        total: 2n,
+        total: 2,
         has_more: false,
         next_page: null,
       },
@@ -555,7 +555,7 @@ describe("list views", () => {
             field: request.field_id,
             options: empty ? [] : [{ value: "fire" }],
             selected_values: request.selected_values,
-            total_values: empty ? 0n : 1n,
+            total_values: empty ? 0 : 1,
             basis: "product_key_scope",
           },
         };

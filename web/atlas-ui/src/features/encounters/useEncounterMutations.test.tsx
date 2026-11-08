@@ -23,11 +23,11 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
 }));
 const request: UpdateEncounterParticipantRequest = {
   participant_key: "pc",
-  expected_revision: 3n,
+  expected_revision: 3,
   display_name: "PC",
   side: "pc",
   participant_variant: "normal",
-  temporary_hp: 0n,
+  temporary_hp: 0,
   defeated: false,
   hazard_disabled: false,
   hidden: false,
@@ -206,7 +206,7 @@ it.each([false, true])(
           kind: "spell",
           request: {
             participant_key: "pc",
-            expected_revision: 3n,
+            expected_revision: 3,
             action: { kind: "set_expended", selection, expended: false },
           },
         }),
@@ -234,7 +234,7 @@ it.each(["cast"] as const)(
           kind: "spell",
           request: {
             participant_key: "pc",
-            expected_revision: 3n,
+            expected_revision: 3,
             action: {
               kind,
               selection: {
@@ -264,7 +264,7 @@ it("retains a guarded HP resolution identity after an uncertain response and rep
   api.resolveEncounterHpLifecycle.mockRejectedValue(new Error("Connection lost"));
   const { result } = mount();
   const request = {
-    expected_encounter_revision: 4n,
+    expected_encounter_revision: 4,
     consequence_key: "hp-event",
     resolution: "apply" as const,
     context: {
@@ -313,7 +313,7 @@ it("keeps an uncertain raw HP intent id and gives a later deliberate click a fre
   const { result } = mount();
   const request = {
     participant_key: "actor",
-    expected_revision: 3n,
+    expected_revision: 3,
     action: { kind: "damage" as const, amount: "2d6" },
   };
   await act(async () => {
@@ -327,7 +327,7 @@ it("keeps an uncertain raw HP intent id and gives a later deliberate click a fre
   await act(async () => {
     await result.current.run({
       kind: "hp",
-      request: { ...request, expected_revision: 4n },
+      request: { ...request, expected_revision: 4 },
     });
   });
   const calls = api.applyEncounterHpAction.mock.calls;

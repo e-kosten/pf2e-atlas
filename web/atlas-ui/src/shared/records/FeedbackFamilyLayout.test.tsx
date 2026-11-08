@@ -302,7 +302,7 @@ it.each([false, true])(
   "keeps hazard condition explanations inline without generic creature budgets (hasBudget=%s)",
   async (hasBudget) => {
     const actor = actorFixture();
-    const count = (label: string, value: bigint) => ({
+    const count = (label: string, value: number) => ({
       label,
       base_value: value,
       adjusted_value: value,
@@ -316,8 +316,8 @@ it.each([false, true])(
       action_budget: hasBudget
         ? {
             quickened_sources: [],
-            actions: count("Actions", 0n),
-            reactions: count("Reactions", 0n),
+            actions: count("Actions", 0),
+            reactions: count("Reactions", 0),
             can_act: { available: false, reason: "Unconscious blocks actions." },
             can_react: { available: false, reason: "Unconscious blocks reactions." },
             notes: [
@@ -524,7 +524,7 @@ it("keeps sense summaries concise and explains contextual Perception beside its 
 
 it("groups turn-start actions and reactions with the extra-action restriction", () => {
   const actor = actorFixture();
-  const count = (label: string, value: bigint) => ({
+  const count = (label: string, value: number) => ({
     label,
     base_value: value,
     adjusted_value: value,
@@ -537,8 +537,8 @@ it("groups turn-start actions and reactions with the extra-action restriction", 
     contextual_armor_class: [],
     unapplied_effects: [],
     action_budget: {
-      actions: count("Actions", 4n),
-      reactions: count("Reactions", 1n),
+      actions: count("Actions", 4),
+      reactions: count("Reactions", 1),
       quickened_sources: [{ kind: "unrestricted" }],
       can_act: { available: true },
       can_react: { available: true },
@@ -562,8 +562,8 @@ it("groups turn-start actions and reactions with the extra-action restriction", 
 });
 
 it.each([
-  { name: "full", stunned: 2n, slowed: 1n, total: 2n, additionalSlowedLoss: 0n },
-  { name: "partial", stunned: 1n, slowed: 2n, total: 2n, additionalSlowedLoss: 1n },
+  { name: "full", stunned: 2, slowed: 1, total: 2, additionalSlowedLoss: 0 },
+  { name: "partial", stunned: 1, slowed: 2, total: 2, additionalSlowedLoss: 1 },
 ])(
   "shows each condition once for $name Stunned/Slowed overlap",
   async ({ stunned, slowed, total, additionalSlowedLoss }) => {
@@ -587,11 +587,11 @@ it.each([
         ],
         actions: {
           label: "Actions",
-          base_value: 3n,
+          base_value: 3,
           adjusted_value: total,
           segments: [],
           adjustments: [
-            { source: "quickened", label: "Quickened", value: 1n },
+            { source: "quickened", label: "Quickened", value: 1 },
             { source: "stunned", label: `Stunned ${stunned}`, value: -stunned },
             ...(additionalSlowedLoss
               ? [{ ...slowedRow, value: -additionalSlowedLoss }]
@@ -601,8 +601,8 @@ it.each([
         },
         reactions: {
           label: "Reactions",
-          base_value: 1n,
-          adjusted_value: 0n,
+          base_value: 1,
+          adjusted_value: 0,
           adjustments: [],
           suppressed_adjustments: [],
           segments: [],

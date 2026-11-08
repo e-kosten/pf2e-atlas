@@ -4,7 +4,7 @@ import { getEncounterPersistentReview } from "../../api/atlasApi";
 export function persistentReviewQuery(
   encounterRef: string,
   participantKey: string,
-  revision: bigint,
+  revision: number,
   boundaryKey: string | null = null,
 ) {
   return queryOptions({
@@ -34,7 +34,7 @@ export function persistentReviewQuery(
 export function usePersistentReview(
   encounterRef: string,
   participantKey: string,
-  revision: bigint,
+  revision: number,
   boundaryKey: string | null = null,
 ) {
   return useQuery(

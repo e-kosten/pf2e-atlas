@@ -626,7 +626,7 @@ it.each(["source", "participant"] as const)(
       encounter: {
         encounter_ref: "example",
         participant_key: "participant",
-        participant_revision: 1n,
+        participant_revision: 1,
         artifact_generation: "generation",
         condition_id: null,
       },
@@ -711,7 +711,7 @@ it.each(["source", "participant"] as const)(
             }
           : {
               ...request,
-              encounter: { ...request.encounter, participant_revision: 2n },
+              encounter: { ...request.encounter, participant_revision: 2 },
             };
     }
     rerender(

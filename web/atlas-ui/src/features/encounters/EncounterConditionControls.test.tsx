@@ -15,14 +15,14 @@ it.each([true, false])(
       pending: false,
       addDisabled: false,
       encounterRef: "encounter",
-      encounterRevision: 1n,
+      encounterRevision: 1,
       current: encounterParticipant({
         conditions: [
           {
-            condition_id: 1n,
+            condition_id: 1,
             condition_key: "conditionitems:frightened",
             name: "Frightened",
-            value: 1n,
+            value: 1,
             scope: { kind: "everyone" },
             parameters: { kind: "none" },
             extra_action: { kind: "unspecified" },
@@ -42,7 +42,7 @@ it.each([true, false])(
           supports_extra_action: false,
           eligibility: { kind: "available" },
           has_value: true,
-          default_value: 1n,
+          default_value: 1,
           automation_level: "automated",
           applies_to: [],
           categories: [],
@@ -53,7 +53,7 @@ it.each([true, false])(
       onUpdateCondition: vi.fn().mockReturnValue(saved),
       onPreviewCondition: vi.fn().mockResolvedValue({
         encounter_key: "encounter",
-        encounter_revision: 1n,
+        encounter_revision: 1,
         consequences: [],
       }),
       onReference: vi.fn(),

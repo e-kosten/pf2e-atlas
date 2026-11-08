@@ -163,7 +163,7 @@ export function EditEncounterForm({
   useEffect(() => {
     const values = {
       name: encounter.name,
-      roundDurationSeconds: Number(encounter.round_duration_seconds),
+      roundDurationSeconds: encounter.round_duration_seconds,
       description: encounter.description,
       note: encounterNote,
       status: encounter.status,
@@ -197,7 +197,7 @@ export function EditEncounterForm({
           await onSave({
             encounter_key: encounter.encounter_key,
             ...(form.isFieldTouched("roundDurationSeconds")
-              ? { round_duration_seconds: BigInt(values.roundDurationSeconds) }
+              ? { round_duration_seconds: values.roundDurationSeconds }
               : {}),
             slug: encounter.slug,
             name: values.name,

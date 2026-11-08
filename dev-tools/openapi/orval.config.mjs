@@ -5,10 +5,6 @@ const client = new URL(
   "../../web/atlas-ui/src/generated/http.ts",
   import.meta.url,
 );
-const models = new URL(
-  "../../web/atlas-ui/src/generated/models.ts",
-  import.meta.url,
-);
 const transport = new URL(
   "../../web/atlas-ui/src/api/atlasTransport.ts",
   import.meta.url,
@@ -27,17 +23,6 @@ export default {
         mutator: { path: fileURLToPath(transport), name: "fetchGenerated" },
         fetch: { includeHttpResponseReturnType: false },
       },
-    },
-  },
-  // Keep JSON numbers in the Fetch output and preserve bigint in application models.
-  atlasModels: {
-    input,
-    output: {
-      schemas: {
-        path: process.env.ATLAS_OPENAPI_MODELS ?? fileURLToPath(models),
-        mode: "single",
-      },
-      override: { useBigInt: true },
     },
   },
 };
