@@ -300,20 +300,9 @@ pub fn ensure_reference_projections(
                 if !query_changed {
                     return Ok(());
                 }
-                crate::publication_delta::clear_query(c, id)?;
-                let mut projection_ids =
-                    {
-                    let mut footprint = crate::projections::ProjectionIds::default();
-                    crate::projections::root_rows(&source, &label, id, &mut footprint)?;
-                    crate::publication_delta::allocate(c, id, footprint.end())?
-                };
-                for row in crate::projections::root_rows(&source, &label, id, &mut projection_ids)? {
-                    if row.table == "records" {
-                        crate::publication_delta::upsert(c, &row, "record_id")?;
-                    } else {
-                        row.insert(c)?;
-                    }
-                }
+                let mut footprint = crate::projections::ProjectionIds::default();
+                let rows = crate::projections::root_rows(&source, &label, id, &mut footprint)?;
+                crate::publication_delta::replace_query_rows(c, id, footprint.end(), rows)?;
                 c.execute(
                     "DELETE FROM developer_diagnostics WHERE record_id=? AND stage='projection'",
                     [id],

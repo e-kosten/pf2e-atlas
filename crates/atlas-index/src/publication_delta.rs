@@ -213,6 +213,25 @@ fn previous_semantic_slot(
     Ok(None)
 }
 
+pub(crate) fn replace_query_rows(
+    c: &Connection,
+    id: i64,
+    footprint: i64,
+    rows: Vec<ProjectionRow>,
+) -> Result<(), IndexError> {
+    clear_query(c, id)?;
+    let allocation = allocate(c, id, footprint)?;
+    for mut row in rows {
+        row.bind_projection_ids(id, allocation.end())?;
+        if row.table == "records" {
+            upsert(c, &row, "record_id")?;
+        } else {
+            row.insert(c)?;
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn search_units(
     c: &Connection,
     input: &crate::PublicationSpool,

@@ -104,16 +104,7 @@ pub(crate) fn write(
             || old_context.as_ref().is_some_and(|old|old.core_sections_recipe!=input.context.core_sections_recipe);
         if query_changed {
             query_root_replacements+=1;
-            crate::publication_delta::clear_query(c,id)?;
-            let allocation=crate::publication_delta::allocate(c,id,derived.allocation_footprint)?;
-            for mut row in derived.query_rows {
-                row.bind_projection_ids(id, allocation.end())?;
-                if row.table == "records" {
-                    crate::publication_delta::upsert(c, &row, "record_id")?;
-                } else {
-                    row.insert(c)?;
-                }
-            }
+            crate::publication_delta::replace_query_rows(c,id,derived.allocation_footprint,derived.query_rows)?;
         }else{
             c.execute("UPDATE records SET source_path=?,content_hash=? WHERE record_id=? AND (source_path IS NOT ?1 OR content_hash IS NOT ?2)",params![source.source_path,source.content_hash,id])?;
         }
