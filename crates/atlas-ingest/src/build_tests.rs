@@ -459,7 +459,11 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         .unwrap();
     {
         let owner = workspace.update_owner().unwrap();
-        let error = crate::build::rebuild_artifact(&owner, schema, options.clone()).unwrap_err();
+        let error = crate::build::rebuild_artifact(
+            atlas_index::test_support::reference_repair(&owner).unwrap(),
+            options.clone(),
+        )
+        .unwrap_err();
         assert!(
             matches!(&error, IngestError::DocumentEmbeddingFailed(message)
                 if message.contains("failed to load embedding model")),
@@ -1167,8 +1171,7 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
     let owner = workspace.update_owner().unwrap();
     let rebuilt = crate::build::rebuild_artifact(
-        &owner,
-        atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        atlas_index::test_support::reference_repair(&owner).unwrap(),
         options,
     )
     .unwrap();

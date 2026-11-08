@@ -55,16 +55,17 @@ impl ReferenceReuseReader {
         })
     }
     /// Bind a fresh preparation to the workspace without inspecting reference data.
-    pub fn fresh(workspace: &Workspace, schema: u32) -> Result<Self, IndexError> {
-        let read = workspace.read(schema)?;
-        let expected = ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
-        Ok(Self {
-            path: workspace.path().to_owned(),
-            schema,
-            expected,
+    pub fn fresh(repair: &atlas_storage::ReferenceRepair<'_>) -> Self {
+        Self {
+            path: repair.path().to_owned(),
+            schema: repair.schema(),
+            expected: ArtifactInstance::new(
+                repair.workspace_key().to_owned(),
+                repair.reference_revision(),
+            ),
             context: None,
             expected_context_hash: None,
-        })
+        }
     }
     pub fn expected(&self) -> &ArtifactInstance {
         &self.expected

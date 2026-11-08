@@ -102,10 +102,95 @@ pub struct UpdateOwner {
     pub(crate) workspace: Workspace,
     pub(crate) _lock: File,
 }
+
+/// Authority to replace generated reference data at one authenticated revision.
+/// The update owner stays held while preparation runs outside SQLite.
+pub struct ReferenceRepair<'a> {
+    owner: &'a UpdateOwner,
+    migrations: &'static [crate::Migration],
+    workspace_key: String,
+    reference_revision: u64,
+}
+
+impl<'a> ReferenceRepair<'a> {
+    pub fn owner(&self) -> &'a UpdateOwner {
+        self.owner
+    }
+
+    pub fn path(&self) -> &std::path::Path {
+        self.owner.path()
+    }
+
+    pub fn schema(&self) -> u32 {
+        self.migrations.len() as u32
+    }
+
+    pub fn workspace_key(&self) -> &str {
+        &self.workspace_key
+    }
+
+    pub fn reference_revision(&self) -> u64 {
+        self.reference_revision
+    }
+
+    pub fn publish<T, E>(&self, apply: impl FnOnce(&Connection) -> Result<T, E>) -> Result<T, E>
+    where
+        E: From<crate::StorageError>,
+    {
+        self.owner
+            .publish_transaction(self.schema(), None, Some(self), apply)
+    }
+
+    fn check_expected(&self, connection: &Connection) -> StorageResult<()> {
+        let (_, current) = crate::migration::inspect_history(connection, self.migrations)?;
+        if current != self.schema() {
+            return Err(crate::StorageError::Schema {
+                expected: self.schema(),
+                actual: current,
+            });
+        }
+        let matches: bool = connection.query_row(
+            "SELECT workspace_key=?1 AND reference_revision=?2 FROM workspace WHERE id=1",
+            (&self.workspace_key, self.reference_revision),
+            |row| row.get(0),
+        )?;
+        if !matches {
+            return Err(crate::StorageError::Unsupported(
+                "workspace identity or reference revision changed during repair".into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 impl UpdateOwner {
     /// Workspace whose update admission this owner holds.
     pub fn path(&self) -> &std::path::Path {
         self.workspace.path()
+    }
+
+    /// Authenticate a current workspace and allow repair configuration reads
+    /// even when a maintenance marker blocks normal admission.
+    pub fn begin_reference_repair<T, E>(
+        &self,
+        migrations: &'static [crate::Migration],
+        inspect: impl FnOnce(&ReadSession) -> Result<T, E>,
+    ) -> Result<(ReferenceRepair<'_>, T), E>
+    where
+        E: From<crate::StorageError>,
+    {
+        let read = self
+            .workspace
+            .read_admitted(migrations.len() as u32, true)?;
+        crate::migration::inspect_history(read.connection(), migrations)?;
+        let repair = ReferenceRepair {
+            owner: self,
+            migrations,
+            workspace_key: read.workspace_key()?,
+            reference_revision: read.reference_revision()?,
+        };
+        let result = inspect(&read)?;
+        Ok((repair, result))
     }
 
     /// Recover an interrupted maintenance attempt without publishing a new
@@ -161,7 +246,7 @@ impl UpdateOwner {
     where
         E: From<crate::StorageError>,
     {
-        self.publish_transaction(schema, None, apply)
+        self.publish_transaction(schema, None, None, apply)
     }
 
     /// Allow old committed snapshots during data-only publication. SQLite rejects
@@ -180,9 +265,9 @@ impl UpdateOwner {
             atomic::{AtomicBool, Ordering},
         };
         let structural = Arc::new(AtomicBool::new(false));
-        let result = self.publish_transaction(schema, Some(Arc::clone(&structural)), &apply);
+        let result = self.publish_transaction(schema, Some(Arc::clone(&structural)), None, &apply);
         if structural.load(Ordering::Relaxed) {
-            self.publish_transaction(schema, None, apply)
+            self.publish_transaction(schema, None, None, apply)
         } else {
             result
         }
@@ -192,6 +277,7 @@ impl UpdateOwner {
         &self,
         schema: u32,
         structural: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+        repair: Option<&ReferenceRepair<'_>>,
         apply: impl FnOnce(&Connection) -> Result<T, E>,
     ) -> Result<T, E>
     where
@@ -231,21 +317,26 @@ impl UpdateOwner {
                 }))
                 .map_err(crate::StorageError::from)?;
         }
-        validate(&connection, schema, false)?;
+        validate(&connection, schema, repair.is_some())?;
         connection
             .execute_batch("PRAGMA temp_store=FILE")
             .map_err(crate::StorageError::from)?;
         let transaction = Transaction::new_unchecked(&connection, TransactionBehavior::Immediate)
             .map_err(crate::StorageError::from)?;
+        if let Some(repair) = repair {
+            repair.check_expected(&transaction)?;
+        }
         let value = apply(&transaction)?;
         if structural.is_some_and(|denied| denied.load(Ordering::Relaxed)) {
             return Err(crate::StorageError::StructuralPublication.into());
         }
+        let advance = if repair.is_some() {
+            "UPDATE workspace SET reference_revision=reference_revision+1,maintenance=NULL WHERE id=1"
+        } else {
+            "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1"
+        };
         transaction
-            .execute(
-                "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",
-                [],
-            )
+            .execute(advance, [])
             .map_err(crate::StorageError::from)?;
         tracing::info!(target: "atlas_build_diagnostic", stage = "publication_before_commit", "Committing reference update");
         transaction.commit().map_err(crate::StorageError::from)?;

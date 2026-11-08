@@ -223,7 +223,7 @@ impl CapturedBuildInputs {
     ) -> Result<BuildArtifactReport, IngestError> {
         let started = Instant::now();
         let (owner, scratch) = begin_build(workspace, schema, &self.options)?;
-        finish_build(workspace, schema, &owner, scratch, self, started, false)
+        finish_build(workspace, schema, &owner, scratch, self, started, None)
     }
     pub(crate) fn options(&self) -> &BuildArtifactOptions {
         &self.options
@@ -241,20 +241,34 @@ pub(crate) fn build_artifact(
     let started = Instant::now();
     let (owner, scratch) = begin_build(workspace, schema, &options)?;
     let inputs = CapturedBuildInputs::capture(options)?;
-    finish_build(workspace, schema, &owner, scratch, inputs, started, false)
+    finish_build(workspace, schema, &owner, scratch, inputs, started, None)
 }
 
 pub fn rebuild_artifact(
-    owner: &atlas_storage::UpdateOwner,
-    schema: u32,
+    repair: atlas_storage::ReferenceRepair<'_>,
     mut options: BuildArtifactOptions,
 ) -> Result<BuildArtifactReport, IngestError> {
     let started = Instant::now();
-    let workspace = atlas_storage::Workspace::at(owner.path())?;
+    let owner = repair.owner();
+    let schema = repair.schema();
+    let workspace = atlas_storage::Workspace::at(repair.path())?;
+    if atlas_storage::Workspace::at(&options.output_path)?.path() != workspace.path() {
+        return Err(IngestError::ArtifactWriteFailed(
+            "rebuild destination differs from the admitted workspace".into(),
+        ));
+    }
     options.reuse_passage_layouts = false;
     let scratch = atlas_index::BuildScratch::new(owner).map_err(index_error)?;
     let inputs = CapturedBuildInputs::capture(options)?;
-    finish_build(&workspace, schema, owner, scratch, inputs, started, true)
+    finish_build(
+        &workspace,
+        schema,
+        owner,
+        scratch,
+        inputs,
+        started,
+        Some(repair),
+    )
 }
 
 fn begin_build(
@@ -271,16 +285,7 @@ fn begin_build(
     let scratch = atlas_index::BuildScratch::new(&update_owner).map_err(index_error)?;
     atlas_index::recover_reference_publication(&update_owner, schema)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    let requested = atlas_index::RequestedReferenceConfig {
-        source_root: options.source_root.clone(),
-        manifest_path: options.manifest_path.clone(),
-        indexing_locale: options.locale.clone(),
-        search_profiles: options
-            .search_profiles
-            .iter()
-            .map(|config| atlas_embedding::profile_for_model(config.model).profile_id())
-            .collect(),
-    };
+    let requested = requested_configuration(options);
     let previous = atlas_index::read_requested_reference_config(&workspace.read(schema)?)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     if previous
@@ -296,6 +301,21 @@ fn begin_build(
     Ok((update_owner, scratch))
 }
 
+fn requested_configuration(
+    options: &BuildArtifactOptions,
+) -> atlas_index::RequestedReferenceConfig {
+    atlas_index::RequestedReferenceConfig {
+        source_root: options.source_root.clone(),
+        manifest_path: options.manifest_path.clone(),
+        indexing_locale: options.locale.clone(),
+        search_profiles: options
+            .search_profiles
+            .iter()
+            .map(|config| atlas_embedding::profile_for_model(config.model).profile_id())
+            .collect(),
+    }
+}
+
 fn finish_build(
     workspace: &atlas_storage::Workspace,
     schema: u32,
@@ -303,14 +323,13 @@ fn finish_build(
     scratch: atlas_index::BuildScratch,
     inputs: CapturedBuildInputs,
     started: Instant,
-    rebuild: bool,
+    repair: Option<atlas_storage::ReferenceRepair<'_>>,
 ) -> Result<BuildArtifactReport, IngestError> {
-    let reuse = if rebuild {
-        atlas_index::ReferenceReuseReader::fresh(workspace, schema)
-    } else {
-        atlas_index::ReferenceReuseReader::new(workspace, schema)
-    }
-    .map_err(index_error)?;
+    let rebuild = repair.is_some();
+    let reuse = match &repair {
+        Some(repair) => atlas_index::ReferenceReuseReader::fresh(repair),
+        None => atlas_index::ReferenceReuseReader::new(workspace, schema).map_err(index_error)?,
+    };
     let phase_started = Instant::now();
     let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
     let CapturedBuildInputs {
@@ -324,12 +343,12 @@ fn finish_build(
     let admission = prepared.spool.context().admission.clone().ok_or_else(|| {
         IngestError::ArtifactWriteFailed("publication admission summary is absent".into())
     })?;
-    let mut publication = if rebuild {
+    let mut publication = if let Some(repair) = repair {
         atlas_index::PreparedPublication::new_rebuild(
-            update_owner,
-            schema,
+            repair,
             scratch.path(),
             prepared.spool,
+            requested_configuration(&options),
         )
     } else {
         atlas_index::PreparedPublication::new_in(

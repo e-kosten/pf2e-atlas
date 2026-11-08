@@ -73,6 +73,13 @@ outside write transactions, with bounded recovery results. User-state edits do
 not advance the reference revision. [ADR0065](0065-input-owned-reference-publication.md)
 records why ordinary publication trusts unchanged data and keeps deep audit explicit.
 
+Explicit reference repair can authenticate the workspace and read its requested
+configuration while maintenance blocks product sessions. It binds preparation to
+that workspace and revision without trusting old generated data. The final
+exclusive transaction checks the ledger again, validates the replacement and saved
+references, and commits the new revision, marker removal, and corrected source
+configuration together.
+
 Index owns one concrete prepared publication binding its context/inventory,
 expected generation, prepared metadata and selected numerical data. Published
 native values are input-owned; occurrence edits cannot overwrite another input's

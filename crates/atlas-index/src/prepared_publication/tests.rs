@@ -114,7 +114,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
-        false,
+        None,
     )
     .unwrap();
     for unit in &input.semantic_units {
@@ -142,7 +142,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
-        false,
+        None,
     )
     .unwrap();
     assert_eq!(
@@ -1059,13 +1059,19 @@ fn rebuild_ignores_corrupt_native_registry_and_pending_values() {
     write.commit().unwrap();
 
     let scratch = BuildScratch::new(&owner).unwrap();
-    let expected = ReferenceReuseReader::fresh(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let repair = crate::test_support::reference_repair(&owner).unwrap();
+    let expected = ReferenceReuseReader::fresh(&repair);
     let spool = publication_spool_in(scratch.path(), &input, expected.expected().clone()).unwrap();
     let mut publication = PreparedPublication::new_rebuild(
-        &owner,
-        TEST_WORKSPACE_SCHEMA_VERSION,
+        repair,
         scratch.path(),
         spool,
+        crate::RequestedReferenceConfig {
+            source_root: directory.path().join("source"),
+            manifest_path: None,
+            indexing_locale: "en".into(),
+            search_profiles: vec![model.profile_id.clone()],
+        },
     )
     .unwrap();
     for unit in &input.semantic_units {
