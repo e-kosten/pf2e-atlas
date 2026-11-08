@@ -50,6 +50,8 @@ atlas-storage = { path = "crates/atlas-storage" }
 atlas-tags = { path = "crates/atlas-tags" }
 ammonia = "=4.2.4"
 axum = "0.8.7"
+utoipa = "=6.0.0"
+utoipa-axum = "=0.3.0"
 clap = { version = "4.5.53", features = ["derive"] }
 clap_complete = { version = "4.5.60", features = ["unstable-dynamic"] }
 indicatif = "0.18.3"

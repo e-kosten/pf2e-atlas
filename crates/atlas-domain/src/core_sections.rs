@@ -6,6 +6,7 @@ use ts_rs::TS;
 /// Membership changes independently of lexical terms and native embedding inputs.
 pub const CORE_SECTIONS_RECIPE: &str = "core-sections/v1";
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchContentScope {
@@ -14,6 +15,7 @@ pub enum SearchContentScope {
     Core,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SimilaritySourceSections {
@@ -25,6 +27,7 @@ pub enum SimilaritySourceSections {
 
 /// A stable policy family for discovery and remembered source presets. The record
 /// owner classifies checked source; adapters must not infer this from labels.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum CoreSectionFamily {
@@ -49,6 +52,7 @@ impl CoreSectionFamily {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum CoreFallbackReason {
@@ -56,6 +60,7 @@ pub enum CoreFallbackReason {
     NoCoreProse,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum CoreSectionRepresentation {
@@ -65,12 +70,14 @@ pub enum CoreSectionRepresentation {
 
 /// Resolved selectors acknowledge one Core recipe within the checked inventory.
 /// Required vector readiness remains independent of prose availability.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct CoreSectionSelection {
     pub family: CoreSectionFamily,
     pub selectors: Vec<SimilarityPartSelector>,
     pub representation: CoreSectionRepresentation,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub fallback_reason: Option<CoreFallbackReason>,
     pub recipe: String,
 }

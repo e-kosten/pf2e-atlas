@@ -5,12 +5,14 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// A source token and its supplied presentation; the label never becomes identity.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ReferenceValueView {
     pub value: String,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<ReferenceHelpView>,
 }
 impl From<String> for ReferenceValueView {
@@ -28,6 +30,7 @@ impl From<&str> for ReferenceValueView {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ReferenceDestinationView {
@@ -39,19 +42,23 @@ pub enum ReferenceDestinationView {
     },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ReferenceHelpView {
     /// Property identity is independent of a shared real-record destination.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub definition_key: Option<String>,
     pub destination: ReferenceDestinationView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ReferenceFilterActionView {
     pub label: String,
     pub predicate: QueryPredicate,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct DefinitionDetailRequest {
@@ -59,6 +66,7 @@ pub struct DefinitionDetailRequest {
     pub expected_artifact_generation: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DefinitionDetailView {
     pub artifact_generation: String,
@@ -72,12 +80,14 @@ pub struct DefinitionDetailView {
     pub related_filters: Vec<ReferenceFilterActionView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DefinitionPublicationView {
     pub title: Option<String>,
     pub page: Option<u32>,
     pub license: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DefinitionNoticeView {
     pub id: String,
@@ -127,6 +137,7 @@ mod tests {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ReferenceContentView {
     #[serde(default, skip_serializing_if = "Option::is_none")]

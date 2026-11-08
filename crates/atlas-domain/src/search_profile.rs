@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(transparent)]
 pub struct SearchProfileId(String);

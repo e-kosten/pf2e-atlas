@@ -1,12 +1,14 @@
 //! HP events distinguish amounts already resolved at the table from corrections.
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum DamageLethalityView {
     Lethal,
     Nonlethal,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 pub struct HpEventContextView {
     #[serde(default)]
@@ -22,6 +24,7 @@ pub struct HpEventContextView {
     pub responsible_participant_key: Option<String>,
     pub base_death_threshold: Option<i64>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ResolveEncounterHpLifecycleRequest {
     #[serde(default)]
@@ -31,6 +34,7 @@ pub struct ResolveEncounterHpLifecycleRequest {
     pub consequence_key: String,
     pub context: HpEventContextView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PendingHpLifecycleView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -46,6 +50,7 @@ pub struct PendingHpLifecycleView {
     pub context: HpEventContextView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum HpLifecycleRequiredFactView {
@@ -55,6 +60,7 @@ pub enum HpLifecycleRequiredFactView {
     ResponsibleParticipant,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum HpLifecycleResolutionView {
@@ -63,6 +69,7 @@ pub enum HpLifecycleResolutionView {
     KeepCurrentState,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct KnockoutOptionView {
     pub label: String,

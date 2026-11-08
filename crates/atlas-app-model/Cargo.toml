@@ -6,7 +6,11 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[features]
+openapi = ["dep:utoipa", "atlas-domain/openapi", "atlas-dice/openapi"]
+
 [dependencies]
+utoipa = { workspace = true, optional = true }
 atlas-dice.workspace = true
 atlas-domain.workspace = true
 serde.workspace = true

@@ -2,6 +2,7 @@ use crate::{
     ConditionEditorKindView, ConditionEventIntentView, ConditionOriginView,
     ConditionParametersView, EncounterDamageTypeView, MortalityStateView,
 };
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterConditionEligibilityView {
@@ -15,6 +16,7 @@ use ts_rs::TS;
 
 use crate::{RecordPresentationView, RecordSummaryView};
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterSummaryView {
@@ -32,12 +34,14 @@ pub struct EncounterSummaryView {
     pub updated_at: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterIndexView {
     pub encounters: Vec<EncounterSummaryView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterConditionCatalogView {
@@ -46,6 +50,7 @@ pub struct EncounterConditionCatalogView {
     pub conditions: Vec<EncounterConditionDefinitionView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionDurationUnit {
@@ -55,6 +60,7 @@ pub enum ConditionDurationUnit {
     Days,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionTurnEvent {
@@ -62,6 +68,7 @@ pub enum ConditionTurnEvent {
     End,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ConditionTimingView {
@@ -70,6 +77,7 @@ pub struct ConditionTimingView {
 }
 
 /// Condition rounds use a remaining amount; tracker durations retain the restart amount.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ConditionDurationView {
@@ -82,6 +90,7 @@ pub struct ConditionDurationView {
     pub timing: Option<ConditionTimingView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterTurnReviewView {
     pub next_turn_unavailable_reason: Option<EncounterNextTurnUnavailableReason>,
@@ -94,6 +103,7 @@ pub struct EncounterTurnReviewView {
     pub reminders: Vec<EncounterTurnReminderView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterTurnReminderView {
@@ -158,6 +168,7 @@ pub enum EncounterTurnReminderView {
     },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct AdvanceEncounterTurnRequest {
@@ -165,6 +176,7 @@ pub struct AdvanceEncounterTurnRequest {
     pub expected_revision: i64,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionScopeView {
@@ -175,6 +187,7 @@ pub enum ConditionScopeView {
     },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionExtraActionView {
@@ -183,10 +196,12 @@ pub enum ConditionExtraActionView {
     Unrestricted,
     Restricted {
         actions: Vec<ConditionActionView>,
+        #[cfg_attr(feature = "openapi", schema(required))]
         guidance: Option<String>,
     },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionActionView {
@@ -206,6 +221,7 @@ pub enum ConditionActionView {
     Burrow,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterConditionDefinitionView {
@@ -225,6 +241,7 @@ pub struct EncounterConditionDefinitionView {
     pub default_value: Option<i64>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -233,6 +250,7 @@ pub enum EncounterConditionAutomationLevelView {
     Tracked,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -242,6 +260,7 @@ pub enum EncounterConditionApplicabilityView {
     Object,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -255,6 +274,7 @@ pub enum EncounterConditionCategoryView {
     StatModifier,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -265,6 +285,7 @@ pub enum EncounterStatusView {
     Archived,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -274,6 +295,7 @@ pub enum EncounterParticipantKindView {
     Pc,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -285,6 +307,7 @@ pub enum EncounterParticipantSideView {
     Hazard,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -294,6 +317,7 @@ pub enum EncounterParticipantVariantView {
     Weak,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -303,12 +327,14 @@ pub enum StatModifierTypeView {
     Circumstance,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ActionBudgetView {
     /// Status when the default allocation loses Quickened's extra action first.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub extra_action_unavailable_reason: Option<String>,
     pub quickened_sources: Vec<ConditionExtraActionView>,
     pub actions: RuntimeCountView,
@@ -318,20 +344,24 @@ pub struct ActionBudgetView {
     pub notes: Vec<RuntimeEffectNoteView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeCountView {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub explanation: Option<String>,
     pub base_value: i64,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub adjusted_value: Option<i64>,
     pub segments: Vec<RuntimeCountSegmentView>,
     pub adjustments: Vec<RuntimeAdjustmentView>,
     pub suppressed_adjustments: Vec<RuntimeAdjustmentView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeCountSegmentView {
@@ -340,9 +370,11 @@ pub struct RuntimeCountSegmentView {
     pub restricted: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub reason: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeAdjustmentView {
@@ -351,21 +383,26 @@ pub struct RuntimeAdjustmentView {
     pub value: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub reason: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeCapabilityView {
     pub available: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub reason: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RuntimeEffectNoteView {
@@ -374,6 +411,7 @@ pub struct RuntimeEffectNoteView {
     pub reason: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct StatModifierView {
@@ -383,17 +421,20 @@ pub struct StatModifierView {
     pub value: i64,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UnappliedEffectView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub condition_id: Option<i64>,
     pub source: String,
     pub label: String,
     pub reason: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -404,6 +445,7 @@ pub enum EncounterParticipantStatusView {
     Manual,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct CreateEncounterRequest {
@@ -416,12 +458,14 @@ pub struct CreateEncounterRequest {
     pub note: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterCreateView {
     pub encounter: EncounterSummaryView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterDetailView {
@@ -442,6 +486,7 @@ pub struct EncounterDetailView {
 }
 
 /// A complete selected reference in one current participant's runtime context.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterReferenceRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -451,6 +496,7 @@ pub struct EncounterReferenceRequest {
     pub selection: crate::RecordDetailRequest,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateEncounterRequest {
@@ -469,12 +515,14 @@ pub struct UpdateEncounterRequest {
     pub status: EncounterStatusView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterMutationView {
     pub encounter_key: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantView {
@@ -541,6 +589,7 @@ pub struct EncounterParticipantView {
     pub record: Option<RecordSummaryView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct EncounterParticipantConditionView {
@@ -576,6 +625,7 @@ pub struct EncounterParticipantConditionView {
     pub updated_at: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct AddEncounterRecordParticipantRequest {
@@ -591,6 +641,7 @@ pub struct AddEncounterRecordParticipantRequest {
     pub initiative: Option<i64>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct AddEncounterManualParticipantRequest {
@@ -607,6 +658,7 @@ pub struct AddEncounterManualParticipantRequest {
     pub initiative: Option<i64>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateEncounterParticipantRequest {
@@ -643,6 +695,7 @@ pub struct UpdateEncounterParticipantRequest {
     pub note: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -652,6 +705,7 @@ pub enum ReorderEncounterParticipantPlacementView {
 }
 
 /// A supplied exact value; null explicitly clears current/maximum availability.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct EncounterHpValueInput {
@@ -660,6 +714,7 @@ pub struct EncounterHpValueInput {
 }
 
 /// A deliberate HP operation, interpreted against the checked current participant.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EncounterHpAction {
@@ -695,6 +750,7 @@ pub enum EncounterHpAction {
     UseDerivedMaximum,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ApplyEncounterHpActionRequest {
@@ -707,6 +763,7 @@ pub struct ApplyEncounterHpActionRequest {
     pub action: EncounterHpAction,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ReorderEncounterParticipantRequest {
@@ -715,6 +772,7 @@ pub struct ReorderEncounterParticipantRequest {
     pub placement: ReorderEncounterParticipantPlacementView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
@@ -757,6 +815,7 @@ pub struct AddEncounterParticipantConditionRequest {
     pub note: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
@@ -797,6 +856,7 @@ pub struct UpdateEncounterParticipantConditionRequest {
     pub note: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SetEncounterTurnRequest {
@@ -804,6 +864,7 @@ pub struct SetEncounterTurnRequest {
     pub participant_key: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct DeleteEncounterView {
@@ -941,11 +1002,13 @@ mod tests {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterSpellcastingView {
     pub resources: Vec<EncounterSpellResourceView>,
     pub spells: Vec<EncounterSpellView>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterSpellResourceScope {
@@ -953,6 +1016,7 @@ pub enum EncounterSpellResourceScope {
     Rank { rank: u8 },
     Entry,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterSpellResourceView {
     pub scope: EncounterSpellResourceScope,
@@ -963,6 +1027,7 @@ pub struct EncounterSpellResourceView {
     pub remaining: i64,
     pub can_undo: bool,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterSpellView {
     pub navigation: crate::RecordNavigationView,
@@ -971,12 +1036,14 @@ pub struct EncounterSpellView {
     pub ranks: Vec<EncounterSpellRankView>,
     pub expended: Option<bool>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterSpellRankView {
     pub rank: u8,
     pub resource_key: Option<String>,
     pub unavailable_reason: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ApplyEncounterSpellActionRequest {
@@ -984,6 +1051,7 @@ pub struct ApplyEncounterSpellActionRequest {
     pub expected_revision: i64,
     pub action: EncounterSpellAction,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EncounterSpellAction {
@@ -1003,12 +1071,14 @@ pub enum EncounterSpellAction {
     },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterNextTurnUnavailableReason {
     NoInitiativeParticipants,
     NoActiveParticipants,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterTurnBoundaryView {
     pub source_revision: i64,

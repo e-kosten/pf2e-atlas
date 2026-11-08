@@ -4,60 +4,79 @@ use atlas_domain::SourcePassageAddress;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordSummaryView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub unit_price_label: Option<String>,
     /// The selected document's explicit publication era; absent when unavailable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub edition: Option<RecordEditionView>,
     pub record_key: String,
     pub title: String,
     pub kind: String,
     pub kind_label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_type: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub level_label: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub level_basis: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub rarity: Option<crate::ReferenceValueView>,
     pub traits: Vec<RecordBadgeView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub publication: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub pack: Option<String>,
 }
 /// Publication era does not imply that a record has a replacement or is unusable.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordEditionView {
     Legacy,
     Remaster,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordBadgeView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub trait_key: Option<String>,
     pub kind: String,
     pub label: String,
     pub value: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct RecordNavigationView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     /// Selected casting rank for a spell or its explicitly linked effect preview.
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub spell_rank: Option<u8>,
     pub record_key: String,
     #[serde(rename = "embedded_path")]
     pub owners: Vec<OwnedContentLocator>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub field: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub passage: Option<SourcePassageAddress>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_fingerprint: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct RecordDetailRequest {
@@ -77,17 +96,20 @@ pub struct RecordDetailRequest {
     pub passage: Option<SourcePassageAddress>,
     pub source_fingerprint: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordDetailView {
     /// Change statements associated with the exact selected document.
     pub remaster_relationships: crate::RelatedCategoryView<crate::RemasterRelationshipsView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source_remaster_context:
         Option<crate::RelatedCategoryView<crate::RemasterSourceContextView>>,
     /// Default adjustment for adding this root creature to an encounter.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub encounter_adjustment: Option<crate::EncounterParticipantVariantView>,
     pub artifact_generation: String,
     pub record: RecordSummaryView,
@@ -96,47 +118,61 @@ pub struct RecordDetailView {
     pub relationships: Vec<RecordRelationshipView>,
     pub relationships_truncated: bool,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordRelationshipView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source_title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub target_title: Option<String>,
     pub source: ContentLocationView,
     pub source_navigation: RecordNavigationView,
     pub ordinal: usize,
     pub origin: String,
     pub kind: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub authored_target: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub occurrence_path: Option<String>,
     pub audiences: Vec<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub availability: Option<atlas_domain::QueryFieldState>,
     pub status: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub target: Option<RecordNavigationView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub url: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub effect_label: Option<EffectReferenceLabelView>,
     // Verified local reading context; the authored target remains unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub contextual_target: Option<RecordNavigationView>,
     /// Derived action command targets its containing root action; readers retain
     /// the label without offering redundant navigation. Target evidence remains.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub self_action_reference: Option<bool>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EffectReferenceLabelView {
     pub text: String,
     pub title: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordResolutionAmbiguousView {
     pub record_ref: String,
     pub matches: Vec<RecordResolutionCandidateView>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordResolutionCandidateView {
     pub record: RecordSummaryView,
@@ -146,6 +182,7 @@ pub struct RecordResolutionCandidateView {
     pub matched_text: String,
     pub evidence: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum RecordRefResolutionView {
@@ -155,6 +192,7 @@ pub enum RecordRefResolutionView {
 }
 
 /// Product content address; persisted source addresses retain their storage vocabulary.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ContentLocationView {
     pub record: atlas_domain::RecordKey,

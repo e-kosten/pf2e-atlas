@@ -2,6 +2,7 @@ use crate::DamageMultiplierView;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageSourceView {
     pub condition_id: i64,
@@ -14,6 +15,7 @@ pub struct PersistentDamageSourceView {
     pub recovery_dc: Option<i64>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageGroupView {
     /// Present only when current damage protection facts establish immunity.
@@ -27,6 +29,7 @@ pub struct PersistentDamageGroupView {
     pub selected_source_id: i64,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct RecoverPersistentDamageRequest {
@@ -42,6 +45,7 @@ pub struct RecoverPersistentDamageRequest {
     pub dc_override: Option<i64>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum PersistentRecoveryResolution {
@@ -50,6 +54,7 @@ pub enum PersistentRecoveryResolution {
     Clear,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum PersistentRecoveryMode {
@@ -57,6 +62,7 @@ pub enum PersistentRecoveryMode {
     Explicit,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentReviewView {
     pub encounter_revision: i64,
@@ -68,6 +74,7 @@ pub struct PersistentReviewView {
     pub recovery_results: Vec<PersistentRecoveryResultView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentEpisodeReviewView {
     pub damage_resolution: PersistentDamageResolutionView,
@@ -78,6 +85,7 @@ pub struct PersistentEpisodeReviewView {
     pub end_turn_recovery_available: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentRecoveryResultView {
     pub encounter_key: String,
@@ -89,6 +97,7 @@ pub struct PersistentRecoveryResultView {
     pub success: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PersistentDamageInput {
@@ -97,6 +106,7 @@ pub enum PersistentDamageInput {
     Prepared { draft: PersistentDamageDraft },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PreparedPersistentRecoveryInput {
     pub episode_id: String,
@@ -104,6 +114,7 @@ pub struct PreparedPersistentRecoveryInput {
 }
 
 /// A partial damage draft. At most one new damage roll or recovery check per request.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PreparePersistentDamageRequest {
@@ -116,6 +127,7 @@ pub struct PreparePersistentDamageRequest {
     pub recovery: Option<PreparedPersistentRecoveryInput>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PreparedPersistentDamageView {
     pub damage: PersistentDamageResultView,
@@ -126,6 +138,7 @@ pub struct PreparedPersistentDamageView {
 }
 
 /// The turn and participant reviewed by the GM before submitting browser-held rolls.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PersistentDraftContext {
@@ -137,6 +150,7 @@ pub struct PersistentDraftContext {
     pub artifact_generation: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PersistentDamageDraft {
@@ -145,6 +159,7 @@ pub struct PersistentDamageDraft {
     pub roll: atlas_dice::RollOutcome,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PersistentRecoveryDraft {
@@ -155,6 +170,7 @@ pub struct PersistentRecoveryDraft {
     pub roll: Option<atlas_dice::RollOutcome>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PersistentRecoveryInput {
@@ -168,11 +184,13 @@ pub enum PersistentRecoveryInput {
         draft: PersistentRecoveryDraft,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageGroupInput {
     pub episode_id: String,
     pub damage: PersistentDamageInput,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct ApplyPersistentDamageRequest {
@@ -186,6 +204,7 @@ pub struct ApplyPersistentDamageRequest {
     pub recoveries: Vec<PersistentRecoveryInput>,
     pub context: crate::HpEventContextView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageResultView {
     pub encounter_key: String,
@@ -194,6 +213,7 @@ pub struct PersistentDamageResultView {
     pub total: i64,
     pub hardness_absorbed: i64,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageOutcomeView {
     pub episode_id: String,
@@ -207,6 +227,7 @@ pub struct PersistentDamageOutcomeView {
     pub protection: Option<PersistentDamageProtectionView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PersistentDamageResolutionView {
@@ -217,6 +238,7 @@ pub enum PersistentDamageResolutionView {
         reason: String,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentDamageProtectionView {
     pub immune: bool,

@@ -3,6 +3,7 @@ use ts_rs::TS;
 
 use crate::{AppError, RecordSummaryView};
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListSummaryView {
@@ -19,12 +20,14 @@ pub struct SavedListSummaryView {
     pub updated_at: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListIndexView {
     pub lists: Vec<SavedListSummaryView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct CreateSavedListRequest {
@@ -37,12 +40,14 @@ pub struct CreateSavedListRequest {
     pub tags: Vec<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListCreateView {
     pub list: SavedListSummaryView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct UpdateSavedListRequest {
@@ -56,12 +61,14 @@ pub struct UpdateSavedListRequest {
     pub tags: Vec<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListUpdateView {
     pub list: SavedListSummaryView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListDetailView {
@@ -73,6 +80,7 @@ pub struct SavedListDetailView {
     pub items: Vec<SavedListItemView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct FilterSavedListRequest {
@@ -88,6 +96,7 @@ pub struct FilterSavedListRequest {
     pub filter: Option<atlas_domain::QueryPredicate>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct AddSavedListItemRequest {
@@ -98,6 +107,7 @@ pub struct AddSavedListItemRequest {
     pub note: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct BatchAddSavedListItemsRequest {
@@ -105,6 +115,7 @@ pub struct BatchAddSavedListItemsRequest {
     pub items: Vec<BatchSavedListItemInput>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct BatchSavedListItemInput {
@@ -114,6 +125,7 @@ pub struct BatchSavedListItemInput {
     pub note: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct RemoveSavedListItemRequest {
@@ -121,6 +133,7 @@ pub struct RemoveSavedListItemRequest {
     pub record_ref: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ReorderSavedListItemRequest {
@@ -130,6 +143,7 @@ pub struct ReorderSavedListItemRequest {
     pub placement: ReorderSavedListItemPlacementView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -138,6 +152,7 @@ pub enum ReorderSavedListItemPlacementView {
     After,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListItemMutationView {
@@ -146,10 +161,12 @@ pub struct SavedListItemMutationView {
     pub record_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub record_name: Option<String>,
     pub outcome: SavedListItemMutationOutcomeView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct BatchSavedListItemMutationView {
@@ -166,6 +183,7 @@ pub struct BatchSavedListItemMutationView {
     pub items: Vec<BatchSavedListItemResultView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct BatchSavedListItemResultView {
@@ -182,6 +200,7 @@ pub struct BatchSavedListItemResultView {
     pub error: Option<AppError>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -193,6 +212,7 @@ pub enum SavedListItemMutationOutcomeView {
     Reordered,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -202,6 +222,7 @@ pub enum BatchSavedListItemOutcomeView {
     Failed,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct DeleteSavedListView {
@@ -210,6 +231,7 @@ pub struct DeleteSavedListView {
     pub deleted: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListItemView {
@@ -226,6 +248,7 @@ pub struct SavedListItemView {
     pub record: Option<RecordSummaryView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
@@ -235,6 +258,7 @@ pub enum SavedListItemStatusView {
     Unresolved,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListItemSnapshotView {
@@ -244,6 +268,7 @@ pub struct SavedListItemSnapshotView {
     pub kind: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListExportDocumentView {
@@ -276,6 +301,7 @@ impl SavedListExportDocumentView {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListExportListView {
@@ -288,6 +314,7 @@ pub struct SavedListExportListView {
     pub tags: Vec<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct SavedListExportItemView {
@@ -298,6 +325,7 @@ pub struct SavedListExportItemView {
     pub snapshot: SavedListItemSnapshotView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ImportSavedListRequest {
@@ -308,6 +336,7 @@ pub struct ImportSavedListRequest {
     pub replace: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct ImportSavedListView {
@@ -316,6 +345,7 @@ pub struct ImportSavedListView {
     pub resolution: ImportedListResolutionView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum ImportedListResolutionView {
@@ -449,6 +479,7 @@ mod tests {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct UpdateSavedListItemNoteRequest {
     pub list_ref: String,
@@ -457,6 +488,7 @@ pub struct UpdateSavedListItemNoteRequest {
     pub note: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SavedListItemNoteView {
     pub list_key: String,

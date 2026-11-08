@@ -7,12 +7,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryRelationshipDirection {
     Incoming,
     Outgoing,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct QueryRecordSelection {
@@ -29,6 +31,7 @@ pub struct QueryRecordSelection {
     #[ts(optional)]
     pub spell_rank: Option<u8>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct QueryRelationship {

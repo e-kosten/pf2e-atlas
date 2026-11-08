@@ -17,6 +17,7 @@ import {
   discoverFilterCounts,
   createSavedList,
   deleteSavedList,
+  removeSavedListItem,
   filterSavedList,
   getSavedList,
   getSavedLists,
@@ -68,6 +69,28 @@ function respond(value: unknown, status = 200) {
     ),
   );
 }
+it("sends the list-item DELETE body and never replays an incompatible mutation", async () => {
+  fetchMock.mockResolvedValue(
+    new Response("invalid body", {
+      status: 409,
+      headers: { [API_CONTRACT_HEADER]: "old-contract" },
+    }),
+  );
+  const request = { list_ref: "list with/slash", record_ref: "actions:seek" };
+  await expect(removeSavedListItem(request)).rejects.toMatchObject({
+    backendContract: "old-contract",
+  });
+  await expect(removeSavedListItem(request)).rejects.toMatchObject({
+    backendContract: "old-contract",
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const [path, options] = fetchMock.mock.calls[0];
+  expect(path).toBe("/api/lists/list%20with%2Fslash/items");
+  expect(options.method).toBe("DELETE");
+  expect(JSON.parse(options.body)).toEqual(request);
+  expect(options.headers.get(API_CONTRACT_HEADER)).toBe(API_CONTRACT);
+});
+
 describe("source-backed API transport", () => {
   it("normalizes original boundary sources and grouped recovery identities without requiring one condition ID", async () => {
     respond({

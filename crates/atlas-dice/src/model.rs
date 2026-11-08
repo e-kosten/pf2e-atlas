@@ -13,6 +13,7 @@ pub enum DiceError {
     ResultShape,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DieOutcome {
     pub sides: u32,
@@ -20,6 +21,7 @@ pub struct DieOutcome {
     pub kept: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum RollOperator {
@@ -30,6 +32,7 @@ pub enum RollOperator {
 }
 
 /// A result tree preserves arithmetic context; mixed damage types are separate rolls.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RollExpression {
@@ -42,16 +45,20 @@ pub enum RollExpression {
     },
     Binary {
         operator: RollOperator,
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         left: Box<RollExpression>,
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         right: Box<RollExpression>,
         total: i32,
     },
     Negate {
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         inner: Box<RollExpression>,
         total: i32,
     },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RollOutcome {
     pub formula: String,
@@ -60,6 +67,7 @@ pub struct RollOutcome {
 }
 
 /// A validated formula before rolling; carries no outcomes or kept/discarded claims.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RollPreviewExpression {
@@ -71,10 +79,13 @@ pub enum RollPreviewExpression {
     },
     Binary {
         operator: RollOperator,
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         left: Box<RollPreviewExpression>,
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         right: Box<RollPreviewExpression>,
     },
     Negate {
+        #[cfg_attr(feature = "openapi", schema(no_recursion))]
         inner: Box<RollPreviewExpression>,
     },
 }

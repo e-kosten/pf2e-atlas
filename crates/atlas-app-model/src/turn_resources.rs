@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TurnResourcesView {
     pub action_calculation: TurnActionCalculationView,
@@ -25,6 +26,7 @@ pub struct TurnResourcesView {
     pub can_spend_actions: crate::RuntimeCapabilityView,
     pub can_spend_reactions: crate::RuntimeCapabilityView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TurnActionCalculationView {
@@ -36,11 +38,13 @@ pub enum TurnActionCalculationView {
         count: crate::RuntimeCountView,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct InherentActionConditionsView {
     pub entries: Vec<InherentActionConditionView>,
     pub unavailable_reason: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct InherentActionConditionView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -56,12 +60,14 @@ pub struct InherentActionConditionView {
     pub source_name: String,
     pub source: crate::RecordNavigationView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TurnResourceResultView {
     pub condition_name: String,
     pub condition_ref: String,
     pub outcome: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TurnResourceAction {
@@ -78,6 +84,7 @@ pub enum TurnResourceAction {
         remaining: i64,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnResourceKind {
@@ -85,6 +92,7 @@ pub enum TurnResourceKind {
     ExtraAction,
     Reaction,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct UpdateTurnResourcesRequest {
     pub request_id: String,

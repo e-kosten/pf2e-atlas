@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryFieldState {
@@ -22,6 +23,7 @@ impl QueryFieldState {
         }
     }
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryCompare {
@@ -32,6 +34,7 @@ pub enum QueryCompare {
     Gt,
     Gte,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 pub enum QuerySetMatch {
@@ -47,14 +50,29 @@ pub enum QueryLiteral {
     Boolean(bool),
     Number(#[ts(type = "number")] Number),
 }
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for QueryLiteral {}
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for QueryLiteral {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        utoipa::openapi::schema::OneOfBuilder::new()
+            .item(<String as utoipa::PartialSchema>::schema())
+            .item(<bool as utoipa::PartialSchema>::schema())
+            .item(<f64 as utoipa::PartialSchema>::schema())
+            .into()
+    }
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct QueryPredicate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub clause_id: Option<String>,
     #[serde(flatten)]
+    #[cfg_attr(feature = "openapi", schema(no_recursion))]
     pub expression: QueryExpression,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum QueryExpression {
@@ -113,6 +131,7 @@ impl QueryPredicate {
         Self::new(QueryExpression::BooleanConstant { value })
     }
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryFieldType {
@@ -122,6 +141,7 @@ pub enum QueryFieldType {
     Set,
     Collection,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryValueDiscovery {
@@ -131,6 +151,7 @@ pub enum QueryValueDiscovery {
     NumericStatistics,
     CollectionStates,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct QueryFieldDefinition {
     pub id: String,
@@ -146,12 +167,14 @@ pub struct QueryFieldDefinition {
     pub examples: Vec<String>,
     pub value_discovery: QueryValueDiscovery,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct QueryCapability {
     pub version: u32,
     pub fields: Vec<QueryFieldDefinition>,
     pub limits: QueryLimits,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct QueryLimits {
     pub source_bytes: usize,
@@ -171,6 +194,7 @@ impl Default for QueryLimits {
         }
     }
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 pub struct QueryError {
     pub code: String,

@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ts_rs::TS)]
 #[serde(deny_unknown_fields)]
 pub struct SourceByteRange {
@@ -22,6 +23,7 @@ impl SourceByteRange {
 
 /// Root, owner chain and field belong to the outer hit/field locator. Hashes bind
 /// sections to one source/preparation context; these are not cross-build IDs.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ts_rs::TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SourcePassageAddress {
@@ -78,6 +80,7 @@ mod tests {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS)]
 #[ts(rename = "EmbeddedContentLocator")]
 pub struct OwnedContentLocator {
@@ -85,6 +88,7 @@ pub struct OwnedContentLocator {
     pub identity: OwnedContentIdentity,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS)]
 #[ts(rename = "EmbeddedContentIdentity")]
 pub enum OwnedContentIdentity {

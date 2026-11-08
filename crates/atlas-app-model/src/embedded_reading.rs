@@ -3,6 +3,7 @@ use crate::{PreparedContentFieldView, RecordNavigationView, RecordRelationshipVi
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EmbeddedReadingRequest {
     pub parent: RecordNavigationView,
@@ -10,6 +11,7 @@ pub struct EmbeddedReadingRequest {
     pub selection: EmbeddedReadingSelection,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EmbeddedReadingSelection {
@@ -28,12 +30,14 @@ pub enum EmbeddedReadingSelection {
     },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EmbeddedReadingCursor {
     pub artifact_generation: String,
     pub offset: usize,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EmbeddedReadingBatchView {
     pub artifact_generation: String,
@@ -47,6 +51,7 @@ pub struct EmbeddedReadingBatchView {
     pub entries: Vec<EmbeddedReadingEntryView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EmbeddedReadingEntryView {
     pub navigation: RecordNavigationView,

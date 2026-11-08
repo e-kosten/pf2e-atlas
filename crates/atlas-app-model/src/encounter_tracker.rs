@@ -3,6 +3,7 @@ use crate::ConditionDurationView;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterManualTrackerView {
     pub tracker_key: String,
@@ -12,6 +13,7 @@ pub struct EncounterManualTrackerView {
     pub timing_label: String,
     pub timing_available: bool,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EncounterManualTrackerAction {
@@ -31,6 +33,7 @@ pub enum EncounterManualTrackerAction {
         tracker_key: String,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateEncounterManualTrackerRequest {

@@ -3,22 +3,27 @@ use crate::{FactView, IwrEntryView, NumberFactView, RecordNavigationView};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ReferenceGrantView {
     pub name: FactView<String>,
     pub target: FactView<String>,
     pub level: NumberFactView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub navigation: Option<RecordNavigationView>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct AttributeChoiceView {
     pub free_choice: bool,
     pub choices: FactView<Vec<crate::ReferenceValueView>>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct HeritageReferenceView {
     pub ancestry: FactView<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct AncestryReferenceView {
     pub hit_points: NumberFactView,
@@ -36,6 +41,7 @@ pub struct AncestryReferenceView {
     pub additional_language_details: FactView<String>,
     pub grants: FactView<Vec<ReferenceGrantView>>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ClassReferenceView {
     pub hit_points: NumberFactView,
@@ -64,11 +70,13 @@ pub struct ClassReferenceView {
     pub skill_feat_levels: FactView<Vec<u8>>,
     pub skill_increase_levels: FactView<Vec<u8>>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DeitySanctificationView {
     pub requirement: FactView<String>,
     pub choices: FactView<Vec<String>>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DeityReferenceView {
     pub attributes: FactView<Vec<crate::ReferenceValueView>>,
@@ -80,6 +88,7 @@ pub struct DeityReferenceView {
     pub favored_weapons: FactView<Vec<String>>,
     pub spells: FactView<Vec<ReferenceGrantView>>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ObjectDefensesReferenceView {
     pub armor_class: NumberFactView,
@@ -89,6 +98,7 @@ pub struct ObjectDefensesReferenceView {
     pub weaknesses: FactView<Vec<IwrEntryView>>,
     pub resistances: FactView<Vec<IwrEntryView>>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct VehicleReferenceView {
     pub crew: FactView<String>,
@@ -105,6 +115,7 @@ pub struct VehicleReferenceView {
     pub fortitude: NumberFactView,
     pub defenses: ObjectDefensesReferenceView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ArmyReferenceView {
     pub army_type: FactView<String>,

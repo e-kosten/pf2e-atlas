@@ -6,16 +6,19 @@ use ts_rs::TS;
 pub const SIMILARITY_RECIPE: &str = "selected-content-similarity/v1";
 pub const SIMILARITY_ROLE_RECIPE: &str = "typed-content-correspondence/v1";
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilaritySeed {
     Record { record_key: RecordKey },
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(transparent)]
 pub struct SimilarityPartSelector(pub String);
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SimilarityCandidateParts {
@@ -24,6 +27,7 @@ pub enum SimilarityCandidateParts {
     Corresponding,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SimilarityRole {
@@ -64,6 +68,7 @@ pub fn default_similarity_decay() -> f64 {
     0.5
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "method", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum SimilarityOptions {
@@ -123,6 +128,7 @@ impl SimilarityOptions {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SimilarityPart {
     pub selector: SimilarityPartSelector,
@@ -136,6 +142,7 @@ pub struct SimilarityPart {
     pub label_only: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SimilarityParts {
     pub seed: SimilaritySeed,

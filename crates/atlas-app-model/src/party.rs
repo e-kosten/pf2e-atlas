@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PartyMemberView {
     pub member_key: String,
@@ -10,6 +11,7 @@ pub struct PartyMemberView {
     pub level: Option<i64>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PartyView {
     pub party_key: String,
@@ -19,11 +21,13 @@ pub struct PartyView {
     pub members: Vec<PartyMemberView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PartyIndexView {
     pub parties: Vec<PartyView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PartyMemberInput {
     #[serde(default)]
@@ -35,12 +39,14 @@ pub struct PartyMemberInput {
     pub level: Option<i64>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct CreatePartyRequest {
     pub name: String,
     pub members: Vec<PartyMemberInput>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct UpdatePartyRequest {
     #[ts(type = "number")]
@@ -49,17 +55,20 @@ pub struct UpdatePartyRequest {
     pub members: Vec<PartyMemberInput>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DeletePartyRequest {
     #[ts(type = "number")]
     pub expected_revision: i64,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PartyMutationView {
     pub party_key: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct AddEncounterPartyRequest {
     pub party_key: String,

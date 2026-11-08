@@ -1,3 +1,4 @@
+#[cfg(feature = "embedded-ui")]
 use super::assets::WebAssets;
 use super::router::router_with_state;
 use super::service::{AtlasWebState, call_service};
@@ -39,6 +40,62 @@ fn browser_contract_covers_generated_similarity_wire_types() {
                 || path.starts_with(root.join("crates/atlas-app-model/bindings"))
         }),
         "implementation sources must not define browser wire compatibility"
+    );
+}
+
+#[test]
+fn pilot_schema_preserves_search_and_record_contract_edges() {
+    let document = serde_json::to_value(crate::openapi()).unwrap();
+    let schemas = &document["components"]["schemas"];
+    for variant in schemas["SearchCriteria"]["oneOf"].as_array().unwrap() {
+        assert_eq!(variant["additionalProperties"], false);
+    }
+    assert_eq!(schemas["QueryPredicate"]["unevaluatedProperties"], false);
+    let predicate = json!({"kind": "boolean_constant", "value": true, "clause_id": "fixture"});
+    assert!(serde_json::from_value::<atlas_domain::QueryPredicate>(predicate.clone()).is_ok());
+    let mut invalid = predicate;
+    invalid["extra"] = json!(true);
+    assert!(serde_json::from_value::<atlas_domain::QueryPredicate>(invalid).is_err());
+
+    let fact = serde_json::to_value(atlas_app_model::FactView::<String> {
+        state: atlas_domain::QueryFieldState::Missing,
+        value: None,
+    })
+    .unwrap();
+    assert_eq!(fact, json!({"state": "missing", "value": null}));
+    let fact_schema = &schemas["FactView_String"];
+    assert!(
+        fact_schema["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("value"))
+    );
+    assert!(
+        fact_schema["properties"]["value"]["anyOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|variant| variant["type"] == "null")
+    );
+
+    assert_eq!(
+        schemas["CompatibilityConflict"]["additionalProperties"],
+        false
+    );
+    assert!(
+        schemas["AppError"]["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("code"))
+    );
+    let delete = &document["paths"]["/api/lists/{list_ref}/items"]["delete"];
+    assert_eq!(
+        delete["requestBody"]["content"]["application/json"]["schema"]["$ref"],
+        "#/components/schemas/RemoveSavedListItemRequest"
+    );
+    assert_eq!(
+        delete["responses"]["409"]["content"]["application/json"]["schema"]["$ref"],
+        "#/components/schemas/ConflictResponse"
     );
 }
 
@@ -261,6 +318,7 @@ async fn readiness_route_returns_service_readiness() {
     assert_eq!(body["search_profiles"][0]["usable"], false);
 }
 
+#[cfg(feature = "embedded-ui")]
 #[tokio::test]
 async fn root_serves_embedded_frontend_index() {
     let fixture = Fixture::without_reference();
@@ -291,6 +349,7 @@ async fn root_serves_embedded_frontend_index() {
     assert!(body.contains("<div id=\"root\"></div>"));
 }
 
+#[cfg(feature = "embedded-ui")]
 #[tokio::test]
 async fn frontend_routes_fall_back_to_index_but_missing_resources_do_not() {
     let fixture = Fixture::without_reference();
@@ -328,6 +387,7 @@ async fn frontend_routes_fall_back_to_index_but_missing_resources_do_not() {
     }
 }
 
+#[cfg(feature = "embedded-ui")]
 #[tokio::test]
 async fn embedded_frontend_assets_get_long_cache_headers() {
     let fixture = Fixture::without_reference();

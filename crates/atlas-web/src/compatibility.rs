@@ -10,6 +10,12 @@ use axum::{
 pub(crate) const HEADER: &str = "x-atlas-api-contract";
 pub(crate) const CONTRACT: &str = env!("ATLAS_API_CONTRACT");
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CompatibilityConflict {
+    message: &'static str,
+}
+
 pub(crate) async fn handshake() -> impl IntoResponse {
     Json(serde_json::json!({ "api_contract": CONTRACT }))
 }
@@ -23,9 +29,9 @@ pub(crate) async fn check(request: Request, next: Next) -> Response {
         .get(HEADER)
         .is_some_and(|expected| expected.as_bytes() != CONTRACT.as_bytes());
     let mut response = if mismatch {
-        (StatusCode::CONFLICT, Json(serde_json::json!({
-            "message": "Atlas frontend and backend versions differ. Reload the page or restart a matching backend."
-        }))).into_response()
+        (StatusCode::CONFLICT, Json(CompatibilityConflict {
+            message: "Atlas frontend and backend versions differ. Reload the page or restart a matching backend.",
+        })).into_response()
     } else {
         next.run(request).await
     };

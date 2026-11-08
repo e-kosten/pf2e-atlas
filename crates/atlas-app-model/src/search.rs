@@ -2,6 +2,7 @@ use crate::{RecordNavigationView, RecordSummaryView};
 use atlas_domain::QueryPredicate;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum RetrievalModeView {
@@ -9,11 +10,13 @@ pub enum RetrievalModeView {
     Semantic,
     Hybrid,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SearchPageRequest {
     pub number: u32,
     pub size: u32,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SearchPageView {
     pub number: u32,
@@ -21,8 +24,10 @@ pub struct SearchPageView {
     pub count: usize,
     pub total: u64,
     pub has_more: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub next_page: Option<u32>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct SearchResultsRequest {
@@ -42,6 +47,7 @@ pub struct SearchResultsRequest {
     pub expected_artifact_generation: Option<String>,
 }
 /// Static parent eligibility. Text, Similar admission, ranking and paging are absent.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct StaticSearchContext {
@@ -54,13 +60,16 @@ pub struct StaticSearchContext {
     pub connection_scope: Option<Box<SearchConnectionScope>>,
     pub expected_artifact_generation: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct SearchConnectionScope {
+    #[cfg_attr(feature = "openapi", schema(no_recursion))]
     pub parent: Box<StaticSearchContext>,
     pub direction: atlas_domain::QueryRelationshipDirection,
     pub include_contents: bool,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConnectionScopeView {
@@ -69,12 +78,14 @@ pub enum ConnectionScopeView {
         reason: ConnectionScopeUnavailableReason,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectionScopeUnavailableReason {
     NonConjunctiveContext,
     IncompleteDraft,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SearchCriteria {
@@ -108,6 +119,7 @@ pub enum SearchCriteria {
         search_content: Option<atlas_domain::SearchContentScope>,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SearchModeSummary {
@@ -124,17 +136,21 @@ pub enum SearchModeSummary {
         mode: RetrievalModeView,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub connection_scope: Option<ConnectionScopeView>,
     pub search_content: atlas_domain::SearchContentScope,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub core_recipe: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub similarity: Option<crate::SimilarityConfigurationView>,
     pub sort: atlas_domain::ResultSort,
     pub relationship_clauses: Vec<RelationshipClauseSummaryView>,
@@ -144,12 +160,15 @@ pub struct SearchResultsPage {
     pub mode: SearchModeSummary,
     pub page: SearchPageView,
     pub rows: Vec<SearchResultRow>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub coverage: Option<SearchCoverageView>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultRow {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub similarity: Option<crate::SimilarityEvidenceView>,
     pub relationship_evidence: Vec<RelationshipEvidenceView>,
     pub record: RecordSummaryView,
@@ -157,37 +176,49 @@ pub struct SearchResultRow {
     /// Display destinations coalesced across retrieval lanes; raw witnesses remain above.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub matching_sections: Option<Vec<SearchMatchSectionView>>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchMatchSectionView {
     pub navigation: RecordNavigationView,
     pub label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub snippet: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchWitnessView {
     pub navigation: RecordNavigationView,
     pub lane: SearchLaneView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub label: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub snippet: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub lexical_rank: Option<f64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub semantic_similarity: Option<f64>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SearchLaneView {
     Lexical,
     Semantic,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchCoverageView {
     pub exhaustive: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub semantic_unit_window: Option<usize>,
     pub candidate_roots: usize,
     pub count_basis: String,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipClauseSummaryView {
     pub clause_id: String,
@@ -195,6 +226,7 @@ pub struct RelationshipClauseSummaryView {
     pub record: RecordSummaryView,
     pub title: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum RelationshipClausePresentationView {
@@ -210,12 +242,14 @@ pub enum RelationshipClausePresentationView {
         message: String,
     },
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipEvidenceView {
     pub clause_id: String,
     pub occurrences: Vec<crate::RecordRelationshipView>,
     pub page: SearchPageView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipOccurrencesRequest {
     pub filter: QueryPredicate,
@@ -224,6 +258,7 @@ pub struct RelationshipOccurrencesRequest {
     pub page: SearchPageRequest,
     pub expected_artifact_generation: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipOccurrencesPage {
     pub artifact_generation: String,

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum RollMode {
@@ -9,6 +10,7 @@ pub enum RollMode {
     Misfortune,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct InitiativeStatisticView {
     pub key: String,
@@ -16,6 +18,7 @@ pub struct InitiativeStatisticView {
     pub modifier: i32,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct InitiativeParticipantOptionsView {
     pub participant_key: String,
@@ -23,6 +26,7 @@ pub struct InitiativeParticipantOptionsView {
     pub statistics: Vec<InitiativeStatisticView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct InitiativeOptionsView {
     pub artifact_generation: Option<String>,
@@ -31,6 +35,7 @@ pub struct InitiativeOptionsView {
     pub participants: Vec<InitiativeParticipantOptionsView>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct InitiativeParticipantRequest {
     pub participant_key: String,
@@ -40,6 +45,7 @@ pub struct InitiativeParticipantRequest {
     pub mode: RollMode,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RollInitiativeRequest {
     pub artifact_generation: Option<String>,
@@ -48,6 +54,7 @@ pub struct RollInitiativeRequest {
     pub participants: Vec<InitiativeParticipantRequest>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ParticipantRollView {
     pub participant_key: String,
@@ -56,6 +63,7 @@ pub struct ParticipantRollView {
     pub outcome: atlas_dice::RollOutcome,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct InitiativeRollView {
     pub request_id: String,
@@ -64,11 +72,13 @@ pub struct InitiativeRollView {
 }
 
 /// A reference flat check. It does not commit an encounter action or resource.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct RollFlatCheckRequest {
     pub dc: i64,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct FlatCheckRollView {
     pub dc: i64,

@@ -7,6 +7,7 @@ use atlas_domain::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct SimilarityPartsRequest {
@@ -16,6 +17,7 @@ pub struct SimilarityPartsRequest {
     pub expected_artifact_generation: Option<String>,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityPartsView {
     pub artifact_generation: String,
@@ -27,13 +29,17 @@ pub struct SimilarityPartsView {
     pub supports_corresponding_parts: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityConfigurationView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_sections: Option<SimilaritySourceSections>,
     pub search_content: SearchContentScope,
     pub candidate_identity: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub core_recipe: Option<String>,
     pub resolved_selectors: Vec<SimilarityPartSelector>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub core: Option<CoreSectionSelection>,
     pub options: SimilarityOptions,
     pub recipe: String,
@@ -41,6 +47,7 @@ pub struct SimilarityConfigurationView {
     pub diagnostics: SimilarityDiagnosticsView,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityDiagnosticsView {
     pub seed_units: usize,
@@ -50,10 +57,12 @@ pub struct SimilarityDiagnosticsView {
     pub undefined_candidate_centroids: usize,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityPartView {
     /// Record source navigation; passage selects the full section when metadata
     /// provides its canonical address, otherwise the containing field is selected.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub navigation: Option<crate::RecordNavigationView>,
     pub selector: SimilarityPartSelector,
     pub label: String,
@@ -67,10 +76,12 @@ pub struct SimilarityPartView {
     pub label_only: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilarityComponentView {
     Identity {
+        #[cfg_attr(feature = "openapi", schema(required))]
         navigation: Option<crate::RecordNavigationView>,
         selector: SimilarityPartSelector,
         label: String,
@@ -122,6 +133,7 @@ impl SimilarityComponentView {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityEvidenceView {
     pub truncated: bool,
@@ -135,6 +147,7 @@ pub struct SimilarityEvidenceView {
     pub representative: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityPartScoreView {
     pub part: SimilarityComponentView,
@@ -143,6 +156,7 @@ pub struct SimilarityPartScoreView {
     pub comparable: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityRoleScoreView {
     pub key: SimilarityComparisonKey,
@@ -152,9 +166,11 @@ pub struct SimilarityRoleScoreView {
     pub comparable: bool,
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SimilarityPairView {
     pub seed_part: SimilarityPartSelector,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub seed: Option<crate::SearchWitnessView>,
     pub seed_text: String,
     pub candidate: crate::SearchWitnessView,

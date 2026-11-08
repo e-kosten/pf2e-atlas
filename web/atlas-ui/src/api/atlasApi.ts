@@ -1,3 +1,4 @@
+import * as http from "../generated/http";
 import type {
   SavedListItemNoteView,
   UpdateSavedListItemNoteRequest,
@@ -5,7 +6,6 @@ import type {
   AddEncounterParticipantConditionRequest,
   AddEncounterRecordParticipantRequest,
   AddSavedListItemRequest,
-  AppError,
   AppReadinessView,
   CreateEncounterRequest,
   CreateSavedListRequest,
@@ -45,14 +45,9 @@ import type {
   UpdateEncounterRequest,
   UpdateSavedListRequest,
 } from "../generated/atlas";
-import {
-  API_CONTRACT,
-  API_CONTRACT_HEADER,
-  checkResponseCompatibility,
-  clearCompatibilityFailure,
-  getCompatibilityFailure,
-} from "./compatibility";
-import { AtlasConnectionError } from "./availability";
+import { clearCompatibilityFailure } from "./compatibility";
+import { atlasFetch, isRecord, type AtlasRequestInit } from "./atlasTransport";
+export type { AtlasRequestInit } from "./atlasTransport";
 import { AtlasApiError } from "./apiError";
 import { toBigInt, type Wire } from "./wire";
 import { convertSearchPage } from "./pageConversion";
@@ -67,8 +62,6 @@ import {
   convertPreparedFieldBody,
 } from "./presentationConversion";
 export { AtlasApiError } from "./apiError";
-
-const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
 
 export async function verifyBackendCompatibility(): Promise<true> {
   await atlasFetch("/api/compatibility", { cache: "no-store" });
@@ -110,12 +103,7 @@ export async function searchPage(
   request: SearchResultsRequest,
   signal?: AbortSignal,
 ): Promise<SearchResultsPage> {
-  const page = await atlasFetch<unknown>("/api/search/page", {
-    signal,
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  const page = await http.searchPage(toWire(request), { signal, intent: "read" });
   return normalizeSearchResultsPage(page);
 }
 
@@ -163,11 +151,9 @@ export async function getRecordDetail(
         body: jsonBody(selection),
         signal,
       })
-    : atlasFetch<Wire<RecordDetailView>>(
-        `/api/records/${encodeURIComponent(recordKey)}`,
-        { signal },
-      ));
-  return convertRecordDetail(detail);
+    : http.getRecordDetail(recordKey, { signal }));
+  // Keep the existing presentation conversions until their types migrate to the schema.
+  return convertRecordDetail(detail as Wire<RecordDetailView>);
 }
 export async function getEmbeddedReading(
   request: EmbeddedReadingRequest,
@@ -898,10 +884,8 @@ export async function addSavedListItem(
 export async function removeSavedListItem(
   request: RemoveSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/items`, {
+  return http.removeSavedListItem(request.list_ref, toWire(request), {
     intent: "action",
-    method: "DELETE",
-    body: jsonBody(request),
   });
 }
 
@@ -912,89 +896,6 @@ export async function reorderSavedListItem(
     `/api/lists/${encodeURIComponent(request.list_ref)}/items/reorder`,
     { intent: "action", method: "POST", body: jsonBody(request) },
   );
-}
-
-// Non-GET callers must choose failure semantics. Actions include transient dice
-// commands as well as saved mutations; intent never grants automatic retry.
-export type AtlasRequestInit = Omit<RequestInit, "method"> &
-  (
-    | { method?: "GET"; intent?: "read" }
-    | { method: "POST" | "PATCH" | "DELETE"; intent: "read" | "action" }
-  );
-
-async function atlasFetch<T>(path: string, init: AtlasRequestInit = {}): Promise<T> {
-  const failure = getCompatibilityFailure();
-  if (failure && path !== "/api/compatibility") throw failure;
-  const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
-  headers.set(API_CONTRACT_HEADER, API_CONTRACT);
-  const { intent, ...request } = init;
-  const write = intent === "action";
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, { ...request, headers });
-  } catch (cause) {
-    if (
-      init.signal?.aborted ||
-      (cause instanceof DOMException && cause.name === "AbortError")
-    )
-      throw cause;
-    throw new AtlasConnectionError(write, cause);
-  }
-  // Preserve genuine proxy/service failures while rejecting old successful APIs
-  // before attempting to interpret their DTOs. Old servers return 404 here.
-  if (
-    response.headers.has(API_CONTRACT_HEADER) ||
-    response.ok ||
-    response.status === 409 ||
-    (path === "/api/compatibility" && response.status === 404)
-  ) {
-    checkResponseCompatibility(response);
-  }
-  let text: string;
-  try {
-    text = await response.text();
-  } catch (cause) {
-    if (init.signal?.aborted) throw cause;
-    throw new AtlasConnectionError(write, cause);
-  }
-  const parsed = parseJsonResponse(text);
-  const payload = parsed.ok ? parsed.value : undefined;
-
-  if (!response.ok) {
-    const appError = isAppError(payload) ? payload : undefined;
-    if (!appError && [502, 503, 504].includes(response.status))
-      throw new AtlasConnectionError(write, new Error(`HTTP ${response.status}`));
-    throw new AtlasApiError(
-      response.status,
-      appError?.message ?? fallbackErrorMessage(response, text, parsed),
-      appError,
-    );
-  }
-
-  if (!parsed.ok) {
-    throw new AtlasApiError(
-      response.status,
-      fallbackErrorMessage(response, text, parsed),
-    );
-  }
-
-  validateResponseNumbers(payload);
-  return payload as T;
-}
-
-function validateResponseNumbers(value: unknown): void {
-  if (
-    typeof value === "number" &&
-    (!Number.isFinite(value) ||
-      (Number.isInteger(value) && !Number.isSafeInteger(value)))
-  )
-    throw new AtlasApiError(
-      200,
-      "Invalid numeric field: response exceeds JSON safe numeric range",
-    );
-  if (Array.isArray(value)) value.forEach(validateResponseNumbers);
-  else if (isRecord(value)) Object.values(value).forEach(validateResponseNumbers);
 }
 
 async function atlasFetchEncounter<T>(
@@ -1137,17 +1038,8 @@ async function atlasFetchEncounter<T>(
   return result as T;
 }
 
-function parseJsonResponse(
-  text: string,
-): { ok: true; value: unknown } | { ok: false; error?: unknown } {
-  if (text.length === 0) {
-    return { ok: true, value: undefined };
-  }
-  try {
-    return { ok: true, value: JSON.parse(text) };
-  } catch (error) {
-    return { ok: false, error };
-  }
+function toWire<T>(value: T): Wire<T> {
+  return JSON.parse(jsonBody(value)) as Wire<T>;
 }
 
 function jsonBody(value: unknown): string {
@@ -1176,20 +1068,6 @@ function jsonBody(value: unknown): string {
     }
     return Number(nestedValue);
   });
-}
-
-function fallbackErrorMessage(
-  response: Response,
-  text: string,
-  parsed: { ok: true; value: unknown } | { ok: false; error?: unknown },
-): string {
-  if (!parsed.ok && text.trim().length > 0) {
-    return text;
-  }
-  if (!parsed.ok) {
-    return "Invalid JSON response";
-  }
-  return response.statusText || `HTTP ${response.status}`;
 }
 
 function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
@@ -1264,16 +1142,6 @@ function checkedSavedListDetail(value: unknown): SavedListDetailView {
   if (!isRecord(value) || !Array.isArray(value.items))
     throw new AtlasApiError(200, "Invalid saved-list response");
   return value as SavedListDetailView;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isAppError(value: unknown): value is AppError {
-  return (
-    typeof value === "object" && value !== null && "code" in value && "message" in value
-  );
 }
 
 export async function getRelatedRecords(

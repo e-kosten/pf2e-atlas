@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PackName(String);
 
@@ -43,6 +44,7 @@ impl<'de> Deserialize<'de> for PackName {
     }
 }
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RecordId(String);
 
@@ -88,6 +90,14 @@ impl<'de> Deserialize<'de> for RecordId {
 pub struct RecordKey {
     pack: PackName,
     id: RecordId,
+}
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for RecordKey {}
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for RecordKey {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        <String as utoipa::PartialSchema>::schema()
+    }
 }
 
 impl RecordKey {

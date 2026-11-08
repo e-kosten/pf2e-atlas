@@ -124,6 +124,7 @@ pub(crate) async fn add_saved_list_item(
     ))
 }
 
+#[utoipa::path(delete, path = "/api/lists/{list_ref}/items", operation_id = "removeSavedListItem", params(("list_ref" = String, Path)), request_body = RemoveSavedListItemRequest, responses((status = 200, description = "Saved list item removed", body = atlas_app_model::SavedListItemMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn remove_saved_list_item(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,
@@ -452,6 +453,7 @@ pub(crate) async fn discover_filter_values(
     ))
 }
 
+#[utoipa::path(post, path = "/api/search/page", operation_id = "searchPage", request_body = SearchResultsRequest, responses((status = 200, description = "Search results", body = atlas_app_model::SearchResultsPage), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn search_page(
     State(state): State<AtlasWebState>,
     payload: Result<Json<SearchResultsRequest>, JsonRejection>,
@@ -480,6 +482,7 @@ pub(crate) async fn similarity_parts(
     ))
 }
 
+#[utoipa::path(get, path = "/api/records/{record_key}", operation_id = "getRecordDetail", params(("record_key" = String, Path)), responses((status = 200, description = "Record detail", body = atlas_app_model::RecordDetailView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn record_detail(
     State(state): State<AtlasWebState>,
     Path(record_key): Path<String>,

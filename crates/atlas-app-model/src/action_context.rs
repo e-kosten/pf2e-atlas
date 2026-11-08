@@ -3,6 +3,7 @@ use crate::RecordNavigationView;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterActionFactView {
@@ -18,12 +19,14 @@ pub enum EncounterActionFactView {
     VoluntaryIngestion,
     FollowsControllerInstructions,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct EncounterCastingRemindersRequest {
     pub participant_key: String,
     pub selection: RecordNavigationView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterActionIssueKindView {
@@ -33,6 +36,7 @@ pub enum EncounterActionIssueKindView {
     NeedsContext,
     NeedsConfusion,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterActionIssueView {
     pub subject: Option<crate::ConditionSubjectView>,
@@ -45,17 +49,20 @@ pub struct EncounterActionIssueView {
     pub fact: Option<EncounterActionFactView>,
     pub reason: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterActionCheckSourceView {
     pub source_key: String,
     pub condition_id: Option<i64>,
     pub name: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterActionCheckView {
     pub dc: i64,
     pub sources: Vec<EncounterActionCheckSourceView>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterCastingRemindersView {
     pub advisories: Vec<crate::RuntimeEffectNoteView>,

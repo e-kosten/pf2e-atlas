@@ -3,12 +3,14 @@ use crate::{RecordNavigationView, RecordSummaryView, SearchPageRequest, SearchPa
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct TraitDetailRequest {
     pub trait_key: String,
     pub expected_artifact_generation: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TraitDetailView {
     pub artifact_generation: String,
@@ -19,12 +21,14 @@ pub struct TraitDetailView {
     pub source_revision: Option<String>,
     pub indexing_locale: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum TraitAssociationKind {
     Members,
     References,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct TraitRecordsRequest {
@@ -33,6 +37,7 @@ pub struct TraitRecordsRequest {
     pub page: SearchPageRequest,
     pub expected_artifact_generation: String,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TraitRecordView {
     pub source_label: Option<String>,
@@ -42,6 +47,7 @@ pub struct TraitRecordView {
     pub record: RecordSummaryView,
     pub navigation: RecordNavigationView,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TraitRecordsPage {
     pub artifact_generation: String,

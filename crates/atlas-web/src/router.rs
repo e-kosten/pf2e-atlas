@@ -2,6 +2,7 @@ use atlas_app_service::AtlasAppService;
 use axum::Router;
 use axum::routing::{get, post};
 
+#[cfg(feature = "embedded-ui")]
 use crate::assets::{root, static_asset};
 use crate::handlers::update_turn_resources;
 use crate::handlers::{
@@ -9,21 +10,74 @@ use crate::handlers::{
     add_encounter_record_participant, add_saved_list_item, advance_encounter_turn,
     create_encounter, create_saved_list, delete_encounter, delete_saved_list,
     discover_filter_editor, discover_filter_values, encounter, encounter_condition_definitions,
-    encounter_turn_review, encounters, filter_saved_list, readiness, record_detail,
-    remove_encounter_participant, remove_encounter_participant_condition, remove_saved_list_item,
-    reorder_encounter_participant, reorder_saved_list_item, saved_list, saved_list_item_note,
-    saved_lists, search_page, set_encounter_turn, update_encounter, update_encounter_participant,
-    update_encounter_participant_condition, update_saved_list, update_saved_list_item_note,
+    encounter_turn_review, encounters, filter_saved_list, readiness, remove_encounter_participant,
+    remove_encounter_participant_condition, reorder_encounter_participant, reorder_saved_list_item,
+    saved_list, saved_list_item_note, saved_lists, set_encounter_turn, update_encounter,
+    update_encounter_participant, update_encounter_participant_condition, update_saved_list,
+    update_saved_list_item_note,
 };
 use crate::service::AtlasWebState;
+use utoipa::OpenApi;
+use utoipa_axum::{router::OpenApiRouter, routes};
+
+#[derive(OpenApi)]
+#[openapi(components(schemas(
+    atlas_app_model::CastingEntryContextView,
+    atlas_app_model::StaticSearchContext,
+    atlas_domain::QueryExpression
+)))]
+struct OpenApiComponents;
+
+fn documented_routes() -> OpenApiRouter<AtlasWebState> {
+    OpenApiRouter::with_openapi(OpenApiComponents::openapi())
+        .routes(routes!(crate::handlers::search_page))
+        .routes(routes!(crate::handlers::record_detail))
+        .routes(routes!(crate::handlers::remove_saved_list_item))
+}
+
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    use utoipa::openapi::{
+        RefOr,
+        schema::{AdditionalProperties, Schema},
+    };
+
+    let mut document = documented_routes().into_openapi();
+    let schemas = &mut document
+        .components
+        .as_mut()
+        .expect("documented routes supply schemas")
+        .schemas;
+    // Utoipa applies serde's deny_unknown_fields to structs but not tagged enum branches.
+    let Some(RefOr::T(Schema::OneOf(criteria))) = schemas.get_mut("SearchCriteria") else {
+        unreachable!("SearchCriteria must remain a tagged union");
+    };
+    for variant in &mut criteria.items {
+        let RefOr::T(Schema::Object(variant)) = variant else {
+            unreachable!("search criteria variants must remain objects");
+        };
+        variant.additional_properties = Some(Box::new(AdditionalProperties::FreeForm(false)));
+    }
+
+    // QueryPredicate flattens a tagged expression alongside clause_id. Closing
+    // each expression branch would reject the valid clause_id field.
+    let Some(RefOr::T(Schema::AllOf(predicate))) = schemas.get_mut("QueryPredicate") else {
+        unreachable!("QueryPredicate must remain a flattened object");
+    };
+    predicate
+        .extensions
+        .get_or_insert_default()
+        .insert("unevaluatedProperties".into(), false.into());
+    document
+}
 
 pub fn router(service: AtlasAppService) -> Router {
     router_with_state(AtlasWebState::new(service))
 }
 
 pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
-    Router::new()
-        .route("/", get(root))
+    let (documented, _) = documented_routes().split_for_parts();
+    let router = Router::new()
+        .merge(documented)
         .route("/api/compatibility", get(crate::compatibility::handshake))
         .route("/api/readiness", get(readiness))
         .route("/api/parties", get(crate::parties::parties).post(crate::parties::create_party))
@@ -123,17 +177,15 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/lists/{list_ref}/filter", post(filter_saved_list))
         .route(
             "/api/lists/{list_ref}/items",
-            post(add_saved_list_item).delete(remove_saved_list_item),
+            post(add_saved_list_item),
         )
         .route("/api/lists/{list_ref}/items/reorder", post(reorder_saved_list_item))
         .route("/api/filters/editor", post(discover_filter_editor))
         .route("/api/filters/values", post(discover_filter_values))
         .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))
         .route("/api/filters/validate", post(crate::handlers::validate_filter))
-        .route("/api/search/page", post(search_page))
         .route("/api/search/similarity/parts", post(crate::handlers::similarity_parts))
         .route("/api/search/relationship-occurrences", post(crate::handlers::relationship_occurrences))
-        .route("/api/records/{record_key}", get(record_detail))
         .route("/api/encounters/{encounter_ref}/strike-options", post(crate::handlers::encounter_strike_options))
         .route("/api/encounters/{encounter_ref}/strike-rolls", post(crate::handlers::roll_encounter_strike))
         .route("/api/rolls/content", post(crate::handlers::roll_content))
@@ -141,7 +193,10 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/rolls/table", post(crate::handlers::roll_table))
         .route("/api/records/detail", post(crate::handlers::record_detail_at))
         .route("/api/records/embedded-reading", post(crate::handlers::embedded_reading))
-        .fallback(get(static_asset))
+        ;
+    #[cfg(feature = "embedded-ui")]
+    let router = router.route("/", get(root)).fallback(get(static_asset));
+    router
         .layer(axum::middleware::from_fn(crate::compatibility::check))
         .with_state(state)
 }
