@@ -57,3 +57,10 @@ Foundry compiler research runs through the separate private
 [TypeScript package](../../dev-tools/source-contracts/README.md), with npm entry points.
 Rust developer commands do not launch TypeScript tools. Neither developer
 surface is included in published product bundles; atlas-dev is built locally.
+
+
+## Validate authored tags
+
+Run `atlas-dev tags validate` from the repository root to validate the catalog,
+assignments and ontology suggestions under `data/tags`. Use `--path` for a
+different corpus root and `--json` for the validation report.

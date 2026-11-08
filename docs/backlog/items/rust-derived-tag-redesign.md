@@ -34,7 +34,7 @@ include format, grouping, subjects, storage, reviewer policy and publication.
 
 ## Existing capability and boundaries
 
-`atlas-tags` and `atlas tags validate` implement file types, strict parsing and
+`atlas-tags` and `atlas-dev tags validate` implement file types, strict parsing and
 structural corpus validation. They do not establish record existence, evidence
 truth, semantic applicability or classification coverage. Product runtime tag
 filtering is unimplemented. Existing file contracts stay unchanged by deferral.

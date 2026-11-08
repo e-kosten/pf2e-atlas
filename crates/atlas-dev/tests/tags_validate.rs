@@ -1,9 +1,14 @@
 use std::path::PathBuf;
 
-mod support;
+fn atlas_command() -> std::process::Command {
+    std::process::Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
+}
 
-use support::command::atlas_command;
-use support::json::parse_ok_data;
+fn parse_ok_data(output: &std::process::Output) -> Result<serde_json::Value, serde_json::Error> {
+    let envelope: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(envelope["status"], "ok");
+    Ok(envelope["data"].clone())
+}
 
 #[test]
 fn tags_validate_json_reports_valid_corpus_counts() -> Result<(), Box<dyn std::error::Error>> {

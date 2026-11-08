@@ -10,11 +10,15 @@ Historical storage/flag and similarity details below are superseded by
 [ADR0057](./0057-relationship-scoped-search.md). Current graph reads use attributed
 relationship occurrences; current Similar has no graph/trait reranking. Full
 relationship search uses first-class Boolean predicates rather than the historical
-search flags mentioned in this record. Bounded graph links/uses remain separate
+search flags mentioned in this record. Bounded graph links remain separate
 from complete relationship-scoped result pages. CLI graph occurrences pages checked
 positive search-clause evidence using the full predicate, clause/result identity
 and expected artifact generation; it does not turn bounded graph neighbors into
 search eligibility.
+
+The product CLI now uses `graph links` for backlinks, `record variants` for
+suggested variants and `record get` for remaster information. The command names
+below record the original design.
 
 ## Context
 

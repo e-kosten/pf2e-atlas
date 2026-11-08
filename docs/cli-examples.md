@@ -126,6 +126,16 @@ when several requirements must match the same ability, spell or other contained
 entry. See [collection expressions](#collection-expressions) for examples and
 [discovery details](#filter-discovery-details) for counts and scripting options.
 
+## Read definitions
+
+Discover trait tokens for filtering with `atlas filters values --field traits`.
+When a value has a definition key, copy it into `atlas record definition`.
+
+```bash
+atlas filters values --field traits --text deadly
+atlas record definition trait:deadly-d8
+```
+
 ## Follow references
 
 Find entries that reference a rule, inspect links, or look for other editions and
@@ -134,16 +144,16 @@ suggested variants:
 ```bash
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --backlinks 4 --json
 atlas graph links actionspf2e:1kGNdIIhuglAjIp9 --outgoing 0 --backlinks 8 --json
-atlas graph uses 'Frightened' --limit 5 --json
-atlas graph variants 'Dread Ampoule' --json
+atlas graph links 'Frightened' --outgoing 0 --backlinks 5 --json
+atlas record variants 'Dread Ampoule (Moderate)' --json
 ```
 
 `links` shows references made by an entry and, with `--backlinks`, references to
-it. `uses` finds entries referring to the chosen rule or record. Read the same compact relationship information shown in the record reader:
+it. Set `--outgoing 0` for a backlinks-only preview. Read remaster information in the record reader:
 
 ```bash
 atlas record get spells-srd:gKKqvLohtrSJj3BM
-atlas graph remaster bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O --json
+atlas record get bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O --json
 ```
 
 Record reads include former names or replacement links and useful changes-journal
@@ -180,8 +190,8 @@ and [occurrence paging](#search-json-and-occurrence-paging) for individual refer
 These list commands create or change saved state:
 
 ```bash
-atlas lists create undead-research --name 'Undead Research' --json
-atlas lists add undead-research 'Skeleton Guard' --json
+atlas lists create 'Undead Research' --slug undead-research --json
+atlas lists add undead-research --record 'Skeleton Guard' --json
 atlas lists show undead-research --json
 atlas lists export undead-research --output undead-research.json
 atlas lists import undead-research.json --id undead-copy --json
@@ -190,7 +200,7 @@ atlas lists import undead-research.json --id undead-copy --json
 The v2 export preserves saved item order, keys, notes, and snapshots. It can be
 written without loading reference records. Import accepts v2 files.
 
-Creation rejects an existing list ID; use `lists add` to extend it. Batches report
+Creation generates a unique slug from the name. Use `--slug` to choose a slug explicitly. An explicit collision fails. Use `lists add` to extend an existing list. Batches report
 added, already present and failed inputs. Valid entries are saved together; a failed
 input gives a nonzero exit. If every input fails resolution, a new list is empty.
 A storage failure rolls back the complete action.
@@ -217,6 +227,11 @@ atlas encounters add garden-sentries --record PACK:ID --quantity 2 --adjustment 
 atlas encounters list
 atlas encounters show garden-sentries --party-level 7 --party-size 4
 ```
+
+Use `encounters edit garden-sentries --note 'Starts behind cover'` to change
+encounter metadata. Copy a participant key from `encounters show` to remove
+that instance with `encounters remove garden-sentries --participant KEY`.
+Use `encounters delete garden-sentries` to delete the saved encounter.
 
 The party options preview difficulty and suggested XP per PC for the supplied
 party without saving those options to the encounter. Omit them to use the

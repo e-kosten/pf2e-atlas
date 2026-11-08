@@ -1,6 +1,6 @@
 use super::{filters::resolve_filter, product::app_result};
 use crate::client::{ClientOptions, connect};
-use atlas_app_service::{RawFilterCountsRequest, RawFilterValuesRequest};
+use atlas_app_service::{CliFilterValuesRequest, RawFilterCountsRequest};
 use atlas_cli_support::write_json_data;
 use atlas_domain::{QueryFieldDefinition, QueryFieldType};
 use std::process::ExitCode;
@@ -217,7 +217,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         None
     } else {
         let values = match app_result(
-            s.discover_raw_filter_values(RawFilterValuesRequest {
+            s.discover_cli_filter_values(CliFilterValuesRequest {
                 field: o.field,
                 context,
                 clause_id: o.clause_id,
@@ -239,9 +239,14 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         if let Some(values) = values {
             for v in &values.options {
                 println!(
-                    "{}\t{} records",
+                    "{}\t{} records{}",
                     serde_json::to_string(&v.value).map_err(|e| e.to_string())?,
-                    v.distinct_roots
+                    v.distinct_roots,
+                    v.help
+                        .as_ref()
+                        .and_then(|help| help.definition_key.as_ref())
+                        .map(|key| format!("\tRead with: atlas record definition {key}"))
+                        .unwrap_or_default()
                 );
             }
             println!(

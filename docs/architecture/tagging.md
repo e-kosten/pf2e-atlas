@@ -8,7 +8,7 @@ designs, vocabulary, evaluation and choices to revisit.
 ## Implemented surface
 
 `atlas-tags` owns file model types, strict YAML parsing, corpus merging and
-structural validation, exposed by `atlas tags validate`. Catalogs define valid tag
+structural validation, exposed by `atlas-dev tags validate`. Catalogs define valid tag
 IDs; assignments and ontology suggestions are checked against their file contracts.
 An assignment entry with an empty tag list records reviewed-empty; an absent entry
 does not. Supplied evidence is checked structurally, and may be empty.

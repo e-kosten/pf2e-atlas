@@ -16,7 +16,7 @@ pub(crate) enum TagsCommand {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas tags validate\n  atlas tags validate --path data/tags --json"
+    after_help = "Examples:\n  atlas-dev tags validate\n  atlas-dev tags validate --path data/tags --json"
 )]
 pub(crate) struct TagsValidateOptions {
     #[arg(

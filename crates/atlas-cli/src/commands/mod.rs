@@ -15,8 +15,5 @@ pub(crate) mod roll;
 pub(crate) mod search;
 pub(crate) mod setup;
 pub(crate) mod similar;
-pub(crate) mod tags;
 #[cfg(feature = "web")]
 pub(crate) mod web;
-
-pub(crate) mod traits;

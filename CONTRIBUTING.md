@@ -123,6 +123,7 @@ Read the applicable guide when the task reaches its scope:
 | Change documentation or contributor/agent instructions | [Documentation ownership](docs/development/documentation.md) |
 | Change module structure or perform a refactor | [Code guidelines](docs/development/code-guidelines.md) and [architecture overview](docs/architecture/overview.md) |
 | Change UI controls or projected user copy, including Rust text | [Product guidelines](docs/product-guidelines.md) and [frontend guide](web/atlas-ui/docs/frontend-guidelines.md) |
+| Add, move or change a CLI command | [CLI command design](docs/product-guidelines.md#cli-command-design) |
 
 The [architecture overview](docs/architecture/overview.md) owns crate navigation;
 read relevant architecture documents and ADRs before changing ownership,

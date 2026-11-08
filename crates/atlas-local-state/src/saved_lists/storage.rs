@@ -431,7 +431,7 @@ fn replace_tags(
     Ok(())
 }
 
-fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
+pub(super) fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
     connection
         .query_row(
             "SELECT 1 FROM saved_lists WHERE owner_id = 1 AND slug = ?1",

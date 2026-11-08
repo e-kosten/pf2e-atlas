@@ -20,6 +20,10 @@ pub(crate) enum RecordCommand {
         long_about = "Dump a product record's complete checked Foundry DTO and source path/hash from the artifact, including embedded documents and retained invalid/additional fields. The checked serialization includes presence/union tags; it is not original Foundry JSON. This command needs neither the source clone nor embedding models. For hash-verified original files, use atlas-dev index record --original."
     )]
     Source(RecordSourceOptions),
+    /// Read a trait or vocabulary definition by exact key.
+    Definition(super::definition::DefinitionOptions),
+    /// Show suggested variants with naming evidence.
+    Variants(VariantsOptions),
 }
 #[derive(Debug, Args)]
 #[command(
@@ -112,4 +116,19 @@ fn parse_owners(value: &str) -> Result<OwnerChainArgument, String> {
 }
 fn parse_passage(value: &str) -> Result<SourcePassageAddress, String> {
     serde_json::from_str(value).map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Args)]
+#[command(
+    after_help = "Examples:\n  atlas record variants \"Dread Ampoule (Moderate)\"\n  atlas record variants equipment-srd:IvFEJqp2MUew65nQ --json"
+)]
+pub(crate) struct VariantsOptions {
+    #[arg(help = "Seed record key or strict resolvable record name")]
+    pub(crate) record_ref: String,
+    #[arg(long, help = "Override the SQLite artifact path")]
+    pub(crate) index: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
+    pub(crate) path_mode: CliPathMode,
+    #[arg(long, help = "Emit the standard JSON envelope")]
+    pub(crate) json: bool,
 }

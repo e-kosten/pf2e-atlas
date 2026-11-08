@@ -188,6 +188,35 @@ impl AtlasAppService {
         })
     }
 
+    pub fn edit_encounter_metadata(
+        &self,
+        encounter_ref: &str,
+        name: Option<String>,
+        description: Option<Option<String>>,
+        note: Option<Option<String>>,
+    ) -> AppServiceResult<EncounterMutationView> {
+        self.with_write(move |session| {
+            let encounters = session.local_state().encounters();
+            let current = encounters
+                .get(encounter_ref)?
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+            let encounter = encounters
+                .update(LocalUpdateEncounter {
+                    encounter_key: current.encounter_key,
+                    round_duration_seconds: None,
+                    slug: current.slug,
+                    name: name.unwrap_or(current.name),
+                    description: description.unwrap_or(current.description),
+                    note: note.unwrap_or(current.note),
+                    status: current.status,
+                })?
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
+            Ok(EncounterMutationView {
+                encounter_key: encounter.encounter_key,
+            })
+        })
+    }
+
     pub fn update_encounter(
         &self,
         request: UpdateEncounterRequest,

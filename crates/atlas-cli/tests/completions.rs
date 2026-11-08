@@ -31,7 +31,7 @@ fn completions_register_live_bash_completion_and_offer_product_commands() {
         assert!(candidates.contains(&name));
     }
     assert_eq!(candidates.contains(&"web"), cfg!(feature = "web"));
-    assert!(candidates.contains(&"build-info"));
+    assert!(!candidates.contains(&"build-info"));
     for name in ["analyze", "audit-source-paths", "inspect"] {
         assert!(!candidates.contains(&name));
     }
@@ -61,5 +61,19 @@ fn search_and_source_scope_completions_offer_only_supported_values() {
             .map(|line| line.split(':').next().unwrap().to_owned())
             .collect::<Vec<_>>();
         assert_eq!(values, ["all", "core"], "{command} {flag}");
+    }
+}
+
+#[test]
+fn generated_completion_scripts_delegate_to_the_filtered_live_tree() {
+    for shell in ["bash", "elvish", "fish", "powershell", "zsh"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args(["completions", shell])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        let script = String::from_utf8(output.stdout).unwrap();
+        assert!(script.contains("ATLAS_COMPLETE"), "{shell}");
+        assert!(!script.contains("build-info"), "{shell}");
     }
 }

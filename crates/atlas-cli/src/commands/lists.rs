@@ -43,14 +43,29 @@ pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String>
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
+    let generate_slug = o.slug.is_none();
     let request = CreateSavedListRequest {
-        slug: o.slug,
+        slug: o.slug.unwrap_or_default(),
         name: o.name,
         description: o.description,
         tags: o.tags,
     };
     if o.records.is_empty() {
-        emit(app_result(s.create_saved_list(request), o.json)?, o.json)
+        let result = if generate_slug {
+            s.create_saved_list_with_generated_slug(request)
+        } else {
+            s.create_saved_list(request)
+        };
+        let view = match app_result(result, o.json)? {
+            std::ops::ControlFlow::Continue(value) => value,
+            std::ops::ControlFlow::Break(exit) => return Ok(exit),
+        };
+        if o.json {
+            write_json_data(&view)?;
+        } else {
+            println!("Created {} ({})", view.list.name, view.list.slug);
+        }
+        Ok(ExitCode::SUCCESS)
     } else {
         let items = o
             .records
@@ -60,7 +75,10 @@ pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String>
                 note: None,
             })
             .collect();
-        emit_batch(s.create_saved_list_with_items(request, items), o.json)
+        emit_batch(
+            s.create_saved_list_with_items(request, items, generate_slug),
+            o.json,
+        )
     }
 }
 

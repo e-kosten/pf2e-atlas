@@ -1,16 +1,13 @@
 use std::process::ExitCode;
 
-use clap::Command;
+use clap::{Command, CommandFactory};
 use clap_complete::generate;
 
 use args::CompletionsArgs;
 
 pub(crate) mod args;
 
-pub(crate) fn run_completions(
-    args: CompletionsArgs,
-    mut command: Command,
-) -> Result<ExitCode, String> {
+pub(crate) fn run_completions(args: CompletionsArgs) -> Result<ExitCode, String> {
     if let Some(shell) = clap_complete::env::Shells::builtins().completer(&args.shell.to_string()) {
         shell
             .write_registration(
@@ -22,9 +19,28 @@ pub(crate) fn run_completions(
             )
             .map_err(|error| error.to_string())?;
     } else {
-        generate(args.shell, &mut command, "atlas", &mut std::io::stdout());
+        generate(
+            args.shell,
+            &mut completion_command(),
+            "atlas",
+            &mut std::io::stdout(),
+        );
     }
     Ok(ExitCode::SUCCESS)
+}
+
+pub(crate) fn completion_command() -> Command {
+    let command = crate::cli::Cli::command();
+    Command::new("atlas")
+        .version(env!("CARGO_PKG_VERSION"))
+        .subcommand_required(true)
+        .args(command.get_arguments().cloned())
+        .subcommands(
+            command
+                .get_subcommands()
+                .filter(|sub| !sub.is_hide_set())
+                .cloned(),
+        )
 }
 
 fn options() -> Option<atlas_app_service::AtlasAppServiceOptions> {

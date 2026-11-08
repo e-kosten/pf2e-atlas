@@ -34,7 +34,6 @@ atlas-index.workspace = true
 atlas-record.workspace = true
 atlas-runtime.workspace = true
 atlas-search.workspace = true
-atlas-tags.workspace = true
 axum = { workspace = true, optional = true }
 clap.workspace = true
 clap_complete.workspace = true

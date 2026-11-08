@@ -6,6 +6,7 @@ use clap::{Parser, Subcommand};
 use crate::commands;
 use crate::commands::index::args::{IndexArgs, IndexCommand};
 use crate::commands::source::args::{SourceArgs, SourceCommand};
+use crate::commands::tags::args::{TagsArgs, TagsCommand};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -32,6 +33,8 @@ enum Command {
     Source(SourceArgs),
     #[command(about = "Inspect built Atlas artifacts")]
     Index(IndexArgs),
+    /// Validate authored tag data.
+    Tags(TagsArgs),
     /// Evaluate stored-vector Similar methods with frozen inputs.
     Similarity(commands::similarity::args::SimilarityArgs),
 }
@@ -50,6 +53,9 @@ pub(crate) fn main() -> ExitCode {
     };
     let json = match &cli.command {
         Command::Baseline(args) => args.json,
+        Command::Tags(args) => match &args.command {
+            TagsCommand::Validate(options) => options.json,
+        },
         Command::Similarity(args) => args.json(),
         Command::Source(args) => match &args.command {
             SourceCommand::Load(options) => options.json,
@@ -69,6 +75,9 @@ pub(crate) fn main() -> ExitCode {
     });
     let result = match cli.command {
         Command::Baseline(args) => commands::baseline::run(args),
+        Command::Tags(args) => match args.command {
+            TagsCommand::Validate(options) => commands::tags::run_tags_validate(options),
+        },
         Command::Similarity(args) => commands::similarity::run(args),
         Command::Source(args) => match args.command {
             SourceCommand::Load(options) => commands::source::run_source_load(options),

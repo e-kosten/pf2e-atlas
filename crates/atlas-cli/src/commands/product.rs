@@ -214,7 +214,7 @@ pub(crate) fn print_error_hint(error: &atlas_app_model::AppError) {
             "Choose another list id, or use `atlas lists add <ID> --record <RECORD>` to add to the existing list."
         }
         AppErrorCode::SavedListNotFound => {
-            "Run `atlas lists ls` to see existing list ids, or `atlas lists create <ID> --name <NAME>` to create one. Use the same --index and --path-mode options."
+            "Run `atlas lists list` to see existing list ids, or `atlas lists create <NAME> --slug <ID>` to create one. Use the same --index and --path-mode options."
         }
         AppErrorCode::RecordResolutionMiss | AppErrorCode::RecordResolutionAmbiguous => {
             "Run `atlas record resolve <NAME>` and use a returned canonical key. Use the same --index and --path-mode options."
