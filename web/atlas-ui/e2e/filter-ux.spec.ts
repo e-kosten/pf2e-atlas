@@ -666,3 +666,64 @@ test("related entry editing keeps its footer in view as nested groups grow", asy
   await expect(dialog).toBeHidden();
   await expect(opener).toBeFocused();
 });
+
+test("deeply nested field menus and actions fit the narrow Advanced drawer", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 500 });
+  await page.goto("/search");
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  for (let level = 0; level < 6; level++) {
+    await drawer
+      .getByRole("button", { name: "Add group", exact: true })
+      .first()
+      .click();
+  }
+
+  const menu = (label: string) =>
+    page.locator(".ant-select-dropdown:visible").filter({ hasText: label });
+  const expectMenuInDrawer = async (label: string) => {
+    await expect
+      .poll(async () => {
+        const popup = await menu(label).boundingBox();
+        const frame = await drawer.boundingBox();
+        return (
+          !!popup &&
+          !!frame &&
+          popup.x >= Math.max(0, frame.x) &&
+          popup.x + popup.width <= Math.min(320, frame.x + frame.width) + 1 &&
+          popup.y >= 0 &&
+          popup.y + popup.height <= 501
+        );
+      })
+      .toBe(true);
+  };
+  const add = drawer
+    .getByRole("combobox", { name: "Add condition", exact: true })
+    .first();
+  await add.click();
+  await expectMenuInDrawer("Kind");
+  await add.fill("Related entries");
+  await expectMenuInDrawer("Related entries");
+  await menu("Related entries").getByText("Related entries", { exact: true }).click();
+
+  const configure = drawer.getByRole("button", { name: "Configure related entries" });
+  await expect(configure).toBeVisible();
+  expect(
+    await configure.evaluate((action) => {
+      const cell = action.parentElement!.getBoundingClientRect();
+      const button = action.getBoundingClientRect();
+      return button.left >= cell.left && button.right <= cell.right + 1;
+    }),
+  ).toBe(true);
+
+  const field = drawer.getByRole("combobox", { name: "Filter field", exact: true });
+  await field.click();
+  await field.fill("Has a description");
+  await expectMenuInDrawer("Has a description");
+  await field.press("Enter");
+  await expect(
+    drawer.getByRole("combobox", { name: "Has a description", exact: true }),
+  ).toBeVisible();
+});
