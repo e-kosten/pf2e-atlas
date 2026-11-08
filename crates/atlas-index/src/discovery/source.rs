@@ -746,7 +746,7 @@ fn enumerate_values(
         .unwrap_or_else(|| "1".to_owned());
     // SQLite has no LATERAL subqueries. A correlated json_group_array carries
     // the finite relational values to json_each without parsing source bodies.
-    let values_expr = if matches!(&d.binding, Binding::Set { .. }) {
+    let values_expr = if matches!(&d.binding, Binding::Set { .. } | Binding::Traits) {
         format!(
             "(SELECT json_group_array(t.value) FROM {})",
             member_relation(d, d.definition.scope.as_deref(), "t")?

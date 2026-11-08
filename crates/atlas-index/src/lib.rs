@@ -163,6 +163,8 @@ mod reference_tests;
 mod references;
 mod trait_similarity_retirement;
 pub use trait_similarity_retirement::retire_trait_similarity;
+mod trait_members_upgrade;
+pub use trait_members_upgrade::{TRAIT_MEMBERS_SCHEMA_SQL, backfill_trait_members};
 mod traits;
 pub use reference_migration::{REFERENCE_ENTRIES_SCHEMA_SQL, backfill_reference_entries};
 pub use references::{

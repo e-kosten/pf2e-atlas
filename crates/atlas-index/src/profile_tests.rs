@@ -383,7 +383,6 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
     let before = snapshot(&c);
     let protected = [
         "records",
-        "record_traits",
         "actor_projection",
         "physical_projection",
         "weapon_projection",
@@ -397,7 +396,7 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
         "selected_sections",
         "lexical_units",
         "reference_entries",
-        "trait_memberships",
+        "trait_members",
         "trait_references",
         "reference_component_digests",
     ];

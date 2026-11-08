@@ -261,6 +261,7 @@ pub(crate) enum Binding {
     Member {
         column: &'static str,
     },
+    Traits,
     Cantrip,
     LevelOrRank,
     HasDescription,
@@ -436,7 +437,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
         "traits",
         Set,
         &traits,
-        set(common("traits"), "record_traits", "record_id", None),
+        Binding::Traits,
         Vec::new(),
         None,
     ));
@@ -1217,12 +1218,6 @@ fn build() -> Result<Vec<Descriptor>, String> {
             descriptor.definition.scope = Some(collection.path.to_owned());
             descriptor.definition.id =
                 format!("{}[].{}", collection.path, descriptor.definition.path);
-            if let Binding::Set { table, owner, .. } = &mut descriptor.binding
-                && *table == "record_traits"
-            {
-                *table = "actor_item_traits";
-                *owner = "item_id";
-            }
             fields.push(descriptor);
         }
     }

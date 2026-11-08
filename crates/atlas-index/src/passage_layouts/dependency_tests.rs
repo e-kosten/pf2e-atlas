@@ -70,6 +70,12 @@ fn seed_schema29(workspace: &Workspace, input: &IndexBuildInput) {
             for row in crate::projections::root_rows(frame.source, label, id, &mut allocated)? {
                 row.insert(c)?;
             }
+            crate::historical_publication::filter_traits(
+                c,
+                id,
+                &frame.source.record,
+                context.audience,
+            )?;
             c.execute(
                 "INSERT INTO record_bodies VALUES(?,?,?,?)",
                 params![
@@ -153,7 +159,7 @@ fn seed_schema29(workspace: &Workspace, input: &IndexBuildInput) {
         for source in &input.records {
             let mut evidence = crate::traits::TraitEvidence::default();
             evidence.add_record(&source.record, input.context.audience)?;
-            crate::traits::write_record_trait_relations(c, source.record.key(), evidence)?;
+            crate::traits::write_historical_record_traits(c, source.record.key(), evidence)?;
         }
         for record in &input.records {
             crate::core_projection::write_record_core(c, &context, record)?;

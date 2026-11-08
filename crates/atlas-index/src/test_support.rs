@@ -257,6 +257,16 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 36,
+        name: "shared-trait-membership",
+        sql: crate::TRAIT_MEMBERS_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "shared-trait-membership/v1",
+            apply: crate::backfill_trait_members,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()

@@ -597,7 +597,7 @@ fn conflicting_pack_scope_rejects_record_backing_and_excludes_new_source_associa
     let c = Connection::open(&path).unwrap();
     assert_eq!(
         c.query_row(
-            "SELECT count(*) FROM trait_memberships WHERE trait_key='trait:dragon'",
+            "SELECT count(*) FROM trait_members WHERE value='dragon' AND lookup_member=1",
             [],
             |r| r.get::<_, usize>(0)
         )

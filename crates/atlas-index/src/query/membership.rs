@@ -169,6 +169,16 @@ impl RootRelation {
 }
 
 fn root_set_relation(descriptor: &Descriptor) -> Option<RootRelation> {
+    if matches!(descriptor.binding, Binding::Traits) {
+        return Some(RootRelation {
+            from: "trait_members t JOIN records p ON p.key=t.record_key AND t.owners_json='[]'"
+                .into(),
+            record: "p.record_id".into(),
+            owner: "p.record_id".into(),
+            value: "t.value".into(),
+            state: "p.traits_state".into(),
+        });
+    }
     let Binding::Set {
         parent,
         table,

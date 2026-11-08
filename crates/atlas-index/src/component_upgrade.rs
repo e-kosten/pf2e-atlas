@@ -283,20 +283,7 @@ pub fn ensure_reference_projections(
                 if !query_changed {
                     return Ok(());
                 }
-                for table in ["record_traits", "actor_projection"] {
-                    c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
-                }
-                for table in [
-                    "spell_projection",
-                    "physical_projection",
-                    "ability_projection",
-                    "heritage_projection",
-                    "effect_projection",
-                    "condition_projection",
-                    "deity_projection",
-                ] {
-                    c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
-                }
+                crate::publication_delta::clear_query(c, id)?;
                 let mut projection_ids =
                     {
                     let mut footprint = crate::projections::ProjectionIds::default();

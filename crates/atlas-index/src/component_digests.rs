@@ -37,6 +37,27 @@ fn scalar(value: &Value) -> Scalar<'_> {
         Value::Blob(b) => Scalar::Blob(b),
     }
 }
+fn query_digest(rows: &[crate::persistence::ProjectionRow]) -> Result<String, IndexError> {
+    let query = rows
+        .iter()
+        .map(|row| {
+            (
+                row.table,
+                row.columns
+                    .iter()
+                    .zip(&row.values)
+                    .filter(|(column, _)| {
+                        row.table != "records"
+                            || !matches!(column.as_str(), "source_path" | "content_hash")
+                    })
+                    .map(|(column, value)| (column.as_str(), scalar(value)))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    hash(&(crate::SOURCE_PROJECTION_VERSION, query))
+}
+
 pub(crate) struct DerivedComponents {
     pub(crate) digests: ComponentDigests,
     pub(crate) allocation_footprint: i64,
@@ -55,23 +76,6 @@ impl DerivedComponents {
         let source = record.source;
         let mut ids = crate::projections::ProjectionIds::default();
         let rows = crate::projections::root_rows(source, label, 0, &mut ids)?;
-        let query = rows
-            .iter()
-            .map(|row| {
-                (
-                    row.table,
-                    row.columns
-                        .iter()
-                        .zip(&row.values)
-                        .filter(|(column, _)| {
-                            row.table != "records"
-                                || !matches!(column.as_str(), "source_path" | "content_hash")
-                        })
-                        .map(|(column, value)| (column.as_str(), scalar(value)))
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .collect::<Vec<_>>();
         let sections = crate::selected_sections::project(
             &source.record,
             record.selection,
@@ -95,7 +99,7 @@ impl DerivedComponents {
         let retained = RetainedPayloadDigests::project(source, record.snapshot)?;
         let digests = ComponentDigests {
             snapshot: retained.snapshot,
-            query: hash(&(crate::SOURCE_PROJECTION_VERSION, query))?,
+            query: query_digest(&rows)?,
             content: retained.content,
             relationships: retained.relationships,
             sections: hash(&section_identity)?,
@@ -317,6 +321,51 @@ pub(crate) fn validate_present(
         Ok(())
     })
 }
+/// Update only the attestations whose representation changed in the trait migration.
+pub(crate) fn refresh_trait_migration(c: &Connection) -> Result<(), IndexError> {
+    let has_attestations: bool = c.query_row(
+        "SELECT EXISTS(SELECT 1 FROM reference_component_digests)",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_attestations {
+        return Ok(());
+    }
+    let (context, _) =
+        crate::component_upgrade::read_stored_reference_metadata(c)?.ok_or_else(|| {
+            IndexError::Invalid("trait migration has attestations without context".into())
+        })?;
+    visit_ids(c, &mut |id| {
+        let (key, label): (String, String) = c.query_row(
+            "SELECT r.key,p.label FROM records r JOIN packs p USING(pack_id) WHERE record_id=?",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let key = key
+            .parse()
+            .map_err(|e| IndexError::Invalid(format!("component record key: {e}")))?;
+        let admission = crate::persisted_inputs::read_attested_source_admission(c, &context, &key)?
+            .ok_or_else(|| IndexError::Invalid("component source is absent".into()))?;
+        let source = crate::SourceArtifactRecordInput {
+            record: admission.record,
+            source_path: admission.source_path,
+            content_hash: admission.content_hash,
+            diagnostics: admission.diagnostics,
+            preparation_context_hash: String::new(),
+            content: vec![],
+            relationships: vec![],
+        };
+        let rows = crate::projections::root_rows(&source, &label, 0, &mut Default::default())?;
+        let mut evidence = crate::traits::TraitEvidence::default();
+        evidence.add_record(&source.record, context.audience)?;
+        let mut digests = ComponentDigests::read(c, id)?
+            .ok_or_else(|| IndexError::Invalid("component digest disappeared".into()))?;
+        digests.query = query_digest(&rows)?;
+        digests.trait_associations = hash(&evidence)?;
+        digests.write(c, id)
+    })
+}
+
 /// Metadata-only upgrades refresh existing attestations after rewriting their
 /// actual dependent projections. Missing metadata stays explicitly unknown.
 pub(crate) fn refresh_present(
@@ -353,7 +402,6 @@ mod tests {
         .unwrap();
         for (table, key) in [
             ("records", "record_id"),
-            ("record_traits", "record_id"),
             ("actor_projection", "record_id"),
             ("physical_projection", "root_record_id"),
             ("spell_projection", "root_record_id"),
@@ -374,7 +422,7 @@ mod tests {
         }
         for table in [
             "reference_entries",
-            "trait_memberships",
+            "trait_members",
             "trait_references",
             "owned_ability_evidence",
         ] {
@@ -443,10 +491,7 @@ mod tests {
             rows.iter().all(|(component, root)| root == &Some(id)
                 && !matches!(
                     component.as_str(),
-                    "record_traits"
-                        | "actor_projection"
-                        | "physical_projection"
-                        | "spell_projection"
+                    "actor_projection" | "physical_projection" | "spell_projection"
                 )),
             "unrelated/query writes: {rows:?}"
         );

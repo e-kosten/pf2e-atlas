@@ -31,6 +31,7 @@ pub(super) fn database() -> Connection {
     db.execute_batch(crate::REFERENCE_ENTRIES_SCHEMA_SQL)
         .unwrap();
     crate::backfill_reference_entries(&db).unwrap();
+    db.execute_batch(crate::TRAIT_MEMBERS_SCHEMA_SQL).unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db
@@ -1237,7 +1238,7 @@ fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
     .unwrap();
     for (id, trait_value) in [(1, "fire"), (1, "flying"), (2, "cold"), (3, "macro-only")] {
         db.execute(
-            "INSERT INTO record_traits(record_id,value) VALUES(?1,?2)",
+            "INSERT INTO trait_members SELECT ?2,key,'[]',1,NULL FROM records WHERE record_id=?1",
             rusqlite::params![id, trait_value],
         )
         .unwrap();
@@ -1343,11 +1344,11 @@ fn embedded_collection_membership_is_independent_of_parent_kind_and_traits() {
             ],
         );
     }
-    row(
-        &db,
-        "record_traits",
-        &[("record_id", 2.into()), ("value", text("fire"))],
-    );
+    db.execute(
+        "INSERT INTO trait_members SELECT 'fire',key,'[]',1,NULL FROM records WHERE record_id=2",
+        [],
+    )
+    .unwrap();
     for (id, family, trait_value) in [(10, "spell", "fire"), (11, "weapon", "agile")] {
         row(
             &db,
@@ -1356,17 +1357,22 @@ fn embedded_collection_membership_is_independent_of_parent_kind_and_traits() {
                 ("id", id.into()),
                 ("record_id", 1.into()),
                 ("original_index", id.into()),
-                ("owner_selector_json", text("{}")),
+                (
+                    "owner_selector_json",
+                    text(&format!(r#"{{"fixture":{id}}}"#)),
+                ),
                 ("source_type_state", text("value")),
                 ("source_type", text(family)),
                 ("traits_state", text("value")),
             ],
         );
-        row(
-            &db,
-            "actor_item_traits",
-            &[("item_id", id.into()), ("value", text(trait_value))],
-        );
+        db.execute(
+            "INSERT INTO trait_members
+             SELECT ?2,r.key,json_array(json(i.owner_selector_json)),1,NULL
+             FROM actor_items i JOIN records r USING(record_id) WHERE i.id=?1",
+            rusqlite::params![id, trait_value],
+        )
+        .unwrap();
     }
     db.execute("UPDATE records SET record_kind_state='value',record_kind=CASE WHEN source_type='npc' THEN 'creature' ELSE 'spell' END", []).unwrap();
     assert_eq!(

@@ -68,9 +68,7 @@ pub(crate) fn allocate(
 pub(crate) fn clear_query(c: &Connection, id: i64) -> Result<(), IndexError> {
     // Family leaves cascade from their declared owner; incoming edges and semantic
     // occurrences are reconciled separately and never cascade with a replacement.
-    for table in ["record_traits", "actor_projection"] {
-        c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
-    }
+    c.execute("DELETE FROM actor_projection WHERE record_id=?", [id])?;
     for table in [
         "spell_projection",
         "physical_projection",
@@ -95,7 +93,6 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
             // These associations reference the removable reference row, while
             // saved state references the enduring identity registry. Prune the
             // exact removed key before its deferred parent FK is deleted.
-            c.execute("DELETE FROM trait_memberships WHERE record_key=(SELECT key FROM records WHERE record_id=?)",[id])?;
             c.execute("DELETE FROM trait_references WHERE record_key=(SELECT key FROM records WHERE record_id=?)",[id])?;
             c.execute("DELETE FROM records WHERE record_id=?", [id])?;
             c.execute(
