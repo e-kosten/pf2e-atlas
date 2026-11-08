@@ -52,7 +52,7 @@ mod test_support;
 
 pub use completions::{complete_record_keys, complete_saved_list_slugs};
 pub use error::{AppServiceError, AppServiceResult};
-pub use filters::{RawFilterCountsRequest, RawFilterValuesRequest};
+pub use filters::{CliFilterValuesRequest, RawFilterCountsRequest};
 pub use projection::record_summary_view;
 pub use read_execution::ReadExecutionContext;
 pub use service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};

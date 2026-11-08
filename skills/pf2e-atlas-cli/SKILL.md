@@ -152,13 +152,14 @@ the source clone and does not execute rules or macros.
 Traits use exact `trait:<identifier>` keys, separate from Foundry `pack:id` records:
 
 ```sh
-atlas trait get trait:agile --json
-atlas trait get trait:deadly-d8 --json
+atlas record definition trait:agile --json
+atlas record definition trait:deadly-d8 --json
 atlas search --trait deadly-d8 --json
 ```
 
 Keep variant suffixes such as `-d8`; do not substitute a base trait. Trait JSON
-includes the key, label, content, catalogs, source revision and indexing locale.
+includes the definition key, label, content and available source information.
+Use `filters values --field traits` to discover filter tokens and their definition keys.
 A successful response can have `content: null`: report the missing definition
 rather than inventing text or substituting another trait. Trait membership uses
 the exact identifier; `--trait deadly` does not include `deadly-d8`. `record get`,
@@ -370,9 +371,9 @@ Use graph commands for bounded structural context, including unresolved links:
 
 ```sh
 atlas graph links 'Demoralize' --backlinks 8 --json
-atlas graph uses 'Frightened' --limit 25 --json
-atlas graph remaster PACK:ID --json
-atlas graph variants 'Dread Ampoule (Moderate)' --json
+atlas graph links 'Frightened' --outgoing 0 --backlinks 25 --json
+atlas record get PACK:ID --json
+atlas record variants 'Dread Ampoule (Moderate)' --json
 ```
 
 Links preserve occurrences and source attribution, including unresolved targets.
@@ -385,7 +386,7 @@ ordinary products.
 Keep durable collections in saved lists:
 
 ```sh
-atlas lists create undead-research --name 'Undead Research' --json
+atlas lists create 'Undead Research' --slug undead-research --json
 atlas lists add undead-research --record 'Skeleton Guard' --note 'A basic guard option' --json
 atlas lists show undead-research --json
 atlas lists show undead-research --sort level_asc --json

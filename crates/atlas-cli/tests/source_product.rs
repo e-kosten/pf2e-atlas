@@ -277,9 +277,26 @@ fn source_artifact_search_catalog_detail_and_graph_use_the_product_contract() {
     assert!(!detailtext.contains("source_json"));
     let resolved = f.data(&["record", "resolve", "Treat Wounds", "--json"]);
     assert_eq!(resolved["results"][0]["value"]["total"], 1);
-    for command in ["links", "uses", "remaster", "variants"] {
-        f.data(&["graph", command, "actions:aaaaaaaaaaaaaaaa", "--json"]);
-    }
+    let key = "actions:aaaaaaaaaaaaaaaa";
+    f.data(&["graph", "links", key, "--json"]);
+    let backlinks = f.data(&[
+        "graph",
+        "links",
+        key,
+        "--outgoing",
+        "0",
+        "--backlinks",
+        "5",
+        "--json",
+    ]);
+    assert!(backlinks.get("backlinks").is_some());
+    let variants = f.data(&["record", "variants", key, "--json"]);
+    assert_eq!(variants["label"], "Suggested variants");
+    assert!(
+        detail["results"][0]["value"]
+            .get("remaster_relationships")
+            .is_some()
+    );
     let macroget = f.command(
         &["record", "get", "macros:bbbbbbbbbbbbbbbb", "--json"],
         false,
@@ -667,7 +684,7 @@ fn ambiguous_names_require_keys_and_graph_errors_keep_candidate_details() {
 fn saved_lists_retain_unresolved_snapshots_across_an_artifact_rebuild() {
     let f = Fixture::new();
     f.data(&[
-        "lists", "create", "research", "--name", "Research", "--json",
+        "lists", "create", "Research", "--slug", "research", "--json",
     ]);
     f.data(&["lists", "add", "research", "Treat Wounds", "--json"]);
     let v = f.data(&["lists", "show", "research", "--json"]);
@@ -718,7 +735,7 @@ fn setup_path_modes_preserve_explicit_overrides_and_global_default() {
 #[test]
 fn setup_check_and_cache_cleanup_preserve_workspace_and_saved_state() {
     let f = Fixture::new();
-    f.data(&["lists", "create", "keep", "--name", "Keep", "--json"]);
+    f.data(&["lists", "create", "Keep", "--slug", "keep", "--json"]);
     let before = fs::read(&f.index).unwrap();
     let check = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args([
@@ -1240,9 +1257,9 @@ fn lists_create_batch_preserves_input_outcomes_and_rejects_existing_slug() {
         &[
             "lists",
             "create",
-            "research",
-            "--name",
             "Research",
+            "--slug",
+            "research",
             "--record",
             "actions:aaaaaaaaaaaaaaaa",
             "--record",
@@ -1265,9 +1282,9 @@ fn lists_create_batch_preserves_input_outcomes_and_rejects_existing_slug() {
         &[
             "lists",
             "create",
-            "research",
-            "--name",
             "Replacement",
+            "--slug",
+            "research",
             "--record",
             "actions:aaaaaaaaaaaaaaaa",
             "--json",
@@ -1288,9 +1305,9 @@ fn lists_create_rolls_back_list_when_item_storage_fails() {
         &[
             "lists",
             "create",
-            "research",
-            "--name",
             "Research",
+            "--slug",
+            "research",
             "--record",
             "actions:aaaaaaaaaaaaaaaa",
             "--json",
@@ -1312,9 +1329,9 @@ fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
     f.data(&[
         "lists",
         "create",
-        "research",
-        "--name",
         "Research",
+        "--slug",
+        "research",
         "--record",
         "Treat Wounds",
         "--json",
@@ -1376,9 +1393,9 @@ fn saved_list_v1_import_is_rejected_before_replacement() {
     f.data(&[
         "lists",
         "create",
-        "portable",
-        "--name",
         "Portable",
+        "--slug",
+        "portable",
         "--record",
         "Treat Wounds",
         "--json",
@@ -1438,7 +1455,7 @@ fn inaccessible_workspace_lock_does_not_report_setup_required() {
 fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
     let f = Fixture::new();
     f.data(&[
-        "lists", "create", "research", "--name", "Research", "--json",
+        "lists", "create", "Research", "--slug", "research", "--json",
     ]);
     let complete = |words: &[&str], index: &str| {
         let out = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -1572,7 +1589,7 @@ fn similar_guard_errors_keep_json_pure_and_include_copyable_rediscovery() {
 #[test]
 fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search_or_saved_state() {
     let fixture = Fixture::new();
-    fixture.data(&["lists", "create", "keep", "--name", "Keep", "--json"]);
+    fixture.data(&["lists", "create", "Keep", "--slug", "keep", "--json"]);
     fs::write(fixture.root.join("packs/actions/bad.json"), "{bad").unwrap();
     let fingerprint = atlas_ingest::compute_source_fingerprint(&fixture.root, None)
         .unwrap()
@@ -1850,4 +1867,125 @@ fn index_rebuild_refuses_missing_old_and_maintenance_workspaces() {
         assert!(diagnostic.contains(expected), "{diagnostic}");
         assert_eq!(fs::read(&fixture.index).unwrap(), before);
     }
+}
+
+#[test]
+fn definition_lookup_uses_the_exact_key_exposed_by_filter_discovery() {
+    let f = Fixture::new();
+    fs::write(
+        f.root.join("static/lang/en.json"),
+        r#"{"PF2E.TraitDescriptionHealing":"<p>Restores vitality.</p>"}"#,
+    )
+    .unwrap();
+    let rebuilt = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(rebuilt.status.success(), "{rebuilt:?}");
+    let values = f.data(&[
+        "filters", "values", "--field", "traits", "--text", "healing", "--json",
+    ]);
+    let value = &values["values"]["options"][0];
+    assert_eq!(value["value"], "healing");
+    assert_eq!(value["distinct_roots"], 1);
+    let key = value["help"]["definition_key"].as_str().unwrap();
+    assert_eq!(key, "trait:healing");
+    let detail = f.data(&["record", "definition", key, "--json"]);
+    assert_eq!(detail["definition_key"], key);
+    assert!(
+        detail["content"]["body"]["html"]
+            .as_str()
+            .unwrap()
+            .contains("Restores vitality")
+    );
+    let unavailable = f.data(&["record", "definition", "trait:unknown-fixture", "--json"]);
+    assert!(unavailable["content"].is_null());
+    let invalid = f.command(&["record", "definition", "healing", "--json"], false);
+    assert_eq!(invalid.status.code(), Some(2));
+}
+
+#[test]
+fn name_only_list_creation_reserves_a_new_slug_with_initial_items() {
+    let f = Fixture::new();
+    let original = f.data(&["lists", "create", "Garden Sentries", "--json"]);
+    assert_eq!(original["list"]["slug"], "garden-sentries");
+    let duplicate_name = f.data(&[
+        "lists",
+        "create",
+        "Garden Sentries",
+        "--record",
+        "Treat Wounds",
+        "--json",
+    ]);
+    assert_eq!(duplicate_name["slug"], "garden-sentries-2");
+    assert_eq!(duplicate_name["added_count"], 1);
+    let original = f.data(&["lists", "show", "garden-sentries", "--json"]);
+    assert_eq!(original["items"].as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn encounter_management_edits_metadata_and_removes_only_the_selected_copy() {
+    let f = Fixture::new();
+    fs::create_dir_all(f.root.join("packs/creatures")).unwrap();
+    fs::write(f.root.join("module.json"), r#"{"packs":[{"name":"actions","label":"Actions","type":"Item","path":"packs/actions"},{"name":"macros","label":"Macros","type":"Macro","path":"packs/macros"},{"name":"creatures","label":"Creatures","type":"Actor","path":"packs/creatures"}]}"#).unwrap();
+    fs::write(f.root.join("packs/creatures/guard.json"), r#"{"_id":"dddddddddddddddd","name":"Local Guard","type":"npc","system":{"details":{"level":{"value":1}},"traits":{"value":["humanoid"],"rarity":"common"},"attributes":{"hp":{"max":20,"value":20},"ac":{"value":16}}}}"#).unwrap();
+    let rebuilt = f.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(rebuilt.status.success(), "{rebuilt:?}");
+
+    let created = f.data(&[
+        "encounters",
+        "create",
+        "Garden Sentries",
+        "--description",
+        "Keep this",
+        "--note",
+        "Clear this",
+        "--json",
+    ]);
+    let key = created["encounter"]["encounter_key"].as_str().unwrap();
+    f.data(&[
+        "encounters",
+        "add",
+        key,
+        "--record",
+        "Local Guard",
+        "--quantity",
+        "2",
+        "--json",
+    ]);
+    let before = f.data(&["encounters", "show", key, "--json"]);
+    let participants = before["participants"].as_array().unwrap();
+    assert_eq!(participants.len(), 2);
+    let first = participants[0]["participant_key"].as_str().unwrap();
+    let second = participants[1]["participant_key"].as_str().unwrap();
+    let human = f.command(&["encounters", "show", key], false);
+    assert!(String::from_utf8(human.stdout).unwrap().contains(first));
+
+    f.data(&[
+        "encounters",
+        "edit",
+        key,
+        "--name",
+        "Garden Patrol",
+        "--clear-note",
+        "--json",
+    ]);
+    f.data(&[
+        "encounters",
+        "remove",
+        key,
+        "--participant",
+        first,
+        "--json",
+    ]);
+    let after = f.data(&["encounters", "show", "garden-sentries", "--json"]);
+    assert_eq!(after["encounter"]["name"], "Garden Patrol");
+    assert_eq!(after["encounter"]["description"], "Keep this");
+    assert!(after["note"].is_null());
+    assert_eq!(after["participants"].as_array().unwrap().len(), 1);
+    assert_eq!(after["participants"][0]["participant_key"], second);
+    f.data(&["encounters", "delete", key, "--json"]);
+    assert!(
+        f.data(&["encounters", "list", "--json"])["encounters"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
 }

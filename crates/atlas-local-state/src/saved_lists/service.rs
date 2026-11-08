@@ -50,6 +50,20 @@ impl SavedListsWrite<'_> {
         })
     }
 
+    pub fn create_with_generated_slug(
+        &self,
+        mut list: NewSavedList,
+    ) -> LocalStateResult<SavedList> {
+        let base = crate::derive_slug(&list.name);
+        list.slug = base.clone();
+        let mut suffix = 2;
+        while storage::slug_exists(self.connection, &list.slug)? {
+            list.slug = format!("{base}-{suffix}");
+            suffix += 1;
+        }
+        self.create(list)
+    }
+
     pub fn delete(&self, list_ref: &str) -> LocalStateResult<bool> {
         crate::atomic_action::run(self.connection, || {
             storage::validate_list_ref(list_ref)?;

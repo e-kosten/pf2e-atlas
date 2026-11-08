@@ -20,12 +20,29 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "graph",
         "filters",
         "lists",
-        "tags",
         "agent",
         "completions",
-        "build-info",
+        "encounters",
     ] {
         assert!(root.contains(name));
+    }
+    for name in ["trait", "tags", "build-info"] {
+        assert!(
+            !root
+                .lines()
+                .any(|line| line.split_whitespace().next() == Some(name))
+        );
+    }
+    let record = help(&["record"]);
+    assert!(record.contains("definition"));
+    assert!(record.contains("variants"));
+    let graph = help(&["graph"]);
+    for name in ["uses", "variants", "remaster"] {
+        assert!(
+            !graph
+                .lines()
+                .any(|line| line.split_whitespace().next() == Some(name))
+        );
     }
     let search = help(&["search"]);
     for flag in [

@@ -6,7 +6,7 @@ use atlas_cli_support::CliPathMode;
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas lists create fey-options --name \"Fey Options\"\n  atlas lists add fey-options --record pathfinder-monster-core:lUBkzsSqMfQBczU1\n  atlas lists show fey-options\n\nResolve ambiguous names with `atlas record resolve <NAME>` and use a returned record key."
+    after_help = "Examples:\n  atlas lists create \"Fey Options\" --slug fey-options\n  atlas lists add fey-options --record pathfinder-monster-core:lUBkzsSqMfQBczU1\n  atlas lists show fey-options\n\nResolve ambiguous names with `atlas record resolve <NAME>` and use a returned record key."
 )]
 pub(crate) struct ListsArgs {
     #[command(subcommand)]
@@ -17,7 +17,7 @@ pub(crate) struct ListsArgs {
 pub(crate) enum ListsCommand {
     #[command(about = "Create a saved list")]
     Create(ListCreateOptions),
-    #[command(name = "ls", alias = "list", about = "List saved lists")]
+    #[command(name = "list", alias = "ls", about = "List saved lists")]
     Ls(ListLsOptions),
     #[command(about = "Show one saved list")]
     Show(ListShowOptions),
@@ -39,13 +39,16 @@ pub(crate) enum ListsCommand {
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Example:\n  atlas lists create fey-options --name \"Fey Options\" --record pathfinder-monster-core:lUBkzsSqMfQBczU1 --record pathfinder-monster-core:Ehtm5k9iBYTvSUcZ"
+    after_help = "Example:\n  atlas lists create \"Fey Options\" --slug fey-options --record pathfinder-monster-core:lUBkzsSqMfQBczU1 --record pathfinder-monster-core:Ehtm5k9iBYTvSUcZ"
 )]
 pub(crate) struct ListCreateOptions {
-    #[arg(help = "Stable saved-list id, using lowercase letters, digits, and '-'")]
-    pub(crate) slug: String,
-    #[arg(long, help = "Human-friendly saved-list name")]
+    #[arg(help = "Human-friendly saved-list name")]
     pub(crate) name: String,
+    #[arg(
+        long,
+        help = "Choose the stable slug instead of generating one from the name"
+    )]
+    pub(crate) slug: Option<String>,
     #[arg(long, help = "Optional saved-list description")]
     pub(crate) description: Option<String>,
     #[arg(long = "tag", help = "Add a saved-list tag; repeat for multiple tags")]

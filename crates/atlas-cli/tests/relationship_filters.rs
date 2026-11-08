@@ -468,9 +468,9 @@ fn contextual_discovery_retains_link_constraints_and_saved_membership() {
     fixture.data(&[
         "lists",
         "create",
-        "relationship-test",
-        "--name",
         "Relationship test",
+        "--slug",
+        "relationship-test",
         "--record",
         "Fixture Scout",
         "--record",

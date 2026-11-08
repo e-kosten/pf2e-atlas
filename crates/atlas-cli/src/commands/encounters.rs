@@ -5,7 +5,7 @@ use atlas_app_model::{
     EncounterParticipantVariantView, PreviewEncounterDifficultyRequest,
 };
 use atlas_cli_support::{CliPathMode, write_json_data};
-use clap::{Args, Subcommand, ValueEnum};
+use clap::{ArgGroup, Args, Subcommand, ValueEnum};
 use std::{path::PathBuf, process::ExitCode};
 
 #[derive(Debug, Args)]
@@ -40,6 +40,16 @@ enum EncounterCommand {
         #[arg(long)]
         note: Option<String>,
     },
+    /// Edit saved encounter metadata.
+    Edit(EditOptions),
+    /// Remove a participant by the key shown in encounters show.
+    Remove {
+        encounter: String,
+        #[arg(long)]
+        participant: String,
+    },
+    /// Delete a saved encounter and its participants.
+    Delete { encounter: String },
     #[command(about = "Add a creature or hazard by record key or exact name")]
     Add {
         encounter: String,
@@ -52,6 +62,23 @@ enum EncounterCommand {
         #[arg(long, allow_negative_numbers = true)]
         initiative: Option<i64>,
     },
+}
+
+#[derive(Debug, Args)]
+#[command(group(ArgGroup::new("changes").required(true).multiple(true)
+    .args(["name", "description", "clear_description", "note", "clear_note"])))]
+struct EditOptions {
+    encounter: String,
+    #[arg(long)]
+    name: Option<String>,
+    #[arg(long)]
+    description: Option<String>,
+    #[arg(long, conflicts_with = "description")]
+    clear_description: bool,
+    #[arg(long)]
+    note: Option<String>,
+    #[arg(long, conflicts_with = "note")]
+    clear_note: bool,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -133,7 +160,52 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             if json {
                 write_json_data(&view)?;
             } else {
-                println!("Created {} ({})", view.encounter.name, view.encounter.slug);
+                println!(
+                    "Created {} ({}, {})",
+                    view.encounter.name, view.encounter.slug, view.encounter.encounter_key
+                );
+            }
+        }
+        EncounterCommand::Edit(edit) => {
+            let description = if edit.clear_description {
+                Some(None)
+            } else {
+                edit.description.map(Some)
+            };
+            let note = if edit.clear_note {
+                Some(None)
+            } else {
+                edit.note.map(Some)
+            };
+            let view = view!(service.edit_encounter_metadata(
+                &edit.encounter,
+                edit.name,
+                description,
+                note
+            ));
+            if json {
+                write_json_data(&view)?;
+            } else {
+                println!("Updated {}", view.encounter_key);
+            }
+        }
+        EncounterCommand::Remove {
+            encounter,
+            participant,
+        } => {
+            let view = view!(service.remove_encounter_participant(&encounter, &participant));
+            if json {
+                write_json_data(&view)?;
+            } else {
+                println!("Removed {participant} from {}", view.encounter_key);
+            }
+        }
+        EncounterCommand::Delete { encounter } => {
+            let view = view!(service.delete_encounter(&encounter));
+            if json {
+                write_json_data(&view)?;
+            } else {
+                println!("Deleted {}", view.encounter_key);
             }
         }
         EncounterCommand::Add {
@@ -169,7 +241,10 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
 fn print_detail(view: &EncounterDetailView) {
     println!("{} ({})", view.encounter.name, view.encounter.slug);
     for participant in &view.participants {
-        println!("  {}", participant.display_name);
+        println!(
+            "  {} ({})",
+            participant.display_name, participant.participant_key
+        );
     }
     let difficulty = &view.difficulty;
     match (difficulty.rating.as_deref(), difficulty.total_xp) {

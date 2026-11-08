@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 use crate::commands;
 use crate::commands::agent_skills::args::AgentArgs;
@@ -14,8 +14,6 @@ use crate::commands::roll::RollArgs;
 use crate::commands::search::args::SearchOptions;
 use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
-use crate::commands::tags::args::{TagsArgs, TagsCommand};
-use crate::commands::traits::{TraitArgs, TraitCommand};
 #[cfg(feature = "web")]
 use crate::commands::web::args::WebArgs;
 use atlas_cli_support::CliProgressMode;
@@ -46,7 +44,10 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
-    #[command(about = "Show the installed Atlas version and build variant")]
+    #[command(
+        hide = true,
+        about = "Show the installed Atlas version and build variant"
+    )]
     BuildInfo(commands::build_info::BuildInfoArgs),
     #[command(about = "Roll dice with a complete result breakdown; no setup required")]
     Roll(RollArgs),
@@ -54,10 +55,8 @@ pub(crate) enum Command {
     Setup(SetupArgs),
     #[command(about = "Update and validate workspace reference data")]
     Index(IndexArgs),
-    #[command(about = "Fetch and resolve Atlas records")]
+    #[command(about = "Read Atlas records and definitions")]
     Record(RecordArgs),
-    #[command(about = "Read Atlas trait definitions")]
-    Trait(TraitArgs),
     #[command(about = "Retrieve local record reference graph context")]
     Graph(GraphArgs),
     #[command(about = "Find records similar to a seed record")]
@@ -71,10 +70,8 @@ pub(crate) enum Command {
     Filters(FiltersArgs),
     #[command(about = "Create and edit durable local saved lists", alias = "list")]
     Lists(ListsArgs),
-    #[command(about = "Create, inspect, and populate saved encounters")]
+    #[command(about = "Manage saved encounters")]
     Encounters(commands::encounters::EncountersArgs),
-    #[command(about = "Validate authored tag data")]
-    Tags(TagsArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
     Agent(AgentArgs),
     #[command(about = "Generate shell completion scripts")]
@@ -82,7 +79,7 @@ pub(crate) enum Command {
 }
 
 pub(crate) fn main() -> ExitCode {
-    clap_complete::CompleteEnv::with_factory(Cli::command)
+    clap_complete::CompleteEnv::with_factory(commands::completions::completion_command)
         .var("ATLAS_COMPLETE")
         .complete();
     let cli = match Cli::try_parse() {
@@ -132,16 +129,12 @@ impl Command {
                 RecordCommand::Get(options) => options.json,
                 RecordCommand::Resolve(options) => options.json,
                 RecordCommand::Source(options) => options.json,
-            },
-            Self::Trait(args) => match &args.command {
-                TraitCommand::Get(options) => options.json,
+                RecordCommand::Definition(options) => options.json,
+                RecordCommand::Variants(options) => options.json,
             },
             Self::Graph(args) => match &args.command {
                 GraphCommand::Links(options) => options.json,
-                GraphCommand::Uses(options) => options.json,
                 GraphCommand::Occurrences(options) => options.json,
-                GraphCommand::Variants(options) => options.json,
-                GraphCommand::Remaster(options) => options.json,
             },
             Self::Similar(options) => options.json,
             Self::Search(options) => options.json,
@@ -163,9 +156,6 @@ impl Command {
                 ListsCommand::Remove(options) => options.json,
                 ListsCommand::Delete(options) => options.json,
                 ListsCommand::Note(options) => options.json,
-            },
-            Self::Tags(tags) => match &tags.command {
-                TagsCommand::Validate(options) => options.json,
             },
             Self::Agent(args) => args.uses_json(),
             Self::Completions(_) => false,
@@ -192,16 +182,12 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             RecordCommand::Get(options) => commands::record::run_record_get(*options),
             RecordCommand::Resolve(options) => commands::record::run_record_resolve(*options),
             RecordCommand::Source(options) => commands::record::source::run_record_source(options),
-        },
-        Command::Trait(traits) => match traits.command {
-            TraitCommand::Get(options) => commands::traits::run_trait_get(options),
+            RecordCommand::Definition(options) => commands::record::definition::run(options),
+            RecordCommand::Variants(options) => commands::record::variants::run(options),
         },
         Command::Graph(graph) => match graph.command {
             GraphCommand::Links(options) => commands::graph::run_graph_links(options),
-            GraphCommand::Uses(options) => commands::graph::run_graph_uses(options),
             GraphCommand::Occurrences(options) => commands::graph::occurrences::run(*options),
-            GraphCommand::Variants(options) => commands::graph::run_graph_variants(options),
-            GraphCommand::Remaster(options) => commands::graph::run_graph_remaster(options),
         },
         Command::Similar(options) => commands::similar::run_similar(*options),
         Command::Search(options) => commands::search::run_search(*options),
@@ -228,11 +214,8 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
             ListsCommand::Delete(options) => commands::lists::run_lists_delete(options),
             ListsCommand::Note(options) => commands::lists::run_lists_note(options),
         },
-        Command::Tags(tags) => match tags.command {
-            TagsCommand::Validate(options) => commands::tags::run_tags_validate(options),
-        },
         Command::Agent(agent) => commands::agent_skills::run_agent(agent),
-        Command::Completions(args) => commands::completions::run_completions(args, Cli::command()),
+        Command::Completions(args) => commands::completions::run_completions(args),
     }
 }
 

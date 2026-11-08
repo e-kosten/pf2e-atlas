@@ -14,16 +14,10 @@ pub(crate) struct GraphArgs {
 pub(crate) enum GraphCommand {
     #[command(about = "Fetch one-hop reference links for a record")]
     Links(GraphLinksOptions),
-    #[command(about = "Show records that reference or use a record")]
-    Uses(GraphUsesOptions),
     #[command(
         about = "Page exact link occurrences for a search result and positive link condition"
     )]
     Occurrences(Box<GraphOccurrencesOptions>),
-    #[command(about = "Show bounded Suggested variants with naming evidence")]
-    Variants(GraphVariantsOptions),
-    #[command(about = "Show legacy/remaster links for a record")]
-    Remaster(GraphRemasterOptions),
 }
 
 #[derive(Debug, Args)]
@@ -69,53 +63,6 @@ pub(crate) struct GraphLinksOptions {
     pub(crate) outgoing: usize,
     #[arg(long, default_value_t = 0, value_parser = parse_graph_limit, help = "Maximum backlink neighbor records to include, 0-1024; 0 disables backlinks")]
     pub(crate) backlinks: usize,
-    #[arg(long, help = "Override the SQLite artifact path")]
-    pub(crate) index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
-    pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Emit the standard JSON envelope")]
-    pub(crate) json: bool,
-}
-
-#[derive(Debug, Args)]
-#[command(
-    after_help = "Examples:\n  atlas graph uses \"Frightened\"\n  atlas graph uses conditionitems:AJh5ex99aV6VTggg --limit 25 --json"
-)]
-pub(crate) struct GraphUsesOptions {
-    #[arg(help = "Seed record key or strict resolvable record name")]
-    pub(crate) record_ref: String,
-    #[arg(long, default_value_t = 64, value_parser = parse_graph_limit, help = "Maximum records that use this record to include, 0-1024")]
-    pub(crate) limit: usize,
-    #[arg(long, help = "Override the SQLite artifact path")]
-    pub(crate) index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
-    pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Emit the standard JSON envelope")]
-    pub(crate) json: bool,
-}
-
-#[derive(Debug, Args)]
-#[command(
-    after_help = "Examples:\n  atlas graph variants \"Dread Ampoule (Moderate)\"\n  atlas graph variants equipment-srd:IvFEJqp2MUew65nQ --json"
-)]
-pub(crate) struct GraphVariantsOptions {
-    #[arg(help = "Seed record key or strict resolvable record name")]
-    pub(crate) record_ref: String,
-    #[arg(long, help = "Override the SQLite artifact path")]
-    pub(crate) index: Option<PathBuf>,
-    #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
-    pub(crate) path_mode: CliPathMode,
-    #[arg(long, help = "Emit the standard JSON envelope")]
-    pub(crate) json: bool,
-}
-
-#[derive(Debug, Args)]
-#[command(
-    after_help = "Examples:\n  atlas graph remaster \"Air Mephit\"\n  atlas graph remaster pathfinder-bestiary:KDRlxdIUADWHI6Vr --json"
-)]
-pub(crate) struct GraphRemasterOptions {
-    #[arg(help = "Seed record key or strict resolvable record name")]
-    pub(crate) record_ref: String,
     #[arg(long, help = "Override the SQLite artifact path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]

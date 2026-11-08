@@ -8,10 +8,12 @@ use atlas_cli_support::write_json_response;
 use std::process::ExitCode;
 pub(crate) mod args;
 mod batch;
+pub(crate) mod definition;
 mod json;
 mod presentation;
 pub(crate) mod source;
 pub(crate) mod terminal;
+pub(crate) mod variants;
 use args::{RecordGetOptions, RecordResolveOptions, TerminalDetail};
 #[cfg(test)]
 use terminal::render_html;
@@ -274,6 +276,35 @@ fn print_header(record: &atlas_app_model::RecordSummaryView) {
     presentation::identity(&mut output, record);
     print!("{output}");
 }
+pub(super) fn resolve_seed(
+    s: &atlas_app_service::AtlasAppService,
+    name: String,
+    json: bool,
+) -> Result<Result<atlas_domain::RecordKey, ExitCode>, String> {
+    let result = match s.resolve_record_ref(name, None) {
+        Ok(value) => value,
+        Err(error) => return Ok(Err(report_app_error(error.into_app_error(), json)?)),
+    };
+    let (code, message, candidates) = match result {
+        atlas_app_model::RecordRefResolutionView::Key(k) => return Ok(Ok(k)),
+        atlas_app_model::RecordRefResolutionView::Miss => (
+            atlas_app_model::AppErrorCode::RecordResolutionMiss,
+            "no strict name or verified alias matched",
+            vec![],
+        ),
+        atlas_app_model::RecordRefResolutionView::Ambiguous(matches) => (
+            atlas_app_model::AppErrorCode::RecordResolutionAmbiguous,
+            "ambiguous reference; specify a Foundry key",
+            matches.iter().map(|m| m.record.clone()).collect(),
+        ),
+    };
+    Ok(Err(report_app_error(
+        atlas_app_model::AppError::new(code, message)
+            .with_details(serde_json::json!({"candidates":candidates})),
+        json,
+    )?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

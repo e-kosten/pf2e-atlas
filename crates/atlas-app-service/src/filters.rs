@@ -2,11 +2,10 @@ use crate::{AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
     DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     FilterCountsView, FilterDiscoveryContext, FilterEditorView, FilterValueListView,
-    FilterVocabularyScope,
+    FilterValueOptionsView, FilterVocabularyScope,
 };
 use atlas_domain::{
-    QueryCapability, QueryFacetOutcome, QueryFieldCounts, QueryPredicate, QueryValueOptions,
-    RecordKey,
+    QueryCapability, QueryFacetOutcome, QueryFieldCounts, QueryPredicate, RecordKey,
 };
 use atlas_search::{
     DiscoverFilterCountsRequest as SearchCounts,
@@ -17,7 +16,7 @@ use atlas_search::{
 };
 
 #[derive(Debug, Clone)]
-pub struct RawFilterValuesRequest {
+pub struct CliFilterValuesRequest {
     pub field: String,
     pub context: FilterDiscoveryContext,
     pub clause_id: Option<String>,
@@ -80,10 +79,10 @@ impl AtlasAppService {
             },
         )
     }
-    pub fn discover_raw_filter_values(
+    pub fn discover_cli_filter_values(
         &self,
-        request: RawFilterValuesRequest,
-    ) -> AppServiceResult<QueryValueOptions> {
+        request: CliFilterValuesRequest,
+    ) -> AppServiceResult<FilterValueOptionsView> {
         let execution = ReadExecutionContext::uncancellable();
         let (list, filter, text, profile, expected, content_scope, connection_scope) =
             context_parts(request.context)?;
@@ -91,7 +90,7 @@ impl AtlasAppService {
             let keys = discovery_keys(workspace, list.as_deref(), connection_scope.as_ref())?;
             let r = workspace.retrieval_mut();
             check_generation(r, expected.as_deref())?;
-            required_facet(
+            let values = required_facet(
                 r.discover_filter_values(SearchValues {
                     only_matching: false,
                     field: &request.field,
@@ -111,7 +110,8 @@ impl AtlasAppService {
                     offset: request.offset,
                     limit: request.limit,
                 })?,
-            )
+            )?;
+            crate::definition_values::options(r, values)
         })
     }
     pub fn discover_raw_filter_counts(

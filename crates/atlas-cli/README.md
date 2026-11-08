@@ -10,9 +10,9 @@ atlas filters fields --json
 atlas filters values --field traits --kind spell --json
 atlas record resolve 'Treat Wounds' --json
 atlas record get actionspf2e:1kGNdIIhuglAjIp9
-atlas graph uses 'Frightened' --json
+atlas graph links 'Frightened' --outgoing 0 --backlinks 8 --json
 atlas similar 'Dirge of Doom' --kind spell --json
-atlas lists create research --name Research
+atlas lists create Research --slug research
 atlas web
 ```
 

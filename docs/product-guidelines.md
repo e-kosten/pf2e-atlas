@@ -7,6 +7,30 @@ table; rules reminders must leave outcomes resolved at the table usable.
 For browser implementation, read the [frontend guidance](../web/atlas-ui/AGENTS.md)
 and its [design principles](../web/atlas-ui/docs/frontend-guidelines.md#design-principles).
 
+## CLI command design
+
+- Use the top level for jobs users recognize, such as searching the corpus,
+  reading references, managing lists and building encounters. Place specialized
+  actions under the relevant job and contributor diagnostics in
+  [`atlas-dev`](development/developer-commands.md).
+- Group related actions when the parent provides a clear entry point. Give
+  actions separate commands when their inputs or help differ materially.
+  Before adding a subcommand to a runnable command, check whether its name
+  can already be passed as an argument, such as a word in a search query.
+- Use the same verbs, argument positions and flag meanings for shared operations
+  across peers such as lists and encounters. Give resource-specific operations
+  names and arguments that describe what they do.
+- Show the next command where users learn they need it. When one command returns
+  a key for another command, show which key to copy and how to use it in help
+  or examples. Apply the same rule to follow-up actions such as paging evidence
+  from a search result.
+- At this stage, command paths, arguments and JSON payloads may evolve without
+  a general promise of backward compatibility. When changing them, update
+  affected repository-owned callers, including installer and release tooling,
+  tests and the bundled agent skill, along with help and examples. Check which
+  binary versions each caller must support, especially when an installer
+  probes an already-installed executable.
+
 ## Product UI Controls
 
 - Default to a direct action, then inline or anchored context for small frequent
