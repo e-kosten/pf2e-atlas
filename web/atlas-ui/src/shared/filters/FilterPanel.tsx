@@ -1073,6 +1073,9 @@ function FilterRule(props: RuleProps) {
   }, [pendingConditionRef, props.rule.id]);
   const links = useContext(LinkEditingContext);
   const draftRule = props.rule as PredicateRule;
+  const relatedEntryRule =
+    draftRule.field === RELATED_CONDITION ||
+    (draftRule.operator === "exists" && isEmbeddedEntryField(field));
   const relationship =
     draftRule.field === LINK_CONDITION && draftRule.value?.selection
       ? ({ ...draftRule.value, direction: draftRule.operator } as QueryRelationship)
@@ -1104,15 +1107,11 @@ function FilterRule(props: RuleProps) {
           undefined
         }
         data-link-condition={
-          props.rule.field === LINK_CONDITION ||
-          props.rule.field === RELATED_CONDITION ||
-          isEmbeddedEntryField(field) ||
-          undefined
+          draftRule.field === LINK_CONDITION || relatedEntryRule || undefined
         }
       >
         <RuleComponents {...rule} />
-        {(draftRule.field === RELATED_CONDITION ||
-          (draftRule.operator === "exists" && isEmbeddedEntryField(field))) && (
+        {relatedEntryRule && (
           <RelatedEntrySummary
             rule={draftRule}
             fields={editor.groups.flatMap((group) => group.fields)}
