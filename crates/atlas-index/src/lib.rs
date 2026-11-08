@@ -2,7 +2,10 @@
 mod source_admission;
 pub use source_admission::{CompleteSourceInventory, SourceAdmissionSummary, SourceExcludedInput};
 mod artifact_instance;
+mod catalog_fingerprint;
 mod codec;
+mod search_schema_closeout;
+pub use search_schema_closeout::{SEARCH_SCHEMA_CLOSEOUT_VERSION, backfill_search_schema_closeout};
 mod component_digests;
 mod component_upgrade;
 pub use component_digests::COMPONENT_DIGEST_SCHEMA_SQL;

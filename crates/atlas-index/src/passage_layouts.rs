@@ -298,7 +298,7 @@ mod tests {
             .unwrap();
             match defect {
                 "catalog" => {
-                    c.execute("UPDATE search_profiles SET dimensions=dimensions+1", [])
+                    c.execute("UPDATE embedding_models SET identity_json=json_set(identity_json,'$.dimensions',1)", [])
                         .unwrap();
                 }
                 "model" => {

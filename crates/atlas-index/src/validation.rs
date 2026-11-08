@@ -36,6 +36,15 @@ pub struct ArtifactValidationReport {
 pub(crate) fn validate_open(
     c: &Connection,
 ) -> Result<(SourceArtifactBuildContext, String), IndexError> {
+    let result = validate_admitted_context(c)?;
+    validate_catalog(c)?;
+    validate_profile_storage(c, &result.0)?;
+    Ok(result)
+}
+
+fn validate_admitted_context(
+    c: &Connection,
+) -> Result<(SourceArtifactBuildContext, String), IndexError> {
     let (context, hash) = crate::component_upgrade::read_stored_reference_metadata(c)?
         .ok_or_else(|| IndexError::Unavailable("reference data has not been built".into()))?;
     if context.search_profiles != context.canonical_profiles()? {
@@ -45,23 +54,39 @@ pub(crate) fn validate_open(
     // The runtime migration coordinator authenticates the ordered ledger. Do not
     // compare sqlite_master SQL text with fresh-baseline DDL: legitimate ALTER
     // migrations can have identical capabilities and different stored SQL.
-    let mut statement =
-        c.prepare("SELECT field,definition_json FROM query_field_catalog ORDER BY field")?;
-    let actual = statement
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .collect::<Result<BTreeMap<_, _>, _>>()?;
-    let wanted = crate::query::query_capabilities()?
-        .fields
-        .into_iter()
-        .map(|d| Ok((d.id.clone(), serde_json::to_string(&d)?)))
-        .collect::<Result<BTreeMap<_, _>, IndexError>>()?;
-    if actual != wanted {
+    Ok((context, hash))
+}
+
+// Admission for the schema-28 reconstruction, which still has both legacy
+// tables. Keep this separate from the current reader's required physical shape.
+pub(crate) fn validate_pre_fingerprint(c: &Connection) -> Result<(), IndexError> {
+    let (context, _) = validate_admitted_context(c)?;
+    let fields = crate::search_schema_closeout::legacy_catalog_fields(c)?;
+    if &crate::catalog_fingerprint::fingerprint_v1(fields) != crate::catalog_fingerprint::current()?
+    {
         return Err(IndexError::Unsupported(
             "filter catalog differs from executable bindings".into(),
         ));
     }
-    validate_profile_storage(c, &context)?;
-    Ok((context, hash))
+    validate_profile_storage_from(
+        c,
+        &context,
+        "SELECT profile_id,identity_json,dimensions FROM search_profiles ORDER BY profile_id",
+    )
+}
+
+pub(crate) fn validate_catalog(c: &Connection) -> Result<(), IndexError> {
+    let actual: Option<Vec<u8>> = c.query_row(
+        "SELECT CASE WHEN length(query_catalog_sha256)=32 THEN query_catalog_sha256 END FROM artifact_context WHERE singleton=1",
+        [],
+        |row| row.get(0),
+    )?;
+    if actual.as_deref() != Some(crate::catalog_fingerprint::current()?.as_slice()) {
+        return Err(IndexError::Unsupported(
+            "filter catalog differs from executable bindings".into(),
+        ));
+    }
+    Ok(())
 }
 
 /// Test probes deliberately inspect committed state while product admission may
@@ -689,16 +714,30 @@ pub(crate) fn validate_profile_storage(
     c: &Connection,
     context: &SourceArtifactBuildContext,
 ) -> Result<(), IndexError> {
-    let mut statement = c.prepare(
-        "SELECT profile_id,identity_json,dimensions FROM search_profiles ORDER BY profile_id",
-    )?;
+    validate_profile_storage_from(
+        c,
+        context,
+        "SELECT p.profile_id,m.identity_json,NULL
+         FROM search_profiles p LEFT JOIN embedding_models m USING(model_id) ORDER BY p.profile_id",
+    )
+}
+
+fn validate_profile_storage_from(
+    c: &Connection,
+    context: &SourceArtifactBuildContext,
+    sql: &str,
+) -> Result<(), IndexError> {
+    let mut statement = c.prepare(sql)?;
     let mut actual = Vec::new();
     let mut rows = statement.query([])?;
     while let Some(row) = rows.next()? {
-        let identity: crate::SourceSearchProfileIdentity =
-            serde_json::from_str(&row.get::<_, String>(1)?)?;
+        let identity_json: Option<String> = row.get(1)?;
+        let identity: crate::SourceSearchProfileIdentity = serde_json::from_str(
+            &identity_json.ok_or_else(|| bad("active profile is missing its registered model"))?,
+        )?;
+        let legacy_dimensions: Option<usize> = row.get(2)?;
         if identity.profile_id.as_str() != row.get::<_, String>(0)?
-            || identity.dimensions != row.get::<_, usize>(2)?
+            || legacy_dimensions.is_some_and(|dimensions| dimensions != identity.dimensions)
             || identity.dimensions == 0
         {
             return Err(bad("profile metadata identity mismatch"));

@@ -991,16 +991,17 @@ fn core_upgrade_classification_preserves_preparation_precedence_and_rejects_newe
     ] {
         // No bodies, units or Core tables: classification must not inspect them.
         let c = rusqlite::Connection::open_in_memory().unwrap();
-        c.execute_batch("CREATE TABLE artifact_context(singleton INTEGER PRIMARY KEY,format_version INTEGER,context_hash TEXT,context_json TEXT);").unwrap();
+        c.execute_batch("CREATE TABLE artifact_context(singleton INTEGER PRIMARY KEY,format_version INTEGER,context_hash TEXT,context_json TEXT,query_catalog_sha256 BLOB);").unwrap();
         let mut context = crate::foundation_tests::fixture(false).context;
         context.core_sections_recipe = core.into();
         context.content_interpretation_version = preparation.into();
         c.execute(
-            "INSERT INTO artifact_context VALUES(1,?,?,?)",
+            "INSERT INTO artifact_context VALUES(1,?,?,?,?)",
             rusqlite::params![
                 context.format_version,
                 context.sha256().unwrap(),
-                serde_json::to_string(&context).unwrap()
+                serde_json::to_string(&context).unwrap(),
+                crate::catalog_fingerprint::current().unwrap().as_slice()
             ],
         )
         .unwrap();

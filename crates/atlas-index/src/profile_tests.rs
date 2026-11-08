@@ -138,11 +138,6 @@ fn historical_same_format_gemma_recipe_preserves_profile_identity_and_shared_con
         rusqlite::params![json, context.sha256().unwrap()],
     )
     .unwrap();
-    c.execute(
-        "UPDATE search_profiles SET identity_json=? WHERE profile_id='embeddinggemma'",
-        [serde_json::to_string(&context.search_profiles[1]).unwrap()],
-    )
-    .unwrap();
     move_fixture_vectors(
         &c,
         &input.context.search_profiles[1],
@@ -211,15 +206,6 @@ fn full_segmentation_digest_changes_generation_and_invalidates_each_affected_pro
                 rusqlite::params![
                     serde_json::to_string(&changed).unwrap(),
                     changed.sha256().unwrap()
-                ],
-            )
-            .unwrap();
-        connection
-            .execute(
-                "UPDATE search_profiles SET identity_json=?1 WHERE profile_id=?2",
-                rusqlite::params![
-                    serde_json::to_string(profile).unwrap(),
-                    profile.profile_id.as_str()
                 ],
             )
             .unwrap();
@@ -388,7 +374,6 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
         "weapon_projection",
         "spell_projection",
         "spell_traditions",
-        "query_field_catalog",
         "projection_allocations",
         "record_bodies",
         "prepared_content",
