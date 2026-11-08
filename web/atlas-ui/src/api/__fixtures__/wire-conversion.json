@@ -194,21 +194,6 @@
             "duration": {
               "amount": 1,
               "timing": {
-                "event": "start",
-                "participant_key": "fixture-manual"
-              },
-              "unit": "rounds"
-            },
-            "name": "Countdown",
-            "remaining_rounds": 0,
-            "timing_available": true,
-            "timing_label": "Start of Kyra’s turn",
-            "tracker_key": "tracker_wire-completion"
-          },
-          {
-            "duration": {
-              "amount": 1,
-              "timing": {
                 "event": "end",
                 "participant_key": "fixture-manual"
               },
@@ -219,6 +204,21 @@
             "timing_available": true,
             "timing_label": "End of Kyra’s turn",
             "tracker_key": "tracker_wire-tracker"
+          },
+          {
+            "duration": {
+              "amount": 1,
+              "timing": {
+                "event": "start",
+                "participant_key": "fixture-manual"
+              },
+              "unit": "rounds"
+            },
+            "name": "Countdown",
+            "remaining_rounds": 0,
+            "timing_available": true,
+            "timing_label": "Start of Kyra’s turn",
+            "tracker_key": "tracker_wire-completion"
           }
         ],
         "mortality": "alive",
