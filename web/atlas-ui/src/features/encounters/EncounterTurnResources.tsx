@@ -2,7 +2,7 @@ import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Button, Space, Tooltip, theme } from "antd";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type {
   TurnResourceAction,
   TurnResourceKind,
@@ -27,6 +27,7 @@ export function EncounterTurnResources({
   onChange?: TurnResourceHandler;
   onReference?: RecordReferenceHandler;
 }) {
+  const headingId = useId();
   const [busy, setBusy] = useState(false);
   const { token } = theme.useToken();
   const inFlight = useRef(false);
@@ -62,7 +63,14 @@ export function EncounterTurnResources({
   const reactionRestricted = Number(stock) > 0 && !value.can_spend_reactions.available;
   const reactionBlocked = unavailable || reactionRestricted;
   return (
-    <section className="encounter-turn-resources" aria-label="Turn" aria-busy={busy}>
+    <section
+      className="encounter-turn-resources"
+      aria-labelledby={headingId}
+      aria-busy={busy}
+    >
+      <h3 className="encounter-inspector-heading" id={headingId}>
+        Turn
+      </h3>
       <div className="encounter-turn-resources__controls">
         {value.regular_total !== null && value.regular_remaining !== null ? (
           <div className="encounter-turn-resources__actions">

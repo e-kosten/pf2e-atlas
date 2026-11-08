@@ -125,7 +125,9 @@ export function EncounterManualTrackers({
       className="encounter-conditions encounter-manual-trackers"
     >
       <div className="encounter-conditions__header">
-        <h3 id={heading}>Trackers</h3>
+        <h3 className="encounter-inspector-heading" id={heading}>
+          Trackers
+        </h3>
         <Tooltip title="Add tracker" trigger={["hover", "focus"]}>
           <Button
             ref={addTrigger}

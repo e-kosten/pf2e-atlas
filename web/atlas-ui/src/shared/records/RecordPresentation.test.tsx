@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { RecordPresentation } from "./RecordPresentation";
-import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference";
+import {
+  ActorActivities,
+  ActorDefenses,
+  ActorSkills,
+  DamageComponents,
+} from "./ActorReference";
 import { SpellChanges, SpellReference } from "./SpellReference";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { decodeFilterUrl } from "../filters/filterUrl";
@@ -70,7 +75,7 @@ it("keeps conditional skills compact while exposing their complete qualification
       ]),
     },
   ]);
-  render(<ActorFacts actor={actor} />);
+  render(<ActorSkills actor={actor} />);
   expect(screen.getByText("Stealth").parentElement).toHaveTextContent(
     /Stealth\s*\+12\s*·\s*\+18 in forests or swamps/,
   );
@@ -1344,7 +1349,7 @@ it("keeps authored qualifiers beside their numbers and general save notes scoped
   ]) {
     expect(screen.getByText(text)).toBeVisible();
   }
-  rerender(<ActorFacts actor={actor} encounter hideHitPoints />);
+  rerender(<ActorDefenses actor={actor} hideHitPoints />);
   expect(
     screen.getByText("HP", { selector: "strong" }).parentElement,
   ).toHaveTextContent("HP void healing");
