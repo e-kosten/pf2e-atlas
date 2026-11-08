@@ -462,7 +462,7 @@ fn offline_projection_upgrade_recovers_authored_sense_qualifiers_and_armor_group
     workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
     assert!(ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), revision + 1);
+    assert_eq!(read.reference_revision().unwrap(), revision + 2);
     assert_eq!(
         read.connection()
             .prepare("SELECT snapshot FROM record_bodies ORDER BY record_id")

@@ -1197,39 +1197,49 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
 async fn similarity_inventory_route_preserves_typed_seed_profile_and_generation() {
     let fixture = Fixture::new();
     let generation = fixture.service.readiness().artifact_generation.unwrap();
-    for seed in [
-        json!({"kind":"record","record_key":ACTION}),
-        json!({"kind":"trait","trait_key":"trait:fire"}),
-    ] {
-        let(status,body)=fixture.json(Method::POST,"/api/search/similarity/parts",Some(json!({"seed":seed,"search_profile":"bge-base","expected_artifact_generation":generation}))).await;
-        assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["search_profile"], "bge-base");
-        assert_eq!(body["seed"], seed);
-        assert_eq!(body["artifact_generation"], generation);
-        assert_eq!(
-            body["supports_corresponding_parts"],
-            seed["kind"] == "record"
-        );
-    }
+    let seed = json!({"kind":"record","record_key":ACTION});
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/search/similarity/parts",
+            Some(json!({"seed":seed,"search_profile":"bge-base","expected_artifact_generation":generation})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["search_profile"], "bge-base");
+    assert_eq!(body["seed"], seed);
+    assert_eq!(body["artifact_generation"], generation);
+    assert_eq!(body["supports_corresponding_parts"], true);
     let (status, body)=fixture.json(Method::POST,"/api/search/similarity/parts",Some(json!({"seed":{"kind":"record","record_key":ACTION},"search_profile":"embeddinggemma","expected_artifact_generation":generation}))).await;
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
     assert_eq!(body["code"], "vector_readiness_required");
-    let(status,body)=fixture.json(Method::POST,"/api/search/similarity/parts",Some(json!({"seed":{"kind":"trait","trait_key":"trait:fire"},"expected_artifact_generation":"previous-generation"}))).await;
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/search/similarity/parts",
+            Some(json!({"seed":seed,"expected_artifact_generation":"previous-generation"})),
+        )
+        .await;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["code"], "artifact_generation_changed");
 }
 
 #[tokio::test]
-async fn similarity_inventory_route_rejects_unknown_seed_fields() {
+async fn similarity_inventory_route_rejects_invalid_seeds() {
     let fixture = Fixture::new();
-    let (status, body) = fixture
-        .json(
-            Method::POST,
-            "/api/search/similarity/parts",
-            Some(json!({"seed":{"kind":"record","record_key":ACTION,"text":"invented selection"}})),
-        )
-        .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    for seed in [
+        json!({"kind":"record","record_key":ACTION,"text":"invented selection"}),
+        json!({"kind":"trait","trait_key":"trait:fire"}),
+    ] {
+        let (status, body) = fixture
+            .json(
+                Method::POST,
+                "/api/search/similarity/parts",
+                Some(json!({"seed":seed})),
+            )
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
 }
 
 #[tokio::test]
