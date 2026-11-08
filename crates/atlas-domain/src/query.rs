@@ -156,10 +156,12 @@ pub enum QueryValueDiscovery {
 pub struct QueryFieldDefinition {
     pub id: String,
     pub path: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub scope: Option<String>,
     pub field_type: QueryFieldType,
     pub label: String,
     pub family_types: Vec<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub units: Option<String>,
     pub basis: String,
     pub choices: Vec<String>,
@@ -199,8 +201,11 @@ impl Default for QueryLimits {
 pub struct QueryError {
     pub code: String,
     pub message: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub field: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub clause_id: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_span: Option<(usize, usize)>,
 }
 impl std::fmt::Display for QueryError {

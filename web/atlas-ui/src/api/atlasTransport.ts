@@ -18,10 +18,7 @@ export type AtlasRequestInit = Omit<RequestInit, "method"> &
     | { method: "POST" | "PATCH" | "DELETE"; intent: "read" | "action" }
   );
 
-export async function atlasFetch<T>(
-  path: string,
-  init: AtlasRequestInit = {},
-): Promise<T> {
+async function atlasFetch<T>(path: string, init: AtlasRequestInit = {}): Promise<T> {
   const failure = getCompatibilityFailure();
   if (failure && path !== "/api/compatibility") throw failure;
   const headers = new Headers(init.headers);

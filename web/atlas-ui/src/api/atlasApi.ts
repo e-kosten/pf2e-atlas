@@ -46,7 +46,7 @@ import type {
   UpdateSavedListRequest,
 } from "../generated/atlas";
 import { clearCompatibilityFailure } from "./compatibility";
-import { atlasFetch, isRecord, type AtlasRequestInit } from "./atlasTransport";
+import { isRecord } from "./atlasTransport";
 export type { AtlasRequestInit } from "./atlasTransport";
 import { AtlasApiError } from "./apiError";
 import { toBigInt, type Wire } from "./wire";
@@ -64,23 +64,21 @@ import {
 export { AtlasApiError } from "./apiError";
 
 export async function verifyBackendCompatibility(): Promise<true> {
-  await atlasFetch("/api/compatibility", { cache: "no-store" });
+  await http.handshake({ cache: "no-store" });
   clearCompatibilityFailure();
   return true;
 }
 
 export async function getReadiness(): Promise<AppReadinessView> {
-  return atlasFetch("/api/readiness");
+  return legacyResponse(http.readiness());
 }
 
 export async function discoverFilterEditor(
   request: DiscoverFilterEditorRequest,
   signal?: AbortSignal,
 ): Promise<FilterEditorView> {
-  const editor = await atlasFetch<unknown>("/api/filters/editor", {
+  const editor = await http.discoverFilterEditor(toWire(request), {
     intent: "read",
-    method: "POST",
-    body: jsonBody(request),
     signal,
   });
   return editor as FilterEditorView;
@@ -90,10 +88,8 @@ export async function discoverFilterValues(
   request: DiscoverFilterValuesRequest,
   signal?: AbortSignal,
 ): Promise<FilterValueListView> {
-  const values = await atlasFetch<unknown>("/api/filters/values", {
+  const values = await http.discoverFilterValues(toWire(request), {
     intent: "read",
-    method: "POST",
-    body: jsonBody(request),
     signal,
   });
   return normalizeFilterValueList(values);
@@ -111,22 +107,17 @@ export async function getSimilarityParts(
   request: SimilarityPartsRequest,
   signal?: AbortSignal,
 ): Promise<SimilarityPartsView> {
-  return atlasFetch("/api/search/similarity/parts", {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-    signal,
-  });
+  return legacyResponse(
+    http.similarityParts(toWire(request), { intent: "read", signal }),
+  );
 }
 
 export async function getRelationshipOccurrences(
   request: RelationshipOccurrencesRequest,
   signal?: AbortSignal,
 ): Promise<RelationshipOccurrencesPage> {
-  const value = await atlasFetch<unknown>("/api/search/relationship-occurrences", {
+  const value = await http.relationshipOccurrences(toWire(request), {
     intent: "read",
-    method: "POST",
-    body: jsonBody(request),
     signal,
   });
   if (!isRecord(value) || !isRecord(value.page))
@@ -145,12 +136,9 @@ export async function getRecordDetail(
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
   const detail = await (selection
-    ? atlasFetch<Wire<RecordDetailView>>("/api/records/detail", {
-        intent: "read",
-        method: "POST",
-        body: jsonBody(selection),
-        signal,
-      })
+    ? legacyResponse<Wire<RecordDetailView>>(
+        http.recordDetailAt(toWire(selection), { intent: "read", signal }),
+      )
     : http.getRecordDetail(recordKey, { signal }));
   // Keep the existing presentation conversions until their types migrate to the schema.
   return convertRecordDetail(detail as Wire<RecordDetailView>);
@@ -159,14 +147,8 @@ export async function getEmbeddedReading(
   request: EmbeddedReadingRequest,
   signal?: AbortSignal,
 ): Promise<EmbeddedReadingBatchView> {
-  const result = await atlasFetch<Wire<EmbeddedReadingBatchView>>(
-    "/api/records/embedded-reading",
-    {
-      intent: "read",
-      method: "POST",
-      body: jsonBody(request),
-      signal,
-    },
+  const result = await legacyResponse<Wire<EmbeddedReadingBatchView>>(
+    http.embeddedReading(toWire(request), { intent: "read", signal }),
   );
   return {
     ...result,
@@ -186,101 +168,81 @@ export async function getEncounterReference(
   request: import("../generated/atlas").EncounterReferenceRequest,
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
-  const detail = await atlasFetch<Wire<RecordDetailView>>(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
-    {
+  const detail = await legacyResponse<Wire<RecordDetailView>>(
+    http.encounterReference(encounterRef, participantKey, toWire(request), {
       signal,
       intent: "read",
-      method: "POST",
-      body: jsonBody(request),
-    },
+    }),
   );
   return convertRecordDetail(detail);
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
-  return atlasFetchEncounter("/api/encounters");
+  return normalizeEncounterResponse(http.encounters());
 }
 
 export async function getEncounterConditionDefinitions(
   encounterRef: string,
   participantKey: string,
 ): Promise<EncounterConditionCatalogView> {
-  return atlasFetchEncounter(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/condition-definitions`,
+  return normalizeEncounterResponse(
+    http.participantEncounterConditionDefinitions(encounterRef, participantKey),
   );
 }
 
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
   return convertEncounterDetail(
-    await atlasFetch<Wire<EncounterDetailView>>(
-      `/api/encounters/${encodeURIComponent(encounterRef)}`,
-    ),
+    await legacyResponse<Wire<EncounterDetailView>>(http.encounter(encounterRef)),
   );
 }
 
 export async function createEncounter(
   request: CreateEncounterRequest,
 ): Promise<EncounterCreateView> {
-  return atlasFetchEncounter("/api/encounters", {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return normalizeEncounterResponse(
+    http.createEncounter(toWire(request), { intent: "action" }),
+  );
 }
 
 export async function deleteEncounter(
   encounterRef: string,
 ): Promise<DeleteEncounterView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}`, {
-    intent: "action",
-    method: "DELETE",
-  });
+  return http.deleteEncounter(encounterRef, { intent: "action" });
 }
 
 export async function updateEncounter(
   request: UpdateEncounterRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(request.encounter_key)}`, {
+  return http.updateEncounter(request.encounter_key, toWire(request), {
     intent: "action",
-    method: "PATCH",
-    body: jsonBody(request),
   });
 }
 
 export async function addEncounterRecordParticipant(
   request: AddEncounterRecordParticipantRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/record`,
-    {
-      intent: "action",
-      method: "POST",
-      body: jsonBody(request),
-    },
-  );
+  return http.addEncounterRecordParticipant(request.encounter_ref, toWire(request), {
+    intent: "action",
+  });
 }
 
 export async function addEncounterManualParticipant(
   request: AddEncounterManualParticipantRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(request.encounter_ref)}/participants/manual`,
-    {
-      intent: "action",
-      method: "POST",
-      body: jsonBody(request),
-    },
-  );
+  return http.addEncounterManualParticipant(request.encounter_ref, toWire(request), {
+    intent: "action",
+  });
 }
 
 export async function applyEncounterHpAction(
   encounterRef: string,
   request: import("../generated/atlas").ApplyEncounterHpActionRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/hp`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
+  return http.applyEncounterHpAction(
+    encounterRef,
+    request.participant_key,
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -288,9 +250,11 @@ export async function applyEncounterSpellAction(
   encounterRef: string,
   request: import("../generated/atlas").ApplyEncounterSpellActionRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/spells`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
+  return http.applyEncounterSpellAction(
+    encounterRef,
+    request.participant_key,
+    toWire(request) as http.ApplyEncounterSpellActionRequest,
+    { intent: "action" },
   );
 }
 
@@ -298,13 +262,11 @@ export async function updateEncounterParticipant(
   encounterRef: string,
   request: UpdateEncounterParticipantRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}`,
-    {
-      intent: "action",
-      method: "PATCH",
-      body: jsonBody(request),
-    },
+  return http.updateEncounterParticipant(
+    encounterRef,
+    request.participant_key,
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -312,51 +274,39 @@ export async function reorderEncounterParticipant(
   encounterRef: string,
   request: ReorderEncounterParticipantRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/reorder`,
-    {
-      intent: "action",
-      method: "POST",
-      body: jsonBody(request),
-    },
-  );
+  return http.reorderEncounterParticipant(encounterRef, toWire(request), {
+    intent: "action",
+  });
 }
 
 export async function removeEncounterParticipant(
   encounterRef: string,
   participantKey: string,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}`,
-    { intent: "action", method: "DELETE" },
-  );
+  return http.removeEncounterParticipant(encounterRef, participantKey, {
+    intent: "action",
+  });
 }
 
 export async function getEncounterTurnReview(
   encounterRef: string,
 ): Promise<import("../generated/atlas").EncounterTurnReviewView> {
-  return atlasFetchEncounter(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/turn-review`,
-  );
+  return normalizeEncounterResponse(http.encounterTurnReview(encounterRef));
 }
 
 export async function advanceEncounterTurn(
   encounterRef: string,
   request: import("../generated/atlas").AdvanceEncounterTurnRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/advance`, {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return http.advanceEncounterTurn(encounterRef, toWire(request), { intent: "action" });
 }
 
 export async function getInitiativeOptions(
   encounterRef: string,
 ): Promise<import("../generated/atlas").InitiativeOptionsView> {
-  const result = await atlasFetch<import("../generated/atlas").InitiativeOptionsView>(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/initiative`,
-  );
+  const result = await legacyResponse<
+    import("../generated/atlas").InitiativeOptionsView
+  >(http.initiativeOptions(encounterRef));
   return {
     ...result,
     expected_revision: toBigInt(result.expected_revision),
@@ -370,37 +320,26 @@ export function rollInitiative(
   encounterRef: string,
   request: import("../generated/atlas").RollInitiativeRequest,
 ): Promise<import("../generated/atlas").InitiativeRollView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/initiative`, {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return http.rollInitiative(encounterRef, toWire(request), { intent: "action" });
 }
 
 export async function setEncounterTurn(
   request: SetEncounterTurnRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(request.encounter_ref)}/turn`,
-    {
-      intent: "action",
-      method: "POST",
-      body: jsonBody(request),
-    },
-  );
+  return http.setEncounterTurn(request.encounter_ref, toWire(request), {
+    intent: "action",
+  });
 }
 
 export async function addEncounterParticipantCondition(
   encounterRef: string,
   request: AddEncounterParticipantConditionRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/conditions`,
-    {
-      intent: "action",
-      method: "POST",
-      body: jsonBody(request),
-    },
+  return http.addEncounterParticipantCondition(
+    encounterRef,
+    request.participant_key,
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -409,13 +348,12 @@ export async function updateEncounterParticipantCondition(
   participantKey: string,
   request: UpdateEncounterParticipantConditionRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${request.condition_id.toString()}`,
-    {
-      intent: "action",
-      method: "PATCH",
-      body: jsonBody(request),
-    },
+  return http.updateEncounterParticipantCondition(
+    encounterRef,
+    participantKey,
+    request.condition_id.toString(),
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -426,10 +364,21 @@ export async function previewEncounterCondition(
     | AddEncounterParticipantConditionRequest
     | UpdateEncounterParticipantConditionRequest,
 ): Promise<import("../generated/atlas").ConditionEventPreviewView> {
-  const suffix = "condition_id" in request ? `/${request.condition_id.toString()}` : "";
-  return atlasFetchEncounter(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions${suffix}/preview`,
-    { intent: "read", method: "POST", body: jsonBody(request) },
+  return normalizeEncounterResponse(
+    "condition_id" in request
+      ? http.previewEncounterConditionUpdate(
+          encounterRef,
+          participantKey,
+          request.condition_id.toString(),
+          toWire(request),
+          { intent: "read" },
+        )
+      : http.previewEncounterConditionAdd(
+          encounterRef,
+          participantKey,
+          toWire(request),
+          { intent: "read" },
+        ),
   );
 }
 
@@ -450,32 +399,28 @@ export async function encounterCastingReminders(
   encounterRef: string,
   request: import("../generated/atlas").EncounterCastingRemindersRequest,
 ): Promise<import("../generated/atlas").EncounterCastingRemindersView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/casting-reminders`,
-    {
-      intent: "read",
-      method: "POST",
-      body: jsonBody(request),
-    },
-  );
+  return http.encounterCastingReminders(encounterRef, toWire(request), {
+    intent: "read",
+  });
 }
 
 export async function previewEncounterDrainedConsequence(
   encounterRef: string,
   request: import("../generated/atlas").ResolveDrainedConsequenceRequest,
 ): Promise<import("../generated/atlas").ConditionHpChangeView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences/preview`,
-    { intent: "read", method: "POST", body: jsonBody(request) },
+  return legacyResponse(
+    http.previewEncounterDrainedConsequence(encounterRef, toWire(request), {
+      intent: "read",
+    }),
   );
 }
 
 export async function getEncounterConditionConsequences(
   encounterRef: string,
 ): Promise<import("../generated/atlas").PendingConditionConsequenceView[]> {
-  const result = await atlasFetch<
+  const result = await legacyResponse<
     import("../generated/atlas").PendingConditionConsequenceView[]
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences`);
+  >(http.pendingEncounterConditionConsequences(encounterRef));
   return result.map((value) => ({
     ...value,
     magnitude_increase: toBigInt(value.magnitude_increase),
@@ -486,10 +431,9 @@ export async function resolveEncounterDrainedConsequence(
   encounterRef: string,
   request: import("../generated/atlas").ResolveDrainedConsequenceRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences/drained`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
-  );
+  return http.resolveEncounterDrainedConsequence(encounterRef, toWire(request), {
+    intent: "action",
+  });
 }
 
 function persistentProtection(
@@ -534,10 +478,13 @@ export async function getEncounterPersistentReview(
   participantKey: string,
   boundaryKey: string | null = null,
 ): Promise<import("../generated/atlas").PersistentReviewView> {
-  const value = await atlasFetchEncounter<
+  const value = await normalizeEncounterResponse<
     import("../generated/atlas").PersistentReviewView
   >(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/persistent-review?participant_key=${encodeURIComponent(participantKey)}${boundaryKey ? `&boundary_key=${encodeURIComponent(boundaryKey)}` : ""}`,
+    http.persistentDamageReview(encounterRef, {
+      participant_key: participantKey,
+      boundary_key: boundaryKey || undefined,
+    }),
   );
   return {
     ...value,
@@ -561,13 +508,9 @@ export async function prepareEncounterPersistentDamage(
   encounterRef: string,
   request: import("../generated/atlas").PreparePersistentDamageRequest,
 ): Promise<import("../generated/atlas").PreparedPersistentDamageView> {
-  const value = await atlasFetch<
+  const value = await legacyResponse<
     import("../generated/atlas").PreparedPersistentDamageView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/persistent-preparation`, {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  >(http.preparePersistentDamage(encounterRef, toWire(request), { intent: "action" }));
   const draft = value.recovery_draft;
   return {
     ...value,
@@ -597,9 +540,10 @@ export async function applyEncounterPersistentDamage(
   request: import("../generated/atlas").ApplyPersistentDamageRequest,
 ): Promise<import("../generated/atlas").PersistentDamageResultView> {
   return persistentDamageResult(
-    await atlasFetch(
-      `/api/encounters/${encodeURIComponent(encounterRef)}/persistent-damage`,
-      { intent: "action", method: "POST", body: jsonBody(request) },
+    await legacyResponse<import("../generated/atlas").PersistentDamageResultView>(
+      http.applyPersistentDamage(encounterRef, toWire(request), {
+        intent: "action",
+      }),
     ),
   );
 }
@@ -608,13 +552,9 @@ export async function recoverEncounterPersistentDamage(
   encounterRef: string,
   request: import("../generated/atlas").RecoverPersistentDamageRequest,
 ): Promise<import("../generated/atlas").PersistentRecoveryResultView> {
-  const result = await atlasFetch<
+  const result = await legacyResponse<
     import("../generated/atlas").PersistentRecoveryResultView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/persistent-recovery`, {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  >(http.recoverPersistentDamage(encounterRef, toWire(request), { intent: "action" }));
   return persistentRecoveryResult(result);
 }
 
@@ -636,13 +576,13 @@ export async function previewEncounterStrikeContext(
   encounterRef: string,
   request: import("../generated/atlas").EncounterStrikeContextRequest,
 ): Promise<import("../generated/atlas").EncounterStrikeContextView> {
-  const value = await atlasFetch<
+  const value = await legacyResponse<
     import("../generated/atlas").EncounterStrikeContextView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/strike-context`, {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  >(
+    http.previewEncounterStrikeContext(encounterRef, toWire(request), {
+      intent: "read",
+    }),
+  );
   return {
     ...value,
     options: {
@@ -663,10 +603,13 @@ export async function getEncounterConditionLifecycleActions(
   participantKey: string,
   boundaryKey: string | null = null,
 ): Promise<import("../generated/atlas").ConditionLifecycleActionsView> {
-  const value = await atlasFetch<
+  const value = await legacyResponse<
     import("../generated/atlas").ConditionLifecycleActionsView
   >(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/condition-lifecycle-actions?participant_key=${encodeURIComponent(participantKey)}${boundaryKey ? `&boundary_key=${encodeURIComponent(boundaryKey)}` : ""}`,
+    http.conditionLifecycleActions(encounterRef, {
+      participant_key: participantKey,
+      boundary_key: boundaryKey || undefined,
+    }),
   );
   return {
     ...value,
@@ -729,13 +672,9 @@ export async function applyEncounterConditionLifecycle(
   encounterRef: string,
   request: import("../generated/atlas").ApplyConditionLifecycleRequest,
 ): Promise<import("../generated/atlas").ConditionLifecycleResultView> {
-  const value = await atlasFetch<
+  const value = await legacyResponse<
     import("../generated/atlas").ConditionLifecycleResultView
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/condition-lifecycle`, {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  >(http.applyConditionLifecycle(encounterRef, toWire(request), { intent: "action" }));
   return {
     ...value,
     check:
@@ -773,9 +712,9 @@ function hpLifecycle(
 export async function getEncounterHpLifecycle(
   encounterRef: string,
 ): Promise<import("../generated/atlas").PendingHpLifecycleView[]> {
-  const values = await atlasFetch<
+  const values = await legacyResponse<
     import("../generated/atlas").PendingHpLifecycleView[]
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/hp-lifecycle`);
+  >(http.pendingEncounterHpLifecycle(encounterRef));
   return values.map(hpLifecycle);
 }
 export async function previewEncounterHpLifecycle(
@@ -783,9 +722,10 @@ export async function previewEncounterHpLifecycle(
   request: import("../generated/atlas").ResolveEncounterHpLifecycleRequest,
 ): Promise<import("../generated/atlas").PendingHpLifecycleView> {
   return hpLifecycle(
-    await atlasFetch(
-      `/api/encounters/${encodeURIComponent(encounterRef)}/hp-lifecycle/preview`,
-      { intent: "read", method: "POST", body: jsonBody(request) },
+    await legacyResponse<import("../generated/atlas").PendingHpLifecycleView>(
+      http.previewEncounterHpLifecycle(encounterRef, toWire(request), {
+        intent: "read",
+      }),
     ),
   );
 }
@@ -793,10 +733,9 @@ export async function resolveEncounterHpLifecycle(
   encounterRef: string,
   request: import("../generated/atlas").ResolveEncounterHpLifecycleRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/hp-lifecycle/resolve`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
-  );
+  return http.resolveEncounterHpLifecycle(encounterRef, toWire(request), {
+    intent: "action",
+  });
 }
 
 export async function setEncounterLifeSettings(
@@ -804,10 +743,9 @@ export async function setEncounterLifeSettings(
   participantKey: string,
   request: import("../generated/atlas").SetEncounterLifeSettingsRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/life-settings`,
-    { intent: "action", method: "PATCH", body: jsonBody(request) },
-  );
+  return http.setEncounterLifeSettings(encounterRef, participantKey, toWire(request), {
+    intent: "action",
+  });
 }
 
 export async function removeEncounterParticipantCondition(
@@ -816,69 +754,53 @@ export async function removeEncounterParticipantCondition(
   conditionId: bigint,
   request: import("../generated/atlas").RemoveEncounterParticipantConditionRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions/${conditionId.toString()}`,
-    { intent: "action", method: "DELETE", body: jsonBody(request) },
+  return http.removeEncounterParticipantCondition(
+    encounterRef,
+    participantKey,
+    conditionId.toString(),
+    toWire(request),
+    { intent: "action" },
   );
 }
 
 export async function getSavedLists(): Promise<SavedListIndexView> {
-  return atlasFetch("/api/lists");
+  return legacyResponse(http.savedLists());
 }
 
 export async function getSavedList(listRef: string): Promise<SavedListDetailView> {
-  return checkedSavedListDetail(
-    await atlasFetch(`/api/lists/${encodeURIComponent(listRef)}`),
-  );
+  return checkedSavedListDetail(await http.savedList(listRef));
 }
 
 export async function filterSavedList(
   request: FilterSavedListRequest,
 ): Promise<SavedListDetailView> {
   return checkedSavedListDetail(
-    await atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/filter`, {
-      intent: "read",
-      method: "POST",
-      body: jsonBody(request),
-    }),
+    await http.filterSavedList(request.list_ref, toWire(request), { intent: "read" }),
   );
 }
 
 export async function createSavedList(
   request: CreateSavedListRequest,
 ): Promise<SavedListCreateView> {
-  return atlasFetch("/api/lists", {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return legacyResponse(http.createSavedList(toWire(request), { intent: "action" }));
 }
 
 export async function updateSavedList(
   request: UpdateSavedListRequest,
 ): Promise<SavedListUpdateView> {
-  return atlasFetch(`/api/lists/${encodeURIComponent(request.list_key)}`, {
-    intent: "action",
-    method: "PATCH",
-    body: jsonBody(request),
-  });
+  return legacyResponse(
+    http.updateSavedList(request.list_key, toWire(request), { intent: "action" }),
+  );
 }
 
 export async function deleteSavedList(listRef: string): Promise<DeleteSavedListView> {
-  return atlasFetch(`/api/lists/${encodeURIComponent(listRef)}`, {
-    intent: "action",
-    method: "DELETE",
-  });
+  return http.deleteSavedList(listRef, { intent: "action" });
 }
 
 export async function addSavedListItem(
   request: AddSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/items`, {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return http.addSavedListItem(request.list_ref, toWire(request), { intent: "action" });
 }
 
 export async function removeSavedListItem(
@@ -892,17 +814,13 @@ export async function removeSavedListItem(
 export async function reorderSavedListItem(
   request: ReorderSavedListItemRequest,
 ): Promise<SavedListItemMutationView> {
-  return atlasFetch(
-    `/api/lists/${encodeURIComponent(request.list_ref)}/items/reorder`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
-  );
+  return http.reorderSavedListItem(request.list_ref, toWire(request), {
+    intent: "action",
+  });
 }
 
-async function atlasFetchEncounter<T>(
-  path: string,
-  init: AtlasRequestInit = {},
-): Promise<T> {
-  const payload = await atlasFetch<unknown>(path, init);
+async function normalizeEncounterResponse<T>(response: Promise<unknown>): Promise<T> {
+  const payload = await response;
   if (!isRecord(payload)) throw new AtlasApiError(200, "Invalid encounter response");
   const result = { ...payload };
   const summary = (value: unknown) => {
@@ -1038,36 +956,44 @@ async function atlasFetchEncounter<T>(
   return result as T;
 }
 
-function toWire<T>(value: T): Wire<T> {
-  return JSON.parse(jsonBody(value)) as Wire<T>;
+function legacyResponse<T>(response: Promise<unknown>): Promise<T> {
+  return response as Promise<T>;
 }
 
-function jsonBody(value: unknown): string {
-  return JSON.stringify(value, (_key, nestedValue) => {
+function toWire<T>(value: T): Wire<T> {
+  return normalizeRequestNumbers(value) as Wire<T>;
+}
+
+function normalizeRequestNumbers(value: unknown): unknown {
+  if (
+    typeof value === "number" &&
+    (!Number.isFinite(value) ||
+      (Number.isInteger(value) && !Number.isSafeInteger(value)))
+  ) {
+    throw new AtlasApiError(0, "Request numeric field exceeds JSON safe numeric range");
+  }
+  if (typeof value === "bigint") {
     if (
-      typeof nestedValue === "number" &&
-      (!Number.isFinite(nestedValue) ||
-        (Number.isInteger(nestedValue) && !Number.isSafeInteger(nestedValue)))
-    ) {
-      throw new AtlasApiError(
-        0,
-        "Request numeric field exceeds JSON safe numeric range",
-      );
-    }
-    if (typeof nestedValue !== "bigint") {
-      return nestedValue;
-    }
-    if (
-      nestedValue > BigInt(Number.MAX_SAFE_INTEGER) ||
-      nestedValue < BigInt(Number.MIN_SAFE_INTEGER)
+      value > BigInt(Number.MAX_SAFE_INTEGER) ||
+      value < BigInt(Number.MIN_SAFE_INTEGER)
     ) {
       throw new AtlasApiError(
         0,
         "Request numeric field exceeds JSON safe integer range",
       );
     }
-    return Number(nestedValue);
-  });
+    return Number(value);
+  }
+  if (Array.isArray(value)) return value.map(normalizeRequestNumbers);
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [
+        key,
+        normalizeRequestNumbers(nested),
+      ]),
+    );
+  }
+  return value;
 }
 
 function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
@@ -1148,20 +1074,16 @@ export async function getRelatedRecords(
   request: import("../generated/atlas").RelatedRecordsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").RelatedRecordsView> {
-  return atlasFetch("/api/related", {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-    signal,
-  });
+  return legacyResponse(
+    http.relatedRecords(toWire(request), { intent: "read", signal }),
+  );
 }
 export async function discoverFilterCounts(
   request: import("../generated/atlas").DiscoverFilterCountsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").FilterCountsView> {
-  const result = await atlasFetch<import("../generated/atlas").FilterCountsView>(
-    "/api/filters/counts",
-    { intent: "read", method: "POST", body: jsonBody(request), signal },
+  const result = await legacyResponse<import("../generated/atlas").FilterCountsView>(
+    http.discoverFilterCounts(toWire(request), { intent: "read", signal }),
   );
   if (result.counts.status === "unavailable") return result;
   return {
@@ -1183,13 +1105,8 @@ export async function discoverFilterCounts(
 export async function rollTable(
   request: import("../generated/atlas").RollTableRequest,
 ): Promise<import("../generated/atlas").TableRollView> {
-  const result = await atlasFetch<Wire<import("../generated/atlas").TableRollView>>(
-    "/api/rolls/table",
-    {
-      intent: "action",
-      method: "POST",
-      body: jsonBody(request),
-    },
+  const result = await legacyResponse<Wire<import("../generated/atlas").TableRollView>>(
+    http.rollTable(toWire(request), { intent: "action" }),
   );
   return {
     ...result,
@@ -1203,13 +1120,9 @@ export async function getEncounterStrikeOptions(
   encounter: string,
   request: import("../generated/atlas").EncounterStrikeOptionsRequest,
 ): Promise<import("../generated/atlas").EncounterStrikeOptionsView> {
-  const result = await atlasFetch<
+  const result = await legacyResponse<
     import("../generated/atlas").EncounterStrikeOptionsView
-  >(`/api/encounters/${encodeURIComponent(encounter)}/strike-options`, {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  >(http.encounterStrikeOptions(encounter, toWire(request), { intent: "read" }));
   return {
     ...result,
     expected_revision: toBigInt(result.expected_revision),
@@ -1220,89 +1133,67 @@ export async function rollEncounterStrike(
   encounter: string,
   request: import("../generated/atlas").RollEncounterStrikeRequest,
 ): Promise<import("../generated/atlas").EncounterStrikeRollView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(encounter)}/strike-rolls`, {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return legacyResponse(
+    http.rollEncounterStrike(encounter, toWire(request), { intent: "action" }),
+  );
 }
 
 export async function rollFlatCheck(
   request: import("../generated/atlas").RollFlatCheckRequest,
 ): Promise<import("../generated/atlas").FlatCheckRollView> {
-  const result = await atlasFetch<Wire<import("../generated/atlas").FlatCheckRollView>>(
-    "/api/rolls/flat-check",
-    {
-      intent: "action",
-      method: "POST",
-      body: jsonBody(request),
-    },
-  );
+  const result = await legacyResponse<
+    Wire<import("../generated/atlas").FlatCheckRollView>
+  >(http.rollFlatCheck(toWire(request), { intent: "action" }));
   return { ...result, dc: toBigInt(result.dc) };
 }
 export async function getParties(): Promise<
   import("../generated/atlas").PartyIndexView
 > {
-  return atlasFetch("/api/parties");
+  return legacyResponse(http.parties());
 }
 export async function createParty(
   request: import("../generated/atlas").CreatePartyRequest,
 ): Promise<import("../generated/atlas").PartyView> {
-  return atlasFetch("/api/parties", {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return legacyResponse(http.createParty(toWire(request), { intent: "action" }));
 }
 export async function updateParty(
   key: string,
   request: import("../generated/atlas").UpdatePartyRequest,
 ): Promise<import("../generated/atlas").PartyView> {
-  return atlasFetch(`/api/parties/${encodeURIComponent(key)}`, {
-    intent: "action",
-    method: "PATCH",
-    body: jsonBody(request),
-  });
+  return legacyResponse(http.updateParty(key, toWire(request), { intent: "action" }));
 }
 export async function deleteParty(
   key: string,
   expectedRevision: number,
 ): Promise<import("../generated/atlas").PartyMutationView> {
-  return atlasFetch(`/api/parties/${encodeURIComponent(key)}`, {
+  return http.deleteParty(key, toWire({ expected_revision: expectedRevision }), {
     intent: "action",
-    method: "DELETE",
-    body: jsonBody({ expected_revision: expectedRevision }),
   });
 }
 export async function addEncounterParty(
   encounterRef: string,
   request: import("../generated/atlas").AddEncounterPartyRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/party`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
-  );
+  return http.addEncounterParty(encounterRef, toWire(request), { intent: "action" });
 }
 
 export async function getSavedListItemNote(
   listRef: string,
   recordKey: string,
 ): Promise<SavedListItemNoteView> {
-  return atlasFetch(
-    `/api/lists/${encodeURIComponent(listRef)}/items/${encodeURIComponent(recordKey)}/note`,
-  );
+  return legacyResponse(http.savedListItemNote(listRef, recordKey));
 }
 
 export async function updateSavedListItemNote(
   request: UpdateSavedListItemNoteRequest,
 ): Promise<SavedListItemNoteView> {
-  return atlasFetch(
-    `/api/lists/${encodeURIComponent(request.list_ref)}/items/${encodeURIComponent(request.record_key)}/note`,
-    {
-      intent: "action",
-      method: "PATCH",
-      body: jsonBody(request),
-    },
+  return legacyResponse(
+    http.updateSavedListItemNote(
+      request.list_ref,
+      request.record_key,
+      toWire(request),
+      { intent: "action" },
+    ),
   );
 }
 
@@ -1310,14 +1201,9 @@ export async function getDefinitionDetail(
   request: import("../generated/atlas").DefinitionDetailRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").DefinitionDetailView> {
-  const result = await atlasFetch<
+  const result = await legacyResponse<
     Wire<import("../generated/atlas").DefinitionDetailView>
-  >("/api/definitions/detail", {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-    signal,
-  });
+  >(http.definitionDetail(toWire(request), { intent: "read", signal }));
   if (result.definition_key !== request.definition_key)
     throw new AtlasApiError(200, "Definition response identity mismatch");
   return {
@@ -1336,15 +1222,9 @@ export async function getTraitDetail(
   request: import("../generated/atlas").TraitDetailRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").TraitDetailView> {
-  const result = await atlasFetch<Wire<import("../generated/atlas").TraitDetailView>>(
-    "/api/traits/detail",
-    {
-      intent: "read",
-      method: "POST",
-      body: jsonBody(request),
-      signal,
-    },
-  );
+  const result = await legacyResponse<
+    Wire<import("../generated/atlas").TraitDetailView>
+  >(http.traitDefinition(toWire(request), { intent: "read", signal }));
   if (result.trait_key !== request.trait_key)
     throw new Error("The trait response does not match this request. Retry.");
   return {
@@ -1359,15 +1239,9 @@ export async function getTraitRecords(
   request: import("../generated/atlas").TraitRecordsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").TraitRecordsPage> {
-  const result = await atlasFetch<Wire<import("../generated/atlas").TraitRecordsPage>>(
-    "/api/traits/records",
-    {
-      intent: "read",
-      method: "POST",
-      body: jsonBody(request),
-      signal,
-    },
-  );
+  const result = await legacyResponse<
+    Wire<import("../generated/atlas").TraitRecordsPage>
+  >(http.traitRecords(toWire(request), { intent: "read", signal }));
   if (result.artifact_generation !== request.expected_artifact_generation)
     throw new AtlasApiError(409, "Reference collection changed. Reload trait.", {
       code: "artifact_generation_changed",
@@ -1383,9 +1257,11 @@ export async function updateEncounterManualTracker(
   encounterRef: string,
   request: import("../generated/atlas").UpdateEncounterManualTrackerRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/manual-trackers`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
+  return http.updateEncounterManualTracker(
+    encounterRef,
+    request.participant_key,
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -1393,9 +1269,11 @@ export async function updateEncounterAbilityState(
   encounterRef: string,
   request: import("../generated/atlas").UpdateEncounterAbilityStateRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/ability-state`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
+  return http.updateEncounterAbilityState(
+    encounterRef,
+    request.participant_key,
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -1403,9 +1281,11 @@ export async function updateTurnResources(
   encounterRef: string,
   request: import("../generated/atlas").UpdateTurnResourcesRequest,
 ): Promise<import("../generated/atlas").EncounterMutationView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/turn-resources`,
-    { intent: "action", method: "POST", body: jsonBody(request) },
+  return http.updateTurnResources(
+    encounterRef,
+    request.participant_key,
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -1413,30 +1293,25 @@ export async function setEncounterDifficulty(
   encounterRef: string,
   request: import("../generated/atlas").SetEncounterDifficultyRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/difficulty`, {
+  return http.setEncounterDifficulty(encounterRef, toWire(request), {
     intent: "action",
-    method: "PATCH",
-    body: jsonBody(request),
   });
 }
 export async function previewEncounterDifficulty(
   encounterRef: string,
   request: import("../generated/atlas").PreviewEncounterDifficultyRequest,
 ): Promise<import("../generated/atlas").EncounterDifficultyView> {
-  return atlasFetch(
-    `/api/encounters/${encodeURIComponent(encounterRef)}/difficulty/preview`,
-    { intent: "read", method: "POST", body: jsonBody(request) },
+  return legacyResponse(
+    http.previewEncounterDifficulty(encounterRef, toWire(request), {
+      intent: "read",
+    }),
   );
 }
 
 export function rollContent(
   request: import("../generated/atlas").RollContentRequest,
 ): Promise<import("../generated/atlas").ContentRollResultView> {
-  return atlasFetch("/api/rolls/content", {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  return http.rollContent(toWire(request), { intent: "action" });
 }
 
 export async function previewEncounterRecovery(
@@ -1444,14 +1319,14 @@ export async function previewEncounterRecovery(
   request: import("../generated/atlas").PreviewEncounterRecoveryRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").EncounterRecoveryPreviewView> {
-  const result = await atlasFetch<
+  const result = await legacyResponse<
     Wire<import("../generated/atlas").EncounterRecoveryPreviewView>
-  >(`/api/encounters/${encodeURIComponent(encounterRef)}/recovery/preview`, {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-    signal,
-  });
+  >(
+    http.previewEncounterRecovery(encounterRef, toWire(request), {
+      intent: "read",
+      signal,
+    }),
+  );
   return {
     ...result,
     encounter_revision: toBigInt(result.encounter_revision),
@@ -1469,9 +1344,7 @@ export function applyEncounterRecovery(
   encounterRef: string,
   request: import("../generated/atlas").ApplyEncounterRecoveryRequest,
 ): Promise<EncounterMutationView> {
-  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/recovery`, {
+  return http.applyEncounterRecovery(encounterRef, toWire(request), {
     intent: "action",
-    method: "POST",
-    body: jsonBody(request),
   });
 }

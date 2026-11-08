@@ -45,16 +45,22 @@ pub struct ApplyEncounterRecoveryRequest {
 pub struct EncounterRecoveryParticipantView {
     pub participant_key: String,
     pub display_name: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub current_hp: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub resulting_hp: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub resulting_max_hp: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub healing: Option<i64>,
     pub changes: Vec<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub unavailable_reason: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterRecoveryPreviewView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub rules_reference: Option<crate::RecordNavigationView>,
     pub encounter_key: String,
     pub encounter_revision: i64,

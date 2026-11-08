@@ -11,19 +11,19 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, relative, resolve, sep } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import { env, pid } from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 
 const metadataPath = "crates/atlas-web/api-contract.json";
+const schemaPath = "crates/atlas-web/openapi.json";
 const receiptName = "build-provenance.json";
 
 function contractMetadata(root: string) {
   const manifest = resolve(root, metadataPath);
   const metadata = JSON.parse(readFileSync(manifest, "utf8")) as {
     protocol_revision?: unknown;
-    bindings?: unknown;
   };
   const revision = metadata?.protocol_revision;
   if (
@@ -34,39 +34,22 @@ function contractMetadata(root: string) {
   ) {
     throw new Error("API protocol_revision must be a positive 32-bit integer");
   }
-  if (typeof metadata.bindings !== "string" || !metadata.bindings) {
-    throw new Error("API bindings must name the generated binding directory");
-  }
-  return { manifest, revision, bindingRoot: resolve(root, metadata.bindings) };
+  return { manifest, revision, schemaFile: resolve(root, schemaPath) };
 }
 
 // Keep framing in sync with atlas-web/build_contract.rs; both test one shared vector.
 export function readAtlasApiContract(root: string) {
-  const { manifest, revision, bindingRoot } = contractMetadata(root);
-  const files: string[] = [];
-  function collect(path: string) {
-    if (statSync(path).isDirectory()) {
-      for (const entry of readdirSync(path)) collect(resolve(path, entry));
-    } else if (path.endsWith(".ts")) {
-      files.push(relative(root, path).split(sep).join("/"));
-    }
-  }
-  collect(bindingRoot);
-  if (!files.length) {
-    throw new Error("API binding directory contains no generated TypeScript contracts");
-  }
+  const { manifest, revision, schemaFile } = contractMetadata(root);
+  const schema = readFileSync(schemaFile, "utf8").replaceAll("\r\n", "\n");
+  if (!schema.trim()) throw new Error("OpenAPI document is empty");
   const hash = createHash("sha256")
-    .update("atlas-web-protocol\0")
+    .update("atlas-web-openapi\0")
     .update(String(revision))
-    .update("\0");
-  for (const file of files.sort()) {
-    hash.update(file).update("\0");
-    hash.update(readFileSync(resolve(root, file), "utf8").replaceAll("\r\n", "\n"));
-    hash.update("\0");
-  }
+    .update("\0")
+    .update(schema);
   return {
-    identifier: `atlas-web-v2-${hash.digest("hex")}`,
-    watchedPaths: [manifest, bindingRoot],
+    identifier: `atlas-web-v3-${hash.digest("hex")}`,
+    watchedPaths: [manifest, schemaFile],
   };
 }
 
@@ -92,8 +75,6 @@ function productionUiInput(name: string) {
 // Build identity covers effective inputs, not HEAD: staging or committing the
 // same files cannot make a valid bundle stale. Deletions change the file set.
 export function frontendInputIdentity(root: string): string {
-  const { bindingRoot } = contractMetadata(root);
-  const bindingPrefix = relative(root, bindingRoot).split(sep).join("/");
   const listed = execFileSync(
     "git",
     ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
@@ -105,7 +86,9 @@ export function frontendInputIdentity(root: string): string {
         name &&
         (productionUiInput(name) ||
           name === metadataPath ||
-          (name.startsWith(bindingPrefix + "/") && name.endsWith(".ts"))),
+          name === schemaPath ||
+          (name.startsWith("crates/atlas-app-model/bindings/") &&
+            name.endsWith(".ts"))),
     ),
   );
   // Vite reads these even when Git ignores developer-local environment files.

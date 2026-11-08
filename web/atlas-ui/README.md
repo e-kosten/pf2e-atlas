@@ -43,6 +43,15 @@ ATLAS_API_PROXY=http://127.0.0.1:4728 npm run dev
 
 ## DTOs
 
+The annotated Rust HTTP routes own the OpenAPI document. After a route or
+schema change, regenerate the document and Fetch client from the repository root.
+
+```bash
+npm --prefix dev-tools/openapi ci --ignore-scripts
+npm --prefix dev-tools/openapi run generate
+npm --prefix dev-tools/openapi run check
+```
+
 The frontend imports a local aggregation file at `src/generated/atlas.ts`, which re-exports the checked-in Rust-generated bindings from `crates/atlas-app-model/bindings`.
 
 Regenerate backend DTO bindings from the repository root with:

@@ -51,9 +51,13 @@ pub struct ApplyConditionLifecycleRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct LifecycleCheckResultView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub dc: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub modifier: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub roll: Option<atlas_dice::RollOutcome>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub table_result: Option<i64>,
     pub degree: CheckDegreeView,
 }
@@ -62,6 +66,7 @@ pub struct LifecycleCheckResultView {
 pub struct ConditionLifecycleResultView {
     pub encounter_key: String,
     pub request_id: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub check: Option<LifecycleCheckResultView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -72,6 +77,7 @@ pub enum PendingConditionRecoveryView {
         consequence_key: String,
         participant_key: String,
         condition_ids: Vec<i64>,
+        #[cfg_attr(feature = "openapi", schema(required))]
         qualifying_damage: Option<bool>,
     },
 }
@@ -87,7 +93,9 @@ pub enum FrightenedRecoveryView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct LifecycleCheckFactsView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub dc: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub modifier: Option<i64>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -109,11 +117,13 @@ pub enum ConditionRecoveryOfferView {
     },
     StunnedActionsLost {
         condition_id: i64,
+        #[cfg_attr(feature = "openapi", schema(required))]
         actions_lost: Option<i64>,
     },
     ConfusedDamageRecovery {
         consequence_key: String,
         source_condition_ids: Vec<i64>,
+        #[cfg_attr(feature = "openapi", schema(required))]
         qualifying_damage: Option<bool>,
         check: LifecycleCheckFactsView,
     },
@@ -127,6 +137,7 @@ pub struct ConditionLifecycleOptionView {
     pub condition_ids: Vec<i64>,
     pub label: String,
     pub available: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub unavailable_reason: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

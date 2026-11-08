@@ -39,6 +39,7 @@ pub struct ResolveEncounterHpLifecycleRequest {
 pub struct PendingHpLifecycleView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub unavailable_reason: Option<String>,
     pub knockout_options: Vec<KnockoutOptionView>,
     pub required_facts: Vec<HpLifecycleRequiredFactView>,

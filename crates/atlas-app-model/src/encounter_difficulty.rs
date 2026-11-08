@@ -33,17 +33,24 @@ pub struct EncounterDifficultyAddition {
 pub struct EncounterDifficultyView {
     pub rules: Vec<EncounterDifficultyRuleView>,
     pub reference: EncounterDifficultyReferenceView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub party_level: Option<u32>,
     /// Effective budget count, including any supported mixed-level adjustment.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub party_size: Option<u32>,
     pub pc_count: u32,
     pub basis: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub reference_note: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub total_xp: Option<u32>,
     pub known_xp: u32,
     /// Suggested award normalized to a four-PC party; not persisted or distributed.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub xp_per_pc: Option<u32>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub award_note: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub rating: Option<String>,
     pub budgets: Vec<EncounterDifficultyBudgetView>,
     pub opposition: Vec<EncounterDifficultyOpponentView>,
@@ -58,11 +65,15 @@ pub struct EncounterDifficultyBudgetView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterDifficultyOpponentView {
     /// None for a prospective addition, which has no saved participant identity.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub participant_key: Option<String>,
     pub name: String,
     pub kind: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub level: Option<i32>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub xp: Option<u32>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub unavailable_reason: Option<String>,
 }
 

@@ -39,13 +39,18 @@ pub enum EncounterActionIssueKindView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterActionIssueView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub subject: Option<crate::ConditionSubjectView>,
     pub source_key: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_condition_id: Option<i64>,
     pub condition_name: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub controller_key: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub instructions: Option<String>,
     pub kind: EncounterActionIssueKindView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub fact: Option<EncounterActionFactView>,
     pub reason: String,
 }
@@ -53,6 +58,7 @@ pub struct EncounterActionIssueView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterActionCheckSourceView {
     pub source_key: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub condition_id: Option<i64>,
     pub name: String,
 }

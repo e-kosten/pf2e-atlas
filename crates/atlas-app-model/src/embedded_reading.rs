@@ -46,7 +46,9 @@ pub struct EmbeddedReadingBatchView {
     pub total: usize,
     pub start: usize,
     pub end: usize,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub previous: Option<EmbeddedReadingCursor>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub next: Option<EmbeddedReadingCursor>,
     pub entries: Vec<EmbeddedReadingEntryView>,
 }

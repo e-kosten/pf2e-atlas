@@ -178,18 +178,23 @@ pub struct ContentRollComponentResultView {
 pub struct PreparedReferenceView {
     pub ordinal: usize,
     pub status: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub target: Option<crate::RecordNavigationView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub effect_label: Option<crate::EffectReferenceLabelView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub contextual_target: Option<crate::RecordNavigationView>,
     /// Derived action command targets its containing root action; readers retain
     /// the label without offering redundant navigation. Target evidence remains.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub self_action_reference: Option<bool>,
 }
 

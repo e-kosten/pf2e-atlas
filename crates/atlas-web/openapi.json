@@ -5395,6 +5395,7 @@
         "type": "object",
         "required": [
           "default_search_profile",
+          "artifact_generation",
           "search_profiles",
           "status",
           "message"
@@ -5413,14 +5414,7 @@
             "type": "string"
           },
           "reference_error": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/AppError"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/AppError"
           },
           "search_profiles": {
             "type": "array",
@@ -5432,14 +5426,7 @@
             "$ref": "#/components/schemas/AppReadinessStatus"
           },
           "workspace_error": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/AppError"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/AppError"
           }
         }
       },
@@ -6002,6 +5989,7 @@
               "participant_key",
               "before",
               "after",
+              "stunned_after",
               "kind"
             ],
             "properties": {
@@ -6166,24 +6154,10 @@
             "format": "int64"
           },
           "hp_change": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ConditionHpChangeView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ConditionHpChangeView"
           },
           "persistent_precedence": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/PersistentDamagePrecedenceView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/PersistentDamagePrecedenceView"
           }
         }
       },
@@ -6249,6 +6223,12 @@
       },
       "ConditionHpChangeView": {
         "type": "object",
+        "required": [
+          "current_before",
+          "current_after",
+          "maximum_before",
+          "maximum_after"
+        ],
         "properties": {
           "current_after": {
             "type": [
@@ -6428,7 +6408,8 @@
             "required": [
               "condition_ids",
               "label",
-              "available"
+              "available",
+              "unavailable_reason"
             ],
             "properties": {
               "available": {
@@ -6459,7 +6440,8 @@
         "type": "object",
         "required": [
           "encounter_key",
-          "request_id"
+          "request_id",
+          "check"
         ],
         "properties": {
           "check": {
@@ -6717,6 +6699,7 @@
           {
             "type": "object",
             "required": [
+              "subject",
               "kind"
             ],
             "properties": {
@@ -6741,6 +6724,7 @@
           {
             "type": "object",
             "required": [
+              "subject",
               "kind"
             ],
             "properties": {
@@ -6797,6 +6781,7 @@
           {
             "type": "object",
             "required": [
+              "threshold",
               "kind"
             ],
             "properties": {
@@ -6832,6 +6817,8 @@
           {
             "type": "object",
             "required": [
+              "formula",
+              "damage_type",
               "multiplier",
               "recovery",
               "kind"
@@ -6877,10 +6864,7 @@
                 "type": "string"
               },
               "episode_id": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": "string"
               },
               "formula": {
                 "type": "string"
@@ -6912,10 +6896,7 @@
                 ]
               },
               "recovery_dc": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
+                "type": "integer",
                 "format": "int64"
               }
             }
@@ -7031,6 +7012,7 @@
             "type": "object",
             "required": [
               "condition_id",
+              "actions_lost",
               "kind"
             ],
             "properties": {
@@ -7058,6 +7040,7 @@
             "required": [
               "consequence_key",
               "source_condition_ids",
+              "qualifying_damage",
               "check",
               "kind"
             ],
@@ -7820,6 +7803,8 @@
           "artifact_generation",
           "definition_key",
           "label",
+          "help",
+          "content",
           "publications",
           "notices",
           "related_filters"
@@ -7879,7 +7864,8 @@
         "type": "object",
         "required": [
           "id",
-          "text"
+          "text",
+          "source_url"
         ],
         "properties": {
           "id": {
@@ -7898,6 +7884,11 @@
       },
       "DefinitionPublicationView": {
         "type": "object",
+        "required": [
+          "title",
+          "page",
+          "license"
+        ],
         "properties": {
           "license": {
             "type": [
@@ -8205,6 +8196,8 @@
           "total",
           "start",
           "end",
+          "previous",
+          "next",
           "entries"
         ],
         "properties": {
@@ -8456,7 +8449,8 @@
         "type": "object",
         "required": [
           "value",
-          "label"
+          "label",
+          "consequence"
         ],
         "properties": {
           "consequence": {
@@ -8557,6 +8551,7 @@
             "required": [
               "active",
               "always_active",
+              "selection",
               "choices",
               "kind"
             ],
@@ -8621,6 +8616,7 @@
         "type": "object",
         "required": [
           "navigation",
+          "rule_ordinal",
           "label",
           "state"
         ],
@@ -8647,6 +8643,7 @@
         "type": "object",
         "required": [
           "source_key",
+          "condition_id",
           "name"
         ],
         "properties": {
@@ -8713,9 +8710,14 @@
       "EncounterActionIssueView": {
         "type": "object",
         "required": [
+          "subject",
           "source_key",
+          "source_condition_id",
           "condition_name",
+          "controller_key",
+          "instructions",
           "kind",
+          "fact",
           "reason"
         ],
         "properties": {
@@ -8859,6 +8861,7 @@
         "type": "object",
         "required": [
           "editor_kind",
+          "scope_label",
           "supports_extra_action",
           "eligibility",
           "supports_duration_instead_of_value",
@@ -8889,10 +8892,7 @@
             "type": "string"
           },
           "default_value": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "editor_kind": {
@@ -9021,6 +9021,7 @@
         "required": [
           "difficulty",
           "revision",
+          "artifact_generation",
           "encounter",
           "participants"
         ],
@@ -9032,10 +9033,7 @@
             ]
           },
           "current_turn_participant_key": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "difficulty": {
             "$ref": "#/components/schemas/EncounterDifficultyView"
@@ -9044,10 +9042,7 @@
             "$ref": "#/components/schemas/EncounterSummaryView"
           },
           "note": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "participants": {
             "type": "array",
@@ -9056,14 +9051,7 @@
             }
           },
           "reference_error": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/AppError"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/AppError"
           },
           "revision": {
             "type": "integer",
@@ -9117,8 +9105,12 @@
       "EncounterDifficultyOpponentView": {
         "type": "object",
         "required": [
+          "participant_key",
           "name",
-          "kind"
+          "kind",
+          "level",
+          "xp",
+          "unavailable_reason"
         ],
         "properties": {
           "kind": {
@@ -9200,9 +9192,16 @@
         "required": [
           "rules",
           "reference",
+          "party_level",
+          "party_size",
           "pc_count",
           "basis",
+          "reference_note",
+          "total_xp",
           "known_xp",
+          "xp_per_pc",
+          "award_note",
+          "rating",
           "budgets",
           "opposition"
         ],
@@ -9628,23 +9627,13 @@
             "format": "int64"
           },
           "condition_key": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "created_at": {
             "type": "string"
           },
           "duration": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ConditionDurationView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ConditionDurationView"
           },
           "extra_action": {
             "$ref": "#/components/schemas/ConditionExtraActionView"
@@ -9656,20 +9645,10 @@
             "type": "string"
           },
           "note": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "origin": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ConditionOriginView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ConditionOriginView"
           },
           "parameters": {
             "$ref": "#/components/schemas/ConditionParametersView"
@@ -9678,19 +9657,13 @@
             "$ref": "#/components/schemas/ConditionScopeView"
           },
           "source_participant_key": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "updated_at": {
             "type": "string"
           },
           "value": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64"
           }
         }
@@ -9740,6 +9713,7 @@
           "persistent_damage_groups",
           "track_dying",
           "mortality",
+          "cast_unavailable_reason",
           "revision",
           "hp_origin",
           "variant_origin",
@@ -9755,14 +9729,12 @@
           "defeated",
           "hazard_disabled",
           "hidden",
+          "note_hint",
           "conditions"
         ],
         "properties": {
           "ability_states": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": "array",
             "items": {
               "$ref": "#/components/schemas/EncounterAbilityStateView"
             }
@@ -9784,10 +9756,7 @@
             }
           },
           "current_hp": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "defeated": {
@@ -9809,10 +9778,7 @@
             "type": "string"
           },
           "initiative": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "initiative_order": {
@@ -9826,16 +9792,10 @@
             }
           },
           "knockout_unavailable_reason": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "level_override": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "manual_trackers": {
@@ -9845,20 +9805,14 @@
             }
           },
           "max_hp": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "mortality": {
             "$ref": "#/components/schemas/MortalityStateView"
           },
           "note": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "note_hint": {
             "type": [
@@ -9886,30 +9840,13 @@
             "format": "int64"
           },
           "presentation": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecordPresentationView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/RecordPresentationView"
           },
           "record": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecordSummaryView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/RecordSummaryView"
           },
           "record_key": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "revision": {
             "type": "integer",
@@ -9919,14 +9856,7 @@
             "$ref": "#/components/schemas/EncounterParticipantSideView"
           },
           "spellcasting": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/EncounterSpellcastingView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/EncounterSpellcastingView"
           },
           "status": {
             "$ref": "#/components/schemas/EncounterParticipantStatusView"
@@ -9939,14 +9869,7 @@
             "type": "boolean"
           },
           "turn_resources": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/TurnResourcesView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/TurnResourcesView"
           },
           "variant_origin": {
             "type": "string"
@@ -10019,7 +9942,12 @@
         "required": [
           "participant_key",
           "display_name",
-          "changes"
+          "current_hp",
+          "resulting_hp",
+          "resulting_max_hp",
+          "healing",
+          "changes",
+          "unavailable_reason"
         ],
         "properties": {
           "changes": {
@@ -10073,6 +10001,7 @@
       "EncounterRecoveryPreviewView": {
         "type": "object",
         "required": [
+          "rules_reference",
           "encounter_key",
           "encounter_revision",
           "participants",
@@ -10279,7 +10208,9 @@
       "EncounterSpellRankView": {
         "type": "object",
         "required": [
-          "rank"
+          "rank",
+          "resource_key",
+          "unavailable_reason"
         ],
         "properties": {
           "rank": {
@@ -10396,7 +10327,8 @@
           "navigation",
           "entry_id",
           "title",
-          "ranks"
+          "ranks",
+          "expended"
         ],
         "properties": {
           "entry_id": {
@@ -10456,7 +10388,9 @@
         "type": "object",
         "required": [
           "issues",
-          "confused"
+          "confused",
+          "disruption",
+          "targeting"
         ],
         "properties": {
           "confused": {
@@ -10511,6 +10445,7 @@
       "EncounterStrikeContextView": {
         "type": "object",
         "required": [
+          "targeting_check",
           "options",
           "action"
         ],
@@ -10557,7 +10492,9 @@
           "expected_participant_revision",
           "title",
           "attacks",
-          "damage_available"
+          "unavailable",
+          "damage_available",
+          "damage_unavailable"
         ],
         "properties": {
           "applied": {
@@ -10609,12 +10546,16 @@
       "EncounterStrikeRollView": {
         "type": "object",
         "required": [
+          "attack_modifier",
           "request_id",
           "encounter_key",
           "participant_key",
           "title",
+          "attack",
           "damage",
           "damage_totals",
+          "damage_total",
+          "persistent_total",
           "damage_minimum_adjustment",
           "persistent_minimum_adjustment"
         ],
@@ -10702,10 +10643,7 @@
             "type": "string"
           },
           "description": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "encounter_key": {
             "type": "string"
@@ -10843,10 +10781,7 @@
                 "type": "string"
               },
               "result": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+                "type": "string"
               },
               "tracker_key": {
                 "type": "string"
@@ -10899,6 +10834,7 @@
               "participant_name",
               "condition_ids",
               "condition_name",
+              "condition_value",
               "kind"
             ],
             "properties": {
@@ -10941,6 +10877,7 @@
               "participant_name",
               "condition_id",
               "condition_name",
+              "note",
               "kind"
             ],
             "properties": {
@@ -11112,8 +11049,13 @@
       "EncounterTurnReviewView": {
         "type": "object",
         "required": [
+          "next_turn_unavailable_reason",
+          "outgoing",
+          "incoming",
           "encounter_key",
           "expected_revision",
+          "current_participant_key",
+          "next_participant_key",
           "reminders"
         ],
         "properties": {
@@ -13263,14 +13205,7 @@
         ],
         "properties": {
           "help": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ReferenceHelpView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ReferenceHelpView"
           },
           "label": {
             "type": "string"
@@ -13283,7 +13218,8 @@
       "FilterCollectionControlView": {
         "type": "object",
         "required": [
-          "category_field_id"
+          "category_field_id",
+          "amount_field_id"
         ],
         "properties": {
           "amount_field_id": {
@@ -13296,10 +13232,7 @@
             "type": "string"
           },
           "qualifier_field_id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           }
         }
       },
@@ -13487,6 +13420,7 @@
           "control",
           "placement",
           "label",
+          "help",
           "choices",
           "short_choices",
           "applicable",
@@ -13495,10 +13429,7 @@
         ],
         "properties": {
           "allow_custom_values": {
-            "type": [
-              "boolean",
-              "null"
-            ]
+            "type": "boolean"
           },
           "applicable": {
             "type": "boolean"
@@ -13510,14 +13441,7 @@
             }
           },
           "collection_control": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/FilterCollectionControlView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/FilterCollectionControlView"
           },
           "control": {
             "$ref": "#/components/schemas/FilterControlView"
@@ -13617,10 +13541,7 @@
             }
           },
           "sense_qualifiers": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": "array",
             "items": {
               "$ref": "#/components/schemas/SenseQualifierView"
             }
@@ -13719,6 +13640,7 @@
       "FilterValidationResult": {
         "type": "object",
         "required": [
+          "predicate",
           "errors"
         ],
         "properties": {
@@ -13807,14 +13729,7 @@
             "minimum": 0
           },
           "help": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/ReferenceHelpView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/ReferenceHelpView"
           },
           "label": {
             "type": "string"
@@ -13978,14 +13893,7 @@
         ],
         "properties": {
           "filter": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/QueryPredicate"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/QueryPredicate"
           },
           "occurrences": {
             "type": "array",
@@ -14139,6 +14047,7 @@
         "required": [
           "name",
           "has_value",
+          "value",
           "condition_ref",
           "source_name",
           "source"
@@ -14148,10 +14057,7 @@
             "type": "string"
           },
           "editable_rule_ordinal": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "minimum": 0
           },
           "has_value": {
@@ -14167,10 +14073,7 @@
             "type": "string"
           },
           "unavailable_reason": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "value": {
             "type": [
@@ -14184,7 +14087,8 @@
       "InherentActionConditionsView": {
         "type": "object",
         "required": [
-          "entries"
+          "entries",
+          "unavailable_reason"
         ],
         "properties": {
           "entries": {
@@ -14204,6 +14108,7 @@
       "InitiativeOptionsView": {
         "type": "object",
         "required": [
+          "artifact_generation",
           "encounter_key",
           "expected_revision",
           "participants"
@@ -14399,6 +14304,10 @@
       },
       "LifecycleCheckFactsView": {
         "type": "object",
+        "required": [
+          "dc",
+          "modifier"
+        ],
         "properties": {
           "dc": {
             "type": [
@@ -14455,6 +14364,10 @@
       "LifecycleCheckResultView": {
         "type": "object",
         "required": [
+          "dc",
+          "modifier",
+          "roll",
+          "table_result",
           "degree"
         ],
         "properties": {
@@ -14744,10 +14657,7 @@
         ],
         "properties": {
           "level": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "member_key": {
@@ -14828,6 +14738,7 @@
               "consequence_key",
               "participant_key",
               "condition_ids",
+              "qualifying_damage",
               "kind"
             ],
             "properties": {
@@ -14906,10 +14817,7 @@
             }
           },
           "unavailable_reason": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           }
         }
       },
@@ -14965,10 +14873,7 @@
             "type": "string"
           },
           "immunity_note": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": "string",
             "description": "Present only when current damage protection facts establish immunity."
           },
           "selected_source_id": {
@@ -15045,6 +14950,7 @@
           "episode_id",
           "damage_type",
           "source_condition_id",
+          "roll",
           "amount",
           "table_resolved"
         ],
@@ -15060,14 +14966,7 @@
             "type": "string"
           },
           "protection": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/PersistentDamageProtectionView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/PersistentDamageProtectionView"
           },
           "roll": {
             "oneOf": [
@@ -15260,7 +15159,8 @@
         "required": [
           "condition_id",
           "formula",
-          "multiplier"
+          "multiplier",
+          "recovery_dc"
         ],
         "properties": {
           "condition_id": {
@@ -15281,15 +15181,8 @@
             "format": "int64"
           },
           "roll_preview": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RollPreviewExpression",
-                "description": "Validated expression for unrolled dice; never random outcomes."
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/RollPreviewExpression",
+            "description": "Validated expression for unrolled dice; never random outcomes."
           }
         }
       },
@@ -15337,7 +15230,9 @@
         "type": "object",
         "required": [
           "damage_resolution",
+          "end_turn_recovery_unavailable_reason",
           "end_turn_roll_available",
+          "end_turn_roll_unavailable_reason",
           "episode_id",
           "end_turn_recovery_available"
         ],
@@ -15482,6 +15377,8 @@
           "request_id",
           "episode_id",
           "damage_type",
+          "dc",
+          "roll",
           "success"
         ],
         "properties": {
@@ -15578,6 +15475,7 @@
           "round_number",
           "damage_applied",
           "episodes",
+          "damage_result",
           "recovery_results"
         ],
         "properties": {
@@ -16004,7 +15902,9 @@
         "required": [
           "damage",
           "complete",
-          "draft_context"
+          "recovery",
+          "draft_context",
+          "recovery_draft"
         ],
         "properties": {
           "complete": {
@@ -16061,38 +15961,23 @@
         "description": "An attributed marker destination within one already-selected prepared body.",
         "required": [
           "ordinal",
-          "status"
+          "status",
+          "target",
+          "url"
         ],
         "properties": {
           "contextual_target": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecordNavigationView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/RecordNavigationView"
           },
           "effect_label": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/EffectReferenceLabelView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/EffectReferenceLabelView"
           },
           "ordinal": {
             "type": "integer",
             "minimum": 0
           },
           "self_action_reference": {
-            "type": [
-              "boolean",
-              "null"
-            ],
+            "type": "boolean",
             "description": "Derived action command targets its containing root action; readers retain\nthe label without offering redundant navigation. Target evidence remains."
           },
           "status": {
@@ -16189,7 +16074,10 @@
         "type": "object",
         "required": [
           "code",
-          "message"
+          "message",
+          "field",
+          "clause_id",
+          "source_span"
         ],
         "properties": {
           "clause_id": {
@@ -16628,9 +16516,11 @@
         "required": [
           "id",
           "path",
+          "scope",
           "field_type",
           "label",
           "family_types",
+          "units",
           "basis",
           "choices",
           "operators",
@@ -17715,14 +17605,7 @@
             }
           },
           "section_rendering": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/PreparedSectionRenderingView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/PreparedSectionRenderingView"
           }
         }
       },
@@ -18238,14 +18121,7 @@
             "type": "boolean"
           },
           "source_remaster_context": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RelatedCategoryView_RemasterSourceContextView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/RelatedCategoryView_RemasterSourceContextView"
           },
           "variants": {
             "$ref": "#/components/schemas/RelatedCategoryView_VariantGroupView"
@@ -19331,14 +19207,7 @@
             "$ref": "#/components/schemas/SavedListSummaryView"
           },
           "reference_error": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/AppError"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/AppError"
           },
           "sort": {
             "$ref": "#/components/schemas/ResultSort"
@@ -19401,7 +19270,8 @@
           "list_key",
           "slug",
           "record_key",
-          "title"
+          "title",
+          "note"
         ],
         "properties": {
           "list_key": {
@@ -19431,10 +19301,7 @@
         ],
         "properties": {
           "kind": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "title": {
             "type": "string"
@@ -19459,24 +19326,14 @@
         ],
         "properties": {
           "note": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "position": {
             "type": "integer",
             "format": "int64"
           },
           "record": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecordSummaryView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/RecordSummaryView"
           },
           "record_key": {
             "type": "string"
@@ -19505,10 +19362,7 @@
             "type": "string"
           },
           "description": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "item_count": {
             "type": "integer",
@@ -20190,6 +20044,7 @@
         "type": "object",
         "required": [
           "sense",
+          "acuity",
           "has_range"
         ],
         "properties": {
@@ -21706,7 +21561,12 @@
         "type": "object",
         "required": [
           "id",
-          "label"
+          "label",
+          "formula",
+          "damage_type",
+          "category",
+          "outcome",
+          "unavailable"
         ],
         "properties": {
           "category": {
@@ -21858,7 +21718,10 @@
           "artifact_generation",
           "trait_key",
           "label",
-          "catalogs"
+          "content",
+          "catalogs",
+          "source_revision",
+          "indexing_locale"
         ],
         "properties": {
           "artifact_generation": {
@@ -21903,6 +21766,7 @@
       "TraitRecordView": {
         "type": "object",
         "required": [
+          "source_label",
           "record",
           "navigation"
         ],
@@ -21914,10 +21778,7 @@
             "$ref": "#/components/schemas/RecordSummaryView"
           },
           "reference_direction": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string"
           },
           "source_label": {
             "type": [
@@ -21986,6 +21847,7 @@
           {
             "type": "object",
             "required": [
+              "count",
               "changes",
               "kind"
             ],
@@ -22156,9 +22018,18 @@
         "type": "object",
         "required": [
           "action_calculation",
+          "turn_key",
+          "round_number",
+          "regular_total",
+          "regular_remaining",
+          "extra_total",
+          "extra_remaining",
           "extra_uses",
+          "reactions_total",
+          "reactions_remaining",
           "can_grant_reaction",
           "start_results",
+          "pending_reason",
           "forecast",
           "can_edit_actions",
           "can_spend_actions",
@@ -22204,14 +22075,7 @@
             "$ref": "#/components/schemas/RuntimeCountView"
           },
           "inherent_conditions": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/InherentActionConditionsView"
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/InherentActionConditionsView"
           },
           "pending_reason": {
             "type": [

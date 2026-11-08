@@ -10,8 +10,10 @@ pub struct PersistentDamageSourceView {
     /// Validated expression for unrolled dice; never random outcomes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub roll_preview: Option<atlas_dice::RollPreviewExpression>,
     pub multiplier: DamageMultiplierView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub recovery_dc: Option<i64>,
 }
 
@@ -21,6 +23,7 @@ pub struct PersistentDamageGroupView {
     /// Present only when current damage protection facts establish immunity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub immunity_note: Option<String>,
     pub episode_id: String,
     pub damage_type: String,
@@ -70,6 +73,7 @@ pub struct PersistentReviewView {
     pub round_number: i64,
     pub damage_applied: bool,
     pub episodes: Vec<PersistentEpisodeReviewView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub damage_result: Option<PersistentDamageResultView>,
     pub recovery_results: Vec<PersistentRecoveryResultView>,
 }
@@ -78,8 +82,10 @@ pub struct PersistentReviewView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PersistentEpisodeReviewView {
     pub damage_resolution: PersistentDamageResolutionView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub end_turn_recovery_unavailable_reason: Option<String>,
     pub end_turn_roll_available: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub end_turn_roll_unavailable_reason: Option<String>,
     pub episode_id: String,
     pub end_turn_recovery_available: bool,
@@ -92,7 +98,9 @@ pub struct PersistentRecoveryResultView {
     pub request_id: String,
     pub episode_id: String,
     pub damage_type: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub dc: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub roll: Option<atlas_dice::RollOutcome>,
     pub success: bool,
 }
@@ -132,8 +140,10 @@ pub struct PreparePersistentDamageRequest {
 pub struct PreparedPersistentDamageView {
     pub damage: PersistentDamageResultView,
     pub complete: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub recovery: Option<PersistentRecoveryResultView>,
     pub draft_context: PersistentDraftContext,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub recovery_draft: Option<PersistentRecoveryDraft>,
 }
 
@@ -219,11 +229,13 @@ pub struct PersistentDamageOutcomeView {
     pub episode_id: String,
     pub damage_type: String,
     pub source_condition_id: i64,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub roll: Option<atlas_dice::RollOutcome>,
     pub amount: i64,
     pub table_resolved: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub protection: Option<PersistentDamageProtectionView>,
 }
 

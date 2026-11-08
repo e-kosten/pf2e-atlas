@@ -26,6 +26,7 @@ pub struct EncounterSummaryView {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub description: Option<String>,
     pub status: EncounterStatusView,
     pub round_number: i64,
@@ -93,12 +94,17 @@ pub struct ConditionDurationView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterTurnReviewView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub next_turn_unavailable_reason: Option<EncounterNextTurnUnavailableReason>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub outgoing: Option<EncounterTurnBoundaryView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub incoming: Option<EncounterTurnBoundaryView>,
     pub encounter_key: String,
     pub expected_revision: i64,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub current_participant_key: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub next_participant_key: Option<String>,
     pub reminders: Vec<EncounterTurnReminderView>,
 }
@@ -114,6 +120,7 @@ pub enum EncounterTurnReminderView {
         tracker_name: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
+        #[cfg_attr(feature = "openapi", schema(nullable = false))]
         result: Option<String>,
     },
     /// Confirmed current-state or boundary-receipt result for a retained reminder.
@@ -130,6 +137,7 @@ pub enum EncounterTurnReminderView {
         condition_ids: Vec<i64>,
         condition_name: String,
         /// Current effective value; unavailable if any contributing source is unknown.
+        #[cfg_attr(feature = "openapi", schema(required))]
         condition_value: Option<i64>,
     },
     PersistentDamage {
@@ -137,6 +145,7 @@ pub enum EncounterTurnReminderView {
         participant_name: String,
         condition_id: i64,
         condition_name: String,
+        #[cfg_attr(feature = "openapi", schema(required))]
         note: Option<String>,
     },
     DurationEnding {
@@ -226,6 +235,7 @@ pub enum ConditionActionView {
 #[serde(rename_all = "snake_case")]
 pub struct EncounterConditionDefinitionView {
     pub editor_kind: ConditionEditorKindView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub scope_label: Option<String>,
     pub supports_extra_action: bool,
     pub eligibility: EncounterConditionEligibilityView,
@@ -238,6 +248,7 @@ pub struct EncounterConditionDefinitionView {
     pub has_value: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub default_value: Option<i64>,
 }
 
@@ -471,16 +482,20 @@ pub struct EncounterCreateView {
 pub struct EncounterDetailView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub reference_error: Option<crate::AppError>,
     pub difficulty: crate::EncounterDifficultyView,
     pub revision: i64,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub artifact_generation: Option<String>,
     pub encounter: EncounterSummaryView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub current_turn_participant_key: Option<String>,
     pub participants: Vec<EncounterParticipantView>,
 }
@@ -529,25 +544,31 @@ pub struct EncounterParticipantView {
     pub manual_trackers: Vec<crate::EncounterManualTrackerView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub ability_states: Option<Vec<crate::EncounterAbilityStateView>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub turn_resources: Option<crate::TurnResourcesView>,
     pub knockout_options: Vec<crate::KnockoutOptionView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub knockout_unavailable_reason: Option<String>,
     pub effective_max_hp: crate::NumberFactView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub level_override: Option<i64>,
     pub base_death_threshold: i64,
     pub persistent_damage_groups: Vec<crate::PersistentDamageGroupView>,
     pub track_dying: bool,
     pub mortality: MortalityStateView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub cast_unavailable_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub spellcasting: Option<EncounterSpellcastingView>,
     pub revision: i64,
     pub hp_origin: String,
@@ -555,6 +576,7 @@ pub struct EncounterParticipantView {
     pub participant_key: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub record_key: Option<String>,
     pub participant_kind: EncounterParticipantKindView,
     pub participant_variant: EncounterParticipantVariantView,
@@ -564,13 +586,16 @@ pub struct EncounterParticipantView {
     pub side: EncounterParticipantSideView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub initiative: Option<i64>,
     pub initiative_order: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub max_hp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub current_hp: Option<i64>,
     pub temporary_hp: i64,
     pub defeated: bool,
@@ -578,14 +603,18 @@ pub struct EncounterParticipantView {
     pub hidden: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub note: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub note_hint: Option<String>,
     pub conditions: Vec<EncounterParticipantConditionView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub presentation: Option<RecordPresentationView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub record: Option<RecordSummaryView>,
 }
 
@@ -596,13 +625,16 @@ pub struct EncounterParticipantConditionView {
     pub condition_id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub condition_key: Option<String>,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub value: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source_participant_key: Option<String>,
     #[serde(default)]
     pub scope: ConditionScopeView,
@@ -614,12 +646,15 @@ pub struct EncounterParticipantConditionView {
     pub parameters: ConditionParametersView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub origin: Option<ConditionOriginView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub duration: Option<ConditionDurationView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub note: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -1034,13 +1069,16 @@ pub struct EncounterSpellView {
     pub entry_id: String,
     pub title: String,
     pub ranks: Vec<EncounterSpellRankView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub expended: Option<bool>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterSpellRankView {
     pub rank: u8,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub resource_key: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub unavailable_reason: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

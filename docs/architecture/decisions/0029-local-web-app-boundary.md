@@ -32,7 +32,7 @@ Add three app-layer crates:
 - `atlas-app-service` for native workflow orchestration over `atlas-runtime` and `atlas-search`; the web service uses it as a long-lived pooled service, while short-lived local CLI clients may choose explicit on-demand modes.
 - `atlas-web` for the Axum local HTTP surface and future static frontend serving.
 
-Add `web/atlas-ui` as the TypeScript/React frontend package. It consumes generated app DTOs through a local aggregation file, uses a thin handwritten API client over `/api/*`, and renders the search-to-detail workflow with the selected Ant Design component library.
+Add `web/atlas-ui` as the TypeScript/React frontend package. It consumes generated app DTOs through a local aggregation file, uses an Orval-generated HTTP client over `/api/*` with an Atlas Fetch transport, and renders the search-to-detail workflow with the selected Ant Design component library.
 
 `atlas web` starts the local service from the CLI. `atlas-web` serves the built
 frontend as embedded static assets while reserving `/api/*` for app-service JSON
@@ -67,26 +67,19 @@ successful handshake. A persistent mismatch or unavailable storage leaves a manu
 Reload page action. Development/Vite frontends show a backend/proxy diagnostic and
 Retry instead of automatically reloading a pair that cannot repair itself.
 
-`crates/atlas-web/api-contract.json` owns an explicit positive `protocol_revision`
-and the generated app-model binding directory. Vite and the Rust build hash the
-same sorted relative `.ts` paths and UTF-8 contents, normalizing CRLF to LF and
-framing each path/content with NUL separators. The hash starts with
-`atlas-web-protocol`, NUL, the decimal protocol revision and NUL. The identifier is
-`atlas-web-v2-<sha256>`. Shared Rust/TypeScript fixture vectors verify the framing.
-The v2 scheme replaces the broad app-service/transport/source hash: implementation,
-test and ordinary Rust comment changes do not require a frontend rebuild or Vite
-restart. Generated binding content remains conservative; regenerated binding
-comments or formatting can change the identifier even when wire shapes agree.
+`crates/atlas-web/api-contract.json` owns an explicit positive `protocol_revision`.
+The annotated Axum router exports `crates/atlas-web/openapi.json` and Orval
+generates the browser HTTP client from it. Vite and Rust hash the OpenAPI
+document as UTF-8 with CRLF normalized to LF, prefixed with
+`atlas-web-openapi`, NUL, the decimal protocol revision and NUL. The identifier
+is `atlas-web-v3-<sha256>`. The Rust and TypeScript tests use the same known
+vector. OpenAPI description and formatting changes can change the identifier
+even when the request and response shapes agree.
 
-The revision covers wire behavior that TypeScript cannot express. Increment it
-when routes/methods, request interpretation, serialization, omission versus null,
-defaults, numeric encoding, error envelopes or other client-visible protocol
-semantics change without a corresponding generated type change. Keep focused
-serde/transport regressions for the behavior, as well as binding-freshness tests.
-For example, a `#[ts(optional)]` field may keep the same TypeScript declaration
-when `skip_serializing_if` changes; the generated binding alone cannot detect that
-wire change. A rule calculation fix with unchanged protocol does not require a
-revision bump.
+Increment the revision when browser-visible behavior changes without a
+corresponding OpenAPI change. Examples include changed request interpretation,
+defaults, or error behavior. Keep focused Serde and transport regressions
+alongside the generated artifact freshness checks.
 
 This identifies a declared wire contract, not semantic equivalence or exact build
 identity. Revision discipline and behavioral review are necessary; the guard does
@@ -98,7 +91,7 @@ or build profile.
 Vite embeds the expected identifier in the browser bundle and writes
 `dist/api-contract.txt`. The Rust build rejects a missing or mismatched bundle
 identifier before embedding it. Vite watches only the protocol metadata and
-generated binding directory for compatibility-triggered restarts.
+OpenAPI document for compatibility-triggered restarts.
 This catches incompatible dist output and a Vite frontend pointed at an
 incompatible backend. The separate frontend build receipt establishes freshness;
 a compatible frozen backend may still run older implementation code.

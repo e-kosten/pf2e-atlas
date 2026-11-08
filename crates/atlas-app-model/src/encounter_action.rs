@@ -8,7 +8,9 @@ use ts_rs::TS;
 pub struct EncounterStrikeActionContextView {
     pub issues: Vec<EncounterActionIssueView>,
     pub confused: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub disruption: Option<EncounterActionCheckView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub targeting: Option<EncounterTargetingRequirementsView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -29,6 +31,7 @@ pub struct EncounterStrikeContextRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterStrikeContextView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub targeting_check: Option<EncounterActionCheckView>,
     pub options: crate::EncounterStrikeOptionsView,
     pub action: EncounterStrikeActionContextView,

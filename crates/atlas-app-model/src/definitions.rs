@@ -72,8 +72,10 @@ pub struct DefinitionDetailView {
     pub artifact_generation: String,
     pub definition_key: String,
     pub label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub help: Option<ReferenceHelpView>,
     /// Record-backed entries retain a destination, without a second body.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub content: Option<ReferenceContentView>,
     pub publications: Vec<DefinitionPublicationView>,
     pub notices: Vec<DefinitionNoticeView>,
@@ -83,8 +85,11 @@ pub struct DefinitionDetailView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DefinitionPublicationView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub title: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub page: Option<u32>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub license: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -92,6 +97,7 @@ pub struct DefinitionPublicationView {
 pub struct DefinitionNoticeView {
     pub id: String,
     pub text: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_url: Option<String>,
 }
 
@@ -142,6 +148,7 @@ mod tests {
 pub struct ReferenceContentView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub section_rendering: Option<crate::PreparedSectionRenderingView>,
     pub body: crate::PreparedFieldBodyView,
     pub references: Vec<crate::PreparedReferenceView>,

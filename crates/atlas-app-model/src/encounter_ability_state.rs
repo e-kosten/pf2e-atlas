@@ -7,6 +7,7 @@ use ts_rs::TS;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterAbilityStateView {
     pub navigation: RecordNavigationView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub rule_ordinal: Option<usize>,
     pub label: String,
     pub state: EncounterAbilityStateKindView,
@@ -18,6 +19,7 @@ pub enum EncounterAbilityStateKindView {
     Option {
         active: bool,
         always_active: bool,
+        #[cfg_attr(feature = "openapi", schema(required))]
         selection: Option<String>,
         choices: Vec<EncounterAbilityChoiceView>,
     },
@@ -32,6 +34,7 @@ pub enum EncounterAbilityStateKindView {
 pub struct EncounterAbilityChoiceView {
     pub value: String,
     pub label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub consequence: Option<String>,
 }
 

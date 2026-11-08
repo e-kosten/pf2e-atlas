@@ -19,32 +19,21 @@ use fixture::{ACTION, ACTOR, Fixture, SECOND_ACTION, TABLE};
 mod build_contract;
 
 #[test]
-fn browser_contract_covers_generated_similarity_wire_types() {
+fn browser_contract_uses_the_openapi_artifact_and_protocol_revision() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let contract = build_contract::load(&root).unwrap();
     assert_eq!(contract.identifier, super::compatibility::CONTRACT);
-    for binding in [
-        "SimilarityOptions.ts",
-        "CoreSectionSelection.ts",
-        "SimilarityComponentView.ts",
-    ] {
-        let path = root.join("crates/atlas-app-model/bindings").join(binding);
-        assert!(
-            contract.watched_paths.contains(&path),
-            "the browser contract does not cover wire binding {binding}"
-        );
-    }
-    assert!(
-        contract.watched_paths.iter().all(|path| {
-            path == &root.join(build_contract::METADATA)
-                || path.starts_with(root.join("crates/atlas-app-model/bindings"))
-        }),
-        "implementation sources must not define browser wire compatibility"
+    assert_eq!(
+        contract.watched_paths,
+        [
+            root.join(build_contract::METADATA),
+            root.join(build_contract::SCHEMA)
+        ]
     );
 }
 
 #[test]
-fn pilot_schema_preserves_search_and_record_contract_edges() {
+fn schema_preserves_wire_contract_edges() {
     let document = serde_json::to_value(crate::openapi()).unwrap();
     let schemas = &document["components"]["schemas"];
     for variant in schemas["SearchCriteria"]["oneOf"].as_array().unwrap() {
@@ -88,6 +77,23 @@ fn pilot_schema_preserves_search_and_record_contract_edges() {
             .unwrap()
             .contains(&json!("code"))
     );
+    for (name, fields) in [
+        ("AppReadinessView", &["artifact_generation"][..]),
+        ("SavedListItemNoteView", &["note"][..]),
+        ("ConditionLifecycleResultView", &["check"][..]),
+        (
+            "LifecycleCheckResultView",
+            &["dc", "modifier", "roll", "table_result"][..],
+        ),
+    ] {
+        let required = schemas[name]["required"].as_array().unwrap();
+        for field in fields {
+            assert!(
+                required.contains(&json!(field)),
+                "{name}.{field} must be present"
+            );
+        }
+    }
     let delete = &document["paths"]["/api/lists/{list_ref}/items"]["delete"];
     assert_eq!(
         delete["requestBody"]["content"]["application/json"]["schema"]["$ref"],

@@ -29,6 +29,7 @@ pub struct InitiativeParticipantOptionsView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct InitiativeOptionsView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub artifact_generation: Option<String>,
     pub encounter_key: String,
     pub expected_revision: i64,

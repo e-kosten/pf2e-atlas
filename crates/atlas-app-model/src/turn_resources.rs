@@ -8,18 +8,28 @@ pub struct TurnResourcesView {
     pub action_calculation: TurnActionCalculationView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub inherent_conditions: Option<InherentActionConditionsView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub turn_key: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub round_number: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub regular_total: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub regular_remaining: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub extra_total: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub extra_remaining: Option<i64>,
     pub extra_uses: Vec<crate::ConditionExtraActionView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub reactions_total: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub reactions_remaining: Option<i64>,
     pub can_grant_reaction: bool,
     pub start_results: Vec<TurnResourceResultView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub pending_reason: Option<String>,
     pub forecast: crate::RuntimeCountView,
     pub can_edit_actions: bool,
@@ -31,6 +41,7 @@ pub struct TurnResourcesView {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TurnActionCalculationView {
     ThisTurn {
+        #[cfg_attr(feature = "openapi", schema(required))]
         count: Option<crate::RuntimeCountView>,
         changes: Vec<crate::RuntimeAdjustmentView>,
     },
@@ -42,6 +53,7 @@ pub enum TurnActionCalculationView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct InherentActionConditionsView {
     pub entries: Vec<InherentActionConditionView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub unavailable_reason: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -49,13 +61,16 @@ pub struct InherentActionConditionsView {
 pub struct InherentActionConditionView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub unavailable_reason: Option<String>,
     pub name: String,
     pub has_value: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub value: Option<i64>,
     pub condition_ref: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub editable_rule_ordinal: Option<usize>,
     pub source_name: String,
     pub source: crate::RecordNavigationView,

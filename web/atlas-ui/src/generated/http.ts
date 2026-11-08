@@ -1027,13 +1027,13 @@ export interface SearchProfileReadinessView {
 
 export interface AppReadinessView {
   /** @nullable */
-  artifact_generation?: string | null;
+  artifact_generation: string | null;
   default_search_profile: SearchProfileId;
   message: string;
-  reference_error?: AppError | null;
+  reference_error?: AppError;
   search_profiles: SearchProfileReadinessView[];
   status: AppReadinessStatus;
-  workspace_error?: AppError | null;
+  workspace_error?: AppError;
 }
 
 export type CheckDegreeView = typeof CheckDegreeView[keyof typeof CheckDegreeView];
@@ -1422,7 +1422,7 @@ export type ConditionEventConsequenceView = {
   kind: 'stunned_actions_lost';
   participant_key: string;
   /** @nullable */
-  stunned_after?: number | null;
+  stunned_after: number | null;
 } | {
   kind: 'prone_prevented';
   participant_key: string;
@@ -1445,13 +1445,13 @@ export type ConditionEventConsequenceView = {
 
 export interface ConditionHpChangeView {
   /** @nullable */
-  current_after?: number | null;
+  current_after: number | null;
   /** @nullable */
-  current_before?: number | null;
+  current_before: number | null;
   /** @nullable */
-  maximum_after?: number | null;
+  maximum_after: number | null;
   /** @nullable */
-  maximum_before?: number | null;
+  maximum_before: number | null;
 }
 
 export interface PersistentDamagePrecedenceEntryView {
@@ -1469,15 +1469,15 @@ export interface ConditionEventPreviewView {
   consequences: ConditionEventConsequenceView[];
   encounter_key: string;
   encounter_revision: number;
-  hp_change?: ConditionHpChangeView | null;
-  persistent_precedence?: PersistentDamagePrecedenceView | null;
+  hp_change?: ConditionHpChangeView;
+  persistent_precedence?: PersistentDamagePrecedenceView;
 }
 
 export interface LifecycleCheckFactsView {
   /** @nullable */
-  dc?: number | null;
+  dc: number | null;
   /** @nullable */
-  modifier?: number | null;
+  modifier: number | null;
 }
 
 export type EncounterActionFactView = typeof EncounterActionFactView[keyof typeof EncounterActionFactView];
@@ -1511,16 +1511,16 @@ export const EncounterActionIssueKindView = {
 export interface EncounterActionIssueView {
   condition_name: string;
   /** @nullable */
-  controller_key?: string | null;
-  fact?: EncounterActionFactView | null;
+  controller_key: string | null;
+  fact: EncounterActionFactView | null;
   /** @nullable */
-  instructions?: string | null;
+  instructions: string | null;
   kind: EncounterActionIssueKindView;
   reason: string;
   /** @nullable */
-  source_condition_id?: number | null;
+  source_condition_id: number | null;
   source_key: string;
-  subject?: ConditionSubjectView | null;
+  subject: ConditionSubjectView | null;
 }
 
 export type ConditionRecoveryOfferView = {
@@ -1539,7 +1539,7 @@ export type ConditionRecoveryOfferView = {
   text: string;
 } | {
   /** @nullable */
-  actions_lost?: number | null;
+  actions_lost: number | null;
   condition_id: number;
   kind: 'stunned_actions_lost';
 } | {
@@ -1547,7 +1547,7 @@ export type ConditionRecoveryOfferView = {
   consequence_key: string;
   kind: 'confused_damage_recovery';
   /** @nullable */
-  qualifying_damage?: boolean | null;
+  qualifying_damage: boolean | null;
   source_condition_ids: number[];
 };
 
@@ -1557,7 +1557,7 @@ export type ConditionLifecycleOptionView = ConditionRecoveryOfferView & ({
   condition_ids: number[];
   label: string;
   /** @nullable */
-  unavailable_reason?: string | null;
+  unavailable_reason: string | null;
 });
 
 export interface ConditionLifecycleActionsView {
@@ -1569,27 +1569,27 @@ export interface ConditionLifecycleActionsView {
 
 export interface LifecycleCheckResultView {
   /** @nullable */
-  dc?: number | null;
+  dc: number | null;
   degree: CheckDegreeView;
   /** @nullable */
-  modifier?: number | null;
-  roll?: RollOutcome | null;
+  modifier: number | null;
+  roll: RollOutcome | null;
   /** @nullable */
-  table_result?: number | null;
+  table_result: number | null;
 }
 
 export interface ConditionLifecycleResultView {
-  check?: LifecycleCheckResultView | null;
+  check: LifecycleCheckResultView | null;
   encounter_key: string;
   request_id: string;
 }
 
 export type ConditionParametersView = {
   kind: 'fleeing';
-  subject?: ConditionSubjectView | null;
+  subject: ConditionSubjectView | null;
 } | {
   kind: 'fascinated';
-  subject?: ConditionSubjectView | null;
+  subject: ConditionSubjectView | null;
 } | {
   kind: 'attitude';
 } | {
@@ -1598,29 +1598,27 @@ export type ConditionParametersView = {
 } | {
   kind: 'broken';
   /** @nullable */
-  threshold?: number | null;
+  threshold: number | null;
 } | {
   kind: 'none';
 } | {
   /** @nullable */
-  damage_type?: string | null;
+  damage_type: string | null;
   /** @nullable */
-  formula?: string | null;
+  formula: string | null;
   kind: 'persistent_damage_reminder';
   multiplier: DamageMultiplierView;
   recovery: PersistentRecoveryView;
 } | {
   damage_type: string;
-  /** @nullable */
-  episode_id?: string | null;
+  episode_id?: string;
   formula: string;
   kind: 'persistent_damage';
   multiplier: DamageMultiplierView;
   recovery: PersistentRecoveryView;
 } | {
   kind: 'sickened';
-  /** @nullable */
-  recovery_dc?: number | null;
+  recovery_dc?: number;
 } | {
   kind: 'unconscious';
   waking: WakingRuleView;
@@ -1966,20 +1964,19 @@ export type PreparedFieldBodyView = {
  * An attributed marker destination within one already-selected prepared body.
  */
 export interface PreparedReferenceView {
-  contextual_target?: RecordNavigationView | null;
-  effect_label?: EffectReferenceLabelView | null;
+  contextual_target?: RecordNavigationView;
+  effect_label?: EffectReferenceLabelView;
   /** @minimum 0 */
   ordinal: number;
   /**
      * Derived action command targets its containing root action; readers retain
      * the label without offering redundant navigation. Target evidence remains.
-     * @nullable
      */
-  self_action_reference?: boolean | null;
+  self_action_reference?: boolean;
   status: string;
-  target?: RecordNavigationView | null;
+  target: RecordNavigationView | null;
   /** @nullable */
-  url?: string | null;
+  url: string | null;
 }
 
 /**
@@ -1994,26 +1991,26 @@ export interface PreparedSectionRenderingView {
 export interface ReferenceContentView {
   body: PreparedFieldBodyView;
   references: PreparedReferenceView[];
-  section_rendering?: PreparedSectionRenderingView | null;
+  section_rendering?: PreparedSectionRenderingView;
 }
 
 export interface DefinitionNoticeView {
   id: string;
   /** @nullable */
-  source_url?: string | null;
+  source_url: string | null;
   text: string;
 }
 
 export interface DefinitionPublicationView {
   /** @nullable */
-  license?: string | null;
+  license: string | null;
   /**
      * @minimum 0
      * @nullable
      */
-  page?: number | null;
+  page: number | null;
   /** @nullable */
-  title?: string | null;
+  title: string | null;
 }
 
 export type QueryRelationshipDirection = typeof QueryRelationshipDirection[keyof typeof QueryRelationshipDirection];
@@ -2126,9 +2123,9 @@ export interface ReferenceFilterActionView {
 
 export interface DefinitionDetailView {
   artifact_generation: string;
-  content?: ReferenceContentView | null;
+  content: ReferenceContentView | null;
   definition_key: string;
-  help?: ReferenceHelpView | null;
+  help: ReferenceHelpView | null;
   label: string;
   notices: DefinitionNoticeView[];
   publications: DefinitionPublicationView[];
@@ -2318,9 +2315,9 @@ export interface EmbeddedReadingBatchView {
   /** @minimum 0 */
   end: number;
   entries: EmbeddedReadingEntryView[];
-  next?: EmbeddedReadingCursor | null;
+  next: EmbeddedReadingCursor | null;
   parent: RecordNavigationView;
-  previous?: EmbeddedReadingCursor | null;
+  previous: EmbeddedReadingCursor | null;
   /** @minimum 0 */
   start: number;
   /** @minimum 0 */
@@ -2359,7 +2356,7 @@ export interface EmbeddedRecordLinkView {
 
 export interface EncounterAbilityChoiceView {
   /** @nullable */
-  consequence?: string | null;
+  consequence: string | null;
   label: string;
   value: string;
 }
@@ -2385,7 +2382,7 @@ export type EncounterAbilityStateKindView = {
   choices: EncounterAbilityChoiceView[];
   kind: 'option';
   /** @nullable */
-  selection?: string | null;
+  selection: string | null;
 } | {
   interval: string;
   kind: 'uses';
@@ -2400,13 +2397,13 @@ export interface EncounterAbilityStateView {
      * @minimum 0
      * @nullable
      */
-  rule_ordinal?: number | null;
+  rule_ordinal: number | null;
   state: EncounterAbilityStateKindView;
 }
 
 export interface EncounterActionCheckSourceView {
   /** @nullable */
-  condition_id?: number | null;
+  condition_id: number | null;
   name: string;
   source_key: string;
 }
@@ -2470,14 +2467,13 @@ export interface EncounterConditionDefinitionView {
   automation_level: EncounterConditionAutomationLevelView;
   categories: EncounterConditionCategoryView[];
   condition_ref: string;
-  /** @nullable */
-  default_value?: number | null;
+  default_value?: number;
   editor_kind: ConditionEditorKindView;
   eligibility: EncounterConditionEligibilityView;
   has_value: boolean;
   name: string;
   /** @nullable */
-  scope_label?: string | null;
+  scope_label: string | null;
   supports_duration_instead_of_value: boolean;
   supports_extra_action: boolean;
 }
@@ -2505,8 +2501,7 @@ export const EncounterStatusView = {
 
 export interface EncounterSummaryView {
   created_at: string;
-  /** @nullable */
-  description?: string | null;
+  description?: string;
   encounter_key: string;
   name: string;
   /** @minimum 0 */
@@ -2530,20 +2525,20 @@ export interface EncounterDifficultyBudgetView {
 export interface EncounterDifficultyOpponentView {
   kind: string;
   /** @nullable */
-  level?: number | null;
+  level: number | null;
   name: string;
   /**
      * None for a prospective addition, which has no saved participant identity.
      * @nullable
      */
-  participant_key?: string | null;
+  participant_key: string | null;
   /** @nullable */
-  unavailable_reason?: string | null;
+  unavailable_reason: string | null;
   /**
      * @minimum 0
      * @nullable
      */
-  xp?: number | null;
+  xp: number | null;
 }
 
 /**
@@ -2572,7 +2567,7 @@ export interface EncounterDifficultyRuleView {
 
 export interface EncounterDifficultyView {
   /** @nullable */
-  award_note?: string | null;
+  award_note: string | null;
   basis: string;
   budgets: EncounterDifficultyBudgetView[];
   /** @minimum 0 */
@@ -2582,53 +2577,49 @@ export interface EncounterDifficultyView {
      * @minimum 0
      * @nullable
      */
-  party_level?: number | null;
+  party_level: number | null;
   /**
      * Effective budget count, including any supported mixed-level adjustment.
      * @minimum 0
      * @nullable
      */
-  party_size?: number | null;
+  party_size: number | null;
   /** @minimum 0 */
   pc_count: number;
   /** @nullable */
-  rating?: string | null;
+  rating: string | null;
   reference: EncounterDifficultyReferenceView;
   /** @nullable */
-  reference_note?: string | null;
+  reference_note: string | null;
   rules: EncounterDifficultyRuleView[];
   /**
      * @minimum 0
      * @nullable
      */
-  total_xp?: number | null;
+  total_xp: number | null;
   /**
      * Suggested award normalized to a four-PC party; not persisted or distributed.
      * @minimum 0
      * @nullable
      */
-  xp_per_pc?: number | null;
+  xp_per_pc: number | null;
 }
 
 export interface EncounterParticipantConditionView {
   condition_id: number;
-  /** @nullable */
-  condition_key?: string | null;
+  condition_key?: string;
   created_at: string;
-  duration?: ConditionDurationView | null;
+  duration?: ConditionDurationView;
   extra_action?: ConditionExtraActionView;
   immunity_override?: boolean;
   name: string;
-  /** @nullable */
-  note?: string | null;
-  origin?: ConditionOriginView | null;
+  note?: string;
+  origin?: ConditionOriginView;
   parameters?: ConditionParametersView;
   scope?: ConditionScopeView;
-  /** @nullable */
-  source_participant_key?: string | null;
+  source_participant_key?: string;
   updated_at: string;
-  /** @nullable */
-  value?: number | null;
+  value?: number;
 }
 
 export interface KnockoutOptionView {
@@ -2668,18 +2659,16 @@ export interface PersistentDamageSourceView {
   formula: string;
   multiplier: DamageMultiplierView;
   /** @nullable */
-  recovery_dc?: number | null;
-  roll_preview?: RollPreviewExpression | null;
+  recovery_dc: number | null;
+  /** Validated expression for unrolled dice; never random outcomes. */
+  roll_preview?: RollPreviewExpression;
 }
 
 export interface PersistentDamageGroupView {
   damage_type: string;
   episode_id: string;
-  /**
-     * Present only when current damage protection facts establish immunity.
-     * @nullable
-     */
-  immunity_note?: string | null;
+  /** Present only when current damage protection facts establish immunity. */
+  immunity_note?: string;
   /** The first source in the backend-resolved precedence order. Groups are nonempty. */
   selected_source_id: number;
   sources: PersistentDamageSourceView[];
@@ -3259,15 +3248,15 @@ export interface EncounterSpellRankView {
   /** @minimum 0 */
   rank: number;
   /** @nullable */
-  resource_key?: string | null;
+  resource_key: string | null;
   /** @nullable */
-  unavailable_reason?: string | null;
+  unavailable_reason: string | null;
 }
 
 export interface EncounterSpellView {
   entry_id: string;
   /** @nullable */
-  expended?: boolean | null;
+  expended: boolean | null;
   navigation: RecordNavigationView;
   ranks: EncounterSpellRankView[];
   title: string;
@@ -3290,7 +3279,7 @@ export const EncounterParticipantStatusView = {
 
 export type TurnActionCalculationView = {
   changes: RuntimeAdjustmentView[];
-  count?: RuntimeCountView | null;
+  count: RuntimeCountView | null;
   kind: 'this_turn';
 } | {
   count: RuntimeCountView;
@@ -3299,25 +3288,21 @@ export type TurnActionCalculationView = {
 
 export interface InherentActionConditionView {
   condition_ref: string;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  editable_rule_ordinal?: number | null;
+  /** @minimum 0 */
+  editable_rule_ordinal?: number;
   has_value: boolean;
   name: string;
   source: RecordNavigationView;
   source_name: string;
+  unavailable_reason?: string;
   /** @nullable */
-  unavailable_reason?: string | null;
-  /** @nullable */
-  value?: number | null;
+  value: number | null;
 }
 
 export interface InherentActionConditionsView {
   entries: InherentActionConditionView[];
   /** @nullable */
-  unavailable_reason?: string | null;
+  unavailable_reason: string | null;
 }
 
 export interface TurnResourceResultView {
@@ -3333,90 +3318,80 @@ export interface TurnResourcesView {
   can_spend_actions: RuntimeCapabilityView;
   can_spend_reactions: RuntimeCapabilityView;
   /** @nullable */
-  extra_remaining?: number | null;
+  extra_remaining: number | null;
   /** @nullable */
-  extra_total?: number | null;
+  extra_total: number | null;
   extra_uses: ConditionExtraActionView[];
   forecast: RuntimeCountView;
-  inherent_conditions?: InherentActionConditionsView | null;
+  inherent_conditions?: InherentActionConditionsView;
   /** @nullable */
-  pending_reason?: string | null;
+  pending_reason: string | null;
   /** @nullable */
-  reactions_remaining?: number | null;
+  reactions_remaining: number | null;
   /** @nullable */
-  reactions_total?: number | null;
+  reactions_total: number | null;
   /** @nullable */
-  regular_remaining?: number | null;
+  regular_remaining: number | null;
   /** @nullable */
-  regular_total?: number | null;
+  regular_total: number | null;
   /** @nullable */
-  round_number?: number | null;
+  round_number: number | null;
   start_results: TurnResourceResultView[];
   /** @nullable */
-  turn_key?: string | null;
+  turn_key: string | null;
 }
 
 export interface EncounterParticipantView {
-  /** @nullable */
-  ability_states?: EncounterAbilityStateView[] | null;
+  ability_states?: EncounterAbilityStateView[];
   base_death_threshold: number;
   /** @nullable */
-  cast_unavailable_reason?: string | null;
+  cast_unavailable_reason: string | null;
   conditions: EncounterParticipantConditionView[];
-  /** @nullable */
-  current_hp?: number | null;
+  current_hp?: number;
   defeated: boolean;
   display_name: string;
   effective_max_hp: NumberFactView;
   hazard_disabled: boolean;
   hidden: boolean;
   hp_origin: string;
-  /** @nullable */
-  initiative?: number | null;
+  initiative?: number;
   initiative_order: number;
   knockout_options: KnockoutOptionView[];
-  /** @nullable */
-  knockout_unavailable_reason?: string | null;
-  /** @nullable */
-  level_override?: number | null;
+  knockout_unavailable_reason?: string;
+  level_override?: number;
   manual_trackers: EncounterManualTrackerView[];
-  /** @nullable */
-  max_hp?: number | null;
+  max_hp?: number;
   mortality: MortalityStateView;
+  note?: string;
   /** @nullable */
-  note?: string | null;
-  /** @nullable */
-  note_hint?: string | null;
+  note_hint: string | null;
   participant_key: string;
   participant_kind: EncounterParticipantKindView;
   participant_variant: EncounterParticipantVariantView;
   persistent_damage_groups: PersistentDamageGroupView[];
   position: number;
-  presentation?: RecordPresentationView | null;
-  record?: RecordSummaryView | null;
-  /** @nullable */
-  record_key?: string | null;
+  presentation?: RecordPresentationView;
+  record?: RecordSummaryView;
+  record_key?: string;
   revision: number;
   side: EncounterParticipantSideView;
-  spellcasting?: EncounterSpellcastingView | null;
+  spellcasting?: EncounterSpellcastingView;
   status: EncounterParticipantStatusView;
   temporary_hp: number;
   track_dying: boolean;
-  turn_resources?: TurnResourcesView | null;
+  turn_resources?: TurnResourcesView;
   variant_origin: string;
 }
 
 export interface EncounterDetailView {
   /** @nullable */
-  artifact_generation?: string | null;
-  /** @nullable */
-  current_turn_participant_key?: string | null;
+  artifact_generation: string | null;
+  current_turn_participant_key?: string;
   difficulty: EncounterDifficultyView;
   encounter: EncounterSummaryView;
-  /** @nullable */
-  note?: string | null;
+  note?: string;
   participants: EncounterParticipantView[];
-  reference_error?: AppError | null;
+  reference_error?: AppError;
   revision: number;
 }
 
@@ -3463,17 +3438,17 @@ export const EncounterNextTurnUnavailableReason = {
 export interface EncounterRecoveryParticipantView {
   changes: string[];
   /** @nullable */
-  current_hp?: number | null;
+  current_hp: number | null;
   display_name: string;
   /** @nullable */
-  healing?: number | null;
+  healing: number | null;
   participant_key: string;
   /** @nullable */
-  resulting_hp?: number | null;
+  resulting_hp: number | null;
   /** @nullable */
-  resulting_max_hp?: number | null;
+  resulting_max_hp: number | null;
   /** @nullable */
-  unavailable_reason?: string | null;
+  unavailable_reason: string | null;
 }
 
 export interface EncounterRecoveryPreviewView {
@@ -3482,7 +3457,7 @@ export interface EncounterRecoveryPreviewView {
   encounter_key: string;
   encounter_revision: number;
   participants: EncounterRecoveryParticipantView[];
-  rules_reference?: RecordNavigationView | null;
+  rules_reference: RecordNavigationView | null;
 }
 
 export interface RecordDetailRequest {
@@ -3520,9 +3495,9 @@ export interface EncounterTargetingRequirementsView {
 
 export interface EncounterStrikeActionContextView {
   confused: boolean;
-  disruption?: EncounterActionCheckView | null;
+  disruption: EncounterActionCheckView | null;
   issues: EncounterActionIssueView[];
-  targeting?: EncounterTargetingRequirementsView | null;
+  targeting: EncounterTargetingRequirementsView | null;
 }
 
 export interface EncounterStrikeOptionsRequest {
@@ -3542,32 +3517,32 @@ export interface EncounterStrikeOptionsView {
   conditional: RuntimeEffectNoteView[];
   damage_available: boolean;
   /** @nullable */
-  damage_unavailable?: string | null;
+  damage_unavailable: string | null;
   expected_participant_revision: number;
   expected_revision: number;
   title: string;
   /** @nullable */
-  unavailable?: string | null;
+  unavailable: string | null;
 }
 
 export interface EncounterStrikeContextView {
   action: EncounterStrikeActionContextView;
   options: EncounterStrikeOptionsView;
-  targeting_check?: EncounterActionCheckView | null;
+  targeting_check: EncounterActionCheckView | null;
 }
 
 export interface StrikeDamageRollView {
   /** @nullable */
-  category?: string | null;
+  category: string | null;
   /** @nullable */
-  damage_type?: string | null;
+  damage_type: string | null;
   /** @nullable */
-  formula?: string | null;
+  formula: string | null;
   id: string;
   label: string;
-  outcome?: RollOutcome | null;
+  outcome: RollOutcome | null;
   /** @nullable */
-  unavailable?: string | null;
+  unavailable: string | null;
 }
 
 export interface StrikeDamageTotalView {
@@ -3578,19 +3553,19 @@ export interface StrikeDamageTotalView {
 }
 
 export interface EncounterStrikeRollView {
-  attack?: RollOutcome | null;
+  attack: RollOutcome | null;
   /** @nullable */
-  attack_modifier?: number | null;
+  attack_modifier: number | null;
   damage: StrikeDamageRollView[];
   damage_minimum_adjustment: number;
   /** @nullable */
-  damage_total?: number | null;
+  damage_total: number | null;
   damage_totals: StrikeDamageTotalView[];
   encounter_key: string;
   participant_key: string;
   persistent_minimum_adjustment: number;
   /** @nullable */
-  persistent_total?: number | null;
+  persistent_total: number | null;
   request_id: string;
   title: string;
 }
@@ -3599,8 +3574,7 @@ export type EncounterTurnReminderView = {
   kind: 'tracker_elapsed';
   participant_key: string;
   participant_name: string;
-  /** @nullable */
-  result?: string | null;
+  result?: string;
   tracker_key: string;
   tracker_name: string;
 } | {
@@ -3617,7 +3591,7 @@ export type EncounterTurnReminderView = {
      * Current effective value; unavailable if any contributing source is unknown.
      * @nullable
      */
-  condition_value?: number | null;
+  condition_value: number | null;
   kind: 'condition_recovery';
   participant_key: string;
   participant_name: string;
@@ -3626,7 +3600,7 @@ export type EncounterTurnReminderView = {
   condition_name: string;
   kind: 'persistent_damage';
   /** @nullable */
-  note?: string | null;
+  note: string | null;
   participant_key: string;
   participant_name: string;
 } | {
@@ -3674,14 +3648,14 @@ export interface EncounterTurnBoundaryView {
 
 export interface EncounterTurnReviewView {
   /** @nullable */
-  current_participant_key?: string | null;
+  current_participant_key: string | null;
   encounter_key: string;
   expected_revision: number;
-  incoming?: EncounterTurnBoundaryView | null;
+  incoming: EncounterTurnBoundaryView | null;
   /** @nullable */
-  next_participant_key?: string | null;
-  next_turn_unavailable_reason?: EncounterNextTurnUnavailableReason | null;
-  outgoing?: EncounterTurnBoundaryView | null;
+  next_participant_key: string | null;
+  next_turn_unavailable_reason: EncounterNextTurnUnavailableReason | null;
+  outgoing: EncounterTurnBoundaryView | null;
   reminders: EncounterTurnReminderView[];
 }
 
@@ -3695,17 +3669,16 @@ export const FacetUnavailableReason = {
 } as const;
 
 export interface FilterChoiceView {
-  help?: ReferenceHelpView | null;
+  help?: ReferenceHelpView;
   label: string;
   value: QueryLiteral;
 }
 
 export interface FilterCollectionControlView {
   /** @nullable */
-  amount_field_id?: string | null;
+  amount_field_id: string | null;
   category_field_id: string;
-  /** @nullable */
-  qualifier_field_id?: string | null;
+  qualifier_field_id?: string;
 }
 
 export type FilterControlView = typeof FilterControlView[keyof typeof FilterControlView];
@@ -3784,9 +3757,9 @@ export interface QueryFieldDefinition {
   operators: string[];
   path: string;
   /** @nullable */
-  scope?: string | null;
+  scope: string | null;
   /** @nullable */
-  units?: string | null;
+  units: string | null;
   value_discovery: QueryValueDiscovery;
 }
 
@@ -3825,15 +3798,14 @@ export interface FilterUnitFieldView {
 }
 
 export interface FilterEditorFieldView {
-  /** @nullable */
-  allow_custom_values?: boolean | null;
+  allow_custom_values?: boolean;
   applicable: boolean;
   choices: FilterChoiceView[];
-  collection_control?: FilterCollectionControlView | null;
+  collection_control?: FilterCollectionControlView;
   control: FilterControlView;
   definition: QueryFieldDefinition;
   /** @nullable */
-  help?: string | null;
+  help: string | null;
   label: string;
   operators: FilterOperatorView[];
   placement: FilterFieldPlacement;
@@ -3875,7 +3847,7 @@ export type RelationshipClausePresentationView = {
 
 export interface SenseQualifierView {
   /** @nullable */
-  acuity?: string | null;
+  acuity: string | null;
   has_range: boolean;
   sense: string;
 }
@@ -3888,8 +3860,7 @@ export interface FilterEditorView {
   groups: FilterEditorGroupView[];
   limits: QueryLimits;
   relationship_clauses: RelationshipClausePresentationView[];
-  /** @nullable */
-  sense_qualifiers?: SenseQualifierView[] | null;
+  sense_qualifiers?: SenseQualifierView[];
 }
 
 export type SortDirection = typeof SortDirection[keyof typeof SortDirection];
@@ -3937,24 +3908,24 @@ export interface FilterSavedListRequest {
 
 export interface QueryError {
   /** @nullable */
-  clause_id?: string | null;
+  clause_id: string | null;
   code: string;
   /** @nullable */
-  field?: string | null;
+  field: string | null;
   message: string;
   /** @nullable */
-  source_span?: [number, number] | null;
+  source_span: [number, number] | null;
 }
 
 export interface FilterValidationResult {
   errors: QueryError[];
-  predicate?: QueryPredicate | null;
+  predicate: QueryPredicate | null;
 }
 
 export interface FilterValueOptionView {
   /** @minimum 0 */
   distinct_roots: number;
-  help?: ReferenceHelpView | null;
+  help?: ReferenceHelpView;
   label: string;
   selected: boolean;
   value: QueryLiteral;
@@ -4014,7 +3985,7 @@ export interface FlatCheckRollView {
 }
 
 export interface GraphSectionView {
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicate;
   occurrences: RecordRelationshipView[];
   records: RecordSummaryView[];
   truncated: boolean;
@@ -4052,7 +4023,7 @@ export interface InitiativeParticipantOptionsView {
 
 export interface InitiativeOptionsView {
   /** @nullable */
-  artifact_generation?: string | null;
+  artifact_generation: string | null;
   encounter_key: string;
   expected_revision: number;
   participants: InitiativeParticipantOptionsView[];
@@ -4095,8 +4066,7 @@ export interface LevelOverrideInputView {
 }
 
 export interface PartyMemberView {
-  /** @nullable */
-  level?: number | null;
+  level?: number;
   member_key: string;
   name: string;
 }
@@ -4129,7 +4099,7 @@ export type PendingConditionRecoveryView = {
   kind: 'confused_damage';
   participant_key: string;
   /** @nullable */
-  qualifying_damage?: boolean | null;
+  qualifying_damage: boolean | null;
 };
 
 export interface PendingHpLifecycleView {
@@ -4141,8 +4111,7 @@ export interface PendingHpLifecycleView {
   knockout_options: KnockoutOptionView[];
   participant_key: string;
   required_facts: HpLifecycleRequiredFactView[];
-  /** @nullable */
-  unavailable_reason?: string | null;
+  unavailable_reason?: string;
 }
 
 export interface PersistentDamageProtectionView {
@@ -4155,8 +4124,8 @@ export interface PersistentDamageOutcomeView {
   amount: number;
   damage_type: string;
   episode_id: string;
-  protection?: PersistentDamageProtectionView | null;
-  roll?: RollOutcome | null;
+  protection?: PersistentDamageProtectionView;
+  roll: RollOutcome | null;
   source_condition_id: number;
   table_resolved: boolean;
 }
@@ -4181,10 +4150,10 @@ export interface PersistentEpisodeReviewView {
   damage_resolution: PersistentDamageResolutionView;
   end_turn_recovery_available: boolean;
   /** @nullable */
-  end_turn_recovery_unavailable_reason?: string | null;
+  end_turn_recovery_unavailable_reason: string | null;
   end_turn_roll_available: boolean;
   /** @nullable */
-  end_turn_roll_unavailable_reason?: string | null;
+  end_turn_roll_unavailable_reason: string | null;
   episode_id: string;
 }
 
@@ -4207,18 +4176,18 @@ export const PersistentRecoveryResolution = {
 export interface PersistentRecoveryResultView {
   damage_type: string;
   /** @nullable */
-  dc?: number | null;
+  dc: number | null;
   encounter_key: string;
   episode_id: string;
   request_id: string;
-  roll?: RollOutcome | null;
+  roll: RollOutcome | null;
   success: boolean;
 }
 
 export interface PersistentReviewView {
   damage_applied: boolean;
   damage_groups: PersistentDamageGroupView[];
-  damage_result?: PersistentDamageResultView | null;
+  damage_result: PersistentDamageResultView | null;
   encounter_revision: number;
   episodes: PersistentEpisodeReviewView[];
   recovery_results: PersistentRecoveryResultView[];
@@ -4250,8 +4219,8 @@ export interface PreparedPersistentDamageView {
   complete: boolean;
   damage: PersistentDamageResultView;
   draft_context: PersistentDraftContext;
-  recovery?: PersistentRecoveryResultView | null;
-  recovery_draft?: PersistentRecoveryDraft | null;
+  recovery: PersistentRecoveryResultView | null;
+  recovery_draft: PersistentRecoveryDraft | null;
 }
 
 export interface PreviewEncounterDifficultyRequest {
@@ -4418,7 +4387,7 @@ export interface RelatedRecordsView {
   seed: RecordSummaryView;
   selection: RecordNavigationView;
   show_versions: boolean;
-  source_remaster_context?: RelatedCategoryViewRemasterSourceContextView | null;
+  source_remaster_context?: RelatedCategoryViewRemasterSourceContextView;
   variants: RelatedCategoryViewVariantGroupView;
 }
 
@@ -4575,8 +4544,7 @@ export interface RollTableRequest {
 
 export interface SavedListSummaryView {
   created_at: string;
-  /** @nullable */
-  description?: string | null;
+  description?: string;
   /** @minimum 0 */
   item_count: number;
   list_key: string;
@@ -4591,8 +4559,7 @@ export interface SavedListCreateView {
 }
 
 export interface SavedListItemSnapshotView {
-  /** @nullable */
-  kind?: string | null;
+  kind?: string;
   title: string;
 }
 
@@ -4606,10 +4573,9 @@ export const SavedListItemStatusView = {
 } as const;
 
 export interface SavedListItemView {
-  /** @nullable */
-  note?: string | null;
+  note?: string;
   position: number;
-  record?: RecordSummaryView | null;
+  record?: RecordSummaryView;
   record_key: string;
   snapshot: SavedListItemSnapshotView;
   status: SavedListItemStatusView;
@@ -4618,7 +4584,7 @@ export interface SavedListItemView {
 export interface SavedListDetailView {
   items: SavedListItemView[];
   list: SavedListSummaryView;
-  reference_error?: AppError | null;
+  reference_error?: AppError;
   sort: ResultSort;
 }
 
@@ -4648,7 +4614,7 @@ export interface SavedListItemMutationView {
 export interface SavedListItemNoteView {
   list_key: string;
   /** @nullable */
-  note?: string | null;
+  note: string | null;
   record_key: string;
   slug: string;
   title: string;
@@ -4996,22 +4962,21 @@ export interface TraitDetailRequest {
 export interface TraitDetailView {
   artifact_generation: string;
   catalogs: string[];
-  content?: ReferenceContentView | null;
+  content: ReferenceContentView | null;
   /** @nullable */
-  indexing_locale?: string | null;
+  indexing_locale: string | null;
   label: string;
   /** @nullable */
-  source_revision?: string | null;
+  source_revision: string | null;
   trait_key: string;
 }
 
 export interface TraitRecordView {
   navigation: RecordNavigationView;
   record: RecordSummaryView;
+  reference_direction?: string;
   /** @nullable */
-  reference_direction?: string | null;
-  /** @nullable */
-  source_label?: string | null;
+  source_label: string | null;
 }
 
 export interface TraitRecordsPage {

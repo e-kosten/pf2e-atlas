@@ -108,12 +108,14 @@ pub struct FilterEditorView {
     pub common_field_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub sense_qualifiers: Option<Vec<SenseQualifierView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SenseQualifierView {
     pub sense: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub acuity: Option<String>,
     pub has_range: bool,
 }
@@ -131,12 +133,14 @@ pub struct FilterEditorFieldView {
     pub control: FilterControlView,
     pub placement: FilterFieldPlacement,
     pub label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub help: Option<String>,
     pub choices: Vec<FilterChoiceView>,
     // Short lists retain zero-match choices; searchable lists narrow before paging.
     pub short_choices: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub allow_custom_values: Option<bool>,
     pub applicable: bool,
     pub unit_fields: Vec<FilterUnitFieldView>,
@@ -144,6 +148,7 @@ pub struct FilterEditorFieldView {
     // Compact editor for collections whose entries have a category and optional amount.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub collection_control: Option<FilterCollectionControlView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -156,9 +161,11 @@ pub struct FilterUnitFieldView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterCollectionControlView {
     pub category_field_id: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub amount_field_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub qualifier_field_id: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -168,6 +175,7 @@ pub struct FilterChoiceView {
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -209,6 +217,7 @@ pub enum FilterFieldPlacement {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterValidationResult {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub predicate: Option<QueryPredicate>,
     pub errors: Vec<QueryError>,
 }
@@ -241,6 +250,7 @@ pub struct FilterValueOptionView {
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
     pub distinct_roots: u64,
     pub selected: bool,

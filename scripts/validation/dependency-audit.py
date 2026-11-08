@@ -13,6 +13,7 @@ NPM_PROJECTS = (
     "web/atlas-ui",
     "dev-tools/source-contracts",
     "dev-tools/release",
+    "dev-tools/openapi",
     "dev-tools/dice-prototype/renderer-deps",
 )
 CARGO_LOCKFILES = ("Cargo.lock", "dev-tools/dice-prototype/server/Cargo.lock")

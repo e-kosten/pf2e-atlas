@@ -12,6 +12,7 @@ pub struct SavedListSummaryView {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub description: Option<String>,
     pub tags: Vec<String>,
     #[ts(type = "number")]
@@ -74,6 +75,7 @@ pub struct SavedListUpdateView {
 pub struct SavedListDetailView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub reference_error: Option<crate::AppError>,
     pub sort: atlas_domain::ResultSort,
     pub list: SavedListSummaryView,
@@ -240,11 +242,13 @@ pub struct SavedListItemView {
     pub position: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub note: Option<String>,
     pub status: SavedListItemStatusView,
     pub snapshot: SavedListItemSnapshotView,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub record: Option<RecordSummaryView>,
 }
 
@@ -265,6 +269,7 @@ pub struct SavedListItemSnapshotView {
     pub title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub kind: Option<String>,
 }
 
@@ -495,5 +500,6 @@ pub struct SavedListItemNoteView {
     pub slug: String,
     pub record_key: String,
     pub title: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub note: Option<String>,
 }

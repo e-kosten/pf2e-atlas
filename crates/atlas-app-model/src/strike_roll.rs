@@ -23,8 +23,10 @@ pub struct EncounterStrikeOptionsView {
     pub expected_participant_revision: i64,
     pub title: String,
     pub attacks: Vec<StrikeAttackOptionView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub unavailable: Option<String>,
     pub damage_available: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub damage_unavailable: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -52,24 +54,33 @@ pub struct RollEncounterStrikeRequest {
 pub struct StrikeDamageRollView {
     pub id: String,
     pub label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub formula: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub damage_type: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub category: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub outcome: Option<atlas_dice::RollOutcome>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub unavailable: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterStrikeRollView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub attack_modifier: Option<i32>,
     pub request_id: String,
     pub encounter_key: String,
     pub participant_key: String,
     pub title: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub attack: Option<atlas_dice::RollOutcome>,
     pub damage: Vec<StrikeDamageRollView>,
     pub damage_totals: Vec<StrikeDamageTotalView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub damage_total: Option<i32>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub persistent_total: Option<i32>,
     pub damage_minimum_adjustment: i32,
     pub persistent_minimum_adjustment: i32,

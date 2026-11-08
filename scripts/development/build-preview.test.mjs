@@ -46,15 +46,11 @@ function fixture(t) {
     readFileSync(resolve(scripts, "preflight.mjs")),
   );
   put("crates/example/src/lib.rs", "pub fn current() {}\n");
-  put(
-    "crates/atlas-app-model/bindings/Test.ts",
-    "export type Test = string;\n",
-  );
+  put("crates/atlas-web/openapi.json", '{"openapi":"3.1.0","paths":{}}\n');
   put(
     "crates/atlas-web/api-contract.json",
     JSON.stringify({
       protocol_revision: 1,
-      bindings: "crates/atlas-app-model/bindings",
     }),
   );
   put("web/atlas-ui/src/index.ts", "export const view = 'first';\n");
@@ -188,7 +184,7 @@ test("Rust-only and frontend test/doc changes reuse the verified UI bundle", (t)
     createHash("sha256").update("<html>fixture</html>").digest("hex"),
   );
   assert.equal(receipt.source.dirty, true);
-  assert.match(receipt.api_contract, /^atlas-web-v2-/);
+  assert.match(receipt.api_contract, /^atlas-web-v3-/);
 });
 
 test("UI source and API contract changes rebuild the bundle", (t) => {
@@ -197,8 +193,8 @@ test("UI source and API contract changes rebuild the bundle", (t) => {
   f.put("web/atlas-ui/src/index.ts", "export const view = 'second';\n");
   success(f.build());
   f.put(
-    "crates/atlas-app-model/bindings/Test.ts",
-    "export type Test = number;\n",
+    "crates/atlas-web/openapi.json",
+    '{"openapi":"3.1.0","paths":{"/api/test":{}}}\n',
   );
   success(f.build());
   assert.deepEqual(f.calls(), ["npm", "cargo", "npm", "cargo", "npm", "cargo"]);

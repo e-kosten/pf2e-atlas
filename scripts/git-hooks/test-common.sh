@@ -273,6 +273,9 @@ for entry in \
   'dev-tools/release/src/check.ts:00010000000' \
   'crates/atlas-foundry-model/src/lib.rs:10100010000' \
   'crates/atlas-app-model/bindings/Search.ts:11000010000' \
+  'crates/atlas-web/openapi.json:11000010000' \
+  'web/atlas-ui/src/generated/http.ts:11000010000' \
+  'dev-tools/openapi/package-lock.json:11000010010' \
   'Cargo.lock:10000011010' \
   'crates/atlas-cli/Cargo.toml:10000011010' \
   'skills/pf2e-atlas-cli/SKILL.md:00000100000' \

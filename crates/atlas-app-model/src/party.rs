@@ -8,6 +8,7 @@ pub struct PartyMemberView {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional, type = "number")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub level: Option<i64>,
 }
 

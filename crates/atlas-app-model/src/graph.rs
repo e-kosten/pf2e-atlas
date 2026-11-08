@@ -15,6 +15,7 @@ pub struct GraphContextView {
 pub struct GraphSectionView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub filter: Option<atlas_domain::QueryPredicate>,
     pub records: Vec<RecordSummaryView>,
     pub occurrences: Vec<RecordRelationshipView>,
@@ -100,6 +101,7 @@ pub struct RelatedRecordsView {
     pub remaster_relationships: RelatedCategoryView<crate::RemasterRelationshipsView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source_remaster_context: Option<RelatedCategoryView<crate::RemasterSourceContextView>>,
     pub variants: RelatedCategoryView<VariantGroupView>,
 }

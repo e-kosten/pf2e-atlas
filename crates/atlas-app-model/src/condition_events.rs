@@ -7,9 +7,11 @@ use ts_rs::TS;
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionParametersView {
     Fleeing {
+        #[cfg_attr(feature = "openapi", schema(required))]
         subject: Option<ConditionSubjectView>,
     },
     Fascinated {
+        #[cfg_attr(feature = "openapi", schema(required))]
         subject: Option<ConditionSubjectView>,
     },
     Attitude,
@@ -17,12 +19,15 @@ pub enum ConditionParametersView {
         recovery: crate::FrightenedRecoveryView,
     },
     Broken {
+        #[cfg_attr(feature = "openapi", schema(required))]
         threshold: Option<i64>,
     },
     #[default]
     None,
     PersistentDamageReminder {
+        #[cfg_attr(feature = "openapi", schema(required))]
         formula: Option<String>,
+        #[cfg_attr(feature = "openapi", schema(required))]
         damage_type: Option<String>,
         multiplier: DamageMultiplierView,
         recovery: PersistentRecoveryView,
@@ -34,11 +39,13 @@ pub enum ConditionParametersView {
         recovery: PersistentRecoveryView,
         #[serde(skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
+        #[cfg_attr(feature = "openapi", schema(nullable = false))]
         episode_id: Option<String>,
     },
     Sickened {
         #[serde(skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
+        #[cfg_attr(feature = "openapi", schema(nullable = false))]
         recovery_dc: Option<i64>,
     },
     Unconscious {
@@ -168,9 +175,13 @@ pub struct EncounterDamageTypeView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ConditionHpChangeView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub current_before: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub current_after: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub maximum_before: Option<i64>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub maximum_after: Option<i64>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -178,9 +189,11 @@ pub struct ConditionHpChangeView {
 pub struct ConditionEventPreviewView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub persistent_precedence: Option<PersistentDamagePrecedenceView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub hp_change: Option<ConditionHpChangeView>,
     pub encounter_key: String,
     pub encounter_revision: i64,
@@ -194,6 +207,7 @@ pub enum ConditionEventConsequenceView {
         participant_key: String,
         before: i64,
         after: i64,
+        #[cfg_attr(feature = "openapi", schema(required))]
         stunned_after: Option<i64>,
     },
     PronePrevented {
