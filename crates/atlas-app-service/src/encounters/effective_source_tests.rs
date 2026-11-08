@@ -538,3 +538,106 @@ fn removing_a_condition_can_activate_source_stunned_on_the_current_turn() {
         .unwrap();
     assert_eq!(f.worker.encounter(&key).unwrap(), after);
 }
+
+#[test]
+fn manual_source_counter_controls_casting_and_preserves_independent_conditions() {
+    let counter = "{item|flags.system.rulesSelections.brainBlistersStupefied}";
+    let (f, key, p) = fixture(json!([{
+        "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Brain Blisters",
+        "system":{"actionType":{"value":"passive"},"rules":[{
+            "key":"GrantItem","inMemoryOnly":true,
+            "uuid":"Compendium.pf2e.conditionitems.Item.Stupefied",
+            "predicate":[{"gt":[counter,0]}],
+            "alterations":[{"mode":"override","property":"badge-value","value":counter}]
+        }]}
+    }]));
+    let row = |participant: &EncounterParticipantView| {
+        let conditions = participant
+            .turn_resources
+            .as_ref()
+            .unwrap()
+            .inherent_conditions
+            .as_ref()
+            .unwrap();
+        assert_eq!(conditions.entries.len(), 1);
+        assert_eq!(conditions.entries[0].source_name, "Brain Blisters");
+        assert_eq!(conditions.entries[0].editable_rule_ordinal, Some(0));
+        conditions.entries[0].clone()
+    };
+    let check = |participant: &EncounterParticipantView, expected: Option<&str>| {
+        let RecordBodyView::Creature(actor) = &participant.presentation.as_ref().unwrap().body
+        else {
+            panic!("expected creature presentation");
+        };
+        let reason = actor
+            .runtime
+            .as_ref()
+            .unwrap()
+            .unapplied_effects
+            .iter()
+            .find(|hint| hint.label == "Stupefied")
+            .map(|hint| hint.reason.as_str());
+        assert_eq!(reason, expected);
+    };
+    let unknown = "Enter the Stupefied value to determine the spellcasting flat-check DC.";
+    let mut expected = (None, Some(unknown));
+    for (value, next_hint) in [
+        (Some(2), Some("Spellcasting requires a DC 7 flat check.")),
+        (Some(0), None),
+        (None, Some(unknown)),
+        (Some(0), None),
+    ] {
+        let before = f.worker.encounter(&key).unwrap();
+        let participant = &before.participants[0];
+        let source = row(participant);
+        assert_eq!(source.value, expected.0);
+        check(participant, expected.1);
+        assert_eq!(row(&before.participants[1]).value, None);
+        let request = UpdateEncounterAbilityStateRequest {
+            request_id: crate::test_support::next_request_id(),
+            expected_encounter_revision: before.revision,
+            expected_participant_revision: participant.revision,
+            participant_key: p.clone(),
+            navigation: source.source,
+            rule_ordinal: source.editable_rule_ordinal,
+            action: EncounterAbilityStateAction::SetConditionValue { value },
+        };
+        f.worker
+            .update_encounter_ability_state(&key, request.clone())
+            .unwrap();
+        let mut stale = request;
+        stale.request_id = crate::test_support::next_request_id();
+        assert!(
+            f.worker
+                .update_encounter_ability_state(&key, stale)
+                .is_err()
+        );
+        expected = (value, next_hint);
+    }
+    add(
+        &f,
+        &key,
+        &p,
+        ConditionRule::Stupefied,
+        Some(3),
+        ConditionEventIntentView::Correction,
+    );
+    let after = f.worker.encounter(&key).unwrap();
+    assert_eq!(row(&after.participants[0]).value, Some(0));
+    check(
+        &after.participants[0],
+        Some("Spellcasting requires a DC 8 flat check."),
+    );
+    f.worker
+        .apply_encounter_recovery(
+            &key,
+            ApplyEncounterRecoveryRequest {
+                expected_encounter_revision: after.revision,
+                action: EncounterRecoveryAction::ResetEncounter,
+            },
+        )
+        .unwrap();
+    let reset = f.worker.encounter(&key).unwrap();
+    assert_eq!(row(&reset.participants[0]).value, None);
+    check(&reset.participants[0], Some(unknown));
+}

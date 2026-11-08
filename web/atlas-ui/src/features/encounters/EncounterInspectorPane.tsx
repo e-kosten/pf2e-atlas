@@ -471,7 +471,13 @@ function EncounterParticipantSurface({
         recovery={recovery}
         disabled={disabled}
         addDisabled={conditionsDisabled}
-        error={errorFor("add-condition", "update-condition", "remove-condition")}
+        error={errorFor(
+          "add-condition",
+          "update-condition",
+          "remove-condition",
+          "ability-state",
+        )}
+        onAbilityState={onAbilityState}
         conditionDefinitions={conditionDefinitions}
         damageTypes={damageTypes}
         standardRecoveryDc={standardRecoveryDc}

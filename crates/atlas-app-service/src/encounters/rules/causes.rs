@@ -355,12 +355,12 @@ pub(in crate::encounters) fn resolve_causes<'a>(
                     &participant.participant_key,
                 ),
                 rule: source.rule,
-                value: source.value,
+                value: source.manual_value(participant).or(source.value),
             };
             match state {
                 Some(true) => {
                     active.push(cause);
-                    if source.rule.definition().has_value && source.value.is_none() {
+                    if source.rule.definition().has_value && cause.value.is_none() {
                         uncertain.push(cause);
                     }
                 }

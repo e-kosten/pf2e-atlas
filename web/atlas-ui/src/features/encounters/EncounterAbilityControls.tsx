@@ -10,7 +10,7 @@ import type {
 } from "../../generated/atlas";
 
 export type AbilityStateHandler = (
-  ability: EncounterAbilityStateView,
+  ability: Pick<EncounterAbilityStateView, "navigation" | "rule_ordinal">,
   action: EncounterAbilityStateAction,
 ) => Promise<boolean>;
 

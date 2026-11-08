@@ -22,6 +22,9 @@ pub enum AbilityStateValue {
         active: bool,
         selection: Option<String>,
     },
+    ConditionValueOverride {
+        value: Option<i64>,
+    },
     Uses {
         remaining: i64,
     },

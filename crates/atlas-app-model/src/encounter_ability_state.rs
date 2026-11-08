@@ -39,6 +39,9 @@ pub enum EncounterAbilityStateAction {
         active: bool,
         selection: Option<String>,
     },
+    SetConditionValue {
+        value: Option<i64>,
+    },
     SpendUse,
     RestoreUse,
 }

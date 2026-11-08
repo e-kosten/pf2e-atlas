@@ -4,12 +4,14 @@ import { useRef, useState } from "react";
 
 export function EncounterConditionValue({
   name,
+  minimum = 1,
   value,
   disabled,
   onCommit,
   onClear,
 }: {
   name: string;
+  minimum?: number;
   value: bigint | undefined;
   disabled: boolean;
   onCommit: (value: bigint) => Promise<boolean>;
@@ -23,16 +25,23 @@ export function EncounterConditionValue({
     draft === undefined ? (value === undefined ? null : Number(value)) : draft;
   const commit = async (input: number | null) => {
     if (disabled || inFlight.current) return;
-    if (input === null || !Number.isSafeInteger(input) || input < 1) {
-      setError("Enter a whole number, one or greater.");
+    const canClear = minimum === 0 && onClear !== undefined;
+    if (input === null ? !canClear : !Number.isSafeInteger(input) || input < minimum) {
+      setError(
+        minimum === 0
+          ? "Enter a whole number, zero or greater."
+          : "Enter a whole number, one or greater.",
+      );
       return;
     }
     setError(undefined);
-    if (BigInt(input) === value) return;
+    if ((input === null ? undefined : BigInt(input)) === value) return;
     inFlight.current = true;
     setSaving(true);
     try {
-      if (await onCommit(BigInt(input))) setDraft(undefined);
+      if (await (input === null ? onClear?.() : onCommit(BigInt(input)))) {
+        setDraft(undefined);
+      }
     } catch {
       /* The mutation owner supplies the server error beside the row. */
     } finally {
@@ -48,6 +57,7 @@ export function EncounterConditionValue({
     >
       <ConditionValueInput
         size="small"
+        minimum={minimum}
         name={`${name} value`}
         removeLabel={`Remove ${name}`}
         value={shown}
@@ -66,7 +76,7 @@ export function EncounterConditionValue({
           }
         }}
         onRemove={
-          onClear
+          minimum === 1 && onClear
             ? async () => {
                 if (disabled || inFlight.current) return;
                 inFlight.current = true;

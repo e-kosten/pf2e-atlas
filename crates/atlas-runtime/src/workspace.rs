@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 36;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 37;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -256,6 +256,12 @@ const MIGRATIONS: &[Migration] = &[
             apply: atlas_index::backfill_trait_members,
         }),
     },
+    Migration {
+        version: 37,
+        name: "source-condition-override-payload",
+        sql: "",
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -332,6 +338,46 @@ mod reference_upgrade_tests;
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn source_counter_upgrade_preserves_ability_payloads_and_rejects_older_readers() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("source-counter-upgrade.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..36], |_| Ok(())).unwrap();
+        let write = workspace.write(36).unwrap();
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at)
+            VALUES(1,'e','e','Encounter','draft','before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,side,created_at,updated_at)
+            VALUES(1,1,'p','creature',1,'Participant',1,'enemy','before','before');
+            INSERT INTO encounter_ability_states VALUES(
+                'p','owner',-1,
+                '{"version":1,"payload":{"owner":{"collection":"/items","identity":{"Stable":"ability000000000"}},"rule_ordinal":null,"source_fingerprint":"old","value":{"kind":"uses","remaining":2}}}'
+            );
+        "#).unwrap();
+        write.commit().unwrap();
+
+        let upgraded = initialize_workspace(&path).unwrap();
+        assert!(matches!(
+            upgraded.read(36),
+            Err(atlas_storage::StorageError::Schema {
+                expected: 36,
+                actual: 37
+            })
+        ));
+        let read = upgraded.read(37).unwrap();
+        let encounter = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("e")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            encounter.participants[0].ability_states[0].value,
+            atlas_local_state::AbilityStateValue::Uses { remaining: 2 }
+        );
+    }
 
     #[test]
     fn round_clock_upgrade_preserves_existing_six_second_progress_and_snapshots() {

@@ -36,6 +36,7 @@ export function EncounterConditionControls({
   damageTypes,
   standardRecoveryDc,
   onAddCondition,
+  onAbilityState,
   onRemoveCondition,
   onRecoverPersistent,
   onResolveDrained,
@@ -46,6 +47,7 @@ export function EncounterConditionControls({
   requestedEdit,
 }: {
   disabled: boolean;
+  onAbilityState?: import("./EncounterAbilityControls").AbilityStateHandler;
   encounterRef: string;
   encounterRevision: bigint;
   pending: boolean;
@@ -563,62 +565,93 @@ export function EncounterConditionControls({
         <p className="encounter-empty-note">No conditions</p>
       ) : (
         <div className="encounter-condition-list">
-          {inherentConditions.map((condition, index) => (
-            <div
-              className="encounter-condition-row encounter-condition-row--inherent"
-              key={`${condition.condition_ref}:${JSON.stringify(condition.source.embedded_path)}:${index}`}
-            >
-              <Button
-                type="link"
-                className="encounter-condition-row__name"
-                styles={{
-                  root: {
-                    padding: 0,
-                    height: "auto",
-                    justifyContent: "flex-start",
-                    fontSize: "inherit",
-                  },
-                }}
-                href={destinationHref(
-                  recordDestination({ recordKey: condition.condition_ref }),
-                )}
-                onClick={(event) => {
-                  if (!isPrimaryActivation(event)) return;
-                  event.preventDefault();
-                  onReference(condition.condition_ref, event.currentTarget);
-                }}
+          {inherentConditions.map((condition, index) => {
+            const ordinal = condition.editable_rule_ordinal;
+            const save =
+              ordinal == null || !onAbilityState
+                ? undefined
+                : (value: bigint | null) =>
+                    onAbilityState(
+                      { navigation: condition.source, rule_ordinal: ordinal },
+                      { kind: "set_condition_value", value },
+                    );
+            return (
+              <div
+                className={`encounter-condition-row encounter-condition-row--inherent${save ? " encounter-condition-row--valued" : ""}`}
+                key={`${condition.condition_ref}:${JSON.stringify(condition.source.embedded_path)}:${ordinal == null ? `row-${index}` : `rule-${ordinal}`}`}
               >
-                {condition.name}
-                {condition.has_value ? ` ${condition.value ?? "—"}` : ""}
-              </Button>
-              <span className="encounter-condition-meta">
-                {condition.unavailable_reason
-                  ? `${condition.unavailable_reason} · `
-                  : "Inherent · "}
                 <Button
                   type="link"
-                  styles={{ root: { padding: 0, height: "auto", fontSize: "inherit" } }}
+                  className="encounter-condition-row__name"
+                  styles={{
+                    root: {
+                      padding: 0,
+                      height: "auto",
+                      justifyContent: "flex-start",
+                      fontSize: "inherit",
+                    },
+                  }}
                   href={destinationHref(
-                    recordDestination({
-                      recordKey: condition.source.record_key,
-                      selection: condition.source,
-                    }),
+                    recordDestination({ recordKey: condition.condition_ref }),
                   )}
                   onClick={(event) => {
                     if (!isPrimaryActivation(event)) return;
                     event.preventDefault();
-                    onReference(
-                      condition.source.record_key,
-                      event.currentTarget,
-                      condition.source,
-                    );
+                    onReference(condition.condition_ref, event.currentTarget);
                   }}
                 >
-                  {condition.source_name || condition.name}
+                  {condition.name}
+                  {condition.has_value && !save ? ` ${condition.value ?? "—"}` : ""}
                 </Button>
-              </span>
-            </div>
-          ))}
+                {save && (
+                  <span className="encounter-condition-row__value">
+                    <EncounterConditionValue
+                      name={`${condition.name} from ${condition.source_name}`}
+                      minimum={0}
+                      value={condition.value ?? undefined}
+                      disabled={disabled || pending}
+                      onCommit={save}
+                      onClear={() => save(null)}
+                    />
+                  </span>
+                )}
+                <span className="encounter-condition-meta">
+                  {ordinal != null
+                    ? condition.value === null
+                      ? "Activation tied to "
+                      : condition.value === 0n
+                        ? "Inactive · Source: "
+                        : "Source: "
+                    : condition.unavailable_reason
+                      ? `${condition.unavailable_reason} · `
+                      : "Inherent · "}
+                  <Button
+                    type="link"
+                    styles={{
+                      root: { padding: 0, height: "auto", fontSize: "inherit" },
+                    }}
+                    href={destinationHref(
+                      recordDestination({
+                        recordKey: condition.source.record_key,
+                        selection: condition.source,
+                      }),
+                    )}
+                    onClick={(event) => {
+                      if (!isPrimaryActivation(event)) return;
+                      event.preventDefault();
+                      onReference(
+                        condition.source.record_key,
+                        event.currentTarget,
+                        condition.source,
+                      );
+                    }}
+                  >
+                    {condition.source_name || condition.name}
+                  </Button>
+                </span>
+              </div>
+            );
+          })}
           {visibleGroups.map((group) => {
             const damageType =
               damageTypes?.find((type) => type.value === group.damage_type)?.label ??

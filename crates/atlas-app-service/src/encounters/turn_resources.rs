@@ -158,16 +158,25 @@ pub(super) fn view(
             }
         },
         inherent_conditions: participant.record_key.as_ref().map(|key| {
+            let active = sources.active_entries(participant);
+            let unresolved = sources.unresolved_entries(participant);
             InherentActionConditionsView {
                 unavailable_reason: sources.unavailable_reason.clone(),
-                entries: sources
-                    .active_entries(participant)
-                    .into_iter()
-                    .chain(sources.unresolved_entries(participant))
+                entries: active
+                    .iter()
+                    .chain(&unresolved)
+                    .copied()
+                    .chain(sources.entries.iter().filter(|condition| {
+                        condition.override_identity.is_some()
+                            && !active.contains(condition)
+                            && !unresolved.contains(condition)
+                    }))
                     .map(|condition| InherentActionConditionView {
                         unavailable_reason: condition.activation_unavailable.clone().or_else(
                             || {
-                                if sources.unresolved_entries(participant).contains(&condition) {
+                                if condition.override_identity.is_some() {
+                                    None
+                                } else if unresolved.contains(&condition) {
                                     Some("Activation needs context; check the source rule.".into())
                                 } else if condition.rule.definition().has_value
                                     && condition.value.is_none()
@@ -180,7 +189,11 @@ pub(super) fn view(
                         ),
                         name: condition.rule.definition().name.into(),
                         has_value: condition.rule.definition().has_value,
-                        value: condition.value,
+                        value: condition.manual_value(participant).or(condition.value),
+                        editable_rule_ordinal: condition
+                            .override_identity
+                            .as_ref()
+                            .and(condition.grant_ordinal),
                         condition_ref: condition.rule.definition().record_key.into(),
                         source_name: condition.source_label.clone(),
                         source: RecordNavigationView {
