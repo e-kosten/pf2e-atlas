@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { AtlasApiError } from "../../api/atlasApi";
-import type { UpdateEncounterParticipantRequest } from "../../generated/atlas";
+import type { UpdateEncounterParticipantEdit } from "../../generated/atlas";
 import { useEncounterMutations } from "./useEncounterMutations";
 
 const api = vi.hoisted(() => ({
@@ -21,19 +21,9 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
   ...api,
 }));
-const request: UpdateEncounterParticipantRequest = {
+const request: UpdateEncounterParticipantEdit = {
   expected_revision: 3,
   display_name: "PC",
-  side: "pc",
-  participant_variant: "normal",
-  temporary_hp: 0,
-  defeated: false,
-  hazard_disabled: false,
-  hidden: false,
-  hp_edit: false,
-  max_hp_edit: false,
-  variant_edit: false,
-  use_derived_max: false,
 };
 function deferred<T>() {
   let resolve!: (value: T) => void;

@@ -1009,7 +1009,7 @@ async fn encounter_routes_use_real_router_wiring() {
 }
 
 fn participant_edit(participant: &atlas_app_model::EncounterParticipantView, name: &str) -> Value {
-    json!({"expected_revision":participant.revision,"display_name":name,"side":"pc","participant_variant":"normal","initiative":19,"max_hp":24,"current_hp":20,"temporary_hp":1,"defeated":false,"hazard_disabled":false,"hidden":false,"note":"wounded"})
+    json!({"expected_revision":participant.revision,"display_name":name})
 }
 
 #[tokio::test]
@@ -1112,13 +1112,63 @@ async fn participant_revision_is_required_and_stale_edits_return_409() {
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["code"], "encounter_participant_conflict");
     request["expected_revision"] = json!(participant.revision);
+    for body in [
+        json!({"expected_revision":participant.revision,"participant_key":participant.participant_key}),
+        json!({"expected_revision":participant.revision,"max_hp":99}),
+        json!({"expected_revision":participant.revision,"display_name":null}),
+        json!([
+            participant.revision,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        ]),
+    ] {
+        let (status, body) = fixture.json(Method::PATCH, &path, Some(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request");
+    }
+    assert_eq!(fixture.service.encounter("ambush").unwrap(), detail);
+    request["initiative"] = json!(19);
+    request["note"] = json!("Track this");
     let (status, body) = fixture.json(Method::PATCH, &path, Some(request)).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, json!({"encounter_key":fixture.encounter_key}));
-    assert_eq!(
-        fixture.service.encounter("ambush").unwrap().participants[0].display_name,
-        "Edited"
-    );
+    let edited = fixture
+        .service
+        .encounter("ambush")
+        .unwrap()
+        .participants
+        .remove(0);
+    assert_eq!(edited.display_name, "Edited");
+    assert_eq!(edited.initiative, Some(19));
+    assert_eq!(edited.note.as_deref(), Some("Track this"));
+    assert_eq!(edited.max_hp, participant.max_hp);
+    assert_eq!(edited.current_hp, participant.current_hp);
+    assert_eq!(edited.temporary_hp, participant.temporary_hp);
+    assert_eq!(edited.variant_origin, participant.variant_origin);
+    assert_eq!(edited.hp_origin, participant.hp_origin);
+    let (status, body) = fixture
+        .json(
+            Method::PATCH,
+            &path,
+            Some(json!({"expected_revision":edited.revision,"initiative":null,"note":null})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let cleared = fixture
+        .service
+        .encounter("ambush")
+        .unwrap()
+        .participants
+        .remove(0);
+    assert_eq!(cleared.initiative, None);
+    assert_eq!(cleared.note, None);
+    assert_eq!(cleared.display_name, "Edited");
 }
 
 #[tokio::test]

@@ -24,7 +24,6 @@ import {
   type EncounterDifficultyProps,
 } from "./EncounterDifficulty";
 import { InitiativeRollModal } from "./InitiativeRollModal";
-import { participantUpdate } from "./participantEdits";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 type EncounterDetailViewProps = {
@@ -840,9 +839,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               await mutations.run({
                 kind: "participant",
                 participantKey: key,
-                request: participantUpdate(participant, {
-                  initiative: value,
-                }),
+                request: {
+                  expected_revision: participant.revision,
+                  initiative: value ?? null,
+                },
               });
             }}
             encounterKey={encounter.data.encounter.encounter_key}

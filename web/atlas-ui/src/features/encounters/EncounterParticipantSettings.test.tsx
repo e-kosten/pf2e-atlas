@@ -70,21 +70,11 @@ it("saves participant metadata as one complete revision-checked write and cancel
   expect(onUpdate).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onUpdate).toHaveBeenCalledOnce());
-  expect(onUpdate).toHaveBeenCalledWith(
-    expect.objectContaining({
-      participant_key: "pc",
-      expected_revision: 7,
-      display_name: "Mira Dawn",
-      initiative: 14,
-      note: "North door",
-      current_hp: 12,
-      max_hp: 20,
-      temporary_hp: 3,
-      hp_edit: false,
-      max_hp_edit: false,
-      variant_edit: false,
-    }),
-  );
+  expect(onUpdate).toHaveBeenCalledWith("pc", {
+    expected_revision: 7,
+    display_name: "Mira Dawn",
+    note: "North door",
+  });
   await waitFor(() => expect(dialog).not.toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
   fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
@@ -133,14 +123,10 @@ it("retains failed metadata drafts while refreshing untouched fields and expecte
   expect(within(dialog).getByLabelText("Participant initiative")).toHaveValue("19");
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() =>
-    expect(onUpdate).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        expected_revision: 8,
-        current_hp: 5,
-        initiative: 19,
-        display_name: "Retained name",
-      }),
-    ),
+    expect(onUpdate).toHaveBeenLastCalledWith("pc", {
+      expected_revision: 8,
+      display_name: "Retained name",
+    }),
   );
 });
 

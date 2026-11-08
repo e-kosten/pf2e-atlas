@@ -535,7 +535,7 @@ fn defeated_projects_cast_restriction_but_allows_recording_table_use() {
     let (fixture, encounter) = casting_fixture(focus_items());
     let initial = fixture.worker.encounter(&encounter).unwrap();
     let mut update = super::tests::update(&initial.participants[0]);
-    update.defeated = true;
+    update.defeated = Some(true);
     fixture
         .worker
         .update_encounter_participant(&encounter, &initial.participants[0].participant_key, update)

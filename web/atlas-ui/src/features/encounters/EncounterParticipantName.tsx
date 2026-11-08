@@ -1,10 +1,9 @@
 import { useState } from "react";
 import type {
   EncounterParticipantView,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import { EditableValue } from "../../shared/ui/forms/EditableValue";
-import { participantUpdate } from "./participantEdits";
 
 export function EncounterParticipantName({
   participant,
@@ -15,7 +14,7 @@ export function EncounterParticipantName({
   disabled: boolean;
   onUpdate: (
     participantKey: string,
-    request: UpdateEncounterParticipantRequest,
+    request: UpdateEncounterParticipantEdit,
   ) => Promise<boolean>;
 }) {
   const [error, setError] = useState<string>();
@@ -38,10 +37,10 @@ export function EncounterParticipantName({
               throw new Error("Participant name is required");
             }
             if (name === participant.display_name) return true;
-            return onUpdate(
-              participant.participant_key,
-              participantUpdate(participant, { display_name: name }),
-            );
+            return onUpdate(participant.participant_key, {
+              expected_revision: participant.revision,
+              display_name: name,
+            });
           }}
         />
       </h2>

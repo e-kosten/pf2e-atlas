@@ -154,8 +154,8 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
     let saved = f.worker.encounter(&encounter.slug).unwrap();
     for p in &saved.participants {
         let mut update = super::super::tests::update(p);
-        update.defeated = p.participant_kind == EncounterParticipantKindView::Creature;
-        update.hazard_disabled = p.participant_kind == EncounterParticipantKindView::Hazard;
+        update.defeated = Some(p.participant_kind == EncounterParticipantKindView::Creature);
+        update.hazard_disabled = Some(p.participant_kind == EncounterParticipantKindView::Hazard);
         f.worker
             .update_encounter_participant(&encounter.slug, &p.participant_key, update)
             .unwrap();

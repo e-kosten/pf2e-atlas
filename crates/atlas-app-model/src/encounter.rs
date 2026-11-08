@@ -677,35 +677,84 @@ pub struct AddEncounterManualParticipantRequest {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub struct UpdateEncounterParticipantRequest {
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateEncounterParticipantEdit {
     pub expected_revision: i64,
-    // Explicit manual HP edit even when the entered value is unchanged.
-    #[serde(default)]
-    pub hp_edit: bool,
-    #[serde(default)]
-    pub max_hp_edit: bool,
-    #[serde(default)]
-    pub variant_edit: bool,
-    // Discard an explicit capacity override and derive it from authored data.
-    #[serde(default)]
-    pub use_derived_max: bool,
-    pub display_name: String,
-    pub side: EncounterParticipantSideView,
-    pub participant_variant: EncounterParticipantVariantView,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub initiative: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_hp: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub current_hp: Option<i64>,
-    pub temporary_hp: i64,
-    pub defeated: bool,
-    pub hazard_disabled: bool,
-    pub hidden: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub display_name: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub side: Option<EncounterParticipantSideView>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub participant_variant: Option<EncounterParticipantVariantView>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_nullable_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<i64>))]
+    pub initiative: Option<Option<i64>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub defeated: Option<bool>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub hazard_disabled: Option<bool>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub hidden: Option<bool>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_nullable_participant_field"
+    )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>))]
+    pub note: Option<Option<String>>,
+}
+
+fn present_participant_field<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    T::deserialize(deserializer).map(Some)
+}
+
+fn present_nullable_participant_field<'de, D, T>(
+    deserializer: D,
+) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::deserialize(deserializer).map(Some)
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -967,18 +1016,30 @@ mod tests {
     }
 
     #[test]
-    fn participant_edit_revision_is_required_and_round_trips_as_a_json_integer() {
-        let mut wire = json!({
-            "display_name":"One", "side":"enemy",
-            "participant_variant":"normal", "temporary_hp":0, "defeated":false, "hazard_disabled":false, "hidden":false,
-        });
-        assert!(serde_json::from_value::<UpdateEncounterParticipantRequest>(wire.clone()).is_err());
-        wire["expected_revision"] = json!(7);
-        let request: UpdateEncounterParticipantRequest = serde_json::from_value(wire).unwrap();
-        assert_eq!(request.expected_revision, 7);
-        let encoded = serde_json::to_value(request).unwrap();
-        assert_eq!(encoded["expected_revision"], json!(7));
-        assert!(encoded["expected_revision"].is_i64());
+    fn participant_edit_distinguishes_omitted_clear_and_set_values() {
+        let omitted = json!({"expected_revision": 7});
+        let clear = json!({"expected_revision": 7, "initiative": null, "note": null});
+        let set =
+            json!({"expected_revision": 7, "initiative": 0, "note": "Ready", "hidden": false});
+        for (wire, initiative, note) in [
+            (omitted, None, None),
+            (clear, Some(None), Some(None)),
+            (set, Some(Some(0)), Some(Some("Ready".to_owned()))),
+        ] {
+            let edit: UpdateEncounterParticipantEdit =
+                serde_json::from_value(wire.clone()).unwrap();
+            assert_eq!(edit.initiative, initiative);
+            assert_eq!(edit.note, note);
+            assert_eq!(serde_json::to_value(edit).unwrap(), wire);
+        }
+        for invalid in [
+            json!({"display_name": "One"}),
+            json!({"expected_revision": 7, "side": null}),
+            json!({"expected_revision": 7, "defeated": null}),
+            json!({"expected_revision": 7, "current_hp": 10}),
+        ] {
+            assert!(serde_json::from_value::<UpdateEncounterParticipantEdit>(invalid).is_err());
+        }
     }
 
     #[test]

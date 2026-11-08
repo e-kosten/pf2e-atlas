@@ -39,9 +39,8 @@ import {
 import type {
   EncounterMutationView,
   RelationshipOccurrencesPage,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../generated/atlas";
-import { participantUpdate } from "../features/encounters/participantEdits";
 import { detailFixture, summaryFixture } from "../test/fixtures";
 import {
   API_CONTRACT,
@@ -492,15 +491,14 @@ describe("source-backed API transport", () => {
     });
     respond({ encounter_key: "encounter-test" });
     expect(
-      await updateEncounterParticipant(
-        "test",
-        participant.participant_key,
-        participantUpdate(participant, { current_hp: 19 }),
-      ),
+      await updateEncounterParticipant("test", participant.participant_key, {
+        expected_revision: participant.revision,
+        initiative: null,
+      }),
     ).toEqual({ encounter_key: "encounter-test" });
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({
       expected_revision: 7,
-      current_hp: 19,
+      initiative: null,
     });
   });
   it.each([undefined, null, -1, 0.5, "7", "bad", Number.MAX_SAFE_INTEGER + 1])(
@@ -524,19 +522,9 @@ describe("source-backed API transport", () => {
       9007199254740991,
     );
   });
-  const participantRequest: UpdateEncounterParticipantRequest = {
+  const participantRequest: UpdateEncounterParticipantEdit = {
     expected_revision: 7,
     display_name: "Ghoul",
-    side: "enemy",
-    participant_variant: "normal",
-    temporary_hp: 0,
-    defeated: false,
-    hazard_disabled: false,
-    hidden: false,
-    hp_edit: false,
-    max_hp_edit: false,
-    variant_edit: false,
-    use_derived_max: false,
   };
   const encounterMutations: Array<{
     name: string;

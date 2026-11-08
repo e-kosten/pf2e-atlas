@@ -162,7 +162,7 @@ pub use encounter::{
     ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
     RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
     StatModifierTypeView, StatModifierView, UnappliedEffectView,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest,
 };
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};

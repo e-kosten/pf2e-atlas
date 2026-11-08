@@ -41,7 +41,7 @@ import type {
   SavedListUpdateView,
   SetEncounterTurnRequest,
   UpdateEncounterParticipantConditionRequest,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
   UpdateEncounterRequest,
   UpdateSavedListRequest,
 } from "../generated/atlas";
@@ -242,7 +242,7 @@ export async function applyEncounterSpellAction(
 export async function updateEncounterParticipant(
   encounterRef: string,
   participantKey: string,
-  request: UpdateEncounterParticipantRequest,
+  request: UpdateEncounterParticipantEdit,
 ): Promise<EncounterMutationView> {
   return http.updateEncounterParticipant(
     encounterRef,

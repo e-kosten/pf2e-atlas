@@ -462,9 +462,6 @@ describe("encounter views", () => {
       expect.objectContaining({
         expected_revision: 0,
         display_name: "Goblin captain",
-        hp_edit: false,
-        max_hp_edit: false,
-        variant_edit: false,
       }),
     );
   });
@@ -1311,7 +1308,6 @@ describe("encounter views", () => {
       "participant_a",
       expect.objectContaining({
         hidden: true,
-        initiative: 18,
       }),
     );
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
@@ -1327,7 +1323,7 @@ describe("encounter views", () => {
     expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
       "encounter_ambush",
       "participant_a",
-      expect.objectContaining({ hidden: false, initiative: 18 }),
+      expect.objectContaining({ hidden: false }),
     );
   });
 
@@ -1418,9 +1414,6 @@ describe("encounter views", () => {
         "participant_b",
         expect.objectContaining({
           initiative: 18,
-          hp_edit: false,
-          variant_edit: false,
-          max_hp_edit: false,
         }),
       ),
     );
@@ -1584,9 +1577,6 @@ describe("encounter views", () => {
         expect.objectContaining({
           display_name: "Goblin Scout",
           expected_revision: 0,
-          hp_edit: false,
-          max_hp_edit: false,
-          variant_edit: false,
         }),
       ),
     );
@@ -1651,9 +1641,6 @@ describe("encounter views", () => {
         "participant_a",
         expect.objectContaining({
           participant_variant: "elite",
-          variant_edit: true,
-          hp_edit: false,
-          max_hp_edit: false,
         }),
       ),
     );

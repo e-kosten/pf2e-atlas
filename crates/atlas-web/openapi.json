@@ -18977,16 +18977,9 @@
         ],
         "type": "object"
       },
-      "UpdateEncounterParticipantRequest": {
+      "UpdateEncounterParticipantEdit": {
         "additionalProperties": false,
         "properties": {
-          "current_hp": {
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "defeated": {
             "type": "boolean"
           },
@@ -19003,25 +18996,12 @@
           "hidden": {
             "type": "boolean"
           },
-          "hp_edit": {
-            "type": "boolean"
-          },
           "initiative": {
             "format": "int64",
             "type": [
               "integer",
               "null"
             ]
-          },
-          "max_hp": {
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "max_hp_edit": {
-            "type": "boolean"
           },
           "note": {
             "type": [
@@ -19034,27 +19014,10 @@
           },
           "side": {
             "$ref": "#/components/schemas/EncounterParticipantSideView"
-          },
-          "temporary_hp": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "use_derived_max": {
-            "type": "boolean"
-          },
-          "variant_edit": {
-            "type": "boolean"
           }
         },
         "required": [
-          "expected_revision",
-          "display_name",
-          "side",
-          "participant_variant",
-          "temporary_hp",
-          "defeated",
-          "hazard_disabled",
-          "hidden"
+          "expected_revision"
         ],
         "type": "object"
       },
@@ -20795,7 +20758,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateEncounterParticipantRequest"
+                "$ref": "#/components/schemas/UpdateEncounterParticipantEdit"
               }
             }
           },

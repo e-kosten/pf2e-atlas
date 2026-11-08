@@ -251,9 +251,8 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
         .participants
         .remove(0);
     let mut deliberate = update(&initial);
-    deliberate.participant_variant = EncounterParticipantVariantView::Elite;
-    deliberate.variant_edit = true;
-    deliberate.side = EncounterParticipantSideView::Ally;
+    deliberate.participant_variant = Some(EncounterParticipantVariantView::Elite);
+    deliberate.side = Some(EncounterParticipantSideView::Ally);
     executor.fail_after_submissions(1);
     let receipt = f
         .worker
@@ -276,17 +275,17 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
         .unwrap();
     assert_eq!(before.participants[0].max_hp, Some(80));
     assert_eq!(
+        before.participants[0].side,
+        atlas_local_state::ParticipantSide::Ally
+    );
+    assert_eq!(
         before.participants[0].hp_origin,
         atlas_local_state::ParticipantHpOrigin::DerivedPristine
     );
-    let mut stale = update(&initial);
-    stale.use_derived_max = true; // Must conflict before attempting unavailable derivation.
-    stale.current_hp = Some(1);
-    stale.hp_edit = true;
-    stale.max_hp = Some(999);
+    let stale = hp_edit(&initial, EncounterHpAction::UseDerivedMaximum);
     let error = f
         .worker
-        .update_encounter_participant(&encounter.encounter_key, &initial.participant_key, stale)
+        .apply_encounter_hp_action(&encounter.encounter_key, &initial.participant_key, stale)
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::EncounterParticipantConflict);
@@ -380,12 +379,11 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
         })
         .unwrap()
         .unwrap();
-    let mut request = update(&participant);
-    request.use_derived_max = true;
+    let request = hp_edit(&participant, EncounterHpAction::UseDerivedMaximum);
     executor.fail_after_submissions(0);
     assert_eq!(
         f.worker
-            .update_encounter_participant(
+            .apply_encounter_hp_action(
                 &encounter.encounter_key,
                 &participant.participant_key,
                 request
@@ -485,12 +483,15 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
             )
             .unwrap(),
     );
-    let mut edit = update(&initial);
-    edit.current_hp = Some(32);
-    edit.hp_edit = true;
+    let edit = hp_edit(
+        &initial,
+        EncounterHpAction::SetCurrent {
+            input: hp_value(32).input,
+        },
+    );
     assert_receipt(
         worker
-            .update_encounter_participant(&key, &initial.participant_key, edit)
+            .apply_encounter_hp_action(&key, &initial.participant_key, edit)
             .unwrap(),
     );
     assert_receipt(
@@ -753,26 +754,74 @@ fn hazard(p: &EncounterParticipantView) -> &HazardPresentationView {
     h
 }
 
-pub(super) fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
-    UpdateEncounterParticipantRequest {
+pub(super) fn update(p: &EncounterParticipantView) -> UpdateEncounterParticipantEdit {
+    UpdateEncounterParticipantEdit {
         expected_revision: p.revision,
-        hp_edit: false,
-        max_hp_edit: false,
-        variant_edit: false,
-        use_derived_max: false,
-        display_name: p.display_name.clone(),
-        side: p.side,
-        participant_variant: p.participant_variant,
-        initiative: p.initiative,
-        max_hp: p.max_hp,
-        current_hp: p.current_hp,
-        temporary_hp: p.temporary_hp,
-        defeated: p.defeated,
-        hazard_disabled: p.hazard_disabled,
-        hidden: p.hidden,
-        note: p.note.clone(),
+        ..Default::default()
     }
 }
+
+fn hp_edit(
+    p: &EncounterParticipantView,
+    action: EncounterHpAction,
+) -> ApplyEncounterHpActionRequest {
+    ApplyEncounterHpActionRequest {
+        request_id: format!("test-hp-edit-{}", p.revision),
+        expected_revision: p.revision,
+        action,
+        context: None,
+    }
+}
+
+fn hp_value(value: i64) -> EncounterHpValueInput {
+    EncounterHpValueInput {
+        input: Some(value.to_string()),
+    }
+}
+
+// Imported or legacy current HP may be outside the table correction clamp.
+fn seed_stored_hp(
+    worker: &crate::AtlasAppService,
+    encounter_key: &str,
+    participant_key: &str,
+    current_hp: i64,
+    explicit_maximum: Option<i64>,
+) {
+    worker
+        .with_write(|session| {
+            let store = session.local_state()?.encounters();
+            let detail = store.get_with_participants(encounter_key)?.unwrap();
+            let saved = detail
+                .participants
+                .iter()
+                .find(|p| p.participant_key == participant_key)
+                .unwrap();
+            store.update_participant(atlas_local_state::UpdateEncounterParticipant {
+                expected_revision: saved.revision,
+                participant_key: participant_key.to_owned(),
+                display_name: saved.display_name.clone(),
+                side: saved.side,
+                participant_variant: saved.participant_variant,
+                hp_origin: if explicit_maximum.is_some() {
+                    atlas_local_state::ParticipantHpOrigin::Explicit
+                } else {
+                    saved.hp_origin
+                },
+                variant_origin: saved.variant_origin,
+                initiative: saved.initiative,
+                max_hp: explicit_maximum.or(saved.max_hp),
+                current_hp: Some(current_hp),
+                temporary_hp: saved.temporary_hp,
+                defeated: saved.defeated,
+                hazard_disabled: saved.hazard_disabled,
+                hidden: saved.hidden,
+                note: saved.note.clone(),
+            })?;
+            Ok(())
+        })
+        .unwrap();
+}
+
 fn actor(p: &EncounterParticipantView) -> &ActorPresentationView {
     match &p.presentation.as_ref().unwrap().body {
         RecordBodyView::Creature(a) => a,
@@ -832,8 +881,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let mut change = update(&initial.participants[0]);
-    change.participant_variant = EncounterParticipantVariantView::Elite;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Elite);
     {
         let participant_key = initial.participants[0].participant_key.clone();
         f.worker
@@ -1223,8 +1271,7 @@ fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outli
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let mut change = update(&d.participants[0]);
-    change.participant_variant = EncounterParticipantVariantView::Elite;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Elite);
     let p = {
         let participant_key = d.participants[0].participant_key.clone();
         f.worker
@@ -1239,13 +1286,16 @@ fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outli
             })
     }
     .unwrap();
-    let mut change = update(&p);
-    change.current_hp = Some(3);
-    change.hp_edit = true;
+    let change = hp_edit(
+        &p,
+        EncounterHpAction::SetCurrent {
+            input: hp_value(3).input,
+        },
+    );
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
-            .update_encounter_participant(&e.encounter_key, &participant_key, change)
+            .apply_encounter_hp_action(&e.encounter_key, &participant_key, change)
             .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
             .map(|detail| {
                 detail
@@ -1257,8 +1307,7 @@ fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outli
     }
     .unwrap();
     let mut change = update(&p);
-    change.participant_variant = EncounterParticipantVariantView::Normal;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Normal);
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
@@ -1281,26 +1330,21 @@ fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outli
             .unwrap()
             .participants
             .remove(0);
+        seed_stored_hp(
+            &f.worker,
+            &e.encounter_key,
+            &p.participant_key,
+            current,
+            None,
+        );
+        let p = f
+            .worker
+            .encounter(&e.encounter_key)
+            .unwrap()
+            .participants
+            .remove(0);
         let mut change = update(&p);
-        change.current_hp = Some(current);
-        change.hp_edit = true;
-        let p = {
-            let participant_key = p.participant_key.clone();
-            f.worker
-                .update_encounter_participant(&e.encounter_key, &participant_key, change)
-                .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
-                .map(|detail| {
-                    detail
-                        .participants
-                        .into_iter()
-                        .find(|p| p.participant_key == participant_key)
-                        .unwrap()
-                })
-        }
-        .unwrap();
-        let mut change = update(&p);
-        change.participant_variant = EncounterParticipantVariantView::Elite;
-        change.variant_edit = true;
+        change.participant_variant = Some(EncounterParticipantVariantView::Elite);
         let p = {
             let participant_key = p.participant_key.clone();
             f.worker
@@ -1380,8 +1424,7 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
     assert_eq!(p.hp_origin, "derived_pristine");
     assert_eq!(p.variant_origin, "inherited_known");
     let mut change = update(p);
-    change.participant_variant = EncounterParticipantVariantView::Elite;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Elite);
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
@@ -1430,14 +1473,18 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
             .iter()
             .any(|n| n.label == "Identifying spells")
     );
-    let mut change = update(&p);
-    change.current_hp = Some(55);
-    change.hp_edit = true;
-    change.temporary_hp = 9;
+    let change = hp_edit(
+        &p,
+        EncounterHpAction::SetValues {
+            current: Some(hp_value(55)),
+            maximum: None,
+            temporary: Some("9".into()),
+        },
+    );
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
-            .update_encounter_participant(&encounter.encounter_key, &participant_key, change)
+            .apply_encounter_hp_action(&encounter.encounter_key, &participant_key, change)
             .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
             .map(|detail| {
                 detail
@@ -1450,8 +1497,7 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
     .unwrap();
     assert_eq!(p.hp_origin, "derived_edited");
     let mut change = update(&p);
-    change.participant_variant = EncounterParticipantVariantView::Weak;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Weak);
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
@@ -1470,29 +1516,25 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
         (p.max_hp, p.current_hp, p.temporary_hp),
         (Some(45), Some(20), 9)
     );
-    let mut change = update(&p);
-    change.max_hp = Some(200);
-    change.max_hp_edit = true;
-    change.current_hp = Some(-5);
-    change.hp_edit = true;
-    let p = {
-        let participant_key = p.participant_key.clone();
-        f.worker
-            .update_encounter_participant(&encounter.encounter_key, &participant_key, change)
-            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
-            .map(|detail| {
-                detail
-                    .participants
-                    .into_iter()
-                    .find(|p| p.participant_key == participant_key)
-                    .unwrap()
-            })
-    }
-    .unwrap();
+    let participant_key = p.participant_key;
+    seed_stored_hp(
+        &f.worker,
+        &encounter.encounter_key,
+        &participant_key,
+        -5,
+        Some(200),
+    );
+    let p = f
+        .worker
+        .encounter(&encounter.encounter_key)
+        .unwrap()
+        .participants
+        .into_iter()
+        .find(|p| p.participant_key == participant_key)
+        .unwrap();
     assert_eq!(p.hp_origin, "explicit");
     let mut change = update(&p);
-    change.participant_variant = EncounterParticipantVariantView::Normal;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Normal);
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
@@ -1540,12 +1582,16 @@ fn same_value_hp_edit_is_preserved_and_manual_hp_is_never_clamped() {
         )
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
-    let mut change = update(&detail.participants[0]);
-    change.hp_edit = true;
+    let change = hp_edit(
+        &detail.participants[0],
+        EncounterHpAction::SetCurrent {
+            input: detail.participants[0].current_hp.map(|hp| hp.to_string()),
+        },
+    );
     let p = {
         let participant_key = detail.participants[0].participant_key.clone();
         f.worker
-            .update_encounter_participant(&encounter.encounter_key, &participant_key, change)
+            .apply_encounter_hp_action(&encounter.encounter_key, &participant_key, change)
             .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
             .map(|detail| {
                 detail
@@ -1557,13 +1603,16 @@ fn same_value_hp_edit_is_preserved_and_manual_hp_is_never_clamped() {
     }
     .unwrap();
     assert_eq!(p.hp_origin, "derived_edited");
-    let mut change = update(&p);
-    change.current_hp = Some(400);
-    change.hp_edit = true;
+    let change = hp_edit(
+        &p,
+        EncounterHpAction::SetCurrent {
+            input: hp_value(400).input,
+        },
+    );
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
-            .update_encounter_participant(&encounter.encounter_key, &participant_key, change)
+            .apply_encounter_hp_action(&encounter.encounter_key, &participant_key, change)
             .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
             .map(|detail| {
                 detail
@@ -1694,8 +1743,7 @@ fn inherited_elite_applies_once_and_unrecognized_adjustment_defaults_to_normal()
         )
         .unwrap();
     let mut change = update(p);
-    change.participant_variant = EncounterParticipantVariantView::Normal;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Normal);
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
@@ -1971,15 +2019,19 @@ fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
         )
         .and_then(|receipt| before.worker.encounter(&receipt.encounter_key))
         .unwrap();
-    let mut change = update(&d.participants[0]);
-    change.current_hp = Some(17);
-    change.hp_edit = true;
-    change.temporary_hp = 4;
+    let change = hp_edit(
+        &d.participants[0],
+        EncounterHpAction::SetValues {
+            current: Some(hp_value(17)),
+            maximum: None,
+            temporary: Some("4".into()),
+        },
+    );
     {
         let participant_key = d.participants[0].participant_key.clone();
         before
             .worker
-            .update_encounter_participant(&e.encounter_key, &participant_key, change)
+            .apply_encounter_hp_action(&e.encounter_key, &participant_key, change)
             .and_then(|receipt| before.worker.encounter(&receipt.encounter_key))
             .map(|detail| {
                 detail
@@ -2060,8 +2112,7 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
             .any(|n| n.source == "npc-adjustment")
     );
     let mut change = update(p);
-    change.participant_variant = EncounterParticipantVariantView::Elite;
-    change.variant_edit = true;
+    change.participant_variant = Some(EncounterParticipantVariantView::Elite);
     let p = {
         let participant_key = p.participant_key.clone();
         f.worker
@@ -2484,8 +2535,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
     let current = f.worker.encounter(&encounter.encounter_key).unwrap();
     let p = &current.participants[0];
     let mut elite = update(p);
-    elite.participant_variant = EncounterParticipantVariantView::Elite;
-    elite.variant_edit = true;
+    elite.participant_variant = Some(EncounterParticipantVariantView::Elite);
     f.worker
         .update_encounter_participant(&encounter.encounter_key, &p.participant_key, elite)
         .unwrap();
@@ -2730,7 +2780,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
             .is_err()
     );
     let mut edit = update(p);
-    edit.note = Some("Changed after rolling".into());
+    edit.note = Some(Some("Changed after rolling".into()));
     f.worker
         .update_encounter_participant(&encounter.encounter_key, &p.participant_key, edit)
         .unwrap();
@@ -2773,7 +2823,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
     }
     let initial = f.worker.encounter(&key).unwrap();
     let mut disabled = update(&initial.participants[1]);
-    disabled.hazard_disabled = true;
+    disabled.hazard_disabled = Some(true);
     f.worker
         .update_encounter_participant(
             &key,
@@ -2822,7 +2872,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
     );
     assert_eq!(next.round_number, snapshot.encounter.round_number);
     let mut activate = update(&detail.participants[1]);
-    activate.hazard_disabled = false;
+    activate.hazard_disabled = Some(false);
     f.worker
         .update_encounter_participant(&key, &detail.participants[1].participant_key, activate)
         .unwrap();
@@ -2833,7 +2883,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
         initial.participants[1].current_hp
     );
     let mut invalid_hazard = update(&after.participants[1]);
-    invalid_hazard.defeated = true;
+    invalid_hazard.defeated = Some(true);
     assert!(
         f.worker
             .update_encounter_participant(
@@ -2871,7 +2921,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
     let healed = f.worker.encounter(&key).unwrap();
     assert_eq!(healed.participants[1].current_hp, Some(1));
     let mut activate = update(&healed.participants[1]);
-    activate.hazard_disabled = false;
+    activate.hazard_disabled = Some(false);
     f.worker
         .update_encounter_participant(&key, &healed.participants[1].participant_key, activate)
         .unwrap();
@@ -2879,7 +2929,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
     assert_eq!(active.participants[1].current_hp, Some(1));
     assert!(!active.participants[1].hazard_disabled);
     let mut invalid = update(&after.participants[0]);
-    invalid.hazard_disabled = true;
+    invalid.hazard_disabled = Some(true);
     assert!(
         f.worker
             .update_encounter_participant(&key, &after.participants[0].participant_key, invalid)

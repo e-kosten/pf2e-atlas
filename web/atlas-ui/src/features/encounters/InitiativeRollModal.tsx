@@ -18,11 +18,10 @@ import type {
   RollInitiativeRequest,
   RollMode,
   RollExpression,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import { DieFace } from "../../shared/dice/DieFace";
 import { InitiativeValueField } from "./InitiativeValueField";
-import { participantUpdate } from "./participantEdits";
 
 type RollProps = {
   encounterKey: string;
@@ -62,7 +61,7 @@ export function InitiativePopover({
   onRoll: RollProps["onRoll"];
   onUpdate: (
     participantKey: string,
-    request: UpdateEncounterParticipantRequest,
+    request: UpdateEncounterParticipantEdit,
   ) => Promise<unknown>;
   disabled: boolean;
 }) {
@@ -122,12 +121,10 @@ export function InitiativePopover({
               onClose={close}
               onRoll={onRoll}
               onSetTotal={(_key, value) =>
-                onUpdate(
-                  participant.participant_key,
-                  participantUpdate(participant, {
-                    initiative: value,
-                  }),
-                )
+                onUpdate(participant.participant_key, {
+                  expected_revision: participant.revision,
+                  initiative: value ?? null,
+                })
               }
               disabled={disabled}
             />

@@ -46,7 +46,7 @@ import type {
   AddEncounterRecordParticipantRequest,
   ReorderEncounterParticipantRequest,
   UpdateEncounterParticipantConditionRequest,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
   UpdateEncounterRequest,
 } from "../../generated/atlas";
 
@@ -115,7 +115,7 @@ export type EncounterMutationCommand =
   | {
       kind: "participant";
       participantKey: string;
-      request: UpdateEncounterParticipantRequest;
+      request: UpdateEncounterParticipantEdit;
     }
   | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
   | {

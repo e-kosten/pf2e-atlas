@@ -16,10 +16,10 @@ import {
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import { Settings } from "lucide-react";
-import { optionalIntegerInput, participantUpdate } from "./participantEdits";
+import { optionalIntegerInput } from "./participantEdits";
 
 type ParticipantValues = {
   name: string;
@@ -47,7 +47,7 @@ export function EncounterParticipantSettings({
   recovery?: ReactNode;
   onUpdate: (
     participantKey: string,
-    request: UpdateEncounterParticipantRequest,
+    request: UpdateEncounterParticipantEdit,
   ) => Promise<boolean>;
   onLifeSettings?: (
     settings: Omit<
@@ -172,7 +172,7 @@ function ParticipantSettingsForm({
   recovery?: ReactNode;
   lifeSettings?: ReactNode;
   formId: string;
-  onSave: (request: UpdateEncounterParticipantRequest) => Promise<void>;
+  onSave: (request: UpdateEncounterParticipantEdit) => Promise<void>;
 }) {
   const name = useId();
   const [form] = Form.useForm<ParticipantValues>();
@@ -210,17 +210,18 @@ function ParticipantSettingsForm({
           const initiative = optionalIntegerInput(values.initiative ?? "");
           if (initiative === null) return;
           try {
-            await onSave(
-              participantUpdate(participant, {
-                display_name: values.name,
-                initiative,
-                side: values.side,
-                ...(form.isFieldTouched("adjustment")
-                  ? { participant_variant: values.adjustment }
-                  : {}),
-                note: values.note || undefined,
+            await onSave({
+              expected_revision: participant.revision,
+              ...(form.isFieldTouched("name") && { display_name: values.name }),
+              ...(form.isFieldTouched("initiative") && {
+                initiative: initiative ?? null,
               }),
-            );
+              ...(form.isFieldTouched("side") && { side: values.side }),
+              ...(form.isFieldTouched("adjustment") && {
+                participant_variant: values.adjustment,
+              }),
+              ...(form.isFieldTouched("note") && { note: values.note || null }),
+            });
           } catch {
             /* The mutation owner displays the error; retain the draft. */
           }

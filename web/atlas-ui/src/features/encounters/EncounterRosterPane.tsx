@@ -13,12 +13,11 @@ import type {
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
   SearchResultsRequest,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import { EncounterAddMenu } from "./EncounterAddMenu";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { InitiativeValueField } from "./InitiativeValueField";
-import { participantUpdate } from "./participantEdits";
 import { InitiativePopover } from "./InitiativeRollModal";
 import {
   SearchPickerModal,
@@ -93,7 +92,7 @@ export function EncounterRosterPane({
   onSetTurn: (participant: EncounterParticipantView) => void;
   onUpdate: (
     participantKey: string,
-    request: UpdateEncounterParticipantRequest,
+    request: UpdateEncounterParticipantEdit,
   ) => Promise<unknown>;
   onRoll: (
     request: import("../../generated/atlas").RollInitiativeRequest,
@@ -226,12 +225,10 @@ export function EncounterRosterPane({
                 disabled={disabled}
                 compact
                 onSave={(value) =>
-                  onUpdate(
-                    participant.participant_key,
-                    participantUpdate(participant, {
-                      initiative: value,
-                    }),
-                  )
+                  onUpdate(participant.participant_key, {
+                    expected_revision: participant.revision,
+                    initiative: value ?? null,
+                  })
                 }
               />
             ) : (
@@ -295,10 +292,10 @@ export function EncounterRosterPane({
               disabled={disabled}
               onSetTurn={() => onSetTurn(participant)}
               onToggleDim={() =>
-                onUpdate(
-                  participant.participant_key,
-                  participantUpdate(participant, { hidden: !participant.hidden }),
-                )
+                onUpdate(participant.participant_key, {
+                  expected_revision: participant.revision,
+                  hidden: !participant.hidden,
+                })
               }
               onRemove={() => onRemove(participant)}
             />

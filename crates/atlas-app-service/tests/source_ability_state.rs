@@ -423,24 +423,10 @@ fn source_drained_initializes_current_hp_at_effective_capacity_without_charging_
     }
 }
 
-fn participant_update(participant: &EncounterParticipantView) -> UpdateEncounterParticipantRequest {
-    UpdateEncounterParticipantRequest {
+fn participant_update(participant: &EncounterParticipantView) -> UpdateEncounterParticipantEdit {
+    UpdateEncounterParticipantEdit {
         expected_revision: participant.revision,
-        hp_edit: false,
-        max_hp_edit: false,
-        variant_edit: false,
-        use_derived_max: false,
-        display_name: participant.display_name.clone(),
-        side: participant.side,
-        participant_variant: participant.participant_variant,
-        initiative: participant.initiative,
-        max_hp: participant.max_hp,
-        current_hp: participant.current_hp,
-        temporary_hp: participant.temporary_hp,
-        defeated: participant.defeated,
-        hazard_disabled: participant.hazard_disabled,
-        hidden: participant.hidden,
-        note: participant.note.clone(),
+        ..Default::default()
     }
 }
 
@@ -448,10 +434,18 @@ fn participant_update(participant: &EncounterParticipantView) -> UpdateEncounter
 fn derived_maximum_reset_preserves_pristine_source_drained_capacity() {
     let (service, _artifact, key) = fixture_with_drained(true);
     let initial = service.encounter(&key).unwrap();
-    let mut update = participant_update(&initial.participants[0]);
-    update.use_derived_max = true;
+    let participant = &initial.participants[0];
     service
-        .update_encounter_participant(&key, &initial.participants[0].participant_key, update)
+        .apply_encounter_hp_action(
+            &key,
+            &participant.participant_key,
+            ApplyEncounterHpActionRequest {
+                request_id: "test-derived-reset".into(),
+                expected_revision: participant.revision,
+                action: EncounterHpAction::UseDerivedMaximum,
+                context: None,
+            },
+        )
         .unwrap();
     let after = service.encounter(&key).unwrap();
     assert_eq!(
@@ -468,8 +462,7 @@ fn pristine_variant_edit_uses_conditioned_capacity_at_the_new_level() {
     let (service, _artifact, key) = fixture_with_drained(true);
     let initial = service.encounter(&key).unwrap();
     let mut update = participant_update(&initial.participants[0]);
-    update.participant_variant = EncounterParticipantVariantView::Elite;
-    update.variant_edit = true;
+    update.participant_variant = Some(EncounterParticipantVariantView::Elite);
     service
         .update_encounter_participant(&key, &initial.participants[0].participant_key, update)
         .unwrap();
@@ -503,16 +496,24 @@ fn running_variant_edit_preserves_damage_below_conditioned_capacity() {
             },
         )
         .unwrap();
-    let mut damage = participant_update(&initial.participants[0]);
-    damage.current_hp = Some(35);
-    damage.hp_edit = true;
+    let participant = &initial.participants[0];
     service
-        .update_encounter_participant(&key, &initial.participants[0].participant_key, damage)
+        .apply_encounter_hp_action(
+            &key,
+            &participant.participant_key,
+            ApplyEncounterHpActionRequest {
+                request_id: "test-current-hp".into(),
+                expected_revision: participant.revision,
+                action: EncounterHpAction::SetCurrent {
+                    input: Some("35".into()),
+                },
+                context: None,
+            },
+        )
         .unwrap();
     let damaged = service.encounter(&key).unwrap();
     let mut update = participant_update(&damaged.participants[0]);
-    update.participant_variant = EncounterParticipantVariantView::Elite;
-    update.variant_edit = true;
+    update.participant_variant = Some(EncounterParticipantVariantView::Elite);
     service
         .update_encounter_participant(&key, &damaged.participants[0].participant_key, update)
         .unwrap();

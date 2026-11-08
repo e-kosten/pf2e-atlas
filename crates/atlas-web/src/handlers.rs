@@ -5,7 +5,7 @@ use atlas_app_model::{
     CreateSavedListRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,
     FilterSavedListRequest, RemoveSavedListItemRequest, ReorderEncounterParticipantRequest,
     ReorderSavedListItemRequest, SavedEditPayload, SearchResultsRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
 use atlas_app_model::{DiscoverFilterCountsRequest, RecordDetailRequest};
@@ -278,13 +278,13 @@ pub(crate) async fn add_encounter_manual_participant(
     ))
 }
 
-#[utoipa::path(patch, path = "/api/encounters/{encounter_ref}/participants/{participant_key}", operation_id = "updateEncounterParticipant", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = UpdateEncounterParticipantRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(patch, path = "/api/encounters/{encounter_ref}/participants/{participant_key}", operation_id = "updateEncounterParticipant", params(("encounter_ref" = String, Path), ("participant_key" = String, Path)), request_body = UpdateEncounterParticipantEdit, responses((status = 200, description = "Successful response", body = atlas_app_model::EncounterMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn update_encounter_participant(
     State(state): State<AtlasWebState>,
     Path((encounter_ref, participant_key)): Path<(String, String)>,
-    payload: Result<Json<UpdateEncounterParticipantRequest>, JsonRejection>,
+    payload: Result<Json<SavedEditPayload<UpdateEncounterParticipantEdit>>, JsonRejection>,
 ) -> Result<impl IntoResponse, WebError> {
-    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let Json(SavedEditPayload(request)) = payload.map_err(WebError::invalid_request)?;
     let service = state.service.clone();
     Ok(Json(
         call_service(state, move || {

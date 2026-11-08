@@ -228,8 +228,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     );
     assert!(origin.target.as_ref().unwrap().owners.is_empty());
     let mut update = super::tests::update(participant);
-    update.participant_variant = EncounterParticipantVariantView::Elite;
-    update.variant_edit = true;
+    update.participant_variant = Some(EncounterParticipantVariantView::Elite);
     {
         let participant_key = participant.participant_key.clone();
         f.worker
@@ -695,8 +694,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         },
     });
     let mut update = super::tests::update(participant);
-    update.participant_variant = EncounterParticipantVariantView::Weak;
-    update.variant_edit = true;
+    update.participant_variant = Some(EncounterParticipantVariantView::Weak);
     f.worker
         .update_encounter_participant(&encounter.slug, &participant.participant_key, update)
         .unwrap();

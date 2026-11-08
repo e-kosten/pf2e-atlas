@@ -5380,27 +5380,18 @@ export interface UpdateEncounterParticipantConditionRequest {
   value?: number | null;
 }
 
-export interface UpdateEncounterParticipantRequest {
-  /** @nullable */
-  current_hp?: number | null;
-  defeated: boolean;
-  display_name: string;
+export interface UpdateEncounterParticipantEdit {
+  defeated?: boolean;
+  display_name?: string;
   expected_revision: number;
-  hazard_disabled: boolean;
-  hidden: boolean;
-  hp_edit?: boolean;
+  hazard_disabled?: boolean;
+  hidden?: boolean;
   /** @nullable */
   initiative?: number | null;
   /** @nullable */
-  max_hp?: number | null;
-  max_hp_edit?: boolean;
-  /** @nullable */
   note?: string | null;
-  participant_variant: EncounterParticipantVariantView;
-  side: EncounterParticipantSideView;
-  temporary_hp: number;
-  use_derived_max?: boolean;
-  variant_edit?: boolean;
+  participant_variant?: EncounterParticipantVariantView;
+  side?: EncounterParticipantSideView;
 }
 
 export interface UpdateEncounterRequest {
@@ -6310,7 +6301,7 @@ export const getUpdateEncounterParticipantUrl = (encounterRef: string,
 
 export const updateEncounterParticipant = async (encounterRef: string,
     participantKey: string,
-    updateEncounterParticipantRequest: UpdateEncounterParticipantRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterMutationView> => {
+    updateEncounterParticipantEdit: UpdateEncounterParticipantEdit, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterMutationView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6331,7 +6322,7 @@ return fetchGenerated<EncounterMutationView>(getUpdateEncounterParticipantUrl(en
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(updateEncounterParticipantRequest)
+    body: JSON.stringify(updateEncounterParticipantEdit)
   }
 );}
 

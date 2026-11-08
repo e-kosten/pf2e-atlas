@@ -33,13 +33,12 @@ import type {
   EncounterHpAction,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import {
   EncounterSpellControls,
   encounterCastingAnnotations,
 } from "./EncounterSpellControls";
-import { participantUpdate } from "./participantEdits";
 import { RecordPreviewDrawer } from "../../shared/records/RecordPreviewDrawer";
 import { recordClassification } from "../../shared/records/RecordPresentation";
 import { EncounterActorReading } from "./EncounterActorReading";
@@ -117,7 +116,7 @@ export function EncounterInspectorPane({
   ) => Promise<boolean>;
   onUpdate: (
     participantKey: string,
-    request: UpdateEncounterParticipantRequest,
+    request: UpdateEncounterParticipantEdit,
   ) => Promise<boolean>;
   onLifeSettings: (
     participantKey: string,
@@ -336,7 +335,7 @@ function EncounterParticipantSurface({
   ) => Promise<boolean>;
   onUpdate: (
     participantKey: string,
-    request: UpdateEncounterParticipantRequest,
+    request: UpdateEncounterParticipantEdit,
   ) => Promise<boolean>;
   onLifeSettings: (
     participantKey: string,
@@ -388,8 +387,13 @@ function EncounterParticipantSurface({
 }) {
   const errorFor = (...kinds: EncounterMutationCommand["kind"][]) =>
     errorKind && kinds.includes(errorKind) ? error : undefined;
-  const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
-    onUpdate(participant.participant_key, participantUpdate(participant, changes));
+  const updateParticipant = (
+    changes: Omit<UpdateEncounterParticipantEdit, "expected_revision">,
+  ) =>
+    onUpdate(participant.participant_key, {
+      expected_revision: participant.revision,
+      ...changes,
+    });
   const presentation = participant.presentation;
   const body = presentation?.body;
   const actor =
