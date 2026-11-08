@@ -264,17 +264,16 @@ Unrolled expression shapes are projected from the existing validated Rust dice A
 they consume no randomness and contain no result or kept/discarded claim. Arithmetic structure is preserved; the
 original formula retains keep-filter context. The browser renders
 these shapes without parsing formulas or constructing fictional roll outcomes.
-Receipt-only preparation preserves HP, conditions and encounter revision, with
-separate per-type preparation claims. Manual amounts and Clear choices remain
-frontend drafts. The final guarded damage command consumes prepared receipt IDs,
-checks exact boundary/source/formula/generation identity, recalculates current
-protections from retained raw dice, applies shared Hardness and HP consequences
-once, and then commits queued recovery/removal in the same event. A changed HP
-value does not require rerolling damage. An altered formula or selected source
-cannot reuse unrelated dice; table resolution remains available. Actual recovery
-checks retain their rolled DC and once-per-boundary claim; they are not simulated
-as table outcomes or silently omitted at final submission. Ordinary recovery after
-applied damage remains an independent guarded action.
+The browser retains manual amounts, individual rolls, recovery checks and Clear
+choices as drafts for the active review. Reloading before Apply discards them.
+The final guarded command accepts those reviewed dice as GM input, checks the
+participant, boundary, source, formula and DC, and recalculates current
+protections from the raw dice. It applies shared Hardness and HP consequences
+once and commits queued recovery or removal in the same event. A changed
+protection can be recalculated while the formula and active source still match.
+Table resolution remains available. Actual recovery checks retain their rolled DC
+and success in the committed outcome. Recovery after applied damage remains an
+independent guarded action.
 Successful recovery clears its episode; individual expiry/removal can reveal a
 weaker source. Physical-table recovery has a per-type Clear intent beside the recovery roller.
 Before damage application it queues removal, visibly retaining this turn's damage;

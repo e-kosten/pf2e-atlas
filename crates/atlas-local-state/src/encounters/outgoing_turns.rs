@@ -1,7 +1,7 @@
 //! Lifetime turn receipts and one current outgoing context; rules stay in app-service.
 use super::{
     Encounter, EncounterTurnUpdate, EncounterWithParticipants, EncountersRead, EncountersWrite,
-    receipt_codec, storage,
+    command_receipts, receipt_codec, storage,
 };
 use crate::{LocalStateError, LocalStateResult};
 use rusqlite::{OptionalExtension, params};
@@ -20,7 +20,6 @@ impl EncountersRead<'_> {
         request_id: &str,
         intent: &serde_json::Value,
     ) -> LocalStateResult<Option<Encounter>> {
-        super::initiative_rolls::validate_request(request_id, intent)?;
         recover_advance(self.connection, encounter_ref, request_id, intent)
     }
     pub fn outgoing_turn(
@@ -28,7 +27,7 @@ impl EncountersRead<'_> {
         encounter_ref: &str,
         boundary_key: &str,
     ) -> LocalStateResult<Option<SavedOutgoingTurn>> {
-        let payload:Option<String> = self.connection.query_row("SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounter_turn_receipts r USING(encounter_id,request_id) JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND r.boundary_key=?2",params![encounter_ref,boundary_key],|row|row.get(0)).optional()?;
+        let payload:Option<String> = self.connection.query_row("SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounter_command_receipts r ON r.encounter_id=t.encounter_id AND r.family='turn' AND r.request_id=t.request_id JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND r.boundary_key=?2",params![encounter_ref,boundary_key],|row|row.get(0)).optional()?;
         payload
             .map(|payload| receipt_codec::decode(&payload))
             .transpose()
@@ -52,7 +51,6 @@ impl EncountersWrite<'_> {
         request_id: &str,
         intent: &serde_json::Value,
     ) -> LocalStateResult<Option<Encounter>> {
-        super::initiative_rolls::validate_request(request_id, intent)?;
         recover_advance(self.connection, encounter_ref, request_id, intent)
     }
     pub fn advance_turn_once(
@@ -63,7 +61,6 @@ impl EncountersWrite<'_> {
         expected_revision: i64,
         choose: impl FnOnce(&EncounterWithParticipants) -> LocalStateResult<(EncounterTurnUpdate, bool)>,
     ) -> LocalStateResult<Option<Encounter>> {
-        super::initiative_rolls::validate_request(request_id, intent)?;
         crate::atomic_action::run(self.connection, || {
             if let Some(encounter) =
                 recover_advance(self.connection, encounter_ref, request_id, intent)?
@@ -87,7 +84,13 @@ impl EncountersWrite<'_> {
                 next_participant_key: update.turn.participant_key.clone(),
                 snapshot,
             };
-            self.connection.execute("INSERT INTO encounter_turn_receipts(encounter_id,request_id,boundary_key,intent_json) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1",params![saved.snapshot.encounter.encounter_key,request_id,saved.boundary_key,serde_json::to_string(intent)?])?;
+            command_receipts::insert(
+                self.connection,
+                &saved.snapshot.encounter.encounter_key,
+                request_id,
+                intent,
+                command_receipts::Outcome::Turn(&saved.boundary_key),
+            )?;
             self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.next_participant_key.is_some())])?;
             for (condition_id, amount) in update.durations {
                 storage::update_duration_amount(self.connection, condition_id, amount)?;
@@ -128,17 +131,16 @@ fn recover_advance(
     request_id: &str,
     intent: &serde_json::Value,
 ) -> LocalStateResult<Option<Encounter>> {
-    let prior: Option<String> = connection.query_row(
-        "SELECT t.intent_json FROM encounter_turn_receipts t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.request_id=?2",
-        params![encounter_ref, request_id], |row| row.get(0),
-    ).optional()?;
-    let Some(prior) = prior else {
+    if command_receipts::recover(
+        connection,
+        encounter_ref,
+        command_receipts::Family::Turn,
+        request_id,
+        intent,
+    )?
+    .is_none()
+    {
         return Ok(None);
-    };
-    if serde_json::from_str::<serde_json::Value>(&prior)? != *intent {
-        return Err(LocalStateError::InvalidRollRequest(
-            "request ID already used for another turn intent",
-        ));
     }
     storage::get(connection, encounter_ref)
 }

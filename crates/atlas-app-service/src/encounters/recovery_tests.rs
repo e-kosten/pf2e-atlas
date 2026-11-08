@@ -236,7 +236,6 @@ fn overnight_rejects_authored_dying_and_petrified_without_mutating_the_encounter
                 .apply_encounter_recovery(
                     &encounter.encounter_key,
                     ApplyEncounterRecoveryRequest {
-                        request_id: format!("rest-with-{}", definition.slug),
                         expected_encounter_revision: before.revision,
                         action,
                     }
@@ -302,7 +301,6 @@ fn resting_other_participants_releases_ended_turn_claims_before_resuming() {
         .apply_encounter_recovery(
             key,
             ApplyEncounterRecoveryRequest {
-                request_id: "rest-other-participant".into(),
                 expected_encounter_revision: first_turn.revision,
                 action: rest_request(&resting, OvernightHealingMode::Full),
             },
@@ -401,7 +399,6 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
             .apply_encounter_recovery(
                 &key,
                 ApplyEncounterRecoveryRequest {
-                    request_id: "lifetime-reset-or-rest".into(),
                     expected_encounter_revision: current.revision,
                     action,
                 },

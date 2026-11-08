@@ -124,20 +124,27 @@ fn changed_generation_rejects_without_mutation_and_saved_receipt_recovers() {
         serde_json::to_value(after).unwrap()
     );
     let current = request(a.worker.encounter_initiative_options(&key).unwrap());
-    let saved = a
-        .worker
+    a.worker
         .roll_encounter_initiative(&key, current.clone())
         .unwrap();
+    let stale = a
+        .worker
+        .roll_encounter_initiative(&key, current.clone())
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(stale.code, AppErrorCode::EncounterTurnConflict);
     changed.context.source_revision = Some("c".into());
     let hash = changed.context.preparation_sha256().unwrap();
     for record in &mut changed.records {
         record.preparation_context_hash = hash.clone();
     }
     crate::test_support::publish_input(a.worker.workspace_path(), &changed).unwrap();
-    assert_eq!(
-        a.worker.roll_encounter_initiative(&key, current).unwrap(),
-        saved
-    );
+    let stale = a
+        .worker
+        .roll_encounter_initiative(&key, current)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(stale.code, AppErrorCode::ArtifactGenerationChanged);
 }
 
 #[test]

@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 
 use atlas_dice::RollOutcome;
-use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 
-use super::{EncountersRead, EncountersWrite, UpdateEncounterParticipant, storage};
+use super::{EncountersWrite, UpdateEncounterParticipant, storage};
 use crate::{LocalStateError, LocalStateResult};
 
 /// Source resolution happens before entering the write transaction.
@@ -32,22 +31,21 @@ pub struct InitiativeRollReceipt {
 }
 
 impl EncountersWrite<'_> {
-    /// Roll and save a whole reviewed batch once. Receipts live until encounter deletion.
-    /// `request` is the original application intent, not the derived source inputs.
+    /// Roll and save the reviewed batch atomically, returning the outcomes for display.
     pub fn roll_initiative(
         &self,
         encounter_key: &str,
         request_id: &str,
-        request: &serde_json::Value,
         expected_revision: i64,
         resolved: &[ResolvedInitiativeRoll],
     ) -> LocalStateResult<InitiativeRollReceipt> {
         crate::atomic_action::run(self.connection, || {
-            validate_request(request_id, request)?;
-            let transaction = self.connection;
-            if let Some(receipt) = recover(transaction, encounter_key, request_id, request)? {
-                return Ok(receipt);
+            if request_id.is_empty() || request_id.len() > 128 {
+                return Err(LocalStateError::InvalidRollRequest(
+                    "request exceeds supported bounds",
+                ));
             }
+            let transaction = self.connection;
             let snapshot = storage::get_with_participants(transaction, encounter_key)?
                 .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_key.into()))?;
             if snapshot.encounter.encounter_key != encounter_key {
@@ -126,68 +124,11 @@ impl EncountersWrite<'_> {
                     },
                 )?;
             }
-            let receipt = InitiativeRollReceipt {
+            Ok(InitiativeRollReceipt {
                 request_id: request_id.into(),
                 encounter_key: encounter_key.into(),
                 rolls,
-            };
-            transaction.execute(
-            "INSERT INTO encounter_roll_receipts(encounter_id,request_id,request_json,receipt_json)
-             SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1",
-            params![
-                encounter_key,
-                request_id,
-                serde_json::to_string(request)?,
-                super::receipt_codec::encode(&receipt)?
-            ],
-        )?;
-
-            Ok(receipt)
+            })
         })
-    }
-}
-
-pub(super) fn validate_request(id: &str, request: &serde_json::Value) -> LocalStateResult<()> {
-    if id.is_empty() || id.len() > 128 || serde_json::to_vec(request)?.len() > 64 * 1024 {
-        return Err(LocalStateError::InvalidRollRequest(
-            "request exceeds supported bounds",
-        ));
-    }
-    Ok(())
-}
-
-pub(super) fn recover<T: serde::de::DeserializeOwned>(
-    connection: &Connection,
-    key: &str,
-    id: &str,
-    request: &serde_json::Value,
-) -> LocalStateResult<Option<T>> {
-    let row: Option<(String, String)> = connection
-        .query_row(
-            "SELECT r.request_json,r.receipt_json FROM encounter_roll_receipts r
-         JOIN encounters e ON e.id=r.encounter_id WHERE e.encounter_key=?1 AND r.request_id=?2",
-            params![key, id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .optional()?;
-    let Some((stored, receipt)) = row else {
-        return Ok(None);
-    };
-    if serde_json::from_str::<serde_json::Value>(&stored)? != *request {
-        return Err(LocalStateError::RollRequestConflict);
-    }
-    Ok(Some(super::receipt_codec::decode(&receipt)?))
-}
-
-impl EncountersRead<'_> {
-    /// Recover before source hydration or revision checks, including lost-response retries.
-    pub fn initiative_roll_receipt(
-        &self,
-        encounter_key: &str,
-        request_id: &str,
-        request: &serde_json::Value,
-    ) -> LocalStateResult<Option<InitiativeRollReceipt>> {
-        validate_request(request_id, request)?;
-        recover(self.connection, encounter_key, request_id, request)
     }
 }

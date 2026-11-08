@@ -1,3 +1,4 @@
+mod command_receipts;
 mod manual_trackers;
 pub use manual_trackers::{ManualTracker, ManualTrackerChange, TrackerProgress};
 mod recovery;
@@ -19,8 +20,8 @@ pub use event_model::{
     ConditionEventSource, ConsumedConditionApplication, DamageLethality, EncounterBoundaryClaim,
     EncounterBoundaryKind, EncounterEventReceipt, LifecycleCheckPurpose, ParticipantEventChange,
     PendingConsequence, PersistentDamageOutcome, PersistentDamageProtection,
-    PersistentPrecedenceChange, PersistentPreparationContext, PreparedConditionEvent,
-    PreparedPersistentRecovery, SavedHpEventContext, SavedPendingConsequence,
+    PersistentPrecedenceChange, PreparedConditionEvent, SavedHpEventContext,
+    SavedPendingConsequence,
 };
 mod condition_parameters;
 pub use condition_parameters::{

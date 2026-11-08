@@ -202,6 +202,21 @@ for (const outcome of [
       const original = await (await page.request.get(`${path}/turn-review`)).json();
       let boundary = original.outgoing.boundary_key;
       const advancedRevision = detail.revision;
+      if (outcome === "roll") {
+        await reminders.getByText("Table results", { exact: true }).click();
+        await reminders
+          .getByRole("spinbutton", { name: "Fire damage amount", exact: true })
+          .fill("2");
+        await reminders.getByRole("button", { name: "Roll Fire recovery" }).click();
+        await page
+          .getByRole("spinbutton", { name: "Recovery DC", exact: true })
+          .fill("0");
+        await page.getByRole("button", { name: "Roll", exact: true }).click();
+        await expect(reminders.getByText("Clears after Apply")).toBeVisible();
+        const beforeApply = await (await page.request.get(path)).json();
+        expect(beforeApply.participants[0].current_hp).toBe(30);
+        expect(beforeApply.revision).toBe(advancedRevision);
+      }
       await page.screenshot({
         path: info.outputPath("outgoing-reminders.png"),
         fullPage: true,

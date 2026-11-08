@@ -103,7 +103,6 @@ impl From<LocalStateError> for AppServiceError {
             | LocalStateError::InvalidSlug { .. }
             | LocalStateError::InvalidRollRequest(_)
             | LocalStateError::InvalidConditionEvent(_)
-            | LocalStateError::RollRequestConflict
             | LocalStateError::Dice(_)
             | LocalStateError::InvalidListRef { .. }
             | LocalStateError::InvalidEncounterRef { .. }

@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 
-test("overnight review preserves a conflicting draft and reopens against the current roster", async ({
+test("overnight review reopens a stale draft and checks current values after a lost response", async ({
   page,
 }, info) => {
   const { encounter } = await (
@@ -73,12 +73,40 @@ test("overnight review preserves a conflicting draft and reopens against the cur
     });
     await expect(submit).toBeEnabled();
     await noPageOverflow(page);
+    let submissions = 0;
+    await page.route("**/api/encounters/*/recovery", async (route) => {
+      submissions += 1;
+      const saved = await route.fetch();
+      expect(saved.ok()).toBeTruthy();
+      await route.abort("connectionfailed");
+    });
     await activate(submit, info);
-    await expect(reopened).toBeHidden();
+    await expect(
+      reopened.getByText("Change could not be confirmed", { exact: true }),
+    ).toBeVisible();
+    await expect(submit).toBeDisabled();
     const saved = await (await page.request.get(path)).json();
     expect(saved.participants.map((p: { current_hp: number }) => p.current_hp)).toEqual(
       [18, 6],
     );
+    expect(submissions).toBe(1);
+    await page.screenshot({
+      path: info.outputPath("uncertain-recovery.png"),
+      animations: "disabled",
+    });
+    await activate(
+      reopened.getByRole("button", { name: "Close", exact: true }).last(),
+      info,
+    );
+    await expect(reopened).toBeHidden();
+    const latest = await open();
+    await expect(
+      latest
+        .getByRole("row", { name: /Resting hero/ })
+        .getByText("18", { exact: true })
+        .first(),
+    ).toBeVisible();
+    expect(submissions).toBe(1);
   } finally {
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }

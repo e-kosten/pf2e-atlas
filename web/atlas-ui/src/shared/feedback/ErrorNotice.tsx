@@ -21,7 +21,7 @@ export function ErrorNotice({
   compact?: boolean;
   type?: "error" | "warning" | "info";
   className?: string;
-  outcome?: "saved" | "changed";
+  outcome?: "saved" | "changed" | "uncertain";
 }) {
   const unconfirmedWrite = error instanceof AtlasConnectionError && error.write;
   const shared = isSharedFailure(error);

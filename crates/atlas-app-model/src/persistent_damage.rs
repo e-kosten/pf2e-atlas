@@ -66,8 +66,6 @@ pub struct PersistentReviewView {
     pub episodes: Vec<PersistentEpisodeReviewView>,
     pub damage_result: Option<PersistentDamageResultView>,
     pub recovery_results: Vec<PersistentRecoveryResultView>,
-    pub prepared_damage: Vec<PreparedPersistentDamageGroupView>,
-    pub prepared_recovery: Vec<PersistentRecoveryResultView>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -96,7 +94,7 @@ pub struct PersistentRecoveryResultView {
 pub enum PersistentDamageInput {
     Roll,
     TableResult { amount: i64 },
-    Prepared { request_id: String },
+    Prepared { draft: PersistentDamageDraft },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -123,6 +121,38 @@ pub struct PreparedPersistentDamageView {
     pub damage: PersistentDamageResultView,
     pub complete: bool,
     pub recovery: Option<PersistentRecoveryResultView>,
+    pub draft_context: PersistentDraftContext,
+    pub recovery_draft: Option<PersistentRecoveryDraft>,
+}
+
+/// The turn and participant reviewed by the GM before submitting browser-held rolls.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PersistentDraftContext {
+    pub encounter_key: String,
+    pub participant_key: String,
+    pub boundary_key: Option<String>,
+    pub round_number: i64,
+    pub record_key: Option<String>,
+    pub artifact_generation: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PersistentDamageDraft {
+    pub context: PersistentDraftContext,
+    pub source_condition_id: i64,
+    pub roll: atlas_dice::RollOutcome,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PersistentRecoveryDraft {
+    pub context: PersistentDraftContext,
+    pub source_condition_id: i64,
+    pub dc: i64,
+    pub dc_override: Option<i64>,
+    pub roll: Option<atlas_dice::RollOutcome>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -130,10 +160,12 @@ pub struct PreparedPersistentDamageView {
 pub enum PersistentRecoveryInput {
     Clear {
         episode_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        draft: Option<PersistentRecoveryDraft>,
     },
     Prepared {
         episode_id: String,
-        request_id: String,
+        draft: PersistentRecoveryDraft,
     },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -190,10 +222,4 @@ pub struct PersistentDamageProtectionView {
     pub immune: bool,
     pub weakness: i64,
     pub resistance: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PreparedPersistentDamageGroupView {
-    pub request_id: String,
-    pub group: PersistentDamageOutcomeView,
 }

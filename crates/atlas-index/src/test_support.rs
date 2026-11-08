@@ -251,6 +251,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: crate::retire_trait_similarity,
         }),
     },
+    Migration {
+        version: 35,
+        name: "encounter-command-receipts",
+        sql: atlas_local_state::ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()

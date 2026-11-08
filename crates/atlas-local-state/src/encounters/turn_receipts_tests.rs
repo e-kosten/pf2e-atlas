@@ -51,7 +51,7 @@ fn only_current_boundary_is_actionable_even_when_it_has_no_review() -> crate::Lo
     assert!(read.outgoing_turn("test", &first.boundary_key)?.is_none());
     assert!(read.latest_outgoing_turn("test")?.is_none());
     let latest: String = connection.query_row(
-        "SELECT boundary_key FROM encounter_turn_receipts WHERE request_id='second'",
+        "SELECT boundary_key FROM encounter_command_receipts WHERE family='turn' AND request_id='second'",
         [],
         |row| row.get(0),
     )?;
@@ -100,9 +100,11 @@ fn context_failure_rolls_back_new_receipt_and_preserves_previous_boundary()
         before
     );
     assert_eq!(
-        connection.query_row("SELECT count(*) FROM encounter_turn_receipts", [], |row| {
-            row.get::<_, i64>(0)
-        })?,
+        connection.query_row(
+            "SELECT count(*) FROM encounter_command_receipts WHERE family='turn'",
+            [],
+            |row| { row.get::<_, i64>(0) }
+        )?,
         1
     );
     Ok(())
@@ -118,7 +120,7 @@ fn encounter_deletion_removes_lifetime_receipts_and_current_context() -> crate::
     advance(&store, &participant.participant_key, "first", true)?;
     assert!(store.encounters().delete("test")?);
     let connection = store.connection()?;
-    for table in ["encounter_turn_receipts", "encounter_outgoing_turns"] {
+    for table in ["encounter_command_receipts", "encounter_outgoing_turns"] {
         assert_eq!(
             connection.query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
                 .get::<_, i64>(0))?,
@@ -266,8 +268,6 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
         }
         domain.apply_recovery(ApplyEncounterRecovery {
             encounter_key: &after.encounter.encounter_key,
-            request_id: "recovery",
-            intent: &serde_json::json!({"reset":reset_encounter}),
             expected_revision: current.revision,
             reset_encounter,
             end_turn: true,
@@ -297,9 +297,11 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
         );
         assert_eq!(domain.get_with_participants("test")?.unwrap(), recovered);
         assert_eq!(
-            transaction.query_row("SELECT count(*) FROM encounter_turn_receipts", [], |r| {
-                r.get::<_, usize>(0)
-            })?,
+            transaction.query_row(
+                "SELECT count(*) FROM encounter_command_receipts WHERE family='turn'",
+                [],
+                |r| { r.get::<_, usize>(0) }
+            )?,
             2
         );
         assert_eq!(

@@ -56,8 +56,6 @@ impl From<&EncounterParticipant> for ParticipantGameplay {
 
 pub struct ApplyEncounterRecovery<'a> {
     pub encounter_key: &'a str,
-    pub request_id: &'a str,
-    pub intent: &'a serde_json::Value,
     pub expected_revision: i64,
     pub reset_encounter: bool,
     pub end_turn: bool,
@@ -83,41 +81,18 @@ impl EncountersRead<'_> {
             .optional()?;
         payload.map(|s| receipt_codec::decode(&s)).transpose()
     }
-    pub fn recovery_applied(
-        &self,
-        key: &str,
-        id: &str,
-        intent: &serde_json::Value,
-    ) -> LocalStateResult<bool> {
-        super::initiative_rolls::validate_request(id, intent)?;
-        let saved: Option<String> = self.connection.query_row("SELECT intent_json FROM encounter_recovery_receipts WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND request_id=?2", params![key,id], |r|r.get(0)).optional()?;
-        match saved {
-            Some(saved) if serde_json::from_str::<serde_json::Value>(&saved)? != *intent => {
-                Err(LocalStateError::InvalidRollRequest(
-                    "recovery request ID was reused with different intent",
-                ))
-            }
-            Some(_) => Ok(true),
-            None => Ok(false),
-        }
-    }
 }
 impl EncountersWrite<'_> {
     /// Replace only gameplay. The encounter guard covers roster and every participant.
     pub fn apply_recovery(&self, request: ApplyEncounterRecovery<'_>) -> LocalStateResult<()> {
         let ApplyEncounterRecovery {
             encounter_key: key,
-            request_id: id,
-            intent,
             expected_revision,
             reset_encounter,
             end_turn,
             replacements,
         } = request;
         crate::atomic_action::run(self.connection, || {
-            if self.recovery_applied(key, id, intent)? {
-                return Ok(());
-            }
             let snapshot = self
                 .get_with_participants(key)?
                 .ok_or_else(|| LocalStateError::EncounterNotFound(key.into()))?;
@@ -177,7 +152,6 @@ impl EncountersWrite<'_> {
                 self.connection.execute("DELETE FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;
             }
             self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),status=CASE WHEN ?2 THEN 'draft' ELSE status END,round_number=CASE WHEN ?2 THEN 1 ELSE round_number END,current_turn_participant_key=CASE WHEN ?3 OR ?2 THEN NULL ELSE current_turn_participant_key END WHERE encounter_key=?1", params![key,reset_encounter,end_turn])?;
-            self.connection.execute("INSERT INTO encounter_recovery_receipts(encounter_id,request_id,intent_json) VALUES((SELECT id FROM encounters WHERE encounter_key=?1),?2,?3)",params![key,id,serde_json::to_string(intent)?])?;
             Ok(())
         })
     }

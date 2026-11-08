@@ -32,7 +32,6 @@ pub struct PreviewEncounterRecoveryRequest {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ApplyEncounterRecoveryRequest {
-    pub request_id: String,
     pub expected_encounter_revision: i64,
     pub action: EncounterRecoveryAction,
 }

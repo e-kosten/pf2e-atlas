@@ -38,11 +38,11 @@ pub use action_context::{
 };
 mod persistent_damage;
 pub use persistent_damage::{
-    ApplyPersistentDamageRequest, PersistentDamageGroupInput, PersistentDamageInput,
-    PersistentDamageOutcomeView, PersistentDamageProtectionView, PersistentDamageResolutionView,
-    PersistentDamageResultView, PersistentRecoveryInput, PreparePersistentDamageRequest,
-    PreparedPersistentDamageGroupView, PreparedPersistentDamageView,
-    PreparedPersistentRecoveryInput,
+    ApplyPersistentDamageRequest, PersistentDamageDraft, PersistentDamageGroupInput,
+    PersistentDamageInput, PersistentDamageOutcomeView, PersistentDamageProtectionView,
+    PersistentDamageResolutionView, PersistentDamageResultView, PersistentDraftContext,
+    PersistentRecoveryDraft, PersistentRecoveryInput, PreparePersistentDamageRequest,
+    PreparedPersistentDamageView, PreparedPersistentRecoveryInput,
 };
 pub use persistent_damage::{
     PersistentDamageGroupView, PersistentDamageSourceView, PersistentEpisodeReviewView,

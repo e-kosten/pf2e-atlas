@@ -69,6 +69,9 @@ INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_da
     assert_eq!(actual, receipts);
     let actual=read.connection().prepare("SELECT encounter_id,request_id,payload_json,requires_review FROM encounter_outgoing_turns ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
     assert_eq!(actual, latest);
+    drop(read);
+    let workspace = initialize_workspace(workspace.path()).unwrap();
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let store = LocalStateRead::new(&read);
     assert!(
         store
@@ -114,7 +117,7 @@ INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_da
             .unwrap()
     );
     drop(read);
-    let write = workspace.write(26).unwrap();
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     write
         .connection()
         .execute(
@@ -183,5 +186,242 @@ fn failed_turn_receipt_upgrade_restores_old_payloads_schema_and_ledger() {
             )
             .unwrap(),
         "opaque payload retained exactly"
+    );
+}
+
+const RECEIPT_FIXTURE: &str = r#"
+INSERT INTO encounters(id,encounter_key,slug,name,status,revision,created_at,updated_at)
+VALUES(1,'owner-key','owner','Owner','draft',8,'before','after'),
+      (2,'other-key','other','Other','draft',3,'before','after');
+INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,current_hp,created_at,updated_at)
+VALUES(11,1,'actor','pc',0,'Actor',0,9,'before','after');
+INSERT INTO encounter_turn_receipts VALUES
+    (1,'shared','boundary-current','{ "turn": 1 }'),
+    (1,'old-turn','boundary-old','{}'),
+    (2,'shared','boundary-other','{}');
+INSERT INTO encounter_outgoing_turns VALUES
+    (1,'shared','{ "version": 1, "payload": "outgoing bytes" }',1);
+INSERT INTO encounter_event_receipts VALUES
+    (1,'shared','{ "damage": 7 }','{ "version":1, "payload":{"encounter_key":"owner-key","request_id":"shared","added_condition_ids":[],"outcomes":[],"pending":[]} }'),
+    (1,'by-intent','{"action":"prepare_persistent_damage"}','{}'),
+    (1,'by-outcome','{}','{"version":1,"payload":{"outcomes":[{"kind":"persistent_prepared"}]}}'),
+    (1,'by-claim','legacy intent','legacy result'),
+    (1,'kept-mixed','{"action":"prepare_persistent_damage"}','{"version":2,"payload":{}}'),
+    (1,'opaque','unknown intent','unknown result');
+INSERT INTO encounter_boundary_claims VALUES
+    (1,'actor',1,'persistent_damage','','shared'),
+    (1,'actor',1,'prepared_persistent_recovery','fire','by-claim'),
+    (1,'actor',1,'prepared_persistent_damage','fire','kept-mixed'),
+    (1,'actor',1,'persistent_recovery','fire','kept-mixed');
+INSERT INTO encounter_roll_receipts VALUES(1,'initiative','{}','{}');
+INSERT INTO encounter_recovery_receipts VALUES(1,'rest','{}');
+"#;
+
+const LEGACY_RECEIPT_TABLES: &[&str] = &[
+    "encounter_roll_receipts",
+    "encounter_recovery_receipts",
+    "encounter_turn_receipts",
+    "encounter_event_receipts",
+];
+
+#[test]
+fn command_receipt_upgrade_preserves_committed_bytes_and_drops_preparation() {
+    register_extensions().unwrap();
+    for from in [26, 34] {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = Workspace::at(directory.path().join("commands.sqlite")).unwrap();
+        workspace
+            .migrate(&MIGRATIONS[..from as usize], |_| Ok(()))
+            .unwrap();
+        let write = workspace.write(from).unwrap();
+        let db = write.connection();
+        db.execute_batch(RECEIPT_FIXTURE).unwrap();
+        let encounters = rows(db, "encounters");
+        let participants = rows(db, "encounter_participants");
+        let snapshots = rows(db, "encounter_outgoing_turns");
+        let before_event = crate::test_support::sql_rows(
+            db,
+            "SELECT * FROM encounter_event_receipts
+             WHERE request_id IN ('shared','kept-mixed','opaque') ORDER BY request_id",
+        );
+        let before_turn = crate::test_support::sql_rows(
+            db,
+            "SELECT * FROM encounter_turn_receipts ORDER BY encounter_id,request_id",
+        );
+        let before_claim = crate::test_support::sql_rows(
+            db,
+            "SELECT * FROM encounter_boundary_claims
+             WHERE kind IN ('persistent_damage','persistent_recovery') ORDER BY kind",
+        );
+        let reference_revision = write.reference_revision().unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(workspace.path()).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let db = read.connection();
+        assert_eq!(rows(db, "encounters"), encounters);
+        assert_eq!(rows(db, "encounter_participants"), participants);
+        assert_eq!(read.reference_revision().unwrap(), reference_revision);
+        assert_eq!(
+            crate::test_support::sql_rows(
+                db,
+                "SELECT encounter_id,request_id,payload_json,requires_review
+                 FROM encounter_outgoing_turns ORDER BY encounter_id",
+            ),
+            snapshots,
+        );
+        assert_eq!(
+            crate::test_support::sql_rows(
+                db,
+                "SELECT encounter_id,request_id,intent_json,receipt_json FROM encounter_command_receipts
+                 WHERE family='event' ORDER BY request_id",
+            ),
+            before_event,
+        );
+        assert_eq!(
+            crate::test_support::sql_rows(
+                db,
+                "SELECT encounter_id,request_id,boundary_key,intent_json FROM encounter_command_receipts
+                 WHERE family='turn' ORDER BY encounter_id,request_id",
+            ),
+            before_turn,
+        );
+        assert_eq!(
+            crate::test_support::sql_rows(
+                db,
+                "SELECT * FROM encounter_boundary_claims ORDER BY kind"
+            ),
+            before_claim,
+        );
+        let store = LocalStateRead::new(&read);
+        let encounters = store.encounters();
+        assert_eq!(
+            encounters
+                .advance_turn_receipt("owner", "shared", &serde_json::json!({"turn":1}))
+                .unwrap()
+                .unwrap()
+                .encounter_key,
+            "owner-key",
+        );
+        assert_eq!(
+            encounters
+                .condition_event_receipt("owner-key", "shared", &serde_json::json!({"damage":7}))
+                .unwrap()
+                .unwrap()
+                .request_id,
+            "shared",
+        );
+        let claim = atlas_local_state::EncounterBoundaryClaim {
+            participant_key: "actor".into(),
+            round_number: 1,
+            kind: atlas_local_state::EncounterBoundaryKind::PersistentDamage,
+            scope_key: String::new(),
+        };
+        assert_eq!(
+            encounters
+                .boundary_receipt("owner-key", &claim)
+                .unwrap()
+                .unwrap()
+                .request_id,
+            "shared",
+        );
+        assert!(
+            encounters
+                .condition_event_receipt("owner", "shared", &serde_json::json!({"damage":7}))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            db.prepare("PRAGMA foreign_key_check")
+                .unwrap()
+                .exists([])
+                .is_ok_and(|found| !found)
+        );
+        for table in LEGACY_RECEIPT_TABLES {
+            assert!(
+                db.prepare(&format!("SELECT * FROM {table}")).is_err(),
+                "{table}"
+            );
+        }
+        drop(read);
+        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let db = write.connection();
+        for sql in [
+            // Only a turn receipt in the same encounter is a valid snapshot parent.
+            "UPDATE encounter_outgoing_turns SET request_id='opaque'",
+            "UPDATE encounter_outgoing_turns SET encounter_id=2,request_id='old-turn'",
+            "INSERT INTO encounter_command_receipts VALUES(2,'turn','duplicate','{}','boundary-old',NULL)",
+            "INSERT INTO encounter_boundary_claims VALUES(1,'actor',2,'prepared_persistent_damage','fire','x')",
+        ] {
+            assert!(db.execute(sql, []).is_err(), "{sql}");
+        }
+        db.execute("DELETE FROM encounters WHERE id=1", []).unwrap();
+        assert!(rows(db, "encounter_outgoing_turns").is_empty());
+        assert!(rows(db, "encounter_boundary_claims").is_empty());
+        assert_eq!(rows(db, "encounter_command_receipts").len(), 1);
+    }
+}
+
+#[test]
+fn failed_command_receipt_migration_restores_legacy_receipts_claims_and_ledger() {
+    register_extensions().unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = Workspace::at(directory.path().join("commands-rollback.sqlite")).unwrap();
+    workspace.migrate(&MIGRATIONS[..34], |_| Ok(())).unwrap();
+    let write = workspace.write(34).unwrap();
+    let db = write.connection();
+    db.execute_batch(RECEIPT_FIXTURE).unwrap();
+    let before = LEGACY_RECEIPT_TABLES
+        .iter()
+        .copied()
+        .chain([
+            "encounter_boundary_claims",
+            "encounter_outgoing_turns",
+            "schema_migrations",
+        ])
+        .map(|table| (table, rows(db, table)))
+        .collect::<Vec<_>>();
+    write.commit().unwrap();
+    let mut failing = MIGRATIONS.to_vec();
+    failing.last_mut().unwrap().backfill = Some(atlas_storage::DataBackfill {
+        id: "injected-command-receipt-failure/v1",
+        reconstruct_tables: false,
+        apply: |_| {
+            Err(atlas_storage::StorageError::Migration(
+                "after receipt consolidation".into(),
+            ))
+        },
+    });
+    assert!(
+        workspace
+            .migrate(&failing, |_| Ok(()))
+            .unwrap_err()
+            .to_string()
+            .contains("after receipt consolidation"),
+    );
+    let read = workspace.read(34).unwrap();
+    for (table, expected) in before {
+        assert_eq!(rows(read.connection(), table), expected, "{table}");
+    }
+    assert!(
+        read.connection()
+            .prepare("SELECT * FROM encounter_command_receipts")
+            .is_err()
+    );
+}
+
+#[test]
+fn fresh_workspace_has_fourteen_encounter_tables() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = initialize_workspace(directory.path().join("commands-fresh.sqlite")).unwrap();
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(
+        read.connection()
+            .query_row(
+                "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name GLOB 'encounter*'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+        14,
     );
 }

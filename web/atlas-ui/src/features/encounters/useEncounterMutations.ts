@@ -1,3 +1,4 @@
+import { isUnconfirmedMutation } from "../../api/apiError";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -57,10 +58,7 @@ export type EncounterMutationCommand =
     }
   | {
       kind: "recovery";
-      request: Omit<
-        import("../../generated/atlas").ApplyEncounterRecoveryRequest,
-        "request_id"
-      >;
+      request: import("../../generated/atlas").ApplyEncounterRecoveryRequest;
     }
   | {
       kind: "ability-state";
@@ -223,7 +221,9 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   }, []);
   const [refreshError, setRefreshError] = useState<Error | null>(null);
   const refreshSucceeded = useRef(true);
-  const [refreshOrigin, setRefreshOrigin] = useState<"saved" | "conflict">("saved");
+  const [refreshOrigin, setRefreshOrigin] = useState<
+    "saved" | "conflict" | "uncertain"
+  >("saved");
   const [refreshing, setRefreshing] = useState(false);
   const refreshKey = useRef<string | undefined>(undefined);
   const refreshedView = useRef<EncounterDetailView | undefined>(undefined);
@@ -273,10 +273,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     > => {
       switch (command.kind) {
         case "recovery":
-          return applyEncounterRecovery(currentRef, {
-            ...command.request,
-            request_id: eventRequestId(command),
-          });
+          return applyEncounterRecovery(currentRef, command.request);
         case "manual-tracker":
           return updateEncounterManualTracker(currentRef, {
             ...command.request,
@@ -417,10 +414,13 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         await attemptRefresh(receipt.encounter_key);
       }
     },
-    onError: async (error) => {
+    onError: async (error, command) => {
       const conflict = isEncounterConflict(error);
-      if (conflict) {
-        setRefreshOrigin("conflict");
+      const uncertain =
+        (command.kind === "initiative" || command.kind === "recovery") &&
+        isUnconfirmedMutation(error);
+      if (conflict || uncertain) {
+        setRefreshOrigin(uncertain ? "uncertain" : "conflict");
         await attemptRefresh();
       }
     },
@@ -516,12 +516,13 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         ? userErrorMessage(mutation.error)
         : undefined,
     refreshError,
-    refreshOutcome:
-      refreshOrigin === "saved" ? ("saved" as const) : ("changed" as const),
+    refreshOutcome: refreshOrigin === "conflict" ? ("changed" as const) : refreshOrigin,
     refreshMessage:
       refreshOrigin === "saved"
         ? "Saved, but the encounter could not refresh"
-        : "Participant changed; current encounter could not load",
+        : refreshOrigin === "uncertain"
+          ? "Change could not be confirmed and the encounter could not refresh"
+          : "Participant changed; current encounter could not load",
     retryRefresh,
   };
 }

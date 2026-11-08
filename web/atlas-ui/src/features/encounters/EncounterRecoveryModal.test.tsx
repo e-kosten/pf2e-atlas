@@ -12,6 +12,8 @@ function recoveryMutations(run = vi.fn()) {
   return {
     run,
     pending: false,
+    refreshError: null,
+    retryRefresh: vi.fn(),
     previewRecovery: (request: PreviewEncounterRecoveryRequest, signal?: AbortSignal) =>
       api.previewEncounterRecovery("encounter", request, signal),
   };

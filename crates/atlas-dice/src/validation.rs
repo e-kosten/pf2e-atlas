@@ -1,6 +1,8 @@
 use crate::DiceError;
 use diceng::{BinaryOp, DiceAtom, Expression, FilterDirection, FilterType};
 
+pub(crate) const MAX_DEPTH: usize = 32;
+pub(crate) const MAX_DICE: u32 = 200;
 const MAX_VALUE: i64 = 1_000_000_000;
 
 /// Prove safe integer bounds before entering the library's unchecked arithmetic.
@@ -10,7 +12,7 @@ pub(crate) fn validate(
     depth: usize,
     count: &mut u32,
 ) -> Result<(i64, i64), DiceError> {
-    if depth > 32 {
+    if depth > MAX_DEPTH {
         return Err(DiceError::Limit);
     }
     let bounds = match expr {
@@ -21,11 +23,11 @@ pub(crate) fn validate(
                 DiceAtom::Percent { count } => (count, 100),
                 _ => return Err(DiceError::Unsupported),
             };
-            if n == 0 || n > 200 || !(2..=1000).contains(&sides) {
+            if n == 0 || n > MAX_DICE || !(2..=1000).contains(&sides) {
                 return Err(DiceError::Limit);
             }
             *count += n;
-            if *count > 200 {
+            if *count > MAX_DICE {
                 return Err(DiceError::Limit);
             }
             if !d.functors.is_empty()

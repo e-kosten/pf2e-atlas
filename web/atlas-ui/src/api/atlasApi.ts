@@ -569,11 +569,6 @@ export async function getEncounterPersistentReview(
     damage_result:
       value.damage_result === null ? null : persistentDamageResult(value.damage_result),
     recovery_results: value.recovery_results.map(persistentRecoveryResult),
-    prepared_damage: value.prepared_damage.map((prepared) => ({
-      ...prepared,
-      group: persistentDamageOutcome(prepared.group),
-    })),
-    prepared_recovery: value.prepared_recovery.map(persistentRecoveryResult),
   };
 }
 export async function prepareEncounterPersistentDamage(
@@ -587,10 +582,27 @@ export async function prepareEncounterPersistentDamage(
     method: "POST",
     body: jsonBody(request),
   });
+  const draft = value.recovery_draft;
   return {
     ...value,
+    draft_context: {
+      ...value.draft_context,
+      round_number: toBigInt(value.draft_context.round_number),
+    },
     damage: persistentDamageResult(value.damage),
     recovery: value.recovery ? persistentRecoveryResult(value.recovery) : null,
+    recovery_draft: draft
+      ? {
+          ...draft,
+          context: {
+            ...draft.context,
+            round_number: toBigInt(draft.context.round_number),
+          },
+          source_condition_id: toBigInt(draft.source_condition_id),
+          dc: toBigInt(draft.dc),
+          dc_override: draft.dc_override === null ? null : toBigInt(draft.dc_override),
+        }
+      : null,
   };
 }
 

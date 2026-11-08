@@ -1410,14 +1410,13 @@ fn overnight_expires_short_and_exact_durations_and_preserves_long_progress_then_
         }],
     };
     let rest = ApplyEncounterRecoveryRequest {
-        request_id: "countdown-rest".into(),
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         action,
     };
     f.worker
         .apply_encounter_recovery(&key, rest.clone())
         .unwrap();
-    f.worker.apply_encounter_recovery(&key, rest).unwrap();
+    assert!(f.worker.apply_encounter_recovery(&key, rest).is_err());
     let saved = snapshot(&f, &key);
     let owner = &saved.participants[0];
     for (name, remaining) in [("short", 0), ("exact", 0), ("long", 9600)] {
@@ -1461,7 +1460,6 @@ fn overnight_expires_short_and_exact_durations_and_preserves_long_progress_then_
         .apply_encounter_recovery(
             &key,
             ApplyEncounterRecoveryRequest {
-                request_id: "countdown-reset".into(),
                 expected_encounter_revision: saved.encounter.revision,
                 action,
             },

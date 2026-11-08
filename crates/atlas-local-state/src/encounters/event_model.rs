@@ -112,13 +112,6 @@ impl ParticipantEventChange {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionEventOutcome {
-    PersistentPrepared {
-        context: Box<PersistentPreparationContext>,
-        groups: Vec<PersistentDamageOutcome>,
-        hardness: i64,
-        complete: bool,
-        recovery: Option<PreparedPersistentRecovery>,
-    },
     LifecycleCheck {
         participant_key: String,
         purpose: LifecycleCheckPurpose,
@@ -144,23 +137,6 @@ pub enum ConditionEventOutcome {
     },
 }
 
-/// Source identity and boundary binding; protections are re-evaluated from retained raw dice.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PersistentPreparationContext {
-    pub participant_key: String,
-    pub record_key: Option<String>,
-    pub boundary_key: Option<String>,
-    pub artifact_generation: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PreparedPersistentRecovery {
-    pub episode_id: String,
-    pub damage_type: String,
-    pub dc: i64,
-    pub roll: Option<atlas_dice::RollOutcome>,
-    pub success: bool,
-}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PersistentDamageOutcome {
     pub episode_id: String,
@@ -213,8 +189,6 @@ pub enum ConditionEventSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterBoundaryKind {
-    PreparedPersistentDamage,
-    PreparedPersistentRecovery,
     PersistentDamage,
     PersistentRecovery,
     TurnStart,
@@ -223,8 +197,6 @@ pub enum EncounterBoundaryKind {
 impl EncounterBoundaryKind {
     pub(super) fn as_str(self) -> &'static str {
         match self {
-            Self::PreparedPersistentDamage => "prepared_persistent_damage",
-            Self::PreparedPersistentRecovery => "prepared_persistent_recovery",
             Self::PersistentDamage => "persistent_damage",
             Self::PersistentRecovery => "persistent_recovery",
             Self::TurnStart => "turn_start",

@@ -933,8 +933,10 @@ protections, with Hardness applied once to the combined event. Rolls and lifecyc
 recovery require explicit commands; merely opening a review changes nothing. Participant replacements require an
 expected revision and fail with a typed conflict when stale. Condition IDs are
 not reused, and condition edits check participant ownership inside the write.
-Existing-encounter mutations return a durable canonical-key receipt rather than
-hydrating reference presentation after commit. Saved-list import uses its
+Existing-encounter mutations return the canonical encounter key without
+hydrating reference presentation after commit. Durable command receipts support
+Next-turn and committed event retries. Initiative and rest/reset use a guarded
+write and a read-only refresh after an uncertain response. Saved-list import uses its
 precommit resolved summaries for receipt counts. Explicit reads own any later
 projection failure. These boundaries are defined by
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).

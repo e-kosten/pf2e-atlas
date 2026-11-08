@@ -4,11 +4,12 @@ use super::rules::hp_events::HpEventInput;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     ApplyPersistentDamageRequest, PersistentDamageInput, PersistentDamageOutcomeView,
-    PersistentDamageResultView,
+    PersistentDamageResultView, PersistentDraftContext, PersistentRecoveryInput,
 };
 use atlas_local_state::{
     ConditionEventOutcome, ConditionParameters, EncounterEventReceipt, PersistentDamageOutcome,
 };
+use sha2::{Digest, Sha256};
 
 impl AtlasAppService {
     pub fn apply_persistent_damage(
@@ -16,7 +17,31 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: ApplyPersistentDamageRequest,
     ) -> AppServiceResult<PersistentDamageResultView> {
-        let intent = serde_json::json!({"action":"persistent_damage", "request":request});
+        let has_drafts = request
+            .groups
+            .iter()
+            .any(|group| matches!(group.damage, PersistentDamageInput::Prepared { .. }))
+            || request.recoveries.iter().any(|input| {
+                matches!(
+                    input,
+                    PersistentRecoveryInput::Prepared { .. }
+                        | PersistentRecoveryInput::Clear { draft: Some(_), .. }
+                )
+            });
+        let intent = if has_drafts {
+            // Roll trees can exceed the storage intent bound and already live in the outcome.
+            let bytes =
+                serde_json::to_vec(&request).map_err(atlas_local_state::LocalStateError::from)?;
+            let mut digest = Sha256::new();
+            digest.update(b"atlas/persistent-damage-draft-intent/v1\0");
+            digest.update(bytes);
+            serde_json::json!({
+                "action": "persistent_damage",
+                "draft_intent_v1": format!("{:x}", digest.finalize()),
+            })
+        } else {
+            serde_json::json!({"action":"persistent_damage", "request":request})
+        };
         let (snapshot, recovered) = self.with_state(|session| {
             let store = session.local_state().encounters();
             let snapshot = store
@@ -31,6 +56,14 @@ impl AtlasAppService {
         })?;
         if let Some(receipt) = recovered {
             return damage_view(receipt);
+        }
+        if snapshot.encounter.revision != request.expected_encounter_revision {
+            return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
+                encounter_key: snapshot.encounter.encounter_key,
+                expected_revision: request.expected_encounter_revision,
+                actual_revision: snapshot.encounter.revision,
+            }
+            .into());
         }
         let participant = snapshot
             .participants
@@ -109,47 +142,51 @@ impl AtlasAppService {
                         )
                     )
                 }));
-        let (record, source_conditions, reference_revision) = if needs_protections
-            || needs_lifecycle
-        {
-            let record_key = participant.record_key.clone().ok_or_else(|| {
-                AppServiceError::invalid_request(
-                    "Damage protections are unavailable; enter table results",
-                )
-            })?;
-            let expected_generation = request.artifact_generation.clone();
-            self.with_workspace(
-                &crate::ReadExecutionContext::uncancellable(),
-                move |session| {
-                    let generation = session.retrieval_mut().artifact_generation()?;
-                    if (needs_protections || expected_generation.is_some())
-                        && expected_generation.as_deref() != Some(generation.as_str())
-                    {
-                        return Err(AppServiceError::invalid_request(
-                            "Reference data changed; reload before rolling",
-                        ));
-                    }
-                    let record =
-                        super::hydration::resolve_record_ref(session.retrieval_mut(), &record_key)?;
-                    let sources = super::hydration::source_conditions(
-                        &record.source,
-                        session.retrieval_mut(),
-                    )?;
-                    Ok((
-                        Some(record.source),
-                        sources,
-                        Some(session.reference_revision()?),
-                    ))
-                },
-            )?
-        } else {
-            (None, Default::default(), None)
-        };
-        let preparation_context = atlas_local_state::PersistentPreparationContext {
+        let (record, source_conditions, reference_revision, artifact_generation) =
+            if needs_protections || needs_lifecycle {
+                let record_key = participant.record_key.clone().ok_or_else(|| {
+                    AppServiceError::invalid_request(
+                        "Damage protections are unavailable; enter table results",
+                    )
+                })?;
+                let expected_generation = request.artifact_generation.clone();
+                self.with_workspace(
+                    &crate::ReadExecutionContext::uncancellable(),
+                    move |session| {
+                        let generation = session.retrieval_mut().artifact_generation()?;
+                        if (needs_protections || expected_generation.is_some())
+                            && expected_generation.as_deref() != Some(generation.as_str())
+                        {
+                            return Err(AppServiceError::invalid_request(
+                                "Reference data changed; reload before rolling",
+                            ));
+                        }
+                        let record = super::hydration::resolve_record_ref(
+                            session.retrieval_mut(),
+                            &record_key,
+                        )?;
+                        let sources = super::hydration::source_conditions(
+                            &record.source,
+                            session.retrieval_mut(),
+                        )?;
+                        Ok((
+                            Some(record.source),
+                            sources,
+                            Some(session.reference_revision()?),
+                            Some(generation),
+                        ))
+                    },
+                )?
+            } else {
+                (None, Default::default(), None, None)
+            };
+        let preparation_context = PersistentDraftContext {
+            encounter_key: snapshot.encounter.encounter_key.clone(),
             participant_key: participant.participant_key.clone(),
-            record_key: participant.record_key.clone(),
             boundary_key: request.boundary_key.clone(),
-            artifact_generation: request.artifact_generation.clone(),
+            round_number: round,
+            record_key: participant.record_key.clone(),
+            artifact_generation,
         };
         let mut recorded = std::collections::BTreeMap::new();
         let mut prepared = vec![];
@@ -186,30 +223,10 @@ impl AtlasAppService {
                         .map_err(AppServiceError::invalid_request)?,
                     ),
                 ),
-                PersistentDamageInput::Prepared { request_id } => {
-                    let receipt = super::persistent_preparation::receipt_for(
-                        self,
-                        &snapshot.encounter.encounter_key,
+                PersistentDamageInput::Prepared { draft } => {
+                    let (outcome, hardness) = super::persistent_preparation::draft_damage(
+                        draft,
                         &preparation_context,
-                        round,
-                        group.episode_id,
-                        request_id,
-                        atlas_local_state::EncounterBoundaryKind::PreparedPersistentDamage,
-                    )?;
-                    let (saved, _, _) =
-                        super::persistent_preparation::prepared(receipt, &preparation_context)?;
-                    let outcome = saved
-                        .into_iter()
-                        .find(|saved| {
-                            saved.episode_id == group.episode_id
-                                && saved.source_condition_id == source.condition_id
-                                && !saved.table_resolved
-                        })
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request("Prepared damage source changed")
-                        })?;
-                    let (outcome, hardness) = super::persistent_preparation::revalue(
-                        outcome,
                         group,
                         record.as_ref(),
                         participant,
@@ -287,11 +304,14 @@ impl AtlasAppService {
                 return damage_view(receipt);
             }
             let mut recovery_ids = std::collections::BTreeSet::new();
+            let mut recovery_outcomes = Vec::new();
             for input in &request.recoveries {
-                let episode_id = match input {
-                    atlas_app_model::PersistentRecoveryInput::Clear { episode_id }
-                    | atlas_app_model::PersistentRecoveryInput::Prepared { episode_id, .. } => {
-                        episode_id
+                let (episode_id, clearing, draft) = match input {
+                    PersistentRecoveryInput::Clear { episode_id, draft } => {
+                        (episode_id, true, draft.as_ref())
+                    }
+                    PersistentRecoveryInput::Prepared { episode_id, draft } => {
+                        (episode_id, false, Some(draft))
                     }
                 };
                 if !recovery_ids.insert(episode_id.as_str()) {
@@ -299,62 +319,17 @@ impl AtlasAppService {
                         "Choose one recovery outcome per damage type",
                     ));
                 }
-                if !groups.iter().any(|group| group.episode_id == episode_id) {
-                    return Err(AppServiceError::invalid_request("Recovery source changed"));
-                }
-            }
-            let mut recovery_outcomes = Vec::new();
-            for group in &groups {
-                let input = request.recoveries.iter().find(|input| match input {
-                    atlas_app_model::PersistentRecoveryInput::Clear { episode_id }
-                    | atlas_app_model::PersistentRecoveryInput::Prepared { episode_id, .. } => {
-                        episode_id == group.episode_id
-                    }
-                });
-                // Preparation does not advance the encounter revision. Its claims
-                // and results must be read under the final write's lock.
-                let receipt = store.boundary_receipt(
-                    &snapshot.encounter.encounter_key,
-                    &super::persistent_damage::boundary_claim(
-                        participant,
-                        round,
-                        atlas_local_state::EncounterBoundaryKind::PreparedPersistentRecovery,
-                        &super::persistent_preparation::scope(
-                            request.boundary_key.as_deref(),
-                            group.episode_id,
-                        ),
-                    ),
-                )?;
-                let Some(input) = input else {
-                    if receipt.is_some() {
-                        return Err(AppServiceError::invalid_request(
-                            "Review the prepared recovery before applying damage",
-                        ));
-                    }
-                    continue;
-                };
-                let clearing = matches!(
-                    input,
-                    atlas_app_model::PersistentRecoveryInput::Clear { .. }
-                );
-                if let atlas_app_model::PersistentRecoveryInput::Prepared { request_id, .. } = input
-                    && receipt
-                        .as_ref()
-                        .is_none_or(|receipt| receipt.request_id != *request_id)
-                {
-                    return Err(AppServiceError::invalid_request(
-                        "Prepared result is unavailable; review this damage type",
-                    ));
-                }
-                let result = if let Some(receipt) = receipt {
-                    let (_, _, recovery) =
-                        super::persistent_preparation::prepared(receipt, &preparation_context)?;
-                    let recovery = recovery
-                        .filter(|recovery| recovery.episode_id == group.episode_id)
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request("Recovery result is unavailable")
-                        })?;
-                    (Some(recovery.dc), recovery.roll, recovery.success)
+                let group = groups
+                    .iter()
+                    .find(|group| group.episode_id == episode_id)
+                    .ok_or_else(|| AppServiceError::invalid_request("Recovery source changed"))?;
+                let result = if let Some(draft) = draft {
+                    let success = super::persistent_preparation::validate_recovery(
+                        draft,
+                        &preparation_context,
+                        group,
+                    )?;
+                    (Some(draft.dc), draft.roll.clone(), success)
                 } else {
                     (None, None, true)
                 };

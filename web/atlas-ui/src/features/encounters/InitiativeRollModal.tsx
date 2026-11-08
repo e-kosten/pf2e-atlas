@@ -4,16 +4,13 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterModal } from "./EncounterModal";
 import { RollModeControl } from "../../shared/dice/RollModeControl";
 import { useDicePopoverFocus } from "../../shared/dice/useDicePopoverFocus";
-import {
-  isDefiniteRollRejection,
-  waitForRollReveal,
-} from "../../shared/dice/rollLifecycle";
+import { waitForRollReveal } from "../../shared/dice/rollLifecycle";
+import { isUnconfirmedMutation } from "../../api/apiError";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Checkbox, Popover, Select, Spin } from "antd";
 import { Dice5 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { AtlasApiError, getInitiativeOptions } from "../../api/atlasApi";
-import { AtlasCompatibilityError } from "../../api/compatibility";
 import type {
   EncounterParticipantView,
   InitiativeOptionsView,
@@ -261,13 +258,14 @@ function InitiativeForm({
   const [receipt, setReceipt] = useState<InitiativeRollView | null>(null);
   const [error, setError] = useState<string>();
   const [conflict, setConflict] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const valid =
     draft.some((p) => p.selected) &&
     draft
       .filter((p) => p.selected)
       .every((p) => p.statistic !== "manual" || p.modifier_override !== null);
-  const locked = disabled || pending || !!attempt;
+  const locked = disabled || pending || refreshFailed;
   async function reload() {
     const latest = await refresh();
     setRefreshFailed(!latest);
@@ -280,11 +278,12 @@ function InitiativeForm({
       );
   }
   async function submit() {
-    if (busy.current || disabled || !valid) return;
+    if (busy.current || disabled || refreshFailed || !valid) return;
     busy.current = true;
     setPending(true);
     setError(undefined);
-    const request = attempt ?? {
+    setUncertain(false);
+    const request = {
       request_id: crypto.randomUUID(),
       artifact_generation: options.artifact_generation,
       expected_revision: options.expected_revision,
@@ -310,7 +309,6 @@ function InitiativeForm({
     try {
       const [result] = await Promise.all([onRoll(request), waitForRollReveal()]);
       setReceipt(result);
-      setAttempt(null);
       await reload();
     } catch (cause) {
       setConflict(
@@ -319,8 +317,7 @@ function InitiativeForm({
             cause.appError?.code === "artifact_generation_changed" ||
             cause.appError?.code === "encounter_participant_conflict"),
       );
-      if (cause instanceof AtlasCompatibilityError || isDefiniteRollRejection(cause)) {
-        setAttempt(null);
+      if (!isUnconfirmedMutation(cause)) {
         setError(
           userErrorMessage(
             cause,
@@ -328,9 +325,15 @@ function InitiativeForm({
           ),
         );
       } else {
-        setError("Couldn’t confirm the roll. Retry to recover it.");
+        setUncertain(true);
+        setReceipt(null);
+        setError(
+          "Couldn’t confirm the roll. Review current initiative before rolling again.",
+        );
+        await reload();
       }
     } finally {
+      setAttempt(null);
       busy.current = false;
       setPending(false);
     }
@@ -350,7 +353,7 @@ function InitiativeForm({
           disabled={!valid || disabled || pending || refreshFailed}
           onClick={() => void submit()}
         >
-          {error && attempt ? "Retry" : receipt ? "Reroll" : "Roll"}
+          {receipt ? "Reroll" : "Roll"}
         </Button>
       )}
     </div>
@@ -502,7 +505,11 @@ function InitiativeForm({
       {refreshFailed && (
         <Alert
           type="warning"
-          title="Saved. Refresh before rolling again."
+          title={
+            uncertain
+              ? "Current initiative could not load."
+              : "Saved. Refresh before rolling again."
+          }
           action={<Button onClick={() => void reload()}>Refresh</Button>}
         />
       )}
