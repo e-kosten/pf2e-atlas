@@ -91,7 +91,7 @@ fn states() -> Connection {
     );
     for (id, value) in [(1, "fire"), (7, "fire"), (7, "water"), (8, "fire")] {
         db.execute(
-            "INSERT INTO record_traits VALUES(?,?)",
+            "INSERT INTO trait_members SELECT ?2,key,'[]',1,NULL FROM records WHERE record_id=?1",
             rusqlite::params![id, value],
         )
         .unwrap();
@@ -274,7 +274,7 @@ fn production_membership_exposes_existing_scalar_and_trait_indexes() {
     for (expression, index) in [
         ("defenses.ac>=25", "actor_ac"),
         ("level>=3", "records_level"),
-        ("'fire' in traits", "record_traits_value"),
+        ("'fire' in traits", "trait_members_root_value"),
     ] {
         let steps = plan(&db, expression);
         assert!(
@@ -316,7 +316,11 @@ fn conjunction_mixes_indexed_leaves_with_general_same_child_exists() {
                 ("id", id.into()),
                 ("record_id", record.into()),
                 ("original_index", (id - 10).into()),
-                ("owner_selector_json", text("{}")),
+                (
+                    "owner_selector_json",
+                    text(&format!(r#"{{"fixture":{id}}}"#)),
+                ),
+                ("traits_state", text("value")),
                 ("source_type_state", text("value")),
                 ("source_type", text("spell")),
             ],
@@ -337,7 +341,23 @@ fn conjunction_mixes_indexed_leaves_with_general_same_child_exists() {
             rusqlite::params![id, tradition],
         )
         .unwrap();
+        if tradition == "arcane" {
+            db.execute(
+                "INSERT INTO trait_members
+                 SELECT 'fire',r.key,json_array(json(i.owner_selector_json)),1,NULL
+                 FROM actor_items i JOIN records r USING(record_id) WHERE i.id=?",
+                [id],
+            )
+            .unwrap();
+        }
     }
+    // A root with a high-rank spell and a separate fire spell does not match.
+    let query = parse_where(
+        "defenses.ac>=25 && embedded.spells.exists(s,s.spell.rank>=3 && 'fire' in s.traits)",
+    )
+    .unwrap();
+    assert_eq!(eligible_result(&db, &query, None), vec![2]);
+    assert_eq!(general_result(&db, &query), vec![2]);
     let expression = "defenses.ac>=25 && embedded.spells.exists(s,s.spell.rank>=3 && 'arcane' in s.spell.traditions)";
     let query = parse_where(expression).unwrap();
     assert_eq!(eligible_result(&db, &query, None), vec![2]);

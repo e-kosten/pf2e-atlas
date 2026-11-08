@@ -193,14 +193,6 @@ pub(crate) fn root_rows(
     r.push("name_lookup_key", lookup);
     common_fields(q, &mut r)?;
     rows.push(r);
-    sets(
-        q.traits(),
-        &mut rows,
-        "record_traits",
-        "record_id",
-        Root(record_id),
-        |v| Ok(v.clone()),
-    )?;
     match q.source {
         SourceNodeView::Item(i) => item_rows(i, Some(record_id), None, ids, &mut rows)?,
         SourceNodeView::Actor(_) => {
@@ -285,14 +277,6 @@ fn child_rows(
     text(q.source.id().map(String::as_str))?.field(&mut r, "authored_id");
     common_fields(q, &mut r)?;
     rows.push(r);
-    sets(
-        q.traits(),
-        rows,
-        "actor_item_traits",
-        "item_id",
-        Local(id),
-        |v| Ok(v.clone()),
-    )?;
     item_rows(item, None, Some(id), ids, rows)
 }
 fn sets<T>(

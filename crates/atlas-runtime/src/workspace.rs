@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 35;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 36;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -245,6 +245,16 @@ const MIGRATIONS: &[Migration] = &[
         name: "encounter-command-receipts",
         sql: atlas_local_state::ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL,
         backfill: None,
+    },
+    Migration {
+        version: 36,
+        name: "shared-trait-membership",
+        sql: atlas_index::TRAIT_MEMBERS_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "shared-trait-membership/v1",
+            apply: atlas_index::backfill_trait_members,
+        }),
     },
 ];
 

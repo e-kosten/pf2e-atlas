@@ -144,6 +144,7 @@ pub(crate) fn records(
             }
             row.insert(c)?;
         }
+        filter_traits(c, id, &source.record, input.context.audience)?;
         c.execute(
             "INSERT INTO record_bodies(record_id,codec_version,encoding,snapshot) VALUES(?,?,?,?)",
             params![
@@ -233,6 +234,34 @@ pub(crate) fn records(
         row.insert(c)?;
     }
     Ok(products)
+}
+
+pub(crate) fn filter_traits(
+    c: &Connection,
+    id: i64,
+    record: &atlas_record::source_record::SourceBackedRecord,
+    audience: atlas_record::source_content::ContentAudience,
+) -> Result<(), IndexError> {
+    // This fixture writes the released split membership schema.
+    for member in atlas_record::source_record::trait_record_memberships(record, audience) {
+        match member.owners.as_slice() {
+            [] => {
+                c.execute(
+                    "INSERT OR IGNORE INTO record_traits VALUES(?,?)",
+                    params![id, member.identifier],
+                )?;
+            }
+            [owner] if owner.collection == "/items" => {
+                c.execute(
+                    "INSERT OR IGNORE INTO actor_item_traits
+                         SELECT id,? FROM actor_items WHERE record_id=? AND owner_selector_json=?",
+                    params![member.identifier, id, serde_json::to_string(owner)?],
+                )?;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn search_units(

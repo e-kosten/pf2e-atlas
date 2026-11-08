@@ -169,6 +169,16 @@ impl RootRelation {
 }
 
 fn root_set_relation(descriptor: &Descriptor) -> Option<RootRelation> {
+    if matches!(descriptor.binding, Binding::Traits) {
+        return Some(RootRelation {
+            from: "trait_members t JOIN records p ON p.key=t.record_key AND t.owners_json='[]'"
+                .into(),
+            record: "p.record_id".into(),
+            owner: "p.record_id".into(),
+            value: "t.value".into(),
+            state: "p.traits_state".into(),
+        });
+    }
     let Binding::Set {
         parent,
         table,
@@ -194,6 +204,18 @@ pub(crate) fn grouped_root_set_counts(
     eligible: &str,
     values_parameter: &str,
 ) -> Option<String> {
+    if matches!(descriptor.binding, Binding::Traits) {
+        // The eligible query already projects unique record keys with known traits.
+        // Start from the requested values in the root trait index.
+        return Some(format!(
+            "WITH eligible AS MATERIALIZED ({eligible})
+             SELECT t.value, COUNT(*)
+             FROM trait_members t CROSS JOIN eligible e ON e.key=t.record_key
+             WHERE t.owners_json='[]'
+               AND t.value IN (SELECT value FROM json_each({values_parameter}))
+             GROUP BY t.value"
+        ));
+    }
     let relation = root_set_relation(descriptor)?;
     let guard = applicable(descriptor, format!("{}='value'", relation.state));
     Some(format!(

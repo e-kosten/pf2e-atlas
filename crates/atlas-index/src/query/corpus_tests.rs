@@ -120,7 +120,12 @@ fn authored_node<'a>(row: &ProjectionRow, rows: &[ProjectionRow], raw: &'a Json)
         _ => raw,
     }
 }
-fn oracle(rows: &[ProjectionRow], raw: &Json, counts: &mut [usize; 2]) {
+fn oracle(
+    rows: &[ProjectionRow],
+    traits: &[atlas_record::source_record::SourceTraitMembership],
+    raw: &Json,
+    counts: &mut [usize; 2],
+) {
     for row in rows {
         let raw = authored_node(row, rows, raw);
         let fields: &[(&str, &str)] = match row.table {
@@ -229,18 +234,18 @@ fn oracle(rows: &[ProjectionRow], raw: &Json, counts: &mut [usize; 2]) {
                 counts,
             );
             if value(row, "traits_state") == &Value::Text("value".into()) {
-                let (table, key, id) = if row.table == "records" {
-                    ("record_traits", "record_id", value(row, "record_id"))
+                let owners = if row.table == "records" {
+                    vec![]
                 } else {
-                    ("actor_item_traits", "item_id", value(row, "id"))
+                    let Value::Text(owner) = value(row, "owner_selector_json") else {
+                        panic!("embedded owner selector must be text")
+                    };
+                    vec![serde_json::from_str(owner).unwrap()]
                 };
-                let actual = rows
+                let actual = traits
                     .iter()
-                    .filter(|r| r.table == table && value(r, key) == id)
-                    .map(|r| match value(r, "value") {
-                        Value::Text(s) => s.clone(),
-                        _ => panic!("trait"),
-                    })
+                    .filter(|member| member.owners == owners)
+                    .map(|member| member.identifier.clone())
                     .collect::<std::collections::BTreeSet<_>>();
                 let expected = raw["system"]["traits"]["value"]
                     .as_array()
@@ -290,6 +295,7 @@ fn pinned_corpus_item_and_common_projection_oracle() {
     db.execute_batch(crate::REFERENCE_ENTRIES_SCHEMA_SQL)
         .unwrap();
     crate::backfill_reference_entries(&db).unwrap();
+    db.execute_batch(crate::TRAIT_MEMBERS_SCHEMA_SQL).unwrap();
     let mut families = BTreeMap::new();
     let mut counts = [0; 2];
     let mut roots = 0;
@@ -344,7 +350,15 @@ fn pinned_corpus_item_and_common_projection_oracle() {
             let rows = root_rows(&input, label, roots as i64, &mut ids)
                 .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             children += rows.iter().filter(|r| r.table == "actor_items").count();
-            oracle(&rows, &raw, &mut counts);
+            let traits = atlas_record::source_record::trait_record_memberships(
+                &input.record,
+                atlas_record::source_content::ContentAudience {
+                    include_gm: true,
+                    include_owner: true,
+                    implicit_check_dc: atlas_record::source_content::ContentVisibilityRule::All,
+                },
+            );
+            oracle(&rows, &traits, &raw, &mut counts);
             // Independently execute every descriptor against one real checked
             // root per family, including the source-authoritative child rows.
             let family = format!("{kind}:{}", raw["type"].as_str().unwrap_or(""));

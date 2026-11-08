@@ -81,9 +81,24 @@ pub(crate) fn eligible_sql(
     query: &ValidatedQuery,
     keys: Option<&[RecordKey]>,
 ) -> Result<(String, Vec<Value>), IndexError> {
+    eligible_record_field_sql(query, keys, "record_id")
+}
+
+pub(crate) fn eligible_record_keys_sql(
+    query: &ValidatedQuery,
+    keys: Option<&[RecordKey]>,
+) -> Result<(String, Vec<Value>), IndexError> {
+    eligible_record_field_sql(query, keys, "key")
+}
+
+fn eligible_record_field_sql(
+    query: &ValidatedQuery,
+    keys: Option<&[RecordKey]>,
+    field: &'static str,
+) -> Result<(String, Vec<Value>), IndexError> {
     let (expression, mut params) = compile_root_membership(query)?;
     let mut sql = format!(
-        "SELECT r.record_id FROM records r WHERE r.document_kind<>'Macro' AND ({expression})"
+        "SELECT r.{field} FROM records r WHERE r.document_kind<>'Macro' AND ({expression})"
     );
     if let Some(keys) = keys {
         if keys.is_empty() {

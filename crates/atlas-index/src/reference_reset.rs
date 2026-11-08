@@ -29,7 +29,7 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM core_semantic_locations;
          DELETE FROM core_roots;
          DELETE FROM trait_references;
-         DELETE FROM trait_memberships;
+         DELETE FROM trait_members;
          DELETE FROM reference_entries;
          DELETE FROM reference_notices;
          DELETE FROM owned_ability_evidence;
@@ -50,7 +50,6 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM prepared_content;
          DELETE FROM record_bodies;
          DELETE FROM projection_allocations;
-         DELETE FROM actor_item_traits;
          DELETE FROM actor_items;
          DELETE FROM actor_iwr_entries;
          DELETE FROM actor_languages;
@@ -72,7 +71,6 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM deity_domains;
          DELETE FROM deity_fonts;
          DELETE FROM deity_projection;
-         DELETE FROM record_traits;
          DELETE FROM records;
          DELETE FROM packs;
          DELETE FROM query_field_catalog;

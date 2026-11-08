@@ -139,24 +139,17 @@ pub(crate) fn bound_field(d: &Descriptor, scope: Option<&str>) -> BoundField {
                 state: format!("c.{column}_state"),
                 owner_id: "c.id".to_owned(),
             },
+            Binding::Traits => binding(
+                &Binding::Common {
+                    column: "traits",
+                    known: false,
+                },
+                scope,
+            ),
             Binding::Cantrip => BoundField {
                 value: format!(
-                    "EXISTS(SELECT 1 FROM {} t WHERE t.{}={} AND t.value='cantrip')",
-                    if scope.is_some() {
-                        "actor_item_traits"
-                    } else {
-                        "record_traits"
-                    },
-                    if scope.is_some() {
-                        "item_id"
-                    } else {
-                        "record_id"
-                    },
-                    if scope.is_some() {
-                        "c.id"
-                    } else {
-                        "r.record_id"
-                    }
+                    "EXISTS(SELECT 1 FROM {} AND t.value='cantrip')",
+                    trait_relation("t", scope)
                 ),
                 state: format!("{a}.traits_state"),
                 owner_id: if scope.is_some() {
@@ -241,6 +234,9 @@ pub(crate) fn member_relation(
             "actor_items {alias} WHERE {alias}.record_id=r.record_id AND ({alias}.source_type_state!='value' OR {alias}.source_type IN ({types}))"
         ));
     }
+    if matches!(d.binding, Binding::Traits) {
+        return Ok(trait_relation(alias, scope));
+    }
     let (parent, table, owner, kind) = match &d.binding {
         Binding::Set {
             parent,
@@ -270,6 +266,14 @@ pub(crate) fn member_relation(
         kind.map(|k| format!(" AND {alias}.kind='{k}'"))
             .unwrap_or_default()
     ))
+}
+fn trait_relation(alias: &str, scope: Option<&str>) -> String {
+    let owners = if scope.is_some() {
+        "json_array(json(c.owner_selector_json))"
+    } else {
+        "'[]'"
+    };
+    format!("trait_members {alias} WHERE {alias}.record_key=r.key AND {alias}.owners_json={owners}")
 }
 pub(super) fn comparison_operator(op: QueryCompare) -> &'static str {
     match op {

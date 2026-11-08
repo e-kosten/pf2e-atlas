@@ -12,21 +12,27 @@ use crate::source_content::ContentAudience;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceTraitMembership {
-    pub trait_key: TraitKey,
+    pub identifier: String,
+    pub lookup_member: bool,
     pub owners: Vec<OwnedContentLocator>,
     /// Exact authored name of this source; never inherited from an ancestor.
     pub source_label: Option<String>,
 }
 
-/// Visit every supported source owner, including unnamed embedded documents.
-/// Name visibility admits the identity surface independently of name availability.
-/// Unknown authored identifiers retain their exact identity and owner.
+/// Share authored traits between root/immediate-item filters and lookup.
+/// Lookup admits deeper owners and applies its own visibility and key rules.
 pub fn trait_record_memberships(
     record: &SourceBackedRecord,
     audience: ContentAudience,
 ) -> Vec<SourceTraitMembership> {
     let mut memberships = Vec::new();
+    let has_immediate_items = super::SourceNodeView::from(record.source())
+        .actor_items()
+        .value()
+        .is_some();
     visit_source_nodes(record.source(), |owners, node| {
+        let filter_owner = owners.is_empty()
+            || (has_immediate_items && matches!(owners, [owner] if owner.collection == "/items"));
         let visible = select_content(node)
             .into_iter()
             .find(|selected| selected.role == SourceContentRole::Name)
@@ -36,9 +42,6 @@ pub fn trait_record_memberships(
                     .value()
                     .is_some_and(|rule| audience.permits(rule))
             });
-        if !visible {
-            return;
-        }
         let query = SourceQueryView {
             source: node,
             pack_id: record.key().pack().as_str(),
@@ -46,11 +49,15 @@ pub fn trait_record_memberships(
         };
         if let Some(traits) = query.traits().value() {
             for identifier in traits {
-                if let Ok(trait_key) = TraitKey::new(identifier) {
+                let lookup_member = visible && TraitKey::new(identifier).is_ok();
+                if filter_owner || lookup_member {
                     memberships.push(SourceTraitMembership {
-                        trait_key,
+                        identifier: identifier.clone(),
                         owners: owners.to_vec(),
-                        source_label: node.name().value().cloned(),
+                        lookup_member,
+                        source_label: lookup_member
+                            .then(|| node.name().value().cloned())
+                            .flatten(),
                     });
                 }
             }
@@ -101,15 +108,12 @@ mod tests {
             );
             let memberships = trait_record_memberships(&source, audience());
             assert_eq!(memberships.len(), 3);
-            let root = memberships
-                .iter()
-                .find(|m| m.trait_key.identifier() == "wand")
-                .unwrap();
+            let root = memberships.iter().find(|m| m.identifier == "wand").unwrap();
             assert!(root.owners.is_empty());
             for identifier in ["move", "custom-unknown"] {
                 let embedded = memberships
                     .iter()
-                    .find(|m| m.trait_key.identifier() == identifier)
+                    .find(|m| m.identifier == identifier)
                     .unwrap();
                 assert_eq!(
                     embedded.owners,
@@ -121,7 +125,7 @@ mod tests {
             assert!(
                 !memberships
                     .iter()
-                    .any(|m| m.trait_key.identifier() == "move" && m.owners.is_empty())
+                    .any(|m| m.identifier == "move" && m.owners.is_empty())
             );
         }
     }
@@ -139,12 +143,12 @@ mod tests {
         assert_eq!(memberships.len(), 5);
         let named = memberships
             .iter()
-            .find(|m| m.trait_key.identifier() == "magical")
+            .find(|m| m.identifier == "magical")
             .unwrap();
         assert_eq!(named.source_label.as_deref(), Some("Fitted part"));
         let unnamed = memberships
             .iter()
-            .find(|m| m.trait_key.identifier() == "custom-nameless")
+            .find(|m| m.identifier == "custom-nameless")
             .unwrap();
         assert_eq!(unnamed.source_label, None);
         assert_eq!(
@@ -160,7 +164,7 @@ mod tests {
         for (identifier, index) in [("first", 1), ("second", 2)] {
             let membership = memberships
                 .iter()
-                .find(|m| m.trait_key.identifier() == identifier)
+                .find(|m| m.identifier == identifier)
                 .unwrap();
             assert_eq!(
                 membership.owners,

@@ -140,6 +140,15 @@ source/native recipes and historical migration callbacks retain their owners.
 The glossary workspace migration moves retained trait definitions into the single
 `reference_entries` owner. It preserves the existing trait references, membership,
 numerical bytes, identities and saved state without acquiring source or models.
+Workspace migration 36 combines root, immediate Actor Item and lookup memberships
+in `trait_members`. The row key is the exact authored identifier, stable record key
+and canonical owner path. Root filters and summaries use the empty path. Embedded
+filters correlate with the exact immediate item path while lookup can return deeper
+and unnamed owners. Lookup eligibility applies visibility and trait-key admission
+without changing the authored filter values or their collection states. The offline
+migration checks all three prior result sets before removing the old tables and
+refreshes only the affected query and trait attestations.
+
 The projection upgrade backfills authored sense acuity and range states and armor
 group from compatible retained snapshots. Retired or otherwise deferred source
 preparation follows its existing setup requirement. Explicit setup prepares new
@@ -185,7 +194,7 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | --- | --- |
 | Identity and provenance | `record_identity`, `packs`, `records`: canonical keys, compact source paths/hashes, lookup keys and body-free common summaries. |
 | Checked source | `record_bodies`: one gzip-compressed, versioned checked DTO snapshot per root. Invalid members retained by admission remain in that snapshot. No duplicate complete original JSON payload is stored. |
-| Query accelerators | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
+| Query accelerators | `trait_members`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
 | Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
 | Contextual definitions | `reference_entries`: one canonical vocabulary/source-rule owner with typed key, readable label, finite availability, checked prepared body or record pointer, source/locale/publication evidence, separate body and label grants. Record pointers contain no copied body or vector. `reference_notices` retains deduplicated required notice text and hashes. |

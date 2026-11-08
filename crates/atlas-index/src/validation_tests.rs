@@ -141,7 +141,7 @@ fn trait_membership_comparison_keeps_exact_owner_serialization() {
     assert!(
         connection
             .execute(
-                "UPDATE trait_memberships SET owners_json='[ ]' WHERE owners_json='[]'",
+                "UPDATE trait_members SET owners_json='[ ]' WHERE owners_json='[]'",
                 [],
             )
             .unwrap()

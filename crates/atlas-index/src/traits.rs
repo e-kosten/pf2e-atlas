@@ -97,27 +97,35 @@ pub(crate) fn write_record_trait_relations(
     evidence: TraitEvidence,
 ) -> Result<(), IndexError> {
     let key = record.to_string();
-    let mut memberships=c.prepare("SELECT trait_key,record_key,owners_json,source_label FROM trait_memberships WHERE record_key=?")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,Option<String>>(3)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
-    for row in evidence.memberships {
-        let prior = memberships
-            .iter()
-            .find(|old| old.0 == row.0 && old.1 == row.1 && old.2 == row.2)
-            .cloned();
-        if let Some(old) = &prior {
-            memberships.remove(old);
-        }
-        if prior.as_ref() != Some(&row) {
-            c.execute("INSERT INTO trait_memberships VALUES(?,?,?,?) ON CONFLICT(trait_key,record_key,owners_json) DO UPDATE SET source_label=excluded.source_label WHERE source_label IS NOT excluded.source_label",params![row.0,row.1,row.2,row.3])?;
-        }
-    }
-    for row in memberships {
+    let current = c
+        .prepare_cached("SELECT value,record_key,owners_json,lookup_member,source_label FROM trait_members WHERE record_key=?")?
+        .query_map([&key], read_member)?
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    for (value, record, owners, lookup_member, label) in evidence.memberships.difference(&current) {
         c.execute(
-            "DELETE FROM trait_memberships WHERE trait_key=? AND record_key=? AND owners_json=?",
-            params![row.0, row.1, row.2],
+            "INSERT INTO trait_members VALUES(?,?,?,?,?)
+             ON CONFLICT(value,record_key,owners_json) DO UPDATE SET
+                 lookup_member=excluded.lookup_member,source_label=excluded.source_label",
+            params![value, record, owners, lookup_member, label],
         )?;
     }
-    let mut references=c.prepare("SELECT trait_key,record_key,evidence FROM trait_references WHERE record_key=? AND json_extract(evidence,'$.direction')='incoming'")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
-    for row in evidence.references {
+    for (value, record, owners, lookup_member, label) in current.difference(&evidence.memberships) {
+        c.execute(
+            "DELETE FROM trait_members WHERE value=? AND record_key=? AND owners_json=?
+             AND lookup_member=? AND source_label IS ?",
+            params![value, record, owners, lookup_member, label],
+        )?;
+    }
+    write_record_trait_references(c, &key, evidence.references)
+}
+
+fn write_record_trait_references(
+    c: &Connection,
+    key: &str,
+    desired: Vec<(String, String, String)>,
+) -> Result<(), IndexError> {
+    let mut references=c.prepare("SELECT trait_key,record_key,evidence FROM trait_references WHERE record_key=? AND json_extract(evidence,'$.direction')='incoming'")?.query_map([key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
+    for row in desired {
         if !references.remove(&row) {
             c.execute(
                 "INSERT INTO trait_references VALUES(?,?,?)",
@@ -187,7 +195,7 @@ pub(crate) fn write_historical_traits(
     for source in &input.records {
         let mut evidence = TraitEvidence::default();
         evidence.add_record(&source.record, input.context.audience)?;
-        write_record_trait_relations(c, source.record.key(), evidence)?;
+        write_historical_record_traits(c, source.record.key(), evidence)?;
     }
     c.execute_batch("DELETE FROM trait_seed_chunks; DELETE FROM trait_vectors; DELETE FROM trait_native_values;")?;
     for seed in &input.trait_vectors {
@@ -218,6 +226,23 @@ pub(crate) fn write_historical_traits(
     Ok(())
 }
 
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn write_historical_record_traits(
+    c: &Connection,
+    record_key: &RecordKey,
+    evidence: TraitEvidence,
+) -> Result<(), IndexError> {
+    for (value, record, owners, admitted, label) in evidence.memberships {
+        if admitted {
+            c.execute(
+                "INSERT OR REPLACE INTO trait_memberships VALUES(?,?,?,?)",
+                params![format!("trait:{value}"), record, owners, label],
+            )?;
+        }
+    }
+    write_record_trait_references(c, &record_key.to_string(), evidence.references)
+}
+
 impl SqliteIndexReader {
     pub fn trait_definition(&self, key: &TraitKey) -> Result<Option<TraitDefinition>, IndexError> {
         crate::references::read_entry(
@@ -237,17 +262,17 @@ impl SqliteIndexReader {
         if limit == 0 || limit > 100 {
             return Err(IndexError::Invalid("trait page size must be 1..100".into()));
         }
-        let sql = "SELECT record_key,owners_json AS owners,source_label FROM trait_memberships WHERE trait_key=?1";
+        let sql = "SELECT record_key,owners_json AS owners,source_label FROM trait_members WHERE value=?1 AND lookup_member=1";
         let total = self.native()?.query_row(
             &format!("SELECT count(*) FROM ({sql})"),
-            [key.to_string()],
+            [key.identifier()],
             |r| r.get(0),
         )?;
         let mut stmt = self.native()?.prepare(&format!(
             "SELECT record_key,owners,source_label FROM ({sql}) ORDER BY record_key,owners LIMIT ?2 OFFSET ?3"
         ))?;
         let rows = stmt
-            .query_map(params![key.to_string(), limit, offset], |r| {
+            .query_map(params![key.identifier(), limit, offset], |r| {
                 Ok((
                     r.get::<_, String>(0)?,
                     r.get::<_, String>(1)?,
@@ -452,9 +477,21 @@ fn validate_definition(definition: &TraitDefinition) -> Result<(), IndexError> {
     }
     Ok(())
 }
+type Member = (String, String, String, bool, Option<String>);
+
+fn read_member(row: &rusqlite::Row<'_>) -> rusqlite::Result<Member> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+    ))
+}
+
 #[derive(Default, Serialize)]
 pub(crate) struct TraitEvidence {
-    memberships: BTreeSet<(String, String, String, Option<String>)>,
+    memberships: BTreeSet<Member>,
     references: Vec<(String, String, String)>,
 }
 
@@ -529,9 +566,10 @@ impl TraitEvidence {
     ) -> Result<(), IndexError> {
         for membership in atlas_record::source_record::trait_record_memberships(record, audience) {
             self.memberships.insert((
-                membership.trait_key.to_string(),
+                membership.identifier,
                 record.key().to_string(),
                 serde_json::to_string(&membership.owners)?,
+                membership.lookup_member,
                 if membership.owners.is_empty() {
                     None
                 } else {
@@ -589,16 +627,11 @@ impl TraitEvidence {
             ));
         }
         let actual = c
-            .prepare("SELECT trait_key,record_key,owners_json,source_label FROM trait_memberships")?
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                    r.get::<_, Option<String>>(3)?,
-                ))
-            })?
-            .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
+            .prepare(
+                "SELECT value,record_key,owners_json,lookup_member,source_label FROM trait_members",
+            )?
+            .query_map([], read_member)?
+            .collect::<Result<BTreeSet<_>, _>>()?;
         if actual != self.memberships {
             return Err(IndexError::Invalid(
                 "trait memberships differ from checked source".into(),
@@ -703,7 +736,7 @@ mod tests {
         let (_directory, path) = crate::foundation_tests::build(&initial);
         let c = Connection::open(&path).unwrap();
         c.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Saved trait owner','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actors:aaaaaaaaaaaaaaaa',0,'Keep removed-owner note','Dragon Guard','now','now'); CREATE TABLE live_trait_write_audit(component TEXT NOT NULL);").unwrap();
-        for table in ["trait_memberships", "trait_references"] {
+        for table in ["trait_members", "trait_references"] {
             for (event, row) in [("INSERT", "new"), ("UPDATE", "new"), ("DELETE", "old")] {
                 c.execute_batch(&format!("CREATE TRIGGER live_{table}_{event} AFTER {event} ON {table} WHEN {row}.record_key='items:cccccccccccccccc' BEGIN INSERT INTO live_trait_write_audit VALUES('{table}'); END;")).unwrap();
             }
@@ -721,7 +754,7 @@ mod tests {
         assert_eq!(c.query_row("SELECT count(*) FROM trait_references WHERE record_key IN ('actors:aaaaaaaaaaaaaaaa','items:bbbbbbbbbbbbbbbb')",[],|r|r.get::<_,usize>(0)).unwrap(),2,"fixture needs outgoing and incoming removed-root edges");
         let reduced = input(false);
         crate::test_support::publish_input(&path, &reduced).unwrap();
-        for table in ["trait_memberships", "trait_references"] {
+        for table in ["trait_members", "trait_references"] {
             assert_eq!(c.query_row(&format!("SELECT count(*) FROM {table} WHERE record_key IN ('actors:aaaaaaaaaaaaaaaa','items:bbbbbbbbbbbbbbbb')"),[],|r|r.get::<_,usize>(0)).unwrap(),0,"{table}");
         }
         assert_eq!(
@@ -744,7 +777,7 @@ mod tests {
         );
         assert_eq!(
             c.query_row(
-                "SELECT count(*) FROM trait_memberships WHERE record_key='items:cccccccccccccccc'",
+                "SELECT count(*) FROM trait_members WHERE record_key='items:cccccccccccccccc'",
                 [],
                 |r| r.get::<_, usize>(0)
             )
@@ -805,7 +838,7 @@ mod tests {
             "live associations were rewritten"
         );
         for sql in [
-            "SELECT trait_key,record_key,owners_json,source_label FROM trait_memberships WHERE record_key=?",
+            "SELECT value,record_key,owners_json,source_label FROM trait_members WHERE record_key=?",
             "SELECT trait_key,record_key,evidence FROM trait_references WHERE record_key=? AND json_extract(evidence,'$.direction')='incoming'",
         ] {
             let plan = c

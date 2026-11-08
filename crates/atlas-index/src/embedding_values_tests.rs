@@ -477,12 +477,15 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
             &source.record,
             input.context.audience,
         ) {
+            if !membership.lookup_member {
+                continue;
+            }
             write
                 .connection()
                 .execute(
                     "INSERT INTO trait_memberships VALUES(?,?,?,?)",
                     rusqlite::params![
-                        membership.trait_key.to_string(),
+                        format!("trait:{}", membership.identifier),
                         source.record.key().to_string(),
                         serde_json::to_string(&membership.owners).unwrap(),
                         if membership.owners.is_empty() {

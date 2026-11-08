@@ -286,10 +286,8 @@ fn checked_record_row(row: &rusqlite::Row<'_>) -> Result<SourceBackedRecord, Ind
 }
 const PROJECTION_TABLES: &[&str] = &[
     "records",
-    "record_traits",
     "actor_projection",
     "actor_items",
-    "actor_item_traits",
     "actor_iwr_entries",
     "actor_languages",
     "actor_speeds",
