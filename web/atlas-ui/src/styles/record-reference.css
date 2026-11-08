@@ -34,6 +34,11 @@
   justify-self: start;
   margin-inline: 0;
 }
+.prose {
+  margin: 0 0 var(--reading-paragraph-gap, 1em);
+  color: var(--text);
+  line-height: 1.55;
+}
 .prepared-content :is(p, ul, ol, blockquote, dl) {
   margin-block: 0 var(--reading-paragraph-gap, 0.75em);
 }
@@ -54,7 +59,15 @@
 }
 .prepared-content {
   overflow-wrap: anywhere;
-  overflow-x: auto;
+}
+.prepared-content :where(img, svg, video, audio, canvas) {
+  max-inline-size: 100%;
+}
+.prepared-content :where(img, video) {
+  block-size: auto;
+}
+.prepared-content pre {
+  white-space: pre-wrap;
 }
 .prepared-content hr {
   border: 0;
@@ -633,8 +646,13 @@
   }
 }
 .prepared-content a,
-.prepared-content a:visited {
+.prepared-content a:visited,
+.prepared-content [role="button"] {
   color: var(--link);
+}
+.prepared-content [role="button"] {
+  cursor: pointer;
+  text-decoration: underline;
 }
 /* Prose links mark the words that navigate. Structured links mark interaction. */
 .prepared-content
@@ -655,12 +673,15 @@
   text-decoration: underline;
   text-underline-offset: 0.15em;
 }
-.prepared-content a:focus-visible,
+.prepared-content :is(a, [role="button"]):focus-visible,
 .actor-activity__name > a[href]:focus-visible,
 :is(.detail-panel, .record-reference, .record-explore__task)
   a.ant-typography:where([href]:not(.record-trait-badge *)):focus-visible {
   outline: 2px solid var(--selection-border);
   outline-offset: 2px;
+}
+.prepared-content [role="button"]:focus-visible {
+  outline-color: var(--link);
 }
 
 .record-reference__prerequisites {
