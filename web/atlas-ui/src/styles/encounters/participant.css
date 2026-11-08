@@ -90,6 +90,10 @@
   flex-wrap: nowrap;
 }
 
+.encounter-hp-panel__identity > .encounter-inspector-heading {
+  flex-shrink: 0;
+}
+
 .encounter-hp-panel__actions {
   flex-wrap: nowrap;
   min-inline-size: 0;
