@@ -139,7 +139,7 @@ fn dropped_read_before_blocking_callback_starts_skips_app_callback() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn dropped_mutation_future_keeps_one_write_and_canonical_receipt() {
+async fn dropped_initiative_response_commits_once_and_rejects_the_stale_retry() {
     let fixture = Fixture::new();
     let state = fixture.state(1);
     let initial = fixture.service.encounter("ambush").unwrap();
@@ -203,29 +203,17 @@ async fn dropped_mutation_future_keeps_one_write_and_canonical_receipt() {
         request.participants[0].expected_revision + 1
     );
 
-    // Recover the persisted receipt with the now-stale original revisions. A retry
-    // must preserve both the exact dice result and the one committed mutation.
+    // A lost response can leave initiative saved. Repeating the old request is stale.
     let service = fixture.service.clone();
-    let retry = request.clone();
-    let recovered = call_service(state.clone(), move || {
-        service.roll_encounter_initiative("ambush", retry)
-    })
-    .await
-    .unwrap();
-    assert_eq!(recovered, receipt);
-    let after_retry = fixture.service.encounter("ambush").unwrap();
-    assert_eq!(after_retry.revision, committed.revision);
-    assert_eq!(after_retry.participants, committed.participants);
-
-    let service = fixture.service.clone();
-    let mut conflicting = request;
-    conflicting.participants[0].modifier_override = Some(8);
-    let conflict = call_service(state, move || {
-        service.roll_encounter_initiative("ambush", conflicting)
+    let stale = call_service(state, move || {
+        service.roll_encounter_initiative("ambush", request)
     })
     .await
     .unwrap_err();
-    assert_eq!(conflict.0.code, AppErrorCode::InvalidRequest);
+    assert_eq!(stale.0.code, AppErrorCode::EncounterTurnConflict);
+    let after_retry = fixture.service.encounter("ambush").unwrap();
+    assert_eq!(after_retry.revision, committed.revision);
+    assert_eq!(after_retry.participants, committed.participants);
 }
 
 fn send_probe(address: SocketAddr, keep_alive: bool) -> TcpStream {

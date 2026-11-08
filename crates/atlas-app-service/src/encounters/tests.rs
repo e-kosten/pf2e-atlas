@@ -2585,6 +2585,14 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
     let write = workspace
         .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
         .unwrap();
+    let receipt_count: i64 = write
+        .connection()
+        .query_row(
+            "SELECT COUNT(*) FROM encounter_command_receipts",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
     write.connection().execute_batch("CREATE TRIGGER reject_command_receipt BEFORE INSERT ON encounter_command_receipts BEGIN SELECT RAISE(ABORT,'display-only roll wrote receipt'); END;").unwrap();
     write.commit().unwrap();
     let rolled = f
@@ -2630,7 +2638,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(count, 0);
+    assert_eq!(count, receipt_count);
     drop(read);
     let mut stale_encounter = request.clone();
     stale_encounter.expected_revision -= 1;
