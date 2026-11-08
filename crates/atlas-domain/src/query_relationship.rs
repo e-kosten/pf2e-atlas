@@ -5,34 +5,37 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryRelationshipDirection {
     Incoming,
     Outgoing,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QueryRecordSelection {
     pub record_key: RecordKey,
     #[serde(default, rename = "embedded_path")]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub owners: Vec<OwnedContentLocator>,
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub field: Option<String>,
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub passage: Option<SourcePassageAddress>,
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_fingerprint: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub spell_rank: Option<u8>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QueryRelationship {
     pub direction: QueryRelationshipDirection,

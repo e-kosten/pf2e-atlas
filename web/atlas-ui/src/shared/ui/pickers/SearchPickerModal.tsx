@@ -194,7 +194,7 @@ export function SearchPickerModal<FormValues>({
         profile.id,
         search.similarityGeneration ?? retrieval.generation,
         effectiveResultSort({
-          sort: request.sort,
+          sort: request.sort ?? undefined,
           query: request.criteria.kind === "text_search" ? request.criteria.query : "",
           similarSeed:
             request.criteria.kind === "similar_records"
@@ -203,7 +203,7 @@ export function SearchPickerModal<FormValues>({
         }),
       );
       if (request.criteria.kind === "similar_records")
-        assertSimilarityIdentity(page, request.criteria.similarity);
+        assertSimilarityIdentity(page, request.criteria.similarity ?? undefined);
       retrieval.adopt(ticket, page.artifact_generation, {
         queryKey: resultsKeyForGeneration(page.artifact_generation),
         data: page,
@@ -450,7 +450,10 @@ export function SearchPickerModal<FormValues>({
                   }
                   search={
                     request.criteria.kind === "similar_records"
-                      ? { ...search, similarity: request.criteria.similarity }
+                      ? {
+                          ...search,
+                          similarity: request.criteria.similarity ?? undefined,
+                        }
                       : search
                   }
                   seed={

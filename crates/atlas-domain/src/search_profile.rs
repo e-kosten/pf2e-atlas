@@ -1,10 +1,9 @@
 //! Opaque request identity. Supported profile policy belongs to embedding.
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SearchProfileId(String);
 

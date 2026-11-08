@@ -7,6 +7,7 @@ mod error;
 mod handlers;
 mod parties;
 mod router;
+mod schema_directions;
 mod service;
 
 pub use router::{openapi, router};

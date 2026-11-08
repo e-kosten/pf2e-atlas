@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const schema = join(root, "crates/atlas-web/openapi.json");
 const client = join(root, "web/atlas-ui/src/generated/http.ts");
+const models = join(root, "web/atlas-ui/src/generated/models.ts");
 const scratch = mkdtempSync(join(tmpdir(), "atlas-openapi-"));
 const draftSchema = join(scratch, "openapi.json");
 // The generated import of the Fetch hook depends on the client's directory.
@@ -21,6 +22,7 @@ const draftClient = join(
   "web/atlas-ui/src/generated",
   `.http-${process.pid}.ts`,
 );
+const draftModels = join(scratch, "models.ts");
 const check = process.argv.includes("--check");
 
 function run(command, args, options = {}) {
@@ -65,14 +67,21 @@ try {
         ...process.env,
         ATLAS_OPENAPI_SCHEMA: draftSchema,
         ATLAS_OPENAPI_CLIENT: draftClient,
+        ATLAS_OPENAPI_MODELS: draftModels,
       },
       stdio: "inherit",
     },
+  );
+  // The schema-only target leaves an extra blank line after its last declaration.
+  writeFileSync(
+    draftModels,
+    readFileSync(draftModels, "utf8").trimEnd() + "\n",
   );
   if (check) {
     for (const [tracked, draft] of [
       [schema, draftSchema],
       [client, draftClient],
+      [models, draftModels],
     ]) {
       if (
         readFileSync(tracked, "utf8").replaceAll("\r\n", "\n") !==
@@ -86,6 +95,7 @@ try {
   } else {
     writeFileSync(schema, document);
     renameSync(draftClient, client);
+    writeFileSync(models, readFileSync(draftModels));
   }
 } finally {
   rmSync(draftClient, { force: true });

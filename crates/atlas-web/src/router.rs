@@ -138,7 +138,27 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::trait_records))
 }
 
-pub fn openapi() -> utoipa::openapi::OpenApi {
+// Utoipa applies Serde's deny_unknown_fields to structs but leaves tagged
+// enum branches open. QueryExpression is closed at its flattened wrapper.
+pub(crate) const CLOSED_TAGGED_SCHEMAS: &[&str] = &[
+    "DiscoverFilterValuesRequest",
+    "EncounterAbilityStateAction",
+    "EncounterHpAction",
+    "EncounterManualTrackerAction",
+    "EncounterSpellAction",
+    "FilterDiscoveryContext",
+    "FilterVocabularyScope",
+    "ReferenceDestinationView",
+    "ResultSort",
+    "SearchCriteria",
+    "SimilarityComparisonKey",
+    "SimilarityComponentView",
+    "SimilarityOptions",
+    "SimilaritySeed",
+    "SourcePassageAddress",
+];
+
+pub fn openapi() -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     use utoipa::openapi::{
         RefOr,
         schema::{AdditionalProperties, Schema},
@@ -148,29 +168,41 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     let schemas = &mut document
         .components
         .as_mut()
-        .expect("documented routes supply schemas")
+        .ok_or("documented routes must supply schemas")?
         .schemas;
-    // Utoipa applies serde's deny_unknown_fields to structs but not tagged enum branches.
-    let Some(RefOr::T(Schema::OneOf(criteria))) = schemas.get_mut("SearchCriteria") else {
-        unreachable!("SearchCriteria must remain a tagged union");
-    };
-    for variant in &mut criteria.items {
-        let RefOr::T(Schema::Object(variant)) = variant else {
-            unreachable!("search criteria variants must remain objects");
+    for name in CLOSED_TAGGED_SCHEMAS {
+        let Some(RefOr::T(Schema::OneOf(union))) = schemas.get_mut(*name) else {
+            return Err(format!("{name} must remain a tagged union").into());
         };
-        variant.additional_properties = Some(Box::new(AdditionalProperties::FreeForm(false)));
+        for variant in &mut union.items {
+            match variant {
+                RefOr::T(Schema::Object(object)) => {
+                    object.additional_properties =
+                        Some(Box::new(AdditionalProperties::FreeForm(false)));
+                }
+                RefOr::T(Schema::AllOf(composition)) => {
+                    composition
+                        .extensions
+                        .get_or_insert_default()
+                        .insert("unevaluatedProperties".into(), false.into());
+                }
+                _ => return Err(format!("{name} variants must remain objects").into()),
+            }
+        }
     }
 
     // QueryPredicate flattens a tagged expression alongside clause_id. Closing
     // each expression branch would reject the valid clause_id field.
     let Some(RefOr::T(Schema::AllOf(predicate))) = schemas.get_mut("QueryPredicate") else {
-        unreachable!("QueryPredicate must remain a flattened object");
+        return Err("QueryPredicate must remain a flattened object".into());
     };
     predicate
         .extensions
         .get_or_insert_default()
         .insert("unevaluatedProperties".into(), false.into());
-    document
+    let mut document = serde_json::to_value(document)?;
+    crate::schema_directions::describe_accepted_inputs(&mut document)?;
+    Ok(document)
 }
 
 pub fn router(service: AtlasAppService) -> Router {

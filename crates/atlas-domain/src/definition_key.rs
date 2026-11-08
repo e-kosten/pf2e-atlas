@@ -49,8 +49,7 @@ impl DefinitionNamespace {
 }
 
 /// Exact vocabulary/source-rule identity. Labels never determine this key.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, ts_rs::TS)]
-#[ts(type = "string")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefinitionKey {
     namespace: DefinitionNamespace,
     identifier: String,

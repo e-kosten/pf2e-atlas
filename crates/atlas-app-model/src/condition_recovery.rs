@@ -1,8 +1,7 @@
 //! Explicit condition recovery and qualifying table events.
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckDegreeView {
     CriticalFailure,
@@ -11,14 +10,14 @@ pub enum CheckDegreeView {
     CriticalSuccess,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum LifecycleCheckInputView {
     Roll,
     TableDegree { degree: CheckDegreeView },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionLifecycleActionView {
     DyingRecovery {
@@ -40,7 +39,7 @@ pub enum ConditionLifecycleActionView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApplyConditionLifecycleRequest {
     pub boundary_key: Option<String>,
     pub request_id: String,
@@ -49,7 +48,7 @@ pub struct ApplyConditionLifecycleRequest {
     pub action: ConditionLifecycleActionView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LifecycleCheckResultView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub dc: Option<i64>,
@@ -62,7 +61,7 @@ pub struct LifecycleCheckResultView {
     pub degree: CheckDegreeView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionLifecycleResultView {
     pub encounter_key: String,
     pub request_id: String,
@@ -70,7 +69,7 @@ pub struct ConditionLifecycleResultView {
     pub check: Option<LifecycleCheckResultView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PendingConditionRecoveryView {
     ConfusedDamage {
@@ -82,7 +81,7 @@ pub enum PendingConditionRecoveryView {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FrightenedRecoveryView {
     EndTurn { minimum: i64 },
@@ -91,7 +90,7 @@ pub enum FrightenedRecoveryView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LifecycleCheckFactsView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub dc: Option<i64>,
@@ -99,7 +98,7 @@ pub struct LifecycleCheckFactsView {
     pub modifier: Option<i64>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionRecoveryOfferView {
     DyingRecovery {
@@ -129,7 +128,7 @@ pub enum ConditionRecoveryOfferView {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionLifecycleOptionView {
     #[serde(flatten)]
     pub action: ConditionRecoveryOfferView,
@@ -141,7 +140,7 @@ pub struct ConditionLifecycleOptionView {
     pub unavailable_reason: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionLifecycleActionsView {
     pub encounter_key: String,
     pub encounter_revision: i64,

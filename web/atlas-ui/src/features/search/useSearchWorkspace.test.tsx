@@ -195,7 +195,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
       searchResultsPage([], {
         pageNumber: request.page.number,
-        profile: request.search_profile,
+        profile: request.search_profile ?? undefined,
       }),
     );
     const { result, rerender } = renderHook(
@@ -619,7 +619,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
         ...searchResultsPage([], {
-          profile: request.search_profile,
+          profile: request.search_profile ?? undefined,
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
@@ -697,7 +697,7 @@ describe("useSearchWorkspace", () => {
       );
       apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
         ...searchResultsPage([], {
-          profile: request.search_profile,
+          profile: request.search_profile ?? undefined,
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
@@ -1228,7 +1228,7 @@ describe("useSearchWorkspace", () => {
         const { fields, ...address } = selection;
         return Promise.resolve({
           ...detail,
-          selected: { ...address, field: fields[0] ?? null },
+          selected: { ...address, field: fields?.[0] ?? null },
         });
       },
     );
@@ -2410,7 +2410,7 @@ describe("Core preset handoff preparation", () => {
       return {
         ...searchResultsPage([], {
           generation: "generation-b",
-          similarity: criteria.similarity,
+          similarity: criteria.similarity ?? undefined,
         }),
         similarity,
         mode: {

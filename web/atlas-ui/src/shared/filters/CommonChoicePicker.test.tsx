@@ -156,7 +156,7 @@ describe("compact common choice picker", () => {
             scope: request.scope,
             values: {
               field: request.field_id,
-              selected_values: request.selected_values,
+              selected_values: request.selected_values ?? [],
               total_values: 90n,
               options: request.offset
                 ? [{ value: "second-page", label: "Second-page" }]
@@ -563,7 +563,7 @@ describe("compact common choice picker", () => {
     let finish: ((value: FilterValueListView) => void) | undefined;
     const initialResponse = api.discoverFilterValues.getMockImplementation()!;
     api.discoverFilterValues.mockImplementation((request) =>
-      request.kind === "vocabulary" && request.selected_values.length
+      request.kind === "vocabulary" && (request.selected_values?.length ?? 0)
         ? new Promise((resolve) => {
             finish = resolve;
           })

@@ -883,7 +883,10 @@ it("keeps an authored self-action label readable without reopening the same acti
   expect(reference.target?.record_key).toBe("actions:seek");
 });
 
-it.each([
+it.each<{
+  text: string;
+  control: import("../../generated/atlas").ContentControlKindView;
+}>([
   {
     text: "DC 28 basic Reflex save",
     control: {

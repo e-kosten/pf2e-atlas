@@ -14,4 +14,3 @@ utoipa = { workspace = true, optional = true }
 diceng = { version = "=2.0.0", default-features = false }
 serde.workspace = true
 thiserror.workspace = true
-ts-rs.workspace = true

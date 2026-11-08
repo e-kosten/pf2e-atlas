@@ -1,14 +1,13 @@
 //! Root identity and prose sections are distinct logical comparison components.
 use crate::{SimilarityPart, SimilarityPartSelector, SimilarityRole};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 /// New typed-component comparisons do not relabel unchanged legacy prose scores.
 pub const SIMILARITY_COMPONENT_RECIPE: &str = "selected-component-similarity/v1";
 
 /// Identity is never represented as a fabricated prose field, ordinal or role.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilarityComponent {
     Identity {
@@ -72,7 +71,7 @@ impl SimilarityComponent {
 
 /// Correspondence keys extend the canonical scorer without changing prose roles.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(
     tag = "kind",
     content = "role",

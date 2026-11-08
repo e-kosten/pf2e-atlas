@@ -34,11 +34,24 @@ fn browser_contract_uses_the_openapi_artifact_and_protocol_revision() {
 
 #[test]
 fn schema_preserves_wire_contract_edges() {
-    let document = serde_json::to_value(crate::openapi()).unwrap();
+    let document = crate::openapi().unwrap();
     let schemas = &document["components"]["schemas"];
-    for variant in schemas["SearchCriteria"]["oneOf"].as_array().unwrap() {
-        assert_eq!(variant["additionalProperties"], false);
+    for name in crate::router::CLOSED_TAGGED_SCHEMAS {
+        for variant in schemas[name]["oneOf"].as_array().unwrap() {
+            let keyword = if variant["allOf"].is_array() {
+                "unevaluatedProperties"
+            } else {
+                "additionalProperties"
+            };
+            assert_eq!(variant[keyword], false, "{name}: {variant}");
+        }
     }
+    assert!(
+        serde_json::from_value::<atlas_domain::ResultSort>(
+            json!({"kind": "relevance", "extra": true})
+        )
+        .is_err()
+    );
     assert_eq!(schemas["QueryPredicate"]["unevaluatedProperties"], false);
     let predicate = json!({"kind": "boolean_constant", "value": true, "clause_id": "fixture"});
     assert!(serde_json::from_value::<atlas_domain::QueryPredicate>(predicate.clone()).is_ok());
@@ -80,6 +93,10 @@ fn schema_preserves_wire_contract_edges() {
     for (name, fields) in [
         ("AppReadinessView", &["artifact_generation"][..]),
         ("SavedListItemNoteView", &["note"][..]),
+        (
+            "EncounterParticipantConditionView",
+            &["scope", "extra_action", "immunity_override", "parameters"][..],
+        ),
         ("ConditionLifecycleResultView", &["check"][..]),
         (
             "LifecycleCheckResultView",
@@ -94,6 +111,89 @@ fn schema_preserves_wire_contract_edges() {
             );
         }
     }
+    // Optional input accepts null or omission. The corresponding response
+    // omits a missing level and emits a number when present.
+    let input = &schemas["PartyMemberInput"];
+    assert!(
+        !input["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("level"))
+    );
+    assert!(
+        input["properties"]["level"]["type"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("null"))
+    );
+    for member in [
+        json!({"name": "Scout"}),
+        json!({"name": "Scout", "level": null}),
+    ] {
+        let request = serde_json::from_value::<atlas_app_model::CreatePartyRequest>(
+            json!({"name": "Party", "members": [member]}),
+        )
+        .unwrap();
+        assert_eq!(request.members[0].level, None);
+    }
+    let output = &schemas["PartyMemberView"];
+    assert!(
+        !output["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("level"))
+    );
+    assert_eq!(output["properties"]["level"]["type"], "integer");
+    assert_eq!(
+        serde_json::to_value(atlas_app_model::PartyMemberView {
+            member_key: "scout".into(),
+            name: "Scout".into(),
+            level: None,
+        })
+        .unwrap(),
+        json!({"member_key": "scout", "name": "Scout"})
+    );
+    for (name, property) in [
+        ("EncounterHpValueInput", "input"),
+        ("UpdateSavedListItemNoteRequest", "note"),
+    ] {
+        assert!(
+            schemas[name]["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(property))
+        );
+        assert!(
+            schemas[name]["properties"][property]["type"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("null"))
+        );
+    }
+    for kind in ["set_current", "set_maximum"] {
+        let action = schemas["EncounterHpAction"]["oneOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|variant| variant["properties"]["kind"]["enum"] == json!([kind]))
+            .unwrap();
+        assert!(
+            action["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("input"))
+        );
+        assert!(
+            serde_json::from_value::<atlas_app_model::EncounterHpAction>(json!({"kind": kind}))
+                .is_err()
+        );
+        assert!(
+            serde_json::from_value::<atlas_app_model::EncounterHpAction>(
+                json!({"kind": kind, "input": null})
+            )
+            .is_ok()
+        );
+    }
     let delete = &document["paths"]["/api/lists/{list_ref}/items"]["delete"];
     assert_eq!(
         delete["requestBody"]["content"]["application/json"]["schema"]["$ref"],
@@ -103,6 +203,61 @@ fn schema_preserves_wire_contract_edges() {
         delete["responses"]["409"]["content"]["application/json"]["schema"]["$ref"],
         "#/components/schemas/ConflictResponse"
     );
+}
+
+#[test]
+fn shared_schema_uses_serde_input_and_output_shapes() {
+    let document = crate::openapi().unwrap();
+    let schemas = &document["components"]["schemas"];
+    let input = &schemas["ConditionDurationViewInputSchema"];
+    let output = &schemas["ConditionDurationView"];
+    let nullable_duration = json!({"amount": 1, "unit": "rounds", "remaining_rounds": null});
+    let duration: atlas_app_model::ConditionDurationView =
+        serde_json::from_value(nullable_duration).unwrap();
+    assert_eq!(
+        serde_json::to_value(duration).unwrap(),
+        json!({"amount": 1, "unit": "rounds", "timing": null})
+    );
+    assert!(
+        !input["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("timing"))
+    );
+    assert!(
+        output["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("timing"))
+    );
+    assert_eq!(
+        input["properties"]["remaining_rounds"]["anyOf"][1]["type"],
+        "null"
+    );
+    assert_eq!(output["properties"]["remaining_rounds"]["type"], "integer");
+
+    let contains_ref = |schema: &serde_json::Value, name: &str| {
+        schema
+            .to_string()
+            .contains(&format!("\"#/components/schemas/{name}\""))
+    };
+    assert!(contains_ref(
+        &schemas["AddEncounterParticipantConditionRequest"]["properties"]["duration"],
+        "ConditionDurationViewInputSchema"
+    ));
+    assert!(contains_ref(
+        &schemas["EncounterParticipantConditionView"]["properties"]["duration"],
+        "ConditionDurationView"
+    ));
+    assert!(contains_ref(
+        &schemas["SearchCriteria"],
+        "QueryPredicateInputSchema"
+    ));
+    assert!(contains_ref(
+        &schemas["QueryExpressionInputSchema"],
+        "QueryPredicateInputSchema"
+    ));
+    assert!(contains_ref(&schemas["QueryExpression"], "QueryPredicate"));
 }
 
 #[tokio::test]

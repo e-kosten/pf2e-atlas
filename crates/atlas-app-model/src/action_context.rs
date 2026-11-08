@@ -1,10 +1,9 @@
 //! Shared condition advice and input facts for live encounter actions.
 use crate::RecordNavigationView;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterActionFactView {
     Reaction,
@@ -20,14 +19,14 @@ pub enum EncounterActionFactView {
     FollowsControllerInstructions,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EncounterCastingRemindersRequest {
     pub participant_key: String,
     pub selection: RecordNavigationView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterActionIssueKindView {
     Prohibited,
@@ -37,7 +36,7 @@ pub enum EncounterActionIssueKindView {
     NeedsConfusion,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterActionIssueView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub subject: Option<crate::ConditionSubjectView>,
@@ -55,7 +54,7 @@ pub struct EncounterActionIssueView {
     pub reason: String,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterActionCheckSourceView {
     pub source_key: String,
     #[cfg_attr(feature = "openapi", schema(required))]
@@ -63,13 +62,13 @@ pub struct EncounterActionCheckSourceView {
     pub name: String,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterActionCheckView {
     pub dc: i64,
     pub sources: Vec<EncounterActionCheckSourceView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterCastingRemindersView {
     pub advisories: Vec<crate::RuntimeEffectNoteView>,
 }

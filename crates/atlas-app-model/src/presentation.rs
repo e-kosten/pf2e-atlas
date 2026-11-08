@@ -4,9 +4,8 @@ use crate::{
     RuntimeEffectNoteView, StatModifierView, UnappliedEffectView,
 };
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FactView<T> {
     pub state: atlas_domain::QueryFieldState,
     pub value: Option<T>,
@@ -58,7 +57,7 @@ impl<T: utoipa::ToSchema> utoipa::__dev::ComposeSchema for FactView<T> {
 
 /// Authored costs have a glyph only when their fixed meaning is known.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionGlyphView {
     OneAction,
@@ -68,7 +67,7 @@ pub enum ActionGlyphView {
     FreeAction,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActionCostView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub glyph: Option<ActionGlyphView>,
@@ -76,19 +75,17 @@ pub struct ActionCostView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NumberFactView {
     pub state: atlas_domain::QueryFieldState,
-    #[ts(type = "number | null")]
     #[cfg_attr(feature = "openapi", schema(value_type = Option<f64>, required))]
     pub value: Option<serde_json::Number>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub adjustment: Option<NumberAdjustmentView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NumberAdjustmentView {
-    #[ts(type = "number")]
     #[cfg_attr(feature = "openapi", schema(value_type = f64))]
     pub authored: serde_json::Number,
     pub applied: Vec<StatModifierView>,
@@ -96,7 +93,7 @@ pub struct NumberAdjustmentView {
     pub notes: Vec<RuntimeEffectNoteView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordPresentationView {
     pub identity: RecordSummaryView,
     pub classification: String,
@@ -106,19 +103,18 @@ pub struct RecordPresentationView {
     pub body: RecordBodyView,
     /// Declared recipient destinations not already presented in this document.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub grants: Option<RecordGrantsView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordGrantsView {
     pub entries: Vec<RecordGrantLinkView>,
     pub unavailable_count: usize,
     pub truncated: bool,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordGrantLinkView {
     pub title: String,
     /// Root summaries are absent for exact embedded destinations.
@@ -127,7 +123,7 @@ pub struct RecordGrantLinkView {
     pub navigation: RecordNavigationView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum RecordBodyView {
     Creature(Box<ActorPresentationView>),
@@ -148,7 +144,7 @@ pub enum RecordBodyView {
     Content,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmbeddedRecordLinkView {
     pub navigation: RecordNavigationView,
     pub title: String,
@@ -158,7 +154,7 @@ pub struct EmbeddedRecordLinkView {
     pub action_cost: FactView<ActionCostView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorPresentationView {
     pub size: FactView<crate::ReferenceValueView>,
     pub hardness: NumberFactView,
@@ -186,7 +182,7 @@ pub struct ActorPresentationView {
     pub runtime: Option<ActorRuntimeView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorDefenseNotesView {
     pub armor_class: FactView<String>,
     pub hit_points: FactView<String>,
@@ -196,27 +192,25 @@ pub struct ActorDefenseNotesView {
     pub will: FactView<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActivityFrequencyView {
     pub maximum: NumberFactView,
     pub interval: FactView<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub repeats_description: Option<bool>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorSavesView {
     pub fortitude: NumberFactView,
     pub reflex: NumberFactView,
     pub will: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorModifierView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
     pub key: String,
@@ -224,10 +218,9 @@ pub struct ActorModifierView {
     pub modifier: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorSkillView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
     pub key: String,
@@ -237,27 +230,27 @@ pub struct ActorSkillView {
     pub conditional: FactView<Vec<ConditionalSkillView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConditionalSkillView {
     pub qualification: FactView<String>,
     pub label: FactView<String>,
     pub modifier: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorMovementView {
     pub movement_type: FactView<String>,
     pub feet: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorSenseView {
     pub sense: FactView<crate::ReferenceValueView>,
     pub acuity: FactView<String>,
     pub range_feet: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IwrEntryView {
     pub damage_type: FactView<crate::ReferenceValueView>,
     pub magnitude: NumberFactView,
@@ -265,7 +258,7 @@ pub struct IwrEntryView {
     pub double_against: FactView<Vec<String>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorRuntimeView {
     pub senses: Vec<EncounterSenseView>,
     pub contextual_armor_class: Vec<EncounterContextualArmorClassView>,
@@ -274,7 +267,7 @@ pub struct ActorRuntimeView {
     pub unapplied_effects: Vec<UnappliedEffectView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HazardPresentationView {
     pub detection_dc: NumberFactView,
     pub broken_threshold: NumberFactView,
@@ -290,7 +283,7 @@ pub struct HazardPresentationView {
     pub hardness: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActorActivityKindView {
     Strike,
@@ -303,7 +296,7 @@ pub enum ActorActivityKindView {
 }
 /// Reading groups derived from authored activation/category, never prose.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActorAbilityGroupView {
     Activation,
@@ -313,20 +306,18 @@ pub enum ActorAbilityGroupView {
     Unclassified,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StrikeRangeView {
     pub increment: NumberFactView,
     pub maximum: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActorActivityView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub spell_effect: Option<SpellEffectPreviewView>,
     /// Display order within a reading group; never the runtime item ordinal.
@@ -334,7 +325,6 @@ pub struct ActorActivityView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub ability_group: Option<ActorAbilityGroupView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub first_level_only: Option<FactView<bool>>,
     pub is_ranged: FactView<bool>,
@@ -373,7 +363,7 @@ pub struct ActorActivityView {
 }
 /// Read-only source statistics at a selected casting rank; never applies an effect.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellEffectPreviewView {
     pub rank: u8,
     pub base_rank: u8,
@@ -384,7 +374,7 @@ pub struct SpellEffectPreviewView {
     pub unavailable: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellEffectFactView {
     pub label: String,
     pub value: FactView<String>,
@@ -394,7 +384,7 @@ pub struct SpellEffectFactView {
     pub qualifier: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellEffectStrikeView {
     pub id: String,
     pub title: String,
@@ -404,14 +394,14 @@ pub struct SpellEffectStrikeView {
     pub damage_type: FactView<crate::ReferenceValueView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellEffectChoiceView {
     pub label: String,
     pub facts: Vec<SpellEffectFactView>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CastingEntryContextView {
     pub parent: RecordNavigationView,
     pub parent_title: String,
@@ -419,7 +409,7 @@ pub struct CastingEntryContextView {
     pub spells: FactView<Vec<ActorActivityView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DamageComponentView {
     pub id: String,
     pub formula: FactView<String>,
@@ -430,7 +420,7 @@ pub struct DamageComponentView {
     pub apply_modifier: FactView<bool>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellPresentationView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub runtime_attack: Option<NumberFactView>,
@@ -439,18 +429,15 @@ pub struct SpellPresentationView {
     pub ritual: FactView<RitualCastingView>,
     pub counteraction: FactView<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub rank_note: Option<String>,
     // Original rank, before the selected read-time heightening.
     pub base_rank: NumberFactView,
     /// Verified differences from this owned spell's authored base, not coverage claims.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub rank_changes: Option<Vec<SpellRankChangeView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub runtime_notes: Option<Vec<crate::RuntimeEffectNoteView>>,
     pub rank: NumberFactView,
@@ -476,7 +463,7 @@ pub struct SpellPresentationView {
     pub authored_cast_rank: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SpellRankFactView {
     Cast,
@@ -495,7 +482,7 @@ pub enum SpellRankFactView {
     Damage { component_id: String },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellRankChangeView {
     pub fact: SpellRankFactView,
     pub base_rank: u8,
@@ -504,21 +491,21 @@ pub struct SpellRankChangeView {
     pub explanation: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellAreaView {
     pub shape: FactView<String>,
     pub size: FactView<String>,
     pub details: FactView<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellDefenseView {
     pub statistic: FactView<String>,
     pub basic: FactView<bool>,
     pub passive: FactView<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum SpellHeighteningView {
     Interval {
@@ -531,20 +518,20 @@ pub enum SpellHeighteningView {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HeighteningDamageView {
     pub id: String,
     pub formula: FactView<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellFixedLevelView {
     pub rank: u8,
     #[cfg_attr(feature = "openapi", schema(no_recursion))]
     pub changes: FactView<SpellChangeView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellChangeView {
     pub cast: FactView<ActionCostView>,
     pub range: FactView<String>,
@@ -559,7 +546,7 @@ pub struct SpellChangeView {
     pub heightening: FactView<SpellHeighteningChangeView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellHeighteningChangeView {
     pub kind: FactView<String>,
     pub interval: NumberFactView,
@@ -568,27 +555,24 @@ pub struct SpellHeighteningChangeView {
     pub levels: FactView<Vec<SpellFixedLevelView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpellFormView {
     pub id: String,
     pub name: FactView<String>,
     pub sort: NumberFactView,
     pub changes: FactView<SpellChangeView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub rank_changes: Option<Vec<SpellRankChangeView>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub rank_note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub effective_rank: Option<u8>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhysicalPresentationView {
     pub base_type: FactView<PhysicalBaseTypeView>,
     #[cfg_attr(feature = "openapi", schema(required))]
@@ -604,13 +588,13 @@ pub struct PhysicalPresentationView {
     pub price_per: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhysicalBaseTypeView {
     pub value: String,
     pub label: String,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum PhysicalDetailsView {
     Weapon(Box<WeaponReferenceView>),
@@ -621,7 +605,7 @@ pub enum PhysicalDetailsView {
     Kit(Box<KitReferenceView>),
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeaponReferenceView {
     pub category: FactView<String>,
     pub group: FactView<crate::ReferenceValueView>,
@@ -635,7 +619,7 @@ pub struct WeaponReferenceView {
     pub melee_usage: FactView<WeaponMeleeReferenceView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeaponDamageReferenceView {
     pub dice: NumberFactView,
     pub die: FactView<String>,
@@ -644,28 +628,28 @@ pub struct WeaponDamageReferenceView {
     pub persistent: FactView<WeaponPersistentReferenceView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeaponPersistentReferenceView {
     pub number: NumberFactView,
     pub faces: NumberFactView,
     pub damage_type: FactView<crate::ReferenceValueView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeaponAmmunitionReferenceView {
     pub base_type: FactView<String>,
     pub capacity: NumberFactView,
     pub built_in: FactView<bool>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeaponRuneReferenceView {
     pub potency: NumberFactView,
     pub striking: FactView<String>,
     pub property: FactView<Vec<String>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WeaponMeleeReferenceView {
     pub die: FactView<String>,
     pub damage_type: FactView<crate::ReferenceValueView>,
@@ -673,7 +657,7 @@ pub struct WeaponMeleeReferenceView {
     pub traits: FactView<Vec<crate::ReferenceValueView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArmorReferenceView {
     pub category: FactView<String>,
     pub group: FactView<crate::ReferenceValueView>,
@@ -687,7 +671,7 @@ pub struct ArmorReferenceView {
     pub property_runes: FactView<Vec<String>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShieldReferenceView {
     pub ac_bonus: NumberFactView,
     pub speed_penalty: NumberFactView,
@@ -697,7 +681,7 @@ pub struct ShieldReferenceView {
     pub reinforcing: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContainerReferenceView {
     pub capacity: NumberFactView,
     pub ignored_bulk: NumberFactView,
@@ -705,18 +689,18 @@ pub struct ContainerReferenceView {
     pub stowing: FactView<bool>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AmmunitionReferenceView {
     pub maximum_uses: NumberFactView,
     pub source_uses: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KitReferenceView {
     pub items: FactView<Vec<KitEntryReferenceView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KitEntryReferenceView {
     pub name: FactView<String>,
     pub quantity: NumberFactView,
@@ -724,7 +708,7 @@ pub struct KitEntryReferenceView {
     pub items: FactView<Vec<KitEntryReferenceView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhysicalPriceView {
     pub pp: NumberFactView,
     pub gp: NumberFactView,
@@ -732,7 +716,7 @@ pub struct PhysicalPriceView {
     pub cp: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConsumablePresentationView {
     pub maximum_hp: NumberFactView,
     pub hardness: NumberFactView,
@@ -745,21 +729,21 @@ pub struct ConsumablePresentationView {
     pub source_uses: NumberFactView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConsumableDamageView {
     pub formula: FactView<String>,
     pub kind: FactView<String>,
     pub damage_type: FactView<crate::ReferenceValueView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RollTablePresentationView {
     pub roll_note: String,
     pub formula: FactView<String>,
     pub results: FactView<Vec<RollTableRowView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TableResultPresentationView {
     pub range: FactView<String>,
     pub weight: NumberFactView,
@@ -767,7 +751,7 @@ pub struct TableResultPresentationView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RollTableRowView {
     pub link: EmbeddedRecordLinkView,
     #[cfg_attr(feature = "openapi", schema(schema_with = roll_table_range_schema))]
@@ -789,7 +773,7 @@ fn roll_table_range_schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::
 
 /// An authored effect reference; navigation exists only for a verified destination.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActivityEffectReferenceView {
     pub name: FactView<String>,
     pub authored_target: FactView<String>,
@@ -799,7 +783,7 @@ pub struct ActivityEffectReferenceView {
 
 /// Authored ritual checks; no DC or eligibility inference.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RitualCastingView {
     pub primary_check: FactView<String>,
     pub secondary_casters: NumberFactView,
@@ -807,7 +791,7 @@ pub struct RitualCastingView {
 }
 /// Reference duration, distinct from an applied effect's remaining time.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EffectDurationView {
     pub duration: FactView<String>,
     pub sustained: FactView<bool>,
@@ -815,12 +799,12 @@ pub struct EffectDurationView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JournalPresentationView {
     pub pages: FactView<Vec<EmbeddedRecordLinkView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JournalPagePresentationView {
     pub show_body_heading: FactView<bool>,
     #[cfg_attr(feature = "openapi", schema(required))]
@@ -828,7 +812,7 @@ pub struct JournalPagePresentationView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterSenseView {
     pub sense_type: crate::ReferenceValueView,
     #[cfg_attr(feature = "openapi", schema(required))]
@@ -844,7 +828,7 @@ pub struct EncounterSenseView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterContextualArmorClassView {
     pub opponent_key: String,
     #[cfg_attr(feature = "openapi", schema(value_type = FactView<f64>))]
@@ -852,7 +836,7 @@ pub struct EncounterContextualArmorClassView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PhysicalMaterialReferenceView {
     pub kind: FactView<String>,
     pub grade: FactView<String>,

@@ -28,9 +28,9 @@ query-capable execution; it does not automatically fall back to this command mod
 
 Add three app-layer crates:
 
-- `atlas-app-model` for app DTOs, serde contracts, app error codes, readiness views, basic filter state, result-window contracts, record view wrappers, and TypeScript generation with `ts-rs`.
+- `atlas-app-model` for app DTOs, serde contracts, app error codes, readiness views, basic filter state, result-window contracts, record view wrappers.
 - `atlas-app-service` for native workflow orchestration over `atlas-runtime` and `atlas-search`; the web service uses it as a long-lived pooled service, while short-lived local CLI clients may choose explicit on-demand modes.
-- `atlas-web` for the Axum local HTTP surface and future static frontend serving.
+- `atlas-web` for the Axum local HTTP surface, its OpenAPI contract, and embedded frontend assets.
 
 Add `web/atlas-ui` as the TypeScript/React frontend package. It consumes generated app DTOs through a local aggregation file, uses an Orval-generated HTTP client over `/api/*` with an Atlas Fetch transport, and renders the search-to-detail workflow with the selected Ant Design component library.
 
@@ -49,11 +49,17 @@ for `atlas web`. Stored vectors and part inventory remain available without quer
 
 The app-service handle is cloneable for Axum request handlers, but it must not funnel all frontend requests through one unbounded synchronous lane. Shared mutable UI workflow state, such as result-window metadata, stays guarded by explicit app-service synchronization, while retrieval work is submitted to the bounded worker pool and rejected with a retryable busy error when the queue is full.
 
-TypeScript bindings are generated from the app DTO graph and checked into the app-model crate. `cargo test -p atlas-app-model` validates that checked-in bindings are fresh. To deliberately refresh them after DTO changes, run:
-
-```bash
-cargo test -p atlas-app-model export_typescript_bindings -- --ignored
-```
+The annotated HTTP handlers and Rust DTO schemas own the browser contract.
+Orval generates Fetch operations and TypeScript models from the exported document.
+JSON integers travel as numbers. The transport checks safe integer bounds, and
+the frontend API boundary converts fields used as `bigint` by application code.
+Orval produces both projections from the same document. Request schemas account
+for what Serde accepts, including omissions and explicit nulls. Response schemas
+account for what Serde emits. For a DTO used in both directions, declare its
+emitted shape on the Rust type and record any accepted omissions or nulls in
+`atlas-web/src/schema_directions.rs`. The export uses separate component names
+where the shapes differ. See the [frontend contribution workflow](../../../web/atlas-ui/README.md)
+for regeneration and freshness commands.
 
 ## Browser/backend compatibility
 

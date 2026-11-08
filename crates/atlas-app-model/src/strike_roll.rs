@@ -1,21 +1,20 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterStrikeOptionsRequest {
     pub participant_key: String,
     pub reference: crate::EncounterReferenceRequest,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StrikeAttackOptionView {
     pub attack_number: u8,
     pub label: String,
     pub modifier: i32,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterStrikeOptionsView {
     pub applied: Vec<crate::RuntimeEffectNoteView>,
     pub conditional: Vec<crate::RuntimeEffectNoteView>,
@@ -30,14 +29,14 @@ pub struct EncounterStrikeOptionsView {
     pub damage_unavailable: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StrikeRollKind {
     Attack,
     Damage,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RollEncounterStrikeRequest {
     pub request_id: String,
     pub expected_revision: i64,
@@ -50,7 +49,7 @@ pub struct RollEncounterStrikeRequest {
     pub roll_kind: StrikeRollKind,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StrikeDamageRollView {
     pub id: String,
     pub label: String,
@@ -66,7 +65,7 @@ pub struct StrikeDamageRollView {
     pub unavailable: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterStrikeRollView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub attack_modifier: Option<i32>,
@@ -87,7 +86,7 @@ pub struct EncounterStrikeRollView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StrikeDamageTotalView {
     pub damage_type: String,
     pub persistent: bool,

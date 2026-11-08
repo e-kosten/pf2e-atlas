@@ -82,6 +82,24 @@ async fn apply_condition(fixture: &Fixture, participant_key: &str, name: &str) {
 }
 
 #[tokio::test]
+async fn oversized_authored_integer_reaches_http_as_an_exact_json_number() {
+    // The browser transport rejects this value before applying UI conversions.
+    let armor_class = 9_007_199_254_740_992;
+    let fixture = Fixture::with_actor_armor_class(armor_class);
+    let detail = response(
+        &fixture,
+        Method::GET,
+        &format!("/api/records/{ACTOR}"),
+        None,
+    )
+    .await;
+    assert_eq!(
+        detail["presentation"]["body"]["value"]["armor_class"]["value"].as_i64(),
+        Some(armor_class)
+    );
+}
+
+#[tokio::test]
 async fn unknown_source_adjustment_uses_normal_for_detail_preview_and_add() {
     let fixture = Fixture::with_actor_adjustment(false, Some("unsupported"));
     let detail = response(

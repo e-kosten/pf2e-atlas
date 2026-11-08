@@ -84,11 +84,7 @@ export function frontendInputIdentity(root: string): string {
     listed.filter(
       (name) =>
         name &&
-        (productionUiInput(name) ||
-          name === metadataPath ||
-          name === schemaPath ||
-          (name.startsWith("crates/atlas-app-model/bindings/") &&
-            name.endsWith(".ts"))),
+        (productionUiInput(name) || name === metadataPath || name === schemaPath),
     ),
   );
   // Vite reads these even when Git ignores developer-local environment files.

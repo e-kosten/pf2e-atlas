@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreparedContentFieldView {
     pub locator: crate::ContentLocationView,
     pub role: String,
@@ -10,23 +9,21 @@ pub struct PreparedContentFieldView {
     pub source_fingerprint: Option<String>,
     pub body: PreparedFieldBodyView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub section_rendering: Option<PreparedSectionRenderingView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub routine_header: Option<RoutineHeaderView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RoutineHeaderView {
     pub actions: String,
     pub traits: Vec<crate::RecordBadgeView>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CheckDetailsView {
     pub traits: Vec<crate::RecordBadgeView>,
 }
@@ -34,14 +31,14 @@ pub struct CheckDetailsView {
 /// Optional, transient rendering copy. Canonical section ordinals annotate the
 /// original block topology; persisted prepared HTML and its hashes stay separate.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreparedSectionRenderingView {
     pub html: String,
     pub selection_version: String,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PreparedFieldBodyView {
     Html {
@@ -60,13 +57,13 @@ pub enum PreparedFieldBodyView {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContentControlView {
     pub ordinal: usize,
     pub control: ContentControlKindView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ContentControlKindView {
     Check {
@@ -74,7 +71,6 @@ pub enum ContentControlKindView {
         statistic: Option<String>,
         options: std::collections::BTreeMap<String, String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
         #[cfg_attr(feature = "openapi", schema(nullable = false))]
         details: Option<CheckDetailsView>,
     },
@@ -103,21 +99,21 @@ pub enum ContentControlKindView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContentRollPresentationView {
     pub heading: String,
     pub components: Vec<ContentRollComponentView>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RollUnitView {
     pub singular: String,
     pub plural: String,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContentRollComponentView {
     pub formula: String,
     pub label: String,
@@ -128,7 +124,7 @@ pub struct ContentRollComponentView {
 
 /// Selects an authored interaction, never a caller-supplied executable formula.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RollContentRequest {
     pub content_interpretation_version: String,
     pub source: crate::ContentLocationView,
@@ -138,18 +134,16 @@ pub struct RollContentRequest {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub authored_command: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub spell_rank: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub encounter: Option<ContentRollEncounterContext>,
 }
 
 /// Identity and revision only; numeric context is always reread on the server.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContentRollEncounterContext {
     pub encounter_ref: String,
     pub participant_key: String,
@@ -160,13 +154,13 @@ pub struct ContentRollEncounterContext {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContentRollResultView {
     pub components: Vec<ContentRollComponentResultView>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContentRollComponentResultView {
     pub label: String,
     pub outcome: atlas_dice::RollOutcome,
@@ -174,7 +168,7 @@ pub struct ContentRollComponentResultView {
 
 /// An attributed marker destination within one already-selected prepared body.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreparedReferenceView {
     pub ordinal: usize,
     pub status: String,
@@ -183,17 +177,14 @@ pub struct PreparedReferenceView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub effect_label: Option<crate::EffectReferenceLabelView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub contextual_target: Option<crate::RecordNavigationView>,
     /// Derived action command targets its containing root action; readers retain
     /// the label without offering redundant navigation. Target evidence remains.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub self_action_reference: Option<bool>,
 }
@@ -201,7 +192,7 @@ pub struct PreparedReferenceView {
 /// Flat binding namespaces for inserted prepared fields in the composed HTML.
 /// Each occurrence keeps its exact source, including repeated sibling targets.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreparedInclusionView {
     pub namespace: usize,
     pub source: crate::ContentLocationView,

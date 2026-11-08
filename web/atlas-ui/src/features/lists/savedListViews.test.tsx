@@ -630,7 +630,7 @@ describe("list views", () => {
           ? {
               record_key: recordKey,
               embedded_path: request.embedded_path,
-              field: request.fields[0] ?? null,
+              field: request.fields?.[0] ?? null,
               passage: request.passage,
               source_fingerprint: request.source_fingerprint,
               spell_rank: request.spell_rank,

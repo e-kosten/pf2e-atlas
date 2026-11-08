@@ -222,7 +222,7 @@ export type SourcePassageAddress = {
   chunk_bytes: SourceByteRange;
   kind: 'html_section';
   /** @nullable */
-  label?: string | null;
+  label: string | null;
   prepared_html_sha256: string;
   /** @minimum 0 */
   section_ordinal: number;
@@ -231,7 +231,7 @@ export type SourcePassageAddress = {
   chunk_bytes: SourceByteRange;
   kind: 'plain_section';
   /** @nullable */
-  label?: string | null;
+  label: string | null;
   /** @minimum 0 */
   section_ordinal: number;
   selection_version: string;
@@ -722,12 +722,8 @@ export const ConditionDurationUnit = {
 /**
  * Condition rounds use a remaining amount; tracker durations retain the restart amount.
  */
-export interface ConditionDurationView {
+export interface ConditionDurationViewInputSchema {
   amount: number;
-  /**
-     * Remaining turns at the encounter’s current round length.
-     * @nullable
-     */
   remaining_rounds?: number | null;
   timing?: ConditionTimingView | null;
   unit: ConditionDurationUnit;
@@ -741,7 +737,18 @@ export const ConditionEventIntentView = {
   correction: 'correction',
 } as const;
 
-export interface ConditionOriginView {
+export type ConditionExtraActionViewInputSchema = {
+  kind: 'unspecified';
+} | {
+  kind: 'unrestricted';
+} | {
+  actions: ConditionActionView[];
+  /** @nullable */
+  guidance?: string | null;
+  kind: 'restricted';
+};
+
+export interface ConditionOriginViewInputSchema {
   /** @nullable */
   activity_id?: string | null;
   application_id: string;
@@ -845,16 +852,16 @@ export interface AddEncounterParticipantConditionRequest {
   /** @nullable */
   condition_ref?: string | null;
   decisions?: ConditionApplicationDecisionsView;
-  duration?: ConditionDurationView | null;
+  duration?: ConditionDurationViewInputSchema | null;
   event_intent?: ConditionEventIntentView;
   expected_encounter_revision: number;
-  extra_action?: ConditionExtraActionView;
+  extra_action?: ConditionExtraActionViewInputSchema;
   immunity_override?: boolean;
   /** @nullable */
   name?: string | null;
   /** @nullable */
   note?: string | null;
-  origin?: ConditionOriginView | null;
+  origin?: ConditionOriginViewInputSchema | null;
   parameters?: ConditionParametersInputView;
   participant_key: string;
   request_id: string;
@@ -1086,7 +1093,7 @@ export interface ApplyConditionLifecycleRequest {
  */
 export interface EncounterHpValueInput {
   /** @nullable */
-  input?: string | null;
+  input: string | null;
 }
 
 /**
@@ -1100,11 +1107,11 @@ export type EncounterHpAction = {
   kind: 'heal';
 } | {
   /** @nullable */
-  input?: string | null;
+  input: string | null;
   kind: 'set_current';
 } | {
   /** @nullable */
-  input?: string | null;
+  input: string | null;
   kind: 'set_maximum';
 } | {
   input: string;
@@ -1127,7 +1134,7 @@ export const DamageLethalityView = {
   nonlethal: 'nonlethal',
 } as const;
 
-export interface HpEventContextView {
+export interface HpEventContextViewInputSchema {
   /** @nullable */
   attack_or_spell_damage?: boolean | null;
   /** @nullable */
@@ -1149,7 +1156,7 @@ export interface HpEventContextView {
 
 export interface ApplyEncounterHpActionRequest {
   action: EncounterHpAction;
-  context?: HpEventContextView | null;
+  context?: HpEventContextViewInputSchema | null;
   expected_revision: number;
   participant_key: string;
   request_id: string;
@@ -1188,13 +1195,51 @@ export interface ApplyEncounterRecoveryRequest {
   expected_encounter_revision: number;
 }
 
+/**
+ * Root, owner chain and field belong to the outer hit/field locator. Hashes bind
+ * sections to one source/preparation context; these are not cross-build IDs.
+ */
+export type SourcePassageAddressInputSchema = {
+  kind: 'identity';
+} | {
+  canonical_text_sha256: string;
+  chunk_bytes: SourceByteRange;
+  kind: 'html_section';
+  /** @nullable */
+  label?: string | null;
+  prepared_html_sha256: string;
+  /** @minimum 0 */
+  section_ordinal: number;
+  selection_version: string;
+} | {
+  chunk_bytes: SourceByteRange;
+  kind: 'plain_section';
+  /** @nullable */
+  label?: string | null;
+  /** @minimum 0 */
+  section_ordinal: number;
+  selection_version: string;
+  source_text_sha256: string;
+};
+
+export interface RecordNavigationViewInputSchema {
+  embedded_path: OwnedContentLocator[];
+  /** @nullable */
+  field?: string | null;
+  passage?: SourcePassageAddressInputSchema | null;
+  record_key: string;
+  /** @nullable */
+  source_fingerprint?: string | null;
+  spell_rank?: number | null;
+}
+
 export type EncounterSpellAction = {
   expended: boolean;
   kind: 'set_expended';
-  selection: RecordNavigationView;
+  selection: RecordNavigationViewInputSchema;
 } | {
   kind: 'cast';
-  selection: RecordNavigationView;
+  selection: RecordNavigationViewInputSchema;
 } | {
   kind: 'undo';
   resource_key: string;
@@ -1213,7 +1258,7 @@ export interface ApplyEncounterSpellActionRequest {
 /**
  * The turn and participant reviewed by the GM before submitting browser-held rolls.
  */
-export interface PersistentDraftContext {
+export interface PersistentDraftContextInputSchema {
   /** @nullable */
   artifact_generation?: string | null;
   /** @nullable */
@@ -1271,7 +1316,7 @@ export interface RollOutcome {
 }
 
 export interface PersistentDamageDraft {
-  context: PersistentDraftContext;
+  context: PersistentDraftContextInputSchema;
   roll: RollOutcome;
   source_condition_id: number;
 }
@@ -1291,8 +1336,8 @@ export interface PersistentDamageGroupInput {
   episode_id: string;
 }
 
-export interface PersistentRecoveryDraft {
-  context: PersistentDraftContext;
+export interface PersistentRecoveryDraftInputSchema {
+  context: PersistentDraftContextInputSchema;
   dc: number;
   /** @nullable */
   dc_override?: number | null;
@@ -1301,11 +1346,11 @@ export interface PersistentRecoveryDraft {
 }
 
 export type PersistentRecoveryInput = {
-  draft?: PersistentRecoveryDraft | null;
+  draft?: PersistentRecoveryDraftInputSchema | null;
   episode_id: string;
   kind: 'clear';
 } | {
-  draft: PersistentRecoveryDraft;
+  draft: PersistentRecoveryDraftInputSchema;
   episode_id: string;
   kind: 'prepared';
 };
@@ -1315,7 +1360,7 @@ export interface ApplyPersistentDamageRequest {
   artifact_generation?: string | null;
   /** @nullable */
   boundary_key?: string | null;
-  context: HpEventContextView;
+  context: HpEventContextViewInputSchema;
   expected_encounter_revision: number;
   groups: PersistentDamageGroupInput[];
   participant_key: string;
@@ -1398,6 +1443,17 @@ export interface CompatibilityConflict {
 
 export interface CompatibilityHandshake {
   api_contract: string;
+}
+
+/**
+ * Condition rounds use a remaining amount; tracker durations retain the restart amount.
+ */
+export interface ConditionDurationView {
+  amount: number;
+  /** Remaining turns at the encounter’s current round length. */
+  remaining_rounds?: number;
+  timing: ConditionTimingView | null;
+  unit: ConditionDurationUnit;
 }
 
 export type ConditionEditorKindView = typeof ConditionEditorKindView[keyof typeof ConditionEditorKindView];
@@ -1582,6 +1638,19 @@ export interface ConditionLifecycleResultView {
   check: LifecycleCheckResultView | null;
   encounter_key: string;
   request_id: string;
+}
+
+export interface ConditionOriginView {
+  /** @nullable */
+  activity_id: string | null;
+  application_id: string;
+  /** @nullable */
+  artifact_generation: string | null;
+  grant_slot: string;
+  /** @nullable */
+  participant_key: string | null;
+  /** @nullable */
+  record_key: string | null;
 }
 
 export type ConditionParametersView = {
@@ -1807,6 +1876,18 @@ export interface ContentRollComponentResultView {
   outcome: RollOutcome;
 }
 
+/**
+ * Identity and revision only; numeric context is always reread on the server.
+ */
+export interface ContentRollEncounterContextInputSchema {
+  artifact_generation: string;
+  /** @nullable */
+  condition_id?: number | null;
+  encounter_ref: string;
+  participant_key: string;
+  participant_revision: number;
+}
+
 export interface ContentRollResultView {
   components: ContentRollComponentResultView[];
 }
@@ -2022,18 +2103,15 @@ export const QueryRelationshipDirection = {
 } as const;
 
 export interface QueryRecordSelection {
-  embedded_path?: OwnedContentLocator[];
+  embedded_path: OwnedContentLocator[];
   /** @nullable */
-  field?: string | null;
-  passage?: SourcePassageAddress | null;
+  field: string | null;
+  passage: SourcePassageAddress | null;
   record_key: RecordKey;
   /** @nullable */
-  source_fingerprint?: string | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  spell_rank?: number | null;
+  source_fingerprint: string | null;
+  /** @minimum 0 */
+  spell_rank?: number;
 }
 
 export interface QueryRelationship {
@@ -2111,10 +2189,9 @@ export type QueryExpression = {
   predicate: QueryPredicate;
 };
 
-export type QueryPredicate = QueryExpression & ({
-  /** @nullable */
-  clause_id?: string | null;
-});
+export type QueryPredicate = QueryExpression & {
+  clause_id?: string;
+};
 
 export interface ReferenceFilterActionView {
   label: string;
@@ -2169,6 +2246,72 @@ export interface DeleteSavedListView {
   slug: string;
 }
 
+export interface QueryRecordSelectionInputSchema {
+  embedded_path?: OwnedContentLocator[];
+  /** @nullable */
+  field?: string | null;
+  passage?: SourcePassageAddressInputSchema | null;
+  record_key: RecordKey;
+  /** @nullable */
+  source_fingerprint?: string | null;
+  spell_rank?: number | null;
+}
+
+export interface QueryRelationshipInputSchema {
+  direction: QueryRelationshipDirection;
+  include_contents: boolean;
+  selection: QueryRecordSelectionInputSchema;
+}
+
+export type QueryExpressionInputSchema = {
+  kind: 'relationship';
+  relationship: QueryRelationshipInputSchema;
+} | {
+  direction: QueryRelationshipDirection;
+  include_contents: boolean;
+  kind: 'related_match';
+  predicate: QueryPredicateInputSchema;
+} | {
+  kind: 'boolean_constant';
+  value: boolean;
+} | {
+  field: string;
+  kind: 'compare';
+  op: QueryCompare;
+  value: QueryLiteral;
+} | {
+  field: string;
+  kind: 'in';
+  values: QueryLiteral[];
+} | {
+  field: string;
+  kind: 'set_match';
+  op: QuerySetMatch;
+  values: string[];
+} | {
+  field: string;
+  kind: 'state_match';
+  state: QueryFieldState;
+} | {
+  collection: string;
+  kind: 'exists';
+  predicate: QueryPredicateInputSchema;
+  scope_id: string;
+} | {
+  children: QueryPredicateInputSchema[];
+  kind: 'all_of';
+} | {
+  children: QueryPredicateInputSchema[];
+  kind: 'any_of';
+} | {
+  kind: 'not';
+  predicate: QueryPredicateInputSchema;
+};
+
+export type QueryPredicateInputSchema = QueryExpressionInputSchema & ({
+  clause_id?: string | null;
+});
+
 /**
  * Static parent eligibility. Text, Similar admission, ranking and paging are absent.
  */
@@ -2178,7 +2321,7 @@ export interface StaticSearchContext {
   exclude_clause_id?: string | null;
   /** @nullable */
   expected_artifact_generation?: string | null;
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   incomplete?: boolean;
   /** @nullable */
   list_ref?: string | null;
@@ -2213,7 +2356,7 @@ export type FilterDiscoveryContext = {
   connection_scope?: SearchConnectionScope | null;
   /** @nullable */
   expected_artifact_generation?: string | null;
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   kind: 'filtered';
   mode: RetrievalModeView;
   search_content?: SearchContentScope | null;
@@ -2224,7 +2367,7 @@ export type FilterDiscoveryContext = {
   connection_scope?: SearchConnectionScope | null;
   /** @nullable */
   expected_artifact_generation?: string | null;
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   kind: 'saved_list';
   list_ref: string;
   mode: RetrievalModeView;
@@ -2245,7 +2388,7 @@ export interface DiscoverFilterCountsRequest {
 export interface DiscoverFilterEditorRequest {
   /** @nullable */
   expected_artifact_generation?: string | null;
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   selected_field_ids?: string[];
 }
 
@@ -2333,15 +2476,15 @@ export type EmbeddedReadingSelection = {
   cursor?: EmbeddedReadingCursor | null;
   group?: ActorAbilityGroupView | null;
   kind: 'abilities';
-  target?: RecordNavigationView | null;
+  target?: RecordNavigationViewInputSchema | null;
 } | {
   kind: 'activity';
-  navigation: RecordNavigationView;
+  navigation: RecordNavigationViewInputSchema;
 };
 
 export interface EmbeddedReadingRequest {
   artifact_generation: string;
-  parent: RecordNavigationView;
+  parent: RecordNavigationViewInputSchema;
   selection: EmbeddedReadingSelection;
 }
 
@@ -2415,7 +2558,7 @@ export interface EncounterActionCheckView {
 
 export interface EncounterCastingRemindersRequest {
   participant_key: string;
-  selection: RecordNavigationView;
+  selection: RecordNavigationViewInputSchema;
 }
 
 export interface EncounterCastingRemindersView {
@@ -2549,12 +2692,12 @@ export interface EncounterDifficultyReferenceView {
      * @minimum 0
      * @nullable
      */
-  party_level?: number | null;
+  party_level: number | null;
   /**
      * @minimum 0
      * @nullable
      */
-  party_size?: number | null;
+  party_size: number | null;
 }
 
 /**
@@ -2610,16 +2753,36 @@ export interface EncounterParticipantConditionView {
   condition_key?: string;
   created_at: string;
   duration?: ConditionDurationView;
-  extra_action?: ConditionExtraActionView;
-  immunity_override?: boolean;
+  extra_action: ConditionExtraActionView;
+  immunity_override: boolean;
   name: string;
   note?: string;
   origin?: ConditionOriginView;
-  parameters?: ConditionParametersView;
-  scope?: ConditionScopeView;
+  parameters: ConditionParametersView;
+  scope: ConditionScopeView;
   source_participant_key?: string;
   updated_at: string;
   value?: number;
+}
+
+export interface HpEventContextView {
+  /** @nullable */
+  attack_or_spell_damage: boolean | null;
+  /** @nullable */
+  base_death_threshold: number | null;
+  /** @nullable */
+  critical: boolean | null;
+  /** @nullable */
+  enemy_source: boolean | null;
+  /** @nullable */
+  keep_current_initiative: boolean | null;
+  /** @nullable */
+  keep_upright: boolean | null;
+  lethality: DamageLethalityView | null;
+  /** @nullable */
+  natural_rest_healing: boolean | null;
+  /** @nullable */
+  responsible_participant_key: string | null;
 }
 
 export interface KnockoutOptionView {
@@ -3402,16 +3565,32 @@ export interface EncounterDifficultyAddition {
   record_ref: string;
 }
 
+/**
+ * Null fields follow the PC snapshot; explicit values are GM overrides.
+ */
+export interface EncounterDifficultyReferenceViewInputSchema {
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  party_level?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  party_size?: number | null;
+}
+
 export interface EncounterIndexView {
   encounters: EncounterSummaryView[];
 }
 
 export type EncounterManualTrackerAction = {
-  duration: ConditionDurationView;
+  duration: ConditionDurationViewInputSchema;
   kind: 'add';
   name: string;
 } | {
-  duration: ConditionDurationView;
+  duration: ConditionDurationViewInputSchema;
   kind: 'edit';
   name: string;
   tracker_key: string;
@@ -3465,7 +3644,7 @@ export interface RecordDetailRequest {
   /** @nullable */
   expected_artifact_generation?: string | null;
   fields?: string[];
-  passage?: SourcePassageAddress | null;
+  passage?: SourcePassageAddressInputSchema | null;
   record_key: string;
   /** @nullable */
   source_fingerprint?: string | null;
@@ -3899,7 +4078,7 @@ export type ResultSort = {
 };
 
 export interface FilterSavedListRequest {
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   list_ref: string;
   /** @nullable */
   query?: string | null;
@@ -4146,6 +4325,21 @@ export interface PersistentDamageResultView {
   total: number;
 }
 
+/**
+ * The turn and participant reviewed by the GM before submitting browser-held rolls.
+ */
+export interface PersistentDraftContext {
+  /** @nullable */
+  artifact_generation: string | null;
+  /** @nullable */
+  boundary_key: string | null;
+  encounter_key: string;
+  participant_key: string;
+  /** @nullable */
+  record_key: string | null;
+  round_number: number;
+}
+
 export interface PersistentEpisodeReviewView {
   damage_resolution: PersistentDamageResolutionView;
   end_turn_recovery_available: boolean;
@@ -4155,6 +4349,15 @@ export interface PersistentEpisodeReviewView {
   /** @nullable */
   end_turn_roll_unavailable_reason: string | null;
   episode_id: string;
+}
+
+export interface PersistentRecoveryDraft {
+  context: PersistentDraftContext;
+  dc: number;
+  /** @nullable */
+  dc_override: number | null;
+  roll: RollOutcome | null;
+  source_condition_id: number;
 }
 
 export type PersistentRecoveryMode = typeof PersistentRecoveryMode[keyof typeof PersistentRecoveryMode];
@@ -4226,7 +4429,7 @@ export interface PreparedPersistentDamageView {
 export interface PreviewEncounterDifficultyRequest {
   addition?: EncounterDifficultyAddition | null;
   expected_revision: number;
-  reference: EncounterDifficultyReferenceView;
+  reference: EncounterDifficultyReferenceViewInputSchema;
 }
 
 export interface PreviewEncounterRecoveryRequest {
@@ -4377,7 +4580,7 @@ export type RelatedCategoryViewVariantGroupView = {
 
 export interface RelatedRecordsRequest {
   artifact_generation: string;
-  selection: RecordNavigationView;
+  selection: RecordNavigationViewInputSchema;
 }
 
 export interface RelatedRecordsView {
@@ -4439,7 +4642,7 @@ export interface SearchPageRequest {
 export interface RelationshipOccurrencesRequest {
   clause_id: string;
   expected_artifact_generation: string;
-  filter: QueryPredicate;
+  filter: QueryPredicateInputSchema;
   page: SearchPageRequest;
   result_record_key: string;
 }
@@ -4494,10 +4697,26 @@ export interface ResolveDrainedConsequenceRequest {
 
 export interface ResolveEncounterHpLifecycleRequest {
   consequence_key: string;
-  context: HpEventContextView;
+  context: HpEventContextViewInputSchema;
   expected_encounter_revision: number;
   request_id: string;
   resolution?: HpLifecycleResolutionView;
+}
+
+/**
+ * Selects an authored interaction, never a caller-supplied executable formula.
+ */
+export interface RollContentRequestInputSchema {
+  /** @nullable */
+  authored_command?: string | null;
+  authored_formula: string;
+  content_interpretation_version: string;
+  encounter?: ContentRollEncounterContextInputSchema | null;
+  /** @minimum 0 */
+  ordinal: number;
+  source: ContentLocationView;
+  source_fingerprint: string;
+  spell_rank?: number | null;
 }
 
 export type StrikeRollKind = typeof StrikeRollKind[keyof typeof StrikeRollKind];
@@ -4644,7 +4863,7 @@ export const SimilarityCandidateParts = {
   corresponding: 'corresponding',
 } as const;
 
-export type SimilarityOptions = {
+export type SimilarityOptionsInputSchema = {
   candidate_parts?: SimilarityCandidateParts;
   decay?: number;
   method: 'passages';
@@ -4669,23 +4888,23 @@ export const SimilaritySourceSections = {
 } as const;
 
 export type SearchCriteria = {
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   kind: 'similar_records';
   search_content?: SearchContentScope | null;
   seed_record_key: string;
-  similarity?: SimilarityOptions | null;
+  similarity?: SimilarityOptionsInputSchema | null;
   source_sections?: SimilaritySourceSections | null;
 } | {
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   kind: 'trait_references';
   /** @nullable */
   query?: string | null;
   trait_key: string;
 } | {
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   kind: 'list_records';
 } | {
-  filter?: QueryPredicate | null;
+  filter?: QueryPredicateInputSchema | null;
   kind: 'text_search';
   mode: RetrievalModeView;
   query: string;
@@ -4855,6 +5074,21 @@ export interface SimilarityDiagnosticsView {
   undefined_candidate_centroids: number;
 }
 
+export type SimilarityOptions = {
+  candidate_parts: SimilarityCandidateParts;
+  decay: number;
+  method: 'passages';
+  /** @nullable */
+  parts: SimilarityPartSelector[] | null;
+} | {
+  candidate_parts: SimilarityCandidateParts;
+  method: 'content-average';
+  /** @nullable */
+  parts: SimilarityPartSelector[] | null;
+} | {
+  method: 'baseline';
+};
+
 export interface SimilarityConfigurationView {
   candidate_identity: boolean;
   core: CoreSectionSelection | null;
@@ -4898,14 +5132,14 @@ export interface SearchResultsRequest {
 
 export interface SetEncounterDifficultyRequest {
   expected_revision: number;
-  reference: EncounterDifficultyReferenceView;
+  reference: EncounterDifficultyReferenceViewInputSchema;
 }
 
 export interface SetEncounterLifeSettingsRequest {
   /** @nullable */
   base_death_threshold?: number | null;
   expected_encounter_revision: number;
-  knockout_context?: HpEventContextView | null;
+  knockout_context?: HpEventContextViewInputSchema | null;
   level_override?: LevelOverrideInputView | null;
   mortality?: MortalityStateView | null;
   request_id: string;
@@ -5023,7 +5257,7 @@ export interface UpdateEncounterAbilityStateRequest {
   action: EncounterAbilityStateAction;
   expected_encounter_revision: number;
   expected_participant_revision: number;
-  navigation: RecordNavigationView;
+  navigation: RecordNavigationViewInputSchema;
   participant_key: string;
   request_id: string;
   /**
@@ -5046,15 +5280,15 @@ export interface UpdateEncounterParticipantConditionRequest {
   /** @nullable */
   condition_ref?: string | null;
   decisions?: ConditionApplicationDecisionsView;
-  duration?: ConditionDurationView | null;
+  duration?: ConditionDurationViewInputSchema | null;
   event_intent?: ConditionEventIntentView;
   expected_encounter_revision: number;
-  extra_action?: ConditionExtraActionView;
+  extra_action?: ConditionExtraActionViewInputSchema;
   immunity_override?: boolean;
   name: string;
   /** @nullable */
   note?: string | null;
-  origin?: ConditionOriginView | null;
+  origin?: ConditionOriginViewInputSchema | null;
   parameters?: ConditionParametersInputView;
   request_id: string;
   scope?: ConditionScopeView;
@@ -5110,7 +5344,7 @@ export interface UpdatePartyRequest {
 export interface UpdateSavedListItemNoteRequest {
   list_ref: string;
   /** @nullable */
-  note?: string | null;
+  note: string | null;
   record_key: string;
 }
 
@@ -5275,27 +5509,6 @@ export const encounterConditionDefinitions = async ( options?: Parameters<typeof
 
 
 
-export const getEncounterUrl = (encounterRef: string,) => {
-
-
-
-
-  return `/api/encounters/${encodeURIComponent(String(encounterRef))}`
-}
-
-export const encounter = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterDetailView> => {
-
-  return fetchGenerated<EncounterDetailView>(getEncounterUrl(encounterRef),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
 export const getDeleteEncounterUrl = (encounterRef: string,) => {
 
 
@@ -5310,6 +5523,27 @@ export const deleteEncounter = async (encounterRef: string, options?: Parameters
   {
     ...options,
     method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getEncounterUrl = (encounterRef: string,) => {
+
+
+
+
+  return `/api/encounters/${encodeURIComponent(String(encounterRef))}`
+}
+
+export const encounter = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterDetailView> => {
+
+  return fetchGenerated<EncounterDetailView>(getEncounterUrl(encounterRef),
+  {
+    ...options,
+    method: 'GET'
 
 
   }
@@ -6970,7 +7204,7 @@ export const getValidateFilterUrl = () => {
   return `/api/filters/validate`
 }
 
-export const validateFilter = async (queryPredicate: QueryPredicate, options?: Parameters<typeof fetchGenerated>[1]): Promise<FilterValidationResult> => {
+export const validateFilter = async (queryPredicateInputSchema: QueryPredicateInputSchema, options?: Parameters<typeof fetchGenerated>[1]): Promise<FilterValidationResult> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -6991,7 +7225,7 @@ return fetchGenerated<FilterValidationResult>(getValidateFilterUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(queryPredicate)
+    body: JSON.stringify(queryPredicateInputSchema)
   }
 );}
 
@@ -7088,27 +7322,6 @@ return fetchGenerated<SavedListCreateView>(getCreateSavedListUrl(),
 
 
 
-export const getSavedListUrl = (listRef: string,) => {
-
-
-
-
-  return `/api/lists/${encodeURIComponent(String(listRef))}`
-}
-
-export const savedList = async (listRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListDetailView> => {
-
-  return fetchGenerated<SavedListDetailView>(getSavedListUrl(listRef),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
 export const getDeleteSavedListUrl = (listRef: string,) => {
 
 
@@ -7123,6 +7336,27 @@ export const deleteSavedList = async (listRef: string, options?: Parameters<type
   {
     ...options,
     method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getSavedListUrl = (listRef: string,) => {
+
+
+
+
+  return `/api/lists/${encodeURIComponent(String(listRef))}`
+}
+
+export const savedList = async (listRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListDetailView> => {
+
+  return fetchGenerated<SavedListDetailView>(getSavedListUrl(listRef),
+  {
+    ...options,
+    method: 'GET'
 
 
   }
@@ -7202,42 +7436,6 @@ return fetchGenerated<SavedListDetailView>(getFilterSavedListUrl(listRef),
 
 
 
-export const getAddSavedListItemUrl = (listRef: string,) => {
-
-
-
-
-  return `/api/lists/${encodeURIComponent(String(listRef))}/items`
-}
-
-export const addSavedListItem = async (listRef: string,
-    addSavedListItemRequest: AddSavedListItemRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListItemMutationView> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return fetchGenerated<SavedListItemMutationView>(getAddSavedListItemUrl(listRef),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(addSavedListItemRequest)
-  }
-);}
-
-
-
 export const getRemoveSavedListItemUrl = (listRef: string,) => {
 
 
@@ -7269,6 +7467,42 @@ return fetchGenerated<SavedListItemMutationView>(getRemoveSavedListItemUrl(listR
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(removeSavedListItemRequest)
+  }
+);}
+
+
+
+export const getAddSavedListItemUrl = (listRef: string,) => {
+
+
+
+
+  return `/api/lists/${encodeURIComponent(String(listRef))}/items`
+}
+
+export const addSavedListItem = async (listRef: string,
+    addSavedListItemRequest: AddSavedListItemRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListItemMutationView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return fetchGenerated<SavedListItemMutationView>(getAddSavedListItemUrl(listRef),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(addSavedListItemRequest)
   }
 );}
 
@@ -7654,7 +7888,7 @@ export const getRollContentUrl = () => {
   return `/api/rolls/content`
 }
 
-export const rollContent = async (rollContentRequest: RollContentRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<ContentRollResultView> => {
+export const rollContent = async (rollContentRequestInputSchema: RollContentRequestInputSchema, options?: Parameters<typeof fetchGenerated>[1]): Promise<ContentRollResultView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7675,7 +7909,7 @@ return fetchGenerated<ContentRollResultView>(getRollContentUrl(),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(rollContentRequest)
+    body: JSON.stringify(rollContentRequestInputSchema)
   }
 );}
 

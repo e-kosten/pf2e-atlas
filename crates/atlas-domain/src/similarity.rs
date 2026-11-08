@@ -1,25 +1,24 @@
 //! Shared, stored-vector similarity options and exact selectable content parts.
 use crate::{CoreSectionSelection, OwnedContentLocator, RecordKey, SimilarityComponent};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 pub const SIMILARITY_RECIPE: &str = "selected-content-similarity/v1";
 pub const SIMILARITY_ROLE_RECIPE: &str = "typed-content-correspondence/v1";
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilaritySeed {
     Record { record_key: RecordKey },
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SimilarityPartSelector(pub String);
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SimilarityCandidateParts {
     #[default]
@@ -28,7 +27,7 @@ pub enum SimilarityCandidateParts {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SimilarityRole {
     Description,
@@ -69,21 +68,26 @@ pub fn default_similarity_decay() -> f64 {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "method", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum SimilarityOptions {
     Passages {
         #[serde(default = "default_similarity_decay")]
+        #[cfg_attr(feature = "openapi", schema(required))]
         decay: f64,
         #[serde(default)]
+        #[cfg_attr(feature = "openapi", schema(required))]
         parts: Option<Vec<SimilarityPartSelector>>,
         #[serde(default)]
+        #[cfg_attr(feature = "openapi", schema(required))]
         candidate_parts: SimilarityCandidateParts,
     },
     ContentAverage {
         #[serde(default)]
+        #[cfg_attr(feature = "openapi", schema(required))]
         parts: Option<Vec<SimilarityPartSelector>>,
         #[serde(default)]
+        #[cfg_attr(feature = "openapi", schema(required))]
         candidate_parts: SimilarityCandidateParts,
     },
     Baseline {},
@@ -129,7 +133,7 @@ impl SimilarityOptions {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimilarityPart {
     pub selector: SimilarityPartSelector,
     pub label: String,
@@ -143,7 +147,7 @@ pub struct SimilarityPart {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimilarityParts {
     pub seed: SimilaritySeed,
     pub parts: Vec<SimilarityComponent>,

@@ -233,10 +233,10 @@ describe("record route views", () => {
         if (selection)
           result.selected = {
             record_key: selection.record_key,
-            embedded_path: selection.embedded_path,
-            field: selection.fields[0] ?? null,
-            passage: selection.passage,
-            source_fingerprint: selection.source_fingerprint,
+            embedded_path: selection.embedded_path ?? [],
+            field: selection.fields?.[0] ?? null,
+            passage: selection.passage ?? null,
+            source_fingerprint: selection.source_fingerprint ?? null,
           };
         return Promise.resolve(result);
       },

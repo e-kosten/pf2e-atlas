@@ -55,7 +55,7 @@ function response(request: EncounterReferenceRequest): RecordDetailView {
               {
                 locator: {
                   record: request.selection.record_key,
-                  embedded_path: request.selection.embedded_path,
+                  embedded_path: request.selection.embedded_path ?? [],
                   field: "/system/description/value",
                 },
                 role: "description",

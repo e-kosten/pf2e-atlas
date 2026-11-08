@@ -1,10 +1,9 @@
 //! Explicit, source-independent encounter countdowns.
 use crate::ConditionDurationView;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterManualTrackerView {
     pub tracker_key: String,
     pub name: String,
@@ -14,7 +13,7 @@ pub struct EncounterManualTrackerView {
     pub timing_available: bool,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EncounterManualTrackerAction {
     Add {
@@ -34,7 +33,7 @@ pub enum EncounterManualTrackerAction {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateEncounterManualTrackerRequest {
     pub request_id: String,

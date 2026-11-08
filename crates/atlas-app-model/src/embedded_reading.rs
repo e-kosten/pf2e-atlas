@@ -1,10 +1,9 @@
 //! Bounded authored reading; activity facts remain in the parent presentation.
 use crate::{PreparedContentFieldView, RecordNavigationView, RecordRelationshipView};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmbeddedReadingRequest {
     pub parent: RecordNavigationView,
     pub artifact_generation: String,
@@ -12,7 +11,7 @@ pub struct EmbeddedReadingRequest {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EmbeddedReadingSelection {
     /// Root authored actor text; effective runtime facts remain in the encounter.
@@ -31,14 +30,14 @@ pub enum EmbeddedReadingSelection {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmbeddedReadingCursor {
     pub artifact_generation: String,
     pub offset: usize,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmbeddedReadingBatchView {
     pub artifact_generation: String,
     pub parent: RecordNavigationView,
@@ -54,7 +53,7 @@ pub struct EmbeddedReadingBatchView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EmbeddedReadingEntryView {
     pub navigation: RecordNavigationView,
     pub content: Vec<PreparedContentFieldView>,

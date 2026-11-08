@@ -404,7 +404,7 @@ describe("AtlasApp routing", () => {
           const { fields, ...address } = request;
           return Promise.resolve({
             ...detail,
-            selected: { ...address, field: fields[0] ?? null },
+            selected: { ...address, field: fields?.[0] ?? null },
           });
         },
       );

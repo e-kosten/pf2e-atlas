@@ -1,10 +1,9 @@
 //! Source-defined encounter ability switches, choices and limited uses.
 use crate::RecordNavigationView;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterAbilityStateView {
     pub navigation: RecordNavigationView,
     #[cfg_attr(feature = "openapi", schema(required))]
@@ -13,7 +12,7 @@ pub struct EncounterAbilityStateView {
     pub state: EncounterAbilityStateKindView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterAbilityStateKindView {
     Option {
@@ -30,7 +29,7 @@ pub enum EncounterAbilityStateKindView {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterAbilityChoiceView {
     pub value: String,
     pub label: String,
@@ -39,7 +38,7 @@ pub struct EncounterAbilityChoiceView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EncounterAbilityStateAction {
     SetOption {
@@ -53,7 +52,7 @@ pub enum EncounterAbilityStateAction {
     RestoreUse,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateEncounterAbilityStateRequest {
     pub request_id: String,

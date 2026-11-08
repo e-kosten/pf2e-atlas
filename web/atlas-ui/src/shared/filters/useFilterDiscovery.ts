@@ -204,7 +204,7 @@ function discoveryIdentity(value?: {
   }
   // Ordinary selection edits keep menu rows stable. Link eligibility includes
   // its Boolean placement, so it cannot reuse an earlier universe's counts.
-  return containsLink(_filter) ? { ...identity, filter: _filter } : identity;
+  return containsLink(_filter ?? null) ? { ...identity, filter: _filter } : identity;
 }
 
 export const VOCABULARY_PAGE_SIZE = 40;

@@ -129,7 +129,7 @@ beforeEach(() => {
     sort: effectiveResultSort({
       ...DEFAULT_SEARCH_STATE,
       query: request.criteria.kind === "text_search" ? request.criteria.query : "",
-      sort: request.sort,
+      sort: request.sort ?? undefined,
     }),
     mode:
       request.criteria.kind === "text_search"

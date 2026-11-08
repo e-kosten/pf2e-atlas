@@ -5,20 +5,18 @@ use atlas_domain::{
     SimilaritySeed, SimilaritySourceSections,
 };
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SimilarityPartsRequest {
     pub seed: SimilaritySeed,
-    #[ts(optional)]
     pub search_profile: Option<SearchProfileId>,
     pub expected_artifact_generation: Option<String>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPartsView {
     pub artifact_generation: String,
     pub search_profile: SearchProfileId,
@@ -30,7 +28,7 @@ pub struct SimilarityPartsView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityConfigurationView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub source_sections: Option<SimilaritySourceSections>,
@@ -48,7 +46,7 @@ pub struct SimilarityConfigurationView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityDiagnosticsView {
     pub seed_units: usize,
     pub knn_queries: usize,
@@ -58,7 +56,7 @@ pub struct SimilarityDiagnosticsView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPartView {
     /// Record source navigation; passage selects the full section when metadata
     /// provides its canonical address, otherwise the containing field is selected.
@@ -77,7 +75,7 @@ pub struct SimilarityPartView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilarityComponentView {
     Identity {
@@ -134,7 +132,7 @@ impl SimilarityComponentView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityEvidenceView {
     pub truncated: bool,
     pub score: f64,
@@ -148,7 +146,7 @@ pub struct SimilarityEvidenceView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPartScoreView {
     pub part: SimilarityComponentView,
     pub score: f64,
@@ -157,7 +155,7 @@ pub struct SimilarityPartScoreView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityRoleScoreView {
     pub key: SimilarityComparisonKey,
     pub role_label: String,
@@ -167,7 +165,7 @@ pub struct SimilarityRoleScoreView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPairView {
     pub seed_part: SimilarityPartSelector,
     #[cfg_attr(feature = "openapi", schema(required))]

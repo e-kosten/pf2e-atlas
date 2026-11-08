@@ -1,9 +1,8 @@
 //! Condition source inputs and explicit saved-event contracts.
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionParametersView {
     Fleeing {
@@ -38,13 +37,11 @@ pub enum ConditionParametersView {
         multiplier: DamageMultiplierView,
         recovery: PersistentRecoveryView,
         #[serde(skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
         #[cfg_attr(feature = "openapi", schema(nullable = false))]
         episode_id: Option<String>,
     },
     Sickened {
         #[serde(skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
         #[cfg_attr(feature = "openapi", schema(nullable = false))]
         recovery_dc: Option<i64>,
     },
@@ -54,7 +51,7 @@ pub enum ConditionParametersView {
 }
 /// Editable parameters exclude resolved persistent-episode identity and admission state.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionParametersInputView {
     Fleeing {
@@ -80,7 +77,6 @@ pub enum ConditionParametersInputView {
     },
     Sickened {
         #[serde(skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
         recovery_dc: Option<i64>,
     },
     Unconscious {
@@ -88,7 +84,7 @@ pub enum ConditionParametersInputView {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DamageMultiplierView {
     Normal,
@@ -96,7 +92,7 @@ pub enum DamageMultiplierView {
     Half,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PersistentRecoveryView {
     Standard,
@@ -104,31 +100,35 @@ pub enum PersistentRecoveryView {
     SourceDependent,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WakingRuleView {
     Normal,
     SourceControlled,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionOriginView {
     pub application_id: String,
     pub grant_slot: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub participant_key: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub record_key: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub activity_id: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub artifact_generation: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MortalityStateView {
     Alive,
     Dead,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionEventIntentView {
     #[default]
@@ -136,7 +136,7 @@ pub enum ConditionEventIntentView {
     Correction,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionRemovalIntentView {
     #[default]
@@ -144,7 +144,7 @@ pub enum ConditionRemovalIntentView {
     Correction,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RemoveEncounterParticipantConditionRequest {
     pub request_id: String,
@@ -152,7 +152,7 @@ pub struct RemoveEncounterParticipantConditionRequest {
     pub intent: ConditionRemovalIntentView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConditionEditorKindView {
     Fleeing,
@@ -167,13 +167,13 @@ pub enum ConditionEditorKindView {
     Unconscious,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterDamageTypeView {
     pub value: String,
     pub label: String,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionHpChangeView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub current_before: Option<i64>,
@@ -185,14 +185,12 @@ pub struct ConditionHpChangeView {
     pub maximum_after: Option<i64>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionEventPreviewView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub persistent_precedence: Option<PersistentDamagePrecedenceView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub hp_change: Option<ConditionHpChangeView>,
     pub encounter_key: String,
@@ -200,7 +198,7 @@ pub struct ConditionEventPreviewView {
     pub consequences: Vec<ConditionEventConsequenceView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionEventConsequenceView {
     StunnedActionsLost {
@@ -230,7 +228,7 @@ pub enum ConditionEventConsequenceView {
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolveDrainedConsequenceRequest {
     pub apply_hp_loss: bool,
     pub request_id: String,
@@ -240,7 +238,7 @@ pub struct ResolveDrainedConsequenceRequest {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingConditionConsequenceView {
     pub condition_ref: String,
     pub consequence_key: String,
@@ -249,19 +247,15 @@ pub struct PendingConditionConsequenceView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SetEncounterLifeSettingsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub knockout_context: Option<crate::HpEventContextView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub mortality: Option<MortalityStateView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub level_override: Option<LevelOverrideInputView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub base_death_threshold: Option<i64>,
     pub request_id: String,
     pub expected_encounter_revision: i64,
@@ -269,30 +263,29 @@ pub struct SetEncounterLifeSettingsRequest {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ConditionApplicationDecisionsView {
     #[serde(default)]
     pub keep_upright: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub persistent_precedence: Option<Vec<PersistentDamageSourceRefView>>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PersistentDamageSourceRefView {
     Edited,
     Existing { condition_id: i64 },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PersistentDamagePrecedenceView {
     pub damage_type: String,
     pub sources: Vec<PersistentDamagePrecedenceEntryView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PersistentDamagePrecedenceEntryView {
     pub source: PersistentDamageSourceRefView,
     pub formula: String,
@@ -300,13 +293,13 @@ pub struct PersistentDamagePrecedenceEntryView {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LevelOverrideInputView {
     pub value: Option<i64>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConditionSubjectView {
     Participant { participant_key: String },

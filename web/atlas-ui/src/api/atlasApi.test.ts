@@ -1057,18 +1057,19 @@ it("normalizes saved HP decisions and sends guarded resolution without another H
     natural_rest_healing: false,
     keep_upright: false,
   };
-  respond([
-    {
-      consequence_key: "pending",
-      participant_key: "actor",
-      before_hp: 9,
-      after_hp: 0,
-      initiative_only: false,
-      required_facts: ["lethality"],
-      context,
-    },
-  ]);
+  const pending = {
+    consequence_key: "pending",
+    participant_key: "actor",
+    before_hp: 9,
+    after_hp: 0,
+    initiative_only: false,
+    required_facts: ["lethality"],
+    context,
+    knockout_options: [{ label: "Knockout", result: "Unconscious", context }],
+  };
+  respond([pending]);
   const [row] = await api.getEncounterHpLifecycle("test");
+  expect(row.knockout_options[0].context.base_death_threshold).toBe(5n);
   expect(row.before_hp).toBe(9n);
   expect(row.context.base_death_threshold).toBe(5n);
   const request = {
@@ -1079,9 +1080,7 @@ it("normalizes saved HP decisions and sends guarded resolution without another H
     context: { ...row.context, keep_current_initiative: true },
   };
   respond({
-    ...row,
-    before_hp: 9,
-    after_hp: 0,
+    ...pending,
     context: { ...context, keep_current_initiative: true },
     required_facts: [],
   });
@@ -1106,6 +1105,8 @@ it("reads persistent total and one shared Hardness deduction from the server", a
   const api = await import("./atlasApi");
   respond({
     round_number: 2,
+    encounter_revision: 7,
+    damage_groups: [],
     damage_applied: true,
     episodes: [],
     damage_result: {
@@ -1128,6 +1129,7 @@ it("reads persistent total and one shared Hardness deduction from the server", a
   });
   const review = await api.getEncounterPersistentReview("test", "actor");
   expect(review.round_number).toBe(2n);
+  expect(review.encounter_revision).toBe(7n);
   expect(review.damage_result).toEqual(
     expect.objectContaining({
       total: 4n,

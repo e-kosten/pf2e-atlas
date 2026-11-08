@@ -35,7 +35,7 @@ validation_surface_for_path() {
     crates/atlas-dev/*) printf 'dev\n' ;;
     scripts/development/* | scripts/validation/* | scripts/verify*.sh | scripts/preflight.sh | scripts/git-hooks/* | .githooks/*) printf 'tooling\n' ;;
     crates/atlas-cli/* | crates/atlas-cli-support/*) printf 'rust dev\n' ;;
-    crates/atlas-app-model/* | crates/atlas-web/api-contract.json | crates/atlas-web/openapi.json | dev-tools/openapi/* | web/atlas-ui/src/generated/http.ts) printf 'rust web browser\n' ;;
+    crates/atlas-app-model/* | crates/atlas-web/api-contract.json | crates/atlas-web/openapi.json | dev-tools/openapi/* | web/atlas-ui/src/generated/http.ts | web/atlas-ui/src/generated/models.ts) printf 'rust web browser\n' ;;
     crates/atlas-foundry-model/*) printf 'rust source browser\n' ;;
     crates/* | src/* | tests/* | build.rs) printf 'rust browser\n' ;;
     web/atlas-ui/e2e/* | web/atlas-ui/playwright*.ts) printf 'browser web-format\n' ;;

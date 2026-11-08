@@ -167,7 +167,7 @@ describe("shared value control vocabulary", () => {
               scope: request.scope,
               values: {
                 field: "traits",
-                selected_values: request.selected_values,
+                selected_values: request.selected_values ?? [],
                 total_values: 90n,
                 options: request.offset
                   ? [{ value: "second-page", label: "Second-page" }]
@@ -355,7 +355,7 @@ describe("shared value control vocabulary", () => {
         scope: request.scope,
         values: {
           field: "traits",
-          selected_values: request.selected_values,
+          selected_values: request.selected_values ?? [],
           options: [{ value: "cold", label: "Cold" }],
           total_values: 1n,
           basis: "product_key_scope",
@@ -471,7 +471,7 @@ it("uses supplied Actions labels and Read while refusing arbitrary manual values
       kind: "vocabulary",
       values: {
         field: "actions",
-        selected_values: request.selected_values,
+        selected_values: request.selected_values ?? [],
         total_values: 1n,
         options: [
           {
@@ -554,13 +554,14 @@ it("retains a chosen action's label while searching and reopening its picker", a
   const key = "bestiary-ability-glossary-srd:grab";
   api.discoverFilterValues.mockClear().mockImplementation(async (request) => {
     if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
-    if (request.selected_values.length && !request.text) return new Promise(() => {});
+    if ((request.selected_values?.length ?? 0) && !request.text)
+      return new Promise(() => {});
     return {
       kind: "vocabulary",
       scope: request.scope,
       values: {
         field: "actions",
-        selected_values: request.selected_values,
+        selected_values: request.selected_values ?? [],
         total_values: request.text ? 0n : 1n,
         options: [
           {

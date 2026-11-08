@@ -70,7 +70,7 @@ export async function verifyBackendCompatibility(): Promise<true> {
 }
 
 export async function getReadiness(): Promise<AppReadinessView> {
-  return legacyResponse(http.readiness());
+  return http.readiness();
 }
 
 export async function discoverFilterEditor(
@@ -81,7 +81,7 @@ export async function discoverFilterEditor(
     intent: "read",
     signal,
   });
-  return editor as FilterEditorView;
+  return editor;
 }
 
 export async function discoverFilterValues(
@@ -107,9 +107,7 @@ export async function getSimilarityParts(
   request: SimilarityPartsRequest,
   signal?: AbortSignal,
 ): Promise<SimilarityPartsView> {
-  return legacyResponse(
-    http.similarityParts(toWire(request), { intent: "read", signal }),
-  );
+  return http.similarityParts(toWire(request), { intent: "read", signal });
 }
 
 export async function getRelationshipOccurrences(
@@ -124,10 +122,8 @@ export async function getRelationshipOccurrences(
     throw new AtlasApiError(200, "Invalid relationship links response");
   return {
     ...value,
-    page: convertSearchPage(
-      value.page as Wire<import("../generated/atlas").SearchPageView>,
-    ),
-  } as RelationshipOccurrencesPage;
+    page: convertSearchPage(value.page),
+  };
 }
 
 export async function getRecordDetail(
@@ -136,20 +132,18 @@ export async function getRecordDetail(
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
   const detail = await (selection
-    ? legacyResponse<Wire<RecordDetailView>>(
-        http.recordDetailAt(toWire(selection), { intent: "read", signal }),
-      )
+    ? http.recordDetailAt(toWire(selection), { intent: "read", signal })
     : http.getRecordDetail(recordKey, { signal }));
-  // Keep the existing presentation conversions until their types migrate to the schema.
-  return convertRecordDetail(detail as Wire<RecordDetailView>);
+  return convertRecordDetail(detail);
 }
 export async function getEmbeddedReading(
   request: EmbeddedReadingRequest,
   signal?: AbortSignal,
 ): Promise<EmbeddedReadingBatchView> {
-  const result = await legacyResponse<Wire<EmbeddedReadingBatchView>>(
-    http.embeddedReading(toWire(request), { intent: "read", signal }),
-  );
+  const result = await http.embeddedReading(toWire(request), {
+    intent: "read",
+    signal,
+  });
   return {
     ...result,
     entries: Array.isArray(result.entries)
@@ -168,38 +162,39 @@ export async function getEncounterReference(
   request: import("../generated/atlas").EncounterReferenceRequest,
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
-  const detail = await legacyResponse<Wire<RecordDetailView>>(
-    http.encounterReference(encounterRef, participantKey, toWire(request), {
+  const detail = await http.encounterReference(
+    encounterRef,
+    participantKey,
+    toWire(request),
+    {
       signal,
       intent: "read",
-    }),
+    },
   );
   return convertRecordDetail(detail);
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
-  return normalizeEncounterResponse(http.encounters());
+  return normalizeEncounterResponse<EncounterIndexView>(http.encounters());
 }
 
 export async function getEncounterConditionDefinitions(
   encounterRef: string,
   participantKey: string,
 ): Promise<EncounterConditionCatalogView> {
-  return normalizeEncounterResponse(
+  return normalizeEncounterResponse<EncounterConditionCatalogView>(
     http.participantEncounterConditionDefinitions(encounterRef, participantKey),
   );
 }
 
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
-  return convertEncounterDetail(
-    await legacyResponse<Wire<EncounterDetailView>>(http.encounter(encounterRef)),
-  );
+  return convertEncounterDetail(await http.encounter(encounterRef));
 }
 
 export async function createEncounter(
   request: CreateEncounterRequest,
 ): Promise<EncounterCreateView> {
-  return normalizeEncounterResponse(
+  return normalizeEncounterResponse<EncounterCreateView>(
     http.createEncounter(toWire(request), { intent: "action" }),
   );
 }
@@ -291,7 +286,9 @@ export async function removeEncounterParticipant(
 export async function getEncounterTurnReview(
   encounterRef: string,
 ): Promise<import("../generated/atlas").EncounterTurnReviewView> {
-  return normalizeEncounterResponse(http.encounterTurnReview(encounterRef));
+  return normalizeEncounterResponse<
+    import("../generated/atlas").EncounterTurnReviewView
+  >(http.encounterTurnReview(encounterRef));
 }
 
 export async function advanceEncounterTurn(
@@ -304,9 +301,7 @@ export async function advanceEncounterTurn(
 export async function getInitiativeOptions(
   encounterRef: string,
 ): Promise<import("../generated/atlas").InitiativeOptionsView> {
-  const result = await legacyResponse<
-    import("../generated/atlas").InitiativeOptionsView
-  >(http.initiativeOptions(encounterRef));
+  const result = await http.initiativeOptions(encounterRef);
   return {
     ...result,
     expected_revision: toBigInt(result.expected_revision),
@@ -364,7 +359,9 @@ export async function previewEncounterCondition(
     | AddEncounterParticipantConditionRequest
     | UpdateEncounterParticipantConditionRequest,
 ): Promise<import("../generated/atlas").ConditionEventPreviewView> {
-  return normalizeEncounterResponse(
+  return normalizeEncounterResponse<
+    import("../generated/atlas").ConditionEventPreviewView
+  >(
     "condition_id" in request
       ? http.previewEncounterConditionUpdate(
           encounterRef,
@@ -383,7 +380,7 @@ export async function previewEncounterCondition(
 }
 
 function actionCheck(
-  value: import("../generated/atlas").EncounterActionCheckView,
+  value: http.EncounterActionCheckView,
 ): import("../generated/atlas").EncounterActionCheckView {
   return {
     ...value,
@@ -408,19 +405,27 @@ export async function previewEncounterDrainedConsequence(
   encounterRef: string,
   request: import("../generated/atlas").ResolveDrainedConsequenceRequest,
 ): Promise<import("../generated/atlas").ConditionHpChangeView> {
-  return legacyResponse(
-    http.previewEncounterDrainedConsequence(encounterRef, toWire(request), {
+  const value = await http.previewEncounterDrainedConsequence(
+    encounterRef,
+    toWire(request),
+    {
       intent: "read",
-    }),
+    },
   );
+  return {
+    current_after: value.current_after === null ? null : toBigInt(value.current_after),
+    current_before:
+      value.current_before === null ? null : toBigInt(value.current_before),
+    maximum_after: value.maximum_after === null ? null : toBigInt(value.maximum_after),
+    maximum_before:
+      value.maximum_before === null ? null : toBigInt(value.maximum_before),
+  };
 }
 
 export async function getEncounterConditionConsequences(
   encounterRef: string,
 ): Promise<import("../generated/atlas").PendingConditionConsequenceView[]> {
-  const result = await legacyResponse<
-    import("../generated/atlas").PendingConditionConsequenceView[]
-  >(http.pendingEncounterConditionConsequences(encounterRef));
+  const result = await http.pendingEncounterConditionConsequences(encounterRef);
   return result.map((value) => ({
     ...value,
     magnitude_increase: toBigInt(value.magnitude_increase),
@@ -437,7 +442,7 @@ export async function resolveEncounterDrainedConsequence(
 }
 
 function persistentProtection(
-  value: import("../generated/atlas").PersistentDamageProtectionView,
+  value: http.PersistentDamageProtectionView,
 ): import("../generated/atlas").PersistentDamageProtectionView {
   return {
     ...value,
@@ -446,7 +451,7 @@ function persistentProtection(
   };
 }
 function persistentDamageResult(
-  value: import("../generated/atlas").PersistentDamageResultView,
+  value: http.PersistentDamageResultView,
 ): import("../generated/atlas").PersistentDamageResultView {
   return {
     ...value,
@@ -456,17 +461,18 @@ function persistentDamageResult(
   };
 }
 function persistentDamageOutcome(
-  group: import("../generated/atlas").PersistentDamageOutcomeView,
+  group: http.PersistentDamageOutcomeView,
 ): import("../generated/atlas").PersistentDamageOutcomeView {
+  const { protection, ...rest } = group;
   return {
-    ...group,
+    ...rest,
     source_condition_id: toBigInt(group.source_condition_id),
     amount: toBigInt(group.amount),
-    ...(group.protection ? { protection: persistentProtection(group.protection) } : {}),
+    ...(protection ? { protection: persistentProtection(protection) } : {}),
   };
 }
 function persistentRecoveryResult(
-  value: import("../generated/atlas").PersistentRecoveryResultView,
+  value: http.PersistentRecoveryResultView,
 ): import("../generated/atlas").PersistentRecoveryResultView {
   return {
     ...value,
@@ -478,17 +484,15 @@ export async function getEncounterPersistentReview(
   participantKey: string,
   boundaryKey: string | null = null,
 ): Promise<import("../generated/atlas").PersistentReviewView> {
-  const value = await normalizeEncounterResponse<
-    import("../generated/atlas").PersistentReviewView
-  >(
-    http.persistentDamageReview(encounterRef, {
-      participant_key: participantKey,
-      boundary_key: boundaryKey || undefined,
-    }),
-  );
+  const value = await http.persistentDamageReview(encounterRef, {
+    participant_key: participantKey,
+    boundary_key: boundaryKey || undefined,
+  });
   return {
     ...value,
     round_number: toBigInt(value.round_number),
+    encounter_revision: toBigInt(value.encounter_revision),
+    damage_groups: value.damage_groups.map(convertPersistentGroup),
     episodes: value.episodes.map((episode) => ({
       ...episode,
       damage_resolution:
@@ -508,9 +512,9 @@ export async function prepareEncounterPersistentDamage(
   encounterRef: string,
   request: import("../generated/atlas").PreparePersistentDamageRequest,
 ): Promise<import("../generated/atlas").PreparedPersistentDamageView> {
-  const value = await legacyResponse<
-    import("../generated/atlas").PreparedPersistentDamageView
-  >(http.preparePersistentDamage(encounterRef, toWire(request), { intent: "action" }));
+  const value = await http.preparePersistentDamage(encounterRef, toWire(request), {
+    intent: "action",
+  });
   const draft = value.recovery_draft;
   return {
     ...value,
@@ -540,11 +544,9 @@ export async function applyEncounterPersistentDamage(
   request: import("../generated/atlas").ApplyPersistentDamageRequest,
 ): Promise<import("../generated/atlas").PersistentDamageResultView> {
   return persistentDamageResult(
-    await legacyResponse<import("../generated/atlas").PersistentDamageResultView>(
-      http.applyPersistentDamage(encounterRef, toWire(request), {
-        intent: "action",
-      }),
-    ),
+    await http.applyPersistentDamage(encounterRef, toWire(request), {
+      intent: "action",
+    }),
   );
 }
 
@@ -552,14 +554,14 @@ export async function recoverEncounterPersistentDamage(
   encounterRef: string,
   request: import("../generated/atlas").RecoverPersistentDamageRequest,
 ): Promise<import("../generated/atlas").PersistentRecoveryResultView> {
-  const result = await legacyResponse<
-    import("../generated/atlas").PersistentRecoveryResultView
-  >(http.recoverPersistentDamage(encounterRef, toWire(request), { intent: "action" }));
+  const result = await http.recoverPersistentDamage(encounterRef, toWire(request), {
+    intent: "action",
+  });
   return persistentRecoveryResult(result);
 }
 
 function actionPreview(
-  value: import("../generated/atlas").EncounterStrikeActionContextView,
+  value: http.EncounterStrikeActionContextView,
 ): import("../generated/atlas").EncounterStrikeActionContextView {
   return {
     ...value,
@@ -576,12 +578,12 @@ export async function previewEncounterStrikeContext(
   encounterRef: string,
   request: import("../generated/atlas").EncounterStrikeContextRequest,
 ): Promise<import("../generated/atlas").EncounterStrikeContextView> {
-  const value = await legacyResponse<
-    import("../generated/atlas").EncounterStrikeContextView
-  >(
-    http.previewEncounterStrikeContext(encounterRef, toWire(request), {
+  const value = await http.previewEncounterStrikeContext(
+    encounterRef,
+    toWire(request),
+    {
       intent: "read",
-    }),
+    },
   );
   return {
     ...value,
@@ -603,14 +605,10 @@ export async function getEncounterConditionLifecycleActions(
   participantKey: string,
   boundaryKey: string | null = null,
 ): Promise<import("../generated/atlas").ConditionLifecycleActionsView> {
-  const value = await legacyResponse<
-    import("../generated/atlas").ConditionLifecycleActionsView
-  >(
-    http.conditionLifecycleActions(encounterRef, {
-      participant_key: participantKey,
-      boundary_key: boundaryKey || undefined,
-    }),
-  );
+  const value = await http.conditionLifecycleActions(encounterRef, {
+    participant_key: participantKey,
+    boundary_key: boundaryKey || undefined,
+  });
   return {
     ...value,
     encounter_revision: toBigInt(value.encounter_revision),
@@ -672,9 +670,9 @@ export async function applyEncounterConditionLifecycle(
   encounterRef: string,
   request: import("../generated/atlas").ApplyConditionLifecycleRequest,
 ): Promise<import("../generated/atlas").ConditionLifecycleResultView> {
-  const value = await legacyResponse<
-    import("../generated/atlas").ConditionLifecycleResultView
-  >(http.applyConditionLifecycle(encounterRef, toWire(request), { intent: "action" }));
+  const value = await http.applyConditionLifecycle(encounterRef, toWire(request), {
+    intent: "action",
+  });
   return {
     ...value,
     check:
@@ -693,28 +691,36 @@ export async function applyEncounterConditionLifecycle(
   };
 }
 
+function hpContext(
+  value: http.HpEventContextView,
+): import("../generated/atlas").HpEventContextView {
+  return {
+    ...value,
+    base_death_threshold:
+      value.base_death_threshold == null
+        ? value.base_death_threshold
+        : toBigInt(value.base_death_threshold),
+  };
+}
+
 function hpLifecycle(
-  value: import("../generated/atlas").PendingHpLifecycleView,
+  value: http.PendingHpLifecycleView,
 ): import("../generated/atlas").PendingHpLifecycleView {
   return {
     ...value,
     before_hp: toBigInt(value.before_hp),
     after_hp: toBigInt(value.after_hp),
-    context: {
-      ...value.context,
-      base_death_threshold:
-        value.context.base_death_threshold === null
-          ? null
-          : toBigInt(value.context.base_death_threshold),
-    },
+    context: hpContext(value.context),
+    knockout_options: value.knockout_options.map((option) => ({
+      ...option,
+      context: hpContext(option.context),
+    })),
   };
 }
 export async function getEncounterHpLifecycle(
   encounterRef: string,
 ): Promise<import("../generated/atlas").PendingHpLifecycleView[]> {
-  const values = await legacyResponse<
-    import("../generated/atlas").PendingHpLifecycleView[]
-  >(http.pendingEncounterHpLifecycle(encounterRef));
+  const values = await http.pendingEncounterHpLifecycle(encounterRef);
   return values.map(hpLifecycle);
 }
 export async function previewEncounterHpLifecycle(
@@ -722,11 +728,9 @@ export async function previewEncounterHpLifecycle(
   request: import("../generated/atlas").ResolveEncounterHpLifecycleRequest,
 ): Promise<import("../generated/atlas").PendingHpLifecycleView> {
   return hpLifecycle(
-    await legacyResponse<import("../generated/atlas").PendingHpLifecycleView>(
-      http.previewEncounterHpLifecycle(encounterRef, toWire(request), {
-        intent: "read",
-      }),
-    ),
+    await http.previewEncounterHpLifecycle(encounterRef, toWire(request), {
+      intent: "read",
+    }),
   );
 }
 export async function resolveEncounterHpLifecycle(
@@ -764,7 +768,7 @@ export async function removeEncounterParticipantCondition(
 }
 
 export async function getSavedLists(): Promise<SavedListIndexView> {
-  return legacyResponse(http.savedLists());
+  return http.savedLists();
 }
 
 export async function getSavedList(listRef: string): Promise<SavedListDetailView> {
@@ -782,15 +786,13 @@ export async function filterSavedList(
 export async function createSavedList(
   request: CreateSavedListRequest,
 ): Promise<SavedListCreateView> {
-  return legacyResponse(http.createSavedList(toWire(request), { intent: "action" }));
+  return http.createSavedList(toWire(request), { intent: "action" });
 }
 
 export async function updateSavedList(
   request: UpdateSavedListRequest,
 ): Promise<SavedListUpdateView> {
-  return legacyResponse(
-    http.updateSavedList(request.list_key, toWire(request), { intent: "action" }),
-  );
+  return http.updateSavedList(request.list_key, toWire(request), { intent: "action" });
 }
 
 export async function deleteSavedList(listRef: string): Promise<DeleteSavedListView> {
@@ -819,10 +821,10 @@ export async function reorderSavedListItem(
   });
 }
 
-async function normalizeEncounterResponse<T>(response: Promise<unknown>): Promise<T> {
-  const payload = await response;
+async function normalizeEncounterResponse<T>(response: Promise<Wire<T>>): Promise<T> {
+  const payload: unknown = await response;
   if (!isRecord(payload)) throw new AtlasApiError(200, "Invalid encounter response");
-  const result = { ...payload };
+  const result: Record<string, unknown> = { ...payload };
   const summary = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter summary");
     return {
@@ -956,10 +958,6 @@ async function normalizeEncounterResponse<T>(response: Promise<unknown>): Promis
   return result as T;
 }
 
-function legacyResponse<T>(response: Promise<unknown>): Promise<T> {
-  return response as Promise<T>;
-}
-
 function toWire<T>(value: T): Wire<T> {
   return normalizeRequestNumbers(value) as Wire<T>;
 }
@@ -1064,28 +1062,28 @@ function normalizeFilterValueList(value: unknown): FilterValueListView {
   throw new AtlasApiError(200, "Invalid filter-value response");
 }
 
-function checkedSavedListDetail(value: unknown): SavedListDetailView {
+function checkedSavedListDetail(value: http.SavedListDetailView): SavedListDetailView {
   if (!isRecord(value) || !Array.isArray(value.items))
     throw new AtlasApiError(200, "Invalid saved-list response");
-  return value as SavedListDetailView;
+  return value;
 }
 
 export async function getRelatedRecords(
   request: import("../generated/atlas").RelatedRecordsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").RelatedRecordsView> {
-  return legacyResponse(
-    http.relatedRecords(toWire(request), { intent: "read", signal }),
-  );
+  return http.relatedRecords(toWire(request), { intent: "read", signal });
 }
 export async function discoverFilterCounts(
   request: import("../generated/atlas").DiscoverFilterCountsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").FilterCountsView> {
-  const result = await legacyResponse<import("../generated/atlas").FilterCountsView>(
-    http.discoverFilterCounts(toWire(request), { intent: "read", signal }),
-  );
-  if (result.counts.status === "unavailable") return result;
+  const result = await http.discoverFilterCounts(toWire(request), {
+    intent: "read",
+    signal,
+  });
+  if (result.counts.status === "unavailable")
+    return { ...result, counts: result.counts };
   return {
     ...result,
     counts: {
@@ -1105,9 +1103,7 @@ export async function discoverFilterCounts(
 export async function rollTable(
   request: import("../generated/atlas").RollTableRequest,
 ): Promise<import("../generated/atlas").TableRollView> {
-  const result = await legacyResponse<Wire<import("../generated/atlas").TableRollView>>(
-    http.rollTable(toWire(request), { intent: "action" }),
-  );
+  const result = await http.rollTable(toWire(request), { intent: "action" });
   return {
     ...result,
     matches: Array.isArray(result.matches)
@@ -1120,9 +1116,9 @@ export async function getEncounterStrikeOptions(
   encounter: string,
   request: import("../generated/atlas").EncounterStrikeOptionsRequest,
 ): Promise<import("../generated/atlas").EncounterStrikeOptionsView> {
-  const result = await legacyResponse<
-    import("../generated/atlas").EncounterStrikeOptionsView
-  >(http.encounterStrikeOptions(encounter, toWire(request), { intent: "read" }));
+  const result = await http.encounterStrikeOptions(encounter, toWire(request), {
+    intent: "read",
+  });
   return {
     ...result,
     expected_revision: toBigInt(result.expected_revision),
@@ -1133,34 +1129,30 @@ export async function rollEncounterStrike(
   encounter: string,
   request: import("../generated/atlas").RollEncounterStrikeRequest,
 ): Promise<import("../generated/atlas").EncounterStrikeRollView> {
-  return legacyResponse(
-    http.rollEncounterStrike(encounter, toWire(request), { intent: "action" }),
-  );
+  return http.rollEncounterStrike(encounter, toWire(request), { intent: "action" });
 }
 
 export async function rollFlatCheck(
   request: import("../generated/atlas").RollFlatCheckRequest,
 ): Promise<import("../generated/atlas").FlatCheckRollView> {
-  const result = await legacyResponse<
-    Wire<import("../generated/atlas").FlatCheckRollView>
-  >(http.rollFlatCheck(toWire(request), { intent: "action" }));
+  const result = await http.rollFlatCheck(toWire(request), { intent: "action" });
   return { ...result, dc: toBigInt(result.dc) };
 }
 export async function getParties(): Promise<
   import("../generated/atlas").PartyIndexView
 > {
-  return legacyResponse(http.parties());
+  return http.parties();
 }
 export async function createParty(
   request: import("../generated/atlas").CreatePartyRequest,
 ): Promise<import("../generated/atlas").PartyView> {
-  return legacyResponse(http.createParty(toWire(request), { intent: "action" }));
+  return http.createParty(toWire(request), { intent: "action" });
 }
 export async function updateParty(
   key: string,
   request: import("../generated/atlas").UpdatePartyRequest,
 ): Promise<import("../generated/atlas").PartyView> {
-  return legacyResponse(http.updateParty(key, toWire(request), { intent: "action" }));
+  return http.updateParty(key, toWire(request), { intent: "action" });
 }
 export async function deleteParty(
   key: string,
@@ -1181,19 +1173,17 @@ export async function getSavedListItemNote(
   listRef: string,
   recordKey: string,
 ): Promise<SavedListItemNoteView> {
-  return legacyResponse(http.savedListItemNote(listRef, recordKey));
+  return http.savedListItemNote(listRef, recordKey);
 }
 
 export async function updateSavedListItemNote(
   request: UpdateSavedListItemNoteRequest,
 ): Promise<SavedListItemNoteView> {
-  return legacyResponse(
-    http.updateSavedListItemNote(
-      request.list_ref,
-      request.record_key,
-      toWire(request),
-      { intent: "action" },
-    ),
+  return http.updateSavedListItemNote(
+    request.list_ref,
+    request.record_key,
+    toWire(request),
+    { intent: "action" },
   );
 }
 
@@ -1201,9 +1191,10 @@ export async function getDefinitionDetail(
   request: import("../generated/atlas").DefinitionDetailRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").DefinitionDetailView> {
-  const result = await legacyResponse<
-    Wire<import("../generated/atlas").DefinitionDetailView>
-  >(http.definitionDetail(toWire(request), { intent: "read", signal }));
+  const result = await http.definitionDetail(toWire(request), {
+    intent: "read",
+    signal,
+  });
   if (result.definition_key !== request.definition_key)
     throw new AtlasApiError(200, "Definition response identity mismatch");
   return {
@@ -1222,9 +1213,10 @@ export async function getTraitDetail(
   request: import("../generated/atlas").TraitDetailRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").TraitDetailView> {
-  const result = await legacyResponse<
-    Wire<import("../generated/atlas").TraitDetailView>
-  >(http.traitDefinition(toWire(request), { intent: "read", signal }));
+  const result = await http.traitDefinition(toWire(request), {
+    intent: "read",
+    signal,
+  });
   if (result.trait_key !== request.trait_key)
     throw new Error("The trait response does not match this request. Retry.");
   return {
@@ -1239,9 +1231,7 @@ export async function getTraitRecords(
   request: import("../generated/atlas").TraitRecordsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").TraitRecordsPage> {
-  const result = await legacyResponse<
-    Wire<import("../generated/atlas").TraitRecordsPage>
-  >(http.traitRecords(toWire(request), { intent: "read", signal }));
+  const result = await http.traitRecords(toWire(request), { intent: "read", signal });
   if (result.artifact_generation !== request.expected_artifact_generation)
     throw new AtlasApiError(409, "Reference collection changed. Reload trait.", {
       code: "artifact_generation_changed",
@@ -1301,11 +1291,9 @@ export async function previewEncounterDifficulty(
   encounterRef: string,
   request: import("../generated/atlas").PreviewEncounterDifficultyRequest,
 ): Promise<import("../generated/atlas").EncounterDifficultyView> {
-  return legacyResponse(
-    http.previewEncounterDifficulty(encounterRef, toWire(request), {
-      intent: "read",
-    }),
-  );
+  return http.previewEncounterDifficulty(encounterRef, toWire(request), {
+    intent: "read",
+  });
 }
 
 export function rollContent(
@@ -1319,14 +1307,10 @@ export async function previewEncounterRecovery(
   request: import("../generated/atlas").PreviewEncounterRecoveryRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").EncounterRecoveryPreviewView> {
-  const result = await legacyResponse<
-    Wire<import("../generated/atlas").EncounterRecoveryPreviewView>
-  >(
-    http.previewEncounterRecovery(encounterRef, toWire(request), {
-      intent: "read",
-      signal,
-    }),
-  );
+  const result = await http.previewEncounterRecovery(encounterRef, toWire(request), {
+    intent: "read",
+    signal,
+  });
   return {
     ...result,
     encounter_revision: toBigInt(result.encounter_revision),

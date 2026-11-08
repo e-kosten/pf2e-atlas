@@ -258,7 +258,7 @@ it("keeps the root selection default when a match opens an exact embedded docume
     selected: navigation,
   };
   vi.mocked(getRecordDetail).mockImplementation((_key, request) =>
-    Promise.resolve(request?.embedded_path.length ? child : parent),
+    Promise.resolve(request?.embedded_path?.length ? child : parent),
   );
   renderPicker();
   fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
