@@ -48,6 +48,10 @@ test("real trait chip opens its definition and Back returns to the selected sour
     contentType: "image/png",
   });
   await chip.click();
+  await page
+    .getByRole("dialog", { name: detail.label })
+    .getByRole("link", { name: "Open reference full page", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/traits\/trait:deadly-d8$/);
   await expect(page.getByRole("button", { name: "Back", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Refresh", exact: true })).toHaveCount(
@@ -73,17 +77,11 @@ test("missing definitions and exact parameter variants stay distinct", async ({
   const amp = await definition(request, "trait:amp");
   expect(amp.content).toBeNull();
   await page.goto("/traits/trait:amp");
-  await expect(
-    page
-      .getByRole("alert")
-      .filter({ hasText: "No definition is available in this reference collection." }),
-  ).toBeVisible();
+  await expect(page.getByText("Link not found", { exact: true })).toBeVisible();
   const unknown = await definition(request, "trait:atlas-unknown-trait");
   expect(unknown.content).toBeNull();
   await page.goto("/traits/trait:atlas-unknown-trait");
-  await expect(
-    page.getByRole("heading", { name: "atlas-unknown-trait" }),
-  ).toBeVisible();
+  await expect(page.getByText("Link not found", { exact: true })).toBeVisible();
   const d8 = await definition(request, "trait:deadly-d8");
   const d12 = await definition(request, "trait:deadly-d12");
   expect(d8.trait_key).not.toBe(d12.trait_key);

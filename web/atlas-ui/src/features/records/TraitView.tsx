@@ -10,7 +10,7 @@ import { navigateDestination } from "../../app/navigation";
 import { canonicalRouteSearch } from "../../app/routeSearch";
 import { parseSearchParams } from "../../app/urlState";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Button, Empty, Tabs, Typography } from "antd";
+import { Button, Empty, Tabs } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { getTraitRecords } from "../../api/atlasApi";
@@ -327,9 +327,6 @@ function TraitAssociatedRecords({
       {query.isLoading && <LoadingStatus label="Loading records…" />}
       {data && (
         <>
-          {data.coverage && !data.coverage.exhaustive && (
-            <Typography.Paragraph type="secondary">Top matches</Typography.Paragraph>
-          )}
           {!data.rows.length ? (
             <Empty
               description={
