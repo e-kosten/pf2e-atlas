@@ -625,3 +625,44 @@ test("result browsing uses keyboard rows, committed highlight and native name li
   expect(page.url()).toBe(searchUrl);
   await fullPage.close();
 });
+
+test("related entry editing keeps its footer in view as nested groups grow", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 500 });
+  await page.goto("/search");
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const addCondition = drawer.getByRole("combobox", { name: "Add condition" });
+  await addCondition.click();
+  await addCondition.fill("Related entries");
+  await addCondition.press("Enter");
+  const opener = drawer.getByRole("button", { name: "Configure related entries" });
+  await opener.click();
+  const dialog = page.getByRole("dialog", { name: "Related entries", exact: true });
+  const entryType = dialog.getByRole("combobox", { name: "Entry type" });
+  await entryType.click();
+  await entryType.fill("Abilities");
+  await entryType.press("Enter");
+  for (let index = 0; index < 3; index++) {
+    await dialog.getByRole("button", { name: "Add group" }).first().click();
+  }
+
+  const apply = dialog.getByRole("button", { name: "Apply", exact: true });
+  const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+  await expect(apply).toBeInViewport({ ratio: 1 });
+  await expect(cancel).toBeInViewport({ ratio: 1 });
+
+  const nestedCondition = dialog
+    .getByRole("combobox", { name: "Add condition" })
+    .first();
+  await nestedCondition.click();
+  await expect(nestedCondition).toHaveAttribute("aria-expanded", "true");
+  await nestedCondition.press("Escape");
+  await expect(nestedCondition).toHaveAttribute("aria-expanded", "false");
+  await expect(dialog).toBeVisible();
+
+  await cancel.click();
+  await expect(dialog).toBeHidden();
+  await expect(opener).toBeFocused();
+});

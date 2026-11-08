@@ -29,7 +29,7 @@ export function EntityIndexPage({
             <h2>{title}</h2>
             {summary ? <p>{summary}</p> : null}
           </div>
-          {actions}
+          {actions && <div className="entity-index-page__actions">{actions}</div>}
         </section>
         {toolbar && <div className="entity-index-page__controls">{toolbar}</div>}
         <section

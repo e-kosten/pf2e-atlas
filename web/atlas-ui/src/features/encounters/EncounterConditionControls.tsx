@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getEncounterConditionConsequences } from "../../api/atlasApi";
 import { useConditionRecoveryControls } from "./EncounterConditionLifecycle";
 import { conditionUpdate } from "./conditionDraft";
+import { EncounterRowAction } from "./EncounterRowAction";
 import { EncounterModal } from "./EncounterModal";
 import { EncounterConditionConsequences } from "./EncounterConditionConsequences";
 import { EncounterPersistentRecovery } from "./EncounterPersistentRecovery";
@@ -221,66 +222,52 @@ export function EncounterConditionControls({
           ? hpAction
           : (recoveryAction ??
             recoveryControls.conditionActions(condition.condition_id))}{" "}
-        <Tooltip
-          title="Edit"
-          trigger={["hover", "focus"]}
-          open={open ? false : undefined}
-          styles={{ root: { pointerEvents: "none" } }}
+        <EncounterRowAction
+          tooltip="Edit"
+          hideTooltip={open}
+          className="encounter-condition-edit"
+          icon={<Pencil size={14} aria-hidden="true" />}
+          disabled={
+            disabled ||
+            !current.conditions.some(
+              (entry) => entry.condition_id === condition.condition_id,
+            )
+          }
+          aria-label={
+            missingPersistentSetup
+              ? `Edit setup for ${condition.name}`
+              : `Edit ${condition.name}`
+          }
+          onClick={() => {
+            cancelInlineEdit();
+            setCommitted(false);
+            setEditor({
+              conditionId: condition.condition_id,
+              revision: encounterRevision,
+            });
+          }}
         >
-          <Button
-            className="encounter-condition-edit"
-            type="text"
-            icon={<Pencil size={14} aria-hidden="true" />}
-            size="small"
-            disabled={
-              disabled ||
-              !current.conditions.some(
-                (entry) => entry.condition_id === condition.condition_id,
-              )
-            }
-            aria-label={
-              missingPersistentSetup
-                ? `Edit setup for ${condition.name}`
-                : `Edit ${condition.name}`
-            }
-            onClick={() => {
-              cancelInlineEdit();
-              setCommitted(false);
-              setEditor({
-                conditionId: condition.condition_id,
-                revision: encounterRevision,
-              });
-            }}
-          >
-            {missingPersistentSetup ? "Edit setup" : null}
-          </Button>
-        </Tooltip>
-        <Tooltip
-          title="Remove"
-          trigger={["hover", "focus"]}
-          styles={{ root: { pointerEvents: "none" } }}
-        >
-          <Button
-            className="encounter-condition-remove"
-            type="text"
-            size="small"
-            disabled={
-              disabled ||
-              !current.conditions.some(
-                (entry) => entry.condition_id === condition.condition_id,
-              )
-            }
-            aria-label={`Remove ${condition.name}`}
-            icon={<X size={14} aria-hidden="true" />}
-            onClick={() => {
-              void onRemoveCondition(
-                current.participant_key,
-                condition.condition_id,
-                encounterRevision,
-              ).catch(() => {});
-            }}
-          />
-        </Tooltip>
+          {missingPersistentSetup ? "Edit setup" : null}
+        </EncounterRowAction>
+        <EncounterRowAction
+          tooltip="Remove"
+          className="encounter-condition-remove"
+          disabled={
+            disabled ||
+            !current.conditions.some(
+              (entry) => entry.condition_id === condition.condition_id,
+            )
+          }
+          aria-label={`Remove ${condition.name}`}
+          icon={<X size={14} aria-hidden="true" />}
+          onClick={() => {
+            void onRemoveCondition(
+              current.participant_key,
+              condition.condition_id,
+              encounterRevision,
+            ).catch(() => {});
+          }}
+        />
       </span>
     );
   };

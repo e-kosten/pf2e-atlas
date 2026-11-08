@@ -109,6 +109,18 @@ export function ListIndexView(_props: ListIndexViewProps) {
   }, [positions, positionKey]);
   return (
     <EntityIndexPage
+      actions={
+        <Button
+          icon={<Plus size={16} />}
+          onClick={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
+            setCreateOpen(true);
+          }}
+          type="primary"
+        >
+          New list
+        </Button>
+      }
       scrollRef={scrollRef}
       onScroll={(event) => {
         positions.set(positionKey, {
@@ -117,7 +129,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
         });
       }}
       toolbar={
-        <PrimaryToolbar className="list-index-view__actions">
+        <PrimaryToolbar className="list-index-view__filters">
           <Input
             className="list-index-view__search"
             aria-label="Search saved lists"
@@ -168,16 +180,6 @@ export function ListIndexView(_props: ListIndexViewProps) {
               onTextChange={setTagSearch}
             />
           )}
-          <Button
-            icon={<Plus size={16} />}
-            onClick={(event) => {
-              event.currentTarget.focus({ preventScroll: true });
-              setCreateOpen(true);
-            }}
-            type="primary"
-          >
-            New list
-          </Button>
         </PrimaryToolbar>
       }
       className="list-index-view"

@@ -35,13 +35,10 @@
   width: auto;
   min-width: min(180px, 100%);
 }
-.list-index-view__actions .common-choice-picker {
+.list-index-view__filters .common-choice-picker {
   flex: 0 1 200px;
   min-width: 160px;
   max-width: 240px;
-}
-.list-index-view__actions > button {
-  flex-shrink: 0;
 }
 .list-index-view__description {
   margin: 0;
@@ -270,7 +267,7 @@
     width: 100%;
     min-width: 0;
   }
-  .list-index-view__actions .common-choice-picker {
+  .list-index-view__filters .common-choice-picker {
     flex: 1;
     max-width: none;
   }
