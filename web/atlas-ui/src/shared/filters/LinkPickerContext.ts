@@ -6,10 +6,13 @@ export type LinkPickerProps = {
   open: boolean;
   parent: StaticSearchContext;
   initial?: QueryRelationship;
+  initialExcluded?: boolean;
   onCancel: () => void;
+  afterClose?: () => void;
   onConfirm: (
     relationship: QueryRelationship,
     selection: PickerSelection | null,
+    excluded: boolean,
   ) => string | null;
 };
 

@@ -1,4 +1,4 @@
-import { Input, Select } from "antd";
+import { Input, Select, theme } from "antd";
 import { useState } from "react";
 import { AdvancedVocabularyPicker } from "./FilterChoicePicker";
 import { actorMetric } from "./actorMetricFields";
@@ -38,6 +38,7 @@ export function FilterValueInput({
   countLimit?: number;
 }) {
   const definition = field.definition;
+  const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
   const [choiceSearch, setChoiceSearch] = useState("");
   const selectedChoices = (
@@ -95,7 +96,6 @@ export function FilterValueInput({
           placeholder="Minimum…"
           onChange={(event) => onChange([event.target.value, range[1]])}
         />
-        <span>to</span>
         <Input
           aria-label={label + " maximum"}
           name={definition.id + "-maximum"}
@@ -113,7 +113,15 @@ export function FilterValueInput({
       <Select
         className="filter-value-control"
         aria-label={label}
-        placeholder={"Select " + label.toLowerCase() + "…"}
+        placeholder="Choose value…"
+        styles={{
+          root: {
+            transitionProperty: "background-color, border-color, box-shadow, color",
+            minHeight: token.controlHeight,
+          },
+          popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
+        }}
+        popupMatchSelectWidth={false}
         mode={multiple ? "multiple" : undefined}
         allowClear
         showSearch={{ optionFilterProp: "label", onSearch: setChoiceSearch }}

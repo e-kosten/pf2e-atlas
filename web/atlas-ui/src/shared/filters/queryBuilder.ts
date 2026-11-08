@@ -195,20 +195,25 @@ export function replaceCommonRangeDraft(
     return "rules" in node ? node.rules.map(firstRule).find(Boolean) : node;
   }
   const existing = matching.map(firstRule).find(Boolean);
-  const hasMin = !!range[0].trim();
-  const hasMax = !!range[1].trim();
-  const node: RuleType | null =
-    hasMin || hasMax
-      ? {
-          ...existing,
-          id: existing?.id ?? crypto.randomUUID(),
-          field: field.id,
-          operator: hasMin && hasMax ? "between" : hasMin ? "gte" : "lte",
-          value: hasMin && hasMax ? range : hasMin ? range[0] : range[1],
-        }
-      : null;
+  const node = range.some((bound) => bound.trim())
+    ? rangeRule(existing ?? { id: crypto.randomUUID(), field: field.id }, range)
+    : null;
   return replaceCommonNodes(query, field.id, node);
 }
+
+export function rangeRule<T extends { field: string }>(
+  rule: T,
+  range: [string, string],
+) {
+  const hasMin = !!range[0].trim();
+  const hasMax = !!range[1].trim();
+  return {
+    ...rule,
+    operator: hasMin && hasMax ? "between" : hasMax ? "lte" : "gte",
+    value: hasMin && hasMax ? range : hasMax ? range[1] : range[0],
+  };
+}
+
 function replaceCommonNodes(
   query: RuleGroupType,
   fieldId: string,

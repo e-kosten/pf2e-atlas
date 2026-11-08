@@ -1,6 +1,6 @@
 import { linkScopeCopy } from "./linkScopeCopy";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Button, Form, Popover, Radio, Select, Typography } from "antd";
+import { Button, Checkbox, Form, Popover, Radio, Select, Typography } from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type {
   QueryRelationship,
@@ -18,13 +18,16 @@ type LinkFilterForm = {
 export function LinkConditionPicker({
   open,
   initial,
+  initialExcluded = false,
   parent,
   onCancel,
+  afterClose,
   onConfirm,
 }: LinkPickerProps) {
   const [candidate, setCandidate] = useState<PickerSelection | null | undefined>(
     undefined,
   );
+  const [excluded, setExcluded] = useState(initialExcluded);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [scopeHelpOpen, setScopeHelpOpen] = useState(false);
   const scopeHelpTrigger = useRef<HTMLButtonElement>(null);
@@ -60,7 +63,7 @@ export function LinkConditionPicker({
       include_contents: includeContents,
       selection,
     };
-    setFeedback(onConfirm(relationship, candidate ?? null));
+    setFeedback(onConfirm(relationship, candidate ?? null, excluded));
   }
   const controls = (
     <>
@@ -77,6 +80,15 @@ export function LinkConditionPicker({
         <Radio.Button value="incoming">Links to</Radio.Button>
         <Radio.Button value="outgoing">Linked from</Radio.Button>
       </Radio.Group>
+      <Checkbox
+        checked={excluded}
+        onChange={(event) => {
+          setExcluded(event.target.checked);
+          setFeedback(null);
+        }}
+      >
+        Exclude matching records
+      </Checkbox>
       <div className="link-picker-context__scope">
         <Select
           className="link-picker-context__scope-select"
@@ -139,6 +151,7 @@ export function LinkConditionPicker({
       open={open}
       form={form}
       onCancel={close}
+      afterClose={afterClose}
       onFinish={add}
       selectedRecordKey={selection?.record_key ?? null}
       onSelectionChange={(selection) => {

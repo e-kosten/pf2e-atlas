@@ -506,7 +506,7 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
     exact: true,
   });
   await expect(
-    advanced.getByRole("button", { name: "Add condition", exact: true }),
+    advanced.getByRole("combobox", { name: "Add condition", exact: true }),
   ).toBeVisible();
   const importedFilter = decodeFilterUrl(
     new URL(page.url()).searchParams.get("filter")!,

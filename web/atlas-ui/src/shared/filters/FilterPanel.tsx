@@ -4,6 +4,7 @@ import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
   Button,
+  ConfigProvider,
   Form,
   Input,
   Popover,
@@ -20,12 +21,12 @@ import {
   DownOutlined,
   CloseOutlined,
   FilterOutlined,
-  PlusOutlined,
 } from "@ant-design/icons";
 import {
   createContext,
   useContext,
   useId,
+  type CSSProperties,
   type ReactNode,
   type RefObject,
   useMemo,
@@ -39,6 +40,7 @@ import {
   RuleGroupBodyComponents,
   type UseRuleGroup,
   useRule,
+  add,
   update,
   type RuleType,
   type RuleProps,
@@ -68,14 +70,17 @@ import {
   numericLiteral,
   replaceCommonDraft,
   replaceCommonRangeDraft,
+  rangeRule,
   type PredicateRule,
 } from "./queryBuilder";
 import {
+  chipLinkClauses,
   clearAllFilters,
   hasAdvancedFilterConditions,
   type CommonCondition,
   type FilterPanelState,
 } from "./filterControls";
+import { CompactSelect } from "../ui/pickers/CompactSelect";
 import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
 import { CommonChoicePicker } from "./FilterChoicePicker";
@@ -92,6 +97,7 @@ import { LinkFilterControls } from "./LinkFilterControls";
 import { linkClauses, type LinkLeaf } from "./linkPredicates";
 import { sameRelationship } from "./linkPredicates";
 import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
+import { transitionOperand } from "./operatorTransitions";
 import { ActorMetricPicker } from "./ActorMetricPicker";
 import {
   ACTOR_METRIC_CHOOSERS,
@@ -99,6 +105,9 @@ import {
   isActorMetricChooser,
   type ActorMetricKind,
 } from "./actorMetricFields";
+
+const getAdvancedPopupContainer = (trigger?: HTMLElement) =>
+  trigger?.closest<HTMLElement>(".advanced-filter-drawer-root") ?? document.body;
 
 const LinkEditingContext = createContext<{
   open: (rule: PredicateRule, replace: (next: PredicateRule) => void) => void;
@@ -137,6 +146,7 @@ export function FilterControls({
 }) {
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
+  const { token } = theme.useToken();
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -200,17 +210,27 @@ export function FilterControls({
   function openPicker(
     initial: QueryRelationship | undefined,
     id: string,
-    confirm: (relationship: QueryRelationship) => string | null,
-    advanced = false,
+    confirm: (relationship: QueryRelationship, excluded: boolean) => string | null,
+    {
+      opener,
+      advanced = false,
+      initialExcluded = false,
+    }: {
+      opener?: HTMLElement;
+      advanced?: boolean;
+      initialExcluded?: boolean;
+    } = {},
   ) {
     if (!Picker) throw new Error("Link condition picker provider is required");
     const openingQuery = prepared.query;
+    let restoreToolbarFocus = false;
     const parentContext = prepared.linkDiscoveryContext(id, advanced);
     setPicker({
       key: crypto.randomUUID(),
       advanced,
       open: true,
       initial,
+      initialExcluded,
       parent: {
         ...parentContext,
         filter: workspace.fixedFilter
@@ -233,9 +253,15 @@ export function FilterControls({
             : null,
         connection_scope: workspace.resultRequest?.connection_scope ?? null,
       },
+      afterClose: () => {
+        const target = restoreToolbarFocus
+          ? (linksTrigger.current ?? advancedTrigger.current)
+          : opener;
+        if (target?.isConnected) target.focus({ preventScroll: true });
+      },
       onCancel: () =>
         setPicker((current) => (current ? { ...current, open: false } : null)),
-      onConfirm: (relationship, selection) => {
+      onConfirm: (relationship, selection, excluded) => {
         const currentGeneration = latestContext.current.generation;
         if (
           selection &&
@@ -251,14 +277,15 @@ export function FilterControls({
         if (
           !advanced &&
           initial &&
-          !linkClauses(latestContext.current.filter).some(
+          !chipLinkClauses(latestContext.current.filter).some(
             (leaf) =>
               leaf.clause_id === id && sameRelationship(leaf.relationship, initial),
           )
         )
           return "This condition changed. Reopen it before applying changes.";
-        const error = confirm(relationship);
+        const error = confirm(relationship, excluded);
         if (error) return error;
+        restoreToolbarFocus = !advanced && !!initial && excluded;
         if (selection)
           setDraftLabels((current) => ({
             ...current,
@@ -283,17 +310,23 @@ export function FilterControls({
       openPicker(
         initial,
         id,
-        (relationship) => {
-          if (initial && sameRelationship(initial, relationship)) return null;
+        (relationship, excluded) => {
+          if (
+            initial &&
+            sameRelationship(initial, relationship) &&
+            excluded === !!rule.meta?.atlasExcluded
+          )
+            return null;
           replace({
             ...rule,
             id,
             operator: relationship.direction,
             value: relationship,
+            meta: { ...rule.meta, atlasExcluded: excluded },
           });
           return null;
         },
-        true,
+        { advanced: true, initialExcluded: !!rule.meta?.atlasExcluded },
       );
     },
   };
@@ -411,8 +444,12 @@ export function FilterControls({
                 return;
               }
               const id = crypto.randomUUID();
-              openPicker(undefined, id, (relationship) =>
-                latestEditor.current.addLink(relationship, id),
+              openPicker(
+                undefined,
+                id,
+                (relationship, excluded) =>
+                  latestEditor.current.addLink(relationship, id, excluded),
+                { opener: linksTrigger.current ?? undefined },
               );
             }}
           >
@@ -439,10 +476,7 @@ export function FilterControls({
               aria-expanded={advanced}
               aria-label="Advanced filters"
             >
-              <span className="filter-controls__advanced-label">
-                Advanced
-                <span className="filter-controls__advanced-dot" aria-hidden="true" />
-              </span>
+              Advanced
             </Button>
           </Tooltip>
           {(search.filter ||
@@ -477,27 +511,14 @@ export function FilterControls({
           filter={search.filter}
           title={linkTitle}
           limit={editor?.limits.relationship_leaves}
-          onEdit={(leaf, relationship) => {
-            if (!relationship) {
-              openPicker(leaf.relationship, leaf.clause_id!, (next) =>
-                latestEditor.current.editLink(leaf, next),
-              );
-              return null;
-            }
-            const error = latestEditor.current.editLink(leaf, relationship);
-            const title = linkTitle(leaf);
-            if (
-              !error &&
-              generation &&
-              title !== "Loading record…" &&
-              title !== "Record unavailable"
+          onEdit={(leaf, opener) =>
+            openPicker(
+              leaf.relationship,
+              leaf.clause_id!,
+              (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
+              { opener },
             )
-              setDraftLabels((current) => ({
-                ...current,
-                [leaf.clause_id!]: { relationship, title, generation },
-              }));
-            return error;
-          }}
+          }
           onRemove={(leaf) => {
             const trigger = linksTrigger.current ?? advancedTrigger.current;
             restoreOverlayFocus(
@@ -525,12 +546,31 @@ export function FilterControls({
         </div>
         <Drawer
           title="Advanced filters"
+          rootClassName="advanced-filter-drawer-root"
+          styles={{
+            root: { overflow: "hidden", pointerEvents: advanced ? "auto" : undefined },
+          }}
+          drawerRender={(panel) => (
+            <ConfigProvider getPopupContainer={getAdvancedPopupContainer}>
+              {panel}
+            </ConfigProvider>
+          )}
           placement="left"
+          push={false}
           size="min(100vw, 640px)"
           open={advanced}
           onClose={() => setAdvanced(false)}
         >
-          <section className="advanced-filters" aria-label="Advanced filters">
+          <section
+            className="advanced-filters"
+            aria-label="Advanced filters"
+            style={
+              {
+                "--filter-action-hover": token.colorFillTertiary,
+                "--filter-action-motion": `${token.motionDurationMid} ${token.motionEaseInOut}`,
+              } as CSSProperties
+            }
+          >
             {prepared.error &&
               !search.filterError &&
               search.filter &&
@@ -712,12 +752,15 @@ function CommonRange({
   field,
   range,
   onChange,
+  compact = false,
 }: {
   field: FilterEditorFieldView;
   range: [string, string];
+  compact?: boolean;
   onChange: (range: [string, string]) => void;
 }) {
   const id = useId();
+  const [editingRange, setEditingRange] = useState(false);
   let error: string | null = null;
   try {
     const min = range[0].trim() ? numericLiteral(range[0]) : null;
@@ -727,40 +770,66 @@ function CommonRange({
   } catch (failure) {
     error = failure instanceof Error ? failure.message : String(failure);
   }
+  const message = editingRange ? null : error;
   return (
-    <div>
+    <div
+      onFocus={() => setEditingRange(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setEditingRange(false);
+      }}
+    >
       <div className="filter-range">
         <label className="filter-range__bound" htmlFor={id + "-minimum"}>
-          <span>Minimum</span>
+          {!compact && <span>Minimum</span>}
           <Input
             id={id + "-minimum"}
+            prefix={
+              compact ? (
+                <Typography.Text type="secondary">Min</Typography.Text>
+              ) : undefined
+            }
             aria-label={field.label + " minimum"}
+            aria-invalid={message ? true : undefined}
+            aria-describedby={message ? id + "-error" : undefined}
             name={field.definition.id + "-minimum"}
             inputMode="decimal"
             autoComplete="off"
             placeholder="Any"
-            status={error ? "error" : undefined}
+            status={message ? "error" : undefined}
             value={range[0]}
             onChange={(event) => onChange([event.target.value, range[1]])}
           />
         </label>
         <label className="filter-range__bound" htmlFor={id + "-maximum"}>
-          <span>Maximum</span>
+          {!compact && <span>Maximum</span>}
           <Input
             id={id + "-maximum"}
+            prefix={
+              compact ? (
+                <Typography.Text type="secondary">Max</Typography.Text>
+              ) : undefined
+            }
             aria-label={field.label + " maximum"}
+            aria-invalid={message ? true : undefined}
+            aria-describedby={message ? id + "-error" : undefined}
             name={field.definition.id + "-maximum"}
             inputMode="decimal"
             autoComplete="off"
             placeholder="Any"
-            status={error ? "error" : undefined}
+            status={message ? "error" : undefined}
             value={range[1]}
             onChange={(event) => onChange([range[0], event.target.value])}
           />
         </label>
       </div>
       {error && (
-        <Typography.Text type="danger" role="status">
+        <Typography.Text
+          type="danger"
+          role={message ? "status" : undefined}
+          aria-hidden={message ? undefined : true}
+          id={id + "-error"}
+          className={message ? undefined : "filter-validation-deferred"}
+        >
           {error}
         </Typography.Text>
       )}
@@ -774,8 +843,10 @@ type BuilderContext = {
   scope: string | null;
   narrowFields: boolean;
   workspace: FilterPanelState;
+  addCondition: (path: number[], fieldId: string) => void;
+  pendingConditionRef: RefObject<string | null>;
   replaceGroup: (path: number[], group: RuleGroupType) => void;
-  replaceRule: (path: number[], rule: RuleType) => void;
+  replaceRule: (path: number[], rule: RuleType, normalize?: boolean) => void;
 };
 function StructuredBuilder({
   editor,
@@ -792,6 +863,7 @@ function StructuredBuilder({
   useApplicability?: boolean;
   workspace: FilterPanelState;
 }) {
+  const pendingConditionRef = useRef<string | null>(null);
   const visible = editor.groups
     .flatMap((group) => group.fields)
     .filter(
@@ -839,8 +911,8 @@ function StructuredBuilder({
             .filter((group) => group.options.length),
         ]}
         combinators={[
-          { name: "and", label: "Match all" },
-          { name: "or", label: "Match any" },
+          { name: "and", label: "All conditions match" },
+          { name: "or", label: "At least one condition matches" },
         ]}
         getOperators={(id) =>
           id === LINK_CONDITION
@@ -864,28 +936,57 @@ function StructuredBuilder({
             scope,
             narrowFields: useApplicability && isPositiveConjunction(query, visible),
             workspace,
+            pendingConditionRef,
+            addCondition: (path, fieldId) => {
+              const operator = visible
+                .find((field) => field.definition.id === fieldId)
+                ?.operators.find((option) => option.operator !== "state");
+              const id = crypto.randomUUID();
+              pendingConditionRef.current = id;
+              onChange(
+                add(
+                  query,
+                  {
+                    id,
+                    field: fieldId,
+                    operator:
+                      fieldId === LINK_CONDITION
+                        ? "incoming"
+                        : (operator?.operator ?? "eq"),
+                    value: operator
+                      ? transitionOperand(null, operator.operand, null)
+                      : "",
+                  },
+                  path,
+                ),
+              );
+            },
             replaceGroup: (path, group) =>
               onChange(
                 update(query, { combinator: group.combinator, not: group.not }, path),
               ),
-            replaceRule: (path, rule) =>
+            replaceRule: (path, rule, normalize = true) => {
+              const next = update(
+                query,
+                {
+                  field: rule.field,
+                  operator: rule.operator,
+                  value: rule.value,
+                  meta: rule.meta,
+                },
+                path,
+              );
               onChange(
-                normalizeBuilderEdit(
-                  query,
-                  update(
-                    query,
-                    {
-                      field: rule.field,
-                      operator: rule.operator,
-                      value: rule.value,
-                      meta: rule.meta,
-                    },
-                    path,
-                  ),
-                  editor.groups.flatMap((group) => group.fields),
-                  scope,
-                ),
-              ),
+                normalize
+                  ? normalizeBuilderEdit(
+                      query,
+                      next,
+                      editor.groups.flatMap((group) => group.fields),
+                      scope,
+                    )
+                  : next,
+              );
+            },
           } satisfies BuilderContext
         }
         translations={{
@@ -912,24 +1013,72 @@ function StructuredBuilder({
 }
 const RuleEditContext = createContext<{
   rule: PredicateRule;
-  replace: (rule: PredicateRule) => void;
+  replace: (rule: PredicateRule, normalize?: boolean) => void;
 } | null>(null);
 function FilterRule(props: RuleProps) {
   const rule = useRule(props);
-  const { replaceRule } = props.context as BuilderContext;
+  const { editor, replaceRule, pendingConditionRef } = props.context as BuilderContext;
+  const field = editor.groups
+    .flatMap((group) => group.fields)
+    .find((candidate) => candidate.definition.id === props.rule.field);
+  const row = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (pendingConditionRef.current !== props.rule.id || !row.current) return;
+    pendingConditionRef.current = null;
+    const focusable = "input:not([disabled]), button:not([disabled])";
+    const next =
+      row.current
+        .querySelector(
+          ":scope > .filter-rule-value, :scope > .filter-collection-condition",
+        )
+        ?.querySelector<HTMLElement>(focusable) ??
+      row.current.querySelector<HTMLElement>(
+        ".filter-field-family > :last-child input",
+      ) ??
+      row.current.querySelector<HTMLElement>(focusable);
+    next?.focus();
+  }, [pendingConditionRef, props.rule.id]);
+  const links = useContext(LinkEditingContext);
+  const draftRule = props.rule as PredicateRule;
+  const relationship =
+    draftRule.field === LINK_CONDITION && draftRule.value?.selection
+      ? ({ ...draftRule.value, direction: draftRule.operator } as QueryRelationship)
+      : null;
+  const title =
+    relationship &&
+    links?.title({ kind: "relationship", clause_id: draftRule.id, relationship });
+  const direction =
+    relationship?.direction === "incoming"
+      ? draftRule.meta?.atlasExcluded
+        ? "Does not link to"
+        : "Links to"
+      : draftRule.meta?.atlasExcluded
+        ? "Not linked from"
+        : "Linked from";
   return (
     <RuleEditContext.Provider
       value={{
         rule: props.rule as PredicateRule,
-        replace: (next) => replaceRule(props.path, next),
+        replace: (next, normalize) => replaceRule(props.path, next, normalize),
       }}
     >
       <div
+        ref={row}
         className={rule.outerClassName}
         data-rule-id={props.rule.id}
+        data-wide-field={
+          (field && (contextualFieldLabel(field) ?? field.label).length > 24) ||
+          undefined
+        }
         data-link-condition={props.rule.field === LINK_CONDITION || undefined}
       >
         <RuleComponents {...rule} />
+        {relationship && (
+          <Typography.Text type="secondary" className="filter-link-summary">
+            {direction} {title ?? "Record unavailable"} ·{" "}
+            {relationship.include_contents ? "Whole entry" : "Main entry only"}
+          </Typography.Text>
+        )}
       </div>
     </RuleEditContext.Provider>
   );
@@ -958,13 +1107,36 @@ function isAdditivePath(group: RuleGroupType, path: number[]): boolean {
   const child = group.rules[index];
   return !!child && "rules" in child && isAdditivePath(child, rest);
 }
-function BuilderFieldSelector(props: FieldSelectorProps) {
-  const { editor, scope, narrowFields } = props.context as BuilderContext;
-  const editing = useContext(RuleEditContext);
-  const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
-  const addingCondition = !props.value || props.value === "~";
+function contextualFieldLabel(field: FilterEditorFieldView) {
+  switch (field.definition.id) {
+    case "campaign_feature.category":
+      return "Feature category";
+    case "source.document_kind":
+      return "Document category";
+    default:
+      return null;
+  }
+}
+type FilterFieldOption = {
+  value: string;
+  label: string;
+  searchText: string;
+  rowLabel?: string;
+};
+function filterFieldGroups(
+  {
+    editor,
+    scope,
+    narrowFields,
+  }: Pick<BuilderContext, "editor" | "scope" | "narrowFields">,
+  addingCondition: boolean,
+  includeConstant = false,
+): {
+  label: string;
+  options: FilterFieldOption[];
+}[] {
   const seenKinds = new Set<ActorMetricKind>();
-  const groups = [
+  return [
     ...editor.groups
       .map((group) => ({
         label: group.label,
@@ -977,7 +1149,7 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
               (!field.unit_fields.length ||
                 field.unit_fields[0].field_id === field.definition.id),
           )
-          .flatMap((field) => {
+          .flatMap<FilterFieldOption>((field) => {
             const kind = scope === null ? actorMetricKind(field.definition.id) : null;
             if (kind) {
               if (seenKinds.has(kind)) return [];
@@ -1003,7 +1175,8 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
             return [
               {
                 value: field.definition.id,
-                label: field.label,
+                label: contextualFieldLabel(field) ? "Category" : field.label,
+                rowLabel: contextualFieldLabel(field) ?? field.label,
                 searchText: field.label,
               },
             ];
@@ -1024,7 +1197,7 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
           },
         ]
       : []),
-    ...(props.value === BOOLEAN_CONDITION
+    ...(includeConstant
       ? [
           {
             label: "Technical condition",
@@ -1039,13 +1212,39 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
         ]
       : []),
   ];
+}
+function filterFieldListHeight() {
+  return Math.min(420, Math.max(144, Math.floor(window.innerHeight * 0.56)));
+}
+function BuilderFieldSelector(props: FieldSelectorProps) {
+  const { editor, scope, narrowFields } = props.context as BuilderContext;
+  const editing = useContext(RuleEditContext);
+  const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
+  const addingCondition = !props.value || props.value === "~";
+  const groups = filterFieldGroups(
+    { editor, scope, narrowFields },
+    addingCondition,
+    props.value === BOOLEAN_CONDITION,
+  );
   const chooser = (
     <Select
       className={selectedKind ? undefined : props.className}
       aria-label="Filter field"
       placeholder="Choose a filter…"
+      listHeight={filterFieldListHeight()}
+      popupMatchSelectWidth={Math.min(320, window.innerWidth - 32)}
+      styles={{
+        content: { whiteSpace: "normal", overflowWrap: "anywhere" },
+        popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
+      }}
       showSearch={{ optionFilterProp: "searchText" }}
       options={groups}
+      labelRender={({ value, label }) => {
+        const option = groups
+          .flatMap((group) => group.options)
+          .find((entry) => entry.value === value);
+        return option?.rowLabel ?? label;
+      }}
       value={
         selectedKind
           ? ACTOR_METRIC_CHOOSERS[selectedKind]
@@ -1098,11 +1297,21 @@ function RemoveCondition(props: ActionProps) {
     <Tooltip title={props.title || "Remove condition"} trigger={["hover", "focus"]}>
       <Button
         className={props.className}
+        data-filter-remove
         type="text"
         icon={<CloseOutlined />}
         aria-label={props.title || "Remove condition"}
         disabled={props.disabled}
-        onClick={props.handleOnClick}
+        onClick={(event) => {
+          const control = event.currentTarget;
+          const item = control.closest(".rule") ?? control.closest(".ruleGroup");
+          const group = item?.parentElement?.closest(".ruleGroup");
+          const addControl = group?.querySelector<HTMLElement>(
+            ":scope > .ruleGroup-body > .filter-group-actions [role=combobox]",
+          );
+          restoreOverlayFocus(addControl ?? null, control);
+          props.handleOnClick(event);
+        }}
       />
     </Tooltip>
   );
@@ -1112,14 +1321,21 @@ function GroupMatchSelector(props: CombinatorSelectorProps) {
   const group = props.ruleGroup as RuleGroupType;
   return (
     <Select
+      className="filter-text-select filter-match-mode"
       aria-label="Match conditions"
+      variant="borderless"
+      styles={{
+        root: { maxWidth: "100%" },
+        content: { whiteSpace: "normal" },
+        popup: { listItem: { whiteSpace: "normal" } },
+      }}
       popupMatchSelectWidth={false}
       value={(group.not ? "not:" : "") + group.combinator}
       options={[
-        { value: "and", label: "Match all" },
-        { value: "or", label: "Match any" },
-        { value: "not:or", label: "Match none" },
-        { value: "not:and", label: "Not all match" },
+        { value: "and", label: "All conditions match" },
+        { value: "or", label: "At least one condition matches" },
+        { value: "not:or", label: "No conditions match" },
+        { value: "not:and", label: "At least one condition doesn’t match" },
       ]}
       onChange={(value) =>
         replaceGroup(props.path, {
@@ -1140,19 +1356,35 @@ function hasConfiguredCondition(group: RuleGroupType): boolean {
   );
 }
 function FilterGroupBody(props: UseRuleGroup) {
+  const context = props.context as BuilderContext;
+  const { token } = theme.useToken();
+  const [choosingField, setChoosingField] = useState(false);
   return (
     <>
       <RuleGroupBodyComponents {...props} />
       <Space className="filter-group-actions">
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
+        <Select
+          className="filter-text-select filter-add-condition"
           aria-label="Add condition"
+          placeholder="Add condition"
+          variant="borderless"
+          styles={{
+            placeholder: { color: token.colorText },
+            popup: { listItem: { whiteSpace: "normal", overflowWrap: "anywhere" } },
+          }}
+          value={null}
+          open={choosingField}
+          onOpenChange={setChoosingField}
+          listHeight={filterFieldListHeight()}
+          popupMatchSelectWidth={Math.min(320, window.innerWidth - 32)}
+          showSearch={{ optionFilterProp: "searchText" }}
+          options={filterFieldGroups(context, true)}
           disabled={props.disabled}
-          onClick={props.addRule}
-        >
-          Add condition
-        </Button>
+          onChange={(fieldId) => {
+            setChoosingField(false);
+            if (fieldId) context.addCondition(props.path, fieldId);
+          }}
+        />
         {props.schema.maxLevels > props.path.length && (
           <Button type="text" disabled={props.disabled} onClick={props.addGroup}>
             Add group
@@ -1162,35 +1394,51 @@ function FilterGroupBody(props: UseRuleGroup) {
     </>
   );
 }
+function levelBounds(rule: PredicateRule): [string, string] | null {
+  if (
+    (rule.field !== "level" && rule.field !== "level_or_rank") ||
+    rule.meta?.atlasExcluded
+  )
+    return null;
+  const text = (value: unknown) =>
+    typeof value === "string" || typeof value === "number" ? String(value) : null;
+  const { operator, value } = rule;
+  if (operator === "between" && Array.isArray(value) && value.length === 2) {
+    const min = text(value[0]);
+    const max = text(value[1]);
+    return min !== null && max !== null ? [min, max] : null;
+  }
+  const bound = text(value);
+  if (bound === null) return null;
+  if (operator === "eq") return [bound, bound];
+  if (operator === "gte") return [bound, ""];
+  if (operator === "lte") return ["", bound];
+  // Indexed levels can be fractional, so strict comparisons need their operator.
+  return null;
+}
+function booleanComparison(
+  field: FilterEditorFieldView | undefined,
+  rule: PredicateRule,
+) {
+  return (
+    field?.definition.field_type === "boolean" &&
+    field.operators.some(({ operator }) => operator === "eq") &&
+    (rule.operator === "eq" || rule.operator === "neq") &&
+    (rule.value === "" ||
+      rule.value == null ||
+      ["true", "false"].includes(String(rule.value)))
+  );
+}
 function BuilderOperatorSelector(props: OperatorSelectorProps) {
   const editing = useContext(RuleEditContext);
   if (isActorMetricChooser(props.field)) return null;
-  if (props.field === LINK_CONDITION)
-    return (
-      <Select
-        className={props.className}
-        aria-label="Link condition"
-        value={(editing?.rule.meta?.atlasExcluded ? "not:" : "") + props.value}
-        disabled={props.disabled}
-        options={[
-          { value: "incoming", label: "Links to" },
-          { value: "outgoing", label: "Linked from" },
-          { value: "not:incoming", label: "Does not link to" },
-          { value: "not:outgoing", label: "Not linked from" },
-        ]}
-        onChange={(value) =>
-          editing?.replace({
-            ...editing.rule,
-            operator: value.replace("not:", ""),
-            meta: { ...editing.rule.meta, atlasExcluded: value.startsWith("not:") },
-          })
-        }
-      />
-    );
+  if (props.field === LINK_CONDITION) return null;
   const { editor } = props.context as BuilderContext;
   const field = editor.groups
     .flatMap((group) => group.fields)
     .find((field) => field.definition.id === props.field);
+  if (editing && (levelBounds(editing.rule) || booleanComparison(field, editing.rule)))
+    return null;
   const excluded = !!editing?.rule.meta?.atlasExcluded;
   const operators =
     field?.operators.filter(
@@ -1198,11 +1446,16 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
     ) ?? [];
   const options = operators.map((operator) => ({
     value: operator.operator,
-    label: operator.operator === "exists" ? "has" : operator.label,
+    label:
+      operator.operator === "exists"
+        ? "has"
+        : operator.operator === "excludes_any"
+          ? "includes none"
+          : operator.label,
   }));
   for (const operator of operators) {
     if (
-      ["in", "includes_all", "exists"].includes(operator.operator) ||
+      ["in", "exists"].includes(operator.operator) ||
       (excluded && operator.operator === props.value)
     ) {
       options.push({
@@ -1219,15 +1472,16 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
                   : operator.operator === "includes"
                     ? "excludes"
                     : operator.operator === "includes_all"
-                      ? "does not include all"
+                      ? "doesn’t include all"
                       : "not " + operator.label,
       });
     }
   }
   return (
-    <Select
+    <CompactSelect
       className={props.className}
       aria-label={"Condition for " + (field?.label ?? "this field")}
+      popupMatchSelectWidth={false}
       value={excluded ? "not:" + props.value : props.value}
       options={
         props.field === BOOLEAN_CONDITION
@@ -1251,15 +1505,10 @@ function BuilderValueEditor(props: ValueEditorProps) {
   const { token } = theme.useToken();
   const editing = useContext(RuleEditContext);
   const { editor, query, scope, workspace } = props.context as BuilderContext;
+  const [editingRange, setEditingRange] = useState(false);
   const links = useContext(LinkEditingContext);
   if (props.field === LINK_CONDITION) {
-    const rule = props.rule as PredicateRule;
-    const relationship = rule.value?.selection
-      ? ({ ...rule.value, direction: rule.operator } as QueryRelationship)
-      : undefined;
-    const leaf = relationship
-      ? { kind: "relationship" as const, clause_id: rule.id!, relationship }
-      : null;
+    const hasSelection = !!props.rule.value?.selection;
     return (
       <div className="filter-rule-value">
         {scope !== null ? (
@@ -1285,9 +1534,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
               links.open(editing.rule, editing.replace);
             }}
           >
-            {leaf
-              ? `${links?.title(leaf) ?? "Record unavailable"} · ${relationship?.include_contents ? "Whole entry" : "Main entry only"}`
-              : "Choose record"}
+            {hasSelection ? "Edit link" : "Choose record"}
           </Button>
         )}
       </div>
@@ -1319,6 +1566,53 @@ function BuilderValueEditor(props: ValueEditorProps) {
         This field is unavailable. Choose another field or remove this condition.
       </Typography.Text>
     );
+  if (editing) {
+    const bounds = levelBounds(editing.rule);
+    if (bounds)
+      return (
+        <div className="filter-rule-value">
+          <CommonRange
+            field={field}
+            compact
+            range={bounds}
+            onChange={(next) => editing.replace(rangeRule(editing.rule, next), false)}
+          />
+        </div>
+      );
+    if (booleanComparison(field, editing.rule)) {
+      const rule = editing.rule;
+      const invert = (rule.operator === "neq") !== !!rule.meta?.atlasExcluded;
+      const value =
+        rule.value === "" || rule.value == null
+          ? undefined
+          : String((String(rule.value) === "true") !== invert);
+      return (
+        <CompactSelect
+          className="filter-rule-value"
+          aria-label={field.label}
+          placeholder="—"
+          allowClear
+          options={[
+            { label: "Yes", value: "true" },
+            { label: "No", value: "false" },
+          ]}
+          value={value}
+          disabled={props.disabled}
+          onChange={(next) =>
+            editing.replace(
+              {
+                ...rule,
+                operator: "eq",
+                value: next ?? "",
+                meta: { ...rule.meta, atlasExcluded: false },
+              },
+              false,
+            )
+          }
+        />
+      );
+    }
+  }
   if (props.operator === "exists") {
     const query = isBuilderGroup(props.value) ? props.value : emptyGroup();
     if (isCompactCollection(field, query))
@@ -1359,6 +1653,20 @@ function BuilderValueEditor(props: ValueEditorProps) {
     props.value == null ||
     props.value === "" ||
     (Array.isArray(props.value) && !props.value.length);
+  const isRange = props.operator === "between";
+  const range = isRange && Array.isArray(props.value) ? props.value : [];
+  const hasBound = (value: unknown) => value != null && String(value).trim() !== "";
+  const enteredBounds = range.filter(hasBound).length;
+  const issue = isRange
+    ? enteredBounds === 0
+      ? null
+      : enteredBounds === 1
+        ? "Enter minimum and maximum"
+        : error
+    : incomplete
+      ? null
+      : error;
+  const message = isRange && editingRange ? null : issue;
   const clauseId = props.rule.id ?? null;
   // An unaddressed facet evaluates an added conjunction. That cannot describe
   // inserting a condition beneath OR or group negation.
@@ -1367,11 +1675,32 @@ function BuilderValueEditor(props: ValueEditorProps) {
     (isAdditivePath(query, props.path) ||
       !!existingClauseId(workspace.filterDiscoveryContext, clauseId));
   return (
-    <div className="filter-rule-value">
+    <div
+      className="filter-rule-value"
+      onFocus={isRange ? () => setEditingRange(true) : undefined}
+      onBlur={
+        isRange
+          ? (event) => {
+              if (!event.currentTarget.contains(event.relatedTarget))
+                setEditingRange(false);
+            }
+          : undefined
+      }
+    >
       <Form.Item
         style={{ marginBottom: 0 }}
-        validateStatus={error && !incomplete ? "error" : undefined}
-        help={error && !incomplete ? <span role="status">{error}</span> : undefined}
+        validateStatus={message ? "error" : undefined}
+        help={
+          issue ? (
+            <span
+              role={message ? "status" : undefined}
+              aria-hidden={message ? undefined : true}
+              className={message ? undefined : "filter-validation-deferred"}
+            >
+              {issue}
+            </span>
+          ) : undefined
+        }
       >
         <div className={field.unit_fields.length ? "filter-duration-value" : undefined}>
           <FilterValueInput

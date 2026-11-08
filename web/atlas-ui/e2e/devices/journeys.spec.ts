@@ -2778,7 +2778,10 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
     info,
   );
   const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
-  const level = advanced.getByRole("textbox", { name: "Level / Rank", exact: true });
+  const level = advanced.getByRole("textbox", {
+    name: "Level / Rank minimum",
+    exact: true,
+  });
   await level.fill("unfinished");
   const draftUrl = page.url();
   await activate(
@@ -2806,12 +2809,11 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
   await expect(selected).toBeVisible();
   const read = page.getByRole("link", { name: "Read Chthonian", exact: true });
   await activate(read, info);
-  const help = page.getByRole("dialog", { name: "Chthonian", exact: true });
+  const help = page.locator(".picker-reference");
   await expect(help.getByText(/Typically spoken by demons/)).toBeVisible();
-  await expectUsefulGlossaryDrawer(help);
   expect(page.url()).toBe(draftUrl);
   await activate(
-    help.getByRole("button", { name: "Close reference preview", exact: true }),
+    help.getByRole("button", { name: "Back to languages choices", exact: true }),
     info,
   );
   await expect(help).toBeHidden();
@@ -2821,7 +2823,7 @@ test("field vocabulary Read preserves selected values and unfinished filter draf
   await expect(read).toBeFocused();
   await activate(read, info);
   await activate(
-    help.getByRole("link", { name: "Open reference full page", exact: true }),
+    help.getByRole("link", { name: "Open full reference", exact: true }),
     info,
   );
   await expect(page).toHaveURL(/\/definitions\/language:chthonian$/);
@@ -2911,7 +2913,7 @@ test("reference feedback: edition context is visible above rules and counterpart
   await noPageOverflow(page);
 });
 
-test("reference feedback: link picker drafts survive reading and filter popovers close before drawers", async ({
+test("reference feedback: link picker retains direction, scope and preview when editing", async ({
   page,
 }, info) => {
   await page.goto("/search");
@@ -2975,15 +2977,22 @@ test("reference feedback: link picker drafts survive reading and filter popovers
     exact: true,
   });
   await activate(chip, info);
-  const open = page.getByRole("link", { name: `Open ${title}`, exact: true });
-  await activate(open, info);
-  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
-  await expect(drawer).toBeVisible();
-  await expect(open).toBeHidden();
-  await activate(
-    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
-    info,
-  );
+  const edit = page.getByRole("dialog", { name: "Edit link condition", exact: true });
+  await expect(
+    edit
+      .locator(".reference-reader")
+      .getByRole("heading", { name: title, exact: true })
+      .first(),
+  ).toBeVisible();
+  const editResults = edit.getByRole("button", { name: "Results", exact: true });
+  if (await editResults.isVisible()) await activate(editResults, info);
+  await expect(
+    edit.getByRole("radio", { name: "Linked from", exact: true }),
+  ).toBeChecked();
+  await expect(edit.getByText("Main entry only", { exact: true })).toBeVisible();
+  await activate(edit.getByRole("button", { name: "Cancel", exact: true }), info);
+  await expect(edit).toBeHidden();
+  await expect(chip).toBeVisible();
   await expect(chip).toBeFocused();
   await noPageOverflow(page);
 });

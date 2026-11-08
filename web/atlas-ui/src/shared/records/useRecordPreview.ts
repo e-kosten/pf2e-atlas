@@ -40,9 +40,15 @@ type EncounterPreviewContext = {
 };
 
 function previewBookmark(anchor?: HTMLElement) {
-  const drawer = anchor?.closest<HTMLElement>(".record-preview-drawer");
-  const pane = drawer?.querySelector<HTMLElement>(".record-preview-drawer__body");
-  const focusRegion = anchor?.closest(".record-preview-drawer__header")
+  const drawer = anchor?.closest<HTMLElement>(
+    ".record-preview-drawer, [data-reference-host]",
+  );
+  const pane = drawer?.querySelector<HTMLElement>(
+    ".record-preview-drawer__body, [data-reference-body]",
+  );
+  const focusRegion = anchor?.closest(
+    ".record-preview-drawer__header, [data-reference-header]",
+  )
     ? ("header" as const)
     : pane?.contains(anchor ?? null)
       ? ("body" as const)

@@ -88,6 +88,15 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.common-choice-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-control);
+  min-width: 0;
+}
+.common-choice-option__action {
+  flex: none;
+}
 .common-choice-row {
   justify-content: flex-start;
   height: auto;
@@ -129,6 +138,10 @@
   gap: 4px;
   min-width: 0;
 }
+/* Keep the next control in place when a pointer action blurs an invalid range. */
+.filter-validation-deferred {
+  visibility: hidden;
+}
 .filter-value-control,
 .filter-rule-value,
 .filter-collection-condition {
@@ -149,7 +162,9 @@
 }
 .advanced-filters .ruleGroup {
   background: transparent;
-  border-color: var(--line);
+  border: 0;
+  border-inline-start: 2px solid var(--line);
+  border-radius: var(--radius-sm);
   min-width: 0;
   container-type: inline-size;
 }
@@ -158,83 +173,86 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  justify-content: space-between;
+  padding-block-end: 4px;
 }
 .advanced-filters .rule {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: start;
+  padding-block: 8px;
+  border-block-end: 1px solid var(--line);
 }
 .advanced-filters .ruleGroup-body {
   min-width: 0;
 }
 .advanced-filters .rule > .rule-fields {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 1;
 }
 .filter-field-family {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
 }
-.filter-field-family > .ant-select {
+.filter-field-family > * {
   min-width: 0;
-  flex: 1 1 140px;
+  flex: 1 1 0;
 }
-.filter-field-family > .ant-select:first-child {
-  flex: 0 0 110px;
+.filter-field-family > :first-child {
+  flex: 0 1 110px;
+}
+.advanced-filters .rule:has(> .filter-field-family) > .rule-fields {
+  grid-column: 1 / -2;
 }
 .advanced-filters .rule > .rule-operators {
   grid-column: 1;
   grid-row: 2;
-  width: min(100%, 130px);
+  width: fit-content;
 }
-.advanced-filters .rule[data-link-condition] > .rule-operators {
-  width: min(100%, 180px);
-}
-.advanced-filters .rule > .filter-rule-value {
+.advanced-filters .rule > :is(.filter-rule-value, .filter-collection-condition) {
   grid-column: 1 / -1;
   grid-row: 3;
 }
 .advanced-filters .rule > .rule-remove {
-  grid-column: 3;
-  grid-row: 2;
-}
-.advanced-filters .rule > .filter-collection-condition {
-  grid-column: 1 / -1;
-  grid-row: 3;
+  grid-column: -2;
+  grid-row: 1;
 }
 .advanced-filters .rule > * {
   min-width: 0;
   max-width: 100%;
 }
+.filter-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-block-start: 8px;
+}
+.filter-add-condition {
+  min-width: 144px;
+}
 @container (min-width: 480px) {
   .advanced-filters .rule {
-    grid-template-columns: 130px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) fit-content(36%) minmax(0, 1.4fr) auto;
   }
-  .advanced-filters .rule[data-link-condition] {
-    grid-template-columns: 180px minmax(0, 1fr) auto;
-  }
-  .advanced-filters .rule > .filter-rule-value {
+  .advanced-filters .rule > .rule-operators {
     grid-column: 2;
-    grid-row: 2;
-  }
-  .advanced-filters .rule > .rule-remove {
-    grid-column: 3;
-  }
-  .advanced-filters .rule:has(> .filter-collection-condition) > .rule-operators {
-    grid-column: 1;
+    grid-row: 1;
     width: 100%;
   }
-  .advanced-filters .rule > .filter-collection-condition {
-    grid-column: 2;
+  .advanced-filters .rule > :is(.filter-rule-value, .filter-collection-condition) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .advanced-filters .rule > .filter-collection-condition:has(> .queryBuilder) {
+    grid-column: 1 / -1;
     grid-row: 2;
   }
 }
 .filter-controls__search-row.primary-toolbar {
   flex-wrap: nowrap;
 }
-.filter-controls__search-row > .reference-search-entry {
+.filter-controls__search-row
+  > :is(.reference-search-entry, .reference-search-entry--similar) {
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -273,18 +291,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.relationship-filter__scope a {
-  overflow-wrap: anywhere;
-  user-select: text;
-}
-
-.relationship-filter__scope {
-  max-width: min(300px, calc(100vw - 48px));
-}
-.relationship-filter__scope p {
-  margin-block: 12px 0;
-}
-
 .filter-controls__tools,
 .filter-controls__applied-links {
   display: flex;
@@ -402,24 +408,286 @@
   gap: var(--space-control);
 }
 
-.filter-controls__advanced-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.filter-controls__advanced-dot {
-  inline-size: 6px;
-  block-size: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-  visibility: hidden;
-}
 .filter-controls__advanced[data-applied="true"] {
   background: var(--selection-bg);
   color: var(--selection-text);
   border-color: var(--selection-border);
 }
-.filter-controls__advanced[data-applied="true"] .filter-controls__advanced-dot {
-  visibility: visible;
+
+.common-choice-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.common-choice-operand {
+  position: relative;
+  min-width: 0;
+  min-height: var(--control-height);
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--choice-field-border);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--choice-field-motion),
+    box-shadow var(--choice-field-motion);
+}
+.common-choice-operand:hover {
+  border-color: var(--primary-hover);
+}
+.common-choice-operand:has(> .common-choice-operand__opener[aria-expanded="true"]) {
+  border-color: var(--primary);
+}
+.common-choice-operand:has(> .common-choice-operand__opener:focus-visible) {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 var(--choice-field-outline-width) var(--choice-field-outline);
+}
+.common-choice-operand__opener,
+.common-choice-operand__clear {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.common-choice-operand__opener {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: var(--space-control);
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--choice-field-padding);
+  border-radius: inherit;
+  outline: 0;
+}
+.common-choice-operand[data-has-chips] .common-choice-operand__opener {
+  align-items: flex-start;
+  padding-block-start: calc(
+    (var(--control-height) - 2px - var(--choice-field-icon-size)) / 2
+  );
+}
+.common-choice-operand__value {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.common-choice-operand:not([data-has-clear]) .common-choice-operand__value {
+  color: var(--choice-field-placeholder);
+}
+.common-choice-operand__chevron,
+.common-choice-operand__clear {
+  color: var(--choice-field-affix);
+  font-size: var(--choice-field-icon-size);
+}
+.common-choice-operand__chevron {
+  flex: none;
+  margin-inline-start: auto;
+  opacity: calc(1 - var(--choice-field-clear-opacity, 0));
+}
+.common-choice-operand[data-has-clear]:is(
+    :hover,
+    :focus-within,
+    :has(> [aria-expanded="true"])
+  ) {
+  --choice-field-clear-opacity: 1;
+}
+@media (hover: none) {
+  .common-choice-operand[data-has-clear] {
+    --choice-field-clear-opacity: 1;
+  }
+}
+.common-choice-operand__clear {
+  position: absolute;
+  inset-block-start: calc((var(--control-height) - 2px - 24px) / 2);
+  inset-inline-end: calc(
+    var(--choice-field-padding) + (var(--choice-field-icon-size) - 24px) / 2
+  );
+  display: grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  opacity: var(--choice-field-clear-opacity, 0);
+}
+.common-choice-operand__clear:hover {
+  color: var(--choice-field-affix-hover);
+}
+.common-choice-operand__chips {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px 4px;
+  padding-inline-end: calc(
+    var(--choice-field-padding) + var(--choice-field-icon-size) + var(--space-control)
+  );
+  pointer-events: none;
+}
+.common-choice-operand__chip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  min-height: calc(var(--control-height) - 2 * var(--space-micro));
+  margin: 0;
+  font-size: inherit;
+  white-space: normal;
+}
+.common-choice-operand__chip-label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.common-choice-operand__chip-close {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 18px;
+  min-block-size: 20px;
+  pointer-events: auto;
+  border-radius: var(--radius-sm);
+}
+.common-choice-operand__chip-close:focus-visible,
+.common-choice-operand__clear:focus-visible {
+  outline: 1px solid var(--primary);
+  outline-offset: -1px;
+}
+.common-choice-menu[data-reference-picker] {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  inline-size: min(320px, calc(100vw - 48px));
+  transition: inline-size 180ms ease;
+  block-size: min(360px, calc(100dvh - 84px));
+  overflow: hidden;
+}
+.common-choice-menu[data-reference-picker] > * {
+  grid-area: 1 / 1;
+  min-block-size: 0;
+  overflow: auto;
+}
+.common-choice-view[inert] {
+  opacity: 0;
+}
+.common-choice-menu[role="dialog"][data-reference-picker][data-reading] {
+  inline-size: min(410px, calc(100vw - 48px));
+}
+@media (prefers-reduced-motion: reduce) {
+  .common-choice-menu[data-reference-picker],
+  .common-choice-operand {
+    transition: none;
+  }
+}
+.common-choice-menu[role="group"][data-reference-picker] {
+  inline-size: 100%;
+  block-size: min(360px, calc(80dvh - 84px));
+}
+.common-choice-menu[data-reference-picker] > .common-choice-reading {
+  overflow: hidden;
+}
+.picker-reference {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.picker-reference__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.picker-reference__body {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+}
+
+.filter-collection-details:not(:empty) {
+  display: grid;
+  gap: 8px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.common-choice-menu[role="group"] {
+  width: 100%;
+}
+
+@container (min-width: 480px) {
+  .advanced-filters .rule:not(:has(> .rule-operators)) > .filter-rule-value {
+    grid-column: 2 / -2;
+  }
+  .advanced-filters .rule[data-wide-field] > .rule-fields {
+    grid-column: 1 / -2;
+  }
+}
+
+.filter-link-summary {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  overflow-wrap: anywhere;
+}
+.filter-text-select {
+  transition: background-color var(--filter-action-motion);
+}
+.filter-text-select:is(:hover, :focus-within) {
+  background-color: var(--filter-action-hover);
+}
+.filter-match-mode {
+  width: fit-content;
+}
+.advanced-filters :is(.rule, .ruleGroup) {
+  position: relative;
+}
+.advanced-filters :is(.rule, .ruleGroup)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  inset-inline-start: -4px;
+  border-inline-start: 2px solid var(--filter-exclude-border);
+  border-radius: var(--radius-sm);
+  filter: drop-shadow(0 0 4px var(--filter-exclude-border));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--filter-action-motion);
+}
+.advanced-filters .ruleGroup::before {
+  inset-inline-start: -2px;
+}
+.advanced-filters .rule:has(> [data-filter-remove]:is(:hover, :focus-visible))::before,
+.advanced-filters
+  .ruleGroup:has(
+    > .ruleGroup-header > [data-filter-remove]:is(:hover, :focus-visible)
+  )::before {
+  opacity: 1;
+}
+@container (min-width: 480px) {
+  .advanced-filters .rule[data-link-condition] > .filter-rule-value {
+    grid-column: 2 / -2;
+    grid-row: 1;
+  }
+  .filter-link-summary {
+    grid-row: 2;
+  }
+  .advanced-filters
+    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family)) {
+    grid-template-columns: fit-content(36%) minmax(0, 1fr) auto;
+  }
+  .advanced-filters
+    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family))
+    > .rule-operators {
+    grid-column: 1;
+    grid-row: 2;
+    width: fit-content;
+  }
+  .advanced-filters
+    .rule:is([data-wide-field]:has(> .rule-operators), :has(> .filter-field-family))
+    > .filter-rule-value {
+    grid-column: 2 / -2;
+    grid-row: 2;
+  }
 }

@@ -28,7 +28,10 @@ const api = vi.hoisted(() => ({
       ) => Promise<FilterCountsView>
     >(),
 }));
-vi.mock("../../api/atlasApi", () => api);
+vi.mock("../../api/atlasApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/atlasApi")>()),
+  ...api,
+}));
 function renderInput(
   closed = false,
   onChange = vi.fn(),
@@ -180,6 +183,32 @@ describe("shared value control vocabulary", () => {
     expect(screen.getByRole("combobox", { name: "Traits" })).toBeInTheDocument();
     expect(api.discoverFilterValues).not.toHaveBeenCalled();
   });
+  it("omits blank catalog values that would clear an Advanced operand", async () => {
+    api.discoverFilterValues.mockResolvedValue({
+      kind: "vocabulary",
+      scope: { kind: "saved_list", list_ref: "research" },
+      values: {
+        field: "traits",
+        selected_values: [],
+        total_values: 3n,
+        options: [
+          { value: "", label: "" },
+          { value: " ", label: "" },
+          { value: "fire", label: "Fire" },
+        ],
+        basis: "product_key_scope",
+      },
+    });
+    const change = vi.fn();
+    renderInput(false, change, []);
+    openVocabulary();
+    const fire = await screen.findByRole("button", {
+      name: "Traits: Fire, activate to select",
+    });
+    expect(screen.getAllByRole("button", { name: /^Traits:/ })).toEqual([fire]);
+    fireEvent.click(fire);
+    expect(change).toHaveBeenCalledExactlyOnceWith(["fire"]);
+  });
   it("counts closed choices only when the advanced selector opens", async () => {
     renderInput(true, vi.fn(), ["fire"], true);
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
@@ -264,6 +293,109 @@ describe("shared value control vocabulary", () => {
       ),
     );
   });
+  it("keeps off-search contextual selections in chips but out of search results", async () => {
+    api.discoverFilterValues.mockResolvedValue({
+      kind: "contextual",
+      search_profile: "bge-base",
+      artifact_generation: "generation-a",
+      outcome: {
+        status: "available",
+        value: {
+          field: "traits",
+          options: [
+            { value: "acid", label: "Acid", distinct_roots: 4n, selected: true },
+            { value: "cold", label: "Cold", distinct_roots: 2n, selected: true },
+          ],
+          total_values: 2n,
+          exhaustive: true,
+          count_basis: "exact counterfactual displayed roots",
+        },
+      },
+    });
+    renderInput(false, vi.fn(), ["acid", "cold"], true);
+    openVocabulary();
+    expect(await screen.findByText("2 values in this list")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search traits choices" }), {
+      target: { value: "Acid" },
+    });
+    expect(await screen.findByText("1 value in this list")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Traits: Acid, selected/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Traits: Cold, selected/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Remove selected Cold from Traits" }),
+    ).toBeVisible();
+  });
+
+  it("keeps the full catalog open after selecting a value", async () => {
+    api.discoverFilterValues.mockImplementation(async (request) => {
+      if (request.kind === "contextual")
+        return {
+          kind: "contextual",
+          search_profile: "bge-base",
+          artifact_generation: "generation-a",
+          outcome: {
+            status: "available",
+            value: {
+              field: "traits",
+              options: [
+                { value: "acid", label: "Acid", distinct_roots: 4n, selected: false },
+              ],
+              total_values: 1n,
+              exhaustive: true,
+              count_basis: "exact counterfactual displayed roots",
+            },
+          },
+        };
+      return {
+        kind: "vocabulary",
+        scope: request.scope,
+        values: {
+          field: "traits",
+          selected_values: request.selected_values,
+          options: [{ value: "cold", label: "Cold" }],
+          total_values: 1n,
+          basis: "product_key_scope",
+        },
+      };
+    });
+    const change = vi.fn();
+    renderInput(false, change, [], true);
+    openVocabulary();
+    const showAll = await screen.findByRole("checkbox", { name: "Show all values" });
+    fireEvent.click(showAll);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Traits: Cold, activate to select" }),
+    );
+    expect(change).toHaveBeenCalledExactlyOnceWith(["cold"]);
+    expect(showAll).toBeChecked();
+    await screen.findByRole("button", {
+      name: "Traits: Cold, selected; activate to remove",
+    });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Search traits choices" }), {
+      key: "Escape",
+    });
+    openVocabulary();
+    expect(
+      await screen.findByRole("checkbox", { name: "Show all values" }),
+    ).not.toBeChecked();
+  });
+
+  it("clears a vocabulary operand in one action without opening the picker", async () => {
+    const change = vi.fn();
+    renderInput(false, change, ["acid", "cold"]);
+    const clear = screen.getByRole("button", { name: "Clear all Traits values" });
+    fireEvent.click(clear);
+    expect(change).toHaveBeenCalledExactlyOnceWith([]);
+    const opener = screen.getByRole("button", { name: "Edit Traits values" });
+    expect(opener).toHaveAttribute("aria-expanded", "false");
+    expect(opener).toHaveAccessibleDescription("0 selected");
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
   it("does not reset an already opened suggestion page when the initial debounce settles", async () => {
     vi.useFakeTimers();
     try {
@@ -422,14 +554,14 @@ it("retains a chosen action's label while searching and reopening its picker", a
   const key = "bestiary-ability-glossary-srd:grab";
   api.discoverFilterValues.mockClear().mockImplementation(async (request) => {
     if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
-    if (request.selected_values.length) return new Promise(() => {});
+    if (request.selected_values.length && !request.text) return new Promise(() => {});
     return {
       kind: "vocabulary",
       scope: request.scope,
       values: {
         field: "actions",
-        selected_values: [],
-        total_values: 1n,
+        selected_values: request.selected_values,
+        total_values: request.text ? 0n : 1n,
         options: [
           {
             value: key,
@@ -479,13 +611,27 @@ it("retains a chosen action's label while searching and reopening its picker", a
       expect.any(AbortSignal),
     ),
   );
+  expect(await screen.findByText("0 values")).toBeInTheDocument();
   const selectedRow = () =>
     screen.getByRole("button", { name: "Actions: Grab, selected; activate to remove" });
-  expect(selectedRow()).toBeVisible();
-  fireEvent.keyDown(search(), { key: "Escape" });
+  expect(
+    screen.queryByRole("button", {
+      name: "Actions: Grab, selected; activate to remove",
+    }),
+  ).toBeNull();
   expect(
     screen.getByRole("button", { name: "Remove selected Grab from Actions" }),
   ).toBeVisible();
+  fireEvent.keyDown(search(), { key: "Escape" });
   fireEvent.click(trigger());
   await waitFor(() => expect(selectedRow()).toBeVisible());
+  fireEvent.keyDown(search(), { key: "Escape" });
+  const remove = screen.getByRole("button", {
+    name: "Remove selected Grab from Actions",
+  });
+  remove.focus();
+  fireEvent.keyDown(remove, { key: "Enter" });
+  expect(remove).not.toBeInTheDocument();
+  await waitFor(() => expect(trigger()).toHaveFocus());
+  expect(trigger()).toHaveAttribute("aria-expanded", "false");
 });

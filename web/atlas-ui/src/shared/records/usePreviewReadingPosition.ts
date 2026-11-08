@@ -27,10 +27,14 @@ export function usePreviewReadingPosition(
     const node = content.current;
     const scroll = node?.parentElement;
     if (!node || !scroll) return;
-    const drawer = node.closest<HTMLElement>(".record-preview-drawer");
+    const drawer = node.closest<HTMLElement>(
+      ".record-preview-drawer, [data-reference-host]",
+    );
     const focusHost =
       restore.focusRegion === "header"
-        ? drawer?.querySelector<HTMLElement>(".record-preview-drawer__header")
+        ? drawer?.querySelector<HTMLElement>(
+            ".record-preview-drawer__header, [data-reference-header]",
+          )
         : restore.focusRegion === "body"
           ? scroll
           : (drawer ?? node);

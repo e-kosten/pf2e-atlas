@@ -396,6 +396,9 @@ Choose the control based on how the value is used:
   change amount or an encounter setup form. Group related edits in a form or
   overlay.
 
+Place an editor row’s static detail and validation below its controls. The row
+leads with the field and actions, and the detail describes their current selection.
+
 Preserve keyboard activation, an accessible Edit label for value buttons,
 Enter or blur to commit, and Escape to cancel. Keep validation and mutation
 feedback local and preserve drafts during pending reads. When reviewing a
@@ -1273,7 +1276,7 @@ and Add candidates keep their primary selected-record detail pane; following a
 reference does not replace that selection or commit a mutation.
 
 Use `RecordReferenceDrawer` for linked records, contextual definitions and Original
-record links on every viewport. Trait badges and trait Similar seeds with readable
+record links on every viewport outside a compact choice picker. Trait badges and trait Similar seeds with readable
 definitions open a contextual definition on primary activation while retaining native typed
 trait-page destinations; never coerce definition identities to record keys.
 Shared preview sessions retain mixed record, trait and vocabulary Back history.
@@ -1296,14 +1299,18 @@ navigation. Native full-page links, modified clicks and middle clicks preserve
 browser behavior and exact destinations. Opening a reference does not alter an
 Add candidate, saved-list membership, selected participant or unfinished draft.
 
-When help starts inside a choice overlay, suspend that existing choice session
-before opening the reference Drawer. Preserve its search, page, selections and
-unfinished draft. Dismissal resumes the choice overlay and its exact Read action;
-full-page navigation must not reopen a hidden picker on the destination page. Use
-the existing native overlay close/open lifecycle and shared reading return owner,
-without stacking a higher picker mask over the reader or patching z-index values.
-Short Select options remain selection controls; definition reading is available
-through the shared definition chooser and record facts.
+A compact vocabulary field owns one border, hover state and opener focus ring.
+Keep its native opener and the inline Ant chip removal or clear actions as
+siblings. The label, unused field area and chevron open choices. Give each remove
+action an accessible name and independent focus treatment. Preserve the
+field’s control height for one line and let chips wrap inside the same border.
+
+In a compact choice picker, Read opens the verified option reference inside the
+same surface. Reuse the shared reference session and detail renderers. Keep
+selection in the choices view. Back and Escape unwind nested reading first, then
+restore the choice list, including its search, page, scroll, selections and
+initiating Read action. Keep full-page and modified links native to their exact
+destinations. Short Select options remain selection controls.
 
 Keep action tooltips within the Drawer's stationary viewport root. The shared
 Drawer supplies Ant's `getPopupContainer` to all its popup descendants, including
@@ -1827,7 +1834,9 @@ common controls and Advanced. Use the existing group AND/OR/NOT owner and a Reco
 links condition choice, not a fabricated catalog field or separate relationship
 array. Links with a chevron is a toolbar shortcut. It belongs to FilterControls/
 useFilterEditor so adding a root conjunction retains unfinished sibling drafts.
-Positive root conjunctions can expose individual editable chips. Mixed or negated
+Positive root conjunctions can expose individual editable chips. A chip, the
+Links shortcut, and the action beside an Advanced link condition open the same
+modal. Direction, exclusion, entry scope, and target are edited together there. Mixed or negated
 expressions use one bounded human summary retaining operators and grouping; clicking
 opens Advanced. Never extract flat link chips from an OR/NOT expression. Clear filters
 clears the complete predicate while retaining text/Similar and result order.

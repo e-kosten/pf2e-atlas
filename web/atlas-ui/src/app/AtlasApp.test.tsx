@@ -636,7 +636,7 @@ describe("AtlasApp routing", () => {
     fireEvent.change(input, { target: { value: "unsubmitted dragon" } });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
     fireEvent.click(await screen.findByRole("button", { name: "Add group" }));
-    expect(screen.getAllByRole("button", { name: "Add condition" })).toHaveLength(2);
+    expect(screen.getAllByRole("combobox", { name: "Add condition" })).toHaveLength(2);
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
     fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
@@ -661,7 +661,7 @@ describe("AtlasApp routing", () => {
     const advanced = screen.getByRole("button", { name: "Advanced filters" });
     if (advanced.getAttribute("aria-expanded") !== "true") fireEvent.click(advanced);
     expect(
-      await screen.findAllByRole("button", { name: "Add condition" }),
+      await screen.findAllByRole("combobox", { name: "Add condition" }),
     ).toHaveLength(2);
     breakpoint.mockRestore();
   });

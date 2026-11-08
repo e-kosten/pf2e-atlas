@@ -41,7 +41,10 @@ const popup = vi.hoisted(() => ({
   mount: null as (() => void) | null,
   complete: null as ((open: boolean) => void) | null,
 }));
-vi.mock("../../api/atlasApi", () => api);
+vi.mock("../../api/atlasApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/atlasApi")>()),
+  ...api,
+}));
 vi.mock("antd", async (importOriginal) => {
   const original = await importOriginal<typeof import("antd")>();
   const react = await import("react");
@@ -167,15 +170,15 @@ describe("compact common choice picker", () => {
     );
   });
   afterEach(() => vi.restoreAllMocks());
-  it("loads counts only for the open picker and permits excluding zero choices", async () => {
+  it("loads counts only for the open picker and permits selecting zero-match choices", async () => {
     picker({ withCounts: true });
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
     open();
     expect(await screen.findByLabelText("4 matching records")).toBeInTheDocument();
-    expect(screen.getByLabelText("0 matching records")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 matching records")).toHaveTextContent(/^0$/);
     expect(
       screen.getByRole("button", {
-        name: "Traits: Cold, neutral; activate to exclude",
+        name: "Traits: Cold, neutral; activate to include",
       }),
     ).toBeEnabled();
     expect(

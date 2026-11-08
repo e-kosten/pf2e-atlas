@@ -89,7 +89,7 @@ test("Similar entry and applied link chips reflow without changing search-contro
     },
   });
   await page.goto(`${similar}&filter=${encodeURIComponent(filter)}`);
-  const entry = page.locator(".reference-search-entry");
+  const entry = page.locator(".reference-search-entry--similar");
   await expect(
     entry.getByRole("link", { name: "Wovenwood Shield (Minor)", exact: true }),
   ).toBeVisible();
@@ -105,7 +105,7 @@ test("Similar entry and applied link chips reflow without changing search-contro
         return { x, y, width, height, bottom };
       };
       return {
-        entry: box(".reference-search-entry"),
+        entry: box(".reference-search-entry--similar"),
         run: box('button[aria-label="Run similar search"]'),
         settings: box('button[aria-label="Search settings"]'),
         tools: box(".filter-controls__tools"),
@@ -126,7 +126,7 @@ test("Similar entry and applied link chips reflow without changing search-contro
   }
   await chip.getByRole("button", { name: /Links to/ }).click();
   await expect(
-    page.getByRole("link", { name: "Open Wovenwood Shield (Major)", exact: true }),
+    page.getByRole("dialog", { name: "Edit link condition", exact: true }),
   ).toBeVisible();
 });
 
@@ -411,7 +411,6 @@ test("editing a link opens its current target and clearing never restores it", a
     .getByRole("group", { name: "Relationship filter", exact: true })
     .getByRole("button", { name: /Links to Wovenwood Shield/ })
     .click();
-  await page.getByRole("button", { name: "Change record", exact: true }).click();
   const picker = page.getByRole("dialog", { name: "Edit link condition", exact: true });
   await expect(
     picker.getByRole("heading", { name: "Wovenwood Shield (Major)", exact: true }),
@@ -540,18 +539,6 @@ test("shared selected and hover states keep readable rendered contrast in both t
       .getByRole("group", { name: "Relationship filter", exact: true })
       .getByRole("button", { name: /Links to Wovenwood Shield/ })
       .click();
-    const outline = page.getByRole("radio", { name: "Links to", exact: true });
-    await expect(outline).toBeChecked();
-    expect(
-      await renderedContrast(outline, true),
-      `${colorScheme} selected outline radio`,
-    ).toBeGreaterThanOrEqual(4.5);
-    await outline.locator("xpath=ancestor::label").hover();
-    expect(
-      await renderedContrast(outline, true),
-      `${colorScheme} hovered outline radio`,
-    ).toBeGreaterThanOrEqual(4.5);
-    await page.getByRole("button", { name: "Change record", exact: true }).click();
     const picker = page.getByRole("dialog", {
       name: "Edit link condition",
       exact: true,
@@ -609,7 +596,7 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
   await expect(trigger).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   const idleWidth = (await trigger.boundingBox())!.width;
-  await expect(trigger.locator(".filter-controls__advanced-dot")).toBeHidden();
+  await expect(trigger.locator(".filter-controls__advanced-dot")).toHaveCount(0);
   await page.goto(`/search?q=cat&filter=${encodeURIComponent(filter)}`);
   await expect(trigger).toHaveAttribute(
     "aria-description",
@@ -619,15 +606,8 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
   for (const colorScheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme });
     await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
-    const dot = trigger.locator(".filter-controls__advanced-dot");
-    await expect(dot).toBeVisible();
-    const buttonBox = (await trigger.boundingBox())!;
-    const dotBox = (await dot.boundingBox())!;
-    expect(dotBox.x).toBeGreaterThan(buttonBox.x);
-    expect(dotBox.x + dotBox.width).toBeLessThan(buttonBox.x + buttonBox.width);
-    expect(
-      Math.abs(dotBox.y + dotBox.height / 2 - (buttonBox.y + buttonBox.height / 2)),
-    ).toBeLessThan(1);
+    await expect(trigger).toHaveAttribute("data-applied", "true");
+    await expect(trigger.locator(".filter-controls__advanced-dot")).toHaveCount(0);
     expect(await renderedContrast(trigger)).toBeGreaterThanOrEqual(4.5);
   }
   await trigger.click();
@@ -637,7 +617,8 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
       response.url().endsWith("/api/search/page") &&
       !!response.request().postDataJSON()?.connection_scope,
   );
-  await advanced.getByRole("button", { name: /Wovenwood Shield.*Whole entry/ }).click();
+  await expect(advanced.getByText(/Wovenwood Shield.*Whole entry/)).toBeVisible();
+  await advanced.getByRole("button", { name: "Edit link", exact: true }).click();
   const picker = page.getByRole("dialog", { name: "Edit link condition", exact: true });
   await expect(
     picker.getByText("Searching all entries · Complex filter"),

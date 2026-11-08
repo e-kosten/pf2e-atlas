@@ -27,6 +27,11 @@ The pass should decide:
 - how counts and disabled/unavailable options behave as filters compose;
 - how common simple queries remain easy within the structured group editor.
 
+The next filter UX follow-up is the embedded-record editor for Abilities, Spells,
+Equipment, and related fields. Make the presence-only state explicit and show
+which conditions must match the same embedded entry. Keep this work separate
+from the Advanced Filters redesign.
+
 ## Current Baseline
 
 Search, saved-list filtering and encounter selection reuse the backend catalog,

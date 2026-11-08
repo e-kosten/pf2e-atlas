@@ -15,7 +15,14 @@ import {
   LINK_CONDITION,
   BOOLEAN_CONDITION,
 } from "./queryBuilder";
-import { appendLink, linkLeaf, sameRelationship, linkClauses } from "./linkPredicates";
+import {
+  appendLink,
+  linkLeaf,
+  linkPredicate,
+  hasLinkCondition,
+  sameRelationship,
+  linkClauses,
+} from "./linkPredicates";
 import { commonCondition, replaceCommonCondition } from "./filterControls";
 
 type EditorDraft = {
@@ -158,16 +165,18 @@ export function useFilterEditor(
   function addLink(
     relationship: QueryRelationship,
     clause_id: string = crypto.randomUUID(),
+    excluded = false,
   ): string | null {
     if (!prepared.query) return "Reset the filters before adding a link condition.";
     const leaf = linkLeaf(relationship, clause_id);
-    const filter = appendLink(search.filter, leaf);
+    const filter = appendLink(search.filter, leaf, excluded);
     if (filter === search.filter) return "This link condition is already added.";
     const rule = {
       id: leaf.clause_id,
       field: LINK_CONDITION,
       operator: relationship.direction,
       value: relationship,
+      meta: { atlasExcluded: excluded },
     };
     const query =
       prepared.query.combinator === "and" && !prepared.query.not
@@ -181,28 +190,22 @@ export function useFilterEditor(
   function editLink(
     clause: Extract<QueryPredicate, { kind: "relationship" }>,
     relationship: QueryRelationship | null,
+    excluded = false,
   ): string | null {
-    if (relationship && sameRelationship(clause.relationship, relationship))
-      return null;
-    const direct =
-      search.filter?.kind === "all_of"
-        ? search.filter.children
-        : search.filter
-          ? [search.filter]
-          : [];
     if (
       relationship &&
-      direct.some(
-        (node) =>
-          node.kind === "relationship" &&
-          node.clause_id !== clause.clause_id &&
-          sameRelationship(node.relationship, relationship),
-      )
+      !excluded &&
+      sameRelationship(clause.relationship, relationship)
+    )
+      return null;
+    if (
+      relationship &&
+      hasLinkCondition(search.filter, relationship, excluded, clause.clause_id)
     )
       return "This link condition is already added.";
     function replace(node: QueryPredicate): QueryPredicate | null {
       if (node.kind === "relationship" && node.clause_id === clause.clause_id)
-        return relationship ? { ...node, relationship } : null;
+        return relationship ? linkPredicate({ ...node, relationship }, excluded) : null;
       if (node.kind !== "all_of") return node;
       const children = node.children.flatMap((child) => {
         const next = replace(child);
@@ -225,7 +228,14 @@ export function useFilterEditor(
           )
             return [node];
           return relationship
-            ? [{ ...node, operator: relationship.direction, value: relationship }]
+            ? [
+                {
+                  ...node,
+                  operator: relationship.direction,
+                  value: relationship,
+                  meta: { ...node.meta, atlasExcluded: excluded },
+                },
+              ]
             : [];
         }),
       };

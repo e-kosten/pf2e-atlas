@@ -91,7 +91,7 @@ test("imported collection availability becomes a safe nested editor and its orig
     .click();
   await expect(drawer.locator(".ruleGroup")).toHaveCount(2);
   await expect(
-    drawer.getByRole("button", { name: "Add condition", exact: true }).nth(1),
+    drawer.getByRole("combobox", { name: "Add condition", exact: true }).nth(1),
   ).toBeVisible();
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
@@ -228,8 +228,10 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
   };
   for (let index = 0; index < 3; index++) {
     await expect(groupMatch).toHaveCount(2);
-    await choose(page, nestedMatch, "Not all match");
-    await expect(nestedMatch.locator("..")).toContainText("Not all match");
+    await choose(page, nestedMatch, "At least one condition doesn’t match");
+    await expect(nestedMatch.locator("..")).toContainText(
+      "At least one condition doesn’t match",
+    );
     await drawer
       .getByRole("textbox", { name: "Maximum HP", exact: true })
       .first()
@@ -244,7 +246,7 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
         },
       });
     await expect(groupMatch).toHaveCount(2);
-    await choose(page, nestedMatch, "Match all");
+    await choose(page, nestedMatch, "All conditions match");
     await expect.poll(() => read().children[1].kind).toBe("all_of");
     expect(read().children[0]).toMatchObject({
       kind: "in",
@@ -252,13 +254,15 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
       values: ["creature"],
     });
   }
-  await choose(page, nestedMatch, "Not all match");
+  await choose(page, nestedMatch, "At least one condition doesn’t match");
   await expect.poll(() => read().children[1].kind).toBe("not");
   const before = read();
   await page.reload();
   await open();
   await expect(groupMatch).toHaveCount(2);
-  await expect(nestedMatch.locator("..")).toContainText("Not all match");
+  await expect(nestedMatch.locator("..")).toContainText(
+    "At least one condition doesn’t match",
+  );
   expect(read()).toEqual(before);
 });
 
@@ -311,7 +315,13 @@ test("common filters retain valid results through drafts and exact URL reload", 
     .toMatch(/\d+ records/);
   const validUrl = page.url();
   const validFilter = new URL(validUrl).searchParams.get("filter");
-  await page.getByRole("textbox", { name: /Level \/ rank minimum/i }).fill("-");
+  const minimum = page.getByRole("textbox", { name: /Level \/ rank minimum/i });
+  await minimum.fill("-");
+  await expect(
+    page.getByText("Enter a finite numeric value", { exact: true }),
+  ).toBeHidden();
+  await minimum.press("Tab");
+  await page.getByRole("textbox", { name: /Level \/ rank maximum/i }).press("Tab");
   await expect(
     page
       .getByText("Enter a finite numeric value", { exact: true })
@@ -394,10 +404,18 @@ test("Advanced starts with the existing Kind and adding Kind creates exactly one
   const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
   const fields = drawer.getByRole("combobox", { name: "Filter field", exact: true });
   await expect(fields).toHaveCount(1);
-  await drawer.getByRole("button", { name: "Add condition", exact: true }).click();
+  const addCondition = drawer.getByRole("combobox", {
+    name: "Add condition",
+    exact: true,
+  });
+  await addCondition.click();
+  await expect(fields).toHaveCount(1);
+  await addCondition.fill("Kind");
+  await page
+    .locator(".ant-select-dropdown:visible")
+    .getByText("Kind", { exact: true })
+    .click();
   await expect(fields).toHaveCount(2);
-  await fields.nth(1).fill("Kind");
-  await fields.nth(1).press("Enter");
   const values = drawer.getByRole("combobox", { name: "Kind", exact: true });
   await values.nth(1).fill("Creature");
   await values.nth(1).press("Enter");

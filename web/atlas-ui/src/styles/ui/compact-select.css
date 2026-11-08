@@ -1,0 +1,18 @@
+.compact-select {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+.compact-select > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+.compact-select__measure {
+  block-size: 0;
+  overflow: hidden;
+  visibility: hidden;
+  white-space: nowrap;
+  font-size: inherit;
+}
