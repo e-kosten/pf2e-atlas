@@ -184,10 +184,11 @@ describe("list views", () => {
     expect(controls).toContainElement(
       screen.getByRole("button", { name: "Edit Tags filter" }),
     );
-    expect(controls).toContainElement(screen.getByRole("button", { name: "New list" }));
-    expect(
-      screen.getByRole("heading", { name: "Saved Lists" }).closest("section"),
-    ).not.toContainElement(controls);
+    const header = screen
+      .getByRole("heading", { name: "Saved Lists" })
+      .closest("section");
+    expect(header).toContainElement(screen.getByRole("button", { name: "New list" }));
+    expect(header).not.toContainElement(controls);
 
     fireEvent.click(listLink!);
 

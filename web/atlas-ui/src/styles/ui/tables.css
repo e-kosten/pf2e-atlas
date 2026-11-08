@@ -1,3 +1,7 @@
+.index-table-empty {
+  color: var(--muted);
+}
+
 .index-row {
   cursor: pointer;
 }

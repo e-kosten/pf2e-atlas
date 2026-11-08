@@ -11,6 +11,7 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { EncounterDurationFields } from "./EncounterDurationFields";
+import { EncounterRowAction } from "./EncounterRowAction";
 import { EncounterModal } from "./EncounterModal";
 import { conditionDurationLabel } from "./conditionDurationLabel";
 
@@ -155,58 +156,37 @@ export function EncounterManualTrackers({
           <div key={tracker.tracker_key} className="encounter-condition-row">
             <span className="encounter-condition-row__name">{tracker.name}</span>
             <span className="encounter-condition-actions">
-              <Tooltip
-                title="Restart"
-                trigger={["hover", "focus"]}
-                open={editorOpen ? false : undefined}
-                styles={{ root: { pointerEvents: "none" } }}
-              >
-                <Button
-                  size="small"
-                  type="text"
-                  icon={<RotateCcw size={14} aria-hidden="true" />}
-                  disabled={disabled || !onChange || !tracker.timing_available}
-                  aria-label={`Restart ${tracker.name}`}
-                  onClick={() =>
-                    void apply({ kind: "restart", tracker_key: tracker.tracker_key })
-                  }
-                />
-              </Tooltip>
-              <Tooltip
-                title="Edit"
-                trigger={["hover", "focus"]}
-                open={editorOpen ? false : undefined}
-                styles={{ root: { pointerEvents: "none" } }}
-              >
-                <Button
-                  size="small"
-                  type="text"
-                  icon={<Pencil size={14} aria-hidden="true" />}
-                  disabled={disabled || !onChange}
-                  aria-label={`Edit tracker ${tracker.name}`}
-                  onClick={(event) => {
-                    event.currentTarget.focus({ preventScroll: true });
-                    open(tracker);
-                  }}
-                />
-              </Tooltip>
-              <Tooltip
-                title="Remove"
-                trigger={["hover", "focus"]}
-                open={editorOpen ? false : undefined}
-                styles={{ root: { pointerEvents: "none" } }}
-              >
-                <Button
-                  size="small"
-                  type="text"
-                  icon={<X size={14} aria-hidden="true" />}
-                  disabled={disabled || !onChange}
-                  aria-label={`Remove tracker ${tracker.name}`}
-                  onClick={() =>
-                    void apply({ kind: "remove", tracker_key: tracker.tracker_key })
-                  }
-                />
-              </Tooltip>
+              <EncounterRowAction
+                tooltip="Restart"
+                hideTooltip={editorOpen}
+                icon={<RotateCcw size={14} aria-hidden="true" />}
+                disabled={disabled || !onChange || !tracker.timing_available}
+                aria-label={`Restart ${tracker.name}`}
+                onClick={() =>
+                  void apply({ kind: "restart", tracker_key: tracker.tracker_key })
+                }
+              />
+              <EncounterRowAction
+                tooltip="Edit"
+                hideTooltip={editorOpen}
+                icon={<Pencil size={14} aria-hidden="true" />}
+                disabled={disabled || !onChange}
+                aria-label={`Edit tracker ${tracker.name}`}
+                onClick={(event) => {
+                  event.currentTarget.focus({ preventScroll: true });
+                  open(tracker);
+                }}
+              />
+              <EncounterRowAction
+                tooltip="Remove"
+                hideTooltip={editorOpen}
+                icon={<X size={14} aria-hidden="true" />}
+                disabled={disabled || !onChange}
+                aria-label={`Remove tracker ${tracker.name}`}
+                onClick={() =>
+                  void apply({ kind: "remove", tracker_key: tracker.tracker_key })
+                }
+              />
             </span>
             <span className="encounter-condition-meta">
               {tracker.duration.unit !== "rounds"

@@ -1,10 +1,11 @@
-import { Button, Checkbox, Modal, Select, Typography, type SelectProps } from "antd";
+import { Button, Checkbox, Select, Typography, type SelectProps } from "antd";
 import { useId, useRef, useState, type ReactNode } from "react";
 import type { RuleGroupType } from "react-querybuilder";
 import type {
   FilterEditorFieldView,
   QueryRelationshipDirection,
 } from "../../generated/atlas";
+import { AtlasModal } from "../ui/overlays/AtlasModal";
 import { isBuilderGroup } from "./builderEdits";
 import { filterValueLabel } from "./filterValueLabel";
 import {
@@ -257,7 +258,7 @@ export function RelatedEntryEditor({
       <Button ref={opener} disabled={disabled} onClick={begin}>
         {configured ? "Edit related entries" : "Configure related entries"}
       </Button>
-      <Modal
+      <AtlasModal
         title="Related entries"
         width={640}
         open={open}
@@ -357,7 +358,7 @@ export function RelatedEntryEditor({
             </Checkbox>
           </div>
         )}
-      </Modal>
+      </AtlasModal>
     </div>
   );
 }

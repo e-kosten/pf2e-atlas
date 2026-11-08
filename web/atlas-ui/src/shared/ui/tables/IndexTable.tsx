@@ -14,12 +14,21 @@ export function IndexTable<Row extends object>({
   onActivateRow,
   rowKey,
   loading,
+  locale,
   ...props
 }: IndexTableProps<Row>) {
   const spinning = typeof loading === "object" ? (loading.spinning ?? true) : !!loading;
   return (
     <Table<Row>
       {...props}
+      locale={
+        typeof locale?.emptyText === "string"
+          ? {
+              ...locale,
+              emptyText: <span className="index-table-empty">{locale.emptyText}</span>,
+            }
+          : locale
+      }
       loading={
         typeof loading === "object"
           ? { delay: 500, ...loading }

@@ -18,6 +18,12 @@
   padding: 0 4px;
 }
 
+.entity-index-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+
 .entity-index-page__toolbar h2 {
   font-size: 20px;
   line-height: 1.2;

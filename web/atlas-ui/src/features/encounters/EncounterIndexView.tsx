@@ -60,7 +60,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   return (
     <EntityIndexPage
       actions={
-        <div className="encounter-actions">
+        <>
           <Button
             onClick={(event) => {
               event.currentTarget.focus();
@@ -76,7 +76,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           >
             New Encounter
           </Button>
-        </div>
+        </>
       }
       className="encounter-index-view"
       overlays={
