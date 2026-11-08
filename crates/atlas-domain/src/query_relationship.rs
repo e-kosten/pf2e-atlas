@@ -62,9 +62,9 @@ fn visit<'a>(
                 visit(c, depth + 1, nodes, f)?;
             }
         }
-        QueryExpression::Not { predicate } | QueryExpression::Exists { predicate, .. } => {
-            visit(predicate, depth + 1, nodes, f)?
-        }
+        QueryExpression::Not { predicate }
+        | QueryExpression::Exists { predicate, .. }
+        | QueryExpression::RelatedMatch { predicate, .. } => visit(predicate, depth + 1, nodes, f)?,
         _ => {}
     }
     Ok(())
@@ -78,7 +78,11 @@ pub fn assign_relationship_clause_ids(p: &mut QueryPredicate) -> Result<(), Quer
         }
     })?;
     fn assign(p: &mut QueryPredicate, used: &mut BTreeSet<String>, next: &mut usize) {
-        if matches!(p.expression, QueryExpression::Relationship { .. }) && p.clause_id.is_none() {
+        if matches!(
+            p.expression,
+            QueryExpression::Relationship { .. } | QueryExpression::RelatedMatch { .. }
+        ) && p.clause_id.is_none()
+        {
             loop {
                 let id = format!("relationship-{next}");
                 *next += 1;
@@ -94,9 +98,9 @@ pub fn assign_relationship_clause_ids(p: &mut QueryPredicate) -> Result<(), Quer
                     assign(c, used, next);
                 }
             }
-            QueryExpression::Not { predicate } | QueryExpression::Exists { predicate, .. } => {
-                assign(predicate, used, next)
-            }
+            QueryExpression::Not { predicate }
+            | QueryExpression::Exists { predicate, .. }
+            | QueryExpression::RelatedMatch { predicate, .. } => assign(predicate, used, next),
             _ => {}
         }
     }

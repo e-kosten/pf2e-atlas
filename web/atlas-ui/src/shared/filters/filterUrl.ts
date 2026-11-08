@@ -43,6 +43,13 @@ function pack(node: QueryPredicate): unknown[] {
       return ["s", node.field, node.op, node.values];
     case "state_match":
       return ["m", node.field, node.state];
+    case "related_match":
+      return [
+        "r",
+        node.direction === "incoming" ? "t" : "f",
+        node.include_contents,
+        pack(node.predicate),
+      ];
     case "relationship": {
       const link = node.relationship;
       const packed: unknown[] = [
@@ -127,6 +134,17 @@ export function decodeFilterUrl(encoded: string): QueryPredicate {
           clause_id,
           field: urlString(node[1]),
           state: urlString(node[2]) as QueryFieldState,
+        };
+      case "r":
+        urlTuple(node, 4);
+        if ((node[1] !== "t" && node[1] !== "f") || typeof node[2] !== "boolean")
+          invalidFilterUrl();
+        return {
+          kind: "related_match",
+          clause_id,
+          direction: node[1] === "t" ? "incoming" : "outgoing",
+          include_contents: node[2],
+          predicate: restore(node[3], depth + 1),
         };
       case "t":
       case "f":

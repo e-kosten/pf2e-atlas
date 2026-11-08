@@ -328,3 +328,22 @@ it("rejects removed generic definition-reference URLs", () => {
     ).replace(/\+/g, "_");
   expect(() => decodeFilterUrl(removed)).toThrow();
 });
+
+it("round-trips a filtered link without changing its target Boolean scope", () => {
+  const filter: QueryPredicate = {
+    kind: "related_match",
+    direction: "outgoing",
+    include_contents: false,
+    predicate: {
+      kind: "any_of",
+      children: [
+        { kind: "compare", field: "rarity", op: "eq", value: "rare" },
+        { kind: "compare", field: "rarity", op: "eq", value: "unique" },
+      ],
+    },
+  };
+  const encoded = encodeFilterUrl(filter);
+  const restored = decodeFilterUrl(encoded);
+  expect(encodeFilterUrl(restored)).toBe(encoded);
+  expect(restored).toMatchObject(filter);
+});

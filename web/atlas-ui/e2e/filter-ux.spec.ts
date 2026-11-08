@@ -89,10 +89,10 @@ test("imported collection availability becomes a safe nested editor and its orig
     .locator(".ant-select-dropdown:visible")
     .getByText("has", { exact: true })
     .click();
-  await expect(drawer.locator(".ruleGroup")).toHaveCount(2);
   await expect(
-    drawer.getByRole("combobox", { name: "Add condition", exact: true }).nth(1),
+    drawer.getByRole("button", { name: "Edit related entries" }),
   ).toBeVisible();
+  await expect(drawer.getByText(/Contains · Equipment · Any entry/)).toBeVisible();
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
     .toMatchObject({
@@ -102,7 +102,9 @@ test("imported collection availability becomes a safe nested editor and its orig
     });
   await page.reload();
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
-  await expect(drawer.locator(".ruleGroup")).toHaveCount(2);
+  await expect(
+    drawer.getByRole("button", { name: "Edit related entries" }),
+  ).toBeVisible();
   await page.goto(originalUrl);
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await expect(

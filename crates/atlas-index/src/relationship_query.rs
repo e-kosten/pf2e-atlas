@@ -66,6 +66,41 @@ pub(crate) fn compile_relationship(
         "r.record_id IN (SELECT {candidate} FROM relationship_occurrences o JOIN records s ON s.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id WHERE s.document_kind<>'Macro' AND t.document_kind<>'Macro' AND o.resolution IN ('resolved_record','resolved_owned') AND {scope})"
     ))
 }
+pub(crate) fn compile_related_match(
+    direction: QueryRelationshipDirection,
+    include_contents: bool,
+    related_truth: &str,
+) -> String {
+    let (result, related, target_scope) = match direction {
+        QueryRelationshipDirection::Incoming => (
+            "o.record_id",
+            "o.target_record_id",
+            " AND o.target_owners_json IS NULL",
+        ),
+        QueryRelationshipDirection::Outgoing => ("o.target_record_id", "o.record_id", ""),
+    };
+    let source_scope = if include_contents {
+        ""
+    } else {
+        " AND o.owners_json='[]'"
+    };
+    let witnesses = format!(
+        "SELECT 1 FROM relationship_occurrences o WHERE {result}=r.record_id AND o.resolution IN ('resolved_record','resolved_owned'){target_scope}{source_scope}"
+    );
+    // Compile the target predicate against one related root per occurrence.
+    // A known match takes precedence over unknown related facts.
+    let matching = |truth| {
+        format!(
+            "EXISTS(SELECT 1 FROM records r WHERE r.record_id={related} AND r.document_kind<>'Macro' AND ({related_truth}) IS {truth})"
+        )
+    };
+    format!(
+        "CASE WHEN EXISTS({witnesses} AND {}) THEN 1 WHEN EXISTS({witnesses} AND {}) THEN NULL ELSE 0 END",
+        matching("TRUE"),
+        matching("NULL"),
+    )
+}
+
 impl SqliteIndexReader {
     /// Inverse of a root relationship leaf, joined to the parent's complete static eligibility before edition preference.
     pub fn connected_record_keys(

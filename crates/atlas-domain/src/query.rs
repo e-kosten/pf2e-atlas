@@ -61,6 +61,11 @@ pub enum QueryExpression {
     Relationship {
         relationship: crate::QueryRelationship,
     },
+    RelatedMatch {
+        direction: crate::QueryRelationshipDirection,
+        include_contents: bool,
+        predicate: Box<QueryPredicate>,
+    },
     BooleanConstant {
         value: bool,
     },

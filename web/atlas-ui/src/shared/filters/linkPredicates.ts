@@ -120,3 +120,15 @@ export function linkClauses(filter: QueryPredicate | null): LinkLeaf[] {
     return linkClauses(filter.predicate);
   return [];
 }
+
+export function countLinkConditions(filter: QueryPredicate | null): number {
+  if (!filter) return 0;
+  if (filter.kind === "relationship" || filter.kind === "related_match") return 1;
+  if (filter.kind === "all_of" || filter.kind === "any_of")
+    return filter.children.reduce(
+      (count, child) => count + countLinkConditions(child),
+      0,
+    );
+  if (filter.kind === "not") return countLinkConditions(filter.predicate);
+  return 0;
+}

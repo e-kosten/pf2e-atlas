@@ -822,6 +822,151 @@ describe("shared common and maintained advanced filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(trigger).toHaveFocus());
   });
+  it("applies related filters as one condition and discards a cancelled edit", async () => {
+    const change = renderControls(
+      editorFixture([
+        fieldFixture("armor.ac_bonus", "number", "Armor bonus"),
+        fieldFixture("senses", "collection", "Senses"),
+      ]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    chooseActorMetricOption("Add condition", "Related entries");
+    fireEvent.click(screen.getByRole("button", { name: "Configure related entries" }));
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Related entries" }),
+    );
+    chooseActorMetricOption("Relationship", "Links to");
+    const apply = dialog.getByRole("button", { name: "Apply" });
+    expect(apply).toBeDisabled();
+    fireEvent.mouseDown(dialog.getByRole("combobox", { name: "Add condition" }));
+    fireEvent.click(screen.getAllByText("Armor bonus", { exact: true }).slice(-1)[0]);
+    fireEvent.change(dialog.getByRole("textbox", { name: "Armor bonus" }), {
+      target: { value: "3" },
+    });
+    expect(apply).toBeEnabled();
+    fireEvent.mouseDown(dialog.getByRole("combobox", { name: "Add condition" }));
+    fireEvent.click(screen.getAllByText("Senses", { exact: true }).slice(-1)[0]);
+    expect(apply).toBeDisabled();
+    fireEvent.click(
+      dialog.getAllByRole("button", { name: "Remove condition" }).slice(-1)[0],
+    );
+    expect(apply).toBeEnabled();
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.click(apply);
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "related_match",
+            direction: "incoming",
+            include_contents: true,
+            predicate: expect.objectContaining({
+              kind: "all_of",
+              children: [
+                expect.objectContaining({
+                  kind: "compare",
+                  field: "armor.ac_bonus",
+                  value: 3,
+                }),
+              ],
+            }),
+          }),
+        }),
+      ),
+    );
+    const launcher = screen.getByRole("button", { name: "Edit related entries" });
+    await waitFor(() => expect(launcher).toHaveFocus());
+    change.mockClear();
+    fireEvent.click(launcher);
+    chooseActorMetricOption("Relationship", "Linked from");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(launcher).toHaveFocus());
+    expect(change).not.toHaveBeenCalled();
+    expect(screen.getByText(/Links to · Armor bonus/)).toBeInTheDocument();
+  });
+
+  it("applies an empty Contains group as presence and offers applicable spell fields", async () => {
+    const scope = "embedded.spells";
+    const change = renderControls(
+      editorFixture([
+        fieldFixture(scope, "collection", "Spells"),
+        {
+          ...fieldFixture("embedded.spells[].kind", "string", "Kind"),
+          scope,
+          path: "kind",
+          choices: ["spell"],
+        },
+        {
+          ...fieldFixture("embedded.spells[].spell.rank", "number", "Spell rank"),
+          scope,
+          path: "spell.rank",
+        },
+      ]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    chooseActorMetricOption("Add condition", "Related entries");
+    fireEvent.click(screen.getByRole("button", { name: "Configure related entries" }));
+    chooseActorMetricOption("Entry type", "Spells");
+    const dialog = within(screen.getByRole("dialog", { name: "Related entries" }));
+    const apply = dialog.getByRole("button", { name: "Apply" });
+    expect(apply).toBeEnabled();
+    fireEvent.click(apply);
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "exists",
+            collection: scope,
+            predicate: { kind: "boolean_constant", value: true },
+          }),
+        }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit related entries" }));
+    const reopened = within(
+      await screen.findByRole("dialog", { name: "Related entries" }),
+    );
+    fireEvent.mouseDown(reopened.getByRole("combobox", { name: "Add condition" }));
+    expect(screen.queryByRole("option", { name: /^Kind$/ })).toBeNull();
+    fireEvent.click(screen.getAllByText("Spell rank", { exact: true }).slice(-1)[0]);
+    expect(
+      reopened.getByText("Find entries with a spell that matches this filter group."),
+    ).toBeInTheDocument();
+    expect(reopened.getByRole("button", { name: "Apply" })).toBeDisabled();
+  });
+
+  it("preserves an imported negated Contains predicate when reapplied", async () => {
+    const scope = "embedded.spells";
+    const change = renderControls(
+      editorFixture([fieldFixture(scope, "collection", "Spells")]),
+      {
+        kind: "exists",
+        collection: scope,
+        clause_id: "embedded",
+        scope_id: "spells",
+        predicate: {
+          kind: "not",
+          predicate: { kind: "boolean_constant", value: true },
+        },
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit related entries" }));
+    const dialog = within(
+      await screen.findByRole("dialog", { name: "Related entries" }),
+    );
+    const apply = dialog.getByRole("button", { name: "Apply" });
+    expect(apply).toBeEnabled();
+    fireEvent.click(apply);
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Related entries" })).toBeNull(),
+    );
+    expect(change).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Contains · Spells · Matching filters"),
+    ).toBeInTheDocument();
+  });
+
   it("offers scoped fields without another collection inside an Exists condition", async () => {
     const collection = fieldFixture(
       "embedded.equipment",
@@ -852,8 +997,9 @@ describe("shared common and maintained advanced filters", () => {
       },
     });
     fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
-    const selectors = screen.getAllByRole("combobox", { name: "Filter field" });
-    fireEvent.mouseDown(selectors[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Edit related entries" }));
+    const dialog = await screen.findByRole("dialog", { name: "Related entries" });
+    fireEvent.mouseDown(within(dialog).getByRole("combobox", { name: "Filter field" }));
     await waitFor(() =>
       expect(
         screen.getByRole("option", { name: "Embedded item name" }),

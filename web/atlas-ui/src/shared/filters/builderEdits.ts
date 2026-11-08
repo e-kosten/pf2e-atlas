@@ -1,6 +1,6 @@
 import type { RuleGroupType, RuleType } from "react-querybuilder";
 import type { FilterEditorFieldView } from "../../generated/atlas";
-import { BOOLEAN_CONDITION, LINK_CONDITION } from "./queryBuilder";
+import { BOOLEAN_CONDITION, LINK_CONDITION, RELATED_CONDITION } from "./queryBuilder";
 import { transitionOperand } from "./operatorTransitions";
 import { sameActorMetricMeasure } from "./actorMetricFields";
 
@@ -33,7 +33,10 @@ export function normalizeBuilderEdit(
       const operand = field?.operators.find(
         (operator) => operator.operator === node.operator,
       )?.operand;
-      if (node.field === LINK_CONDITION && oldRule.field !== node.field)
+      if (
+        (node.field === LINK_CONDITION || node.field === RELATED_CONDITION) &&
+        oldRule.field !== node.field
+      )
         return {
           ...node,
           operator: "incoming",

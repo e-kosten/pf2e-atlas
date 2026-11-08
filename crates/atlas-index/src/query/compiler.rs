@@ -394,6 +394,18 @@ fn compile_tree(
         QueryExpression::Relationship { relationship } => {
             crate::relationship_query::compile_relationship(relationship, parameters)?
         }
+        QueryExpression::RelatedMatch {
+            direction,
+            include_contents,
+            predicate,
+        } => {
+            let related = compile_tree(predicate, None, parameters)?.truth;
+            crate::relationship_query::compile_related_match(
+                *direction,
+                *include_contents,
+                &related,
+            )
+        }
         QueryExpression::BooleanConstant { value } => if *value { "1" } else { "0" }.to_owned(),
         QueryExpression::Compare { field, op, value } => {
             let d = checked_descriptor(scope, field)?;

@@ -371,24 +371,40 @@ it("edits an exact embedded selection without rebinding it until a parent row is
   expect(drawer).toBeVisible();
 });
 
-it("composes a nested picker through the same provider and Escape preserves the outer lookup", async () => {
+it("cancels a related filter without closing the record picker", async () => {
   const current = setup();
   const outer = await openAndSelect();
   fireEvent.click(within(outer).getByRole("button", { name: "Advanced filters" }));
   const advanced = screen.getByRole("dialog", { name: "Advanced filters" });
-  await selectSortOption("Add condition", "Record links");
-  const chooseRecord = within(advanced).getByRole("button", { name: "Choose record" });
-  act(() => chooseRecord.focus());
-  fireEvent.click(chooseRecord);
-  const dialogs = await screen.findAllByRole("dialog", { name: "Add link condition" });
-  const inner = dialogs[dialogs.length - 1];
-  expect(inner).not.toBe(outer);
-  fireEvent.keyDown(inner, { key: "Escape", keyCode: 27 });
-  await waitFor(() => expect(inner).not.toBeVisible());
+  await selectSortOption("Add condition", "Related entries");
+  const configure = within(advanced).getByRole("button", {
+    name: "Configure related entries",
+  });
+  fireEvent.click(configure);
+  await selectSortOption("Relationship", "Links to");
+  const dialog = screen.getByRole("dialog", { name: "Related entries" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(dialog).not.toBeVisible());
   expect(outer).toBeVisible();
   expect(advanced).toBeVisible();
-  await waitFor(() => expect(chooseRecord).toHaveFocus());
+  await waitFor(() => expect(configure).toHaveFocus());
   expect(current().search.filter).toBeNull();
+});
+
+it("requires a new exact selection when scope changes in Advanced filters", async () => {
+  const current = setup({
+    ...DEFAULT_SEARCH_STATE,
+    filter: linkLeaf(existing, "existing"),
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+  fireEvent.click(screen.getByRole("button", { name: "Edit link" }));
+  const picker = await screen.findByRole("dialog", { name: "Edit link condition" });
+  await selectSortOption(
+    "Link filter scope",
+    existing.include_contents ? "Main entry only" : "Whole entry",
+  );
+  expect(within(picker).getByRole("button", { name: "Apply" })).toBeDisabled();
+  expect(linkClauses(current().search.filter)[0].relationship).toEqual(existing);
 });
 
 it("rejects a newly selected record from a different reference generation without changing the parent", async () => {
