@@ -483,26 +483,46 @@ pub fn prepare_publication_in<'owner>(
     schema: u32,
     scratch: &Path,
     input: &IndexBuildInput,
-    reuse_published: bool,
 ) -> Result<crate::PreparedPublication<'owner>, IndexError> {
-    let native = collect_fixture_native_values(input, false)?;
-    let workspace = Workspace::at(owner.path())?;
-    let read = workspace.read(schema)?;
-    let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
-    drop(read);
-    let metadata = spool_input_in(scratch, input, expected)?;
-    let mut publication = crate::PreparedPublication::new_in(owner, schema, scratch, metadata)?;
-    for value in native {
-        let selected = publication.select_native(
-            value.model,
-            std::slice::from_ref(&value.input),
-            reuse_published,
-        )?;
+    let mut publication = fixture_publication(owner, schema, scratch, input)?;
+    for value in collect_fixture_native_values(input, false)? {
+        let selected =
+            publication.select_native(value.model, std::slice::from_ref(&value.input))?;
         if selected == [crate::NativeValueSelection::Missing] {
             publication.stage_inferred(value.model, &[(&value.input, value.vector)])?;
         }
     }
     Ok(publication)
+}
+
+/// Inject explicit inference results so publication tests can exercise vector
+/// replacement and rollback independently of ordinary selection policy.
+#[cfg(test)]
+pub(crate) fn prepare_publication_with_inferred_values<'owner>(
+    owner: &'owner atlas_storage::UpdateOwner,
+    schema: u32,
+    scratch: &Path,
+    input: &IndexBuildInput,
+) -> Result<crate::PreparedPublication<'owner>, IndexError> {
+    let mut publication = fixture_publication(owner, schema, scratch, input)?;
+    for value in collect_fixture_native_values(input, false)? {
+        publication.stage_inferred(value.model, &[(&value.input, value.vector)])?;
+    }
+    Ok(publication)
+}
+
+fn fixture_publication<'owner>(
+    owner: &'owner atlas_storage::UpdateOwner,
+    schema: u32,
+    scratch: &Path,
+    input: &IndexBuildInput,
+) -> Result<crate::PreparedPublication<'owner>, IndexError> {
+    let workspace = Workspace::at(owner.path())?;
+    let read = workspace.read(schema)?;
+    let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
+    drop(read);
+    let metadata = spool_input_in(scratch, input, expected)?;
+    crate::PreparedPublication::new_in(owner, schema, scratch, metadata)
 }
 
 fn publish_schema20_catalog(

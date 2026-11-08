@@ -166,7 +166,6 @@ fn published_layout_reuse_full_corpus_benchmark() {
                 atlas_embedding::EmbeddingRuntimeConfig::new(profile.model, models.clone())
             })
             .collect(),
-        reuse_embeddings: true,
         reuse_passage_layouts: true,
         embedding_batch_size: 32,
     };

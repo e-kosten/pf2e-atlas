@@ -354,7 +354,6 @@ fn authentic_v7_schema29_upgrade_reuses_sources_layouts_and_native_values() {
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         &input,
-        true,
     )
     .unwrap();
     assert_eq!(

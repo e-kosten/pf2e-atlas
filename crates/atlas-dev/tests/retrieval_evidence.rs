@@ -95,7 +95,6 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
                 atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
                 &cache,
             )],
-            reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 32,
         },

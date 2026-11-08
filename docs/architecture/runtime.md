@@ -223,11 +223,11 @@ Ingest prepares current literal inputs with pinned tokenizers. One concrete
 `PreparedPublication` binds context/inventory, expected workspace generation,
 metadata streams and compact build-local selection. Selection first reuses its own
 chosen checksum, then unpublished recovery results, then compatible published
-values when reuse is enabled. Missing inputs undergo the normal bounded native
-guard before inference; disabling reuse forces one computation per unique input
-unless matching unfinished work already exists. Passage-layout reuse is separate.
+values. Missing inputs undergo the normal bounded native guard before inference.
+Passage-layout reuse is separate. Explicit reference repair infers each distinct
+input privately from the configured source and models.
 
-A published hit retains a stable input/checksum handle. A cache hit or new/forced
+A published hit retains a stable input/checksum handle. A cache hit or newly inferred
 result becomes an owned staged value before eviction can affect it. Per-batch SQL
 sessions close before inference. Full model keys are immutable; registry IDs are
 resolved within each admitted session and released before cache collection. The

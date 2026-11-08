@@ -123,7 +123,6 @@ fn remaster_v29_upgrade_rolls_back_then_preserves_state_until_source_reprepare()
             manifest_path: None,
             locale: "en".into(),
             search_profiles: vec![],
-            reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 8,
         },

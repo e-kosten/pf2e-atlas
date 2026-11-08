@@ -625,7 +625,6 @@ fn stale_build_configuration_is_rejected_before_reading_source() {
             manifest_path: original.manifest_path,
             locale: original.indexing_locale,
             search_profiles: vec![],
-            reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 32,
         },
@@ -709,7 +708,6 @@ fn setup_chooses_metadata_refresh_or_one_source_publication() {
                     manifest_path: config.manifest_path,
                     locale: config.indexing_locale,
                     search_profiles: vec![],
-                    reuse_embeddings: true,
                     reuse_passage_layouts: true,
                     embedding_batch_size: 32,
                 },
@@ -752,7 +750,6 @@ fn owned_build_inputs_keep_captured_manifest_and_reject_unconsumed_source_change
         manifest_path: None,
         locale: "en".into(),
         search_profiles: vec![],
-        reuse_embeddings: true,
         reuse_passage_layouts: true,
         embedding_batch_size: 32,
     };

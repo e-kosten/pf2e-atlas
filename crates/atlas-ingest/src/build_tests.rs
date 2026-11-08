@@ -457,13 +457,16 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         .context()
         .sha256()
         .unwrap();
-    options.reuse_embeddings = false;
-    assert!(
-        build_artifact(options.clone()).is_err(),
-        "forced inference must require missing weights"
-    );
-    // Recovery cache metadata may change, but the published
-    // reference and its ordinary queryable row count remain intact.
+    {
+        let owner = workspace.update_owner().unwrap();
+        let error = crate::build::rebuild_artifact(&owner, schema, options.clone()).unwrap_err();
+        assert!(
+            matches!(&error, IngestError::DocumentEmbeddingFailed(message)
+                if message.contains("failed to load embedding model")),
+            "repair must require model weights: {error}"
+        );
+    }
+    // Failed repair leaves the published reference available.
     assert_eq!(
         workspace
             .read(schema)
@@ -480,22 +483,15 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         report.source_fingerprint
     );
     drop(reader);
-    options
-        .search_profiles
-        .push(atlas_embedding::EmbeddingRuntimeConfig::new(
-            atlas_embedding::EmbeddingModelId::EmbeddingGemma300M,
-            fixture.0.join("missing-second-profile"),
-        ));
-    assert!(crate::build::publish_fixture_without_inference(&options).is_err());
     let read = workspace.read(schema).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), before_revision);
-    assert!(
+    assert_eq!(
         read.connection()
             .query_row("SELECT count(*) FROM pending_embedding_values", [], |row| {
                 row.get::<_, usize>(0)
             })
-            .unwrap()
-            > 0
+            .unwrap(),
+        0,
+        "repair does not write to the retry cache"
     );
     atlas_index::validate_reference(read.connection()).unwrap();
 }
@@ -631,7 +627,6 @@ impl Fixture {
             manifest_path: None,
             locale: "en".into(),
             search_profiles: vec![],
-            reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 16,
         }
@@ -1018,7 +1013,6 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
         manifest_path: None,
         locale: "en".into(),
         search_profiles: vec![],
-        reuse_embeddings: false,
         reuse_passage_layouts: false,
         embedding_batch_size: 16,
     })
@@ -1170,11 +1164,17 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
         }
     }
     drop(reader);
-    options.reuse_embeddings = false;
-    let forced = build_artifact(options).unwrap();
-    assert_eq!(forced.reused_inputs, 0);
-    assert_eq!(forced.inferred_inputs, first.inferred_inputs);
-    atlas_index::validate_artifact(&forced.output_path).unwrap();
+    let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    let rebuilt = crate::build::rebuild_artifact(
+        &owner,
+        atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        options,
+    )
+    .unwrap();
+    assert_eq!(rebuilt.reused_inputs, 0);
+    assert_eq!(rebuilt.inferred_inputs, first.inferred_inputs);
+    atlas_index::validate_artifact(&rebuilt.output_path).unwrap();
 }
 
 #[test]
@@ -1374,7 +1374,6 @@ fn actual_gemma_only_fresh_build_needs_baseline_tokenizer_but_no_base_weights() 
     let fixture = Fixture::new();
     let mut options = fixture.options();
     options.search_profiles = vec![gemma_only_cache(&cache, &fixture.0)];
-    options.reuse_embeddings = false;
     let report = build_artifact(options).unwrap();
     assert_eq!(report.profiles.len(), 1);
     assert_eq!(report.profiles[0].profile_id.as_str(), "embeddinggemma");
@@ -1693,7 +1692,6 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
             atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
             cache,
         )],
-        reuse_embeddings: false,
         reuse_passage_layouts: false,
         embedding_batch_size: 16,
     };

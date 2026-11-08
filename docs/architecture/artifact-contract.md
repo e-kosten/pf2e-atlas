@@ -184,8 +184,8 @@ The shared header contains `workspace` and `schema_migrations`. Durable intent
 lives in `requested_reference_config`; resumable inference uses
 `pending_embedding_values`, joined to exact
 `embedding_models`/`embedding_inputs` metadata. Pending vector checksums are
-independent of published checksums, so forced-rebuild progress cannot invalidate
-current readers. Successful complete source-ingest publication removes pending
+independent of published checksums, so cached inference stays separate from
+current search results. Successful complete source-ingest publication removes pending
 numerical values; schema and metadata-only upgrades preserve them. Saved-domain
 tables include a seeded local principal
 and non-null ownership, with owner-scoped slug uniqueness.
@@ -912,9 +912,10 @@ generation in the same transaction. The migration preserves document vectors,
 saved state and the published vocabulary compatibility ID.
 
 One concrete publication owns build-local selection. Same-attempt selections win,
-then unpublished cache, then compatible published values when reuse is enabled.
-New/forced/cache-hit bytes become owned staging independent of eviction; reused
-published vectors remain stable handles. Per-batch sessions close before inference.
+then unpublished cache, then compatible published values in ordinary ingest.
+Newly inferred and cache-hit bytes become owned staging independent of eviction.
+Reused published vectors remain stable handles. Explicit reference repair uses
+only private inference staging. Per-batch sessions close before inference.
 Atomic activation installs selected changes and reconciles document/trait consumers
 using that same transaction connection. The embedding owner checks inference output
 count, dimensions, finiteness and normalization once. Private staging/install reads
