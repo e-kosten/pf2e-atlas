@@ -432,11 +432,17 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
             .update_encounter(UpdateEncounterRequest {
                 round_duration_seconds: None,
                 encounter_key: key.clone(),
-                slug: encounter.slug,
-                name: encounter.name,
-                description: Some("Updated".into()),
+                slug: None,
+                name: None,
+                description: Some(FieldEdit {
+                    expected: encounter.description,
+                    value: Some("Updated".into()),
+                }),
                 note: None,
-                status: EncounterStatusView::Running,
+                status: Some(FieldEdit {
+                    expected: encounter.status,
+                    value: EncounterStatusView::Running,
+                }),
             })
             .unwrap(),
     );
@@ -1621,11 +1627,14 @@ fn inherited_elite_applies_once_and_unrecognized_adjustment_defaults_to_normal()
         .update_encounter(UpdateEncounterRequest {
             round_duration_seconds: None,
             encounter_key: e.encounter_key.clone(),
-            slug: e.slug.clone(),
-            name: e.name.clone(),
+            slug: None,
+            name: None,
             description: None,
             note: None,
-            status: EncounterStatusView::Running,
+            status: Some(FieldEdit {
+                expected: e.status,
+                value: EncounterStatusView::Running,
+            }),
         })
         .unwrap();
     let mut change = update(p);

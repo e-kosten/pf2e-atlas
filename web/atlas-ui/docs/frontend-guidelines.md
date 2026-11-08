@@ -92,6 +92,7 @@ background request is not automatically a prominent red alert.
 | Auxiliary gameplay choices cannot refresh           | Compact status beside the affected controls: for example, Recovery choices unavailable with Retry. Disable actions that require the missing or stale data; do not imply there are no conditions, consequences or recovery choices. |
 | Optional suggestions or counts fail                 | Keep the task usable without the enrichment. Counts disappear rather than becoming zero. Add local status only when the missing capability matters to the current task.                                                            |
 | A submitted action fails                            | Persistent local error beside the action or inside its open editor. Preserve the draft and selection. Red is appropriate when the task is blocked or needs correction.                                                             |
+| A submitted action needs a decision                 | Use a focused review dialog when comparing values or choosing a resolution needs room. Keep the underlying layout stable and offer a way back from the originating action while the decision is unresolved.                        |
 | A field needs correction                            | Specific field-associated validation using the field's vocabulary, such as Enter a name. A service failure is not a validation error.                                                                                              |
 
 ### Shared implementation owners
@@ -141,6 +142,9 @@ under a global CSS selector or a global boolean.
 
 ### Copy, timing and outcome safety
 
+- Open a review dialog in response to a submitted action that needs a decision.
+  For an action submitted inside a dialog, keep review in that editor. Announce
+  background status without interrupting the current task.
 - Use the task's vocabulary. Say Knockout options unavailable rather than naming
   an HP lifecycle endpoint. Prefer a short sentence and one useful recovery action.
   Avoid generic headings such as Something went wrong when the affected task is known.
@@ -159,8 +163,8 @@ under a global CSS selector or a global boolean.
   Existing receipt-aware roll recovery may retry the same request; it must not
   create a new roll accidentally.
 - Essential action failures remain available until resolved or the task is
-  deliberately dismissed. Do not make a four-second toast the only evidence of
-  a failed spell/resource action. Toasts may confirm an optional success.
+  deliberately dismissed. Let the updated control or content confirm routine
+  success when it can. Brief success feedback can supplement that state.
 - Use polite status announcements for secondary availability. Reserve assertive
   alerts for important blocked work, associate field errors with inputs, and do
   not move focus merely to announce a background failure. Color alone is insufficient.
@@ -182,7 +186,8 @@ The policy applies these primary references to Atlas's task-based UI:
 [GOV.UK error messages](https://design-system.service.gov.uk/components/error-message/),
 [Carbon notifications](https://www.carbondesignsystem.com/building-blocks/core/components/notification/guidelines),
 [W3C status messages](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html),
-[W3C alerts](https://www.w3.org/WAI/ARIA/apg/patterns/alert/), and
+[W3C alerts](https://www.w3.org/WAI/ARIA/apg/patterns/alert/),
+[W3C modal dialogs](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/), and
 [OWASP error handling](https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet).
 
 ## Design principles
@@ -1981,6 +1986,22 @@ Literal damage/inline-roll dice controls keep their explicit rolling behavior.
 Context-dependent formulas stay authored rather than acquiring guessed values.
 
 ## Mutable workflows
+
+### Stale note and settings edits
+
+For [guarded draft saves](../../../docs/architecture/decisions/0048-atomic-mutable-workflows.md#draft-saves-for-notes-and-settings),
+retain each edited field's saved baseline across background reads. Refresh the
+conflicting fields by stable document identity and let the user choose which
+value to keep. In settings, keeping a draft rebases it to the reviewed value
+for a subsequent Save. For list notes, open the comparison in `AtlasModal`
+after a rejected Save when the refreshed note differs from the user's version.
+If the refreshed note already matches, finish editing without another write.
+Let the dialog body scroll and keep choices in its footer.
+**Overwrite** submits the user's version against the saved version shown in the
+dialog. If it changed again, refresh the comparison for another decision.
+Closing review preserves the draft and returns focus to **Review conflict** in
+the note's existing action row. Retry loads the saved version. If a list entry
+disappears, keep any open note draft available to copy or discard.
 
 ### Dice presentation
 

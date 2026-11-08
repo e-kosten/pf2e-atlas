@@ -1516,12 +1516,15 @@ fn set_round_seconds(
     let view = f.worker.encounter(key).unwrap();
     f.worker.update_encounter(UpdateEncounterRequest {
         encounter_key: view.encounter.encounter_key,
-        slug: view.encounter.slug,
-        name: view.encounter.name,
-        description: view.encounter.description,
-        note: view.note,
-        status: view.encounter.status,
-        round_duration_seconds: seconds,
+        slug: None,
+        name: None,
+        description: None,
+        note: None,
+        status: None,
+        round_duration_seconds: seconds.map(|value| FieldEdit {
+            expected: view.encounter.round_duration_seconds,
+            value,
+        }),
     })
 }
 #[test]
@@ -1582,7 +1585,9 @@ fn custom_round_lengths_preserve_elapsed_seconds_and_turn_count_trackers() {
             .remaining_rounds,
         Some(2)
     );
-    set_round_seconds(&f, &key, None).unwrap();
+    f.worker
+        .edit_encounter_metadata(&key, None, Some(Some("Unrelated edit".into())), None)
+        .unwrap();
     assert_eq!(
         f.worker
             .encounter(&key)

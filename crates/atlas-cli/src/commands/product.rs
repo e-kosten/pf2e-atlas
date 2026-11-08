@@ -175,6 +175,7 @@ pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
         | RecordResolutionMiss
         | RecordResolutionAmbiguous
         | SavedListNotFound
+        | SavedListItemNotFound
         | EncounterNotFound
         | EncounterParticipantNotFound => 1,
         PartyConflict
@@ -185,6 +186,7 @@ pub(crate) fn exit_class(code: atlas_app_model::AppErrorCode) -> u8 {
         | FilterOptionInvalid
         | FilterFieldNotApplicable
         | SavedListAlreadyExists
+        | SavedEditConflict
         | EncounterAlreadyExists
         | EncounterParticipantConflict
         | EncounterTurnConflict

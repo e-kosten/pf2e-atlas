@@ -9,7 +9,11 @@ import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 
 const LIST_SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
-export function useSavedListFilterDiscovery(listRef: string, filters: SearchFormState) {
+export function useSavedListFilterDiscovery(
+  listRef: string,
+  filters: SearchFormState,
+  enabled = true,
+) {
   const profile = useSearchProfile();
   const filterToken = useMemo(
     () => encodeSearchExecutionState({ ...filters, sort: undefined }),
@@ -24,13 +28,13 @@ export function useSavedListFilterDiscovery(listRef: string, filters: SearchForm
   );
   const discovery = useFilterDiscovery({
     context,
-    enabled: !filters.filterWasReset,
+    enabled: enabled && !filters.filterWasReset,
     queryKeyPrefix: ["saved-list-filter-discovery", listRef, filterToken],
     vocabularyScope: { kind: "saved_list", list_ref: listRef },
   });
   return {
     ...discovery,
-    filterCountsEnabled: profile.id !== null && profile.storedVectors,
+    filterCountsEnabled: enabled && profile.id !== null && profile.storedVectors,
   };
 }
 

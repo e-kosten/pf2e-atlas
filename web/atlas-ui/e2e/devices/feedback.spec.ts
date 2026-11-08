@@ -122,35 +122,39 @@ test("saved list entries remain usable when reference details cannot be checked"
     data: { slug, name: "Saved reference check" },
   });
   expect(created.ok()).toBeTruthy();
+  const { list: savedList } = await created.json();
   try {
     const added = await page.request.post(`/api/lists/${slug}/items`, {
       data: { list_ref: slug, record_ref: "browser-conditions:offguard00000001" },
     });
     expect(added.ok()).toBeTruthy();
     const { record_name: name } = await added.json();
-    await page.route(new RegExp(`/api/lists/${slug}(?:/filter)?$`), async (route) => {
-      const response = await route.fetch();
-      if (!response.ok() || route.request().method() === "DELETE") {
-        await route.fulfill({ response });
-        return;
-      }
-      const data = await response.json();
-      await route.fulfill({
-        response,
-        json: {
-          ...data,
-          reference_error: {
-            code: "index_unavailable",
-            message: "internal diagnostic",
+    await page.route(
+      new RegExp(`/api/lists/(?:${slug}|${savedList.list_key})(?:/filter)?$`),
+      async (route) => {
+        const response = await route.fetch();
+        if (!response.ok() || route.request().method() === "DELETE") {
+          await route.fulfill({ response });
+          return;
+        }
+        const data = await response.json();
+        await route.fulfill({
+          response,
+          json: {
+            ...data,
+            reference_error: {
+              code: "index_unavailable",
+              message: "internal diagnostic",
+            },
+            items: data.items.map((item: object) => ({
+              ...item,
+              record: undefined,
+              status: "unchecked",
+            })),
           },
-          items: data.items.map((item: object) => ({
-            ...item,
-            record: undefined,
-            status: "unchecked",
-          })),
-        },
-      });
-    });
+        });
+      },
+    );
     await page.goto(`/lists/${slug}`);
     const list = page.getByRole("region", { name: "List items" });
     await expect(list.getByText(name, { exact: true })).toBeVisible();

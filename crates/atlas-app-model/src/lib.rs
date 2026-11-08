@@ -103,6 +103,8 @@ pub use dice::{
 };
 mod embedded_reading;
 mod error;
+mod field_edit;
+pub use field_edit::{FieldEdit, SavedEditPayload};
 mod filter;
 mod remaster;
 pub use remaster::{

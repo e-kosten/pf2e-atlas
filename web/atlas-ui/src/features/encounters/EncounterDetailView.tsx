@@ -10,9 +10,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tooltip, Button, Dropdown, Grid, Spin } from "antd";
 import { Settings } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
+import { getEncounterConditionDefinitions } from "../../api/atlasApi";
 import { useEncounterStrike } from "./useEncounterStrike";
 import { useEncounterMutations } from "./useEncounterMutations";
+import { useEncounterQuery } from "./useEncounterQuery";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { EditEncounterModal } from "./EncounterModals";
 import { EncounterTurnReview } from "./EncounterTurnReview";
@@ -85,10 +86,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   const [initiativeOpen, setInitiativeOpen] = useState<{
     participant?: string;
   } | null>(null);
-  const encounter = useQuery({
-    queryKey: ["encounter", route.slug],
-    queryFn: () => getEncounter(route.slug),
-  });
+  const encounter = useEncounterQuery(route.slug);
+  const encounterKey = encounter.data?.encounter.encounter_key;
   useLayoutEffect(() => {
     const removal = removedParticipantFocus.current;
     const participants = encounter.data?.participants;
@@ -117,12 +116,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     target?.focus({ preventScroll: true });
   }, [encounter.data]);
   usePageTitle(encounter.data?.encounter.name ?? "Encounter");
-  const mutations = useEncounterMutations(
-    route.slug,
-    encounter.data?.encounter.encounter_key,
-  );
+  const mutations = useEncounterMutations(route.slug, encounterKey);
   const strikes = useEncounterStrike({
-    encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
+    encounterRef: encounterKey ?? route.slug,
     revision: encounter.data?.revision ?? 0n,
     generation: encounter.data?.artifact_generation ?? null,
     participants: encounter.data?.participants ?? [],
@@ -146,23 +142,24 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     meta: referenceQueryMeta,
     queryKey: [
       "encounter-condition-definitions",
-      route.slug,
+      encounterKey,
       selected?.participant_key,
       encounter.data?.artifact_generation,
       encounter.data?.revision.toString(),
     ],
     queryFn: () =>
-      getEncounterConditionDefinitions(route.slug, selected!.participant_key),
-    enabled: !!selected,
+      getEncounterConditionDefinitions(encounterKey!, selected!.participant_key),
+    enabled: !!encounterKey && !!selected,
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[1] === route.slug &&
+      previousQuery &&
+      previousQuery.queryKey[1] === encounterKey &&
       previousQuery.queryKey[2] === selected?.participant_key &&
       previousQuery.queryKey[3] === encounter.data?.artifact_generation
         ? previous
         : undefined,
   });
   const recordPreview = useRecordPreview({
-    encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
+    encounterRef: encounterKey ?? route.slug,
     identity: selected?.participant_key ?? "",
     generation: encounter.data?.artifact_generation ?? null,
     parentRecordKey: selected?.record_key,
@@ -215,7 +212,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     return false;
   };
   const turnReview = useEncounterTurnReview({
-    encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
+    encounterRef: encounterKey ?? route.slug,
     mutations,
     onAdvance: advanceTurn,
     onPresent: (participantKey, event) => {
@@ -231,7 +228,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       }
     },
     onFinish: () =>
-      followTurn(client.getQueryData<typeof encounter.data>(["encounter", route.slug])),
+      followTurn(
+        client.getQueryData<typeof encounter.data>(["encounter", encounterKey]),
+      ),
     expectedRevision: encounter.data?.revision ?? 0n,
   });
   const disabled = mutationDisabled || turnReview.preparing;
@@ -256,28 +255,30 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
         },
       }
     : undefined;
-  const recovery = mutations.refreshError ? (
-    <ErrorNotice
-      error={mutations.refreshError}
-      outcome={mutations.refreshOutcome}
-      type="warning"
-      title={mutations.refreshMessage}
-      action={
-        <Button
-          loading={mutations.pending}
-          disabled={mutations.pending}
-          onClick={() =>
-            void mutations.retryRefresh().then((view) => {
-              if (followAfterRefresh.current) followTurn(view);
-              else if (turnReview.open) void turnReview.refresh();
-            })
-          }
-        >
-          Retry encounter refresh
-        </Button>
-      }
-    />
-  ) : null;
+  const recovery =
+    mutations.refreshError &&
+    !(editEncounterOpen && mutations.metadataRefreshFailed) ? (
+      <ErrorNotice
+        error={mutations.refreshError}
+        outcome={mutations.refreshOutcome}
+        type="warning"
+        title={mutations.refreshMessage}
+        action={
+          <Button
+            loading={mutations.pending}
+            disabled={mutations.pending}
+            onClick={() =>
+              void mutations.retryRefresh().then((view) => {
+                if (followAfterRefresh.current) followTurn(view);
+                else if (turnReview.open) void turnReview.refresh();
+              })
+            }
+          >
+            Retry encounter refresh
+          </Button>
+        }
+      />
+    ) : null;
   return (
     <EncounterModalProvider area={host}>
       <div
@@ -550,7 +551,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   });
                   return result.active && result.refreshed;
                 }}
-                encounterKey={encounter.data?.encounter.encounter_key ?? route.slug}
+                encounterKey={encounterKey ?? route.slug}
                 artifactGeneration={encounter.data?.artifact_generation ?? null}
                 encounterRevision={encounter.data?.revision ?? 0n}
                 pending={mutations.pending}
@@ -730,7 +731,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 null,
               );
           }}
-          encounterRef={encounter.data?.encounter.encounter_key ?? route.slug}
+          encounterRef={encounterKey ?? route.slug}
           generation={encounter.data?.artifact_generation ?? null}
           damageTypes={conditionDefinitions.data?.damage_types ?? []}
           onLifecycle={async (request) => {
@@ -801,6 +802,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               mutations.errorKind === "metadata" ? mutations.errorMessage : undefined
             }
             encounterNote={encounter.data?.note}
+            onRefreshConflict={mutations.refreshMetadataConflict}
             open={editEncounterOpen}
             onCancel={() => setEditEncounterOpen(false)}
             onDelete={async () => {

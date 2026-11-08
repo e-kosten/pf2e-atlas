@@ -68,7 +68,7 @@ pub struct UpdateSavedList {
     pub slug: String,
     pub name: String,
     pub description: Option<String>,
-    pub tags: Vec<String>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

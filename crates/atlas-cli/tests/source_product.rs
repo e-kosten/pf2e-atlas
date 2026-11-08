@@ -1324,6 +1324,56 @@ fn lists_create_rolls_back_list_when_item_storage_fails() {
 }
 
 #[test]
+fn list_edit_flags_preserve_omitted_metadata_and_support_explicit_clears() {
+    let f = Fixture::new();
+    let original = f.data(&[
+        "lists",
+        "create",
+        "Research",
+        "--slug",
+        "research",
+        "--description",
+        "Prepared notes",
+        "--tag",
+        "Planning",
+        "--json",
+    ]);
+    let list = &original["list"];
+    let key = list["list_key"].as_str().unwrap();
+    let renamed = f.data(&[
+        "lists",
+        "edit",
+        key,
+        "--id",
+        "new-research",
+        "--name",
+        "Updated research",
+        "--json",
+    ]);
+    assert_eq!(renamed["list"]["list_key"], key);
+    assert_eq!(renamed["list"]["slug"], "new-research");
+    assert_eq!(renamed["list"]["description"], "Prepared notes");
+    assert_eq!(renamed["list"]["tags"], serde_json::json!(["Planning"]));
+
+    let cleared = f.data(&[
+        "lists",
+        "edit",
+        "new-research",
+        "--clear-description",
+        "--clear-tags",
+        "--json",
+    ]);
+    assert_eq!(cleared["list"]["name"], "Updated research");
+    assert!(cleared["list"].get("description").is_none());
+    assert_eq!(cleared["list"]["tags"], serde_json::json!([]));
+    assert_eq!(
+        f.data(&["lists", "edit", key, "--json"]),
+        cleared,
+        "an edit with no flags does not touch saved metadata or its timestamp"
+    );
+}
+
+#[test]
 fn list_notes_edit_clear_and_preserve_unavailable_entries_and_exports() {
     let f = Fixture::new();
     f.data(&[

@@ -604,7 +604,18 @@ describe("encounter views", () => {
     expect(history.length).toBe(before + 1);
   });
 
-  it("edits encounter metadata without exposing slug", async () => {
+  it("sends only the edited metadata and navigates to the refreshed slug", async () => {
+    apiMocks.updateEncounter.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: {
+          ...serverEncounter.encounter,
+          name: "Renamed Ambush",
+          slug: "new-ambush",
+        },
+      };
+      return { encounter_key: "encounter_ambush" };
+    });
     render(<EncounterEditView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -617,12 +628,327 @@ describe("encounter views", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
-    expect(apiMocks.updateEncounter.mock.calls[0][0]).toEqual(
-      expect.objectContaining({
+    await waitFor(() => expect(location.pathname).toBe("/encounters/new-ambush"));
+    expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
+      encounter_key: "encounter_ambush",
+      name: { expected: "Ambush", value: "Renamed Ambush" },
+    });
+  });
+
+  it.each(["page", "modal"] as const)(
+    "keeps the mounted %s bound to its encounter through a rename and reused slug",
+    async (surface) => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+      });
+      const wrapper = queryClientWrapper(queryClient);
+      const view = render(
+        surface === "page" ? (
+          <EncounterEditView route={{ slug: "ambush" }} />
+        ) : (
+          <EncounterDetailView route={{ slug: "ambush" }} />
+        ),
+        { wrapper },
+      );
+      let editor: ReturnType<typeof within> | typeof screen = screen;
+      if (surface === "modal") {
+        const settings = await screen.findByRole("button", {
+          name: "Encounter settings",
+        });
+        await waitFor(() => expect(settings).toBeEnabled());
+        fireEvent.click(settings);
+        fireEvent.click(
+          await screen.findByRole("menuitem", { name: "Edit encounter" }),
+        );
+        editor = within(await screen.findByRole("dialog", { name: "Settings" }));
+      }
+      const name = await editor.findByLabelText("Name");
+      fireEvent.change(name, { target: { value: "My name" } });
+
+      const renamed = {
+        ...serverEncounter,
+        note: "Fresh note",
+        encounter: { ...serverEncounter.encounter, slug: "renamed-ambush" },
+      };
+      const replacement = {
+        ...serverEncounter,
+        encounter: {
+          ...serverEncounter.encounter,
+          encounter_key: "encounter_other",
+          name: "Replacement",
+        },
+      };
+      if (surface === "page") {
+        apiMocks.getEncounter.mockRejectedValueOnce(new Error("Read unavailable"));
+      }
+      apiMocks.getEncounter.mockImplementation(async (ref) =>
+        ref === "encounter_ambush" ? renamed : replacement,
+      );
+      await act(async () =>
+        queryClient.invalidateQueries({
+          queryKey: ["encounter", "encounter_ambush"],
+          exact: true,
+        }),
+      );
+      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush");
+      expect(name).toHaveValue("My name");
+      if (surface === "page") {
+        fireEvent.click(await screen.findByRole("button", { name: "Retry encounter" }));
+      }
+      await waitFor(() =>
+        expect(editor.getByLabelText("Note")).toHaveValue("Fresh note"),
+      );
+      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush");
+      expect(editor.getByLabelText("Name")).toBe(name);
+      fireEvent.click(editor.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
+          encounter_key: "encounter_ambush",
+          name: { expected: "Ambush", value: "My name" },
+        }),
+      );
+      if (surface === "page") {
+        await waitFor(() =>
+          expect(location.pathname).toBe("/encounters/renamed-ambush"),
+        );
+        view.unmount();
+        render(<EncounterEditView route={{ slug: "ambush" }} />, { wrapper });
+        await waitFor(() =>
+          expect(screen.getByLabelText("Name")).toHaveValue("Replacement"),
+        );
+        expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("ambush");
+      }
+    },
+  );
+
+  it("does not bind a new route to the late refresh of the previous encounter", async () => {
+    const saving = deferred<{ encounter_key: string }>();
+    apiMocks.updateEncounter.mockReturnValueOnce(saving.promise);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const wrapper = queryClientWrapper(queryClient);
+    const previous = render(<EncounterEditView route={{ slug: "ambush" }} />, {
+      wrapper,
+    });
+    fireEvent.change(await screen.findByLabelText("Name"), {
+      target: { value: "Saved name" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalledOnce());
+    previous.unmount();
+
+    const lookup = deferred<EncounterDetailViewDto>();
+    const saved = {
+      ...serverEncounter,
+      encounter: { ...serverEncounter.encounter, name: "Saved name", slug: "renamed" },
+    };
+    const replacement = {
+      ...serverEncounter,
+      encounter: {
+        ...serverEncounter.encounter,
+        encounter_key: "encounter_other",
+        name: "Replacement",
+      },
+    };
+    apiMocks.getEncounter.mockImplementation(async (ref) =>
+      ref === "ambush"
+        ? lookup.promise
+        : ref === "encounter_ambush"
+          ? saved
+          : replacement,
+    );
+    render(<EncounterEditView route={{ slug: "ambush" }} />, { wrapper });
+    await waitFor(() =>
+      expect(
+        apiMocks.getEncounter.mock.calls.filter(([ref]) => ref === "ambush"),
+      ).toHaveLength(2),
+    );
+
+    await act(async () => saving.resolve({ encounter_key: "encounter_ambush" }));
+    await waitFor(() =>
+      expect(queryClient.getQueryData(["encounter", "encounter_ambush"])).toEqual(
+        saved,
+      ),
+    );
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+
+    await act(async () => lookup.resolve(replacement));
+    expect(await screen.findByLabelText("Name")).toHaveValue("Replacement");
+    expect(queryClient.getQueryData(["encounter", "encounter_other"])).toEqual(
+      replacement,
+    );
+  });
+
+  it("preserves the dirty original and uses refreshed untouched values for explicit clears", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onRefreshConflict = vi.fn();
+    const summary = encounterIndexFixture().encounters[0];
+    const view = render(
+      <EditEncounterForm
+        encounter={summary}
+        encounterNote="Initial note"
+        onSave={onSave}
+        onRefreshConflict={onRefreshConflict}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+    const name = screen.getByLabelText("Name");
+    fireEvent.change(name, { target: { value: "My name" } });
+    view.rerender(
+      <EditEncounterForm
+        encounter={{ ...summary, name: "New server name", status: "running" }}
+        encounterNote=" New server note "
+        onSave={onSave}
+        onRefreshConflict={onRefreshConflict}
+      />,
+    );
+    expect(name).toHaveValue("My name");
+    const note = screen.getByLabelText("Note");
+    expect(note).toHaveValue(" New server note ");
+    fireEvent.change(note, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledExactlyOnceWith({
         encounter_key: "encounter_ambush",
-        slug: "ambush",
-        name: "Renamed Ambush",
+        name: { expected: "Ambush", value: "My name" },
+        note: { expected: " New server note ", value: null },
+      }),
+    );
+  });
+
+  it("reviews conflicting encounter fields without rebasing the other drafts", async () => {
+    apiMocks.updateEncounter.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: { ...serverEncounter.encounter, name: "Other name" },
+        note: "Other note",
+      };
+      throw new AtlasApiError(409, "Conflicting settings", {
+        code: "saved_edit_conflict",
+        message: "Conflicting settings",
+        details: { fields: ["name", "note"] },
+      });
+    });
+    apiMocks.updateEncounter.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: { ...serverEncounter.encounter, name: "Newer name" },
+      };
+      throw new AtlasApiError(409, "Conflicting settings", {
+        code: "saved_edit_conflict",
+        message: "Conflicting settings",
+        details: { fields: ["name"] },
+      });
+    });
+    render(<EncounterEditView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const name = await screen.findByLabelText("Name");
+    fireEvent.change(name, { target: { value: "My name" } });
+    fireEvent.change(screen.getByLabelText("Note"), {
+      target: { value: "My note" },
+    });
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: "My description" },
+    });
+    const save = screen.getByRole("button", { name: "Save" });
+    fireEvent.click(save);
+    const keepName = await screen.findByRole("button", { name: "Keep mine for Name" });
+    expect(apiMocks.getEncounter).toHaveBeenCalledWith("encounter_ambush");
+    expect(
+      within(screen.getByRole("group", { name: "Name" })).getByText("Other name", {
+        exact: false,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "Description" }),
+    ).not.toBeInTheDocument();
+    expect(name).toHaveValue("My name");
+    expect(save).toBeDisabled();
+
+    fireEvent.click(keepName);
+    expect(name).toHaveFocus();
+    expect(save).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Use saved Note" }));
+    expect(screen.getByLabelText("Note")).toHaveValue("Other note");
+    expect(screen.getByLabelText("Description")).toHaveValue("My description");
+    expect(apiMocks.updateEncounter).toHaveBeenCalledOnce();
+
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, {
+        encounter_key: "encounter_ambush",
+        name: { expected: "Other name", value: "My name" },
+        description: { expected: "Road fight", value: "My description" },
+      }),
+    );
+    const keepNewer = await screen.findByRole("button", { name: "Keep mine for Name" });
+    expect(
+      within(screen.getByRole("group", { name: "Name" })).getByText("Newer name", {
+        exact: false,
+      }),
+    ).toBeInTheDocument();
+    fireEvent.click(keepNewer);
+    expect(apiMocks.updateEncounter).toHaveBeenCalledTimes(2);
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(3, {
+        encounter_key: "encounter_ambush",
+        name: { expected: "Newer name", value: "My name" },
+        description: { expected: "Road fight", value: "My description" },
+      }),
+    );
+  });
+
+  it("keeps the settings dialog draft after a failed conflict refresh and retries only the read", async () => {
+    apiMocks.updateEncounter.mockImplementationOnce(async () => {
+      serverEncounter = {
+        ...serverEncounter,
+        encounter: { ...serverEncounter.encounter, name: "Other name" },
+      };
+      apiMocks.getEncounter.mockRejectedValueOnce(new Error("Read unavailable"));
+      throw new AtlasApiError(409, "Conflicting settings", {
+        code: "saved_edit_conflict",
+        message: "Conflicting settings",
+        details: { fields: ["name"] },
+      });
+    });
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const settings = await screen.findByRole("button", { name: "Encounter settings" });
+    await waitFor(() => expect(settings).toBeEnabled());
+    fireEvent.click(settings);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Settings" }));
+    const name = dialog.getByLabelText("Name");
+    fireEvent.change(name, { target: { value: "My name" } });
+    const save = dialog.getByRole("button", { name: "Save" });
+    fireEvent.click(save);
+    const retry = await dialog.findByRole("button", {
+      name: "Retry loading saved values",
+    });
+    expect(name).toHaveValue("My name");
+    expect(save).toBeDisabled();
+    expect(
+      dialog.queryByRole("button", { name: "Keep mine for Name" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(retry);
+    fireEvent.click(await dialog.findByRole("button", { name: "Keep mine for Name" }));
+    expect(name).toHaveValue("My name");
+    expect(apiMocks.updateEncounter).toHaveBeenCalledOnce();
+    expect(apiMocks.getEncounter.mock.calls.slice(-2)).toEqual([
+      ["encounter_ambush"],
+      ["encounter_ambush"],
+    ]);
+
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, {
+        encounter_key: "encounter_ambush",
+        name: { expected: "Other name", value: "My name" },
       }),
     );
   });
@@ -636,7 +962,7 @@ describe("encounter views", () => {
     expect(await screen.findByLabelText("HP summary")).toHaveTextContent("10/12");
     await waitFor(() =>
       expect(apiMocks.getEncounterConditionDefinitions).toHaveBeenCalledWith(
-        "ambush",
+        "encounter_ambush",
         "participant_a",
       ),
     );
@@ -1467,12 +1793,10 @@ describe("encounter views", () => {
     await selectOption(within(dialog).getByRole("combobox"), "Complete");
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
-    await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalled());
-    expect(apiMocks.updateEncounter.mock.calls[0][0]).toEqual(
-      expect.objectContaining({
+    await waitFor(() =>
+      expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
         encounter_key: "encounter_ambush",
-        slug: "ambush",
-        status: "complete",
+        status: { expected: "draft", value: "complete" },
       }),
     );
   });
@@ -1648,7 +1972,7 @@ describe("encounter views", () => {
         },
       },
     });
-    act(() => client.setQueryData(["encounter", "ambush"], updated));
+    act(() => client.setQueryData(["encounter", "encounter_ambush"], updated));
     await waitFor(() => expect(within(preview).getByText("+19")).toBeVisible());
     expect(within(preview).queryByText("+12")).toBeNull();
     expect(
@@ -2779,10 +3103,10 @@ describe("encounter views", () => {
     client.setQueryData(oldDetail.queryKey, detailFixture("old"));
     await act(async () => retireReferenceQueries(client));
     expect(client.getQueryData(oldDetail.queryKey)).toBeUndefined();
-    expect(client.getQueryData(["encounter", "ambush"])).toBeDefined();
+    expect(client.getQueryData(["encounter", "encounter_ambush"])).toBeDefined();
     expect(name).toHaveValue("My draft");
     act(() =>
-      client.setQueryData(["encounter", "ambush"], {
+      client.setQueryData(["encounter", "encounter_ambush"], {
         ...encounterDetailFixture(),
         note: "Server note",
         encounter: { ...encounterIndexFixture().encounters[0], name: "Server name" },
@@ -3058,6 +3382,7 @@ describe("encounter views", () => {
           encounter={encounterIndexFixture().encounters[0]}
           encounterNote="Encounter note"
           onSave={vi.fn()}
+          onRefreshConflict={vi.fn()}
         />,
         { wrapper: queryClientWrapper() },
       );
@@ -3134,12 +3459,13 @@ function rosterRow(displayName: string): HTMLElement {
   return row;
 }
 
-function queryClientWrapper() {
-  const queryClient = new QueryClient({
+function queryClientWrapper(
+  queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
     },
-  });
+  }),
+) {
   testQueryClients.add(queryClient);
   return function Wrapper({ children }: { children: ReactNode }) {
     return (

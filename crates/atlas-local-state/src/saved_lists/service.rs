@@ -79,17 +79,31 @@ impl SavedListsWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             storage::validate_list_ref(&list.list_key)?;
             validate_slug(&list.slug)?;
+            let transaction = self.connection;
+            let Some(current) = storage::get(transaction, self.owner_id, &list.list_key)?
+                .filter(|current| current.list_key == list.list_key)
+            else {
+                return Ok(None);
+            };
             let list = UpdateSavedList {
-                tags: normalize_tags(list.tags),
+                tags: list.tags.map(normalize_tags).filter(|tags| {
+                    tags.iter().collect::<BTreeSet<_>>()
+                        != current.tags.iter().collect::<BTreeSet<_>>()
+                }),
                 ..list
             };
-            let transaction = self.connection;
-            if !storage::update_list(transaction, self.owner_id, list.clone())? {
+            if list.tags.is_none()
+                && list.slug == current.slug
+                && list.name == current.name
+                && list.description == current.description
+            {
+                return Ok(Some(current));
+            }
+            let list_key = list.list_key.clone();
+            if !storage::update_list(transaction, self.owner_id, list)? {
                 return Ok(None);
             }
-            let result = storage::get(transaction, self.owner_id, &list.list_key)?;
-
-            Ok(result)
+            storage::get(transaction, self.owner_id, &list_key)
         })
     }
 
@@ -113,7 +127,7 @@ impl SavedListsWrite<'_> {
                             slug: import.slug.clone(),
                             name: import.name,
                             description: import.description,
-                            tags: import.tags.clone(),
+                            tags: Some(import.tags),
                         },
                     )?;
                     existing.list_key

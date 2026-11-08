@@ -44,16 +44,37 @@ pub struct SavedListCreateView {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct UpdateSavedListRequest {
     pub list_key: String,
-    pub slug: String,
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
     #[ts(optional)]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub tags: Vec<String>,
+    pub slug: Option<crate::FieldEdit<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[ts(optional)]
+    pub name: Option<crate::FieldEdit<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[ts(optional)]
+    pub description: Option<crate::FieldEdit<Option<String>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[ts(optional)]
+    pub tags: Option<crate::FieldEdit<Vec<String>>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -450,11 +471,11 @@ mod tests {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateSavedListItemNoteRequest {
     pub list_ref: String,
     pub record_key: String,
-    #[serde(deserialize_with = "Option::deserialize")]
-    pub note: Option<String>,
+    pub note: crate::FieldEdit<Option<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

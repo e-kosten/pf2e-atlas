@@ -2,12 +2,11 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { encounterDestination, encountersDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "antd";
-import { getEncounter } from "../../api/atlasApi";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { EditEncounterForm } from "./EncounterModals";
 import { useEncounterMutations } from "./useEncounterMutations";
+import { useEncounterQuery } from "./useEncounterQuery";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 type EncounterEditViewProps = {
   route: { slug: string };
@@ -16,10 +15,7 @@ export function EncounterEditView({ route }: EncounterEditViewProps) {
   return <EncounterEditor key={route.slug} route={route} />;
 }
 function EncounterEditor({ route }: EncounterEditViewProps) {
-  const encounter = useQuery({
-    queryKey: ["encounter", route.slug],
-    queryFn: () => getEncounter(route.slug),
-  });
+  const encounter = useEncounterQuery(route.slug);
   usePageTitle(encounter.data?.encounter.name ?? "Encounter");
   const mutations = useEncounterMutations(
     route.slug,
@@ -38,7 +34,7 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
           onClick={() =>
             navigateDestination(
               encounterDestination({
-                slug: route.slug,
+                slug: encounter.data?.encounter.slug ?? route.slug,
               }),
             )
           }
@@ -60,7 +56,7 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
           }
         />
       )}
-      {mutations.refreshError && (
+      {mutations.refreshError && !mutations.metadataRefreshFailed && (
         <ErrorNotice
           error={mutations.refreshError}
           outcome={mutations.refreshOutcome}
@@ -82,17 +78,19 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
         encounter.data && (
           <section className="encounter-edit-view__content">
             <EditEncounterForm
+              key={encounter.data.encounter.encounter_key}
               encounter={encounter.data.encounter}
               encounterNote={encounter.data.note}
               disabled={disabled}
               pending={mutations.pending}
               error={mutations.errorMessage}
+              onRefreshConflict={mutations.refreshMetadataConflict}
               onSave={async (request) => {
                 const result = await mutations.run({ kind: "metadata", request });
-                if (result.active && result.refreshed)
+                if (result.active && result.refreshed && result.view)
                   navigateDestination(
                     encounterDestination({
-                      slug: request.slug,
+                      slug: result.view.encounter.slug,
                     }),
                   );
               }}
