@@ -5,6 +5,7 @@ use atlas_index::SqliteIndexReader;
 
 pub struct AtlasRetrievalService {
     pub(crate) index: SqliteIndexReader,
+    pub(crate) bestiary_glossary: std::cell::OnceCell<crate::bestiary_glossary::BestiaryGlossary>,
     query_embedding: Option<PreparedQueryEmbedding>,
     default_profile: SearchProfileId,
     pub(crate) neighbor_reuse: Option<(
@@ -41,6 +42,7 @@ impl AtlasRetrievalService {
         }
         Ok(Self {
             index,
+            bestiary_glossary: std::cell::OnceCell::new(),
             default_profile,
             query_embedding,
             neighbor_reuse: None,

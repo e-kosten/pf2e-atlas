@@ -1,7 +1,28 @@
 //! Borrowed authored Item facts shared by root and immediate Actor Item scopes.
-use super::{ItemSourceView, SourceFieldView};
+use super::{ItemSourceView, SourceFieldView, SourceNodeView};
 use atlas_foundry_model::{SourcePresence, generated::*};
 use serde_json::Number;
+use std::borrow::Cow;
+
+trait ItemSlugText {
+    fn slug_text(&self) -> Option<Cow<'_, str>>;
+}
+
+impl ItemSlugText for String {
+    fn slug_text(&self) -> Option<Cow<'_, str>> {
+        Some(Cow::Borrowed(self))
+    }
+}
+
+impl ItemSlugText for SourceFromSchemaAfflictionConditionSchemaSlug {
+    fn slug_text(&self) -> Option<Cow<'_, str>> {
+        // The checked enum serializes to the exact authored string token.
+        match serde_json::to_value(self).ok()? {
+            serde_json::Value::String(slug) => Some(Cow::Owned(slug)),
+            _ => None,
+        }
+    }
+}
 
 /// Borrowed base identifiers retain each family's generated source type.
 #[derive(Debug, Clone, Copy, serde::Serialize)]
@@ -80,15 +101,24 @@ impl<'a> ItemSourceView<'a> {
         )
     }
 
-    family_field!(
-        ability_slug,
-        &'a str,
-        [AbilitySource, FeatSource, EffectSource],
-        source,
-        SourceFieldView::from(&source.system)
-            .and_then(|system| (&system.slug).into())
-            .map(String::as_str)
-    );
+    /// Effective key for an immediate Item in Foundry's NPC attack-effect lookup.
+    pub fn owned_attack_effect_slug(self) -> Option<Cow<'a, str>> {
+        if matches!(self, Self::MeleeSource(_)) {
+            return None;
+        }
+        let slug = super::nodes::item_fields!(self, source, {
+            let system = SourceFieldView::from(&source.system).value()?;
+            SourceFieldView::from(&system.slug).map(ItemSlugText::slug_text)
+        });
+        match slug {
+            SourceFieldView::Value(value) => value,
+            SourceFieldView::Missing | SourceFieldView::Null => SourceNodeView::Item(self)
+                .name()
+                .value()
+                .map(|name| Cow::Owned(super::foundry_slug(name))),
+            _ => None,
+        }
+    }
     /// Explicit core provenance in the declared open flag namespace.
     pub fn core_source_id(self) -> SourceFieldView<'a, &'a String> {
         use atlas_foundry_model::SourceValue;

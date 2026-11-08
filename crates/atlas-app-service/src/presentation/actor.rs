@@ -235,7 +235,6 @@ pub(crate) fn authored_activities(
     for (order, (_, source_index)) in primary_order.into_iter().enumerate() {
         activities[source_index].reading_order = order;
     }
-    super::activity_references::resolve_owned_strike_effects(record, &mut activities, fingerprint);
     let items = SourceQueryView {
         source: node,
         pack_id: "",

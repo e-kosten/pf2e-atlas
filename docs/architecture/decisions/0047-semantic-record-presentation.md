@@ -95,6 +95,16 @@ retain their selection, including a verified spell rank. App-service still
 supplies the compact `effect_label` wire field for compatibility with existing
 readers.
 
+Strike attack effects retain each authored token and resolve to checked reading
+destinations. The normalized token first matches immediate non-melee Items on
+the actor, using their authored slug or Foundry's name-derived slug when absent.
+A local miss compares the original token to Foundry's build-derived slugs in the
+PF2e Bestiary Ability Glossary. That tier requires retained pack scope evidence
+and a complete bounded read of existing record names and keys. The shared read
+operation prepares the lookup on demand and reuses it across participants.
+Ambiguous matches stay unresolved, including an ambiguous owned match with a
+glossary candidate. These links carry reading context only.
+
 Authored action and casting costs carry a readable label and an optional typed
 glyph for one, two or three actions, reaction and free action. Variable, timed
 and passive costs retain text; unavailable costs retain their fact state. Physical

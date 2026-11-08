@@ -1,7 +1,7 @@
 //! Attach only identity-verified destinations to authored activity references.
 use super::*;
 
-pub(super) fn resolve(
+pub(super) fn resolve_self_effects(
     body: &mut RecordBodyView,
     key: &atlas_domain::RecordKey,
     retrieval: &atlas_search::AtlasRetrievalService,
@@ -46,54 +46,80 @@ pub(super) fn resolve(
     Ok(())
 }
 
-/// Resolve explicit owned-ability slugs without glossary guesses or name matching.
-pub(super) fn resolve_owned_strike_effects(
+/// Attach reading destinations using Foundry's separate owned and glossary lookups.
+pub(super) fn resolve_strike_effects(
+    body: &mut RecordBodyView,
     record: &SourceBackedRecord,
-    activities: &mut [ActorActivityView],
-    fingerprint: &str,
-) {
-    if !activities.iter().any(|a| {
-        a.strike_effects
+    owners: &[OwnedContentLocator],
+    retrieval: &atlas_search::AtlasRetrievalService,
+) -> crate::AppServiceResult<()> {
+    use crate::definitions::record_navigation;
+    use atlas_record::source_record::foundry_slug;
+
+    let activities = match body {
+        RecordBodyView::Creature(actor) => actor.activities.value.as_deref_mut(),
+        RecordBodyView::Hazard(hazard) => hazard.actor.activities.value.as_deref_mut(),
+        RecordBodyView::Activity(activity) if owners.len() == 1 => {
+            Some(std::slice::from_mut(activity.as_mut()))
+        }
+        _ => None,
+    };
+    let Some(activities) = activities else {
+        return Ok(());
+    };
+    if !activities.iter().any(|activity| {
+        activity
+            .strike_effects
             .value
             .as_ref()
-            .is_some_and(|v| !v.is_empty())
+            .is_some_and(|effects| !effects.is_empty())
     }) {
-        return;
+        return Ok(());
     }
-    let mut targets =
-        std::collections::BTreeMap::<String, Option<(String, RecordNavigationView)>>::new();
-    record.visit_immediate_actor_items(|_, owner, item| {
-        if let Some(slug) = item.ability_slug().value() {
-            let owners = vec![owner.clone()];
+
+    let mut targets = std::collections::BTreeMap::new();
+    let actor_items = record.visit_immediate_actor_items(|_, owner, item| {
+        if let Some(slug) = item
+            .owned_attack_effect_slug()
+            .filter(|slug| !slug.is_empty())
+        {
             targets
-                .entry(slug.to_owned())
+                .entry(slug)
                 .and_modify(|target| *target = None)
-                .or_insert_with(|| {
-                    Some((
-                        node_title(SourceNodeView::Item(item)),
-                        RecordNavigationView {
-                            spell_rank: None,
-                            record_key: record.key().to_string(),
-                            source_fingerprint: navigation_fingerprint(&owners, fingerprint),
-                            owners,
-                            field: None,
-                            passage: None,
-                        },
-                    ))
-                });
+                .or_insert_with(|| Some((owner.clone(), item)));
         }
     });
+    if actor_items.value().is_none() {
+        return Ok(());
+    }
+    let fingerprint = retrieval.source_fingerprint();
     for activity in activities {
         for effect in activity.strike_effects.value.iter_mut().flatten() {
-            if let Some(Some((name, navigation))) = effect
-                .authored_target
-                .value
-                .as_ref()
-                .and_then(|slug| targets.get(slug))
-            {
-                effect.name = text(SourceFieldView::Value(name));
-                effect.navigation = Some(navigation.clone());
+            let Some(token) = effect.authored_target.value.as_deref() else {
+                continue;
+            };
+            match targets.get(foundry_slug(token).as_str()) {
+                Some(Some((owner, item))) => {
+                    effect.name = text(SourceFieldView::Value(&node_title(SourceNodeView::Item(
+                        *item,
+                    ))));
+                    effect.navigation = Some(record_navigation(
+                        record.key().clone(),
+                        vec![owner.clone()],
+                        fingerprint,
+                    ));
+                }
+                // Keep duplicate owned keys unresolved, even if a glossary item shares the key.
+                Some(None) => {}
+                None => {
+                    if let Some((key, name)) = retrieval.bestiary_attack_effect(token)? {
+                        effect.name = fact(SourceFieldView::Value(name.to_owned()));
+                        effect.navigation =
+                            Some(record_navigation(key.clone(), vec![], fingerprint));
+                    }
+                }
             }
         }
     }
+    Ok(())
 }
