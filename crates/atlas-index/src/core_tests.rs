@@ -763,8 +763,7 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
     let (_directory, path) = crate::foundation_tests::build(&input);
     let workspace = atlas_storage::Workspace::at(&path).unwrap();
     let schema = crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
-    // A metadata-only activation must retain unpublished inference even when
-    // it differs from the still-published value for the same exact input.
+    // A metadata-only activation must retain inference for unpublished inputs.
     {
         let owner = workspace.update_owner().unwrap();
         let scratch = BuildScratch::new(&owner).unwrap();
@@ -780,7 +779,7 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
             PreparedPublication::new_in(&owner, schema, scratch.path(), metadata).unwrap();
         let unit = &input.semantic_units[0];
         let descriptor = atlas_embedding::NativeInputDescriptor {
-            input_sha256: unit.input_hash.clone(),
+            input_sha256: crate::codec::sha256(b"unpublished input"),
             token_count: unit.input_token_count,
         };
         let mut forced = vec![0.; input.context.search_profiles[0].dimensions];

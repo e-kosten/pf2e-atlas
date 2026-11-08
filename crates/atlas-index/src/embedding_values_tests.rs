@@ -113,7 +113,8 @@ fn pending_vector_survives_reopen_without_mutating_published_values() {
     publish_input(&path, &input).unwrap();
     let model = input.context.search_profiles[0].clone();
     let unit = input.semantic_units[0].clone();
-    let descriptor = prepared(&unit);
+    input.semantic_units[0].input_hash = crate::codec::sha256(b"new native input");
+    let descriptor = prepared(&input.semantic_units[0]);
     let mut replacement = vec![0.; model.dimensions];
     replacement[17] = 1.;
     {
@@ -157,7 +158,7 @@ fn pending_vector_survives_reopen_without_mutating_published_values() {
                 &[(&descriptor.descriptor(), unit.vector.as_slice())]
             )
             .is_err(),
-        "selected forced bytes cannot change within an attempt"
+        "selected cached bytes cannot change within an attempt"
     );
     {
         let maintenance = owner
@@ -209,7 +210,7 @@ fn pending_vector_survives_reopen_without_mutating_published_values() {
     );
 }
 #[test]
-fn reuse_rejects_corrupt_values_and_native_count_mismatches() {
+fn published_reuse_rejects_token_mismatches_and_ignores_malformed_pending() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("atlas.sqlite");
     let input = crate::foundation_tests::fixture(true);
@@ -238,13 +239,11 @@ fn reuse_rejects_corrupt_values_and_native_count_mismatches() {
         )
         .unwrap();
     write.commit().unwrap();
-    assert!(
-        reused_fixture_values(
-            &workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap(),
-            model,
-            &[prepared]
-        )
-        .is_err()
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(
+        reused_fixture_values(&read, model, std::slice::from_ref(&prepared)).unwrap()
+            [&prepared.input_sha256],
+        unit.vector
     );
     // The corrupt pending computation does not invalidate the intact publication.
     validate_artifact(&path).unwrap();
@@ -553,11 +552,20 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
             .unwrap(),
         "retain me"
     );
-    assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
+    let pending: (Vec<u8>, Vec<u8>) = read
+        .connection()
+        .query_row(
+            "SELECT vector,vector_hash FROM pending_embedding_values",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(pending.0, crate::read_units::vector_bytes(&replacement));
+    assert_eq!(pending.1, crate::embedding_values::hash_bytes(&pending.0));
     assert_eq!(
         reused_fixture_values(&read, model, std::slice::from_ref(&prepared)).unwrap()
             [&prepared.input_sha256],
-        replacement
+        unit.vector
     );
     let chunk = &seed.chunks[0];
     assert!(

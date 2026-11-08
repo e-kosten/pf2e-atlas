@@ -76,15 +76,27 @@ impl<'owner> PreparedPublication<'owner> {
         } else {
             let read = workspace.read(schema)?;
             crate::writer::check_expected(read.connection(), &metadata)?;
-            let bytes = read.connection().query_row(
-                "SELECT coalesce(sum(length(vector)),0) FROM pending_embedding_values",
+            let (bytes, has_overlaps): (u64, bool) = read.connection().query_row(
+                "SELECT coalesce(sum(length(p.vector)) FILTER (WHERE i.published_hash IS NULL),0),
+                        count(i.published_hash)>0
+                 FROM pending_embedding_values p LEFT JOIN embedding_inputs i USING(input_id)",
                 [],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )?;
-            (
-                bytes,
-                crate::read_stored_reference_context(read.connection())?,
-            )
+            let previous = crate::read_stored_reference_context(read.connection())?;
+            drop(read);
+            if has_overlaps {
+                let write = workspace.write(schema)?;
+                crate::writer::check_expected(write.connection(), &metadata)?;
+                write.connection().execute(
+                    "DELETE FROM pending_embedding_values WHERE EXISTS(
+                         SELECT 1 FROM embedding_inputs i
+                         WHERE i.input_id=pending_embedding_values.input_id AND i.published_hash IS NOT NULL)",
+                    [],
+                )?;
+                write.commit()?;
+            }
+            (bytes, previous)
         };
         let previous_layouts = metadata
             .context
@@ -284,7 +296,16 @@ impl<'owner> PreparedPublication<'owner> {
                 )?;
                 for value in &encoded {
                     let id = binding.ensure_input(&value.input)?;
-                    let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
+                    let old: Option<u64> = write
+                        .connection()
+                        .prepare_cached(
+                            "SELECT coalesce(length(p.vector),0) FROM embedding_inputs i
+                         LEFT JOIN pending_embedding_values p USING(input_id)
+                         WHERE i.input_id=? AND i.published_hash IS NULL",
+                        )?
+                        .query_row([id], |r| r.get(0))
+                        .optional()?;
+                    let Some(old) = old else { continue };
                     write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,value.bytes,value.checksum])?;
                     next_cache_bytes = next_cache_bytes
                         .checked_sub(old)

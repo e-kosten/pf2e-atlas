@@ -104,6 +104,7 @@ fn next_input() -> IndexBuildInput {
     );
     next.records[0].preparation_context_hash = next.context.preparation_sha256().unwrap();
     for unit in &mut next.semantic_units {
+        unit.input_hash = crate::codec::sha256(unit.input_hash.as_bytes());
         unit.vector = vec![0.; next.context.search_profiles[0].dimensions];
         unit.vector[11] = 1.;
     }
@@ -112,6 +113,10 @@ fn next_input() -> IndexBuildInput {
 fn rows(c: &Connection) -> BTreeMap<String, Vec<Vec<Value>>> {
     let mut rows = reference_preservation_rows(c).unwrap();
     rows.remove("pending_embedding_values");
+    // Retry batches can durably register unpublished inputs before activation.
+    rows.get_mut("embedding_inputs")
+        .unwrap()
+        .retain(|input| input.last() != Some(&Value::Null));
     // Keep concrete row IDs and Core bindings as well as the migration oracle's
     // logical rows: a partial projection publication must not normalize away.
     let tables = c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND (name LIKE 'core_%' OR name IN ('selected_sections','semantic_locations')) ORDER BY name").unwrap()

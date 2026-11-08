@@ -214,39 +214,38 @@ impl<'session> NativeModel<'session> {
             .map(Option::flatten)
     }
     fn cache(&self, id: i64) -> Result<Option<CachedNative>, IndexError> {
-        let shape: Option<(usize,usize)> = self.connection.prepare_cached("SELECT length(vector),length(vector_hash) FROM pending_embedding_values WHERE input_id=?")?
-            .query_row([id], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
-        let Some((length, hash_length)) = shape else {
-            return Ok(None);
-        };
-        if length != expected_bytes(&self.key.model)? || hash_length != 32 {
-            return Err(invalid("cached native length mismatch"));
-        }
-        let (bytes,hash): (Vec<u8>,Vec<u8>) = self.connection.prepare_cached("SELECT vector,vector_hash FROM pending_embedding_values WHERE input_id=? AND length(vector)=? AND length(vector_hash)=32")?
-            .query_row(params![id,length], |r| Ok((r.get(0)?,r.get(1)?)))?;
-        verify_bytes(&bytes, &hash, &self.key.model)?;
-        Ok(Some(CachedNative {
-            bytes,
-            checksum: hash,
-        }))
+        let length = expected_bytes(&self.key.model)?;
+        let cached = self
+            .connection
+            .prepare_cached(
+                "SELECT vector,vector_hash FROM pending_embedding_values WHERE input_id=?
+             AND typeof(vector)='blob' AND length(vector)=?
+             AND typeof(vector_hash)='blob' AND length(vector_hash)=32",
+            )?
+            .query_row(params![id, length], |r| {
+                Ok(CachedNative {
+                    bytes: r.get(0)?,
+                    checksum: r.get(1)?,
+                })
+            })
+            .optional()?;
+        Ok(cached
+            .filter(|value| check_bytes(&value.bytes, &value.checksum, &self.key.model).is_ok()))
     }
-    /// One exact input lookup, retaining pending-over-published precedence.
+    /// Reuse pending inference only for an unpublished exact input.
     pub fn select(&self, input: &NativeInput) -> Result<Option<SelectedNative>, IndexError> {
         let Some(row) = self.find(input)? else {
             return Ok(None);
         };
-        if let Some(cached) = self.cache(row.id)? {
+        if let Some(checksum) = self.checksum(&row)? {
             return Ok(Some(SelectedNative {
-                checksum: cached.checksum,
-                staged: Some(cached.bytes),
+                checksum,
+                staged: None,
             }));
         }
-        let Some(hash) = self.checksum(&row)? else {
-            return Ok(None);
-        };
-        Ok(Some(SelectedNative {
-            checksum: hash,
-            staged: None,
+        Ok(self.cache(row.id)?.map(|cached| SelectedNative {
+            checksum: cached.checksum,
+            staged: Some(cached.bytes),
         }))
     }
     /// Copy an authenticated value into a publication with a different layout.
@@ -647,10 +646,9 @@ mod tests {
     }
 
     #[test]
-    fn cache_reuse_precedence_and_corruption_are_distinct() {
+    fn exact_published_checksum_wins_over_pending_inference() {
         let (c, model, input) = fixture();
-        c.execute_batch("CREATE TABLE pending_embedding_values(input_id INTEGER PRIMARY KEY,vector BLOB,vector_hash BLOB,cached_at INTEGER);") .unwrap();
-        assert!(cached(&c, &model, &input).unwrap().is_none());
+        c.execute_batch("CREATE TABLE pending_embedding_values(input_id INTEGER PRIMARY KEY,vector BLOB,vector_hash BLOB,cached_at INTEGER);").unwrap();
         let mut vector = vec![0.; model.dimensions];
         vector[0] = 1.;
         let bytes = crate::read_units::vector_bytes(&vector);
@@ -660,42 +658,21 @@ mod tests {
             params![bytes, hash],
         )
         .unwrap();
-        c.execute(
-            "UPDATE embedding_inputs SET published_hash=zeroblob(8388608)",
-            [],
-        )
-        .unwrap();
         let keys = NativeModelKey::all(std::slice::from_ref(&model)).unwrap();
         let binding = NativeModel::bind(&c, &keys[0], false).unwrap();
         let checked = NativeInput::new(&model, &input).unwrap();
         let selected = binding.select(&checked).unwrap().unwrap();
         assert_eq!(selected.staged.as_deref(), Some(bytes.as_slice()));
         assert_eq!(selected.checksum, hash);
-        assert_eq!(
-            cached(&c, &model, &input).unwrap(),
-            Some(CachedNative {
-                bytes,
-                checksum: hash
-            })
-        );
-        c.execute(
-            "UPDATE pending_embedding_values SET vector_hash=zeroblob(32)",
-            [],
-        )
-        .unwrap();
-        assert!(cached(&c, &model, &input).is_err());
-        c.execute(
-            "UPDATE pending_embedding_values SET vector=zeroblob(8388608)",
-            [],
-        )
-        .unwrap();
-        assert!(
-            cached(&c, &model, &input)
-                .unwrap_err()
-                .to_string()
-                .contains("length mismatch")
-        );
-        c.execute("DELETE FROM pending_embedding_values", [])
+
+        let published = [1_u8; 32];
+        c.execute("UPDATE embedding_inputs SET published_hash=?", [published])
+            .unwrap();
+        let selected = binding.select(&checked).unwrap().unwrap();
+        assert!(selected.staged.is_none());
+        assert_eq!(selected.checksum, published);
+
+        c.execute("UPDATE embedding_inputs SET published_hash=zeroblob(1)", [])
             .unwrap();
         assert!(
             binding

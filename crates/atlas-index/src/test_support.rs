@@ -511,7 +511,7 @@ pub(crate) fn prepare_publication_with_inferred_values<'owner>(
     Ok(publication)
 }
 
-fn fixture_publication<'owner>(
+pub(crate) fn fixture_publication<'owner>(
     owner: &'owner atlas_storage::UpdateOwner,
     schema: u32,
     scratch: &Path,
