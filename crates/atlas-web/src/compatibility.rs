@@ -16,8 +16,16 @@ pub(crate) struct CompatibilityConflict {
     message: &'static str,
 }
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub(crate) struct CompatibilityHandshake {
+    api_contract: &'static str,
+}
+
+#[utoipa::path(get, path = "/api/compatibility", operation_id = "handshake", responses((status = 200, description = "Successful response", body = CompatibilityHandshake), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn handshake() -> impl IntoResponse {
-    Json(serde_json::json!({ "api_contract": CONTRACT }))
+    Json(CompatibilityHandshake {
+        api_contract: CONTRACT,
+    })
 }
 
 pub(crate) async fn check(request: Request, next: Next) -> Response {
