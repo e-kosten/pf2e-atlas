@@ -1380,7 +1380,7 @@ fn query_catalog_and_preparation_identity_require_current_artifacts() {
     assert!(crate::writer::validate_context(&old).is_err());
     let c = Connection::open(&path).unwrap();
     c.execute(
-        "DELETE FROM query_field_catalog WHERE field='level_or_rank'",
+        "UPDATE artifact_context SET query_catalog_sha256=zeroblob(32)",
         [],
     )
     .unwrap();
@@ -1512,7 +1512,7 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
         "fixture must exercise hidden preparation metadata"
     );
     connection
-        .execute("DELETE FROM query_field_catalog", [])
+        .execute("UPDATE artifact_context SET query_catalog_sha256=NULL", [])
         .unwrap();
     let restored =
         crate::collect_persisted_inputs_for_fixture(&connection, &input.context).unwrap();

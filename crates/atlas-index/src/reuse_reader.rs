@@ -501,7 +501,7 @@ mod tests {
         let c = rusqlite::Connection::open(&path).unwrap();
         let original: String = c
             .query_row(
-                "SELECT identity_json FROM search_profiles WHERE profile_id=?",
+                "SELECT m.identity_json FROM search_profiles p JOIN embedding_models m USING(model_id) WHERE p.profile_id=?",
                 [input.context.search_profiles[0].profile_id.as_str()],
                 |r| r.get(0),
             )
@@ -512,7 +512,7 @@ mod tests {
             .push_str("-changed-without-context-or-revision");
         assert_eq!(
             c.execute(
-                "UPDATE search_profiles SET identity_json=? WHERE profile_id=?",
+                "UPDATE embedding_models SET identity_json=? WHERE model_id=(SELECT model_id FROM search_profiles WHERE profile_id=?)",
                 rusqlite::params![
                     serde_json::to_string(&changed).unwrap(),
                     changed.profile_id.as_str()
@@ -528,7 +528,7 @@ mod tests {
             "{error}"
         );
         c.execute(
-            "UPDATE search_profiles SET identity_json=? WHERE profile_id=?",
+            "UPDATE embedding_models SET identity_json=? WHERE model_id=(SELECT model_id FROM search_profiles WHERE profile_id=?)",
             rusqlite::params![original, changed.profile_id.as_str()],
         )
         .unwrap();

@@ -73,7 +73,6 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM deity_projection;
          DELETE FROM records;
          DELETE FROM packs;
-         DELETE FROM query_field_catalog;
          DELETE FROM artifact_context;
          UPDATE record_identity SET availability='unavailable' WHERE availability<>'unavailable';
          CREATE VIRTUAL TABLE lexical_fts USING fts5(

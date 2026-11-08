@@ -493,7 +493,7 @@ impl<'owner> PreparedPublication<'owner> {
                 // Owned staging is keyed by full identity, not this disposable ID.
                 write.connection().execute("DELETE FROM embedding_inputs WHERE input_id=? AND published_hash IS NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=embedding_inputs.input_id) AND NOT EXISTS(SELECT 1 FROM pending_embedding_values p WHERE p.input_id=embedding_inputs.input_id)",[id])?;
                 if let Some(model_id) = model_id {
-                    write.connection().execute("DELETE FROM embedding_models WHERE model_id=? AND NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id) AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.identity_json=embedding_models.identity_json)",[model_id])?;
+                    write.connection().execute("DELETE FROM embedding_models WHERE model_id=? AND NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id) AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.model_id=embedding_models.model_id)",[model_id])?;
                 }
                 next_cache_bytes = next_cache_bytes
                     .checked_sub(bytes)

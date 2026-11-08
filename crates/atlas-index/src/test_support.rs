@@ -289,6 +289,16 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: atlas_local_state::backfill_saved_state_closeout,
         }),
     },
+    Migration {
+        version: crate::SEARCH_SCHEMA_CLOSEOUT_VERSION,
+        name: "search-schema-closeout",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "search-schema-closeout/v1",
+            apply: crate::backfill_search_schema_closeout,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()

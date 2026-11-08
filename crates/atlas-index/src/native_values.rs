@@ -520,15 +520,15 @@ pub(crate) fn prune_registry(c: &Connection) -> Result<(), IndexError> {
         AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=embedding_inputs.input_id)
         AND NOT EXISTS(SELECT 1 FROM pending_embedding_values p WHERE p.input_id=embedding_inputs.input_id);
         DELETE FROM embedding_models WHERE NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id)
-        AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.identity_json=embedding_models.identity_json);")?;
+        AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.model_id=embedding_models.model_id);")?;
     Ok(())
 }
 
 /// Run after every document occurrence, before final validation.
 pub(crate) fn prune(c: &Connection) -> Result<(), IndexError> {
     let profiles = c
-        .prepare("SELECT identity_json FROM search_profiles")?
-        .query_map([], |r| r.get::<_, String>(0))?
+        .prepare("SELECT model_id FROM search_profiles")?
+        .query_map([], |r| r.get::<_, i64>(0))?
         .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
     let models = c
         .prepare("SELECT model_id,identity_json FROM embedding_models ORDER BY model_id")?
@@ -556,7 +556,7 @@ pub(crate) fn prune(c: &Connection) -> Result<(), IndexError> {
         }
         drop(rows);
         drop(obsolete);
-        if exists && !profiles.contains(&json) {
+        if exists && !profiles.contains(&id) {
             let referenced: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM embedding_inputs i WHERE model_id=? AND EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id))",[id],|r|r.get(0))?;
             if referenced {
                 return Err(invalid("retired numerical model still has consumers"));
@@ -650,7 +650,7 @@ mod tests {
         NativeInputDescriptor,
     ) {
         let c = Connection::open_in_memory().unwrap();
-        c.execute_batch("CREATE TABLE search_profiles(identity_json TEXT);
+        c.execute_batch("CREATE TABLE search_profiles(model_id INTEGER);
             CREATE TABLE embedding_models(model_id INTEGER PRIMARY KEY,identity_json TEXT UNIQUE);
             CREATE TABLE embedding_inputs(input_id INTEGER PRIMARY KEY,model_id INTEGER,input_hash BLOB,token_count INTEGER,published_hash BLOB,UNIQUE(model_id,input_hash));
             CREATE TABLE semantic_units(input_id INTEGER);") .unwrap();

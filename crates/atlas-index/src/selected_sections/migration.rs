@@ -29,7 +29,7 @@ fn migrate(c: &Connection) -> Result<(), IndexError> {
             // changing the checked text or historical section addresses. Still
             // classify first to reject unsupported policies, and never decode
             // actual retired source preparation.
-            let upgrade = crate::classify_reference_upgrade(c)?;
+            let upgrade = crate::component_upgrade::classify_pre_fingerprint_upgrade(c)?;
             Ok::<_, IndexError>(
                 upgrade != ReferenceUpgrade::SourceReplacement
                     && crate::component_upgrade::source_preparation_is_current(context),

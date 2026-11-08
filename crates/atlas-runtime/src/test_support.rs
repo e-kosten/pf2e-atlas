@@ -45,8 +45,17 @@ pub(crate) struct OccurrenceVectorSnapshot {
 pub(crate) fn occurrence_vector_bits(
     connection: &rusqlite::Connection,
 ) -> Vec<OccurrenceVectorSnapshot> {
+    let has_model_slot: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('search_profiles') WHERE name='model_id')",
+        [], |row| row.get(0),
+    ).unwrap();
+    let query = if has_model_slot {
+        "SELECT p.profile_id,m.identity_json FROM search_profiles p JOIN embedding_models m USING(model_id) ORDER BY p.profile_id"
+    } else {
+        "SELECT profile_id,identity_json FROM search_profiles ORDER BY profile_id"
+    };
     let profiles = connection
-        .prepare("SELECT profile_id,identity_json FROM search_profiles ORDER BY profile_id")
+        .prepare(query)
         .unwrap()
         .query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))

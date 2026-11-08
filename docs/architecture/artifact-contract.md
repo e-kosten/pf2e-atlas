@@ -202,7 +202,7 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Identity and provenance | `record_identity`, `packs`, `records`: canonical keys, compact source paths/hashes, lookup keys and body-free common summaries. |
 | Checked source | `record_bodies`: one gzip-compressed, versioned checked DTO snapshot per root. Invalid members retained by admission remain in that snapshot. No duplicate complete original JSON payload is stored. |
 | Query accelerators | `trait_members`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
-| Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
+| Query catalog | Executable Rust definitions own the public fields. `artifact_context.query_catalog_sha256` binds the published catalog version to the exact definitions. |
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
 | Contextual definitions | `reference_entries`: one canonical vocabulary/source-rule owner with typed key, readable label, finite availability, checked prepared body or record pointer, source/locale/publication evidence, separate body and label grants. Record pointers contain no copied body or vector. `reference_notices` retains deduplicated required notice text and hashes. |
 | Trait references and owned abilities | `trait_references` retains visible trait associations. `owned_ability_evidence` records the reading target, declaration presence and matching general ability keys for an exact owner. |
@@ -211,7 +211,7 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Remaster context | `verified_aliases`, `remaster_pairs`, `record_remaster_context`: lookup aliases, explicit counterparts and compact per-record relationship/journal context. |
 | Selected sections | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
-| Semantic search | `search_profiles`, `semantic_units`, profile-specific `native_vectors_<identity hash>` tables keyed by input ID: complete profile identity and one active vector per native input. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
+| Semantic search | `search_profiles` maps active logical slots to canonical identities in `embedding_models`. Profile-specific `native_vectors_<identity hash>` tables retain one active vector per native input. `semantic_locations` references a canonical section plus chunk ordinal/range. `semantic_units` binds each occurrence to its record, profile and native input. |
 
 There is no generic metric EAV store, persisted RichDocument, synthetic canonical
 affliction table, copied embedded Item authority or complete plain-text/model-input
@@ -528,7 +528,9 @@ Core eligibility is a separately versioned metadata projection. Migration18 adds
 `core_roots`, `core_parts`, `core_lexical_units` and `core_semantic_locations`.
 The pure record policy selects exact admitted owners/fields; index binds their
 existing section addresses and unit IDs. Root/alias lexical rows retain their
-current vocabulary. Allowed owned names remain eligible even without prose;
+current vocabulary. Composite foreign keys constrain each member to its own
+record. Core selected sections are the exact owned text fields eligible for this
+scope. Allowed owned names remain eligible even without prose;
 section labels require exact section membership. No descriptive prose or other
 new term is added to FTS, and both scopes use the same BM25 corpus statistics.
 
@@ -715,7 +717,12 @@ an already admitted read remains coherent. Application-managed sidecar locks
 coordinate cooperating processes; external SQLite tools do not participate.
 
 Opening a reader checks format, typed context, executable schema/catalog and active
-model metadata. Explicit full validation checks SQLite integrity/foreign keys,
+model metadata. Schema 40 replaces the serialized catalog table with a versioned
+SHA-256 of the ordered field IDs and their definitions. The migration hashes the
+actual prior definitions. Publication and catalog metadata refresh commit the
+catalog version and digest together. Schema 40 also moves the active profile
+identity to the canonical model registry and enforces same-record ownership for
+Core lexical units, Core semantic locations and semantic occurrences. Explicit full validation checks SQLite integrity/foreign keys,
 checked snapshots, exact typed projections, owner addresses, content input/context
 hashes, cache/section coverage, sanitized markers, attributed relationships,
 identity evidence, FTS postings and vector coverage/dimensions/finiteness/normalization.
@@ -857,8 +864,9 @@ Saved `max_hp` remains pre-condition capacity. Derived condition statistics neve
 charge persistent consequences on reads. App-service prepares explicit bounded
 events; local-state applies their condition/HP changes, pending decisions and
 versioned receipts atomically. Application identities stay consumed after removal,
-so a retry cannot grant the same consequence again. Unconscious-created Prone
-remains after waking. Persistent-damage comparisons retain exact episode/source
+so a retry cannot grant the same consequence again. Consumed condition grants are
+recorded application identities that suppress repeated consequences.
+Unconscious-created Prone remains after waking. Persistent-damage comparisons retain exact episode/source
 membership; boundary claims prevent replaying completed turn processing.
 
 `encounter_command_receipts` retains Next-turn request, intent and boundary
@@ -871,7 +879,8 @@ consolidates the durable receipts and removes the obsolete initiative, rest/rese
 and preparation-only records. Rest/reset clears current context and retains
 committed event and turn receipts. Retries recover before revision/source guards.
 Only the current completed boundary
-is actionable; closing the notification changes no saved state.
+is actionable. This snapshot represents the current turn review context. Closing
+the notification changes no saved state.
 There is no acknowledgment queue or persisted action-attempt/relationship workflow.
 Spell reminders and optional strike context are read-only projections. Spell
 resource writes and retained dice use their existing guarded mutation owners.
@@ -939,7 +948,9 @@ tables and deletes published native values whose only consumers were trait seeds
 Inputs shared with documents retain their vectors and IDs. Pending inference
 keeps its independent ownership. A populated artifact advances its reference
 generation in the same transaction. The migration preserves document vectors,
-saved state and the published vocabulary compatibility ID.
+saved state and the published vocabulary compatibility ID. The
+`trait-definition-centroid/v1` label is a historical compatibility identifier for
+trait definitions.
 
 One concrete publication owns build-local selection. Same-attempt selections win,
 then exact published values, then unpublished cache and compatible published values.

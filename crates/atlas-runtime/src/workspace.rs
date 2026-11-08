@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_local_state::SAVED_STATE_CLOSEOUT_SCHEMA_VERSION;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_index::SEARCH_SCHEMA_CLOSEOUT_VERSION;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -278,6 +278,16 @@ const MIGRATIONS: &[Migration] = &[
             apply: atlas_local_state::backfill_saved_state_closeout,
         }),
     },
+    Migration {
+        version: atlas_index::SEARCH_SCHEMA_CLOSEOUT_VERSION,
+        name: "search-schema-closeout",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "search-schema-closeout/v1",
+            apply: atlas_index::backfill_search_schema_closeout,
+        }),
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -364,43 +374,141 @@ mod tests {
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
 
     #[test]
+    fn search_schema_upgrade_rejects_cross_record_membership_without_writing_ledger() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("search-ownership.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
+        let input = atlas_search::test_support::input_with_both_profiles(
+            [
+                ("aaaaaaaaaaaaaaaa", "First"),
+                ("bbbbbbbbbbbbbbbb", "Second"),
+            ]
+            .into_iter()
+            .map(|(id, name)| {
+                atlas_search::test_support::record(
+                    "actors",
+                    "Actor",
+                    serde_json::json!({"_id":id,"name":name,"type":"npc"}),
+                )
+            })
+            .collect(),
+        );
+        {
+            let owner = workspace.update_owner().unwrap();
+            let maintenance = owner.maintenance(26, "search migration fixture").unwrap();
+            atlas_index::test_support::publish_pre_section_fixture(&maintenance, &input).unwrap();
+        }
+        workspace.migrate(&MIGRATIONS[..39], |_| Ok(())).unwrap();
+        let write = workspace.write(39).unwrap();
+        let (unit, owner, other): (i64, i64, i64) = write
+            .connection()
+            .query_row(
+                "SELECT u.unit_id,u.record_id,r.record_id
+                 FROM core_lexical_units u JOIN core_roots r ON r.record_id<>u.record_id
+                 LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        write
+            .connection()
+            .execute(
+                "UPDATE core_lexical_units SET record_id=?1 WHERE unit_id=?2",
+                (other, unit),
+            )
+            .unwrap();
+        write.commit().unwrap();
+
+        let error = initialize_workspace(&path).unwrap_err().to_string();
+        assert!(
+            error.contains("core_lexical_units contains a mismatched record owner"),
+            "{error}"
+        );
+        assert!(workspace.upgrade_backup_path().is_file());
+        let write = workspace.write(39).unwrap();
+        let still_wrong: i64 = write
+            .connection()
+            .query_row(
+                "SELECT record_id FROM core_lexical_units WHERE unit_id=?",
+                [unit],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(still_wrong, other);
+        write
+            .connection()
+            .execute(
+                "UPDATE core_lexical_units SET record_id=?1 WHERE unit_id=?2",
+                (owner, unit),
+            )
+            .unwrap();
+        let before = crate::test_support::occurrence_vector_bits(write.connection());
+        assert!(!before.is_empty());
+        write.commit().unwrap();
+
+        let workspace = initialize_workspace(&path).unwrap();
+        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(
+            crate::test_support::occurrence_vector_bits(write.connection()),
+            before
+        );
+        assert!(
+            write
+                .connection()
+                .execute(
+                    "UPDATE core_lexical_units SET record_id=?1 WHERE unit_id=?2",
+                    (other, unit),
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
     fn token_count_digest_migration_leaves_published_native_descriptors_unattested() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("token-count-upgrade.sqlite");
         register_extensions().unwrap();
         let old = Workspace::at(&path).unwrap();
         old.migrate(&MIGRATIONS[..37], |_| Ok(())).unwrap();
-        let input = atlas_search::test_support::input_with_both_profiles(vec![
-            atlas_search::test_support::record(
-                "actors",
-                "Actor",
-                serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Goblin","type":"npc"}),
-            ),
-        ]);
-        atlas_index::test_support::publish_input_in(&old, 37, &input).unwrap();
-        let read = old.read(37).unwrap();
-        let before =
-            atlas_index::test_support::native_preservation_rows(read.connection()).unwrap();
-        assert!(!before.is_empty());
-        drop(read);
-
-        let workspace = initialize_workspace(&path).unwrap();
-        let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        assert_eq!(read.reference_revision().unwrap(), 1);
-        assert_eq!(
-            atlas_index::test_support::native_preservation_rows(read.connection()).unwrap(),
-            before
+        let write = old.write(37).unwrap();
+        let model = atlas_index::SourceSearchProfileIdentity::from_spec(
+            atlas_embedding::profile_for_model(atlas_embedding::EmbeddingModelId::BgeBaseEnV15),
         );
-        let proof_count: usize = read
+        write
             .connection()
-            .query_row(
-                "SELECT count(published_token_count_digest) FROM embedding_models",
-                [],
-                |row| row.get(0),
+            .execute(
+                "INSERT INTO embedding_models(model_id,identity_json) VALUES(1,?)",
+                [serde_json::to_string(&model).unwrap()],
             )
             .unwrap();
-        assert_eq!(proof_count, 0);
-        atlas_index::validate_reference_with_token_count_digests(read.connection()).unwrap();
+        write.connection().execute_batch(
+            "INSERT INTO embedding_inputs(input_id,model_id,input_hash,token_count,published_hash)
+             VALUES(1,1,zeroblob(32),4,zeroblob(32));",
+        ).unwrap();
+        let retained = |connection: &rusqlite::Connection| {
+            crate::test_support::sql_rows(
+                connection,
+                "SELECT input_id,model_id,input_hash,token_count,published_hash FROM embedding_inputs",
+            )
+        };
+        let before = retained(write.connection());
+        write.commit().unwrap();
+
+        old.migrate(&MIGRATIONS[..38], |_| Ok(())).unwrap();
+        let read = old.read(38).unwrap();
+        assert_eq!(retained(read.connection()), before);
+        assert_eq!(
+            read.connection()
+                .query_row(
+                    "SELECT count(published_token_count_digest) FROM embedding_models",
+                    [],
+                    |row| row.get::<_, usize>(0),
+                )
+                .unwrap(),
+            0
+        );
     }
 
     #[test]

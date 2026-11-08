@@ -48,7 +48,13 @@ pub(crate) fn write(
     let mut canonical = input.context.clone();
     canonical.search_profiles = canonical.canonical_profiles()?;
     let json = serde_json::to_string(&canonical)?;
-    c.execute("INSERT INTO artifact_context VALUES(1,?,?,?) ON CONFLICT(singleton) DO UPDATE SET format_version=excluded.format_version,context_hash=excluded.context_hash,context_json=excluded.context_json WHERE context_hash IS NOT excluded.context_hash",params![crate::ARTIFACT_FORMAT_VERSION,crate::codec::sha256(json.as_bytes()),json])?;
+    c.execute(
+        "INSERT INTO artifact_context(singleton,format_version,context_hash,context_json,query_catalog_sha256) VALUES(1,?,?,?,?)
+         ON CONFLICT(singleton) DO UPDATE SET format_version=excluded.format_version,
+             context_hash=excluded.context_hash,context_json=excluded.context_json,query_catalog_sha256=excluded.query_catalog_sha256
+         WHERE context_hash IS NOT excluded.context_hash OR query_catalog_sha256 IS NOT excluded.query_catalog_sha256",
+        params![crate::ARTIFACT_FORMAT_VERSION,crate::codec::sha256(json.as_bytes()),json,crate::catalog_fingerprint::current()?.as_slice()],
+    )?;
     for pack in &input.packs {
         let mut row = ProjectionRow::new("packs");
         row.text("pack_id", &pack.pack_id);
@@ -142,22 +148,6 @@ pub(crate) fn write(
     })?;
     crate::publication_delta::aliases(c, input, &products)?;
     crate::remaster::publish(c, input, &products)?;
-    let definitions = crate::query::query_capabilities()?.fields;
-    let existing = c
-        .prepare("SELECT field FROM query_field_catalog")?
-        .query_map([], |r| r.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    for field in existing {
-        if !definitions.iter().any(|d| d.id == field) {
-            c.execute("DELETE FROM query_field_catalog WHERE field=?", [field])?;
-        }
-    }
-    for definition in definitions {
-        let mut row = ProjectionRow::new("query_field_catalog");
-        row.text("field", &definition.id);
-        row.text("definition_json", serde_json::to_string(&definition)?);
-        crate::publication_delta::upsert(c, &row, "field")?;
-    }
     let changed_search = crate::publication_delta::search_units(c, input, &products, values)?;
     c.execute("DELETE FROM semantic_locations WHERE NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.location_id=semantic_locations.location_id)",[])?;
     for (record, kept) in sections_to_prune {

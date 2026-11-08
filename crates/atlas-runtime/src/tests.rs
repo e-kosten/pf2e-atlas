@@ -236,7 +236,10 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     if query_changed {
         write
             .connection()
-            .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+            .execute(
+                "UPDATE artifact_context SET query_catalog_sha256=zeroblob(32)",
+                [],
+            )
             .unwrap();
     }
     if lexical_changed {
@@ -451,11 +454,14 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     assert!(!paths.embedding_cache_root.exists());
     assert!(runtime.inference.loaded_profiles().is_empty());
     if !historical {
-        // A current-version catalog with missing rows is corruption, not an upgrade.
+        // A current-version catalog with a bad fingerprint is corruption.
         let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
         write
             .connection()
-            .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+            .execute(
+                "UPDATE artifact_context SET query_catalog_sha256=zeroblob(32)",
+                [],
+            )
             .unwrap();
         write.commit().unwrap();
         assert!(runtime.upgrade_workspace_if_present().is_err());
