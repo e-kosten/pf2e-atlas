@@ -86,14 +86,22 @@ def profile_contracts(index):
     return {contract["profile_id"]: contract for contract in contracts}
 
 
-def published_vectors(index):
+def has_trait_seed_chunks(index):
+    with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
+        return db.execute("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='trait_seed_chunks'").fetchone() is not None
+
+
+def published_vectors(index, *, retiring_trait_seeds=False):
     """Compare numerical identities across maintenance without depending on row IDs."""
+    sql = ("SELECT m.identity_json,i.input_hash,i.token_count,i.published_hash "
+           "FROM embedding_inputs i JOIN embedding_models m USING(model_id) "
+           "WHERE i.published_hash IS NOT NULL")
+    if retiring_trait_seeds:
+        sql += (" AND (NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=i.input_id)"
+                " OR EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id))")
     result = {}
     with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
-        for identity, input_hash, tokens, vector_hash in db.execute(
-                "SELECT m.identity_json,i.input_hash,i.token_count,i.published_hash "
-                "FROM embedding_inputs i JOIN embedding_models m USING(model_id) "
-                "WHERE i.published_hash IS NOT NULL"):
+        for identity, input_hash, tokens, vector_hash in db.execute(sql):
             contract = json.loads(identity)
             key = (json.dumps(contract, sort_keys=True), input_hash.hex(), tokens)
             registry = result.setdefault(contract["profile_id"], {})
@@ -263,7 +271,8 @@ def check(candidate, cache, root, profiles, manifest, transitions, migrator=None
     old = root / "predecessor.sqlite"
     fresh = root / "fresh.sqlite"
     build(candidate, source, fresh, cache, root / "candidate-fresh.json", profiles)
-    frozen = published_vectors(old)
+    retiring_trait_seeds = has_trait_seed_chunks(old) and not has_trait_seed_chunks(fresh)
+    frozen = published_vectors(old, retiring_trait_seeds=retiring_trait_seeds)
     schema = migrate_predecessor(old, fresh, migrator, manifest, root)
     current = profile_contracts(fresh)
     layout_fields = {"segmentation_tokenizer_sha256", "unit_policy_version", "input_recipe"}
