@@ -4,7 +4,7 @@
   min-width: 0;
 }
 
-@container actor-encounter (48rem <= width < 64rem) {
+@container actor-encounter (min-width: 48rem) {
   .creature-reference--encounter
     .actor-encounter-layout:has(> .actor-encounter-layout__durability):has(
       > .actor-encounter-layout__rules
