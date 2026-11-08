@@ -94,9 +94,7 @@ function picker({
         scope={scope}
         countLimit={128}
         countContext={
-          withCounts
-            ? { kind: "filtered", filter: clause, text: null, mode: "hybrid" }
-            : undefined
+          withCounts ? { kind: "filtered", filter: clause, text: null } : undefined
         }
         onChange={(next) => {
           setClause(next);

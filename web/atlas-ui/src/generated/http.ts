@@ -2347,15 +2347,6 @@ export interface SearchConnectionScope {
   parent: StaticSearchContext;
 }
 
-export type RetrievalModeView = typeof RetrievalModeView[keyof typeof RetrievalModeView];
-
-
-export const RetrievalModeView = {
-  lexical: 'lexical',
-  semantic: 'semantic',
-  hybrid: 'hybrid',
-} as const;
-
 export type SearchContentScope = typeof SearchContentScope[keyof typeof SearchContentScope];
 
 
@@ -2370,7 +2361,6 @@ export type FilterDiscoveryContext = {
   expected_artifact_generation?: string | null;
   filter?: QueryPredicateInputSchema | null;
   kind: 'filtered';
-  mode: RetrievalModeView;
   search_content?: SearchContentScope | null;
   search_profile?: SearchProfileId | null;
   /** @nullable */
@@ -2382,7 +2372,6 @@ export type FilterDiscoveryContext = {
   filter?: QueryPredicateInputSchema | null;
   kind: 'saved_list';
   list_ref: string;
-  mode: RetrievalModeView;
   search_content?: SearchContentScope | null;
   search_profile?: SearchProfileId | null;
   /** @nullable */
@@ -4811,6 +4800,15 @@ export interface ResolveEncounterHpLifecycleRequest {
   request_id: string;
   resolution?: HpLifecycleResolutionView;
 }
+
+export type RetrievalModeView = typeof RetrievalModeView[keyof typeof RetrievalModeView];
+
+
+export const RetrievalModeView = {
+  lexical: 'lexical',
+  semantic: 'semantic',
+  hybrid: 'hybrid',
+} as const;
 
 export interface RollContentRequest {
   offer: ContentRollOfferInputSchema;

@@ -58,7 +58,6 @@ fn filtered(
         expected_artifact_generation: Some(generation.into()),
         filter: Some(predicate(constraint)),
         text: None,
-        mode: RetrievalModeView::Lexical,
     }
 }
 fn counts_request(context: FilterDiscoveryContext) -> DiscoverFilterCountsRequest {
@@ -183,7 +182,6 @@ fn relationship_discovery_validates_scope_and_intersects_saved_list_keys() {
             list_ref: slug.into(),
             filter: Some(predicate(constraint.clone())),
             text: None,
-            mode: RetrievalModeView::Lexical,
         };
         assert_eq!(
             count_values(
@@ -268,11 +266,10 @@ fn relationship_discovery_checks_generation_and_selection_before_semantic_infere
     }];
     invalid.selection.source_fingerprint = Some("old-fingerprint".into());
     let mut context = filtered(invalid, &generation);
-    let FilterDiscoveryContext::Filtered { text, mode, .. } = &mut context else {
+    let FilterDiscoveryContext::Filtered { text, .. } = &mut context else {
         unreachable!()
     };
     *text = Some("needs unavailable query inference".into());
-    *mode = RetrievalModeView::Semantic;
     assert_eq!(
         f.worker
             .discover_filter_values(values_request(context.clone()), &execution)

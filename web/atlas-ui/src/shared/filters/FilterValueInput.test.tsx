@@ -70,7 +70,6 @@ function renderInput(
                   values: value,
                 },
                 text: null,
-                mode: "hybrid",
               }
             : undefined
         }

@@ -258,7 +258,7 @@ describe("source-backed API transport", () => {
       },
     });
     const result = await discoverFilterCounts({
-      context: { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+      context: { kind: "filtered", filter: null, text: null },
       field_id: "traits",
       clause_id: null,
       values: ["fire"],
@@ -963,7 +963,6 @@ describe("source-backed API transport", () => {
         expected_artifact_generation: "generation-a",
         filter: null,
         text: null,
-        mode: "lexical",
       },
       field_id: "common.traits",
       clause_id: null,

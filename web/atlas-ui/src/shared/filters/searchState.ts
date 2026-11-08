@@ -133,7 +133,6 @@ export function buildFilterDiscoveryContext(
     kind: "filtered",
     filter: state.filter,
     text: state.query.trim() || null,
-    mode: "hybrid",
     ...(state.query.trim() && !state.traitReferenceSeed
       ? { search_content: state.searchContent ?? "all" }
       : {}),
@@ -148,7 +147,6 @@ export function buildSavedListFilterDiscoveryContext(
     filter: state.filter,
     text: state.query.trim() || null,
     list_ref,
-    mode: "lexical",
   };
 }
 export function encodeSearchState(state: SearchFormState): string {

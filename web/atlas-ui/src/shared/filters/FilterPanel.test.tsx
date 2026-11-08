@@ -1285,7 +1285,7 @@ describe("field applicability while editing Boolean groups", () => {
         },
         null,
         {},
-        { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+        { kind: "filtered", filter: null, text: null },
       );
       fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
       fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
@@ -1386,7 +1386,7 @@ describe("field applicability while editing Boolean groups", () => {
         },
         null,
         {},
-        { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+        { kind: "filtered", filter: null, text: null },
       );
       fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
       fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));

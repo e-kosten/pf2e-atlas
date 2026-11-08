@@ -752,7 +752,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
             .iter()
             .any(|field| field["definition"]["id"] == "kind")
     }));
-    let context = json!({"kind":"filtered","filter":null,"text":null,"mode":"lexical"});
+    let context = json!({"kind":"filtered","filter":null,"text":null});
     let(status,body)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":null,"offset":0,"limit":100}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["outcome"]["value"]["field"], "source.pack.id");
@@ -1513,10 +1513,10 @@ async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unava
     assert_eq!(body["scope"]["list_ref"], "research");
     assert_eq!(body["values"]["selected_values"][0], "retained");
     assert!(body["values"].get("count_basis").is_none());
-    let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":{"kind":"not","predicate":{"kind":"all_of","children":[{"kind":"set_match","clause_id":"negative-condition","field":"traits","op":"includes_any","values":["fire"]}]}},"text":null,"mode":"lexical"},"field_id":"traits","clause_id":"negative-condition","values":["fire"]}))).await;
+    let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":{"kind":"not","predicate":{"kind":"all_of","children":[{"kind":"set_match","clause_id":"negative-condition","field":"traits","op":"includes_any","values":["fire"]}]}},"text":null},"field_id":"traits","clause_id":"negative-condition","values":["fire"]}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["counts"]["status"], "unavailable");
-    let(status,_)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"}}))).await;
+    let(status,_)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon"}}))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
 }
 
@@ -2024,33 +2024,32 @@ async fn saved_list_vocabulary_respects_ownership() {
 #[tokio::test]
 async fn discovery_rejects_record_text_before_model_work_and_keeps_value_name_search() {
     let fixture = Fixture::new();
-    for mode in ["lexical", "semantic", "hybrid"] {
-        for search_content in ["core", "all"] {
-            let context = json!({"kind":"filtered","filter":null,"text":"fire","mode":mode,"search_content":search_content});
-            let request = json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":null,"offset":0,"limit":10,"only_matching":true});
-            let (status, body) = fixture
-                .json(Method::POST, "/api/filters/values", Some(request.clone()))
-                .await;
-            assert_eq!(status, StatusCode::OK, "{body}");
-            assert_eq!(
-                body["outcome"],
-                json!({"status":"unavailable","reason":"text_context"})
-            );
-            let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":context,"field_id":"source.pack.id","clause_id":null,"values":["actions"]}))).await;
-            assert_eq!(status, StatusCode::OK, "{body}");
-            assert_eq!(
-                body["counts"],
-                json!({"status":"unavailable","reason":"text_context"})
-            );
-            let mut invalid = request;
-            invalid["limit"] = json!(0);
-            let (status, _) = fixture
-                .json(Method::POST, "/api/filters/values", Some(invalid))
-                .await;
-            assert_eq!(status, StatusCode::BAD_REQUEST);
-        }
+    for search_content in ["core", "all"] {
+        let context =
+            json!({"kind":"filtered","filter":null,"text":"fire","search_content":search_content});
+        let request = json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":null,"offset":0,"limit":10,"only_matching":true});
+        let (status, body) = fixture
+            .json(Method::POST, "/api/filters/values", Some(request.clone()))
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(
+            body["outcome"],
+            json!({"status":"unavailable","reason":"text_context"})
+        );
+        let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":context,"field_id":"source.pack.id","clause_id":null,"values":["actions"]}))).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(
+            body["counts"],
+            json!({"status":"unavailable","reason":"text_context"})
+        );
+        let mut invalid = request;
+        invalid["limit"] = json!(0);
+        let (status, _) = fixture
+            .json(Method::POST, "/api/filters/values", Some(invalid))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
     }
-    let context = json!({"kind":"filtered","filter":null,"text":"  ","mode":"hybrid"});
+    let context = json!({"kind":"filtered","filter":null,"text":"  "});
     let(status,body)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":"actions","offset":0,"limit":10,"only_matching":true}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["outcome"]["status"], "available");

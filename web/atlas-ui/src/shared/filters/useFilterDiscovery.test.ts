@@ -36,7 +36,6 @@ const context: FilterDiscoveryContext = {
   expected_artifact_generation: "generation-a",
   filter: null,
   text: null,
-  mode: "hybrid",
 };
 const relationship: QueryRelationship = {
   direction: "incoming",

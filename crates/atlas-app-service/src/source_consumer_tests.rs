@@ -883,7 +883,6 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
                     search_content: None,
                     filter: Some(disjunction),
                     text: None,
-                    mode: atlas_app_model::RetrievalModeView::Lexical,
                     search_profile: None,
                     expected_artifact_generation: None
                 },
@@ -1103,7 +1102,6 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
         expected_artifact_generation: None,
         filter: Some(predicate),
         text: Some("does not require an embedding".into()),
-        mode: RetrievalModeView::Hybrid,
     };
     let outcome = f
         .worker
@@ -1171,7 +1169,6 @@ fn explicit_option_counts_defer_text_without_inference_and_validate_literals_fir
         expected_artifact_generation: None,
         filter: None,
         text: Some("unavailable query model".into()),
-        mode: RetrievalModeView::Hybrid,
     };
     let mut request = DiscoverFilterCountsRequest {
         context,

@@ -365,7 +365,6 @@ function workspace(
       kind: "filtered",
       filter: null,
       text: null,
-      mode: "hybrid",
     },
     vocabularyScope: { kind: "artifact" },
     filterDiscoveryError: null,

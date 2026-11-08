@@ -1,5 +1,4 @@
 //! The editor sends the shared typed predicate; CEL is an independent CLI surface.
-use crate::RetrievalModeView;
 use atlas_domain::{
     QueryError, QueryFacetOutcome, QueryFieldDefinition, QueryLimits, QueryLiteral, QueryPredicate,
     QueryValueOptions, QueryVocabularyBasis,
@@ -19,7 +18,6 @@ pub enum FilterDiscoveryContext {
         expected_artifact_generation: Option<String>,
         filter: Option<QueryPredicate>,
         text: Option<String>,
-        mode: RetrievalModeView,
     },
     SavedList {
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -31,7 +29,6 @@ pub enum FilterDiscoveryContext {
         list_ref: String,
         filter: Option<QueryPredicate>,
         text: Option<String>,
-        mode: RetrievalModeView,
     },
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
