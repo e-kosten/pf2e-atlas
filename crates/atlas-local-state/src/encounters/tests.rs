@@ -2668,7 +2668,7 @@ fn reset_to_unset_initiative_keeps_positive_orders_and_can_export() -> crate::Lo
     }
     let mut connection = store.connection()?;
     let transaction = connection.transaction()?;
-    let domain = EncountersWrite::from_connection(&transaction);
+    let domain = EncountersWrite::from_connection(&transaction, 1);
     let before = domain.get_with_participants("test")?.unwrap();
     let replacements = before
         .participants
@@ -2696,7 +2696,7 @@ fn reset_to_unset_initiative_keeps_positive_orders_and_can_export() -> crate::Lo
             .collect::<Vec<_>>(),
         [(None, 1), (None, 2)]
     );
-    let mut exported = EncountersRead::from_connection(&connection).export_document("test")?;
+    let mut exported = EncountersRead::from_connection(&connection, 1).export_document("test")?;
     let bytes = exported.encode()?;
     EncounterDocument::read(bytes.as_slice())?;
     Ok(())
