@@ -1,7 +1,12 @@
 //! Named query accelerators derived exclusively from the checked source DTO.
 use crate::{
-    IndexError, input::SourceArtifactRecordInput, numeric::numeric_value,
-    persistence::ProjectionRow,
+    IndexError,
+    input::SourceArtifactRecordInput,
+    numeric::numeric_value,
+    persistence::{
+        ProjectionId::{Local, Root},
+        ProjectionRow,
+    },
 };
 use atlas_domain::OwnedContentLocator;
 use atlas_record::source_record::{
@@ -172,7 +177,7 @@ pub(crate) fn root_rows(
     );
     let mut rows = Vec::new();
     let mut r = ProjectionRow::new("records");
-    r.id("record_id", record_id);
+    r.projection_id("record_id", Root(record_id));
     r.text("key", input.record.key().to_string());
     r.text("pack_id", input.record.key().pack().as_str());
     r.text("document_kind", q.source.document_kind());
@@ -193,7 +198,7 @@ pub(crate) fn root_rows(
         &mut rows,
         "record_traits",
         "record_id",
-        record_id,
+        Root(record_id),
         |v| Ok(v.clone()),
     )?;
     match q.source {
@@ -270,8 +275,8 @@ fn child_rows(
         pack_label: pack.1,
     };
     let mut r = ProjectionRow::new("actor_items");
-    r.id("id", id);
-    r.id("record_id", root);
+    r.projection_id("id", Local(id));
+    r.projection_id("record_id", Root(root));
     r.id(
         "original_index",
         i64::try_from(index).map_err(|e| IndexError::Invalid(e.to_string()))?,
@@ -280,9 +285,14 @@ fn child_rows(
     text(q.source.id().map(String::as_str))?.field(&mut r, "authored_id");
     common_fields(q, &mut r)?;
     rows.push(r);
-    sets(q.traits(), rows, "actor_item_traits", "item_id", id, |v| {
-        Ok(v.clone())
-    })?;
+    sets(
+        q.traits(),
+        rows,
+        "actor_item_traits",
+        "item_id",
+        Local(id),
+        |v| Ok(v.clone()),
+    )?;
     item_rows(item, None, Some(id), ids, rows)
 }
 fn sets<T>(
@@ -290,7 +300,7 @@ fn sets<T>(
     rows: &mut Vec<ProjectionRow>,
     table: &'static str,
     owner: &'static str,
-    id: i64,
+    id: crate::persistence::ProjectionId,
     to_string: impl Fn(&T) -> Result<String, IndexError>,
 ) -> Result<(), IndexError> {
     if let SourceFieldView::Value(values) = v {
@@ -300,7 +310,7 @@ fn sets<T>(
             .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
         for value in values {
             let mut r = ProjectionRow::new(table);
-            r.id(owner, id);
+            r.projection_id(owner, id);
             r.text("value", value);
             rows.push(r);
         }
@@ -317,7 +327,7 @@ fn actor_rows(
     rows: &mut Vec<ProjectionRow>,
 ) -> Result<(), IndexError> {
     let mut r = ProjectionRow::new("actor_projection");
-    r.id("record_id", root);
+    r.projection_id("record_id", Root(root));
     number(a.armor_class())?.field(&mut r, "armor_class");
     number(a.hp_maximum())?.field(&mut r, "hp_maximum");
     number(a.hazard_hardness())?.field(&mut r, "hardness");
@@ -352,14 +362,14 @@ fn actor_rows(
         rows,
         "actor_languages",
         "record_id",
-        root,
+        Root(root),
         enum_name,
     )?;
     if let SourceFieldView::Value(speeds) = a.speeds() {
         for (index, speed) in speeds.iter().enumerate() {
             let mut r = ProjectionRow::new("actor_speeds");
-            r.id("id", ids.take()?);
-            r.id("record_id", root);
+            r.projection_id("id", Local(ids.take()?));
+            r.projection_id("record_id", Root(root));
             r.id("original_index", index as i64);
             choice(speed.speed_type())?.field(&mut r, "type");
             number(speed.value())?.field(&mut r, "value");
@@ -369,8 +379,8 @@ fn actor_rows(
     if let SourceFieldView::Value(senses) = a.senses() {
         for (index, sense) in senses.iter().enumerate() {
             let mut r = ProjectionRow::new("actor_senses");
-            r.id("id", ids.take()?);
-            r.id("record_id", root);
+            r.projection_id("id", Local(ids.take()?));
+            r.projection_id("record_id", Root(root));
             r.id("original_index", index as i64);
             choice(SourceFieldView::from(&sense.r#type))?.field(&mut r, "type");
             choice(SourceFieldView::from(&sense.acuity))?.field(&mut r, "acuity");
@@ -386,8 +396,8 @@ fn actor_rows(
         if let SourceFieldView::Value(entries) = a.iwr(kind) {
             for (index, entry) in entries.iter().enumerate() {
                 let mut r = ProjectionRow::new("actor_iwr_entries");
-                r.id("entry_id", ids.take()?);
-                r.id("record_id", root);
+                r.projection_id("entry_id", Local(ids.take()?));
+                r.projection_id("record_id", Root(root));
                 r.id("original_index", index as i64);
                 r.text("kind", name);
                 convert(entry.iwr_type(), |v| {
@@ -413,15 +423,15 @@ fn owner_row(
 ) -> Result<(ProjectionRow, i64), IndexError> {
     let id = ids.take()?;
     let mut r = ProjectionRow::new(table);
-    r.id("id", id);
-    r.push(
-        "root_record_id",
-        root.map(Value::Integer).unwrap_or(Value::Null),
-    );
-    r.push(
-        "actor_item_id",
-        child.map(Value::Integer).unwrap_or(Value::Null),
-    );
+    r.projection_id("id", Local(id));
+    match root {
+        Some(root) => r.projection_id("root_record_id", Root(root)),
+        None => r.push("root_record_id", Value::Null),
+    }
+    match child {
+        Some(child) => r.projection_id("actor_item_id", Local(child)),
+        None => r.push("actor_item_id", Value::Null),
+    }
     Ok((r, id))
 }
 fn item_rows(
@@ -453,7 +463,7 @@ fn item_rows(
             rows,
             "spell_traditions",
             "spell_id",
-            id,
+            Local(id),
             enum_name,
         )?;
         if root.is_some()
@@ -462,8 +472,8 @@ fn item_rows(
             for (index, (key, entry)) in damage.entries.iter().enumerate() {
                 let entry_id = ids.take()?;
                 let mut r = ProjectionRow::new("spell_damage_entries");
-                r.id("id", entry_id);
-                r.id("spell_id", id);
+                r.projection_id("id", Local(entry_id));
+                r.projection_id("spell_id", Local(id));
                 r.id("original_index", index as i64);
                 r.text("original_key", key);
                 choice(SourceFieldView::from(&entry.r#type))?.field(&mut r, "type");
@@ -475,7 +485,7 @@ fn item_rows(
                     rows,
                     "spell_damage_kinds",
                     "entry_id",
-                    entry_id,
+                    Local(entry_id),
                     enum_name,
                 )?;
             }
@@ -504,7 +514,7 @@ fn item_rows(
         rows.push(r);
         if matches!(i, ItemSourceView::WeaponSource(_)) {
             let mut r = ProjectionRow::new("weapon_projection");
-            r.id("physical_id", id);
+            r.projection_id("physical_id", Local(id));
             choice(i.weapon_category())?.field(&mut r, "category");
             choice(i.weapon_group())?.field(&mut r, "weapon_group");
             choice(i.weapon_damage_type())?.field(&mut r, "damage_type");
@@ -517,7 +527,7 @@ fn item_rows(
         }
         if matches!(i, ItemSourceView::ArmorSource(_)) {
             let mut r = ProjectionRow::new("armor_projection");
-            r.id("physical_id", id);
+            r.projection_id("physical_id", Local(id));
             choice(i.armor_category())?.field(&mut r, "category");
             choice(i.armor_group())?.field(&mut r, "armor_group");
             number(i.armor_ac_bonus())?.field(&mut r, "ac_bonus");
@@ -529,7 +539,7 @@ fn item_rows(
         }
         if matches!(i, ItemSourceView::ShieldSource(_)) {
             let mut r = ProjectionRow::new("shield_projection");
-            r.id("physical_id", id);
+            r.projection_id("physical_id", Local(id));
             number(i.shield_hardness())?.field(&mut r, "hardness");
             number(i.shield_hp_maximum())?.field(&mut r, "hp_maximum");
             number(i.shield_ac_bonus())?.field(&mut r, "ac_bonus");
@@ -594,7 +604,7 @@ fn item_rows(
                     .collect::<Result<std::collections::BTreeSet<_>, _>>()?
                 {
                     let mut r = ProjectionRow::new("deity_domains");
-                    r.id("deity_id", id);
+                    r.projection_id("deity_id", Local(id));
                     r.text("kind", kind);
                     r.text("value", value);
                     rows.push(r);
@@ -604,7 +614,7 @@ fn item_rows(
         if let SourceFieldView::Value(values) = i.deity_fonts() {
             for value in values {
                 let mut r = ProjectionRow::new("deity_fonts");
-                r.id("deity_id", id);
+                r.projection_id("deity_id", Local(id));
                 r.text("value", *value);
                 rows.push(r);
             }

@@ -1595,6 +1595,58 @@ fn physical_projection_keeps_price_state_and_amount_across_equipment_families() 
 }
 
 #[test]
+fn publication_preserves_projection_values_across_allocation_growth_and_reuse() {
+    let mut input = fixture(false);
+    let (_directory, path) = build(&input);
+    let connection = Connection::open(&path).unwrap();
+    let allocation = || {
+        connection
+            .query_row(
+                "SELECT p.record_id,p.seed,p.end_id FROM projection_allocations p
+                 JOIN records r USING(record_id) WHERE r.key='actors:aaaaaaaaaaaaaaaa'",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                },
+            )
+            .unwrap()
+    };
+    let initial = allocation();
+    let mut published = Vec::new();
+    for price in [2, 3] {
+        let items = (1..=2)
+            .map(|n| {
+                json!({"_id":format!("item{n:012}"),"name":"Guard Sword","type":"weapon",
+                    "system":{"level":{"value":0},"group":"sword","price":{"value":{"gp":price},"per":3},
+                    "bulk":{"value":1},"traits":{"value":["agile"],"rarity":"common"}}})
+            })
+            .collect::<Vec<_>>();
+        let mut actor = record(
+            "actors",
+            "Actor",
+            json!({"_id":"aaaaaaaaaaaaaaaa","name":"Dragon Guard","type":"npc","items":items,
+                "system":{"details":{"level":{"value":9}},"attributes":{"hp":{"max":80},"ac":{"value":24}},
+                "traits":{"value":["dragon"],"rarity":"rare","size":{"value":"lg"}}}}),
+        );
+        actor.preparation_context_hash = input.context.preparation_sha256().unwrap();
+        input.records[0] = actor;
+        synchronize_fixture_terms(&mut input);
+        crate::test_support::publish_input(&path, &input).unwrap();
+        // The deep audit derives expected rows independently with the actual ID seed.
+        validate_artifact(&path).unwrap();
+        published.push(allocation());
+    }
+    assert_eq!(published[0].0, initial.0);
+    assert!(published[0].1 > initial.1);
+    assert!(published[0].2 - published[0].1 > initial.2 - initial.1);
+    assert_eq!(published[1], published[0]);
+}
+
+#[test]
 fn explicit_audit_rejects_invalid_typed_remaster_source() {
     for defect in ["record", "owner", "field"] {
         let mut next = fixture(false);

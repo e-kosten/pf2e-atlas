@@ -40,6 +40,7 @@ fn scalar(value: &Value) -> Scalar<'_> {
 pub(crate) struct DerivedComponents {
     pub(crate) digests: ComponentDigests,
     pub(crate) allocation_footprint: i64,
+    pub(crate) query_rows: Vec<crate::persistence::ProjectionRow>,
     pub(crate) sections: Vec<crate::selected_sections::SelectedSection>,
     pub(crate) traits: crate::traits::TraitEvidence,
     pub(crate) core: atlas_record::source_record::CoreSearchSelection,
@@ -105,6 +106,7 @@ impl DerivedComponents {
         Ok(Self {
             digests,
             allocation_footprint: ids.end(),
+            query_rows: rows,
             sections,
             traits: evidence,
             core,
