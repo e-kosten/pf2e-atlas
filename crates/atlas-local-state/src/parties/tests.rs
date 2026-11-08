@@ -20,10 +20,40 @@ fn member(name: &str) -> PartyMemberInput {
     }
 }
 #[test]
+fn party_members_cannot_be_read_or_replaced_through_another_owner() {
+    let mut connection = connection();
+    let tx = connection.transaction().unwrap();
+    tx.execute(
+        "INSERT INTO principals (id, principal_key, name) VALUES (2, 'second', 'Second')",
+        [],
+    )
+    .unwrap();
+    let first = PartiesWrite::from_connection(&tx, 1);
+    let second = PartiesWrite::from_connection(&tx, 2);
+    let other = first.create("Party", &[member("First")]).unwrap();
+    let own = second.create("Party", &[member("Second")]).unwrap();
+
+    assert_eq!(second.list().unwrap(), vec![own]);
+    assert!(matches!(
+        second.get(&other.party_key),
+        Err(LocalStateError::PartyNotFound(_))
+    ));
+    assert!(matches!(
+        second.update(&other.party_key, other.revision, "Changed", &[]),
+        Err(LocalStateError::PartyNotFound(_))
+    ));
+    assert!(matches!(
+        second.delete(&other.party_key, other.revision),
+        Err(LocalStateError::PartyNotFound(_))
+    ));
+    assert_eq!(first.get(&other.party_key).unwrap(), other);
+}
+
+#[test]
 fn failed_roster_save_rolls_back_its_action_even_if_the_caller_commits() {
     let mut connection = connection();
     let tx = connection.transaction().unwrap();
-    let parties = PartiesWrite::from_connection(&tx);
+    let parties = PartiesWrite::from_connection(&tx, 1);
     let original = parties
         .create("Original", &[member("First"), member("Second")])
         .unwrap();
@@ -45,7 +75,7 @@ fn failed_roster_save_rolls_back_its_action_even_if_the_caller_commits() {
     );
     tx.commit().unwrap();
     assert_eq!(
-        PartiesRead::from_connection(&connection).list().unwrap(),
+        PartiesRead::from_connection(&connection, 1).list().unwrap(),
         vec![original]
     );
 }
@@ -53,7 +83,7 @@ fn failed_roster_save_rolls_back_its_action_even_if_the_caller_commits() {
 fn stale_edits_and_deletions_preserve_newer_party_names_and_members() {
     let mut connection = connection();
     let tx = connection.transaction().unwrap();
-    let parties = PartiesWrite::from_connection(&tx);
+    let parties = PartiesWrite::from_connection(&tx, 1);
     let party = parties.create("Original", &[member("First")]).unwrap();
     let latest = parties
         .update(
@@ -82,7 +112,7 @@ fn stale_edits_and_deletions_preserve_newer_party_names_and_members() {
 fn levels_remain_optional_and_invalid_edits_preserve_the_whole_roster() {
     let mut connection = connection();
     let tx = connection.transaction().unwrap();
-    let parties = PartiesWrite::from_connection(&tx);
+    let parties = PartiesWrite::from_connection(&tx, 1);
     let party = parties
         .create(
             "Mixed",
@@ -152,7 +182,7 @@ fn levels_remain_optional_and_invalid_edits_preserve_the_whole_roster() {
     );
     tx.commit().unwrap();
     assert_eq!(
-        PartiesRead::from_connection(&connection)
+        PartiesRead::from_connection(&connection, 1)
             .get(&party.party_key)
             .unwrap(),
         changed

@@ -32,7 +32,7 @@ fn fixture() -> (FixtureWorker, String, String, String) {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&key)?)
         })
@@ -50,7 +50,7 @@ fn add(
 ) -> i64 {
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().add_condition(
+            Ok(session.local_state()?.encounters().add_condition(
                 AddEncounterParticipantCondition {
                     scope: Default::default(),
                     extra_action: Default::default(),
@@ -85,7 +85,7 @@ fn snapshot(f: &FixtureWorker, key: &str) -> atlas_local_state::EncounterWithPar
     f.worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(key)?)
         })
@@ -238,7 +238,7 @@ fn canonical_persistent_only_owner_end_and_nonround_reminders_never_apply_hp_or_
     let persistent = add(&f, &a, Some("conditionitems:lDVqvLKA6eF3Df60"), None);
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().add_condition(
+            Ok(session.local_state()?.encounters().add_condition(
                 AddEncounterParticipantCondition {
                     scope: Default::default(),
                     extra_action: Default::default(),
@@ -304,7 +304,7 @@ fn single_actor_has_one_end_one_start_and_no_eligible_actor_has_no_tick() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&key)?)
         })
@@ -315,7 +315,7 @@ fn single_actor_has_one_end_one_start_and_no_eligible_actor_has_no_tick() {
     row.defeated = true;
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().update_participant(
+            Ok(session.local_state()?.encounters().update_participant(
                 atlas_local_state::UpdateEncounterParticipant {
                     expected_revision: row.revision,
                     participant_key: row.participant_key,
@@ -704,7 +704,7 @@ fn present_inactive_anchor_waits_until_its_actual_boundary() {
     let row = snapshot(&f, &key).participants.remove(1);
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().update_participant(
+            Ok(session.local_state()?.encounters().update_participant(
                 atlas_local_state::UpdateEncounterParticipant {
                     expected_revision: row.revision,
                     participant_key: row.participant_key,
@@ -1670,7 +1670,7 @@ fn migrated_large_counters_remain_exact_when_changing_round_length_or_restarting
     tracker.progress = atlas_local_state::TrackerProgress::Seconds(9_007_199_254_740_990 * 6);
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().apply_condition_event(
+            Ok(session.local_state()?.encounters().apply_condition_event(
                 &key,
                 "legacy-large",
                 &serde_json::json!({"legacy":true}),
@@ -1723,7 +1723,7 @@ fn renaming_a_spent_large_legacy_tracker_does_not_readmit_or_restart_its_templat
     let tracker_key = tracker.tracker_key.clone();
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().apply_condition_event(
+            Ok(session.local_state()?.encounters().apply_condition_event(
                 &key,
                 "legacy-spent",
                 &serde_json::json!({"legacy":true}),
@@ -1946,7 +1946,7 @@ fn elapsed_tracker_initial_start_retains_a_review_without_spurious_outgoing_dama
     .unwrap();
     f.worker
         .with_write(|session| {
-            Ok(session.local_state().encounters().add_condition(
+            Ok(session.local_state()?.encounters().add_condition(
                 AddEncounterParticipantCondition {
                     participant_key: a.clone(),
                     condition_key: Some(persistent.condition_ref.into()),
@@ -1986,7 +1986,7 @@ fn elapsed_tracker_initial_start_retains_a_review_without_spurious_outgoing_dama
     f.worker
         .with_write(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .apply_claimed_condition_event(
                     &key,

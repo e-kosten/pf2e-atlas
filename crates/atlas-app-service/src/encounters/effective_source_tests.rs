@@ -251,7 +251,7 @@ fn uncertain_recovery_rejects_before_writing_but_hp_correction_stays_available()
             let intent = serde_json::json!({"action":"condition_lifecycle","request":request});
             assert!(
                 session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .condition_event_receipt(&key, "uncertain", &intent)?
                     .is_none()

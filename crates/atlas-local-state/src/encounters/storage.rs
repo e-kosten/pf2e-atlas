@@ -16,6 +16,7 @@ use crate::{LocalStateError, LocalStateResult};
 
 pub(crate) fn insert_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: NewEncounter,
 ) -> LocalStateResult<String> {
     validate_slug(&encounter.slug)?;
@@ -26,16 +27,17 @@ pub(crate) fn insert_encounter(
         let result = connection.execute(
             "INSERT INTO encounters (
                 encounter_key, slug, name, description, note, status,
-                round_number, current_turn_participant_key, created_at, updated_at
+                round_number, current_turn_participant_key, created_at, updated_at, owner_id
              )
-             VALUES (?1, ?2, ?3, ?4, ?5, 'draft', 1, NULL, ?6, ?6)",
+             VALUES (?1, ?2, ?3, ?4, ?5, 'draft', 1, NULL, ?6, ?6, ?7)",
             params![
                 encounter_key,
                 slug,
                 encounter.name,
                 encounter.description,
                 encounter.note,
-                now
+                now,
+                owner_id,
             ],
         );
         match result {
@@ -43,7 +45,7 @@ pub(crate) fn insert_encounter(
             Err(rusqlite::Error::SqliteFailure(error, _))
                 if error.code == rusqlite::ErrorCode::ConstraintViolation =>
             {
-                if slug_exists(connection, &slug)? {
+                if slug_exists(connection, owner_id, &slug)? {
                     return Err(LocalStateError::EncounterAlreadyExists(slug));
                 }
             }
@@ -53,20 +55,21 @@ pub(crate) fn insert_encounter(
     Err(LocalStateError::EncounterKeyAllocationFailed)
 }
 
-pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<Encounter>> {
+pub(crate) fn list(connection: &Connection, owner_id: i64) -> LocalStateResult<Vec<Encounter>> {
     let mut statement = connection.prepare(
         "SELECT encounter_key, slug, name, description, note, status, round_number,
                 current_turn_participant_key, created_at, updated_at, revision, difficulty_party_level, difficulty_party_size, round_duration_seconds
          FROM encounters
-         WHERE owner_id = 1
+         WHERE owner_id = ?1
          ORDER BY updated_at DESC, slug ASC",
     )?;
-    let rows = statement.query_map([], encounter_from_row)?;
+    let rows = statement.query_map([owner_id], encounter_from_row)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
 
 pub(crate) fn list_with_participant_counts(
     connection: &Connection,
+    owner_id: i64,
 ) -> LocalStateResult<Vec<super::EncounterWithParticipantCount>> {
     let mut statement = connection.prepare(
         "SELECT encounter.encounter_key, encounter.slug, encounter.name, encounter.description,
@@ -76,11 +79,11 @@ pub(crate) fn list_with_participant_counts(
                 COUNT(participant.id)
          FROM encounters encounter
          LEFT JOIN encounter_participants participant ON participant.encounter_id = encounter.id
-         WHERE encounter.owner_id = 1
+         WHERE encounter.owner_id = ?1
          GROUP BY encounter.id
          ORDER BY encounter.updated_at DESC, encounter.slug ASC",
     )?;
-    let rows = statement.query_map([], |row| {
+    let rows = statement.query_map([owner_id], |row| {
         Ok(super::EncounterWithParticipantCount {
             encounter: encounter_from_row(row)?,
             participant_count: row.get(14)?,
@@ -91,6 +94,7 @@ pub(crate) fn list_with_participant_counts(
 
 pub(crate) fn get(
     connection: &Connection,
+    owner_id: i64,
     encounter_ref: &str,
 ) -> LocalStateResult<Option<Encounter>> {
     connection
@@ -98,8 +102,8 @@ pub(crate) fn get(
             "SELECT encounter_key, slug, name, description, note, status, round_number,
                     current_turn_participant_key, created_at, updated_at, revision, difficulty_party_level, difficulty_party_size, round_duration_seconds
              FROM encounters
-             WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
-            params![encounter_ref],
+             WHERE owner_id = ?2 AND (encounter_key = ?1 OR slug = ?1)",
+            params![encounter_ref, owner_id],
             encounter_from_row,
         )
         .optional()
@@ -108,12 +112,13 @@ pub(crate) fn get(
 
 pub(crate) fn get_with_participants(
     connection: &Connection,
+    owner_id: i64,
     encounter_ref: &str,
 ) -> LocalStateResult<Option<EncounterWithParticipants>> {
-    let Some(encounter) = get(connection, encounter_ref)? else {
+    let Some(encounter) = get(connection, owner_id, encounter_ref)? else {
         return Ok(None);
     };
-    let participants = participants(connection, &encounter.encounter_key)?;
+    let participants = participants(connection, owner_id, &encounter.encounter_key)?;
     Ok(Some(EncounterWithParticipants {
         encounter,
         participants,
@@ -122,6 +127,7 @@ pub(crate) fn get_with_participants(
 
 pub(crate) fn update_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: UpdateEncounter,
 ) -> LocalStateResult<bool> {
     validate_slug(&encounter.slug)?;
@@ -137,7 +143,7 @@ pub(crate) fn update_encounter(
     let result = connection.execute(
         "UPDATE encounters
          SET slug = ?1, name = ?2, description = ?3, note = ?4, status = ?5, updated_at = ?6, revision = revision + 1,round_duration_seconds=COALESCE(?8,round_duration_seconds)
-         WHERE encounter_key = ?7",
+         WHERE encounter_key = ?7 AND owner_id = ?9",
         params![
             encounter.slug,
             encounter.name,
@@ -147,6 +153,7 @@ pub(crate) fn update_encounter(
             now,
             encounter.encounter_key,
             encounter.round_duration_seconds,
+            owner_id,
         ],
     );
     match result {
@@ -160,10 +167,14 @@ pub(crate) fn update_encounter(
     }
 }
 
-pub(crate) fn delete(connection: &Connection, encounter_ref: &str) -> LocalStateResult<bool> {
+pub(crate) fn delete(
+    connection: &Connection,
+    owner_id: i64,
+    encounter_ref: &str,
+) -> LocalStateResult<bool> {
     let removed = connection.execute(
-        "DELETE FROM encounters WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
-        params![encounter_ref],
+        "DELETE FROM encounters WHERE owner_id = ?2 AND (encounter_key = ?1 OR slug = ?1)",
+        params![encounter_ref, owner_id],
     )?;
     Ok(removed > 0)
 }
@@ -171,27 +182,33 @@ pub(crate) fn delete(connection: &Connection, encounter_ref: &str) -> LocalState
 /// Pristine source-derived rows may complete initialization without becoming edited state.
 pub(super) fn initialize_participant_hp(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
     current_hp: Option<i64>,
 ) -> LocalStateResult<()> {
     let changed = connection.execute(
-        "UPDATE encounter_participants SET current_hp=?2 WHERE participant_key=?1 AND revision=0 AND hp_origin='derived_pristine' AND current_hp IS max_hp",
-        params![participant_key,current_hp],
+        "UPDATE encounter_participants SET current_hp=?2 WHERE participant_key=?1 AND revision=0 AND hp_origin='derived_pristine' AND current_hp IS max_hp
+         AND EXISTS (
+             SELECT 1 FROM encounters
+             WHERE id = encounter_participants.encounter_id AND owner_id = ?3
+         )",
+        params![participant_key, current_hp, owner_id],
     )?;
     if changed != 1 {
         return Err(LocalStateError::InvalidRollRequest(
             "participant is no longer pristine for initialization",
         ));
     }
-    super::recovery::capture_baseline(connection, participant_key)
+    super::recovery::capture_baseline(connection, owner_id, participant_key)
 }
 
 pub(crate) fn add_participant(
     connection: &Connection,
+    owner_id: i64,
     encounter_ref: &str,
     participant: AddEncounterParticipant,
 ) -> LocalStateResult<String> {
-    let Some(encounter_id) = encounter_id(connection, encounter_ref)? else {
+    let Some(encounter_id) = encounter_id(connection, owner_id, encounter_ref)? else {
         return Err(LocalStateError::EncounterNotFound(
             encounter_ref.to_string(),
         ));
@@ -249,7 +266,7 @@ pub(crate) fn add_participant(
                 for resource in &participant.spell_resources {
                     connection.execute("INSERT INTO encounter_spell_resources(participant_id,resource_key,capacity,remaining,undo_remaining) VALUES(?1,?2,?3,?3,NULL)", params![id, resource.key, resource.capacity])?;
                 }
-                super::recovery::capture_baseline(connection, &participant_key)?;
+                super::recovery::capture_baseline(connection, owner_id, &participant_key)?;
                 touch_encounter(connection, encounter_id)?;
                 return Ok(participant_key);
             }
@@ -263,10 +280,11 @@ pub(crate) fn add_participant(
 
 pub(crate) fn update_participant(
     connection: &Connection,
+    owner_id: i64,
     participant: UpdateEncounterParticipant,
 ) -> LocalStateResult<bool> {
     let Some((encounter_id, old_initiative)) =
-        participant_owner_and_initiative(connection, &participant.participant_key)?
+        participant_owner_and_initiative(connection, owner_id, &participant.participant_key)?
     else {
         return Ok(false);
     };
@@ -325,15 +343,16 @@ pub(crate) fn update_participant(
 
 pub(crate) fn reorder_participant(
     connection: &Connection,
+    owner_id: i64,
     reorder: ReorderEncounterParticipant,
 ) -> LocalStateResult<bool> {
     let Some((encounter_id, old_initiative)) =
-        participant_owner_and_initiative(connection, &reorder.participant_key)?
+        participant_owner_and_initiative(connection, owner_id, &reorder.participant_key)?
     else {
         return Ok(false);
     };
     let Some((target_encounter_id, target_initiative)) =
-        participant_owner_and_initiative(connection, &reorder.target_participant_key)?
+        participant_owner_and_initiative(connection, owner_id, &reorder.target_participant_key)?
     else {
         return Err(LocalStateError::ParticipantNotFound(
             reorder.target_participant_key,
@@ -385,10 +404,11 @@ pub(crate) fn reorder_participant(
 
 pub(crate) fn remove_participant(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
 ) -> LocalStateResult<bool> {
     let Some((encounter_id, initiative)) =
-        participant_owner_and_initiative(connection, participant_key)?
+        participant_owner_and_initiative(connection, owner_id, participant_key)?
     else {
         return Ok(false);
     };
@@ -410,22 +430,25 @@ pub(crate) fn remove_participant(
 
 pub(crate) fn add_condition(
     connection: &Connection,
+    owner_id: i64,
     condition: AddEncounterParticipantCondition,
 ) -> LocalStateResult<i64> {
-    let Some(participant_id) = participant_id(connection, &condition.participant_key)? else {
+    let Some((participant_id, encounter_id)) =
+        participant_and_encounter_id(connection, owner_id, &condition.participant_key)?
+    else {
         return Err(LocalStateError::ParticipantNotFound(
             condition.participant_key,
         ));
     };
     if let Some(source_participant_key) = &condition.source_participant_key
-        && participant_encounter_id(connection, source_participant_key)?
-            != participant_encounter_id(connection, &condition.participant_key)?
+        && participant_encounter_id(connection, owner_id, source_participant_key)?
+            != Some(encounter_id)
     {
         return Err(LocalStateError::ParticipantNotFound(
             source_participant_key.clone(),
         ));
     }
-    validate_scope_members(connection, &condition.participant_key, &condition.scope)?;
+    validate_scope_members(connection, owner_id, encounter_id, &condition.scope)?;
     let now = now_rfc3339()?;
     connection.execute(
         "INSERT INTO encounter_participant_conditions (
@@ -454,18 +477,18 @@ pub(crate) fn add_condition(
         ],
     )?;
     let condition_id = connection.last_insert_rowid();
-    if let Some(encounter_id) = participant_encounter_id(connection, &condition.participant_key)? {
-        touch_encounter(connection, encounter_id)?;
-    }
+    touch_encounter(connection, encounter_id)?;
     Ok(condition_id)
 }
 
 pub(crate) fn update_condition(
     connection: &Connection,
+    owner_id: i64,
     condition: UpdateEncounterParticipantCondition,
 ) -> LocalStateResult<bool> {
     let Some((participant_id, encounter_id)) = condition_owner(
         connection,
+        owner_id,
         &condition.participant_key,
         condition.condition_id,
     )?
@@ -485,13 +508,14 @@ pub(crate) fn update_condition(
         });
     }
     if let Some(source_participant_key) = &condition.source_participant_key
-        && participant_encounter_id(connection, source_participant_key)? != Some(encounter_id)
+        && participant_encounter_id(connection, owner_id, source_participant_key)?
+            != Some(encounter_id)
     {
         return Err(LocalStateError::ParticipantNotFound(
             source_participant_key.clone(),
         ));
     }
-    validate_scope_members(connection, &condition.participant_key, &condition.scope)?;
+    validate_scope_members(connection, owner_id, encounter_id, &condition.scope)?;
     let now = now_rfc3339()?;
     let updated = connection.execute(
         "UPDATE encounter_participant_conditions
@@ -527,11 +551,12 @@ pub(crate) fn update_condition(
 
 pub(crate) fn remove_condition(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
     condition_id: i64,
 ) -> LocalStateResult<bool> {
     let Some((participant_id, encounter_id)) =
-        condition_owner(connection, participant_key, condition_id)?
+        condition_owner(connection, owner_id, participant_key, condition_id)?
     else {
         return Ok(false);
     };
@@ -547,26 +572,35 @@ pub(crate) fn remove_condition(
 
 pub(crate) fn set_current_turn(
     connection: &Connection,
+    owner_id: i64,
     encounter_ref: &str,
     participant_key: Option<&str>,
 ) -> LocalStateResult<bool> {
-    set_turn_state(connection, encounter_ref, participant_key, None, false)
+    set_turn_state(
+        connection,
+        owner_id,
+        encounter_ref,
+        participant_key,
+        None,
+        false,
+    )
 }
 
 pub(crate) fn set_turn_state(
     connection: &Connection,
+    owner_id: i64,
     encounter_ref: &str,
     participant_key: Option<&str>,
     round_number: Option<i64>,
     mark_running: bool,
 ) -> LocalStateResult<bool> {
-    let Some(encounter_id) = encounter_id(connection, encounter_ref)? else {
+    let Some(encounter_id) = encounter_id(connection, owner_id, encounter_ref)? else {
         return Err(LocalStateError::EncounterNotFound(
             encounter_ref.to_string(),
         ));
     };
     if let Some(participant_key) = participant_key
-        && participant_encounter_id(connection, participant_key)? != Some(encounter_id)
+        && participant_encounter_id(connection, owner_id, participant_key)? != Some(encounter_id)
     {
         return Err(LocalStateError::ParticipantNotFound(
             participant_key.to_string(),
@@ -602,6 +636,7 @@ pub(crate) fn set_turn_state(
 
 fn participants(
     connection: &Connection,
+    owner_id: i64,
     encounter_key: &str,
 ) -> LocalStateResult<Vec<EncounterParticipant>> {
     let mut statement = connection.prepare(
@@ -613,26 +648,29 @@ fn participants(
                 participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold, participant.turn_resources_json
          FROM encounter_participants participant
          JOIN encounters encounter ON encounter.id = participant.encounter_id
-         WHERE encounter.encounter_key = ?1
+         WHERE encounter.encounter_key = ?1 AND encounter.owner_id = ?2
          ORDER BY
            participant.initiative IS NULL ASC,
            participant.initiative DESC,
            participant.initiative_order ASC,
            participant.position ASC",
     )?;
-    let rows = statement.query_map(params![encounter_key], participant_from_row)?;
+    let rows = statement.query_map(params![encounter_key, owner_id], participant_from_row)?;
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
     if participants.is_empty() {
         return Ok(participants);
     }
-    let mut abilities = super::ability_state::read_for_encounter(connection, encounter_key)?;
-    let mut conditions = conditions_for_encounter(connection, encounter_key)?;
+    let mut abilities =
+        super::ability_state::read_for_encounter(connection, owner_id, encounter_key)?;
+    let mut conditions = conditions_for_encounter(connection, owner_id, encounter_key)?;
     let mut precedence =
-        super::persistent_precedence::read_for_encounter(connection, encounter_key)?;
+        super::persistent_precedence::read_for_encounter(connection, owner_id, encounter_key)?;
     let mut expended =
-        super::spell_resources::read_expended_for_encounter(connection, encounter_key)?;
-    let mut resources = super::spell_resources::read_for_encounter(connection, encounter_key)?;
-    let mut trackers = super::manual_trackers::read_for_encounter(connection, encounter_key)?;
+        super::spell_resources::read_expended_for_encounter(connection, owner_id, encounter_key)?;
+    let mut resources =
+        super::spell_resources::read_for_encounter(connection, owner_id, encounter_key)?;
+    let mut trackers =
+        super::manual_trackers::read_for_encounter(connection, owner_id, encounter_key)?;
     for participant in &mut participants {
         let key = &participant.participant_key;
         participant.manual_trackers = trackers.remove(key).unwrap_or_default();
@@ -735,6 +773,7 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
 
 pub(crate) fn participant(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
 ) -> LocalStateResult<Option<EncounterParticipant>> {
     let mut statement = connection.prepare(
@@ -745,22 +784,25 @@ pub(crate) fn participant(
                 participant.temporary_hp, participant.defeated, participant.hidden,
                 participant.note, participant.created_at, participant.updated_at, participant.hp_origin, participant.variant_origin, participant.revision, participant.hazard_disabled, participant.track_dying, participant.mortality, participant.level_override, participant.base_death_threshold, participant.turn_resources_json
          FROM encounter_participants participant
-         WHERE participant.participant_key = ?1",
+         JOIN encounters encounter ON encounter.id = participant.encounter_id
+         WHERE participant.participant_key = ?1 AND encounter.owner_id = ?2",
     )?;
     let Some(mut participant) = statement
-        .query_row(params![participant_key], participant_from_row)
+        .query_row(params![participant_key, owner_id], participant_from_row)
         .optional()?
     else {
         return Ok(None);
     };
-    participant.manual_trackers = super::manual_trackers::read(connection, participant_key)?;
-    participant.ability_states = super::ability_state::read(connection, participant_key)?;
+    participant.manual_trackers =
+        super::manual_trackers::read(connection, owner_id, participant_key)?;
+    participant.ability_states = super::ability_state::read(connection, owner_id, participant_key)?;
     participant.conditions = participant_conditions(connection, participant_key)?;
     participant.expended_spells =
-        super::spell_resources::read_expended(connection, participant_key)?;
-    participant.spell_resources = super::spell_resources::read(connection, participant_key)?;
+        super::spell_resources::read_expended(connection, owner_id, participant_key)?;
+    participant.spell_resources =
+        super::spell_resources::read(connection, owner_id, participant_key)?;
     participant.persistent_precedence =
-        super::persistent_precedence::read(connection, participant_key)?;
+        super::persistent_precedence::read(connection, owner_id, participant_key)?;
     Ok(Some(participant))
 }
 
@@ -783,10 +825,11 @@ fn participant_conditions(
 
 fn conditions_for_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: &str,
 ) -> LocalStateResult<std::collections::BTreeMap<String, Vec<EncounterParticipantCondition>>> {
-    let mut statement = connection.prepare("SELECT c.id,c.condition_key,c.name,c.value,c.source_participant_key,c.duration_amount,c.duration_unit,c.duration_anchor_key,c.duration_event,c.note,c.scope_json,c.extra_action_json,c.immunity_override,c.created_at,c.updated_at,c.parameters_json,c.origin_json,c.duration_remaining_seconds,p.participant_key FROM encounter_participants p JOIN encounter_participant_conditions c ON c.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,c.created_at,c.id")?;
-    let rows = statement.query_map([encounter], |row| {
+    let mut statement = connection.prepare("SELECT c.id,c.condition_key,c.name,c.value,c.source_participant_key,c.duration_amount,c.duration_unit,c.duration_anchor_key,c.duration_event,c.note,c.scope_json,c.extra_action_json,c.immunity_override,c.created_at,c.updated_at,c.parameters_json,c.origin_json,c.duration_remaining_seconds,p.participant_key FROM encounter_participants p JOIN encounter_participant_conditions c ON c.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY p.participant_key,c.created_at,c.id")?;
+    let rows = statement.query_map(params![encounter, owner_id], |row| {
         Ok((row.get::<_, String>(18)?, condition_from_row(row)?))
     })?;
     let mut grouped =
@@ -868,14 +911,21 @@ fn condition_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPart
 
 pub(crate) fn condition(
     connection: &Connection,
+    owner_id: i64,
     condition_id: i64,
 ) -> LocalStateResult<Option<EncounterParticipantCondition>> {
     connection
         .query_row(
             "SELECT id, condition_key, name, value, source_participant_key,
                 duration_amount, duration_unit, duration_anchor_key, duration_event, note, scope_json, extra_action_json, immunity_override, created_at, updated_at, parameters_json, origin_json, duration_remaining_seconds
-         FROM encounter_participant_conditions WHERE id = ?1",
-            [condition_id],
+         FROM encounter_participant_conditions
+         WHERE id = ?1 AND EXISTS (
+             SELECT 1 FROM encounter_participants participant
+             JOIN encounters encounter ON encounter.id = participant.encounter_id
+             WHERE participant.id = encounter_participant_conditions.participant_id
+               AND encounter.owner_id = ?2
+         )",
+            params![condition_id, owner_id],
             condition_from_row,
         )
         .optional()
@@ -884,12 +934,13 @@ pub(crate) fn condition(
 
 pub(super) fn encounter_id(
     connection: &Connection,
+    owner_id: i64,
     encounter_ref: &str,
 ) -> rusqlite::Result<Option<i64>> {
     connection
         .query_row(
-            "SELECT id FROM encounters WHERE owner_id = 1 AND (encounter_key = ?1 OR slug = ?1)",
-            params![encounter_ref],
+            "SELECT id FROM encounters WHERE owner_id = ?2 AND (encounter_key = ?1 OR slug = ?1)",
+            params![encounter_ref, owner_id],
             |row| row.get(0),
         )
         .optional()
@@ -897,29 +948,40 @@ pub(super) fn encounter_id(
 
 fn participant_encounter_id(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
 ) -> rusqlite::Result<Option<i64>> {
     connection
         .query_row(
-            "SELECT encounter_id FROM encounter_participants WHERE participant_key = ?1",
-            params![participant_key],
+            "SELECT participant.encounter_id FROM encounter_participants participant
+             JOIN encounters encounter ON encounter.id = participant.encounter_id
+             WHERE participant.participant_key = ?1 AND encounter.owner_id = ?2",
+            params![participant_key, owner_id],
             |row| row.get(0),
         )
         .optional()
 }
 
-fn participant_id(connection: &Connection, participant_key: &str) -> rusqlite::Result<Option<i64>> {
+fn participant_and_encounter_id(
+    connection: &Connection,
+    owner_id: i64,
+    participant_key: &str,
+) -> rusqlite::Result<Option<(i64, i64)>> {
     connection
         .query_row(
-            "SELECT id FROM encounter_participants WHERE participant_key = ?1",
-            params![participant_key],
-            |row| row.get(0),
+            "SELECT participant.id, participant.encounter_id
+             FROM encounter_participants participant
+             JOIN encounters encounter ON encounter.id = participant.encounter_id
+             WHERE participant.participant_key = ?1 AND encounter.owner_id = ?2",
+            params![participant_key, owner_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
 }
 
 fn condition_owner(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
     condition_id: i64,
 ) -> rusqlite::Result<Option<(i64, i64)>> {
@@ -928,8 +990,9 @@ fn condition_owner(
             "SELECT condition.participant_id, participant.encounter_id
              FROM encounter_participant_conditions condition
              JOIN encounter_participants participant ON participant.id = condition.participant_id
-             WHERE condition.id = ?1 AND participant.participant_key = ?2",
-            params![condition_id, participant_key],
+             JOIN encounters encounter ON encounter.id = participant.encounter_id
+             WHERE condition.id = ?1 AND participant.participant_key = ?2 AND encounter.owner_id = ?3",
+            params![condition_id, participant_key, owner_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
@@ -937,12 +1000,16 @@ fn condition_owner(
 
 fn participant_owner_and_initiative(
     connection: &Connection,
+    owner_id: i64,
     participant_key: &str,
 ) -> rusqlite::Result<Option<(i64, Option<i64>)>> {
     connection
         .query_row(
-            "SELECT encounter_id, initiative FROM encounter_participants WHERE participant_key = ?1",
-            params![participant_key],
+            "SELECT participant.encounter_id, participant.initiative
+             FROM encounter_participants participant
+             JOIN encounters encounter ON encounter.id = participant.encounter_id
+             WHERE participant.participant_key = ?1 AND encounter.owner_id = ?2",
+            params![participant_key, owner_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()
@@ -1077,11 +1144,11 @@ fn participant_keys_for_order(
         .collect()
 }
 
-fn slug_exists(connection: &Connection, slug: &str) -> rusqlite::Result<bool> {
+fn slug_exists(connection: &Connection, owner_id: i64, slug: &str) -> rusqlite::Result<bool> {
     connection
         .query_row(
-            "SELECT 1 FROM encounters WHERE owner_id = 1 AND slug = ?1",
-            params![slug],
+            "SELECT 1 FROM encounters WHERE owner_id = ?2 AND slug = ?1",
+            params![slug, owner_id],
             |_row| Ok(()),
         )
         .optional()
@@ -1113,25 +1180,47 @@ pub(super) fn now_rfc3339() -> LocalStateResult<String> {
 /// Applied only inside the locked turn transaction, from its canonical snapshot.
 pub(crate) fn update_duration_amount(
     connection: &Connection,
+    owner_id: i64,
+    encounter_key: &str,
     condition_id: i64,
     amount: i64,
 ) -> LocalStateResult<()> {
-    connection.execute(
-        "UPDATE encounter_participant_conditions SET duration_amount=CASE WHEN duration_unit='rounds' THEN ?1 ELSE duration_amount END,duration_remaining_seconds=CASE WHEN duration_unit='rounds' THEN NULL ELSE ?1 END,updated_at=?2 WHERE id=?3",
-        params![amount, now_rfc3339()?, condition_id],
+    let changed = connection.execute(
+        "UPDATE encounter_participant_conditions
+         SET duration_amount=CASE WHEN duration_unit='rounds' THEN ?1 ELSE duration_amount END,
+             duration_remaining_seconds=CASE WHEN duration_unit='rounds' THEN NULL ELSE ?1 END,
+             updated_at=?2
+         WHERE id=?3 AND EXISTS (
+             SELECT 1 FROM encounter_participants participant
+             JOIN encounters encounter ON encounter.id = participant.encounter_id
+             WHERE participant.id = encounter_participant_conditions.participant_id
+               AND encounter.encounter_key = ?4 AND encounter.owner_id = ?5
+         )",
+        params![
+            amount,
+            now_rfc3339()?,
+            condition_id,
+            encounter_key,
+            owner_id
+        ],
     )?;
+    if changed == 0 {
+        return Err(LocalStateError::InvalidRollRequest(
+            "condition is no longer in this encounter",
+        ));
+    }
     Ok(())
 }
 
 fn validate_scope_members(
     connection: &Connection,
-    owner: &str,
+    owner_id: i64,
+    encounter_id: i64,
     scope: &super::ConditionScope,
 ) -> LocalStateResult<()> {
     if let super::ConditionScope::SelectedParticipants { participant_keys } = scope {
-        let encounter = participant_encounter_id(connection, owner)?;
         for key in participant_keys {
-            if participant_encounter_id(connection, key)? != encounter {
+            if participant_encounter_id(connection, owner_id, key)? != Some(encounter_id) {
                 return Err(LocalStateError::ParticipantNotFound(key.clone()));
             }
         }

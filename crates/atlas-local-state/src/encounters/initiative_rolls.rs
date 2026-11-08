@@ -46,8 +46,9 @@ impl EncountersWrite<'_> {
                 ));
             }
             let transaction = self.connection;
-            let snapshot = storage::get_with_participants(transaction, encounter_key)?
-                .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_key.into()))?;
+            let snapshot =
+                storage::get_with_participants(transaction, self.owner_id, encounter_key)?
+                    .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_key.into()))?;
             if snapshot.encounter.encounter_key != encounter_key {
                 return Err(LocalStateError::InvalidRollRequest(
                     "use the canonical encounter key",
@@ -94,9 +95,10 @@ impl EncountersWrite<'_> {
             for (input, prepared) in resolved.iter().zip(prepared) {
                 let outcome = prepared.roll()?;
                 // Earlier changes may compact ties and bump another participant's revision.
-                let p = storage::participant(transaction, &input.participant_key)?.ok_or_else(
-                    || LocalStateError::ParticipantNotFound(input.participant_key.clone()),
-                )?;
+                let p = storage::participant(transaction, self.owner_id, &input.participant_key)?
+                    .ok_or_else(|| {
+                    LocalStateError::ParticipantNotFound(input.participant_key.clone())
+                })?;
                 rolls.push(ParticipantInitiativeRoll {
                     participant_key: p.participant_key.clone(),
                     display_name: p.display_name.clone(),
@@ -105,6 +107,7 @@ impl EncountersWrite<'_> {
                 });
                 storage::update_participant(
                     transaction,
+                    self.owner_id,
                     UpdateEncounterParticipant {
                         expected_revision: p.revision,
                         participant_key: p.participant_key,

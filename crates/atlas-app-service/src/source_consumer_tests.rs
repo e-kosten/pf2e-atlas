@@ -16,7 +16,7 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
     f.worker
         .with_write(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .import(atlas_local_state::ImportSavedList {
                     slug: "reorder".into(),
@@ -662,7 +662,7 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
     f.worker
         .with_write(|write| {
             Ok(write
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .import(atlas_local_state::ImportSavedList {
                     slug: "large-list".into(),
@@ -1232,7 +1232,7 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
     ] {
         f.worker
             .with_write(|write| {
-                Ok(write.local_state().saved_lists().import(
+                Ok(write.local_state()?.saved_lists().import(
                     atlas_local_state::ImportSavedList {
                         slug: slug.into(),
                         name: slug.into(),

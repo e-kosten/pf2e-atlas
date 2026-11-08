@@ -351,7 +351,7 @@ impl AtlasAppService {
                     ));
                 }
                 let dying_completed = self.with_state(|session| {
-                    Ok(session.local_state().encounters().boundary_claimed(
+                    Ok(session.local_state()?.encounters().boundary_claimed(
                         &snapshot.encounter.encounter_key,
                         &EncounterBoundaryClaim {
                             participant_key: participant.participant_key.clone(),

@@ -29,7 +29,7 @@ fn manual(max: Option<i64>, current: Option<i64>) -> (FixtureWorker, String, Str
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&key)?)
         })
@@ -45,7 +45,7 @@ fn disable_dying_tracking(worker: &AtlasAppService, key: &str, participant: &str
     let revision = worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get(key)?
                 .unwrap()
@@ -73,7 +73,7 @@ fn saved(worker: &AtlasAppService, key: &str) -> EncounterParticipant {
     worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(key)?)
         })

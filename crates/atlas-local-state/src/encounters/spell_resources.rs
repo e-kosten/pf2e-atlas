@@ -5,11 +5,12 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 pub(super) fn read(
     connection: &Connection,
+    owner_id: i64,
     participant: &str,
 ) -> LocalStateResult<Vec<SpellResource>> {
-    let mut statement = connection.prepare("SELECT resource_key,capacity,remaining,undo_remaining FROM encounter_spell_resources WHERE participant_id=(SELECT id FROM encounter_participants WHERE participant_key=?1) ORDER BY resource_key")?;
+    let mut statement = connection.prepare("SELECT resource_key,capacity,remaining,undo_remaining FROM encounter_spell_resources WHERE participant_id=(SELECT p.id FROM encounter_participants p JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2) ORDER BY resource_key")?;
     Ok(statement
-        .query_map([participant], resource_from_row)?
+        .query_map(params![participant, owner_id], resource_from_row)?
         .collect::<Result<Vec<_>, _>>()?)
 }
 
@@ -24,10 +25,11 @@ fn resource_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SpellResource>
 
 pub(super) fn read_for_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: &str,
 ) -> LocalStateResult<std::collections::BTreeMap<String, Vec<SpellResource>>> {
-    let mut statement = connection.prepare("SELECT r.resource_key,r.capacity,r.remaining,r.undo_remaining,p.participant_key FROM encounter_participants p JOIN encounter_spell_resources r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,r.resource_key")?;
-    let rows = statement.query_map([encounter], |row| {
+    let mut statement = connection.prepare("SELECT r.resource_key,r.capacity,r.remaining,r.undo_remaining,p.participant_key FROM encounter_participants p JOIN encounter_spell_resources r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY p.participant_key,r.resource_key")?;
+    let rows = statement.query_map(params![encounter, owner_id], |row| {
         Ok((row.get::<_, String>(4)?, resource_from_row(row)?))
     })?;
     let mut grouped = std::collections::BTreeMap::<String, Vec<SpellResource>>::new();
@@ -40,10 +42,11 @@ pub(super) fn read_for_encounter(
 
 pub(super) fn read_expended_for_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: &str,
 ) -> LocalStateResult<std::collections::BTreeMap<String, Vec<String>>> {
-    let mut statement = connection.prepare("SELECT p.participant_key,r.spell_id FROM encounter_participants p JOIN encounter_expended_spells r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,r.spell_id")?;
-    let rows = statement.query_map([encounter], |row| {
+    let mut statement = connection.prepare("SELECT p.participant_key,r.spell_id FROM encounter_participants p JOIN encounter_expended_spells r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY p.participant_key,r.spell_id")?;
+    let rows = statement.query_map(params![encounter, owner_id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
     let mut grouped = std::collections::BTreeMap::<String, Vec<String>>::new();
@@ -63,7 +66,7 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<()> {
         crate::atomic_action::run(self.connection, || {
             let tx = self.connection;
-            let (id, encounter, revision): (i64,i64,i64) = tx.query_row("SELECT id,encounter_id,revision FROM encounter_participants WHERE participant_key=?1", [participant], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?.ok_or_else(|| LocalStateError::ParticipantNotFound(participant.into()))?;
+            let (id, encounter, revision): (i64,i64,i64) = tx.query_row("SELECT p.id,p.encounter_id,p.revision FROM encounter_participants p JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2", params![participant,self.owner_id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?.ok_or_else(|| LocalStateError::ParticipantNotFound(participant.into()))?;
             if revision != expected_revision {
                 return Err(LocalStateError::StaleParticipantRevision {
                     participant_key: participant.into(),
@@ -88,11 +91,12 @@ impl EncountersWrite<'_> {
 
 pub(super) fn read_expended(
     connection: &Connection,
+    owner_id: i64,
     participant: &str,
 ) -> LocalStateResult<Vec<String>> {
-    let mut statement = connection.prepare("SELECT spell_id FROM encounter_expended_spells WHERE participant_id=(SELECT id FROM encounter_participants WHERE participant_key=?1) ORDER BY spell_id")?;
+    let mut statement = connection.prepare("SELECT spell_id FROM encounter_expended_spells WHERE participant_id=(SELECT p.id FROM encounter_participants p JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2) ORDER BY spell_id")?;
     Ok(statement
-        .query_map([participant], |row| row.get(0))?
+        .query_map(params![participant, owner_id], |row| row.get(0))?
         .collect::<Result<Vec<_>, _>>()?)
 }
 
@@ -106,7 +110,7 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<()> {
         crate::atomic_action::run(self.connection, || {
             let tx = self.connection;
-            let (id,encounter,revision):(i64,i64,i64)=tx.query_row("SELECT id,encounter_id,revision FROM encounter_participants WHERE participant_key=?1",[participant],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).optional()?.ok_or_else(||LocalStateError::ParticipantNotFound(participant.into()))?;
+            let (id,encounter,revision):(i64,i64,i64)=tx.query_row("SELECT p.id,p.encounter_id,p.revision FROM encounter_participants p JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2",params![participant,self.owner_id],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?))).optional()?.ok_or_else(||LocalStateError::ParticipantNotFound(participant.into()))?;
             if revision != expected_revision {
                 return Err(LocalStateError::StaleParticipantRevision {
                     participant_key: participant.into(),

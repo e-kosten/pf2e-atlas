@@ -115,7 +115,7 @@ impl AtlasAppService {
             changes.resolved_pending_keys.extend(
                 self.with_state(|session| {
                     Ok(session
-                        .local_state()
+                        .local_state()?
                         .encounters()
                         .pending_condition_consequences(&snapshot.encounter.encounter_key)?)
                 })?
@@ -263,12 +263,12 @@ impl AtlasAppService {
     ) -> AppServiceResult<Vec<PendingConditionConsequenceView>> {
         self.with_state(|session| {
             let encounter = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .pending_condition_consequences(&encounter.encounter_key)?
                 .into_iter()
@@ -341,7 +341,7 @@ fn prepare_drained(
     let pending = service
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .pending_condition_consequences(&snapshot.encounter.encounter_key)?)
         })?
@@ -1500,7 +1500,7 @@ mod lifecycle_event_tests {
                 super::super::conditions::modeled_condition_by_rule(unknown_rule).unwrap();
             let condition = worker
                 .with_write(|session| {
-                    Ok(session.local_state().encounters().add_condition(
+                    Ok(session.local_state()?.encounters().add_condition(
                         atlas_local_state::AddEncounterParticipantCondition {
                             participant_key: participant.clone(),
                             condition_key: Some(definition.condition_ref.into()),

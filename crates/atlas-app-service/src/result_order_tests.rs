@@ -180,7 +180,7 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
     f.worker
         .with_write(|write| {
             Ok(write
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .import(atlas_local_state::ImportSavedList {
                     slug: "ordered".into(),

@@ -25,7 +25,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<ConditionLifecycleResultView> {
         let intent = serde_json::json!({"action":"condition_lifecycle","request":request});
         let (snapshot, pending) = self.with_state(|session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let encounter = store
                 .encounters()
                 .get_with_participants(encounter_ref)?
@@ -56,7 +56,7 @@ impl AtlasAppService {
         }
         let saved_boundary = self.with_state(|session| {
             super::outgoing_turns::boundary(
-                &session.local_state().encounters(),
+                &session.local_state()?.encounters(),
                 &snapshot.encounter.encounter_key,
                 request.boundary_key.as_deref(),
                 &request.participant_key,
@@ -191,7 +191,7 @@ impl AtlasAppService {
         encounter_ref: &str,
     ) -> AppServiceResult<Vec<PendingConditionRecoveryView>> {
         self.with_state(|session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let encounter = store
                 .encounters()
                 .get(encounter_ref)?
@@ -223,7 +223,7 @@ impl AtlasAppService {
         boundary_key: Option<&str>,
     ) -> AppServiceResult<ConditionLifecycleActionsView> {
         let (snapshot, pending, claims, boundary) = self.with_state(|session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let snapshot = store
                 .encounters()
                 .get_with_participants(encounter_ref)?

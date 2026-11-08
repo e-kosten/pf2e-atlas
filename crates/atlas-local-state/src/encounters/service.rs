@@ -10,6 +10,7 @@ use crate::{LocalStateError, LocalStateResult};
 #[derive(Clone, Copy)]
 pub struct EncountersRead<'a> {
     pub(super) connection: &'a rusqlite::Connection,
+    pub(super) owner_id: i64,
 }
 pub struct EncountersWrite<'a> {
     pub(super) read: EncountersRead<'a>,
@@ -21,14 +22,17 @@ impl<'a> std::ops::Deref for EncountersWrite<'a> {
     }
 }
 impl<'a> EncountersRead<'a> {
-    pub(crate) fn from_connection(connection: &'a rusqlite::Connection) -> Self {
-        Self { connection }
+    pub(crate) fn from_connection(connection: &'a rusqlite::Connection, owner_id: i64) -> Self {
+        Self {
+            connection,
+            owner_id,
+        }
     }
 }
 impl<'a> EncountersWrite<'a> {
-    pub(crate) fn from_connection(connection: &'a rusqlite::Connection) -> Self {
+    pub(crate) fn from_connection(connection: &'a rusqlite::Connection, owner_id: i64) -> Self {
         Self {
-            read: EncountersRead::from_connection(connection),
+            read: EncountersRead::from_connection(connection, owner_id),
         }
     }
 }
@@ -36,8 +40,8 @@ impl EncountersWrite<'_> {
     pub fn create(&self, encounter: NewEncounter) -> LocalStateResult<Encounter> {
         crate::atomic_action::run(self.connection, || {
             let transaction = self.connection;
-            let encounter_key = storage::insert_encounter(transaction, encounter)?;
-            let result = storage::get(transaction, &encounter_key)?
+            let encounter_key = storage::insert_encounter(transaction, self.owner_id, encounter)?;
+            let result = storage::get(transaction, self.owner_id, &encounter_key)?
                 .ok_or(LocalStateError::EncounterNotFound(encounter_key))?;
 
             Ok(result)
@@ -48,10 +52,10 @@ impl EncountersWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(&encounter.encounter_key)?;
             let transaction = self.connection;
-            if !storage::update_encounter(transaction, encounter.clone())? {
+            if !storage::update_encounter(transaction, self.owner_id, encounter.clone())? {
                 return Ok(None);
             }
-            let result = storage::get(transaction, &encounter.encounter_key)?;
+            let result = storage::get(transaction, self.owner_id, &encounter.encounter_key)?;
 
             Ok(result)
         })
@@ -60,7 +64,7 @@ impl EncountersWrite<'_> {
     pub fn delete(&self, encounter_ref: &str) -> LocalStateResult<bool> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(encounter_ref)?;
-            storage::delete(self.connection, encounter_ref)
+            storage::delete(self.connection, self.owner_id, encounter_ref)
         })
     }
 
@@ -73,8 +77,8 @@ impl EncountersWrite<'_> {
             validate_ref(encounter_ref)?;
             let transaction = self.connection;
             let participant_key =
-                storage::add_participant(transaction, encounter_ref, participant)?;
-            let result = storage::participant(transaction, &participant_key)?
+                storage::add_participant(transaction, self.owner_id, encounter_ref, participant)?;
+            let result = storage::participant(transaction, self.owner_id, &participant_key)?
                 .ok_or(LocalStateError::ParticipantNotFound(participant_key))?;
 
             Ok(result)
@@ -90,16 +94,21 @@ impl EncountersWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(encounter_ref)?;
             let transaction = self.connection;
-            if storage::get(transaction, encounter_ref)?.is_none() {
+            if storage::get(transaction, self.owner_id, encounter_ref)?.is_none() {
                 return Err(LocalStateError::EncounterNotFound(
                     encounter_ref.to_string(),
                 ));
             }
             let mut result = Vec::with_capacity(participants.len());
             for participant in participants {
-                let key = storage::add_participant(transaction, encounter_ref, participant)?;
+                let key = storage::add_participant(
+                    transaction,
+                    self.owner_id,
+                    encounter_ref,
+                    participant,
+                )?;
                 result.push(
-                    storage::participant(transaction, &key)?
+                    storage::participant(transaction, self.owner_id, &key)?
                         .ok_or(LocalStateError::ParticipantNotFound(key))?,
                 );
             }
@@ -114,7 +123,12 @@ impl EncountersWrite<'_> {
         participant_key: &str,
         current_hp: Option<i64>,
     ) -> LocalStateResult<()> {
-        storage::initialize_participant_hp(self.connection, participant_key, current_hp)
+        storage::initialize_participant_hp(
+            self.connection,
+            self.owner_id,
+            participant_key,
+            current_hp,
+        )
     }
 
     pub fn update_participant(
@@ -123,10 +137,11 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<Option<EncounterParticipant>> {
         crate::atomic_action::run(self.connection, || {
             let transaction = self.connection;
-            if !storage::update_participant(transaction, participant.clone())? {
+            if !storage::update_participant(transaction, self.owner_id, participant.clone())? {
                 return Ok(None);
             }
-            let result = storage::participant(transaction, &participant.participant_key)?;
+            let result =
+                storage::participant(transaction, self.owner_id, &participant.participant_key)?;
 
             Ok(result)
         })
@@ -140,10 +155,11 @@ impl EncountersWrite<'_> {
             validate_ref(&reorder.participant_key)?;
             validate_ref(&reorder.target_participant_key)?;
             let transaction = self.connection;
-            if !storage::reorder_participant(transaction, reorder.clone())? {
+            if !storage::reorder_participant(transaction, self.owner_id, reorder.clone())? {
                 return Ok(None);
             }
-            let result = storage::participant(transaction, &reorder.participant_key)?;
+            let result =
+                storage::participant(transaction, self.owner_id, &reorder.participant_key)?;
 
             Ok(result)
         })
@@ -153,7 +169,7 @@ impl EncountersWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(participant_key)?;
             let transaction = self.connection;
-            let removed = storage::remove_participant(transaction, participant_key)?;
+            let removed = storage::remove_participant(transaction, self.owner_id, participant_key)?;
 
             Ok(removed)
         })
@@ -166,8 +182,8 @@ impl EncountersWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(&condition.participant_key)?;
             let transaction = self.connection;
-            let condition_id = storage::add_condition(transaction, condition)?;
-            let result = storage::condition(transaction, condition_id)?.ok_or(
+            let condition_id = storage::add_condition(transaction, self.owner_id, condition)?;
+            let result = storage::condition(transaction, self.owner_id, condition_id)?.ok_or(
                 LocalStateError::ParticipantNotFound(condition_id.to_string()),
             )?;
 
@@ -181,10 +197,10 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<Option<EncounterParticipantCondition>> {
         crate::atomic_action::run(self.connection, || {
             let transaction = self.connection;
-            if !storage::update_condition(transaction, condition.clone())? {
+            if !storage::update_condition(transaction, self.owner_id, condition.clone())? {
                 return Ok(None);
             }
-            let result = storage::condition(transaction, condition.condition_id)?;
+            let result = storage::condition(transaction, self.owner_id, condition.condition_id)?;
 
             Ok(result)
         })
@@ -197,7 +213,12 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<bool> {
         crate::atomic_action::run(self.connection, || {
             let transaction = self.connection;
-            let removed = storage::remove_condition(transaction, participant_key, condition_id)?;
+            let removed = storage::remove_condition(
+                transaction,
+                self.owner_id,
+                participant_key,
+                condition_id,
+            )?;
 
             Ok(removed)
         })
@@ -211,7 +232,12 @@ impl EncountersWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(encounter_ref)?;
             let transaction = self.connection;
-            let result = storage::set_current_turn(transaction, encounter_ref, participant_key)?;
+            let result = storage::set_current_turn(
+                transaction,
+                self.owner_id,
+                encounter_ref,
+                participant_key,
+            )?;
 
             Ok(result)
         })
@@ -229,6 +255,7 @@ impl EncountersWrite<'_> {
             let transaction = self.connection;
             let result = storage::set_turn_state(
                 transaction,
+                self.owner_id,
                 encounter_ref,
                 participant_key,
                 Some(round_number),
@@ -249,18 +276,21 @@ impl EncountersWrite<'_> {
         crate::atomic_action::run(self.connection, || {
             validate_ref(encounter_ref)?;
             let transaction = self.connection;
-            let Some(snapshot) = storage::get_with_participants(transaction, encounter_ref)? else {
+            let Some(snapshot) =
+                storage::get_with_participants(transaction, self.owner_id, encounter_ref)?
+            else {
                 return Ok(None);
             };
             let turn = choose(&snapshot);
             storage::set_turn_state(
                 transaction,
+                self.owner_id,
                 encounter_ref,
                 turn.participant_key.as_deref(),
                 Some(turn.round_number),
                 turn.mark_running,
             )?;
-            let result = storage::get(transaction, encounter_ref)?;
+            let result = storage::get(transaction, self.owner_id, encounter_ref)?;
 
             Ok(result)
         })
@@ -278,7 +308,9 @@ impl EncountersWrite<'_> {
             validate_ref(encounter_ref)?;
             validate_ref(participant_key)?;
             let transaction = self.connection;
-            let Some(snapshot) = storage::get_with_participants(transaction, encounter_ref)? else {
+            let Some(snapshot) =
+                storage::get_with_participants(transaction, self.owner_id, encounter_ref)?
+            else {
                 return Ok(None);
             };
             if !snapshot
@@ -289,17 +321,18 @@ impl EncountersWrite<'_> {
                 return Ok(None);
             }
             let replacement = choose(&snapshot);
-            storage::remove_participant(transaction, participant_key)?;
+            storage::remove_participant(transaction, self.owner_id, participant_key)?;
             if let Some(turn) = replacement {
                 storage::set_turn_state(
                     transaction,
+                    self.owner_id,
                     encounter_ref,
                     turn.participant_key.as_deref(),
                     Some(turn.round_number),
                     turn.mark_running,
                 )?;
             }
-            let result = storage::get(transaction, encounter_ref)?;
+            let result = storage::get(transaction, self.owner_id, encounter_ref)?;
 
             Ok(result)
         })
@@ -318,17 +351,17 @@ fn validate_ref(value: &str) -> LocalStateResult<()> {
 
 impl EncountersRead<'_> {
     pub fn list(&self) -> LocalStateResult<Vec<Encounter>> {
-        storage::list(self.connection)
+        storage::list(self.connection, self.owner_id)
     }
     /// List metadata and roster counts in one read, without hydrating participants.
     pub fn list_with_participant_counts(
         &self,
     ) -> LocalStateResult<Vec<super::EncounterWithParticipantCount>> {
-        storage::list_with_participant_counts(self.connection)
+        storage::list_with_participant_counts(self.connection, self.owner_id)
     }
     pub fn get(&self, encounter_ref: &str) -> LocalStateResult<Option<Encounter>> {
         validate_ref(encounter_ref)?;
-        storage::get(self.connection, encounter_ref)
+        storage::get(self.connection, self.owner_id, encounter_ref)
     }
     pub fn get_with_participants(
         &self,
@@ -336,7 +369,7 @@ impl EncountersRead<'_> {
     ) -> LocalStateResult<Option<EncounterWithParticipants>> {
         validate_ref(encounter_ref)?;
         let transaction = self.connection;
-        let result = storage::get_with_participants(transaction, encounter_ref)?;
+        let result = storage::get_with_participants(transaction, self.owner_id, encounter_ref)?;
 
         Ok(result)
     }

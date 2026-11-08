@@ -155,7 +155,7 @@ fn relationship_discovery_validates_scope_and_intersects_saved_list_keys() {
     ] {
         f.worker
             .with_write(|write| {
-                Ok(write.local_state().saved_lists().import(
+                Ok(write.local_state()?.saved_lists().import(
                     atlas_local_state::ImportSavedList {
                         slug: slug.into(),
                         name: slug.into(),

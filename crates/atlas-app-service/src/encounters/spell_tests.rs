@@ -578,7 +578,7 @@ fn add_casting_condition(
     fixture
         .worker
         .with_write(|workspace| {
-            let store = workspace.local_state().encounters();
+            let store = workspace.local_state()?.encounters();
             let snapshot = store.get_with_participants(encounter)?.unwrap();
             let definition = super::conditions::modeled_condition_by_rule(rule).unwrap();
             Ok(store

@@ -20,7 +20,7 @@ impl AtlasAppService {
         }
         let detail = self.with_state(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))
