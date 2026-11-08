@@ -178,7 +178,7 @@ mod tests {
         let has_grab = format!("'{grab}' in actions");
         assert!(result(&db, &format!("!({has_grab})")).is_empty());
         db.execute(
-            "INSERT INTO artifact_context VALUES(1,3,printf('%064d',0),?)",
+            "INSERT INTO artifact_context(singleton,format_version,context_hash,context_json) VALUES(1,3,printf('%064d',0),?)",
             [
                 json!({"reference_preparation": {"coverage":"complete", "source_package":"pf2e"}})
                     .to_string(),

@@ -5,7 +5,7 @@ use crate::{
     SourceSearchProfileIdentity,
 };
 use atlas_embedding::NativeInputDescriptor;
-use atlas_storage::{UpdateOwner, Workspace};
+use atlas_storage::{ReferenceRepair, UpdateOwner, Workspace};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 
@@ -17,6 +17,11 @@ pub enum NativeValueSelection {
     Reused,
     AlreadySelected,
 }
+struct Rebuild<'owner> {
+    repair: ReferenceRepair<'owner>,
+    configuration: crate::RequestedReferenceConfig,
+}
+
 pub struct PreparedPublication<'owner> {
     selected: Connection,
     selected_file: tempfile::NamedTempFile,
@@ -29,7 +34,7 @@ pub struct PreparedPublication<'owner> {
     verified_profiles: Vec<bool>,
     cache_bytes: u64,
     cache_limit: u64,
-    rebuild: bool,
+    rebuild: Option<Rebuild<'owner>>,
 }
 impl<'owner> PreparedPublication<'owner> {
     pub fn new_in(
@@ -38,17 +43,26 @@ impl<'owner> PreparedPublication<'owner> {
         scratch: &Path,
         metadata: PublicationSpool,
     ) -> Result<Self, IndexError> {
-        Self::prepare(owner, schema, scratch, metadata, false)
+        Self::prepare(owner, schema, scratch, metadata, None)
     }
 
     /// Stage a complete rebuild privately, with no published or pending reuse.
     pub fn new_rebuild(
-        owner: &'owner UpdateOwner,
-        schema: u32,
+        repair: ReferenceRepair<'owner>,
         scratch: &Path,
         metadata: PublicationSpool,
+        configuration: crate::RequestedReferenceConfig,
     ) -> Result<Self, IndexError> {
-        Self::prepare(owner, schema, scratch, metadata, true)
+        Self::prepare(
+            repair.owner(),
+            repair.schema(),
+            scratch,
+            metadata,
+            Some(Rebuild {
+                repair,
+                configuration,
+            }),
+        )
     }
 
     fn prepare(
@@ -56,7 +70,7 @@ impl<'owner> PreparedPublication<'owner> {
         schema: u32,
         scratch: &Path,
         metadata: PublicationSpool,
-        rebuild: bool,
+        rebuild: Option<Rebuild<'owner>>,
     ) -> Result<Self, IndexError> {
         let validation_started = std::time::Instant::now();
         crate::writer::validate_input(&metadata)?;
@@ -69,10 +83,10 @@ impl<'owner> PreparedPublication<'owner> {
         schema: u32,
         scratch: &Path,
         metadata: PublicationSpool,
-        rebuild: bool,
+        rebuild: Option<Rebuild<'owner>>,
     ) -> Result<Self, IndexError> {
         let workspace = Workspace::at(owner.path())?;
-        let (cache_bytes, previous) = if rebuild {
+        let (cache_bytes, previous) = if rebuild.is_some() {
             (0, None)
         } else {
             let read = workspace.read(schema)?;
@@ -139,7 +153,7 @@ impl<'owner> PreparedPublication<'owner> {
             cache_limit: CACHE_PAYLOAD_LIMIT,
             rebuild,
         };
-        if !rebuild {
+        if publication.rebuild.is_none() {
             publication.evict_cache()?;
         }
         Ok(publication)
@@ -175,7 +189,7 @@ impl<'owner> PreparedPublication<'owner> {
         model: &SourceSearchProfileIdentity,
     ) -> Result<crate::VerifiedNativeTokenCounts, IndexError> {
         let ordinal = self.model_key(model)?;
-        if self.rebuild || self.schema < crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION {
+        if self.rebuild.is_some() || self.schema < crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION {
             return Ok(crate::VerifiedNativeTokenCounts::default());
         }
         let started = std::time::Instant::now();
@@ -219,7 +233,7 @@ impl<'owner> PreparedPublication<'owner> {
         if inputs.is_empty() {
             return Ok(Vec::new());
         }
-        if self.rebuild {
+        if self.rebuild.is_some() {
             return inputs
                 .iter()
                 .map(|descriptor| {
@@ -317,7 +331,7 @@ impl<'owner> PreparedPublication<'owner> {
                 checksum,
             });
         }
-        if !self.rebuild {
+        if self.rebuild.is_none() {
             let write = self.workspace.write(self.schema)?;
             crate::writer::check_expected(write.connection(), &self.metadata)?;
             let mut next_cache_bytes = self.cache_bytes;
@@ -357,7 +371,7 @@ impl<'owner> PreparedPublication<'owner> {
             self.remember(ordinal, &value.input, &value.checksum, Some(&value.bytes))?;
         }
         selected_tx.commit()?;
-        if !self.rebuild {
+        if self.rebuild.is_none() {
             self.evict_cache()?;
         }
         Ok(())
@@ -366,7 +380,7 @@ impl<'owner> PreparedPublication<'owner> {
         let apply = |connection: &rusqlite::Connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
-            let reusable = if self.rebuild {
+            let reusable = if self.rebuild.is_some() {
                 crate::writer::check_workspace_revision(connection, &self.metadata)?;
                 crate::reference_reset::clear(connection)?;
                 false
@@ -418,13 +432,14 @@ impl<'owner> PreparedPublication<'owner> {
                 tracing::info!(target: "atlas_build_diagnostic", stage = "native_token_count_publication",
                     elapsed_ms = started.elapsed().as_secs_f64() * 1000., "Published native token-count digests");
             }
-            if self.rebuild {
-                crate::validate_reference(connection)?;
+            if let Some(rebuild) = &self.rebuild {
+                crate::validate_reference_with_token_count_digests(connection)?;
+                crate::requested_config::write_configuration(connection, &rebuild.configuration)?;
             }
             Ok(())
         };
-        if self.rebuild {
-            self.owner.publish(self.schema, apply)
+        if let Some(rebuild) = &self.rebuild {
+            rebuild.repair.publish(apply)
         } else {
             self.owner.publish_incremental(self.schema, apply)
         }
@@ -478,7 +493,7 @@ impl<'owner> PreparedPublication<'owner> {
                 // Owned staging is keyed by full identity, not this disposable ID.
                 write.connection().execute("DELETE FROM embedding_inputs WHERE input_id=? AND published_hash IS NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=embedding_inputs.input_id) AND NOT EXISTS(SELECT 1 FROM pending_embedding_values p WHERE p.input_id=embedding_inputs.input_id)",[id])?;
                 if let Some(model_id) = model_id {
-                    write.connection().execute("DELETE FROM embedding_models WHERE model_id=? AND NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id) AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.identity_json=embedding_models.identity_json)",[model_id])?;
+                    write.connection().execute("DELETE FROM embedding_models WHERE model_id=? AND NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id) AND NOT EXISTS(SELECT 1 FROM search_profiles p WHERE p.model_id=embedding_models.model_id)",[model_id])?;
                 }
                 next_cache_bytes = next_cache_bytes
                     .checked_sub(bytes)

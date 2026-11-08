@@ -3,6 +3,70 @@
   gap: var(--space-section);
   min-width: 0;
 }
+
+@container actor-encounter (min-width: 48rem) {
+  .creature-reference--encounter
+    .actor-encounter-layout:has(> .actor-encounter-layout__durability):has(
+      > .actor-encounter-layout__rules
+    ) {
+    --encounter-runtime-width: clamp(22rem, 35%, 26rem);
+    display: flow-root;
+
+    > .actor-encounter-layout__durability {
+      float: inline-start;
+      inline-size: calc(100% - var(--encounter-runtime-width) - var(--space-section));
+      margin-block-end: var(--space-section);
+    }
+
+    > .actor-encounter-layout__runtime {
+      float: inline-end;
+      inline-size: var(--encounter-runtime-width);
+      margin-inline-start: var(--space-section);
+    }
+
+    > .actor-encounter-layout__rules {
+      clear: inline-start;
+    }
+
+    :is(
+      .creature-reference__rules,
+      .actor-reference__mechanics,
+      .actor-reference__activities--strike,
+      .actor-reference__activities--gear
+    ) {
+      display: block;
+    }
+
+    :is(.actor-reference__activities--strike, .actor-reference__activities--gear) {
+      container-type: normal;
+    }
+
+    :is(.actor-reference__activities--strike, .actor-reference__activities--gear) > h3,
+    .creature-reference__prose {
+      display: flow-root;
+    }
+
+    :is(
+      .actor-reference__activities--strike,
+      .actor-reference__activities--gear
+    ):focus-visible {
+      outline: none;
+
+      > h3 {
+        outline: 2px solid var(--selection-border);
+        outline-offset: var(--space-control);
+      }
+    }
+
+    :is(.creature-reference__rules, .actor-reference__mechanics) > * + * {
+      margin-block-start: var(--space-section);
+    }
+
+    .creature-reference__prose {
+      max-inline-size: var(--document-measure);
+    }
+  }
+}
 .actor-encounter-host {
   container: actor-encounter / inline-size;
   min-width: 0;

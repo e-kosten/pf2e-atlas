@@ -63,6 +63,10 @@ pub(crate) struct BuildIndexOptions {
     after_help = "Use an existing current-schema workspace and its saved source, locale and search profiles. Requires local source and configured model assets. The replacement is committed only after deep validation."
 )]
 pub(crate) struct RebuildIndexOptions {
+    #[arg(long, help = "Use a different source directory for this repair")]
+    pub(crate) source: Option<PathBuf>,
+    #[arg(long, help = "Use a different source manifest for this repair")]
+    pub(crate) manifest: Option<PathBuf>,
     #[arg(long, help = "Override the existing SQLite workspace path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]

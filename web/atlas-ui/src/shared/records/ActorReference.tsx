@@ -1185,15 +1185,25 @@ export function ActorActivities({
         ) : (
           <>
             <h3>{title}</h3>
-            {activities.map((activity) => (
-              <ActorActivity
-                key={activityAnchor(activity.navigation)}
-                activity={activity}
-                rollControls={activityRolls?.(activity)}
-                onReference={onReference}
-                interactive={activity.has_reference_details}
-              />
-            ))}
+            {activities.map((activity) => {
+              const key = activityAnchor(activity.navigation);
+              const row = (
+                <ActorActivity
+                  key={key}
+                  activity={activity}
+                  rollControls={activityRolls?.(activity)}
+                  onReference={onReference}
+                  interactive={activity.has_reference_details}
+                />
+              );
+              return encounter && !hazardContent && kind === "strike" ? (
+                <div className="actor-reference__strike-row" key={key}>
+                  {row}
+                </div>
+              ) : (
+                row
+              );
+            })}
           </>
         )}
       </section>

@@ -154,6 +154,89 @@ fn save_list(workspace: &Workspace) {
 }
 
 #[test]
+fn repair_crashes_commit_replacement_config_and_marker_together() {
+    if let Some((path, subscriber)) = crash_child() {
+        let _guard = tracing::subscriber::set_default(subscriber);
+        let workspace = Workspace::at(&path).unwrap();
+        let owner = workspace.update_owner().unwrap();
+        let repair = reference_repair(&owner).unwrap();
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let expected = ReferenceReuseReader::fresh(&repair);
+        let mut replacement = crate::foundation_tests::fixture(false);
+        replacement.context.source_revision = Some("repaired".into());
+        let spool = publication_spool_in(scratch.path(), &replacement, expected.expected().clone())
+            .unwrap();
+        PreparedPublication::new_rebuild(
+            repair,
+            scratch.path(),
+            spool,
+            RequestedReferenceConfig {
+                source_root: path.with_file_name("corrected"),
+                manifest_path: None,
+                indexing_locale: "en".into(),
+                search_profiles: vec![],
+            },
+        )
+        .unwrap()
+        .publish()
+        .unwrap();
+        panic!("requested repair crash milestone was not observed");
+    }
+
+    for stage in ["publication_before_commit", "publication_after_commit"] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("repair.sqlite");
+        publish_input(&path, &crate::foundation_tests::fixture(false)).unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        save_list(&workspace);
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        write
+            .connection()
+            .execute_batch(
+                "UPDATE artifact_context SET context_json='{}';
+             UPDATE workspace SET maintenance='interrupted maintenance';",
+            )
+            .unwrap();
+        write.commit().unwrap();
+        kill_at_stage(
+            "publication_crash_tests::repair_crashes_commit_replacement_config_and_marker_together",
+            stage,
+            &path,
+            || {},
+        );
+        let committed = stage == "publication_after_commit";
+        let inspect = Connection::open(&path).unwrap();
+        let state: (u64, Option<String>, String, usize) = inspect
+            .query_row(
+                "SELECT reference_revision,maintenance,context_json,
+                (SELECT count(*) FROM requested_reference_config)
+             FROM workspace CROSS JOIN artifact_context",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(state.0, if committed { 2 } else { 1 });
+        assert_eq!(
+            state.1.as_deref(),
+            (!committed).then_some("interrupted maintenance")
+        );
+        assert_eq!(state.2.contains("repaired"), committed);
+        assert_eq!(state.3, usize::from(committed));
+        assert_eq!(
+            inspect
+                .query_row("SELECT name FROM saved_lists", [], |r| r
+                    .get::<_, String>(0))
+                .unwrap(),
+            "Saved name"
+        );
+        assert_eq!(
+            workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).is_ok(),
+            committed
+        );
+    }
+}
+
+#[test]
 fn publication_crashes_preserve_exact_old_or_new_state_and_allow_the_next_build() {
     if let Some((path, subscriber)) = crash_child() {
         let _guard = tracing::subscriber::set_default(subscriber);

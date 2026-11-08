@@ -55,16 +55,17 @@ impl ReferenceReuseReader {
         })
     }
     /// Bind a fresh preparation to the workspace without inspecting reference data.
-    pub fn fresh(workspace: &Workspace, schema: u32) -> Result<Self, IndexError> {
-        let read = workspace.read(schema)?;
-        let expected = ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
-        Ok(Self {
-            path: workspace.path().to_owned(),
-            schema,
-            expected,
+    pub fn fresh(repair: &atlas_storage::ReferenceRepair<'_>) -> Self {
+        Self {
+            path: repair.path().to_owned(),
+            schema: repair.schema(),
+            expected: ArtifactInstance::new(
+                repair.workspace_key().to_owned(),
+                repair.reference_revision(),
+            ),
             context: None,
             expected_context_hash: None,
-        })
+        }
     }
     pub fn expected(&self) -> &ArtifactInstance {
         &self.expected
@@ -500,7 +501,7 @@ mod tests {
         let c = rusqlite::Connection::open(&path).unwrap();
         let original: String = c
             .query_row(
-                "SELECT identity_json FROM search_profiles WHERE profile_id=?",
+                "SELECT m.identity_json FROM search_profiles p JOIN embedding_models m USING(model_id) WHERE p.profile_id=?",
                 [input.context.search_profiles[0].profile_id.as_str()],
                 |r| r.get(0),
             )
@@ -511,7 +512,7 @@ mod tests {
             .push_str("-changed-without-context-or-revision");
         assert_eq!(
             c.execute(
-                "UPDATE search_profiles SET identity_json=? WHERE profile_id=?",
+                "UPDATE embedding_models SET identity_json=? WHERE model_id=(SELECT model_id FROM search_profiles WHERE profile_id=?)",
                 rusqlite::params![
                     serde_json::to_string(&changed).unwrap(),
                     changed.profile_id.as_str()
@@ -527,7 +528,7 @@ mod tests {
             "{error}"
         );
         c.execute(
-            "UPDATE search_profiles SET identity_json=? WHERE profile_id=?",
+            "UPDATE embedding_models SET identity_json=? WHERE model_id=(SELECT model_id FROM search_profiles WHERE profile_id=?)",
             rusqlite::params![original, changed.profile_id.as_str()],
         )
         .unwrap();

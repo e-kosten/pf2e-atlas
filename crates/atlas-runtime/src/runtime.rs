@@ -16,6 +16,20 @@ pub struct AtlasRuntimeOptions {
     pub overrides: AtlasPathOverrides,
 }
 
+fn rebuild_source_error(
+    error: impl std::fmt::Display,
+    source: &Path,
+    manifest: Option<&Path>,
+) -> String {
+    let manifest = manifest
+        .map(|path| format!(" and manifest {}", path.display()))
+        .unwrap_or_default();
+    format!(
+        "reference rebuild using source {}{manifest} failed: {error}. To change the repair inputs, use --source or --manifest",
+        source.display()
+    )
+}
+
 impl Default for AtlasRuntimeOptions {
     fn default() -> Self {
         Self {
@@ -133,7 +147,11 @@ impl AtlasRuntime {
     }
 
     /// Rebuild generated reference data in an existing configured workspace.
-    pub fn rebuild_reference(&self) -> Result<atlas_ingest::BuildArtifactReport, String> {
+    pub fn rebuild_reference(
+        &self,
+        source: Option<&Path>,
+        manifest: Option<&Path>,
+    ) -> Result<atlas_ingest::BuildArtifactReport, String> {
         let paths = self.paths();
         if !paths.index_path.is_file() {
             return Err(format!(
@@ -145,9 +163,19 @@ impl AtlasRuntime {
         let workspace =
             atlas_storage::Workspace::at(&paths.index_path).map_err(|e| e.to_string())?;
         let owner = workspace.update_owner().map_err(|e| e.to_string())?;
-        let config = crate::workspace::read_rebuild_configuration(&owner)?;
+        let (repair, mut config) = crate::workspace::begin_reference_repair(&owner)?;
+        if let Some(source) = source {
+            config.source_root = std::path::absolute(source).map_err(|e| e.to_string())?;
+        }
+        if let Some(manifest) = manifest {
+            config.manifest_path = Some(std::path::absolute(manifest).map_err(|e| e.to_string())?);
+        }
+        let source_root = config.source_root.clone();
+        let manifest_path = config.manifest_path.clone();
         if config.source_root == paths.managed_source_root {
-            crate::source_acquisition::validate(&config.source_root)?;
+            crate::source_acquisition::validate(&config.source_root).map_err(|error| {
+                rebuild_source_error(error, &source_root, manifest_path.as_deref())
+            })?;
         }
         let search_profiles = config
             .search_profiles
@@ -164,8 +192,7 @@ impl AtlasRuntime {
             })
             .collect::<Result<Vec<_>, _>>()?;
         atlas_ingest::rebuild_artifact(
-            &owner,
-            crate::WORKSPACE_SCHEMA_VERSION,
+            repair,
             atlas_ingest::BuildArtifactOptions {
                 source_root: config.source_root,
                 output_path: paths.index_path.clone(),
@@ -176,7 +203,21 @@ impl AtlasRuntime {
                 embedding_batch_size: 32,
             },
         )
-        .map_err(|e| e.to_string())
+        .map_err(|error| {
+            use atlas_ingest::IngestError;
+            match error {
+                IngestError::SourceUnavailable(_)
+                | IngestError::SourceIncompatible(_)
+                | IngestError::ManifestParseFailed(_)
+                | IngestError::RecordParseFailed(_)
+                | IngestError::SourceSelectionFailed(_)
+                | IngestError::LocalizationFailed(_)
+                | IngestError::NoRecordsLoaded => {
+                    rebuild_source_error(error, &source_root, manifest_path.as_deref())
+                }
+                _ => error.to_string(),
+            }
+        })
     }
 
     pub fn clean_setup(&self, options: RuntimeSetupCleanOptions) -> RuntimeSetupCleanReport {

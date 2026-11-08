@@ -44,7 +44,7 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
     write.connection().execute_batch(r#"
       INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(77,'kept-list','kept-list','Kept list','before','before');
       INSERT INTO encounters(id,encounter_key,slug,name,status,round_number,current_turn_participant_key,revision,created_at,updated_at,round_duration_seconds) VALUES(41,'clock','clock','Clock','running',3,'actor',9,'before','after',13);
-      INSERT INTO encounter_participants(id,encounter_id,participant_key,record_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,revision,created_at,updated_at) VALUES(71,41,'actor','feats:aaaaaaaaaaaaaaaa','pc',0,'Actor',0,17,20,3,'before','after');
+      INSERT INTO encounter_participants(id,encounter_id,participant_key,record_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,revision,created_at,updated_at) VALUES(71,41,'actor','feats:aaaaaaaaaaaaaaaa','pc',0,'Actor',1,17,20,3,'before','after');
       INSERT INTO encounter_participant_conditions(id,participant_id,name,duration_amount,duration_unit,duration_anchor_key,duration_event,duration_remaining_seconds,created_at,updated_at) VALUES(91,71,'Reminder',1,'minutes','actor','end',23,'before','after');
       INSERT INTO encounter_recovery_receipts VALUES(41,'rest','{"rest":true}');
     "#).unwrap();

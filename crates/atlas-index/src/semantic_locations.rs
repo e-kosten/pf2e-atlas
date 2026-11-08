@@ -62,7 +62,7 @@ pub(crate) fn location_id(
     })
 }
 pub(crate) fn validate(c: &Connection) -> Result<(), IndexError> {
-    let invalid:bool=c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN semantic_locations l USING(location_id) LEFT JOIN selected_sections s USING(section_id) JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) JOIN search_profiles p USING(profile_id) WHERE u.record_id<>l.record_id OR m.identity_json<>p.identity_json OR (u.unit_kind='identity' AND (l.section_id IS NOT NULL OR l.chunk_ordinal IS NOT 0 OR l.chunk_start IS NOT NULL OR l.chunk_end IS NOT NULL)) OR (u.unit_kind='passage' AND (s.section_id IS NULL OR s.record_id<>u.record_id OR l.chunk_ordinal IS NULL OR l.chunk_start IS NULL OR l.chunk_end IS NULL OR l.chunk_start<0 OR l.chunk_end<=l.chunk_start OR l.chunk_end>s.byte_length)))",[],|r|r.get(0))?;
+    let invalid:bool=c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN semantic_locations l USING(location_id) LEFT JOIN selected_sections s USING(section_id) JOIN embedding_inputs i USING(input_id) JOIN search_profiles p USING(profile_id) WHERE u.record_id<>l.record_id OR i.model_id<>p.model_id OR (u.unit_kind='identity' AND (l.section_id IS NOT NULL OR l.chunk_ordinal IS NOT 0 OR l.chunk_start IS NOT NULL OR l.chunk_end IS NOT NULL)) OR (u.unit_kind='passage' AND (s.section_id IS NULL OR s.record_id<>u.record_id OR l.chunk_ordinal IS NULL OR l.chunk_start IS NULL OR l.chunk_end IS NULL OR l.chunk_start<0 OR l.chunk_end<=l.chunk_start OR l.chunk_end>s.byte_length)))",[],|r|r.get(0))?;
     if invalid {
         return Err(IndexError::Invalid(
             "semantic unit model, section or chunk attribution mismatch".into(),

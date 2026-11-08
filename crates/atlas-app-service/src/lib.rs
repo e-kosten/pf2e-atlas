@@ -34,6 +34,9 @@ mod related;
 mod relationship_search;
 mod remaster;
 mod retrieval;
+mod saved_edit;
+#[cfg(test)]
+mod saved_edit_tests;
 mod search_match_sections;
 mod search_pages;
 mod service;

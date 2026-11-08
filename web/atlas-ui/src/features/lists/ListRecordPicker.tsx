@@ -59,7 +59,7 @@ export function ListRecordPicker({
     submitting.current = true;
     setReceipt(null);
     try {
-      await add.mutateAsync({ list_ref: list.slug, record_ref: candidate });
+      await add.mutateAsync({ list_ref: list.list_key, record_ref: candidate });
     } catch {
       /* Mutation error stays with Add for retry. */
     } finally {

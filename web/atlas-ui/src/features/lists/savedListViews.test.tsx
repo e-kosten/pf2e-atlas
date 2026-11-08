@@ -1,3 +1,4 @@
+import { AtlasApiError } from "../../api/apiError";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { RouterTestContext } from "../../test/router";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
@@ -516,7 +517,7 @@ describe("list views", () => {
 
     await waitFor(() =>
       expect(apiMocks.removeSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
+        list_ref: "list_research",
         record_ref: "actions:testAction1",
       }),
     );
@@ -841,22 +842,14 @@ describe("list views", () => {
         ).not.toBeInTheDocument(),
       );
       if (omitWhileBlocked) {
-        await act(async () => {
-          client.setQueriesData(
-            { queryKey: ["saved-list", "research"] },
-            { ...unresolved, items: [] },
-          );
-        });
+        apiMocks.filterSavedList.mockResolvedValue({ ...unresolved, items: [] });
+        await act(() => client.invalidateQueries({ queryKey: ["saved-list"] }));
         expect(
           screen.queryByRole("heading", { name: "Test Action 1" }),
         ).not.toBeInTheDocument();
       }
-      await act(async () => {
-        client.setQueriesData(
-          { queryKey: ["saved-list", "research"] },
-          savedListDetailFixture(),
-        );
-      });
+      apiMocks.filterSavedList.mockResolvedValue(savedListDetailFixture());
+      await act(() => client.invalidateQueries({ queryKey: ["saved-list"] }));
       expect(
         await screen.findByRole("heading", { name: "Test Action 1" }),
       ).toBeVisible();
@@ -1193,7 +1186,7 @@ describe("list views", () => {
 
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith({
-        list_ref: "research",
+        list_ref: "list_research",
         query: "Test Action 2",
         filter: undefined,
       }),
@@ -1226,13 +1219,229 @@ describe("list views", () => {
       await waitFor(() =>
         expect(apiMocks.updateSavedList).toHaveBeenCalledWith({
           list_key: "list_research",
-          slug: "research",
-          name,
-          description: "Updated prep",
-          tags: ["arc-one", "boss"],
+          name: { expected: "Research", value: name },
+          description: {
+            expected: savedListDetailFixture().list.description ?? null,
+            value: "Updated prep",
+          },
         }),
       );
       await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
+    },
+  );
+
+  it("keeps the mounted list and note when another list claims the old slug", async () => {
+    const wrapper = queryClientWrapper();
+    const mounted = render(
+      <ListDetailView
+        route={{ slug: "research", selectedRecordKey: "actions:testAction1" }}
+      />,
+      { wrapper },
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "My original list note" },
+    });
+
+    const original = savedListDetailFixture();
+    apiMocks.filterSavedList.mockImplementation(
+      async (request: { list_ref: string }) =>
+        request.list_ref === original.list.list_key
+          ? {
+              ...original,
+              list: { ...original.list, slug: "renamed", name: "Renamed Research" },
+            }
+          : {
+              ...original,
+              list: {
+                ...original.list,
+                list_key: "list_other",
+                name: "Replacement list",
+              },
+              items: original.items.map((item) => ({
+                ...item,
+                note: "Replacement note",
+              })),
+            },
+    );
+    const search = screen.getByRole("searchbox", { name: "Search records" });
+    fireEvent.change(search, { target: { value: "New search" } });
+    fireEvent.keyDown(search, { key: "Enter", code: "Enter" });
+    expect(
+      await screen.findByRole("heading", { name: "Renamed Research" }),
+    ).toBeVisible();
+    expect(apiMocks.filterSavedList).toHaveBeenLastCalledWith(
+      expect.objectContaining({ list_ref: "list_research", query: "New search" }),
+    );
+    expect(screen.queryByText("Replacement list")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+      "My original list note",
+    );
+    apiMocks.updateSavedListItemNote.mockResolvedValueOnce({
+      list_key: "list_research",
+      slug: "renamed",
+      record_key: "actions:testAction1",
+      title: "Test Action 1",
+      note: "My original list note",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(apiMocks.updateSavedListItemNote).toHaveBeenCalledExactlyOnceWith({
+        list_ref: "list_research",
+        record_key: "actions:testAction1",
+        note: { expected: null, value: "My original list note" },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: "Note" })).toBeNull(),
+    );
+    mounted.unmount();
+    render(<ListDetailView route={{ slug: "research", selectedRecordKey: null }} />, {
+      wrapper,
+    });
+    expect(screen.queryByRole("heading", { name: "Research" })).toBeNull();
+    expect(
+      await screen.findByRole("heading", { name: "Replacement list" }),
+    ).toBeVisible();
+  });
+
+  it("resolves the settings slug fresh before binding the form to a list", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const old = savedListDetailFixture();
+    client.setQueryData(["saved-list", "research"], old);
+    const replacement = {
+      ...old,
+      list: { ...old.list, list_key: "list_other", name: "Replacement list" },
+    };
+    apiMocks.getSavedList.mockResolvedValue(replacement);
+    render(<ListEditView route={{ slug: "research" }} />, {
+      wrapper: queryClientWrapper(client),
+    });
+    expect(screen.queryByDisplayValue("Research")).not.toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Replacement list")).toBeVisible();
+    await waitFor(() =>
+      expect(apiMocks.getSavedList).toHaveBeenCalledWith("list_other"),
+    );
+    expect(apiMocks.getSavedList).not.toHaveBeenCalledWith("list_research");
+  });
+
+  it("keeps a dirty setting's original value through refresh and reviews a conflict by key", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<ListEditView route={{ slug: "research" }} />, {
+      wrapper: queryClientWrapper(client),
+    });
+    expect(await screen.findByDisplayValue("Research")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "My name" } });
+
+    const fixture = savedListDetailFixture();
+    const fresh = {
+      ...fixture,
+      list: {
+        ...fixture.list,
+        name: "Saved name",
+        description: "Saved description",
+        slug: "renamed",
+      },
+    };
+    apiMocks.getSavedList.mockResolvedValue(fresh);
+    await act(async () => {
+      client.setQueryData(["saved-list", "list_research"], fresh);
+    });
+    expect(screen.getByLabelText("Name")).toHaveValue("My name");
+    expect(screen.getByLabelText("Description")).toHaveValue("Saved description");
+    fireEvent.change(screen.getByLabelText("Description"), { target: { value: "" } });
+
+    apiMocks.updateSavedList.mockRejectedValueOnce(
+      new AtlasApiError(409, "Conflict", {
+        code: "saved_edit_conflict",
+        message: "Conflict",
+        details: { fields: ["name"] },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const keep = await screen.findByRole("button", { name: "Keep mine for Name" });
+    const request = {
+      list_key: "list_research",
+      name: { expected: "Research", value: "My name" },
+      description: { expected: "Saved description", value: null },
+    };
+    expect(apiMocks.updateSavedList).toHaveBeenCalledExactlyOnceWith(request);
+    expect(apiMocks.getSavedList).toHaveBeenLastCalledWith("list_research");
+    const review = screen.getByRole("group", { name: "Name" });
+    expect(review).toHaveTextContent("Saved name");
+    expect(review).toHaveTextContent("My name");
+    expect(
+      screen.queryByRole("button", { name: "Keep mine for Description" }),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    fireEvent.click(keep);
+    expect(apiMocks.updateSavedList).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+    expect(screen.getByLabelText("Description")).toHaveValue("");
+    apiMocks.updateSavedList.mockResolvedValueOnce({
+      list: { ...fresh.list, name: "My name" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(apiMocks.updateSavedList).toHaveBeenLastCalledWith({
+        ...request,
+        name: { expected: "Saved name", value: "My name" },
+      });
+      expect(window.location.pathname).toBe("/lists/renamed");
+    });
+  });
+
+  it.each([{ lg: true }, { lg: false }])(
+    "keeps the removed entry's note draft visible at breakpoint %o",
+    async ({ lg }) => {
+      vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg });
+      history.replaceState(null, "", "/lists/research/records/actions:testAction1");
+      const view = render(
+        <ListDetailView
+          route={{ slug: "research", selectedRecordKey: "actions:testAction1" }}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
+      fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
+      fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+        target: { value: "A draft to keep" },
+      });
+      apiMocks.removeSavedListItem.mockImplementationOnce(async () => {
+        apiMocks.getSavedListItemNote.mockRejectedValue(
+          new AtlasApiError(404, "Missing item", {
+            code: "saved_list_item_not_found",
+            message: "Missing item",
+          }),
+        );
+        apiMocks.filterSavedList.mockResolvedValue({
+          ...savedListDetailFixture(),
+          items: [],
+        });
+        return {
+          list_key: "list_research",
+          slug: "research",
+          record_key: "actions:testAction1",
+          outcome: "removed",
+        };
+      });
+      if (!lg) fireEvent.click(screen.getByRole("button", { name: "Results" }));
+      fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
+      await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
+      view.rerender(
+        <ListDetailView route={{ slug: "research", selectedRecordKey: null }} />,
+      );
+
+      expect(await screen.findByText("Item removed from this list")).toBeVisible();
+      expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+        "A draft to keep",
+      );
+      expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+      expect(screen.queryByRole("heading", { name: "Test Action 1" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
+      expect(screen.queryByRole("textbox", { name: "Note" })).toBeNull();
+      expect(apiMocks.updateSavedListItemNote).not.toHaveBeenCalled();
     },
   );
 
@@ -1321,7 +1530,7 @@ describe("list views", () => {
     fireEvent.click(add);
     expect(await within(dialog).findByText("Already in this list.")).toBeVisible();
     expect(apiMocks.addSavedListItem).toHaveBeenLastCalledWith({
-      list_ref: "research",
+      list_ref: "list_research",
       record_ref: "rules:nested",
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
@@ -1412,10 +1621,10 @@ describe("list views", () => {
     client.setQueryData(oldDetail.queryKey, detailFixture("old"));
     await act(async () => retireReferenceQueries(client));
     expect(client.getQueryData(oldDetail.queryKey)).toBeUndefined();
-    expect(client.getQueryData(["saved-list", "research"])).toBeDefined();
+    expect(client.getQueryData(["saved-list", "list_research"])).toBeDefined();
     expect(name).toHaveValue("My list draft");
     act(() =>
-      client.setQueryData(["saved-list", "research"], {
+      client.setQueryData(["saved-list", "list_research"], {
         ...savedListDetailFixture(),
         list: {
           ...savedListDetailFixture().list,
@@ -1489,14 +1698,9 @@ function ListDiscoveryProbe({ listRef }: { listRef: string }) {
   );
 }
 
-function queryClientWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
+function queryClientWrapper(
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>

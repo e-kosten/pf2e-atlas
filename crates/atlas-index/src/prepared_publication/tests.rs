@@ -114,7 +114,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
-        false,
+        None,
     )
     .unwrap();
     for unit in &input.semantic_units {
@@ -142,7 +142,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
-        false,
+        None,
     )
     .unwrap();
     assert_eq!(
@@ -566,16 +566,22 @@ fn malformed_pending_payloads_are_recomputed() {
         .unwrap();
     drop(first);
 
+    let good = crate::read_units::vector_bytes(&unit.vector);
     let malformed = [
-        (vec![0; 8 * 1024 * 1024], vec![0; 32]),
-        (crate::read_units::vector_bytes(&unit.vector), vec![0; 32]),
+        (vec![0; 8 * 1024 * 1024], vec![0; 32], desc.token_count),
+        (good.clone(), vec![0; 32], desc.token_count),
         {
             let bytes = crate::read_units::vector_bytes(&vec![f32::NAN; model.dimensions]);
             let hash = crate::embedding_values::hash_bytes(&bytes);
-            (bytes, hash)
+            (bytes, hash, desc.token_count)
         },
+        (
+            good.clone(),
+            crate::embedding_values::hash_bytes(&good),
+            desc.token_count + 1,
+        ),
     ];
-    for (bytes, hash) in malformed {
+    for (bytes, hash, tokens) in malformed {
         let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         write
             .connection()
@@ -583,6 +589,10 @@ fn malformed_pending_payloads_are_recomputed() {
                 "UPDATE pending_embedding_values SET vector=?,vector_hash=?",
                 params![bytes, hash],
             )
+            .unwrap();
+        write
+            .connection()
+            .execute("UPDATE embedding_inputs SET token_count=?", [tokens])
             .unwrap();
         write.commit().unwrap();
 
@@ -602,6 +612,13 @@ fn malformed_pending_payloads_are_recomputed() {
         retry
             .stage_inferred(model, &[(&desc, &unit.vector)])
             .unwrap();
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let (count, vector): (usize, Vec<u8>) = read.connection().query_row(
+            "SELECT token_count,vector FROM embedding_inputs JOIN pending_embedding_values USING(input_id)",
+            [], |row| Ok((row.get(0)?,row.get(1)?)),
+        ).unwrap();
+        assert_eq!(count, desc.token_count);
+        assert_eq!(vector, good);
     }
     let publication = prepare_publication_in(
         &owner,
@@ -844,7 +861,7 @@ fn selection_rejects_missing_published_checksum_for_native_or_document_consumers
             .unwrap()
             .unwrap();
         c.execute(
-            "UPDATE embedding_inputs SET published_hash=NULL WHERE input_id=?",
+            "UPDATE embedding_inputs SET published_hash=NULL,token_count=token_count+1 WHERE input_id=?",
             [id],
         )
         .unwrap();
@@ -879,6 +896,11 @@ fn selection_rejects_missing_published_checksum_for_native_or_document_consumers
                 .to_string()
                 .contains("published native checksum missing"),
             "{consumer}: {error}"
+        );
+        assert!(
+            publication
+                .stage_inferred(model, &[(&desc, &input.semantic_units[0].vector)])
+                .is_err()
         );
         assert_eq!(count(&workspace, "pending_embedding_values"), 0);
         assert_eq!(publication.logical_native_bytes().unwrap(), 0);
@@ -1059,13 +1081,19 @@ fn rebuild_ignores_corrupt_native_registry_and_pending_values() {
     write.commit().unwrap();
 
     let scratch = BuildScratch::new(&owner).unwrap();
-    let expected = ReferenceReuseReader::fresh(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let repair = crate::test_support::reference_repair(&owner).unwrap();
+    let expected = ReferenceReuseReader::fresh(&repair);
     let spool = publication_spool_in(scratch.path(), &input, expected.expected().clone()).unwrap();
     let mut publication = PreparedPublication::new_rebuild(
-        &owner,
-        TEST_WORKSPACE_SCHEMA_VERSION,
+        repair,
         scratch.path(),
         spool,
+        crate::RequestedReferenceConfig {
+            source_root: directory.path().join("source"),
+            manifest_path: None,
+            indexing_locale: "en".into(),
+            search_profiles: vec![model.profile_id.clone()],
+        },
     )
     .unwrap();
     for unit in &input.semantic_units {

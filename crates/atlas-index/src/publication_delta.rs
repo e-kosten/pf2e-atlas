@@ -213,6 +213,25 @@ fn previous_semantic_slot(
     Ok(None)
 }
 
+pub(crate) fn replace_query_rows(
+    c: &Connection,
+    id: i64,
+    footprint: i64,
+    rows: Vec<ProjectionRow>,
+) -> Result<(), IndexError> {
+    clear_query(c, id)?;
+    let allocation = allocate(c, id, footprint)?;
+    for mut row in rows {
+        row.bind_projection_ids(id, allocation.end())?;
+        if row.table == "records" {
+            upsert(c, &row, "record_id")?;
+        } else {
+            row.insert(c)?;
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn search_units(
     c: &Connection,
     input: &crate::PublicationSpool,
@@ -221,17 +240,21 @@ pub(crate) fn search_units(
 ) -> Result<BTreeSet<i64>, IndexError> {
     let mut changed = lexical_stream(c, ids, &mut |visitor| input.lexical(visitor))?;
     let old_profiles = c
-        .prepare("SELECT profile_id,identity_json FROM search_profiles")?
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+        .prepare("SELECT profile_id,model_id FROM search_profiles")?
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
         .collect::<Result<BTreeMap<_, _>, _>>()?;
     let mut current_profiles = BTreeMap::new();
     for model in input.context.canonical_profiles()? {
         let json = serde_json::to_string(&model)?;
-        current_profiles.insert(model.profile_id.to_string(), json.clone());
+        let model_id: i64 = c.query_row(
+            "SELECT model_id FROM embedding_models WHERE identity_json=?",
+            [json],
+            |row| row.get(0),
+        )?;
+        current_profiles.insert(model.profile_id.to_string(), model_id);
         let mut row = ProjectionRow::new("search_profiles");
         row.text("profile_id", model.profile_id.as_str());
-        row.text("identity_json", json);
-        row.id("dimensions", model.dimensions as i64);
+        row.id("model_id", model_id);
         upsert(c, &row, "profile_id")?;
     }
     if old_profiles != current_profiles {
@@ -243,8 +266,8 @@ pub(crate) fn search_units(
         [],
         |r| r.get(0),
     )?;
-    for (profile, json) in &old_profiles {
-        if current_profiles.get(profile) != Some(json) {
+    for (profile, model_id) in &old_profiles {
+        if current_profiles.get(profile) != Some(model_id) {
             c.execute("DELETE FROM semantic_units WHERE profile_id=?", [profile])?;
         }
     }

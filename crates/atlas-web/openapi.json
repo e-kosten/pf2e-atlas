@@ -778,6 +778,8 @@
           "record_resolution_miss",
           "record_resolution_ambiguous",
           "saved_list_not_found",
+          "saved_list_item_not_found",
+          "saved_edit_conflict",
           "saved_list_already_exists",
           "party_not_found",
           "party_conflict",
@@ -8847,6 +8849,125 @@
         },
         "required": [
           "state",
+          "value"
+        ],
+        "type": "object"
+      },
+      "FieldEdit_EncounterStatusView": {
+        "additionalProperties": false,
+        "description": "One proposed change and the saved value observed when editing began.",
+        "properties": {
+          "expected": {
+            "enum": [
+              "draft",
+              "running",
+              "complete",
+              "archived"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "enum": [
+              "draft",
+              "running",
+              "complete",
+              "archived"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected",
+          "value"
+        ],
+        "type": "object"
+      },
+      "FieldEdit_Option_String": {
+        "additionalProperties": false,
+        "description": "One proposed change and the saved value observed when editing began.",
+        "properties": {
+          "expected": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "expected",
+          "value"
+        ],
+        "type": "object"
+      },
+      "FieldEdit_String": {
+        "additionalProperties": false,
+        "description": "One proposed change and the saved value observed when editing began.",
+        "properties": {
+          "expected": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected",
+          "value"
+        ],
+        "type": "object"
+      },
+      "FieldEdit_Vec_String": {
+        "additionalProperties": false,
+        "description": "One proposed change and the saved value observed when editing began.",
+        "properties": {
+          "expected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "value": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected",
+          "value"
+        ],
+        "type": "object"
+      },
+      "FieldEdit_i64": {
+        "additionalProperties": false,
+        "description": "One proposed change and the saved value observed when editing began.",
+        "properties": {
+          "expected": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "value": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected",
           "value"
         ],
         "type": "object"
@@ -18877,44 +18998,32 @@
         "type": "object"
       },
       "UpdateEncounterRequest": {
+        "additionalProperties": false,
         "properties": {
           "description": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "$ref": "#/components/schemas/FieldEdit_Option_String"
           },
           "encounter_key": {
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "$ref": "#/components/schemas/FieldEdit_String"
           },
           "note": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "$ref": "#/components/schemas/FieldEdit_Option_String"
           },
           "round_duration_seconds": {
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
+            "$ref": "#/components/schemas/FieldEdit_i64"
           },
           "slug": {
-            "type": "string"
+            "$ref": "#/components/schemas/FieldEdit_String"
           },
           "status": {
-            "$ref": "#/components/schemas/EncounterStatusView"
+            "$ref": "#/components/schemas/FieldEdit_EncounterStatusView"
           }
         },
         "required": [
-          "encounter_key",
-          "slug",
-          "name",
-          "status"
+          "encounter_key"
         ],
         "type": "object"
       },
@@ -18942,15 +19051,13 @@
         "type": "object"
       },
       "UpdateSavedListItemNoteRequest": {
+        "additionalProperties": false,
         "properties": {
           "list_ref": {
             "type": "string"
           },
           "note": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "$ref": "#/components/schemas/FieldEdit_Option_String"
           },
           "record_key": {
             "type": "string"
@@ -18964,33 +19071,26 @@
         "type": "object"
       },
       "UpdateSavedListRequest": {
+        "additionalProperties": false,
         "properties": {
           "description": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "$ref": "#/components/schemas/FieldEdit_Option_String"
           },
           "list_key": {
             "type": "string"
           },
           "name": {
-            "type": "string"
+            "$ref": "#/components/schemas/FieldEdit_String"
           },
           "slug": {
-            "type": "string"
+            "$ref": "#/components/schemas/FieldEdit_String"
           },
           "tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
+            "$ref": "#/components/schemas/FieldEdit_Vec_String"
           }
         },
         "required": [
-          "list_key",
-          "slug",
-          "name"
+          "list_key"
         ],
         "type": "object"
       },

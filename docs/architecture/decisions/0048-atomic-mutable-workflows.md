@@ -89,6 +89,24 @@ Revision checks cover participant replacements. This does not introduce merge
 semantics for concurrent edits to list or encounter metadata. Roll requests use
 the narrower idempotency contract below; other mutations do not gain it implicitly.
 
+## Draft saves for notes and settings
+
+Browser editors for list entry notes, list settings and encounter settings send
+the original saved value and proposed replacement for each edited field. The
+owner-scoped write compares those originals to the current saved fields and
+validates the combined result in the same write transaction. A conflict commits
+nothing. Unrelated changes such as list order or encounter turn progress do not
+invalidate a draft. List tags are compared as a single field. An unchanged
+save returns the current document identity without advancing its revision.
+
+The browser retains a dirty field's original value across background reads.
+After a conflict the user can review the current saved value, discard their
+change or explicitly keep it and submit a new save. The note's logical identity
+is the list key and record key. If an entry was removed and re-added before
+Save with the same note value, it matches. A missing entry stays missing.
+Immediate CLI edits apply only supplied intent to the live document in a write
+transaction. Gameplay and receipt revision policies retain their existing scope.
+
 ## Dice and initiative receipts
 
 `atlas-dice` validates and evaluates bounded formulas through `diceng`, retaining

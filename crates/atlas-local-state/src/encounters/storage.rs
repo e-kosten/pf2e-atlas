@@ -1035,7 +1035,7 @@ fn next_position(connection: &Connection, encounter_id: i64) -> rusqlite::Result
     Ok(max_position.map_or(1, |position| position + 1))
 }
 
-fn next_initiative_order(
+pub(super) fn next_initiative_order(
     connection: &Connection,
     encounter_id: i64,
     initiative: Option<i64>,
@@ -1043,7 +1043,7 @@ fn next_initiative_order(
     let max_order: Option<i64> = connection.query_row(
         "SELECT MAX(initiative_order)
          FROM encounter_participants
-         WHERE encounter_id = ?1 AND initiative IS ?2",
+         WHERE encounter_id = ?1 AND initiative IS ?2 AND initiative_order > 0",
         params![encounter_id, initiative],
         |row| row.get(0),
     )?;

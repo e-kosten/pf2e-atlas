@@ -84,6 +84,14 @@ impl Workspace {
     }
 
     pub fn read(&self, schema: u32) -> StorageResult<ReadSession> {
+        self.read_admitted(schema, false)
+    }
+
+    pub(crate) fn read_admitted(
+        &self,
+        schema: u32,
+        allow_maintenance: bool,
+    ) -> StorageResult<ReadSession> {
         let admission = acquire(&self.path, ".access.lock", false)?;
         let connection = self.connect(false, false)?;
         // Do not retain a reader or wait for mapping capacity. SQLite owns
@@ -112,7 +120,7 @@ impl Workspace {
         }
         // SQLITE_OPEN_READ_ONLY still permits connection-local validation TEMP tables.
         session.connection.execute_batch("BEGIN DEFERRED;")?;
-        validate(&session.connection, schema, false)?;
+        validate(&session.connection, schema, allow_maintenance)?;
         Ok(session)
     }
 

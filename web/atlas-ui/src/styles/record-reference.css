@@ -567,11 +567,13 @@
   flex-shrink: 0;
 }
 .actor-reference__activities--strike,
+.actor-reference__strike-row,
 .actor-reference__activities--gear {
   container: activity-list / inline-size;
   gap: 0;
 }
 .actor-reference__activities--strike > .actor-activity,
+.actor-reference__strike-row > .actor-activity,
 .actor-reference__activities--gear > .actor-activity {
   --activity-trait-gap: 0px;
   display: grid;
@@ -635,7 +637,8 @@
   overflow-wrap: anywhere;
 }
 @container activity-list (min-width: 35rem) {
-  .actor-reference__activities--strike > .actor-activity {
+  :is(.actor-reference__activities--strike, .actor-reference__strike-row)
+    > .actor-activity {
     grid-template-columns: 16rem minmax(0, 1fr);
     align-items: start;
   }

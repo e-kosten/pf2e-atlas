@@ -154,7 +154,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             initiative,initiative_order,max_hp,current_hp,temporary_hp,note,
             hp_origin,variant_origin,created_at,updated_at)
          SELECT id,'kept-participant',?2,'creature','elite',0,'Wounded creature',
-            'Test Creature','creature','enemy',21,0,40,13,5,'Do not reset HP',
+            'Test Creature','creature','enemy',21,1,40,13,5,'Do not reset HP',
             'explicit','explicit','before','before'
          FROM encounters WHERE encounter_key=?1",
             rusqlite::params![encounter.encounter_key, key.to_string()],
@@ -236,7 +236,10 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     if query_changed {
         write
             .connection()
-            .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+            .execute(
+                "UPDATE artifact_context SET query_catalog_sha256=zeroblob(32)",
+                [],
+            )
             .unwrap();
     }
     if lexical_changed {
@@ -451,11 +454,14 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     assert!(!paths.embedding_cache_root.exists());
     assert!(runtime.inference.loaded_profiles().is_empty());
     if !historical {
-        // A current-version catalog with missing rows is corruption, not an upgrade.
+        // A current-version catalog with a bad fingerprint is corruption.
         let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
         write
             .connection()
-            .execute("DELETE FROM query_field_catalog WHERE field='kind'", [])
+            .execute(
+                "UPDATE artifact_context SET query_catalog_sha256=zeroblob(32)",
+                [],
+            )
             .unwrap();
         write.commit().unwrap();
         assert!(runtime.upgrade_workspace_if_present().is_err());

@@ -3,7 +3,7 @@ use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
     BatchAddSavedListItemsRequest, BatchSavedListItemInput, BatchSavedListItemMutationView,
     CreateSavedListRequest, ImportSavedListRequest, RemoveSavedListItemRequest,
-    SavedListDetailView, UpdateSavedListRequest,
+    SavedListDetailView,
 };
 use atlas_app_service::AtlasAppService;
 use atlas_cli_support::write_json_data;
@@ -316,28 +316,23 @@ pub(crate) fn run_lists_edit(o: ListEditOptions) -> Result<ExitCode, String> {
         Ok(service) => service,
         Err(error) => return super::product::report_app_error(error, o.json),
     };
-    let v = match app_result(s.saved_list(&o.list_ref), o.json)? {
-        std::ops::ControlFlow::Continue(value) => value,
-        std::ops::ControlFlow::Break(exit) => return Ok(exit),
+    let description = if o.clear_description {
+        Some(None)
+    } else {
+        o.description.map(Some)
     };
-    let request = UpdateSavedListRequest {
-        list_key: v.list.list_key,
-        slug: o.id.unwrap_or(v.list.slug),
-        name: o.name.unwrap_or(v.list.name),
-        description: if o.clear_description {
-            None
-        } else {
-            o.description.or(v.list.description)
-        },
-        tags: if o.clear_tags {
-            Vec::new()
-        } else if o.tags.is_empty() {
-            v.list.tags
-        } else {
-            o.tags
-        },
+    let tags = if o.clear_tags || !o.tags.is_empty() {
+        Some(o.tags)
+    } else {
+        None
     };
-    emit(app_result(s.update_saved_list(request), o.json)?, o.json)
+    emit(
+        app_result(
+            s.edit_saved_list_metadata(&o.list_ref, o.id, o.name, description, tags),
+            o.json,
+        )?,
+        o.json,
+    )
 }
 pub(crate) fn run_lists_export(o: ListExportOptions) -> Result<ExitCode, String> {
     let s = match saved_client(o.paths) {
@@ -387,11 +382,11 @@ pub(crate) fn run_lists_note(o: ListNoteOptions) -> Result<ExitCode, String> {
     };
     emit(
         app_result(
-            s.update_saved_list_item_note(atlas_app_model::UpdateSavedListItemNoteRequest {
-                list_ref: o.slug,
-                record_key: o.record_key,
-                note: o.text.filter(|text| !text.trim().is_empty()),
-            }),
+            s.set_saved_list_item_note(
+                &o.slug,
+                &o.record_key,
+                o.text.filter(|text| !text.trim().is_empty()),
+            ),
             o.json,
         )?,
         o.json,

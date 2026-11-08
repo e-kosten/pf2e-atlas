@@ -4,7 +4,7 @@ use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SearchProfileId, SourceRecordSummary, TraitKey};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const TRAIT_SCHEMA_SQL: &str = "
 CREATE TABLE trait_definitions(key TEXT PRIMARY KEY, definition_json TEXT NOT NULL CHECK(json_valid(definition_json)),definition_hash TEXT NOT NULL) STRICT;
@@ -280,19 +280,26 @@ impl SqliteIndexReader {
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
+        let rows = rows
+            .into_iter()
+            .map(|(record, owners, source_label)| {
+                let record: RecordKey = record
+                    .parse()
+                    .map_err(|e| IndexError::Invalid(format!("invalid membership key: {e}")))?;
+                Ok((record, owners, source_label))
+            })
+            .collect::<Result<Vec<_>, IndexError>>()?;
+        let summaries = self.trait_page_summaries(rows.iter().map(|(key, _, _)| key))?;
         let mut entries = Vec::new();
         for (record, owners, source_label) in rows {
-            let record: RecordKey = record
-                .parse()
-                .map_err(|e| IndexError::Invalid(format!("invalid membership key: {e}")))?;
-            if let Some(record) = self.read_summary(&record)? {
+            if let Some(record) = summaries.get(&record) {
                 let owners = if owners == "[]" {
                     Vec::new()
                 } else {
                     serde_json::from_str(&owners)?
                 };
                 entries.push(TraitMembership {
-                    record,
+                    record: record.clone(),
                     owners,
                     source_label,
                 });
@@ -367,12 +374,16 @@ impl SqliteIndexReader {
                 r.get::<_, String>(0)
             })?
             .collect::<Result<Vec<_>, _>>()?;
+        let rows = rows
+            .iter()
+            .map(|json| serde_json::from_str::<TraitReferenceInput>(json))
+            .collect::<Result<Vec<_>, _>>()?;
+        let summaries = self.trait_page_summaries(rows.iter().map(|source| &source.record))?;
         let mut entries = Vec::new();
-        for json in rows {
-            let source: TraitReferenceInput = serde_json::from_str(&json)?;
-            if let Some(record) = self.read_summary(&source.record)? {
+        for source in rows {
+            if let Some(record) = summaries.get(&source.record) {
                 entries.push(TraitReference {
-                    record,
+                    record: record.clone(),
                     source_label: source.source_label,
                     owners: source.owners,
                     field: source.field,
@@ -383,6 +394,22 @@ impl SqliteIndexReader {
             }
         }
         Ok((entries, total))
+    }
+    fn trait_page_summaries<'a>(
+        &self,
+        keys: impl Iterator<Item = &'a RecordKey>,
+    ) -> Result<BTreeMap<RecordKey, SourceRecordSummary>, IndexError> {
+        let keys = keys
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        Ok(self
+            .read_summaries(&keys)?
+            .records
+            .into_iter()
+            .map(|record| (record.key.clone(), record))
+            .collect())
     }
 }
 

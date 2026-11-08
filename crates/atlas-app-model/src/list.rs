@@ -46,15 +46,37 @@ pub struct SavedListCreateView {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct UpdateSavedListRequest {
     pub list_key: String,
-    pub slug: String,
-    pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub tags: Vec<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub slug: Option<crate::FieldEdit<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub name: Option<crate::FieldEdit<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub description: Option<crate::FieldEdit<Option<String>>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::field_edit::optional_edit"
+    )]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub tags: Option<crate::FieldEdit<Vec<String>>>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -424,12 +446,11 @@ mod tests {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateSavedListItemNoteRequest {
     pub list_ref: String,
     pub record_key: String,
-    #[serde(deserialize_with = "Option::deserialize")]
-    #[cfg_attr(feature = "openapi", schema(required))]
-    pub note: Option<String>,
+    pub note: crate::FieldEdit<Option<String>>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

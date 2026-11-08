@@ -75,7 +75,8 @@ pub(crate) fn run_index_rebuild(options: RebuildIndexOptions) -> Result<ExitCode
         },
     })
     .map_err(|e| e.to_string())?;
-    let report = runtime.rebuild_reference()?;
+    let report =
+        runtime.rebuild_reference(options.source.as_deref(), options.manifest.as_deref())?;
     tracing::info!(target:"atlas_progress",complete=true,"Reference rebuild finished");
     write_build_report(report, options.json)
 }

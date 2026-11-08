@@ -962,6 +962,8 @@ export const AppErrorCode = {
   record_resolution_miss: 'record_resolution_miss',
   record_resolution_ambiguous: 'record_resolution_ambiguous',
   saved_list_not_found: 'saved_list_not_found',
+  saved_list_item_not_found: 'saved_list_item_not_found',
+  saved_edit_conflict: 'saved_edit_conflict',
   saved_list_already_exists: 'saved_list_already_exists',
   party_not_found: 'party_not_found',
   party_conflict: 'party_conflict',
@@ -3847,6 +3849,66 @@ export const FacetUnavailableReason = {
   text_context: 'text_context',
 } as const;
 
+export type FieldEditEncounterStatusViewExpected = typeof FieldEditEncounterStatusViewExpected[keyof typeof FieldEditEncounterStatusViewExpected];
+
+
+export const FieldEditEncounterStatusViewExpected = {
+  draft: 'draft',
+  running: 'running',
+  complete: 'complete',
+  archived: 'archived',
+} as const;
+
+export type FieldEditEncounterStatusViewValue = typeof FieldEditEncounterStatusViewValue[keyof typeof FieldEditEncounterStatusViewValue];
+
+
+export const FieldEditEncounterStatusViewValue = {
+  draft: 'draft',
+  running: 'running',
+  complete: 'complete',
+  archived: 'archived',
+} as const;
+
+/**
+ * One proposed change and the saved value observed when editing began.
+ */
+export interface FieldEditEncounterStatusView {
+  expected: FieldEditEncounterStatusViewExpected;
+  value: FieldEditEncounterStatusViewValue;
+}
+
+/**
+ * One proposed change and the saved value observed when editing began.
+ */
+export interface FieldEditOptionString {
+  expected: null | string;
+  value: null | string;
+}
+
+/**
+ * One proposed change and the saved value observed when editing began.
+ */
+export interface FieldEditString {
+  expected: string;
+  value: string;
+}
+
+/**
+ * One proposed change and the saved value observed when editing began.
+ */
+export interface FieldEditVecString {
+  expected: string[];
+  value: string[];
+}
+
+/**
+ * One proposed change and the saved value observed when editing began.
+ */
+export interface FieldEditI64 {
+  expected: number;
+  value: number;
+}
+
 export interface FilterChoiceView {
   help?: ReferenceHelpView;
   label: string;
@@ -5323,16 +5385,13 @@ export interface UpdateEncounterParticipantRequest {
 }
 
 export interface UpdateEncounterRequest {
-  /** @nullable */
-  description?: string | null;
+  description?: FieldEditOptionString;
   encounter_key: string;
-  name: string;
-  /** @nullable */
-  note?: string | null;
-  /** @nullable */
-  round_duration_seconds?: number | null;
-  slug: string;
-  status: EncounterStatusView;
+  name?: FieldEditString;
+  note?: FieldEditOptionString;
+  round_duration_seconds?: FieldEditI64;
+  slug?: FieldEditString;
+  status?: FieldEditEncounterStatusView;
 }
 
 export interface UpdatePartyRequest {
@@ -5343,18 +5402,16 @@ export interface UpdatePartyRequest {
 
 export interface UpdateSavedListItemNoteRequest {
   list_ref: string;
-  /** @nullable */
-  note: string | null;
+  note: FieldEditOptionString;
   record_key: string;
 }
 
 export interface UpdateSavedListRequest {
-  /** @nullable */
-  description?: string | null;
+  description?: FieldEditOptionString;
   list_key: string;
-  name: string;
-  slug: string;
-  tags?: string[];
+  name?: FieldEditString;
+  slug?: FieldEditString;
+  tags?: FieldEditVecString;
 }
 
 export interface UpdateTurnResourcesRequest {
