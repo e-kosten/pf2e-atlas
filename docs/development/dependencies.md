@@ -86,10 +86,10 @@ python3 scripts/validation/probe-embedding-upgrade.py \
   --output /absolute/path/to/new/evidence-directory
 ```
 
-To reproduce a CI run with the published fixture, use `--pins --repository
-e-kosten/pf2e-atlas` in place of `--baseline`. Pass `--base-ref` with the PR
-base commit when reviewing a change to the pin. To use a local archive instead,
-pass `--bundle PATH --sha256 DIGEST`. Use Python 3.12 for the archive modes.
+To reproduce a CI run with the published fixture, authenticate GitHub CLI (`gh`)
+and use `--pins --repository e-kosten/pf2e-atlas` in place of `--baseline`. Pass
+`--base-ref` with the PR base commit when reviewing a change to the pin. To use a
+local archive, pass `--bundle PATH --sha256 DIGEST`. Use Python 3.12 for the archive modes.
 Prepare or verify the cache with
 `cargo run --locked -p atlas-embedding --example prepare-model-cache -- "$ATLAS_TEST_MODEL_CACHE"`.
 If the candidate uses a newer workspace schema, build
