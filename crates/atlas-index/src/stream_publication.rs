@@ -2,7 +2,6 @@
 use crate::{
     IndexError, PreparedRecordRef, PublicationSpool, SourceRelationshipDetails,
     SourceStoredRelationship, component_digests::ComponentDigests, persistence::ProjectionRow,
-    projections::root_rows,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::{BTreeMap, BTreeSet};
@@ -100,8 +99,15 @@ pub(crate) fn write(
         if query_changed {
             query_root_replacements+=1;
             crate::publication_delta::clear_query(c,id)?;
-            let mut allocation=crate::publication_delta::allocate(c,id,derived.allocation_footprint)?;
-            for row in root_rows(source,label,id,&mut allocation)?{if row.table=="records"{crate::publication_delta::upsert(c,&row,"record_id")?;}else{row.insert(c)?;}}
+            let allocation=crate::publication_delta::allocate(c,id,derived.allocation_footprint)?;
+            for mut row in derived.query_rows {
+                row.bind_projection_ids(id, allocation.end())?;
+                if row.table == "records" {
+                    crate::publication_delta::upsert(c, &row, "record_id")?;
+                } else {
+                    row.insert(c)?;
+                }
+            }
         }else{
             c.execute("UPDATE records SET source_path=?,content_hash=? WHERE record_id=? AND (source_path IS NOT ?1 OR content_hash IS NOT ?2)",params![source.source_path,source.content_hash,id])?;
         }
