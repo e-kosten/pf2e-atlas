@@ -13,7 +13,7 @@ impl AtlasAppService {
         self.with_state(|session| {
             Ok(PartyIndexView {
                 parties: session
-                    .local_state()
+                    .local_state()?
                     .parties()
                     .list()?
                     .into_iter()
@@ -26,7 +26,7 @@ impl AtlasAppService {
         self.with_write(move |session| {
             Ok(party_view(
                 session
-                    .local_state()
+                    .local_state()?
                     .parties()
                     .create(&request.name, &member_inputs(request.members))?,
             ))
@@ -38,7 +38,7 @@ impl AtlasAppService {
         request: UpdatePartyRequest,
     ) -> AppServiceResult<PartyView> {
         self.with_write(move |session| {
-            Ok(party_view(session.local_state().parties().update(
+            Ok(party_view(session.local_state()?.parties().update(
                 key,
                 request.expected_revision,
                 &request.name,
@@ -53,7 +53,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<PartyMutationView> {
         self.with_write(move |session| {
             session
-                .local_state()
+                .local_state()?
                 .parties()
                 .delete(key, request.expected_revision)?;
             Ok(PartyMutationView {
@@ -67,7 +67,7 @@ impl AtlasAppService {
         request: AddEncounterPartyRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
-            let state = session.local_state();
+            let state = session.local_state()?;
             let party = state
                 .parties()
                 .get_at_revision(&request.party_key, request.expected_revision)?;

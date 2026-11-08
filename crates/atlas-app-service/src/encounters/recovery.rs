@@ -42,7 +42,7 @@ impl AtlasAppService {
             if let Some(revision) = plan.reference_revision {
                 session.require_reference_revision(revision)?;
             }
-            session.local_state().encounters().apply_recovery(
+            session.local_state()?.encounters().apply_recovery(
                 atlas_local_state::ApplyEncounterRecovery {
                     encounter_key: &plan.view.encounter_key,
                     expected_revision: request.expected_encounter_revision,
@@ -62,7 +62,7 @@ impl AtlasAppService {
         request: &PreviewEncounterRecoveryRequest,
     ) -> AppServiceResult<RecoveryPlan> {
         let (snapshot, baselines) = self.with_state(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             let snapshot = store
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| projection::encounter_not_found(encounter_ref))?;
@@ -361,7 +361,7 @@ mod tests {
                 (super::super::conditions::ConditionRule::Wounded, Some(1)),
             ] {
                 let def = super::super::conditions::modeled_condition_by_rule(rule).unwrap();
-                s.local_state().encounters().add_condition(
+                s.local_state()?.encounters().add_condition(
                     atlas_local_state::AddEncounterParticipantCondition {
                         participant_key: p.participant_key.clone(),
                         condition_key: Some(def.condition_ref.into()),

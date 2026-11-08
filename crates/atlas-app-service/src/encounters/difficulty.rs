@@ -20,7 +20,7 @@ impl AtlasAppService {
         let encounter_ref = encounter_ref.to_owned();
         self.with_write(move |session| {
             let encounter = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .set_difficulty_reference(
                     &encounter_ref,

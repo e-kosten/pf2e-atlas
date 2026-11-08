@@ -28,7 +28,7 @@ fn fixture() -> (FixtureWorker, String, String) {
     let participant = snapshot(&f, &key).participants[0].participant_key.clone();
     f.worker
         .with_write(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             for (formula, damage_type) in [("4", "fire"), ("2", "fire"), ("3", "acid")] {
                 store.add_condition(AddEncounterParticipantCondition {
                     participant_key: participant.clone(),
@@ -61,7 +61,7 @@ fn snapshot(f: &FixtureWorker, key: &str) -> atlas_local_state::EncounterWithPar
     f.worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(key)?)
         })
@@ -392,7 +392,7 @@ fn petrified_hardness_reduces_the_simultaneous_event_once() {
         .unwrap();
     f.worker
         .with_write(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             for (condition_key, parameters) in [
                 ("conditionitems:dTwPJuKgBQCMxixg", ConditionParameters::None),
                 (
@@ -535,7 +535,7 @@ fn source_petrified_fixture(
     f.worker
         .with_write(|session| {
             for damage_type in ["fire", "acid", "bleed"] {
-                session.local_state().encounters().add_condition(
+                session.local_state()?.encounters().add_condition(
                     AddEncounterParticipantCondition {
                         participant_key: participant.clone(),
                         condition_key: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
@@ -705,7 +705,7 @@ fn source_petrified_off_preserves_damage_and_temporary_petrified_has_the_same_pr
         if temporary {
             f.worker
                 .with_write(|session| {
-                    session.local_state().encounters().add_condition(
+                    session.local_state()?.encounters().add_condition(
                         AddEncounterParticipantCondition {
                             participant_key: participant.clone(),
                             condition_key: Some(
@@ -865,10 +865,8 @@ fn outgoing_damage_keeps_frozen_episodes_and_uses_current_source_protections() {
     switch_source_petrified_off(&f, &key);
     f.worker
         .with_write(|session| {
-            session
-                .local_state()
-                .encounters()
-                .add_condition(AddEncounterParticipantCondition {
+            session.local_state()?.encounters().add_condition(
+                AddEncounterParticipantCondition {
                     participant_key: participant.clone(),
                     condition_key: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
                     name: "New persistent cold".into(),
@@ -887,7 +885,8 @@ fn outgoing_damage_keeps_frozen_episodes_and_uses_current_source_protections() {
                     origin: None,
                     duration: None,
                     note: None,
-                })?;
+                },
+            )?;
             Ok(())
         })
         .unwrap();
@@ -1015,7 +1014,7 @@ fn late_recovery_never_clears_a_new_same_type_episode() {
     let old=snapshot(&f,&key).participants[0].conditions.iter().filter(|c|matches!(&c.parameters,ConditionParameters::PersistentDamage{damage_type,..} if damage_type=="fire")).map(|c|c.condition_id).collect::<Vec<_>>();
     f.worker
         .with_write(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             for id in old {
                 store.remove_condition(&participant, id)?;
             }
@@ -1118,7 +1117,7 @@ fn late_damage_uses_frozen_due_formulas_and_not_new_episode_values() {
     f.worker
         .with_write(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .remove_condition(&participant, fire)?;
             Ok(())
@@ -1375,7 +1374,7 @@ fn outgoing_clear_preserves_later_fire_sources_and_excludes_ended_fire_from_dama
             matches!(&source.parameters,ConditionParameters::PersistentDamage {damage_type,..} if damage_type == "fire")).unwrap().clone();
         later.condition_id = 0;
         if let ConditionParameters::PersistentDamage {formula, ..} = &mut later.parameters { *formula = "99".into(); }
-        session.local_state().encounters().add_condition(atlas_local_state::AddEncounterParticipantCondition {
+        session.local_state()?.encounters().add_condition(atlas_local_state::AddEncounterParticipantCondition {
             participant_key: participant.clone(), condition_key: later.condition_key, name: later.name, value: None,
             source_participant_key: None, scope: Default::default(), extra_action: Default::default(), immunity_override:false,
             parameters:later.parameters, origin:None, duration:None, note:Some("After turn".into()),
@@ -1881,7 +1880,7 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
         .unwrap();
     f.worker
         .with_write(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             for (condition_key, parameters) in [
                 ("conditionitems:dTwPJuKgBQCMxixg", ConditionParameters::None),
                 (

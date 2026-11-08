@@ -29,7 +29,7 @@ pub(crate) fn read_encounter_reference(
     request: EncounterReferenceRequest,
 ) -> AppServiceResult<RecordDetailView> {
     let encounter = workspace
-        .local_state()
+        .local_state()?
         .encounters()
         .get_with_participants(encounter_ref)?
         .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;

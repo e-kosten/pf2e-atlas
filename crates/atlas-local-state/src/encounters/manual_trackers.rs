@@ -23,17 +23,22 @@ pub struct ManualTrackerChange {
     pub tracker_key: String,
     pub value: Option<ManualTracker>,
 }
-pub(super) fn read(connection: &Connection, key: &str) -> LocalStateResult<Vec<ManualTracker>> {
-    let mut statement = connection.prepare("SELECT payload_json FROM encounter_manual_trackers WHERE participant_key=?1 ORDER BY tracker_key")?;
-    let rows = statement.query_map([key], |row| row.get::<_, String>(0))?;
+pub(super) fn read(
+    connection: &Connection,
+    owner_id: i64,
+    key: &str,
+) -> LocalStateResult<Vec<ManualTracker>> {
+    let mut statement = connection.prepare("SELECT t.payload_json FROM encounter_manual_trackers t JOIN encounter_participants p USING(participant_key) JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2 ORDER BY tracker_key")?;
+    let rows = statement.query_map(params![key, owner_id], |row| row.get::<_, String>(0))?;
     rows.map(|row| receipt_codec::decode(&row?)).collect()
 }
 pub(super) fn read_for_encounter(
     connection: &Connection,
+    owner_id: i64,
     encounter: &str,
 ) -> LocalStateResult<std::collections::BTreeMap<String, Vec<ManualTracker>>> {
-    let mut statement = connection.prepare("SELECT t.participant_key,t.payload_json FROM encounter_manual_trackers t JOIN encounter_participants p ON p.participant_key=t.participant_key WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY t.participant_key,t.tracker_key")?;
-    let rows = statement.query_map([encounter], |row| {
+    let mut statement = connection.prepare("SELECT t.participant_key,t.payload_json FROM encounter_manual_trackers t JOIN encounter_participants p ON p.participant_key=t.participant_key WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY t.participant_key,t.tracker_key")?;
+    let rows = statement.query_map(params![encounter, owner_id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
     let mut grouped = std::collections::BTreeMap::<String, Vec<ManualTracker>>::new();
@@ -52,7 +57,7 @@ impl EncountersWrite<'_> {
         encounter: &str,
         change: &ManualTrackerChange,
     ) -> LocalStateResult<()> {
-        let changed = self.connection.execute("UPDATE encounter_participants SET revision=revision+1 WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2)",params![change.participant_key,encounter])?;
+        let changed = self.connection.execute("UPDATE encounter_participants SET revision=revision+1 WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2 AND owner_id=?3)",params![change.participant_key,encounter,self.owner_id])?;
         if changed != 1 {
             return Err(LocalStateError::ParticipantNotFound(
                 change.participant_key.clone(),

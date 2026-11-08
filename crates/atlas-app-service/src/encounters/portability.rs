@@ -18,7 +18,7 @@ impl AtlasAppService {
     pub fn export_encounter(&self, encounter_ref: &str) -> AppServiceResult<Vec<u8>> {
         self.with_state(|session| {
             let mut document = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .export_document(encounter_ref)?;
             match session.exact_records() {
@@ -87,7 +87,7 @@ impl AtlasAppService {
                 Err(error) => return Err(error.into()),
             };
             let encounter = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .import_document(document, slug)?;
             Ok(EncounterImportReport {

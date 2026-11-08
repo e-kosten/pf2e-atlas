@@ -222,3 +222,58 @@ fn invalid_party_edit_preserves_the_complete_roster_and_rejects_foreign_member_k
             .is_err()
     );
 }
+
+#[test]
+fn adding_a_party_requires_both_documents_to_belong_to_the_local_owner() {
+    let (_directory, service) = service();
+    let party = create(&service, "Local party");
+    let encounter_key = encounter(&service);
+    let workspace = atlas_runtime::initialize_workspace(service.workspace_path()).unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute_batch(
+            "INSERT INTO principals VALUES (7, 'other', 'Other');
+         INSERT INTO parties(owner_id,party_key,name) VALUES (7,'foreign-party','Other party');
+         INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
+         VALUES (7,'foreign-encounter','encounter','Other encounter','draft','now','now');",
+        )
+        .unwrap();
+    write.commit().unwrap();
+
+    let from_other_party = service.add_encounter_party(
+        &encounter_key,
+        AddEncounterPartyRequest {
+            party_key: "foreign-party".into(),
+            expected_revision: 0,
+        },
+    );
+    assert_eq!(
+        from_other_party.unwrap_err().into_app_error().code,
+        AppErrorCode::PartyNotFound
+    );
+
+    let into_other_encounter = service.add_encounter_party(
+        "foreign-encounter",
+        AddEncounterPartyRequest {
+            party_key: party.party_key,
+            expected_revision: party.revision,
+        },
+    );
+    assert_eq!(
+        into_other_encounter.unwrap_err().into_app_error().code,
+        AppErrorCode::EncounterNotFound
+    );
+    let read = workspace
+        .read(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    let participant_count: i64 = read
+        .connection()
+        .query_row("SELECT COUNT(*) FROM encounter_participants", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(participant_count, 0);
+}

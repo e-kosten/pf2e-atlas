@@ -43,7 +43,7 @@ impl AtlasAppService {
             serde_json::json!({"action":"persistent_damage", "request":request})
         };
         let (snapshot, recovered) = self.with_state(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             let snapshot = store
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
@@ -74,7 +74,7 @@ impl AtlasAppService {
             })?;
         let boundary = self.with_state(|session| {
             super::outgoing_turns::boundary(
-                &session.local_state().encounters(),
+                &session.local_state()?.encounters(),
                 &snapshot.encounter.encounter_key,
                 request.boundary_key.as_deref(),
                 &request.participant_key,
@@ -295,7 +295,7 @@ impl AtlasAppService {
             ));
         }
         self.with_write(|session| {
-            let store = session.local_state().encounters();
+            let store = session.local_state()?.encounters();
             if let Some(receipt) = store.condition_event_receipt(
                 &snapshot.encounter.encounter_key,
                 &request.request_id,

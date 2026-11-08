@@ -29,7 +29,7 @@ use crate::service::AtlasAppService;
 impl AtlasAppService {
     pub fn saved_lists(&self) -> AppServiceResult<SavedListIndexView> {
         self.with_state(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let lists = store.saved_lists().list()?;
             Ok(SavedListIndexView {
                 lists: lists.into_iter().map(saved_list_summary).collect(),
@@ -42,7 +42,7 @@ impl AtlasAppService {
         self.with_saved_operation(move |runtime| {
             let state = runtime.read_state()?;
             let list = state
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .get_with_items(&list_ref)?
                 .ok_or_else(|| saved_list_not_found(&list_ref))?;
@@ -103,7 +103,7 @@ impl AtlasAppService {
     pub fn saved_list_snapshot(&self, list_ref: &str) -> AppServiceResult<SavedListDetailView> {
         self.with_state(|session| {
             let list = session
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .get_with_items(list_ref)?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
@@ -161,7 +161,7 @@ impl AtlasAppService {
         generate_slug: bool,
     ) -> AppServiceResult<SavedListCreateView> {
         self.with_write(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let list = create_list(&store.saved_lists(), request, generate_slug)?;
             Ok(SavedListCreateView {
                 list: saved_list_summary(list),
@@ -176,7 +176,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<SavedListItemNoteView> {
         self.with_state(|session| {
             let saved = session
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .get_with_items(list_ref)?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
@@ -200,7 +200,7 @@ impl AtlasAppService {
         request: UpdateSavedListItemNoteRequest,
     ) -> AppServiceResult<SavedListItemNoteView> {
         self.with_write(|session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let saved = store
                 .saved_lists()
                 .get_with_items(&request.list_ref)?
@@ -230,7 +230,7 @@ impl AtlasAppService {
         request: UpdateSavedListRequest,
     ) -> AppServiceResult<SavedListUpdateView> {
         self.with_write(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let list_key = request.list_key;
             let list = store
                 .saved_lists()
@@ -254,7 +254,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<SavedListItemMutationView> {
         if let Ok(key) = RecordKey::parse(&request.record_ref) {
             return self.with_write(move |session| {
-                let lists = session.local_state().saved_lists();
+                let lists = session.local_state()?.saved_lists();
                 let list = lists
                     .get(&request.list_ref)?
                     .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
@@ -268,7 +268,7 @@ impl AtlasAppService {
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
                 let list = session
-                    .local_state()
+                    .local_state()?
                     .saved_lists()
                     .get(&list_ref)?
                     .ok_or_else(|| saved_list_not_found(&list_ref))?;
@@ -278,7 +278,7 @@ impl AtlasAppService {
         )?;
         self.with_write(move |session| {
             session.require_reference_revision(revision)?;
-            let lists = session.local_state().saved_lists();
+            let lists = session.local_state()?.saved_lists();
             let list = lists
                 .get(&list.list_key)?
                 .ok_or_else(|| saved_list_not_found(&list.list_key))?;
@@ -322,7 +322,7 @@ impl AtlasAppService {
         {
             let item = item.clone();
             return self.with_write(move |session| {
-                let lists = session.local_state().saved_lists();
+                let lists = session.local_state()?.saved_lists();
                 let list = lists
                     .get(&request.list_ref)?
                     .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
@@ -337,7 +337,10 @@ impl AtlasAppService {
                 let existing = if generate_slug {
                     None
                 } else {
-                    session.local_state().saved_lists().get(&request.list_ref)?
+                    session
+                        .local_state()?
+                        .saved_lists()
+                        .get(&request.list_ref)?
                 };
                 let list_key = match (creating, existing) {
                     (true, Some(_)) => {
@@ -363,7 +366,7 @@ impl AtlasAppService {
         )?;
         self.with_write(move |session| {
             session.require_reference_revision(revision)?;
-            let store = session.local_state();
+            let store = session.local_state()?;
             let list = if let Some(request) = create {
                 create_list(&store.saved_lists(), request, generate_slug)?
             } else {
@@ -393,7 +396,7 @@ impl AtlasAppService {
                     &crate::ReadExecutionContext::uncancellable(),
                     move |session| {
                         let list = session
-                            .local_state()
+                            .local_state()?
                             .saved_lists()
                             .get(&list_ref)?
                             .ok_or_else(|| saved_list_not_found(&list_ref))?;
@@ -411,7 +414,7 @@ impl AtlasAppService {
             if let Some(revision) = revision {
                 session.require_reference_revision(revision)?;
             }
-            let lists = session.local_state().saved_lists();
+            let lists = session.local_state()?.saved_lists();
             let list_ref = canonical_list.as_deref().unwrap_or(&request.list_ref);
             let list = lists
                 .get(list_ref)?
@@ -436,7 +439,7 @@ impl AtlasAppService {
         request: ReorderSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
         self.with_write(move |session| {
-            let lists = session.local_state().saved_lists();
+            let lists = session.local_state()?.saved_lists();
             let list = lists
                 .get(&request.list_ref)?
                 .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
@@ -470,7 +473,7 @@ impl AtlasAppService {
     pub fn delete_saved_list(&self, list_ref: &str) -> AppServiceResult<DeleteSavedListView> {
         let list_ref = list_ref.to_string();
         self.with_write(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let list = store
                 .saved_lists()
                 .get(&list_ref)?
@@ -490,7 +493,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<SavedListExportDocumentView> {
         self.with_state(|session| {
             let saved = session
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .get_with_items(list_ref)?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
@@ -542,7 +545,7 @@ impl AtlasAppService {
             })
             .collect::<Vec<_>>();
         self.with_write(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let replaced = store.saved_lists().get(&id)?.is_some() && request.replace;
             let imported = store.saved_lists().import(ImportSavedList {
                 slug: id,
@@ -587,7 +590,7 @@ impl AtlasAppService {
             |runtime, state| runtime.reference_read(state, None),
             move |state| {
                 let list = state
-                    .local_state()
+                    .local_state()?
                     .saved_lists()
                     .get_with_items(&list_ref)?
                     .ok_or_else(|| saved_list_not_found(&list_ref))?;
@@ -613,7 +616,7 @@ impl AtlasAppService {
                 };
                 let mut records_by_key = if has_match_scope {
                     let membership = session
-                        .local_state()
+                        .local_state()?
                         .saved_lists()
                         .bind_record_membership(&list.list.list_key)
                         .map_err(atlas_runtime::RuntimeError::from)?;

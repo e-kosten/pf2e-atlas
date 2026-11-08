@@ -428,7 +428,7 @@ pub(crate) fn scoped_list_keys(
         return Ok(None);
     };
     let list = workspace
-        .local_state()
+        .local_state()?
         .saved_lists()
         .get_with_items(list_ref)?
         .ok_or_else(|| {

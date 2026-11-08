@@ -17,7 +17,7 @@ fn measured_roster(
             }
         }),
     )?;
-    let result = EncountersRead::from_connection(connection).get_with_participants("test");
+    let result = EncountersRead::from_connection(connection, 1).get_with_participants("test");
     connection.trace_v2(TraceEventCodes::empty(), None::<fn(TraceEvent<'_>)>)?;
     Ok((
         result?.unwrap(),
@@ -124,7 +124,7 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
         [&other.participant_key],
     )?;
     assert!(
-        EncountersRead::from_connection(&connection)
+        EncountersRead::from_connection(&connection, 1)
             .get_with_participants("other")
             .is_err()
     );
@@ -157,7 +157,7 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
         "INSERT INTO encounter_manual_trackers VALUES(?1,'invalid','not-json')",
         [&other.participant_key],
     )?;
-    let roster = EncountersRead::from_connection(&connection)
+    let roster = EncountersRead::from_connection(&connection, 1)
         .get_with_participants("test")?
         .unwrap();
     assert_eq!(
@@ -234,7 +234,7 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
             && empty.spell_resources.is_empty()
     );
     assert_eq!(
-        super::super::storage::participant(&connection, &one.participant_key)?.unwrap(),
+        super::super::storage::participant(&connection, 1, &one.participant_key)?.unwrap(),
         *first
     );
     Ok(())

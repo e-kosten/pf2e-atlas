@@ -55,8 +55,8 @@ impl EncountersWrite<'_> {
         value: &TurnResources,
     ) -> LocalStateResult<()> {
         let changed = self.connection.execute(
-            "UPDATE encounter_participants SET turn_resources_json=?3,revision=revision+1 WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2)",
-            params![value.participant_key,encounter_key,receipt_codec::encode(value)?],
+            "UPDATE encounter_participants SET turn_resources_json=?3,revision=revision+1 WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?2 AND owner_id=?4)",
+            params![value.participant_key,encounter_key,receipt_codec::encode(value)?,self.owner_id],
         )?;
         if changed != 1 {
             return Err(LocalStateError::ParticipantNotFound(

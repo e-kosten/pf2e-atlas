@@ -12,7 +12,7 @@ pub(super) fn recover(
     intent: &serde_json::Value,
 ) -> AppServiceResult<Option<EncounterEventReceipt>> {
     service.with_state(|session| {
-        let store = session.local_state().encounters();
+        let store = session.local_state()?.encounters();
         let encounter = store
             .get(encounter_ref)?
             .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
@@ -27,7 +27,7 @@ pub(super) fn snapshot(
 ) -> AppServiceResult<EncounterWithParticipants> {
     service.with_state(|session| {
         let snapshot = session
-            .local_state()
+            .local_state()?
             .encounters()
             .get_with_participants(encounter_ref)?
             .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
@@ -87,7 +87,7 @@ impl EncounterEvent<'_> {
         boundary: ConditionEventBoundary<'_>,
         evaluate: impl FnOnce() -> LocalStateResult<PreparedConditionEvent>,
     ) -> AppServiceResult<EncounterEventReceipt> {
-        let store = session.local_state().encounters();
+        let store = session.local_state()?.encounters();
         // Recover before source checks, even if reference data became unavailable.
         if let Some(receipt) =
             store.condition_event_receipt(self.encounter_key, self.request_id, self.intent)?

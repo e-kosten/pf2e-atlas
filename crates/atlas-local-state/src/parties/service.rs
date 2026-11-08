@@ -1,10 +1,12 @@
 use super::storage;
 use crate::{LocalStateError, LocalStateResult, Party, PartyMemberInput};
+use rusqlite::params;
 use std::collections::HashSet;
 
 #[derive(Clone, Copy)]
 pub struct PartiesRead<'a> {
     connection: &'a rusqlite::Connection,
+    owner_id: i64,
 }
 pub struct PartiesWrite<'a> {
     read: PartiesRead<'a>,
@@ -16,14 +18,17 @@ impl<'a> std::ops::Deref for PartiesWrite<'a> {
     }
 }
 impl<'a> PartiesRead<'a> {
-    pub(crate) fn from_connection(connection: &'a rusqlite::Connection) -> Self {
-        Self { connection }
+    pub(crate) fn from_connection(connection: &'a rusqlite::Connection, owner_id: i64) -> Self {
+        Self {
+            connection,
+            owner_id,
+        }
     }
     pub fn list(&self) -> LocalStateResult<Vec<Party>> {
-        storage::list(self.connection)
+        storage::list(self.connection, self.owner_id)
     }
     pub fn get(&self, key: &str) -> LocalStateResult<Party> {
-        storage::get(self.connection, key)?
+        storage::get(self.connection, self.owner_id, key)?
             .ok_or_else(|| LocalStateError::PartyNotFound(key.into()))
     }
     pub fn get_at_revision(&self, key: &str, revision: i64) -> LocalStateResult<Party> {
@@ -35,9 +40,9 @@ impl<'a> PartiesRead<'a> {
     }
 }
 impl<'a> PartiesWrite<'a> {
-    pub(crate) fn from_connection(connection: &'a rusqlite::Connection) -> Self {
+    pub(crate) fn from_connection(connection: &'a rusqlite::Connection, owner_id: i64) -> Self {
         Self {
-            read: PartiesRead::from_connection(connection),
+            read: PartiesRead::from_connection(connection, owner_id),
         }
     }
     pub fn create(&self, name: &str, members: &[PartyMemberInput]) -> LocalStateResult<Party> {
@@ -45,8 +50,8 @@ impl<'a> PartiesWrite<'a> {
             validate(name, members, None)?;
             let key = storage::new_key("party");
             self.connection.execute(
-                "INSERT INTO parties(party_key,name) VALUES(?1,?2)",
-                [&key, name.trim()],
+                "INSERT INTO parties(party_key,name,owner_id) VALUES(?1,?2,?3)",
+                params![key, name.trim(), self.owner_id],
             )?;
             storage::replace_members(self.connection, &key, members)?;
             self.get(&key)
@@ -63,10 +68,10 @@ impl<'a> PartiesWrite<'a> {
             let existing = self.get_at_revision(key, revision)?;
             validate(name, members, Some(&existing))?;
             self.connection.execute(
-                "UPDATE parties SET name=?1,revision=revision+1 WHERE party_key=?2 AND owner_id=1",
-                [name.trim(), key],
+                "UPDATE parties SET name=?1,revision=revision+1 WHERE party_key=?2 AND owner_id=?3",
+                params![name.trim(), key, self.owner_id],
             )?;
-            storage::replace_members(self.connection, key, members)?;
+            storage::replace_members(self.connection, &existing.party_key, members)?;
             self.get(key)
         })
     }
@@ -74,8 +79,8 @@ impl<'a> PartiesWrite<'a> {
         crate::atomic_action::run(self.connection, || {
             self.get_at_revision(key, revision)?;
             self.connection.execute(
-                "DELETE FROM parties WHERE party_key=?1 AND owner_id=1",
-                [key],
+                "DELETE FROM parties WHERE party_key=?1 AND owner_id=?2",
+                params![key, self.owner_id],
             )?;
             Ok(())
         })

@@ -5,7 +5,8 @@ use atlas_local_state::{LocalStateWrite, NewEncounter};
 
 fn create_encounter(workspace: &Workspace, version: u32) {
     let write = workspace.write(version).unwrap();
-    LocalStateWrite::new(&write)
+    LocalStateWrite::for_local(&write)
+        .unwrap()
         .encounters()
         .create(NewEncounter {
             slug: "glossary-upgrade".into(),

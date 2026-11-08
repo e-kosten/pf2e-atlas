@@ -40,7 +40,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<atlas_app_model::EncounterConditionCatalogView> {
         let snapshot = self.with_state(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))
@@ -79,7 +79,7 @@ impl AtlasAppService {
 
     pub fn encounters(&self) -> AppServiceResult<EncounterIndexView> {
         self.with_state(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let details = store
                 .encounters()
                 .list_with_participant_counts()?
@@ -98,7 +98,7 @@ impl AtlasAppService {
             atlas_runtime::AtlasRuntime::record_detail_read,
             move |state| {
                 let detail = state
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&encounter_ref)?
                     .ok_or_else(|| encounter_not_found(&encounter_ref))?;
@@ -160,7 +160,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterCreateView> {
         self.with_write(move |session| {
             let slug = derive_slug(&request.name);
-            let encounter = session.local_state().encounters().create(NewEncounter {
+            let encounter = session.local_state()?.encounters().create(NewEncounter {
                 slug,
                 name: request.name,
                 description: request.description,
@@ -174,7 +174,7 @@ impl AtlasAppService {
 
     pub fn delete_encounter(&self, encounter_ref: &str) -> AppServiceResult<DeleteEncounterView> {
         self.with_write(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let encounter = store
                 .encounters()
                 .get(encounter_ref)?
@@ -196,7 +196,7 @@ impl AtlasAppService {
         note: Option<Option<String>>,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
-            let encounters = session.local_state().encounters();
+            let encounters = session.local_state()?.encounters();
             let current = encounters
                 .get(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
@@ -224,14 +224,14 @@ impl AtlasAppService {
         self.with_write(move |session| {
             if let Some(seconds) = request.round_duration_seconds {
                 let snapshot = session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&request.encounter_key)?
                     .ok_or_else(|| encounter_not_found(&request.encounter_key))?;
                 super::timing::validate_round_clock(&snapshot, seconds)?;
             }
             let encounter = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .update(LocalUpdateEncounter {
                     encounter_key: request.encounter_key.clone(),
@@ -259,7 +259,7 @@ impl AtlasAppService {
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
                 let receipt =
-                    encounter_receipt(&session.local_state().encounters(), &encounter_ref)?;
+                    encounter_receipt(&session.local_state()?.encounters(), &encounter_ref)?;
                 let record = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
                 let baseline = super::hydration::source_baseline(
                     &record.source,
@@ -284,7 +284,7 @@ impl AtlasAppService {
         self.with_write(move |session| {
             session.require_reference_revision(revision)?;
             let added = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .add_participants(&receipt.encounter_key, participants)?;
             if let Some(baseline) = &baseline {
@@ -306,7 +306,7 @@ impl AtlasAppService {
                     );
                     if capacity != participant.current_hp {
                         session
-                            .local_state()
+                            .local_state()?
                             .encounters()
                             .initialize_participant_hp(&participant.participant_key, capacity)?;
                     }
@@ -322,8 +322,8 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
             let receipt =
-                encounter_receipt(&session.local_state().encounters(), &request.encounter_ref)?;
-            session.local_state().encounters().add_participant(
+                encounter_receipt(&session.local_state()?.encounters(), &request.encounter_ref)?;
+            session.local_state()?.encounters().add_participant(
                 &receipt.encounter_key,
                 AddEncounterParticipant {
                     level_override: None,
@@ -355,7 +355,7 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let detail = self.with_state(|session| {
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))
@@ -418,7 +418,7 @@ impl AtlasAppService {
                 &crate::ReadExecutionContext::uncancellable(),
                 move |session| {
                     let coherent = session
-                        .local_state()
+                        .local_state()?
                         .encounters()
                         .get(&encounter_key)?
                         .ok_or_else(|| encounter_not_found(&encounter_key))?;
@@ -505,7 +505,7 @@ impl AtlasAppService {
                 session.require_reference_revision(revision)?;
             }
             let current = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&detail.encounter.encounter_key)?
                 .ok_or_else(|| encounter_not_found(&detail.encounter.encounter_key))?;
@@ -534,7 +534,7 @@ impl AtlasAppService {
                 .into());
             }
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .update_participant(UpdateEncounterParticipant {
                     expected_revision: request.expected_revision,
@@ -583,19 +583,19 @@ impl AtlasAppService {
         request: ReorderEncounterParticipantRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
-            let receipt = encounter_receipt(&session.local_state().encounters(), encounter_ref)?;
+            let receipt = encounter_receipt(&session.local_state()?.encounters(), encounter_ref)?;
             ensure_participant_in_encounter(
-                &session.local_state().encounters(),
+                &session.local_state()?.encounters(),
                 &receipt.encounter_key,
                 &request.participant_key,
             )?;
             ensure_participant_in_encounter(
-                &session.local_state().encounters(),
+                &session.local_state()?.encounters(),
                 &receipt.encounter_key,
                 &request.target_participant_key,
             )?;
             session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .reorder_participant(ReorderEncounterParticipant {
                     participant_key: request.participant_key,
@@ -613,7 +613,7 @@ impl AtlasAppService {
         participant_key: &str,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
-        let store = session.local_state();
+        let store = session.local_state()?;
         let encounter = store.encounters().remove_participant_and_select_turn(
             encounter_ref, participant_key, |snapshot| {
                 if snapshot.encounter.current_turn_participant_key.as_deref() == Some(participant_key) {
@@ -663,7 +663,7 @@ impl AtlasAppService {
         request: SetEncounterTurnRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
-            let store = session.local_state();
+            let store = session.local_state()?;
             let encounter = store
                 .encounters()
                 .advance_turn(&request.encounter_ref, |snapshot| {
@@ -685,13 +685,13 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterTurnReviewView> {
         self.with_state(move |session| {
             let snapshot = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
             let mut view = turn_review(&snapshot);
             let boundaries = super::outgoing_turns::latest_reviews(
-                &session.local_state().encounters(),
+                &session.local_state()?.encounters(),
                 &snapshot.encounter.encounter_key,
             )?;
             view.outgoing = boundaries.outgoing;
@@ -713,7 +713,7 @@ impl AtlasAppService {
         let intent = serde_json::to_value(&request)
             .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
         if let Some(encounter) = self.with_state(|session| {
-            Ok(session.local_state().encounters().advance_turn_receipt(
+            Ok(session.local_state()?.encounters().advance_turn_receipt(
                 encounter_ref,
                 &request.request_id,
                 &intent,
@@ -738,7 +738,7 @@ impl AtlasAppService {
         )?;
         self.with_write(move |session| {
             // A concurrent matching request still recovers before the source guard.
-            if let Some(encounter) = session.local_state().encounters().advance_turn_receipt(
+            if let Some(encounter) = session.local_state()?.encounters().advance_turn_receipt(
                 &encounter_key,
                 &request.request_id,
                 &intent,
@@ -751,7 +751,7 @@ impl AtlasAppService {
                 session.require_reference_revision(revision)?;
             }
             let encounter = session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .advance_turn_once(
                     &encounter_key,
@@ -1239,7 +1239,7 @@ mod immunity_override_tests {
         let snapshot = worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&encounter.encounter_key)?
                     .unwrap())

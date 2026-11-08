@@ -467,7 +467,8 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
         crate::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
     }
     let write = workspace.write(20).unwrap();
-    let saved_list = LocalStateWrite::new(&write)
+    let saved_list = LocalStateWrite::for_local(&write)
+        .unwrap()
         .saved_lists()
         .create(NewSavedList {
             slug: "kept".into(),
@@ -517,7 +518,8 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
         native_before
     );
     assert_eq!(
-        LocalStateRead::new(&read)
+        LocalStateRead::for_local(&read)
+            .unwrap()
             .saved_lists()
             .get(&saved_list.list_key)
             .unwrap()
@@ -564,7 +566,8 @@ fn historical_core_upgrade_preserves_source_saved_and_native_state_before_reprep
         native_before
     );
     assert_eq!(
-        LocalStateRead::new(&read)
+        LocalStateRead::for_local(&read)
+            .unwrap()
             .saved_lists()
             .get(&saved_list.list_key)
             .unwrap()

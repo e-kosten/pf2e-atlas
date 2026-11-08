@@ -125,7 +125,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
     let mut invalid = worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?)
         })
@@ -139,7 +139,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
         worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&encounter.encounter_key)?)
             })
@@ -189,7 +189,7 @@ fn quantity_add_returns_receipt_when_any_postcommit_retrieval_would_fail() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&receipt.encounter_key)?)
         })
@@ -254,7 +254,7 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?)
         })
@@ -284,7 +284,7 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
     assert_eq!(
         f.worker
             .with_state(|session| Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?))
             .unwrap()
@@ -310,7 +310,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?)
         })
@@ -330,7 +330,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
     assert_eq!(
         f.worker
             .with_state(|session| Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?))
             .unwrap()
@@ -356,7 +356,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?)
         })
@@ -376,7 +376,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
     assert_eq!(
         f.worker
             .with_state(|session| Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?))
             .unwrap()
@@ -464,7 +464,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                         "fixture-tests-367-{}",
                         worker
                             .with_state(|session| Ok(session
-                                .local_state()
+                                .local_state()?
                                 .encounters()
                                 .get(&key)?
                                 .unwrap()
@@ -476,7 +476,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                     expected_encounter_revision: worker
                         .with_state(|session| {
                             Ok(session
-                                .local_state()
+                                .local_state()?
                                 .encounters()
                                 .get(&key)?
                                 .unwrap()
@@ -502,7 +502,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
     let local = worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&key)?)
         })
@@ -547,7 +547,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                     expected_encounter_revision: worker
                         .with_state(|session| {
                             Ok(session
-                                .local_state()
+                                .local_state()?
                                 .encounters()
                                 .get(&key)?
                                 .unwrap()
@@ -587,7 +587,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
     let persisted = worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&key)?)
         })
@@ -692,7 +692,7 @@ fn list_import_preserves_exported_snapshots_without_retrieval_workers() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .saved_lists()
                 .get_with_items("imported")?)
         })
@@ -853,7 +853,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
                 crate::presentation::actor::authored_projection_count(true);
                 super::mechanics::baseline_count(true);
                 let snapshot = workspace
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get_with_participants(&lookup)?
                     .unwrap();
@@ -2471,7 +2471,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?)
         })
@@ -2545,7 +2545,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
             .worker
             .with_state(|session| {
                 Ok(session
-                    .local_state()
+                    .local_state()?
                     .encounters()
                     .get(&encounter.encounter_key)?)
             })
@@ -2577,7 +2577,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?)
         })
@@ -2618,7 +2618,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
         .worker
         .with_state(|session| {
             Ok(session
-                .local_state()
+                .local_state()?
                 .encounters()
                 .get_with_participants(&encounter.encounter_key)?)
         })
@@ -2712,7 +2712,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
     assert!(!detail.participants[1].defeated);
     let mut snapshot = f
         .worker
-        .with_state(|s| Ok(s.local_state().encounters().get_with_participants(&key)?))
+        .with_state(|s| Ok(s.local_state()?.encounters().get_with_participants(&key)?))
         .unwrap()
         .unwrap();
     snapshot.encounter.current_turn_participant_key =

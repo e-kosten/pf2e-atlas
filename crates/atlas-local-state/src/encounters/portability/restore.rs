@@ -14,6 +14,7 @@ impl EncountersWrite<'_> {
             let slug = slug.unwrap_or_else(|| root.slug.clone());
             let key = storage::insert_encounter(
                 db,
+                self.owner_id,
                 NewEncounter {
                     slug: slug.clone(),
                     name: root.name.clone(),
@@ -25,8 +26,12 @@ impl EncountersWrite<'_> {
             identities.allocate(db, key, slug)?;
             identities.visit(&mut document);
             write_document(db, id, &document)?;
-            storage::get(db, &document.snapshot.encounter.encounter_key)?
-                .ok_or_else(|| invalid("restored encounter could not be read"))
+            storage::get(
+                db,
+                self.owner_id,
+                &document.snapshot.encounter.encounter_key,
+            )?
+            .ok_or_else(|| invalid("restored encounter could not be read"))
         })
     }
 }
@@ -158,7 +163,12 @@ fn write_participant(
         )?;
     }
     for episode in &p.persistent_precedence {
-        persistent_precedence::write(db, &p.participant_key, episode)?;
+        db.execute(
+            "INSERT INTO encounter_persistent_precedence(participant_id,episode_id,source_order_json)
+             VALUES(?1,?2,?3)
+             ON CONFLICT(participant_id,episode_id) DO UPDATE SET source_order_json=excluded.source_order_json",
+            params![id, episode.episode_id, serde_json::to_string(&episode.source_order)?],
+        )?;
     }
     Ok(())
 }

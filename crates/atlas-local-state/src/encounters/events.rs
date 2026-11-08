@@ -13,6 +13,7 @@ impl EncountersRead<'_> {
     ) -> LocalStateResult<Option<EncounterEventReceipt>> {
         command_receipts::recover(
             self.connection,
+            self.owner_id,
             encounter_key,
             command_receipts::Family::Event,
             request_id,
@@ -26,7 +27,7 @@ impl EncountersRead<'_> {
         key: &str,
         claim: &EncounterBoundaryClaim,
     ) -> LocalStateResult<Option<EncounterEventReceipt>> {
-        let payload:Option<String>=self.connection.query_row("SELECT r.receipt_json FROM encounter_boundary_claims c JOIN encounter_command_receipts r ON r.encounter_id=c.encounter_id AND r.family='event' AND r.request_id=c.request_id WHERE c.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND c.participant_key=?2 AND c.round_number=?3 AND c.kind=?4 AND c.scope_key=?5",params![key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key],|row|row.get(0)).optional()?;
+        let payload:Option<String>=self.connection.query_row("SELECT r.receipt_json FROM encounter_boundary_claims c JOIN encounter_command_receipts r ON r.encounter_id=c.encounter_id AND r.family='event' AND r.request_id=c.request_id WHERE c.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?6) AND c.participant_key=?2 AND c.round_number=?3 AND c.kind=?4 AND c.scope_key=?5",params![key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key,self.owner_id],|row|row.get(0)).optional()?;
         payload.map(|text| receipt_codec::decode(&text)).transpose()
     }
     pub fn boundary_claims(
@@ -35,10 +36,11 @@ impl EncountersRead<'_> {
         participant_key: &str,
         round_number: i64,
     ) -> LocalStateResult<Vec<EncounterBoundaryClaim>> {
-        let mut statement=self.connection.prepare("SELECT kind,scope_key FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND participant_key=?2 AND round_number=?3 ORDER BY kind,scope_key")?;
-        let rows = statement.query_map(params![key, participant_key, round_number], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
+        let mut statement=self.connection.prepare("SELECT kind,scope_key FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?4) AND participant_key=?2 AND round_number=?3 ORDER BY kind,scope_key")?;
+        let rows = statement.query_map(
+            params![key, participant_key, round_number, self.owner_id],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )?;
         rows.map(|row| {
             let (kind, scope_key) = row?;
             let kind = match kind.as_str() {
@@ -66,14 +68,14 @@ impl EncountersRead<'_> {
         key: &str,
         claim: &EncounterBoundaryClaim,
     ) -> LocalStateResult<bool> {
-        Ok(self.connection.query_row("SELECT EXISTS(SELECT 1 FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND participant_key=?2 AND round_number=?3 AND kind=?4 AND scope_key=?5)",params![key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key],|row|row.get(0))?)
+        Ok(self.connection.query_row("SELECT EXISTS(SELECT 1 FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?6) AND participant_key=?2 AND round_number=?3 AND kind=?4 AND scope_key=?5)",params![key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key,self.owner_id],|row|row.get(0))?)
     }
     pub fn pending_condition_consequences(
         &self,
         encounter_key: &str,
     ) -> LocalStateResult<Vec<SavedPendingConsequence>> {
-        let mut statement = self.connection.prepare("SELECT consequence_key,payload_json FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY consequence_key")?;
-        let rows = statement.query_map([encounter_key], |r| {
+        let mut statement = self.connection.prepare("SELECT consequence_key,payload_json FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY consequence_key")?;
+        let rows = statement.query_map(params![encounter_key, self.owner_id], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
         })?;
         rows.map(|row| {
@@ -95,8 +97,8 @@ impl EncountersWrite<'_> {
     ) -> LocalStateResult<()> {
         for key in keys {
             self.connection.execute(
-                "DELETE FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND consequence_key=?2",
-                params![encounter_key, key],
+                "DELETE FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?3) AND consequence_key=?2",
+                params![encounter_key, key, self.owner_id],
             )?;
         }
         Ok(())
@@ -169,8 +171,9 @@ impl EncountersWrite<'_> {
             {
                 return Ok(receipt);
             }
-            let snapshot = storage::get_with_participants(self.connection, encounter_key)?
-                .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_key.into()))?;
+            let snapshot =
+                storage::get_with_participants(self.connection, self.owner_id, encounter_key)?
+                    .ok_or_else(|| LocalStateError::EncounterNotFound(encounter_key.into()))?;
             if snapshot.encounter.encounter_key != encounter_key {
                 return Err(LocalStateError::InvalidRollRequest(
                     "use the canonical encounter key",
@@ -219,7 +222,7 @@ impl EncountersWrite<'_> {
                 if self.boundary_claimed(encounter_key, claim)? {
                     return Err(LocalStateError::EncounterBoundaryConflict);
                 }
-                self.connection.execute("INSERT INTO encounter_boundary_claims(encounter_id,participant_key,round_number,kind,scope_key,request_id) SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1",params![encounter_key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key,request_id])?;
+                self.connection.execute("INSERT INTO encounter_boundary_claims(encounter_id,participant_key,round_number,kind,scope_key,request_id) SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1 AND owner_id=?7",params![encounter_key,claim.participant_key,claim.round_number,claim.kind.as_str(),claim.scope_key,request_id,self.owner_id])?;
             }
             let changes = evaluate()?;
             for change in &changes.ability_states {
@@ -286,7 +289,7 @@ impl EncountersWrite<'_> {
                         }
                         let origin = condition.origin.clone();
                         let participant = condition.participant_key.clone();
-                        let id = storage::add_condition(self.connection, condition)?;
+                        let id = storage::add_condition(self.connection, self.owner_id, condition)?;
                         if let Some(origin) = origin {
                             self.claim_condition_application(
                                 encounter_key,
@@ -300,7 +303,7 @@ impl EncountersWrite<'_> {
                     ConditionEventChange::Replace(mut condition) => {
                         // Earlier changes in this same event may already have touched the encounter.
                         condition.expected_encounter_revision =
-                            storage::get(self.connection, encounter_key)?
+                            storage::get(self.connection, self.owner_id, encounter_key)?
                                 .ok_or_else(|| {
                                     LocalStateError::EncounterNotFound(encounter_key.into())
                                 })?
@@ -314,7 +317,7 @@ impl EncountersWrite<'_> {
                                 condition.participant_key,
                             ));
                         }
-                        if !storage::update_condition(self.connection, condition)? {
+                        if !storage::update_condition(self.connection, self.owner_id, condition)? {
                             return Err(LocalStateError::InvalidRollRequest(
                                 "condition no longer exists",
                             ));
@@ -333,6 +336,7 @@ impl EncountersWrite<'_> {
                         }
                         if !storage::remove_condition(
                             self.connection,
+                            self.owner_id,
                             &participant_key,
                             condition_id,
                         )? {
@@ -353,7 +357,7 @@ impl EncountersWrite<'_> {
                 self.save_turn_resources(encounter_key, resources)?;
             }
             for change in changes.participant_changes {
-                self.connection.execute("UPDATE encounter_participants SET current_hp=?2,temporary_hp=?3,track_dying=?4,mortality=?5,defeated=?6,hazard_disabled=?7,level_override=?8,base_death_threshold=?9,hp_origin=CASE WHEN current_hp IS NOT ?2 AND hp_origin='derived_pristine' THEN 'derived_edited' ELSE hp_origin END,revision=revision+1 WHERE participant_key=?1",params![change.participant_key,change.current_hp,change.temporary_hp,change.track_dying,match change.mortality {super::MortalityState::Alive=>"alive",super::MortalityState::Dead=>"dead"},change.defeated,change.hazard_disabled,change.level_override,change.base_death_threshold])?;
+                self.connection.execute("UPDATE encounter_participants SET current_hp=?2,temporary_hp=?3,track_dying=?4,mortality=?5,defeated=?6,hazard_disabled=?7,level_override=?8,base_death_threshold=?9,hp_origin=CASE WHEN current_hp IS NOT ?2 AND hp_origin='derived_pristine' THEN 'derived_edited' ELSE hp_origin END,revision=revision+1 WHERE participant_key=?1 AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?10 AND owner_id=?11)",params![change.participant_key,change.current_hp,change.temporary_hp,change.track_dying,match change.mortality {super::MortalityState::Alive=>"alive",super::MortalityState::Dead=>"dead"},change.defeated,change.hazard_disabled,change.level_override,change.base_death_threshold,encounter_key,self.owner_id])?;
             }
             for movement in changes.initiative_moves {
                 if !snapshot
@@ -369,7 +373,7 @@ impl EncountersWrite<'_> {
                         "initiative movement must stay in the event encounter",
                     ));
                 }
-                if !storage::reorder_participant(self.connection, movement)? {
+                if !storage::reorder_participant(self.connection, self.owner_id, movement)? {
                     return Err(LocalStateError::InvalidRollRequest(
                         "initiative participant no longer exists",
                     ));
@@ -399,6 +403,8 @@ impl EncountersWrite<'_> {
                     .collect::<LocalStateResult<Vec<_>>>()?;
                 super::persistent_precedence::write(
                     self.connection,
+                    self.owner_id,
+                    encounter_key,
                     &change.participant_key,
                     &super::PersistentSourcePrecedence {
                         episode_id: change.episode_id,
@@ -429,12 +435,12 @@ impl EncountersWrite<'_> {
                 {
                     return Err(LocalStateError::ParticipantNotFound(participant.clone()));
                 }
-                self.connection.execute("INSERT INTO encounter_pending_consequences(encounter_id,consequence_key,participant_key,payload_json) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1",params![encounter_key,pending.consequence_key,participant,receipt_codec::encode(&pending.consequence)?])?;
+                self.connection.execute("INSERT INTO encounter_pending_consequences(encounter_id,consequence_key,participant_key,payload_json) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 AND owner_id=?5",params![encounter_key,pending.consequence_key,participant,receipt_codec::encode(&pending.consequence)?,self.owner_id])?;
             }
             for key in changes.resolved_pending_keys {
-                self.connection.execute("DELETE FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND consequence_key=?2",params![encounter_key,key])?;
+                self.connection.execute("DELETE FROM encounter_pending_consequences WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?3) AND consequence_key=?2",params![encounter_key,key,self.owner_id])?;
             }
-            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE encounter_key=?1",[encounter_key])?;
+            self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE encounter_key=?1 AND owner_id=?2",params![encounter_key,self.owner_id])?;
             let receipt = EncounterEventReceipt {
                 encounter_key: encounter_key.into(),
                 request_id: request_id.into(),
@@ -444,6 +450,7 @@ impl EncountersWrite<'_> {
             };
             command_receipts::insert(
                 self.connection,
+                self.owner_id,
                 encounter_key,
                 request_id,
                 intent,
@@ -461,8 +468,8 @@ impl EncountersWrite<'_> {
         condition_id: Option<i64>,
     ) -> LocalStateResult<()> {
         let claimed: bool = self.connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM encounter_condition_applications WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) AND participant_key=?2 AND application_id=?3 AND grant_slot=?4)",
-            params![encounter_key, participant_key, origin.application_id, origin.grant_slot],
+            "SELECT EXISTS(SELECT 1 FROM encounter_condition_applications WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?5) AND participant_key=?2 AND application_id=?3 AND grant_slot=?4)",
+            params![encounter_key, participant_key, origin.application_id, origin.grant_slot,self.owner_id],
             |row| row.get(0),
         )?;
         if claimed {
@@ -471,8 +478,8 @@ impl EncountersWrite<'_> {
             ));
         }
         self.connection.execute(
-            "INSERT INTO encounter_condition_applications(encounter_id,participant_key,application_id,grant_slot,condition_id) SELECT id,?2,?3,?4,?5 FROM encounters WHERE encounter_key=?1",
-            params![encounter_key, participant_key, origin.application_id, origin.grant_slot, condition_id],
+            "INSERT INTO encounter_condition_applications(encounter_id,participant_key,application_id,grant_slot,condition_id) SELECT id,?2,?3,?4,?5 FROM encounters WHERE encounter_key=?1 AND owner_id=?6",
+            params![encounter_key, participant_key, origin.application_id, origin.grant_slot, condition_id,self.owner_id],
         )?;
         Ok(())
     }

@@ -33,6 +33,7 @@ matches the task; read those sections before changing that behavior.
 | --- | --- |
 | Module ownership, shared abstractions, service boundaries or dependencies | [Architecture overview](docs/architecture/overview.md), then the relevant [ADR](docs/architecture/decisions/README.md) |
 | Runtime, ingest, search or artifact/storage changes | [Runtime](docs/architecture/runtime.md) and [artifact contract](docs/architecture/artifact-contract.md), relevant sections |
+| Saved lists, parties, encounters, their children, or derived saved-state reads | [Saved-state ownership](docs/architecture/decisions/0051-persistent-workspace.md#saved-state-ownership) |
 | Routes, wire DTOs, serde omission/null/defaults or transport encoding | [Browser/backend contract](docs/architecture/decisions/0029-local-web-app-boundary.md#browserbackend-compatibility); update generated bindings or the explicit protocol revision and behavior tests as applicable |
 | Rust modules, crate entry points, refactors, input checks or test seams | [Code and refactor guidance](docs/development/code-guidelines.md) |
 | User-visible behavior or copy, including Rust-projected text | [Product presentation](docs/product-guidelines.md) |
