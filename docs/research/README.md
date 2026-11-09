@@ -24,6 +24,10 @@ The [available-counterpart audit](remaster-counterpart-coverage.md) follows the
 implementation with a complete same-name candidate census, additional journal
 bindings to review, real changed-body examples and search-preference coverage limits.
 
+The [UI component library evaluation](ui-component-library-evaluation.md) records
+the decision to retain Ant Design after bounded Mantine and shadcn/Base UI spikes,
+the ownership findings, and the conditions for revisiting that choice.
+
 Research notes should capture:
 
 - the question the spike tried to answer;
