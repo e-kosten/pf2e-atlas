@@ -391,9 +391,10 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: atlas-dev-validation
-          path: .atlas/validation
+          name: atlas-dev-validation-attempt-${{ github.run_attempt }}
+          path: .atlas/validation/
           include-hidden-files: true
+          retention-days: 3
           if-no-files-found: ignore
 
   web-ui:
