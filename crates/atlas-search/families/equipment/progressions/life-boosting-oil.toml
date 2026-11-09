@@ -1,0 +1,11 @@
+name = "Life-Boosting Oil"
+source_note = "Treasure Vault (Remastered). Four grades use the same damage-triggered fast healing with increasing amounts."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:AFFaFaAW3IbbYqkL", name = "Life-Boosting Oil (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:9zyrMZF76hMxwizY", name = "Life-Boosting Oil (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:3kELQauVoYunyFcd", name = "Life-Boosting Oil (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:UOH0A4xNSMnpV6i4", name = "Life-Boosting Oil (Major)", attributes = ["Major"] },
+]

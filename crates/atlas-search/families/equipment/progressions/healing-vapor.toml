@@ -1,0 +1,11 @@
+name = "Healing Vapor"
+source_note = "Treasure Vault (Remastered). The same dispersing vapor scales the duration or strength of recovery benefits."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:6G088rA3TjiuQ5NA", name = "Healing Vapor (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Xjjj7uHQzbOwENYV", name = "Healing Vapor (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:sMrOHuFHjtLDOzp4", name = "Healing Vapor (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:UOvDye8obnqjfMQG", name = "Healing Vapor (Major)", attributes = ["Major"] },
+]

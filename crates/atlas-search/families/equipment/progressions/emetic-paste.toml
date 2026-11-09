@@ -1,0 +1,10 @@
+name = "Emetic Paste"
+source_note = "Treasure Vault (Remastered). The same paste grants progressively higher bonuses against sickness."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:cHKqK8g9dS3GJ58F", name = "Emetic Paste (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:HNacrCOSJKJ6zn5t", name = "Emetic Paste (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Qcla3yTa1MzcpMjb", name = "Emetic Paste (Greater)", attributes = ["Greater"] },
+]

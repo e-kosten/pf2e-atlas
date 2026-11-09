@@ -1,0 +1,11 @@
+name = "Crackling Bubble Gum"
+source_note = "Treasure Vault (Remastered). Four grades scale auditory protection, sonic damage, and the associated save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:0Y0fmvvKSgFvUtA2", name = "Crackling Bubble Gum (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Bajwrol5y2n2ZIVm", name = "Crackling Bubble Gum (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ex1kVj3SUbTd1smt", name = "Crackling Bubble Gum (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:rpqgJkCepHecj1eA", name = "Crackling Bubble Gum (Major)", attributes = ["Major"] },
+]
