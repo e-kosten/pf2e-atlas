@@ -175,8 +175,13 @@ test.describe(() => {
       detail.revision,
     );
     const reorderHint = page.getByRole("tooltip", { name: /^Reorder 1d12 fire/ });
-    await expect(reorderHint).toBeVisible();
+    await expect(reorderHint).toBeHidden();
+    await page.keyboard.press("Space", { delay: 20 });
+    await expect(reorder).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Escape");
+    await expect(editor).toBeVisible();
+    await expect(list.getByRole("listitem").nth(1)).toContainText("1d12");
     await expect(reorderHint).toBeHidden();
     await expect(reorder).toBeFocused();
     await checkpoint(page, info, "precedence-editor.png");

@@ -229,7 +229,7 @@ export function EncounterConditionControls({
         )}
         <EncounterRowAction
           tooltip="Edit"
-          hideTooltip={open}
+          hideTooltip={open || missingPersistentSetup}
           className="encounter-condition-edit"
           icon={<Pencil size={14} aria-hidden="true" />}
           disabled={
@@ -256,6 +256,7 @@ export function EncounterConditionControls({
         </EncounterRowAction>
         <EncounterRowAction
           tooltip="Remove"
+          tooltipPlacement="right"
           className="encounter-condition-remove"
           disabled={
             disabled ||
@@ -345,6 +346,9 @@ export function EncounterConditionControls({
       immunityNote?: string;
     },
   ) => {
+    const recoveryReason = presentation?.recovery
+      ? ""
+      : recoveryControls.conditionReason(condition.condition_id);
     const parameters = condition.parameters;
     const persistentDetail =
       parameters.kind === "persistent_damage" ||
@@ -482,6 +486,9 @@ export function EncounterConditionControls({
           presentation?.recovery,
         )}
         {cleared && <span className="encounter-condition-meta">Cleared</span>}
+        {!cleared && recoveryReason && (
+          <span className="encounter-condition-meta">{recoveryReason}</span>
+        )}
         {!cleared && presentation?.superseded && (
           <span className="encounter-condition-meta">Superseded</span>
         )}
@@ -736,7 +743,10 @@ export function EncounterConditionControls({
           open={open}
           destroyOnHidden
           footer={<div ref={setActionsContainer} />}
-          onCancel={close}
+          onCancel={(event) => {
+            // A keyboard drag handles its own Escape before the modal sees it.
+            if (!event.defaultPrevented) close();
+          }}
           closable={!pending}
           keyboard={!pending}
           mask={{ closable: !pending }}

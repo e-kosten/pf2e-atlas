@@ -5,6 +5,16 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Inline table damage instructions
+
+The four turn-damage references show the table damage instructions and the
+single-event note beside the total. Linux references use Ubuntu 24.04 x64
+and Playwright 1.65.0. [Capture 42582153934](https://github.com/e-kosten/pf2e-atlas/actions/runs/42582153934)
+used the authenticated fixture from CI run 42580667442, source commit
+`cd1289938176130e717819e752ace610e43490d0` (PR head `7709c7192`).
+The fixture SHA-256 is
+`8a67bc849ddca63ebd9f51be2e25a03523d7bd109507c1a95a083c86a0062139`.
+
 ## Active condition control alignment
 
 The shared action columns align the value steppers and row actions across

@@ -82,6 +82,12 @@ export function AddToRecordButton({
           // controlled instead of invoking Tooltip's synchronous focus handler.
           onFocus={() => setFocusHint(true)}
           onBlur={() => setFocusHint(false)}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || open || (!hoverHint && !focusHint)) return;
+            event.stopPropagation();
+            setHoverHint(false);
+            setFocusHint(false);
+          }}
           onClick={(event) => {
             event.currentTarget.focus({ preventScroll: true });
             setHoverHint(false);

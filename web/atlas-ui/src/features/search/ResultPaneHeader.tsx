@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Tooltip, Button, Select } from "antd";
+import { Button, Select } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
@@ -53,21 +53,19 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
               }
             />
             <div className="pager__navigation" role="group" aria-label="Result pages">
-              <Tooltip title="Previous page" trigger={["hover", "focus"]}>
-                <Button
-                  aria-label="Previous page"
-                  size="small"
-                  disabled={
-                    workspace.pageNumber <= 1 ||
-                    workspace.resultsRefreshing ||
-                    workspace.resultsPaused ||
-                    workspace.resultsRecovering
-                  }
-                  icon={<ChevronLeft size={15} />}
-                  onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
-                  type="text"
-                />
-              </Tooltip>
+              <Button
+                aria-label="Previous page"
+                size="small"
+                disabled={
+                  workspace.pageNumber <= 1 ||
+                  workspace.resultsRefreshing ||
+                  workspace.resultsPaused ||
+                  workspace.resultsRecovering
+                }
+                icon={<ChevronLeft size={15} />}
+                onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
+                type="text"
+              />
               <PageJump
                 key={displayedPageNumber}
                 disabled={
@@ -82,23 +80,21 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
                 pageCountNumber={pageCountNumber}
                 requestedPageNumber={workspace.pageNumber}
               />
-              <Tooltip title="Next page" trigger={["hover", "focus"]}>
-                <Button
-                  aria-label="Next page"
-                  size="small"
-                  disabled={
-                    !page?.has_more ||
-                    workspace.resultsRefreshing ||
-                    workspace.resultsPaused ||
-                    workspace.resultsRecovering
-                  }
-                  icon={<ChevronRight size={15} />}
-                  onClick={() =>
-                    workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
-                  }
-                  type="text"
-                />
-              </Tooltip>
+              <Button
+                aria-label="Next page"
+                size="small"
+                disabled={
+                  !page?.has_more ||
+                  workspace.resultsRefreshing ||
+                  workspace.resultsPaused ||
+                  workspace.resultsRecovering
+                }
+                icon={<ChevronRight size={15} />}
+                onClick={() =>
+                  workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
+                }
+                type="text"
+              />
             </div>
           </>
         )}

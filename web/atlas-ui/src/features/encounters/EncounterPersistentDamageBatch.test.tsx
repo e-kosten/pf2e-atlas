@@ -194,12 +194,8 @@ it("submits all damage types together and retains table totals across an uncerta
     target: { value: "3" },
   });
   expect(screen.getAllByText("Table results")).toHaveLength(1);
-  const submit = await screen.findByRole("button", { name: "Apply 8 damage" });
-  fireEvent.focus(submit);
-  expect(await screen.findByRole("tooltip")).toHaveTextContent(
-    "Damage applies together; effects triggered by damage happen once.",
-  );
-  fireEvent.blur(submit);
+  expect(await screen.findByRole("button", { name: "Apply 8 damage" })).toBeEnabled();
+  expect(screen.getByText("Damage applies as one event.")).toBeVisible();
   fireEvent.click(screen.getByText("Roll in Atlas"));
   await waitFor(() =>
     expect(screen.queryByRole("spinbutton", { name: "Fire damage amount" })).toBeNull(),
@@ -212,10 +208,9 @@ it("submits all damage types together and retains table totals across an uncerta
     "3",
   );
   expect(screen.queryByRole("combobox", { name: "Acid damage source" })).toBeNull();
-  const amount = screen.getByRole("spinbutton", { name: "Fire damage amount" });
-  fireEvent.focus(amount);
-  expect(await screen.findByRole("tooltip")).toHaveTextContent("After IWR");
-  fireEvent.blur(amount);
+  expect(
+    screen.getByText("Enter damage after immunities, weaknesses, and resistances."),
+  ).toBeVisible();
   fireEvent.click(await screen.findByRole("button", { name: "Apply 8 damage" }));
   await screen.findByText("Could not apply persistent damage.");
   expect(screen.getByRole("spinbutton", { name: "Fire damage amount" })).toHaveValue(

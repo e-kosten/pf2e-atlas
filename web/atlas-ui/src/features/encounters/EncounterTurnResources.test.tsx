@@ -77,10 +77,6 @@ it("keeps an ungranted reaction visible before the first turn and tracks an expl
   expect(onChange).not.toHaveBeenCalled();
   const grant = screen.getByRole("button", { name: "Allow reaction" });
   expect(grant).toHaveTextContent("Allow");
-  fireEvent.focus(grant);
-  expect(await screen.findByRole("tooltip")).toHaveTextContent(
-    "The GM decides whether this creature can use a reaction before its first turn.",
-  );
   grant.focus();
   fireEvent.click(grant);
   await waitFor(() =>

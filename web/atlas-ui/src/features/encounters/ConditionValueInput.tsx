@@ -27,14 +27,17 @@ export function ConditionValueInput({
   onBlur?: () => void;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }) {
-  const decreaseLabel =
-    minimum === 1 && value === 1 && onRemove
-      ? (removeLabel ?? `Remove ${name}`)
-      : `Decrease ${name}`;
+  const removesCondition = minimum === 1 && value === 1 && !!onRemove;
+  const decreaseLabel = removesCondition
+    ? (removeLabel ?? `Remove ${name}`)
+    : `Decrease ${name}`;
   const increaseLabel = `Increase ${name}`;
   return (
     <Space.Compact size={size}>
-      <Tooltip title={decreaseLabel} trigger={["hover", "focus"]}>
+      <Tooltip
+        title={removesCondition ? decreaseLabel : undefined}
+        trigger={["hover", "focus"]}
+      >
         <Button
           disabled={
             disabled ||
@@ -75,17 +78,15 @@ export function ConditionValueInput({
         style={{ width: size === "small" ? 44 : 64 }}
         styles={{ input: { textAlign: "center" } }}
       />
-      <Tooltip title={increaseLabel} trigger={["hover", "focus"]}>
-        <Button
-          disabled={disabled || readOnly}
-          icon={<Plus size={14} />}
-          aria-label={increaseLabel}
-          onClick={() => {
-            onChange?.((value ?? 0) + 1);
-            onStep?.((value ?? 0) + 1);
-          }}
-        />
-      </Tooltip>
+      <Button
+        disabled={disabled || readOnly}
+        icon={<Plus size={14} />}
+        aria-label={increaseLabel}
+        onClick={() => {
+          onChange?.((value ?? 0) + 1);
+          onStep?.((value ?? 0) + 1);
+        }}
+      />
     </Space.Compact>
   );
 }

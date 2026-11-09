@@ -451,11 +451,14 @@ export function SearchSettings({
   );
   return (
     <>
-      <Tooltip title={`Search settings: ${summary}`}>
+      <Tooltip
+        title={draft === null ? summary : undefined}
+        trigger={["hover", "focus"]}
+      >
         <Button
           icon={<SlidersHorizontal size={18} aria-hidden="true" />}
           aria-label="Search settings"
-          aria-describedby={`${id}-summary`}
+          aria-description={summary}
           disabled={disabled}
           onClick={(event) => {
             event.currentTarget.focus({ preventScroll: true });
@@ -463,9 +466,6 @@ export function SearchSettings({
           }}
         />
       </Tooltip>
-      <span id={`${id}-summary`} className="sr-only">
-        {summary}
-      </span>
       <Modal
         title={showingSource ? "Choose sections" : "Search settings"}
         open={draft !== null}

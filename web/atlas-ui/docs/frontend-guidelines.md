@@ -1180,11 +1180,13 @@ Reject unsafe integer input before creating numeric literals.
 
 ### Choosing an interaction surface
 
-Noninteractive icon tooltips must not intercept pointer/touch input. Close the
-initiating tooltip when opening its editor; for example, a condition's Edit hint
-must not remain above the modal's Apply button. Use Ant's documented `open` and
-semantic `styles.root` API, preserving the button's accessible name and keyboard
-focus behavior. Verify with actual touch activation as well as mouse and keyboard.
+Use Ant Tooltip for short action labels and optional facts. Give the trigger
+its own accessible name and enable hover and keyboard focus. Keep the bubble
+readable when the pointer moves onto it, and allow Escape to dismiss it while
+focus stays on the trigger. Close the initiating tip when opening an editor or
+other overlay. Verify touch activation, including the editor's Apply action.
+Reorder grips use accessible names and the sortable list's keyboard and
+screen-reader behavior without a tooltip.
 
 Condition actions belong beside their condition's edit/remove controls. Keep
 recovery rolls and results anchored to those controls, including when success
@@ -2254,8 +2256,8 @@ recovery and Clear effect show Clears after Apply; their damage remains in this
 turn's total. Recovery is optional, and can also follow damage application. Show
 the running Rust preview total as Total: N damage, adding named missing types:
 Fire, Acid not rolled in Atlas mode, or not entered in table mode. Omit the missing
-context once complete. Apply N damage uses that same authoritative total. Its hover/focus tooltip explains the
-single simultaneous damage event. Keep the button concise; when recovery or Clear
+context once complete. Apply N damage uses that same authoritative total. State
+that damage applies as one event beside the complete total. When recovery or Clear
 will remove effects, show Clear plus their damage-type names beside the total.
 Do not include failed recoveries or independent expired-condition actions in that
 summary. The final command applies HP consequences once,
@@ -2333,7 +2335,8 @@ Persistent turn reminders show all sources directly, with the active source firs
 and superseded entries muted. Recovery and per-type Clear effect buttons share one aligned
 action row. Clear records the table outcome without a DC form or dice roll; it
 ends that turn's applicable sources and leaves later sources intact. Table damage
-is labeled Damage taken with an After IWR tooltip. Incomplete persistent entries
+is labeled Damage taken. Explain once above the table inputs that amounts include
+immunities, weaknesses, and resistances. Incomplete persistent entries
 show only supplied details, without an internal Reminder prefix or empty metadata.
 
 Keep persistent turn review organized by damage type: sources, damage entry or

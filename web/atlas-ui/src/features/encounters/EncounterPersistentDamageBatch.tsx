@@ -1,8 +1,8 @@
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { Alert, Button, Form, InputNumber, Segmented, Space, Tooltip } from "antd";
+import { Alert, Button, Form, InputNumber, Segmented, Space } from "antd";
 import { Undo2, X } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import type {
   ApplyPersistentDamageRequest,
   EncounterParticipantView,
@@ -80,6 +80,7 @@ export function EncounterPersistentDamageBatch({
     recovery: ReactNode,
   ) => ReactNode;
 }) {
+  const tableDamageHintId = useId();
   const [form] = Form.useForm<Values>();
   const draftMode = Form.useWatch("mode", form) ?? "roll";
   const amounts = Form.useWatch("groups", { form, preserve: true }) as
@@ -377,6 +378,11 @@ export function EncounterPersistentDamageBatch({
             />
           </Form.Item>
         )}
+        {!applied && mode === "table" && (
+          <p id={tableDamageHintId} className="muted">
+            Enter damage after immunities, weaknesses, and resistances.
+          </p>
+        )}
         <div className="encounter-persistent-groups">
           {displayGroups.map((group) => {
             const label =
@@ -431,115 +437,107 @@ export function EncounterPersistentDamageBatch({
                     <strong>Damage: {saved.amount.toString()} applied</strong>
                   </div>
                 ) : !applied && active ? (
-                  <Tooltip
-                    title={mode === "table" ? "After IWR" : undefined}
-                    trigger={["hover", "focus"]}
-                  >
-                    <div className="encounter-persistent-damage-control">
-                      <span className="encounter-persistent-damage-control__label">
-                        {mode === "table" ? "Damage taken" : "Damage"}
-                      </span>
-                      <div className="encounter-persistent-damage-control__value">
-                        {mode === "table" && selectedSource?.roll_preview && (
-                          <span
-                            className="encounter-persistent-damage-control__sizer"
-                            aria-hidden="true"
-                            inert
+                  <div className="encounter-persistent-damage-control">
+                    <span className="encounter-persistent-damage-control__label">
+                      {mode === "table" ? "Damage taken" : "Damage"}
+                    </span>
+                    <div className="encounter-persistent-damage-control__value">
+                      {mode === "table" && selectedSource?.roll_preview && (
+                        <span
+                          className="encounter-persistent-damage-control__sizer"
+                          aria-hidden="true"
+                          inert
+                        >
+                          <UnrolledRoll
+                            expression={selectedSource.roll_preview}
+                            formula={selectedSource.formula}
                           >
-                            <UnrolledRoll
-                              expression={selectedSource.roll_preview}
-                              formula={selectedSource.formula}
-                            >
-                              <span />
-                            </UnrolledRoll>
-                          </span>
-                        )}
-                        <div className="encounter-persistent-damage-control__content">
-                          {mode === "table" ? (
-                            <Form.Item
-                              name={["groups", group.episode_id, "amount"]}
-                              style={{ marginBottom: 0 }}
-                              rules={[nonNegativeIntegerRule(true)]}
-                            >
-                              <InputNumber
-                                aria-label={`${label} damage amount`}
-                                min={0}
-                                max={1_000_000_000}
-                                step={1}
-                              />
-                            </Form.Item>
-                          ) : rolled ? (
-                            <>
-                              {rolled.roll && (
-                                <RollResult
-                                  outcome={rolled.roll}
-                                  pending={rollPending}
-                                />
+                            <span />
+                          </UnrolledRoll>
+                        </span>
+                      )}
+                      <div className="encounter-persistent-damage-control__content">
+                        {mode === "table" ? (
+                          <Form.Item
+                            name={["groups", group.episode_id, "amount"]}
+                            style={{ marginBottom: 0 }}
+                            rules={[nonNegativeIntegerRule(true)]}
+                          >
+                            <InputNumber
+                              aria-label={`${label} damage amount`}
+                              aria-describedby={tableDamageHintId}
+                              min={0}
+                              max={1_000_000_000}
+                              step={1}
+                            />
+                          </Form.Item>
+                        ) : rolled ? (
+                          <>
+                            {rolled.roll && (
+                              <RollResult outcome={rolled.roll} pending={rollPending} />
+                            )}
+                            {!rollPending &&
+                              (!rolled.roll || rolled.roll.total !== rolled.amount) && (
+                                <strong>{rolled.amount.toString()} damage</strong>
                               )}
-                              {!rollPending &&
-                                (!rolled.roll ||
-                                  rolled.roll.total !== rolled.amount) && (
-                                  <strong>{rolled.amount.toString()} damage</strong>
-                                )}
-                            </>
-                          ) : (
-                            <UnrolledDamage
-                              expression={selectedSource?.roll_preview}
-                              formula={selectedSource?.formula ?? label}
-                              pending={rollPending}
+                          </>
+                        ) : (
+                          <UnrolledDamage
+                            expression={selectedSource?.roll_preview}
+                            formula={selectedSource?.formula ?? label}
+                            pending={rollPending}
+                          >
+                            <Button
+                              loading={rollPending}
+                              aria-label={`Roll ${label} damage`}
+                              onClick={async () => {
+                                let issued:
+                                  | {
+                                      draft: PersistentDamageDraft;
+                                      group: PersistentDamageOutcomeView;
+                                    }
+                                  | undefined;
+                                await damageRoll.run(async () => {
+                                  setRollingEpisode(group.episode_id);
+                                  const prepared = await prepare(
+                                    `damage:${group.episode_id}`,
+                                    [
+                                      ...groups,
+                                      {
+                                        episode_id: group.episode_id,
+                                        damage: { kind: "roll" },
+                                      },
+                                    ],
+                                  );
+                                  const entry = prepared.damage_draft;
+                                  const outcome = prepared.damage.groups.find(
+                                    (g) => g.episode_id === group.episode_id,
+                                  );
+                                  if (
+                                    entry?.episode_id !== group.episode_id ||
+                                    !outcome?.roll
+                                  )
+                                    throw new Error(
+                                      "Could not confirm the prepared damage roll.",
+                                    );
+                                  issued = { draft: entry.draft, group: outcome };
+                                  return prepared;
+                                });
+                                const roll = issued;
+                                if (roll)
+                                  setRolls((previous) => ({
+                                    ...previous,
+                                    [group.episode_id]: roll,
+                                  }));
+                              }}
                             >
-                              <Button
-                                loading={rollPending}
-                                aria-label={`Roll ${label} damage`}
-                                onClick={async () => {
-                                  let issued:
-                                    | {
-                                        draft: PersistentDamageDraft;
-                                        group: PersistentDamageOutcomeView;
-                                      }
-                                    | undefined;
-                                  await damageRoll.run(async () => {
-                                    setRollingEpisode(group.episode_id);
-                                    const prepared = await prepare(
-                                      `damage:${group.episode_id}`,
-                                      [
-                                        ...groups,
-                                        {
-                                          episode_id: group.episode_id,
-                                          damage: { kind: "roll" },
-                                        },
-                                      ],
-                                    );
-                                    const entry = prepared.damage_draft;
-                                    const outcome = prepared.damage.groups.find(
-                                      (g) => g.episode_id === group.episode_id,
-                                    );
-                                    if (
-                                      entry?.episode_id !== group.episode_id ||
-                                      !outcome?.roll
-                                    )
-                                      throw new Error(
-                                        "Could not confirm the prepared damage roll.",
-                                      );
-                                    issued = { draft: entry.draft, group: outcome };
-                                    return prepared;
-                                  });
-                                  const roll = issued;
-                                  if (roll)
-                                    setRolls((previous) => ({
-                                      ...previous,
-                                      [group.episode_id]: roll,
-                                    }));
-                                }}
-                              >
-                                Roll
-                              </Button>
-                            </UnrolledDamage>
-                          )}
-                        </div>
+                              Roll
+                            </Button>
+                          </UnrolledDamage>
+                        )}
                       </div>
                     </div>
-                  </Tooltip>
+                  </div>
                 ) : null}
               </>
             );
@@ -750,23 +748,21 @@ export function EncounterPersistentDamageBatch({
               ) : (
                 <span className="muted">Updating total…</span>
               )}
+              {current?.value?.complete && (
+                <div className="muted">Damage applies as one event.</div>
+              )}
               {clearingTypes.length > 0 && <div>Clear {clearingTypes.join(", ")}</div>}
             </div>
-            <Tooltip
-              title="Damage applies together; effects triggered by damage happen once."
-              trigger={["hover", "focus"]}
+            <Button
+              type="primary"
+              htmlType="submit"
+              disabled={!ready || !current?.value?.complete}
+              loading={pending}
             >
-              <Button
-                type="primary"
-                htmlType="submit"
-                disabled={!ready || !current?.value?.complete}
-                loading={pending}
-              >
-                {current?.value?.complete
-                  ? `Apply ${current.value.damage.total} damage`
-                  : "Apply damage"}
-              </Button>
-            </Tooltip>
+              {current?.value?.complete
+                ? `Apply ${current.value.damage.total} damage`
+                : "Apply damage"}
+            </Button>
           </div>
         )}
       </Form>

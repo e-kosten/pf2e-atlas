@@ -279,7 +279,10 @@ export function EncounterSpellResources({
   };
   return (
     <>
-      <Tooltip title={`Manage ${title} resources`}>
+      <Tooltip
+        title={draft ? undefined : `Manage ${title} resources`}
+        trigger={["hover", "focus"]}
+      >
         <Button
           type="text"
           size="small"
@@ -381,11 +384,9 @@ export function EncounterSpellResources({
 function ResourceCount({ resource }: { resource: EncounterSpellResourceView }) {
   const description = `${resource.label}: ${resource.remaining} of ${resource.capacity} remaining`;
   return (
-    <Tooltip title={description}>
-      <span className="encounter-casting__count" aria-label={description}>
-        {spellResourceCount(resource)}
-      </span>
-    </Tooltip>
+    <span className="encounter-casting__count" aria-label={description}>
+      {spellResourceCount(resource)}
+    </span>
   );
 }
 
@@ -444,29 +445,19 @@ export function SharedResourceControl({
             />
           )}
           <Space>
-            <Tooltip
-              title={`Expend one ${resource.label}`}
-              trigger={["hover", "focus"]}
-            >
-              <Button
-                aria-label={`Expend one ${resource.label}`}
-                icon={<Minus size={14} />}
-                disabled={disabled || pending || remaining === 0}
-                onClick={() => void update(remaining - 1)}
-              />
-            </Tooltip>
+            <Button
+              aria-label={`Expend one ${resource.label}`}
+              icon={<Minus size={14} />}
+              disabled={disabled || pending || remaining === 0}
+              onClick={() => void update(remaining - 1)}
+            />
             <span aria-live="polite">{spellResourceCount(resource)}</span>
-            <Tooltip
-              title={`Restore one ${resource.label}`}
-              trigger={["hover", "focus"]}
-            >
-              <Button
-                aria-label={`Restore one ${resource.label}`}
-                icon={<Plus size={14} />}
-                disabled={disabled || pending || remaining === capacity}
-                onClick={() => void update(remaining + 1)}
-              />
-            </Tooltip>
+            <Button
+              aria-label={`Restore one ${resource.label}`}
+              icon={<Plus size={14} />}
+              disabled={disabled || pending || remaining === capacity}
+              onClick={() => void update(remaining + 1)}
+            />
           </Space>
           <Button
             disabled={disabled || pending || remaining === capacity}

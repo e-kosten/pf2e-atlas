@@ -2,7 +2,6 @@ import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterModal } from "./EncounterModal";
 import {
-  Tooltip,
   Button,
   Checkbox,
   Dropdown,
@@ -85,15 +84,13 @@ export function EncounterParticipantSettings({
           },
         }}
       >
-        <Tooltip title="Participant settings" trigger={["hover", "focus"]}>
-          <Button
-            type="text"
-            ref={settingsTrigger}
-            aria-label="Participant settings"
-            icon={<Settings size={16} aria-hidden="true" />}
-            disabled={disabled}
-          />
-        </Tooltip>
+        <Button
+          type="text"
+          ref={settingsTrigger}
+          aria-label="Participant settings"
+          icon={<Settings size={16} aria-hidden="true" />}
+          disabled={disabled}
+        />
       </Dropdown>
       <EncounterModal
         title="Participant settings"

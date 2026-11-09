@@ -21,7 +21,6 @@ import { createPortal } from "react-dom";
 import { EncounterPersistentPrecedence } from "./EncounterPersistentPrecedence";
 import { EncounterDurationFields } from "./EncounterDurationFields";
 import { ConditionValueInput } from "./ConditionValueInput";
-import { Info } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useState, type ReactNode } from "react";
 import type {
   EncounterConditionDefinitionView,
@@ -585,30 +584,14 @@ export function EncounterConditionEditor({
           </Form.Item>
         )}
         {(definition?.editor_kind === "unconscious" || !!unconscious) && (
-          <Form.Item>
-            <Space>
-              <Form.Item
-                name="wakingRule"
-                noStyle
-                getValueProps={(value) => ({ checked: value !== "source_controlled" })}
-                getValueFromEvent={(event) =>
-                  event.target.checked ? "normal" : "source_controlled"
-                }
-              >
-                <Checkbox>Wake automatically</Checkbox>
-              </Form.Item>
-              <Tooltip
-                title="When healing, damage, or another normal waking trigger applies."
-                trigger={["hover", "focus", "click"]}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<Info size={14} />}
-                  aria-label="About automatic waking"
-                />
-              </Tooltip>
-            </Space>
+          <Form.Item
+            name="wakingRule"
+            getValueProps={(value) => ({ checked: value !== "source_controlled" })}
+            getValueFromEvent={(event) =>
+              event.target.checked ? "normal" : "source_controlled"
+            }
+          >
+            <Checkbox>Use normal waking rules</Checkbox>
           </Form.Item>
         )}
         {(definition?.editor_kind === "frightened" || !!frightened) && (
