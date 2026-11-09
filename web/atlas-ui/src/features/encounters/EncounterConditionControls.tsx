@@ -256,6 +256,7 @@ export function EncounterConditionControls({
         </EncounterRowAction>
         <EncounterRowAction
           tooltip="Remove"
+          tooltipPlacement="right"
           className="encounter-condition-remove"
           disabled={
             disabled ||
