@@ -71,7 +71,7 @@ INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_da
     let actual=read.connection().prepare("SELECT encounter_id,request_id,payload_json,requires_review FROM encounter_outgoing_turns ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
     assert_eq!(actual, latest);
     drop(read);
-    let workspace = initialize_workspace(workspace.path()).unwrap();
+    let workspace = upgrade_historical_fixture(workspace.path()).unwrap();
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let store = LocalStateRead::for_local(&read).unwrap();
     assert!(

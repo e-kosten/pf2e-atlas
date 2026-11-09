@@ -8,8 +8,8 @@ publication assurance amended by [ADR0065](0065-input-owned-reference-publicatio
 Replacing a generated reference file separately from mutable state makes upgrades,
 reference identity and composed reads harder to keep coherent. Atlas needs a stable
 upgrade baseline before release, incremental source processing, reusable expensive
-inference and room for additional saved domains. Existing pre-release files need
-no format bridge. Maintenance downtime is an accepted product tradeoff.
+inference and room for additional saved domains. The release upgrade floor is
+workspace schema 41. Maintenance downtime is an accepted product tradeoff.
 
 ## Decision
 
@@ -38,27 +38,41 @@ for an enclosing caller to commit. Prior successful actions remain under the
 caller's outer transaction. Failure to restore a savepoint abandons that outer
 transaction.
 
-Migrations drain cooperating readers/writers, back up an existing workspace and
-apply schema, backfills, validation and ledger changes in one transaction. Domain
-backfills may provide a versioned executable callback; its immutable identifier
-participates in the migration checksum. Published SQL-only checksums are unchanged.
+### Release schema and migration admission
+
+Fresh workspaces install schema 42 directly from the domain DDL. Existing
+workspaces below 42 enter through one bridge. Storage verifies the Atlas
+application ID, schema 41 and the fingerprint of all 41 ordered ledger entries
+before admitting it. The bridge reconstructs saved lists, parties and encounters
+with explicit owner IDs. It preserves their rows, child rows, ownership
+constraints and the seeded local principal. The bridge replaces the old ledger
+with the same checkpoint entry as a fresh workspace. Later migrations append
+after that checkpoint.
+
+Migrations drain cooperating readers and writers, back up an existing workspace
+and apply schema, backfills, validation and ledger changes in one transaction.
+The checkpoint checksum binds the baseline SQL and the versioned bridge
+contract. The predecessor fingerprint covers versions, names and checksums.
+Applied timestamps are local metadata.
 A referenced-table reconstruction explicitly opts in through its immutable,
 checksum-bound backfill contract. Under exclusive admission, storage captures the
 upgrade backup and suspends foreign-key enforcement on the migration connection
 before BEGIN for the **whole pending migration batch**, including ordinary SQL
 and callbacks before or after the opted-in backfill. Every migration in that
 batch must be safe without foreign-key actions; the final key check detects
-dangling references but cannot reproduce a skipped cascade. The published
-migration 1–24 suffixes used with the saved-state reconstruction use explicit
-changes and have no dependency on such cascades. Domain-owned preflight and
-reconstruction, exact row-count checks, ledger updates and complete foreign-key
-validation share the upgrade transaction.
+dangling references but cannot reproduce a skipped cascade. The schema 41
+bridge uses explicit changes and preserves incoming references. Domain-owned
+preflight and reconstruction, row-count checks, ledger updates and complete
+foreign-key validation share the upgrade transaction.
 Storage restores enforcement after commit or rollback; an interrupted connection
 closes without changing subsequent connections' enforcement. This mechanism is
 reserved for reconstruction whose parent DROP would otherwise cascade into
 retained user rows. Domain policy and reconstruction SQL remain with their owner.
-The ordinary admission validator remains read-only and never runs backfills. One
-publisher owns source/configuration updates. Preparation can run while ordinary
+The ordinary admission validator remains read-only.
+
+### Publication and recovery
+
+One publisher owns source/configuration updates. Preparation can run while ordinary
 operations continue: publisher ownership does not hold the exclusive access lock
 or a long-lived SQLite write transaction. Normal source publication uses one
 immediate transaction. Data-only publication admits readers on committed snapshots.

@@ -870,7 +870,7 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
         db.query_row("SELECT count(*) FROM schema_migrations", [], |r| r
             .get::<_, u64>(0))
             .unwrap(),
-        u64::from(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        1
     );
 }
 
@@ -1785,16 +1785,16 @@ fn index_rebuild_repairs_generated_data_and_keeps_saved_state() {
         let fixture = Fixture::new();
         let connection = rusqlite::Connection::open(&fixture.index).unwrap();
         connection.execute_batch(
-            "INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at)
-             VALUES(1,'kept','kept','Saved list','now','now');
+            "INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at)
+             VALUES(1,1,'kept','kept','Saved list','now','now');
              INSERT INTO record_identity(key,last_known_name,availability)
              VALUES('actions:cccccccccccccccc','Removed record','available');
              INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
              VALUES(1,'actions:cccccccccccccccc',0,'Keep this note','Removed record','now','now');
-             INSERT INTO encounters(id,encounter_key,slug,name,status,note,created_at,updated_at)
-             VALUES(1,'fight','fight','Saved encounter','draft','Keep encounter note','now','now');
+             INSERT INTO encounters(id,owner_id,encounter_key,slug,name,status,note,created_at,updated_at)
+             VALUES(1,1,'fight','fight','Saved encounter','draft','Keep encounter note','now','now');
              INSERT INTO saved_list_tags VALUES(1,'keep','now');
-             INSERT INTO parties(party_key,name) VALUES('kept-party','Kept party');
+             INSERT INTO parties(party_key,owner_id,name) VALUES('kept-party',1,'Kept party');
              INSERT INTO party_members(member_key,party_key,position,name)
              VALUES('kept-member','kept-party',0,'Kept member');"
         ).unwrap();
@@ -1891,8 +1891,8 @@ fn index_rebuild_rolls_back_reference_reset_when_deep_audit_fails() {
     let connection = rusqlite::Connection::open(&fixture.index).unwrap();
     connection.execute_batch(
         "PRAGMA foreign_keys=OFF;
-         INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at)
-         VALUES(1,'kept','kept','Saved list','now','now');
+         INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at)
+         VALUES(1,1,'kept','kept','Saved list','now','now');
          INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
          VALUES(1,'actions:dddddddddddddddd',0,'Keep broken saved row','Unknown','now','now');
          UPDATE artifact_context SET context_json='{}';
@@ -1944,9 +1944,9 @@ fn index_rebuild_refuses_missing_old_and_unauthenticated_workspaces() {
         (format!("PRAGMA user_version={}", schema - 1), "schema"),
         (
             format!(
-                "PRAGMA user_version={schema}; UPDATE workspace SET maintenance='fixture'; UPDATE schema_migrations SET checksum='tampered' WHERE version=1"
+                "PRAGMA user_version={schema}; UPDATE workspace SET maintenance='fixture'; UPDATE schema_migrations SET checksum='tampered' WHERE version={schema}"
             ),
-            "applied migration 1 differs",
+            "differs from executable",
         ),
     ] {
         connection.execute_batch(&mutation).unwrap();

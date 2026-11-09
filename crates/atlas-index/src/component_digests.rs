@@ -3,6 +3,7 @@ use crate::{IndexError, PreparedRecordRef, codec::sha256};
 use rusqlite::{Connection, OptionalExtension, params, types::Value};
 use serde::{Deserialize, Serialize};
 
+#[cfg(any(test, feature = "test-support"))]
 pub const COMPONENT_DIGEST_SCHEMA_SQL: &str = include_str!("component_digests.sql");
 const RECIPE: &str = "closed-reference-components/v1";
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -322,6 +323,7 @@ pub(crate) fn validate_present(
     })
 }
 /// Update only the attestations whose representation changed in the trait migration.
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn refresh_trait_migration(c: &Connection) -> Result<(), IndexError> {
     let has_attestations: bool = c.query_row(
         "SELECT EXISTS(SELECT 1 FROM reference_component_digests)",

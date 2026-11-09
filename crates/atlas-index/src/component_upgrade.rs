@@ -95,6 +95,7 @@ pub fn classify_reference_upgrade(c: &Connection) -> Result<ReferenceUpgrade, In
 }
 
 // Schema 28 runs before the catalog fingerprint and model foreign key exist.
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn classify_pre_fingerprint_upgrade(
     c: &Connection,
 ) -> Result<ReferenceUpgrade, IndexError> {
@@ -221,11 +222,12 @@ fn upgrade_plan(
     if sections_changed {
         return Ok((ReferenceUpgrade::SectionProjections, Some(target)));
     }
+    #[cfg(any(test, feature = "test-support"))]
     if pre_fingerprint {
         crate::validation::validate_pre_fingerprint(c)?;
-    } else {
-        crate::validation::validate_open(c)?;
+        return Ok((ReferenceUpgrade::Current, None));
     }
+    crate::validation::validate_open(c)?;
     Ok((ReferenceUpgrade::Current, None))
 }
 

@@ -107,7 +107,7 @@ pub struct UpdateOwner {
 /// The update owner stays held while preparation runs outside SQLite.
 pub struct ReferenceRepair<'a> {
     owner: &'a UpdateOwner,
-    migrations: &'static [crate::Migration],
+    history: crate::MigrationHistory<'static>,
     workspace_key: String,
     reference_revision: u64,
 }
@@ -122,7 +122,7 @@ impl<'a> ReferenceRepair<'a> {
     }
 
     pub fn schema(&self) -> u32 {
-        self.migrations.len() as u32
+        self.history.target()
     }
 
     pub fn workspace_key(&self) -> &str {
@@ -142,7 +142,7 @@ impl<'a> ReferenceRepair<'a> {
     }
 
     fn check_expected(&self, connection: &Connection) -> StorageResult<()> {
-        let (_, current) = crate::migration::inspect_history(connection, self.migrations)?;
+        let (_, current) = crate::migration::inspect_history(connection, self.history)?;
         if current != self.schema() {
             return Err(crate::StorageError::Schema {
                 expected: self.schema(),
@@ -173,19 +173,18 @@ impl UpdateOwner {
     /// even when a maintenance marker blocks normal admission.
     pub fn begin_reference_repair<T, E>(
         &self,
-        migrations: &'static [crate::Migration],
+        history: crate::MigrationHistory<'static>,
         inspect: impl FnOnce(&ReadSession) -> Result<T, E>,
     ) -> Result<(ReferenceRepair<'_>, T), E>
     where
         E: From<crate::StorageError>,
     {
-        let read = self
-            .workspace
-            .read_admitted(migrations.len() as u32, true)?;
-        crate::migration::inspect_history(read.connection(), migrations)?;
+        history.validate()?;
+        let read = self.workspace.read_admitted(history.target(), true)?;
+        crate::migration::inspect_history(read.connection(), history)?;
         let repair = ReferenceRepair {
             owner: self,
-            migrations,
+            history,
             workspace_key: read.workspace_key()?,
             reference_revision: read.reference_revision()?,
         };

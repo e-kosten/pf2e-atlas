@@ -93,6 +93,7 @@ fn glossary_upgrade_is_atomic_and_keeps_source_free_trait_and_record_reads() {
         ..Default::default()
     })
     .unwrap();
+    upgrade_historical_fixture(workspace.path()).unwrap();
     runtime.upgrade_workspace_if_present().unwrap();
     let reader = open_workspace_index(workspace.path()).unwrap();
     assert_eq!(

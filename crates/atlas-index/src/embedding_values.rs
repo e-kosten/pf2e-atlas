@@ -1,9 +1,12 @@
 //! Exact registry identity and the immutable historical publication checksum helper.
+#[cfg(any(test, feature = "test-support"))]
 use crate::{
     IndexError, SourceSearchProfileIdentity, read_units::vector_bytes, validation::check_vector,
 };
+#[cfg(any(test, feature = "test-support"))]
 use rusqlite::{Connection, params};
 
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn digest(value: &str) -> Result<Vec<u8>, IndexError> {
     if !crate::codec::checked_hash(value) {
         return Err(IndexError::Invalid("invalid SHA-256 digest".into()));
@@ -19,6 +22,7 @@ pub(crate) fn hash_bytes(bytes: &[u8]) -> Vec<u8> {
     use sha2::{Digest, Sha256};
     Sha256::digest(bytes).to_vec()
 }
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn model_id(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
@@ -33,6 +37,7 @@ pub(crate) fn model_id(
             .query_row([identity], |r| r.get(0))?,
     )
 }
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn input_id(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
@@ -57,6 +62,7 @@ pub(crate) fn input_id(
     }
     Ok(id)
 }
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn publish_input(
     c: &Connection,
     model: &SourceSearchProfileIdentity,

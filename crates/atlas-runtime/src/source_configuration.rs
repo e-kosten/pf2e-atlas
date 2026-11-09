@@ -23,7 +23,10 @@ pub(crate) fn resolve_configuration(
     crate::workspace::register_extensions().map_err(|e| e.to_string())?;
     let workspace = if options.check {
         if paths.index_path.exists() {
-            Some(atlas_storage::Workspace::at(&paths.index_path).map_err(|e| e.to_string())?)
+            let workspace =
+                atlas_storage::Workspace::existing(&paths.index_path).map_err(|e| e.to_string())?;
+            crate::workspace::check_workspace_history(&workspace).map_err(|e| e.to_string())?;
+            Some(workspace)
         } else {
             None
         }

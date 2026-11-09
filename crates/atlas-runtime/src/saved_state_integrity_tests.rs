@@ -283,7 +283,7 @@ fn integrity_upgrade_rejects_invalid_history_without_changing_rows_or_ledger() {
         let adjustments = rows(write.connection(), "encounter_participant_adjustments");
         let ledger = rows(write.connection(), "schema_migrations");
         write.commit().unwrap();
-        let error = initialize_workspace(workspace.path())
+        let error = upgrade_historical_fixture(workspace.path())
             .unwrap_err()
             .to_string();
         assert!(error.contains(diagnostic), "{error}");
@@ -317,7 +317,7 @@ fn integrity_upgrade_rejects_invalid_history_without_changing_rows_or_ledger() {
 fn integrity_constraints_reject_invalid_writes_and_defer_current_turn_until_commit() {
     let (_directory, workspace) = historical();
     populate(&workspace, 24);
-    initialize_workspace(workspace.path()).unwrap();
+    upgrade_historical_fixture(workspace.path()).unwrap();
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     for sql in [
         "UPDATE encounters SET status='runnning' WHERE id=1",
@@ -357,7 +357,7 @@ fn integrity_constraints_allow_current_participant_and_encounter_deletion() {
     for remove_encounter in [false, true] {
         let (_directory, workspace) = historical();
         populate(&workspace, 24);
-        initialize_workspace(workspace.path()).unwrap();
+        upgrade_historical_fixture(workspace.path()).unwrap();
         let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         let state = LocalStateWrite::for_local(&write).unwrap();
         if remove_encounter {
@@ -458,7 +458,7 @@ fn saved_state_closeout_repairs_live_and_frozen_order_and_rejects_an_orphan_clai
         .unwrap();
     write.commit().unwrap();
 
-    let error = initialize_workspace(&path).err().unwrap();
+    let error = upgrade_historical_fixture(&path).err().unwrap();
     assert!(
         error
             .to_string()
@@ -474,7 +474,7 @@ fn saved_state_closeout_repairs_live_and_frozen_order_and_rejects_an_orphan_clai
     ).unwrap();
     write.commit().unwrap();
 
-    let error = initialize_workspace(&path).err().unwrap();
+    let error = upgrade_historical_fixture(&path).err().unwrap();
     assert!(
         error.to_string().contains("invalid roster position"),
         "{error}"
@@ -508,7 +508,7 @@ fn saved_state_closeout_repairs_live_and_frozen_order_and_rejects_an_orphan_clai
         .unwrap();
     write.commit().unwrap();
 
-    let upgraded = initialize_workspace(&path).unwrap();
+    let upgraded = upgrade_historical_fixture(&path).unwrap();
     let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let rows = read
         .connection()
@@ -558,8 +558,9 @@ fn saved_state_closeout_repairs_live_and_frozen_order_and_rejects_an_orphan_clai
         let connection = write.connection();
         connection
             .execute_batch(
-                "INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at)
-             VALUES(2,'other','other','Other','draft','before','before');",
+                "INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at,owner_id)
+             VALUES(2,'other','other','Other','draft','before','before',
+               (SELECT id FROM principals WHERE principal_key='local'));",
             )
             .unwrap();
         connection.execute(

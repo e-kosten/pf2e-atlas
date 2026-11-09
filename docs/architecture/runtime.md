@@ -358,11 +358,12 @@ manifest, locale and requested profiles are durable configuration independent of
 active reference output. Explicit setup overrides update that intent; omitted
 options preserve it. Adding a profile retains already requested profiles.
 
-Runtime composes reference and saved-domain SQL into one ordered migration ledger.
-Storage verifies ledger checksums, backs up existing workspaces before structural
-upgrades, and commits migrations, backfills and validation atomically. Supported
-query-catalog changes rebuild typed projections from retained DTOs without source
-admission or inference. Other component changes require their corresponding
+Runtime composes reference and saved-domain SQL into the release checkpoint and
+one ordered migration ledger. Storage creates new workspaces at schema 42 and
+upgrades authenticated schema 41 workspaces after taking a backup. See
+[release schema and migration admission](decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
+Supported query-catalog changes rebuild typed projections from retained DTOs
+without source admission or inference. Other component changes require their corresponding
 preparation work; physical schema version alone is not an inference invalidation.
 
 The reference-entry migration moves existing trait content/evidence to its canonical

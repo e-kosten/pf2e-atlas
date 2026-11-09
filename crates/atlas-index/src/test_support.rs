@@ -317,8 +317,10 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexEr
 pub fn reference_repair(
     owner: &atlas_storage::UpdateOwner,
 ) -> Result<atlas_storage::ReferenceRepair<'_>, IndexError> {
-    let (repair, ()) =
-        owner.begin_reference_repair(TEST_MIGRATIONS, |_| Ok::<_, IndexError>(()))?;
+    let (repair, ()) = owner.begin_reference_repair(
+        atlas_storage::MigrationHistory::new(TEST_MIGRATIONS),
+        |_| Ok::<_, IndexError>(()),
+    )?;
     Ok(repair)
 }
 pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexError> {
@@ -357,7 +359,7 @@ pub fn publish_input_in(
     publish_input_in_with_references(workspace, schema, input, &[], &[])
 }
 
-fn publish_input_in_with_references(
+pub fn publish_input_in_with_references(
     workspace: &Workspace,
     schema: u32,
     input: &IndexBuildInput,

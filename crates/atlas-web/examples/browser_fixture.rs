@@ -110,8 +110,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     let glossary = reference_data::attach(&mut fixture)?;
-    atlas_index::test_support::publish_input_with_references(
-        &index_path,
+    let workspace = atlas_runtime::initialize_workspace(&index_path)?;
+    atlas_index::test_support::publish_input_in_with_references(
+        &workspace,
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
         &fixture,
         &glossary.entries,
         &glossary.notices,

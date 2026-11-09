@@ -133,8 +133,8 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     write
         .connection()
         .execute(
-            "INSERT INTO encounters(encounter_key,slug,name,note,status,created_at,updated_at)
-         VALUES (?1,?2,?3,?4,'draft',?5,?6)",
+            "INSERT INTO encounters(encounter_key,slug,name,note,status,created_at,updated_at,owner_id)
+         VALUES (?1,?2,?3,?4,'draft',?5,?6,(SELECT id FROM principals WHERE principal_key='local'))",
             rusqlite::params![
                 encounter.encounter_key,
                 encounter.slug,
@@ -303,6 +303,9 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     })
     .unwrap();
     let historical = initial_schema == 2;
+    if historical {
+        crate::workspace::upgrade_historical_fixture(&paths.index_path).unwrap();
+    }
     assert_eq!(runtime.upgrade_workspace_if_present().unwrap(), !historical);
     let expected_revision = before + 1;
     if historical {

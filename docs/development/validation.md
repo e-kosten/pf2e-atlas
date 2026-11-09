@@ -465,7 +465,13 @@ Formatting checks read files in the working tree; whitespace checks read the sta
 
 ## Database changes
 
-Domain-owned SQL is the physical schema source of truth: reference SQL lives in `crates/atlas-index/migrations/`, saved-domain SQL in `crates/atlas-local-state/src/schema.sql`. Runtime composes the ordered workspace migration ledger; storage executes it with checksums, backup and atomic validation. Once a migration is released, append an upgrade rather than editing its applied SQL. Keep tests for failed-upgrade rollback and saved-state preservation. Query-only changes can use the supported DTO-based projection backfill; do not force source admission or inference for schema changes alone.
+The [artifact contract](../architecture/artifact-contract.md) links to the domain
+DDL for the current release checkpoint. Runtime composes the ledger and the
+schema 41 bridge. Storage executes upgrades with checksums, backup and atomic
+validation. Append migrations above the released checkpoint and keep tests for
+failed-upgrade rollback and saved-state preservation. Query-only changes can use
+the supported DTO-based projection backfill. Physical schema changes alone do
+not require source admission or inference.
 
 Docs-only or instruction-only changes do not require the Rust or frontend gates unless they affect executable examples, generated output expectations, or another validated artifact. Inspect the diff and check whitespace and any changed links or examples.
 

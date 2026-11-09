@@ -107,7 +107,7 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
     let before_vectors = crate::test_support::occurrence_vector_bits(write.connection());
     let before_ledger = ledger(write.connection());
     write.commit().unwrap();
-    let upgraded = initialize_workspace(&path).unwrap();
+    let upgraded = upgrade_historical_fixture(&path).unwrap();
     assert!(
         !atlas_index::ensure_reference_projections(&upgraded, WORKSPACE_SCHEMA_VERSION).unwrap()
     );
@@ -118,7 +118,10 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
             crate::test_support::occurrence_vector_bits(read.connection()),
             before_vectors
         );
-        assert_eq!(ledger(read.connection()), before_ledger);
+        assert_eq!(
+            ledger(historical_backup(&upgraded).connection()),
+            before_ledger
+        );
     }
     // Migration preserves the checked content and vectors. Only source-backed
     // remaster publication makes this genuinely historical workspace readable.
@@ -146,7 +149,10 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
         crate::test_support::occurrence_vector_bits(read.connection()),
         before_vectors
     );
-    assert_eq!(ledger(read.connection()), before_ledger);
+    assert_eq!(
+        ledger(historical_backup(&upgraded).connection()),
+        before_ledger
+    );
     assert_eq!(read.connection().query_row("SELECT payload_json FROM encounter_participant_baselines WHERE participant_key='actor'",[],|r|r.get::<_,String>(0)).unwrap(),baseline_json);
     assert_eq!(
         read.connection()
@@ -242,7 +248,7 @@ fn legacy22_clock_conversion_precedes_receipt_compaction_and_preserves_latest_co
         write.connection().execute("INSERT INTO encounter_outgoing_turns(id,encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) VALUES(?1,1,?2,?3,'{}',?4,1)",params![id,format!("boundary-{id}"),format!("request-{id}"),payload]).unwrap();
     }
     write.commit().unwrap();
-    let upgraded = initialize_workspace(&path).unwrap();
+    let upgraded = upgrade_historical_fixture(&path).unwrap();
     let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let baseline: String = read
         .connection()
