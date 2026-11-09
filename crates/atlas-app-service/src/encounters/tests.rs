@@ -500,6 +500,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                 &key,
                 &initial.participant_key,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: format!(
                         "fixture-tests-367-{}",
                         worker
@@ -556,6 +557,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                 &initial.participant_key,
                 condition_id,
                 UpdateEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: "fixture-tests-403".into(),
                     event_intent: Default::default(),
                     decisions: Default::default(),
@@ -901,6 +903,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
             &e.encounter_key,
             &initial.participants[0].participant_key,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: format!(
                     "fixture-tests-665-{}",
                     f.worker.encounter(&e.encounter_key).unwrap().revision
@@ -1066,6 +1069,7 @@ fn strike_status_penalties_preserve_strongest_and_suppressed_explanations_in_bot
                     &e.encounter_key,
                     &detail.participants[0].participant_key,
                     AddEncounterParticipantConditionRequest {
+                        expected_reference_revision: None,
                         request_id: format!(
                             "fixture-tests-816-{}",
                             f.worker.encounter(&e.encounter_key).unwrap().revision
@@ -1812,6 +1816,7 @@ fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
                 &e.encounter_key,
                 &key,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: format!(
                         "fixture-tests-1566-{}",
                         f.worker.encounter(&e.encounter_key).unwrap().revision
@@ -1926,6 +1931,7 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
                         &encounter.encounter_key,
                         &participants[0].participant_key,
                         AddEncounterParticipantConditionRequest {
+                            expected_reference_revision: None,
                             request_id: format!(
                                 "fixture-tests-1664-{}",
                                 f.worker
@@ -2363,6 +2369,7 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
                 &e.encounter_key,
                 &p,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: format!(
                         "fixture-tests-2082-{}",
                         f.worker.encounter(&e.encounter_key).unwrap().revision
@@ -2466,6 +2473,7 @@ fn manual_participants_keep_exact_condition_notes_without_authored_statistics() 
             &e.encounter_key,
             &p,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: format!(
                     "fixture-tests-2180-{}",
                     f.worker.encounter(&e.encounter_key).unwrap().revision
@@ -2544,6 +2552,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
             &encounter.encounter_key,
             &p.participant_key,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: format!(
                     "fixture-tests-2252-{}",
                     f.worker

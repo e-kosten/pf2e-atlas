@@ -195,6 +195,9 @@ pub struct ConditionEventPreviewView {
     pub hp_change: Option<ConditionHpChangeView>,
     pub encounter_key: String,
     pub encounter_revision: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub reference_revision: Option<u64>,
     pub consequences: Vec<ConditionEventConsequenceView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

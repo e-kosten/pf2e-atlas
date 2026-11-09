@@ -837,6 +837,9 @@ pub struct ReorderEncounterParticipantRequest {
 #[serde(deny_unknown_fields)]
 pub struct AddEncounterParticipantConditionRequest {
     pub request_id: String,
+    /// Reference revision used by the confirmed preview, when it consulted source data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_reference_revision: Option<u64>,
     pub expected_encounter_revision: i64,
     #[serde(default)]
     pub event_intent: ConditionEventIntentView,
@@ -872,6 +875,9 @@ pub struct AddEncounterParticipantConditionRequest {
 #[serde(deny_unknown_fields)]
 pub struct UpdateEncounterParticipantConditionRequest {
     pub request_id: String,
+    /// Reference revision used by the confirmed preview, when it consulted source data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_reference_revision: Option<u64>,
     #[serde(default)]
     pub event_intent: ConditionEventIntentView,
     #[serde(default)]

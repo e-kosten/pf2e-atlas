@@ -183,6 +183,7 @@ mod tests {
                 &encounter.encounter_key,
                 &subject.participant_key,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: "concealed".into(),
                     expected_encounter_revision: current.revision,
                     event_intent: Default::default(),
@@ -261,6 +262,7 @@ mod tests {
                     &encounter.encounter_key,
                     &roll.participant_key,
                     AddEncounterParticipantConditionRequest {
+                        expected_reference_revision: None,
                         request_id: format!("attack-hint-{rule:?}"),
                         expected_encounter_revision: current.revision,
                         condition_ref: Some(definition.condition_ref.into()),

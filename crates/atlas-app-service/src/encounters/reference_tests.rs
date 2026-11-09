@@ -60,6 +60,7 @@ fn addressed_condition_formula_includes_the_creatures_authored_condition_value()
             &encounter.slug,
             &participant_key,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: "temporary-stupefied".into(),
                 event_intent: Default::default(),
                 decisions: Default::default(),
@@ -248,6 +249,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             &encounter.slug,
             &participant.participant_key,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: format!(
                     "fixture-reference_tests-130-{}",
                     f.worker.encounter(&encounter.slug).unwrap().revision
@@ -737,6 +739,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             &encounter.slug,
             &participant.participant_key,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: "context-stupefied".into(),
                 event_intent: Default::default(),
                 decisions: Default::default(),

@@ -151,13 +151,16 @@ impl AtlasAppService {
         &self,
         encounter_ref: &str,
         participant_key: &str,
-        request: AddEncounterParticipantConditionRequest,
+        mut request: AddEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
+        let expected_reference = request.expected_reference_revision.take();
         let intent = serde_json::json!({"action":"add_condition","request":receipt_request(&request, "participant_key", participant_key)});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
-        let prepared = prepare_add(self, encounter_ref, participant_key, request, intent)?;
+        let prepared = prepare_confirmed(self, expected_reference, || {
+            prepare_add(self, encounter_ref, participant_key, request, intent)
+        })?;
         commit(self, prepared)
     }
     pub fn preview_encounter_condition_add(
@@ -180,14 +183,14 @@ impl AtlasAppService {
         encounter_ref: &str,
         participant_key: &str,
         condition_id: i64,
-        request: UpdateEncounterParticipantConditionRequest,
+        mut request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
+        let expected_reference = request.expected_reference_revision.take();
         let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":receipt_request(&request, "condition_id", condition_id)});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
-        commit(
-            self,
+        let prepared = prepare_confirmed(self, expected_reference, || {
             prepare_update(
                 self,
                 encounter_ref,
@@ -195,8 +198,9 @@ impl AtlasAppService {
                 condition_id,
                 request,
                 intent,
-            )?,
-        )
+            )
+        })?;
+        commit(self, prepared)
     }
     pub fn preview_encounter_condition_update(
         &self,
@@ -440,6 +444,52 @@ fn prepare_drained(
     })
 }
 
+fn check_reference_revision(expected: u64, actual: u64) -> AppServiceResult<()> {
+    if expected != actual {
+        return Err(AppServiceError::artifact_generation_changed(
+            &expected.to_string(),
+            &actual.to_string(),
+            AppRecoverableAction::RefreshResults,
+        ));
+    }
+    Ok(())
+}
+
+fn preparation_reference_revision(
+    subject: Option<u64>,
+    definition: Option<u64>,
+) -> AppServiceResult<Option<u64>> {
+    if let (Some(subject), Some(definition)) = (subject, definition) {
+        check_reference_revision(subject, definition)?;
+    }
+    Ok(subject.or(definition))
+}
+
+fn prepare_confirmed(
+    service: &AtlasAppService,
+    expected_reference: Option<u64>,
+    prepare: impl FnOnce() -> AppServiceResult<Prepared>,
+) -> AppServiceResult<Prepared> {
+    let Some(expected) = expected_reference else {
+        return prepare();
+    };
+    let check_current = || {
+        service.with_state(|state| check_reference_revision(expected, state.reference_revision()?))
+    };
+    check_current()?;
+    let prepared = prepare();
+    if prepared.is_err() {
+        // Report a concurrent publication before a source-dependent validation error.
+        check_current()?;
+    }
+    let prepared = prepared?;
+    let actual = prepared.reference_revision.ok_or_else(|| {
+        AppServiceError::invalid_request("this condition preview does not use reference data")
+    })?;
+    check_reference_revision(expected, actual)?;
+    Ok(prepared)
+}
+
 fn commit(
     service: &AtlasAppService,
     prepared: Prepared,
@@ -506,6 +556,7 @@ fn preview(prepared: Prepared) -> ConditionEventPreviewView {
         hp_change: prepared.consequences.hp_change,
         encounter_key: prepared.encounter_key,
         encounter_revision: prepared.expected_revision,
+        reference_revision: prepared.reference_revision,
         consequences,
     }
 }
@@ -527,6 +578,8 @@ fn prepare_add(
     };
     let (condition, reference_revision) =
         workflow::prepare_condition_input(service, request.condition_ref, request.name)?;
+    let reference_revision =
+        preparation_reference_revision(subject.reference_revision, reference_revision)?;
     workflow::validate_condition_subject(
         &subject,
         condition.key.as_deref(),
@@ -605,7 +658,7 @@ fn prepare_add(
         request_id: request.request_id,
         intent,
         expected_revision: request.expected_encounter_revision,
-        reference_revision: subject.reference_revision.or(reference_revision),
+        reference_revision,
         consequences,
         prone_prevented,
     })
@@ -644,6 +697,8 @@ fn prepare_update(
             "condition name must not be empty",
         ));
     }
+    let reference_revision =
+        preparation_reference_revision(subject.reference_revision, reference_revision)?;
     workflow::validate_condition_subject(
         &subject,
         condition.key.as_deref(),
@@ -746,7 +801,7 @@ fn prepare_update(
         request_id: request.request_id,
         intent,
         expected_revision: request.expected_encounter_revision,
-        reference_revision: subject.reference_revision.or(reference_revision),
+        reference_revision,
         consequences,
         prone_prevented,
     })
@@ -1193,6 +1248,7 @@ mod lifecycle_event_tests {
                 key,
                 participant,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: id.into(),
                     expected_encounter_revision: worker.encounter(key).unwrap().revision,
                     event_intent: intent,
@@ -1213,6 +1269,124 @@ mod lifecycle_event_tests {
             .unwrap();
     }
     #[test]
+    fn stale_drained_preview_blocks_save_without_an_encounter_edit() {
+        use atlas_search::test_support::{input, record};
+        use serde_json::json;
+
+        let f = crate::test_support::encounter_fixture_worker();
+        let worker = &f.worker;
+        let key = worker
+            .create_encounter(CreateEncounterRequest {
+                name: "Drained preview".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter
+            .encounter_key;
+        worker
+            .add_encounter_record_participant(
+                &key,
+                AddEncounterRecordParticipantRequest {
+                    record_ref: "actors:testCreature1000".into(),
+                    quantity: 1,
+                    initiative: None,
+                    participant_variant: None,
+                },
+            )
+            .unwrap();
+        let before = worker.encounter(&key).unwrap();
+        let participant = &before.participants[0].participant_key;
+        let drained =
+            super::super::conditions::modeled_condition_by_rule(ConditionRule::Drained).unwrap();
+        let mut request: AddEncounterParticipantConditionRequest = serde_json::from_value(json!({
+            "request_id": "apply-drained",
+            "expected_encounter_revision": before.revision,
+            "condition_ref": drained.condition_ref,
+            "value": 2,
+        }))
+        .unwrap();
+        let old = worker
+            .preview_encounter_condition_add(&key, participant, request.clone())
+            .unwrap();
+        assert_eq!(old.hp_change.unwrap().current_after, Some(50));
+
+        let publish_level = |level| {
+            let updated = input(
+                vec![record(
+                    "actors",
+                    "Actor",
+                    json!({"_id":"testCreature1000","type":"npc","name":"Updated creature","system":{"details":{"level":{"value":level}},"attributes":{"adjustment":null,"hp":{"max":60}}}}),
+                )],
+                false,
+            );
+            crate::test_support::publish_input(worker.workspace_path(), &updated).unwrap();
+        };
+        publish_level(6);
+        let unchanged = worker.encounter(&key).unwrap();
+        assert_eq!(unchanged.revision, before.revision);
+        request.expected_reference_revision = Some(old.reference_revision.unwrap());
+        let stale = worker
+            .add_encounter_participant_condition(&key, participant, request.clone())
+            .unwrap_err();
+        assert_eq!(
+            stale.into_app_error().code,
+            AppErrorCode::ArtifactGenerationChanged
+        );
+        let unchanged = worker.encounter(&key).unwrap();
+        assert_eq!(unchanged.revision, before.revision);
+        assert_eq!(unchanged.participants[0].current_hp, Some(60));
+        assert!(unchanged.participants[0].conditions.is_empty());
+
+        request.expected_reference_revision = None;
+        let fresh = worker
+            .preview_encounter_condition_add(&key, participant, request.clone())
+            .unwrap();
+        assert_eq!(fresh.hp_change.unwrap().current_after, Some(48));
+
+        request.expected_reference_revision = Some(fresh.reference_revision.unwrap());
+        assert_ne!(request.expected_reference_revision, old.reference_revision);
+        worker
+            .add_encounter_participant_condition(&key, participant, request.clone())
+            .unwrap();
+        let saved = worker.encounter(&key).unwrap();
+        assert_eq!(saved.participants[0].current_hp, Some(48));
+
+        let condition_id = saved.participants[0].conditions[0].condition_id;
+        let mut update: UpdateEncounterParticipantConditionRequest =
+            serde_json::from_value(json!({
+                "request_id": "update-drained",
+                "expected_encounter_revision": saved.revision,
+                "name": "Drained",
+                "value": 3,
+            }))
+            .unwrap();
+        let update_preview = worker
+            .preview_encounter_condition_update(&key, participant, condition_id, update.clone())
+            .unwrap();
+        update.expected_reference_revision = Some(update_preview.reference_revision.unwrap());
+
+        publish_level(7);
+        worker
+            .add_encounter_participant_condition(&key, participant, request.clone())
+            .unwrap();
+        request.expected_reference_revision = None;
+        worker
+            .add_encounter_participant_condition(&key, participant, request)
+            .unwrap();
+        let stale_update = worker
+            .update_encounter_participant_condition(&key, participant, condition_id, update)
+            .unwrap_err();
+        assert_eq!(
+            stale_update.into_app_error().code,
+            AppErrorCode::ArtifactGenerationChanged
+        );
+        let replayed = worker.encounter(&key).unwrap();
+        assert_eq!(replayed.revision, saved.revision);
+        assert_eq!(replayed.participants[0].current_hp, Some(48));
+    }
+
+    #[test]
     fn unsafe_condition_values_are_rejected_before_persistence() {
         let (worker, key, participant) = fixture();
         let before = worker.encounter(&key).unwrap();
@@ -1223,6 +1397,7 @@ mod lifecycle_event_tests {
                 &key,
                 &participant,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: format!("unsafe-value-{value}"),
                     expected_encounter_revision: before.revision,
                     condition_ref: Some(definition.condition_ref.into()),
@@ -1486,6 +1661,7 @@ mod lifecycle_event_tests {
                 &key,
                 &participant,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: "pc-attitude".into(),
                     expected_encounter_revision: worker.encounter(&key).unwrap().revision,
                     event_intent: ConditionEventIntentView::Apply,
@@ -1572,6 +1748,7 @@ mod lifecycle_event_tests {
                     &participant,
                     condition.condition_id,
                     UpdateEncounterParticipantConditionRequest {
+                        expected_reference_revision: None,
                         request_id: "note-only-unknown".into(),
                         event_intent: ConditionEventIntentView::Apply,
                         decisions: Default::default(),
@@ -1649,6 +1826,7 @@ mod lifecycle_event_tests {
         let definition =
             super::super::conditions::modeled_condition_by_rule(ConditionRule::Fascinated).unwrap();
         let request = |id: &str, parameters| AddEncounterParticipantConditionRequest {
+            expected_reference_revision: None,
             request_id: id.into(),
             expected_encounter_revision: worker.encounter(&key).unwrap().revision,
             event_intent: ConditionEventIntentView::Apply,

@@ -1,3 +1,5 @@
+import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
+import { conditionEventPreviewKey } from "./useConditionEventPreview";
 import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
 import { isUnconfirmedMutation } from "../../api/apiError";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
@@ -420,6 +422,12 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       }
     },
     onError: async (error, command) => {
+      if (
+        (command.kind === "add-condition" || command.kind === "update-condition") &&
+        isArtifactGenerationChanged(error)
+      ) {
+        await queryClient.invalidateQueries({ queryKey: conditionEventPreviewKey });
+      }
       const conflict = isEncounterConflict(error);
       const uncertain =
         (command.kind === "initiative" || command.kind === "recovery") &&
@@ -464,31 +472,20 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     try {
       if ("condition_id" in request) {
         const { condition_id: conditionId, ...body } = request;
-        const request_id = eventRequestId({
-          kind: "update-condition",
-          participantKey,
-          conditionId,
-          request: body,
-        });
         return await previewEncounterConditionUpdate(
           currentRef,
           participantKey,
           conditionId,
           {
             ...body,
-            request_id,
+            request_id: crypto.randomUUID(),
           },
         );
       }
-      const { participant_key, ...body } = request;
-      const request_id = eventRequestId({
-        kind: "add-condition",
-        participantKey: participant_key,
-        request: body,
-      });
+      const { participant_key: _participantKey, ...body } = request;
       return await previewEncounterConditionAdd(currentRef, participantKey, {
         ...body,
-        request_id,
+        request_id: crypto.randomUUID(),
       });
     } catch (error) {
       if (isEncounterConflict(error)) {

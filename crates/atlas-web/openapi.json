@@ -513,6 +513,15 @@
             "format": "int64",
             "type": "integer"
           },
+          "expected_reference_revision": {
+            "description": "Reference revision used by the confirmed preview, when it consulted source data.",
+            "format": "int64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "extra_action": {
             "$ref": "#/components/schemas/ConditionExtraActionViewInputSchema"
           },
@@ -1596,6 +1605,11 @@
           },
           "persistent_precedence": {
             "$ref": "#/components/schemas/PersistentDamagePrecedenceView"
+          },
+          "reference_revision": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
@@ -19065,6 +19079,15 @@
           "expected_encounter_revision": {
             "format": "int64",
             "type": "integer"
+          },
+          "expected_reference_revision": {
+            "description": "Reference revision used by the confirmed preview, when it consulted source data.",
+            "format": "int64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "extra_action": {
             "$ref": "#/components/schemas/ConditionExtraActionViewInputSchema"

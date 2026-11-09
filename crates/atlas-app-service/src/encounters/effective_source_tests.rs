@@ -129,6 +129,7 @@ fn add(
             key,
             p,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: crate::test_support::next_request_id(),
                 expected_encounter_revision: f.worker.encounter(key).unwrap().revision,
                 event_intent: intent,

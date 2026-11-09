@@ -24,12 +24,14 @@ export type UpdateConditionDraft = Omit<
   condition_id: number;
 };
 export type ConditionEventInput = AddConditionDraft | UpdateConditionDraft;
+export const conditionEventPreviewKey = ["condition-event-preview"] as const;
 // Notes are persisted metadata, not input to application consequences.
 const identityOf = (request: ConditionEventInput) =>
   JSON.stringify({ ...request, note: undefined });
 const consequencesOf = (preview: ConditionEventPreviewView) =>
   JSON.stringify({
     consequences: preview.consequences,
+    hp_change: preview.hp_change,
     persistent_precedence: preview.persistent_precedence,
   });
 export function useConditionEventPreview(
@@ -47,7 +49,7 @@ export function useConditionEventPreview(
   const enabled = identity !== undefined && settled === identity;
   const query = useQuery({
     meta: referenceQueryMeta,
-    queryKey: ["condition-event-preview", identity],
+    queryKey: [...conditionEventPreviewKey, identity],
     queryFn: () => loadPreview(draft!),
     enabled,
     retry: false,
@@ -112,6 +114,7 @@ export function useConditionEventPreview(
     const retainChoices = consequencesOf(preview) === consequenceIdentity;
     return {
       ...request,
+      expected_reference_revision: preview.reference_revision,
       event_intent: retainChoices && correction ? "correction" : "apply",
       decisions: {
         ...request.decisions,
@@ -142,14 +145,16 @@ export function useConditionEventPreview(
       setSettled(identityOf(request));
       const result = await client.fetchQuery({
         meta: referenceQueryMeta,
-        queryKey: ["condition-event-preview", identityOf(request)],
+        queryKey: [...conditionEventPreviewKey, identityOf(request)],
         queryFn: () => loadPreview(request),
         staleTime: 0,
       });
       // A click during typing can finish ordinary edits immediately. Newly changed
       // consequences must be displayed before the user accepts them.
       if (
-        (result.consequences.length || result.persistent_precedence) &&
+        (result.consequences.length ||
+          result.persistent_precedence ||
+          result.hp_change) &&
         consequencesOf(result) !== consequenceIdentity
       )
         return undefined;

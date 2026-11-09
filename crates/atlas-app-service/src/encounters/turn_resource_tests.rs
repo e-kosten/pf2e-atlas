@@ -626,6 +626,7 @@ fn application(
     id: &str,
 ) -> AddEncounterParticipantConditionRequest {
     AddEncounterParticipantConditionRequest {
+        expected_reference_revision: None,
         request_id: id.into(),
         expected_encounter_revision: f.worker.encounter(key).unwrap().revision,
         event_intent: intent,
@@ -866,6 +867,7 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
         .unwrap();
     let condition_id = f.worker.encounter(&key).unwrap().participants[0].conditions[0].condition_id;
     let request = UpdateEncounterParticipantConditionRequest {
+        expected_reference_revision: None,
         request_id: "updated-stun".into(),
         expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
         event_intent: ConditionEventIntentView::Apply,
