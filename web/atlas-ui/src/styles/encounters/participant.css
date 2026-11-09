@@ -216,9 +216,6 @@
   flex-wrap: wrap;
   gap: 4px var(--space-group);
 }
-.encounter-reference__identity > .badge-row {
-  margin: 0;
-}
 .encounter-reference__name h2 {
   display: flex;
   min-width: 0;
