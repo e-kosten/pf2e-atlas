@@ -1,6 +1,6 @@
-import { InfoCircleOutlined } from "@ant-design/icons";
 import type { ReactNode } from "react";
 import type { SpellRankChangeView } from "../../generated/atlas";
+import { InlineContext } from "../ui/actions/InlineAction";
 import { ValueExplanation } from "../ui/ValueExplanation";
 
 /** A verified change relative to this copy's base, not complete coverage. */
@@ -22,13 +22,11 @@ export function SpellRankValue({
       content={<>Base rank: {change.base_value}</>}
       iconOnly={interactiveContent}
     >
-      {interactiveContent ? <InfoCircleOutlined /> : children}
+      {interactiveContent ? null : children}
     </ValueExplanation>
   );
   return interactiveContent ? (
-    <>
-      {children} {explanation}
-    </>
+    <InlineContext actions={explanation}>{children}</InlineContext>
   ) : (
     explanation
   );

@@ -1,4 +1,3 @@
-import { Info } from "lucide-react";
 import type { CheckDetailsView } from "../../generated/atlas";
 import { ValueExplanation } from "../ui/ValueExplanation";
 import { TraitBadge } from "./TraitBadge";
@@ -25,7 +24,7 @@ export function CheckDetails({
         </div>
       }
     >
-      {iconOnly ? <Info size={14} aria-hidden="true" /> : label}
+      {label}
     </ValueExplanation>
   );
 }

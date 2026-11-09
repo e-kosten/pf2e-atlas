@@ -109,7 +109,6 @@ export function ContentRoll({
       >
         <InlineIconButton
           ref={trigger}
-          className="content-roll-trigger"
           tooltip={false}
           icon={<Dices aria-hidden="true" />}
           label={`${roll.result ? "View roll for" : "Roll"} ${label}`}

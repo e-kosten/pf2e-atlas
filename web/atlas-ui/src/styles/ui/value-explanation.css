@@ -23,13 +23,6 @@
   margin-block-end: var(--space-control);
 }
 
-.explained-value--icon .explained-value__label {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-  padding-inline: 0.25em;
-  text-decoration: none;
-}
 .prepared-check-label .explained-value__label {
   color: var(--link);
 }
@@ -38,9 +31,4 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-control);
-}
-
-.prepared-check {
-  display: inline-block;
-  max-inline-size: 100%;
 }

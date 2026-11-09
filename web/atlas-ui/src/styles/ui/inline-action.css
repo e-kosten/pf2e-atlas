@@ -10,6 +10,9 @@
   line-height: 1;
   vertical-align: middle;
 }
+.inline-icon-action.ant-btn.ant-btn-icon-only:focus-visible {
+  outline-offset: -3px;
+}
 .inline-icon-action.ant-btn .ant-btn-icon {
   display: inline-flex;
   align-items: center;
@@ -29,7 +32,6 @@
   overflow-wrap: anywhere;
 }
 .inline-context-actions {
-  margin-inline-start: var(--space-micro);
   white-space: nowrap;
 }
 .inline-context-actions > * + * {

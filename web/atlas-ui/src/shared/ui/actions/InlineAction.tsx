@@ -127,3 +127,58 @@ export function InlineContext({
     </span>
   );
 }
+
+const attachments = new WeakMap<Element, { target: HTMLElement; group: HTMLElement }>();
+
+function restoreMovedFocus(owner: Document, focused: Element | null) {
+  if (
+    owner.activeElement === owner.body &&
+    focused instanceof HTMLElement &&
+    focused.isConnected
+  ) {
+    focused.focus({ preventScroll: true });
+  }
+}
+
+/** Attach a portal to authored DOM using the same layout as InlineContext. */
+export function attachInlineAction(target: HTMLElement, host: HTMLElement) {
+  const doc = target.ownerDocument;
+  const focused = doc.activeElement;
+  const existing = target.parentElement?.nextElementSibling;
+  if (existing && attachments.get(existing)?.target === target) {
+    if (host.parentElement !== existing) {
+      detachInlineAction(host);
+      existing.append(host);
+      restoreMovedFocus(doc, focused);
+    }
+    return;
+  }
+
+  detachInlineAction(host);
+  const group = doc.createElement("span");
+  const content = doc.createElement("span");
+  const actions = doc.createElement("span");
+  group.className = "inline-context-tail inline-context-tail--rich";
+  content.className = "inline-context-content";
+  actions.className = "inline-context-actions";
+  attachments.set(actions, { target, group });
+  target.before(group);
+  group.append(content, actions);
+  content.append(target);
+  actions.append(host);
+  restoreMovedFocus(doc, focused);
+}
+
+export function detachInlineAction(host: HTMLElement) {
+  const actions = host.parentElement;
+  const attachment = actions && attachments.get(actions);
+  host.remove();
+  if (!actions || !attachment || actions.childElementCount) return;
+
+  attachments.delete(actions);
+  const { target, group } = attachment;
+  const doc = target.ownerDocument;
+  const focused = doc.activeElement;
+  group.replaceWith(target);
+  restoreMovedFocus(doc, focused);
+}

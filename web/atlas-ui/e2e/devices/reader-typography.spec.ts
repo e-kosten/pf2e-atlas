@@ -1,6 +1,6 @@
 import { devices, type Locator } from "@playwright/test";
 import { expect, test } from "./fixtures";
-import { activate } from "./reading";
+import { activate, noPageOverflow } from "./reading";
 
 const fontSize = (element: Locator) =>
   element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
@@ -132,4 +132,34 @@ test("a link at the edge of authored prose has room for its focus outline", asyn
       );
     }),
   ).toBe(true);
+});
+
+test("a remaster annotation keeps its target beside the linked label at narrow widths", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-editions:remaster00000001");
+  const notice = page.locator(".record-edition-notice");
+  const label = notice.getByRole("link", { name: "Legacy signal", exact: true });
+  const annotation = notice.getByRole("link", {
+    name: "Remaster Changes — Class Features",
+    exact: true,
+  });
+  await expect(annotation).toBeVisible();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const text = await label.boundingBox();
+    const target = await annotation.boundingBox();
+    expect(text).not.toBeNull();
+    expect(target).not.toBeNull();
+    expect(target!.width).toBeGreaterThanOrEqual(24);
+    expect(target!.height).toBeGreaterThanOrEqual(24);
+    expect(target!.x).toBeGreaterThanOrEqual(text!.x + text!.width - 0.5);
+    expect(target!.y).toBeLessThan(text!.y + text!.height);
+    expect(target!.y + target!.height).toBeGreaterThan(text!.y);
+    await noPageOverflow(page);
+  }
+  await activate(annotation, info);
+  await expect(
+    page.getByRole("heading", { name: "Class Features", exact: true }).first(),
+  ).toBeVisible();
 });

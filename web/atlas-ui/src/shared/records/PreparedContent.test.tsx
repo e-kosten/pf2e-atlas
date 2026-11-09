@@ -700,7 +700,7 @@ it.each(["source", "participant"] as const)(
     expect(screen.getByText("1 fire damage")).not.toHaveAttribute("role", "button");
     const formula = screen.getByText("1d6", { selector: "[data-atlas-roll-formula]" });
     const roller = screen.getByRole("button", { name: "Roll 1d6 fire damage" });
-    expect(formula.nextElementSibling).toContainElement(roller);
+    expect(formula.closest(".inline-context-tail")).toContainElement(roller);
     fireEvent.click(roller);
     await screen.findByRole("status", { name: "1d6: 4" });
     rerender(
@@ -735,6 +735,22 @@ it.each(["source", "participant"] as const)(
     expect(screen.getByRole("button", { name: "Roll 1d6 fire damage" })).toBeVisible();
     expect(screen.queryByRole("status", { name: "1d6: 4" })).toBeNull();
     expect(roll).toHaveBeenCalledTimes(1);
+
+    const withoutOffer = structuredClone(field);
+    if (
+      withoutOffer.body.kind === "html" &&
+      withoutOffer.body.controls[1].control.kind === "damage"
+    ) {
+      withoutOffer.body.controls[1].control.roll = null;
+    }
+    rerender(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <PreparedContent {...props} content={withoutOffer} />
+      </ConfigProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Roll 1d6 fire damage" })).toBeNull();
+    expect(formula.closest(".inline-context-tail")).toBeNull();
+    expect(formula.parentElement).toHaveTextContent("1d6 fire damage");
     roll.mockRestore();
   },
 );
@@ -855,8 +871,9 @@ it.each(["r", "gmr", "br"])(
     );
     const button = screen.getByRole("button", { name: "Roll 1d4 rounds" });
     expect(
-      screen.getByText("1d4", { selector: "[data-atlas-roll-formula]" })
-        .nextElementSibling,
+      screen
+        .getByText("1d4", { selector: "[data-atlas-roll-formula]" })
+        .closest(".inline-context-tail"),
     ).toContainElement(button);
     fireEvent.click(button);
     expect(await screen.findByRole("status", { name: "1d4: 3 rounds" })).toBeVisible();
@@ -1021,10 +1038,8 @@ it.each([
       expect(screen.getByRole("link")).toHaveAttribute("href", "/records/rules:outer");
     expect(button.closest("a")).toBeNull();
     button.focus();
-    if (plain) {
-      rerender(view([...detail.relationships]));
-      expect(button).toHaveFocus();
-    }
+    rerender(view([...detail.relationships]));
+    expect(button).toHaveFocus();
     fireEvent.click(button);
     const popup = await screen.findByRole("dialog", {
       name: plain ? "Check details" : "Details for DC 26 Will save",

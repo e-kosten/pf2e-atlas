@@ -1,3 +1,4 @@
+import { attachInlineAction, detachInlineAction } from "../ui/actions/InlineAction";
 import {
   referenceExternalUrl,
   referenceRecordTarget,
@@ -272,15 +273,8 @@ export function PreparedContentBody({
             if (previousText !== undefined) host.replaceWith(previousText);
             plainCheckText.current.delete(host);
             host.className = "";
-            const target = marker.closest("a[href], button") ?? marker;
-            let reading = target.parentElement;
-            if (!reading?.classList.contains("prepared-check")) {
-              reading = document.createElement("span");
-              reading.className = "prepared-check";
-              target.before(reading);
-              reading.append(target);
-            }
-            reading.append(host);
+            const target = marker.closest<HTMLElement>("a[href], button") ?? marker;
+            attachInlineAction(target, host);
           }
           portals.push(
             createPortal(
@@ -321,20 +315,11 @@ export function PreparedContentBody({
           const formula = Array.from(
             marker.querySelectorAll<HTMLElement>("[data-atlas-roll-formula]"),
           ).find((node) => node.closest("[data-atlas-interaction]") === marker);
-          if (formula) {
-            // Keep the authored formula and its action together without taking
-            // the following words out of the normal text flow.
-            let group = formula.parentElement;
-            if (!group?.classList.contains("content-roll-formula")) {
-              group = document.createElement("span");
-              group.className = "content-roll-formula";
-              formula.before(group);
-              group.append(formula);
-            }
-            group.append(host);
-          } else {
-            marker.after(host);
-          }
+          const target = formula ?? marker;
+          attachInlineAction(
+            target.closest<HTMLElement>("a[href], button") ?? target,
+            host,
+          );
           portals.push(
             createPortal(
               <ContentRoll offer={control.roll} presentation={control.literal} />,
@@ -440,7 +425,7 @@ export function PreparedContentBody({
     for (const [identity, host] of rollHosts.current) {
       if (!activeRolls.has(identity)) {
         const authoredText = plainCheckText.current.get(host);
-        if (authoredText === undefined) host.remove();
+        if (authoredText === undefined) detachInlineAction(host);
         else host.replaceWith(authoredText);
         rollHosts.current.delete(identity);
       }
