@@ -79,6 +79,66 @@ fn strike_roll_schema_separates_attack_and_damage_fields() {
 }
 
 #[test]
+fn difficulty_reference_accepts_omission_and_emits_explicit_nulls() {
+    use atlas_app_model::{
+        EncounterDifficultyReferenceView, PreviewEncounterDifficultyRequest,
+        SetEncounterDifficultyRequest,
+    };
+
+    for (reference, expected) in [
+        (json!({}), (None, None)),
+        (
+            json!({"party_level": null, "party_size": null}),
+            (None, None),
+        ),
+        (
+            json!({"party_level": 5, "party_size": 4}),
+            (Some(5), Some(4)),
+        ),
+    ] {
+        let body = json!({"expected_revision": 1, "reference": reference});
+        let save: SetEncounterDifficultyRequest = serde_json::from_value(body.clone()).unwrap();
+        let preview: PreviewEncounterDifficultyRequest = serde_json::from_value(body).unwrap();
+        assert_eq!(
+            (save.reference.party_level, save.reference.party_size),
+            expected
+        );
+        assert_eq!(preview.reference, save.reference);
+    }
+
+    assert_eq!(
+        serde_json::to_value(EncounterDifficultyReferenceView::default()).unwrap(),
+        json!({"party_level": null, "party_size": null})
+    );
+
+    let document = crate::openapi().unwrap();
+    let schemas = &document["components"]["schemas"];
+    let input = &schemas["EncounterDifficultyReferenceInput"];
+    let view = &schemas["EncounterDifficultyReferenceView"];
+    assert!(input.get("required").is_none());
+    assert_eq!(view["required"], json!(["party_level", "party_size"]));
+    for field in ["party_level", "party_size"] {
+        assert_eq!(
+            input["properties"][field]["type"],
+            json!(["integer", "null"])
+        );
+        assert_eq!(
+            view["properties"][field]["type"],
+            json!(["integer", "null"])
+        );
+    }
+    for request in [
+        "SetEncounterDifficultyRequest",
+        "PreviewEncounterDifficultyRequest",
+    ] {
+        assert_eq!(
+            schemas[request]["properties"]["reference"]["$ref"],
+            "#/components/schemas/EncounterDifficultyReferenceInput"
+        );
+    }
+}
+
+#[test]
 fn schema_preserves_wire_contract_edges() {
     let document = crate::openapi().unwrap();
     let schemas = &document["components"]["schemas"];

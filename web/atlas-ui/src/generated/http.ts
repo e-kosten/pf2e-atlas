@@ -3578,9 +3578,9 @@ export interface EncounterDifficultyAddition {
 }
 
 /**
- * Null fields follow the PC snapshot; explicit values are GM overrides.
+ * Omitted or null fields follow the PC snapshot.
  */
-export interface EncounterDifficultyReferenceViewInputSchema {
+export interface EncounterDifficultyReferenceInput {
   /**
      * @minimum 0
      * @nullable
@@ -4527,7 +4527,7 @@ export interface PreparedPersistentDamageView {
 export interface PreviewEncounterDifficultyRequest {
   addition?: EncounterDifficultyAddition | null;
   expected_revision: number;
-  reference: EncounterDifficultyReferenceViewInputSchema;
+  reference: EncounterDifficultyReferenceInput;
 }
 
 export interface PreviewEncounterRecoveryRequest {
@@ -5240,7 +5240,7 @@ export interface SearchResultsRequest {
 
 export interface SetEncounterDifficultyRequest {
   expected_revision: number;
-  reference: EncounterDifficultyReferenceViewInputSchema;
+  reference: EncounterDifficultyReferenceInput;
 }
 
 export interface SetEncounterLifeSettingsRequest {

@@ -4875,6 +4875,28 @@
         ],
         "type": "object"
       },
+      "EncounterDifficultyReferenceInput": {
+        "description": "Omitted or null fields follow the PC snapshot.",
+        "properties": {
+          "party_level": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "party_size": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "EncounterDifficultyReferenceView": {
         "description": "Null fields follow the PC snapshot; explicit values are GM overrides.",
         "properties": {
@@ -4899,29 +4921,6 @@
           "party_level",
           "party_size"
         ],
-        "type": "object"
-      },
-      "EncounterDifficultyReferenceViewInputSchema": {
-        "description": "Null fields follow the PC snapshot; explicit values are GM overrides.",
-        "properties": {
-          "party_level": {
-            "format": "int32",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "party_size": {
-            "format": "int32",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          }
-        },
-        "required": [],
         "type": "object"
       },
       "EncounterDifficultyRuleView": {
@@ -12120,7 +12119,7 @@
             "type": "integer"
           },
           "reference": {
-            "$ref": "#/components/schemas/EncounterDifficultyReferenceViewInputSchema"
+            "$ref": "#/components/schemas/EncounterDifficultyReferenceInput"
           }
         },
         "required": [
@@ -16575,7 +16574,7 @@
             "type": "integer"
           },
           "reference": {
-            "$ref": "#/components/schemas/EncounterDifficultyReferenceViewInputSchema"
+            "$ref": "#/components/schemas/EncounterDifficultyReferenceInput"
           }
         },
         "required": [

@@ -154,14 +154,15 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
         } => {
             let mut view = view!(service.encounter(&encounter));
             if party_level.is_some() || party_size.is_some() {
-                let mut reference = view.difficulty.reference;
-                reference.party_level = party_level.or(reference.party_level);
-                reference.party_size = party_size.or(reference.party_size);
+                let reference = view.difficulty.reference;
                 view.difficulty = view!(service.preview_encounter_difficulty(
                     &view.encounter.encounter_key,
                     PreviewEncounterDifficultyRequest {
                         expected_revision: view.revision,
-                        reference,
+                        reference: atlas_app_model::EncounterDifficultyReferenceInput {
+                            party_level: party_level.or(reference.party_level),
+                            party_size: party_size.or(reference.party_size),
+                        },
                         addition: None,
                     },
                 ));

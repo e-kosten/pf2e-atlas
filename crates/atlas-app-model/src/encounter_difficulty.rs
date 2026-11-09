@@ -9,17 +9,24 @@ pub struct EncounterDifficultyReferenceView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub party_size: Option<u32>,
 }
+/// Omitted or null fields follow the PC snapshot.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct EncounterDifficultyReferenceInput {
+    pub party_level: Option<u32>,
+    pub party_size: Option<u32>,
+}
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SetEncounterDifficultyRequest {
     pub expected_revision: i64,
-    pub reference: EncounterDifficultyReferenceView,
+    pub reference: EncounterDifficultyReferenceInput,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreviewEncounterDifficultyRequest {
     pub expected_revision: i64,
-    pub reference: EncounterDifficultyReferenceView,
+    pub reference: EncounterDifficultyReferenceInput,
     pub addition: Option<EncounterDifficultyAddition>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

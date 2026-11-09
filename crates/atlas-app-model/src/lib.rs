@@ -12,8 +12,9 @@ pub use encounter_recovery::{
 mod encounter_difficulty;
 pub use encounter_difficulty::{
     EncounterDifficultyAddition, EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
-    EncounterDifficultyReferenceView, EncounterDifficultyRuleView, EncounterDifficultyView,
-    PreviewEncounterDifficultyRequest, SetEncounterDifficultyRequest,
+    EncounterDifficultyReferenceInput, EncounterDifficultyReferenceView,
+    EncounterDifficultyRuleView, EncounterDifficultyView, PreviewEncounterDifficultyRequest,
+    SetEncounterDifficultyRequest,
 };
 mod encounter_ability_state;
 pub use encounter_ability_state::{
