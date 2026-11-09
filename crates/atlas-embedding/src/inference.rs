@@ -253,10 +253,10 @@ impl<M> NativeInferenceState<M> {
         if batch.inputs().is_empty() {
             return Ok(0);
         }
-        generation_progress(batch.spec(), self.inferred_inputs);
         if self.model.is_none() {
             self.model = Some(load(&self.config)?);
         }
+        generation_progress(batch.spec(), self.inferred_inputs);
         let mut completed = 0;
         for inputs in batch.inputs().chunks(self.batch_size) {
             let texts = inputs

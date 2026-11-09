@@ -199,7 +199,11 @@ impl NativeExecution<'_, '_> {
                     atlas_index::NativeValueSelection::AlreadySelected => {}
                 }
             }
-            counted_progress(profile, consumed, raw_inputs.len());
+            // Selection and inference alternate. Keep generation visible
+            // across windows once we know this profile needs new vectors.
+            if inferred == 0 && missing.is_empty() {
+                counted_progress(profile, consumed, raw_inputs.len());
+            }
             max_missing_batch = max_missing_batch.max(missing.len());
             if !missing.is_empty() {
                 missing.sort_unstable();
