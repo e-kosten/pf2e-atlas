@@ -277,9 +277,19 @@ fn release_bridge_survives_process_exit_and_cooperating_reopen() {
     let mut second = command.spawn().unwrap();
     assert!(first.wait().unwrap().success());
     assert!(second.wait().unwrap().success());
+    // The backup correctly retains maintenance, so inspect it outside product admission.
+    let backup = rusqlite::Connection::open_with_flags(
+        workspace.upgrade_backup_path(),
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    assert_eq!(sql_rows(&backup, LEDGER), old_ledger);
     assert_eq!(
-        sql_rows(historical_backup(&workspace).connection(), LEDGER),
-        old_ledger
+        sql_rows(&backup, "SELECT maintenance FROM workspace"),
+        sql_rows(
+            &rusqlite::Connection::open(workspace.path()).unwrap(),
+            "SELECT maintenance FROM workspace",
+        )
     );
     assert_eq!(
         workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
