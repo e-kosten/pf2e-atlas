@@ -1,3 +1,4 @@
+import type { ReorderPlacement } from "../../generated/atlas";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { Alert, Grid } from "antd";
 import type { ListPageInput } from "../../app/destinations";
@@ -273,7 +274,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     mutationFn: (input: {
       recordKey: string;
       targetRecordKey: string;
-      placement: "before" | "after";
+      placement: ReorderPlacement;
     }) =>
       reorderSavedListItem(listRef, {
         record_ref: input.recordKey,

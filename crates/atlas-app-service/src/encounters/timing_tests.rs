@@ -429,7 +429,7 @@ fn manual_set_and_reorder_never_tick_and_any_mutation_invalidates_review() {
             ReorderEncounterParticipantRequest {
                 participant_key: b.clone(),
                 target_participant_key: a.clone(),
-                placement: ReorderEncounterParticipantPlacementView::Before,
+                placement: atlas_domain::ReorderPlacement::Before,
             },
         )
         .unwrap();

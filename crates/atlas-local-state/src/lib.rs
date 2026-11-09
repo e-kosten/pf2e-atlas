@@ -35,9 +35,8 @@ pub use encounters::{
     ParticipantVariantOrigin, PendingConsequence, PersistentDamageOutcome,
     PersistentDamageProtection, PersistentPrecedenceChange, PersistentRecovery,
     PersistentSourcePrecedence, PreparedConditionEvent, ReorderEncounterParticipant,
-    ReorderPlacement, ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence,
-    SpellResource, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition, WakingRule,
+    ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
 pub use encounters::{
     ApplyEncounterRecovery, EncounterDocument, EncounterRecordSource, ParticipantGameplay,
@@ -51,8 +50,8 @@ pub use error::{LocalStateError, LocalStateResult};
 pub use saved_lists::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
     NewSavedList, ReorderSavedListItem, ResolvedSavedListItem, SavedList, SavedListItem,
-    SavedListItemPlacement, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
-    SavedListsRead, SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
+    SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems, SavedListsRead,
+    SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
 };
 pub use schema::{
     ABILITY_STATE_SCHEMA_SQL, STATELESS_STRIKE_ROLLS_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL,

@@ -4,7 +4,7 @@ use atlas_app_model::{
     SearchPageView, SearchWitnessView,
 };
 #[cfg(test)]
-use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
+use atlas_domain::OwnedContentLocator;
 use atlas_domain::{SourceLevelBasis, SourceRecordSummary};
 use atlas_search::{SearchCoverage, SearchLane, SearchPageInfo, SearchWitness};
 
@@ -420,15 +420,7 @@ pub(crate) fn navigation_fingerprint(
     owners: &[atlas_domain::OwnedContentLocator],
     fingerprint: &str,
 ) -> Option<String> {
-    owners
-        .iter()
-        .any(|o| {
-            matches!(
-                o.identity,
-                atlas_domain::OwnedContentIdentity::SnapshotLocal { .. }
-            )
-        })
-        .then(|| fingerprint.to_owned())
+    crate::records::address_requires_fingerprint(owners).then(|| fingerprint.to_owned())
 }
 
 /// Labels use the verified indexing locale while identifiers remain authored values.
@@ -728,7 +720,7 @@ mod tests {
                 1 => separate.locator.field = "/system/details/publicNotes".into(),
                 _ => separate.locator.owners.push(OwnedContentLocator {
                     collection: "/items".into(),
-                    identity: OwnedContentIdentity::Stable("dddddddddddddddd".into()),
+                    identity: atlas_domain::OwnedContentIdentity::Stable("dddddddddddddddd".into()),
                 }),
             }
             let views = relationship_views(vec![first.clone(), separate], "snapshot");
@@ -748,7 +740,7 @@ mod tests {
         fleshy.locator.record = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
         fleshy.locator.owners.push(OwnedContentLocator {
             collection: "/items".into(),
-            identity: OwnedContentIdentity::Stable("dddddddddddddddd".into()),
+            identity: atlas_domain::OwnedContentIdentity::Stable("dddddddddddddddd".into()),
         });
         fleshy.details.label.as_mut().unwrap().block = "/3".into();
         let mut skeletal = fleshy.clone();
@@ -806,14 +798,14 @@ mod tests {
             (
                 vec![OwnedContentLocator {
                     collection: "items".into(),
-                    identity: OwnedContentIdentity::Stable("cccccccccccccccc".into()),
+                    identity: atlas_domain::OwnedContentIdentity::Stable("cccccccccccccccc".into()),
                 }],
                 None,
             ),
             (
                 vec![OwnedContentLocator {
                     collection: "items".into(),
-                    identity: OwnedContentIdentity::SnapshotLocal { index: 4 },
+                    identity: atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 4 },
                 }],
                 Some("current-generation"),
             ),

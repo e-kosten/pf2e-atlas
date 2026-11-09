@@ -1,4 +1,5 @@
 use atlas_domain::RecordKey;
+use atlas_domain::ReorderPlacement;
 use rand::random;
 use rusqlite::{Connection, OptionalExtension, params};
 use time::OffsetDateTime;
@@ -6,8 +7,7 @@ use time::format_description::well_known::Rfc3339;
 
 use super::model::{
     AddSavedListItemOutcome, ImportSavedListItem, NewSavedList, NewSavedListItem,
-    ReorderSavedListItem, SavedList, SavedListItem, SavedListItemPlacement, SavedListWithItems,
-    UpdateSavedList,
+    ReorderSavedListItem, SavedList, SavedListItem, SavedListWithItems, UpdateSavedList,
 };
 use crate::{LocalStateError, LocalStateResult};
 
@@ -299,8 +299,8 @@ pub(crate) fn reorder_item(
         return Ok(false);
     };
     let index = match reorder.placement {
-        SavedListItemPlacement::Before => target,
-        SavedListItemPlacement::After => target + 1,
+        ReorderPlacement::Before => target,
+        ReorderPlacement::After => target + 1,
     };
     keys.insert(index, reorder.record_key);
     // Move through a disjoint range so the unique (list_id, position) index

@@ -27,10 +27,11 @@ impl AtlasAppService {
                     atlas_app_model::AppRecoverableAction::ReloadRecord,
                 ));
             }
-            if crate::projection::navigation_fingerprint(&selection.owners, r.source_fingerprint())
-                .is_some()
-                && selection.source_fingerprint.as_deref() != Some(r.source_fingerprint())
-            {
+            if !crate::records::address_fingerprint_matches(
+                &selection.owners,
+                selection.source_fingerprint.as_deref(),
+                r.source_fingerprint(),
+            ) {
                 return Err(AppServiceError::invalid_request(
                     "snapshot-local related navigation belongs to another artifact",
                 ));

@@ -2,7 +2,6 @@
 use crate::projection::relationship_views;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
-use atlas_domain::OwnedContentIdentity;
 use atlas_domain::RecordKey;
 use atlas_record::source_content::SourceContentLocator;
 use atlas_record::source_record::{
@@ -313,11 +312,11 @@ fn checked_activity(
             "select an immediate activity of this parent",
         ));
     }
-    if matches!(
-        address.owner.identity,
-        OwnedContentIdentity::SnapshotLocal { .. }
-    ) && address.source_fingerprint.as_deref() != Some(fingerprint)
-    {
+    if !crate::records::address_fingerprint_matches(
+        std::slice::from_ref(&address.owner),
+        address.source_fingerprint.as_deref(),
+        fingerprint,
+    ) {
         return Err(AppServiceError::invalid_request(
             "snapshot-local activity belongs to a different artifact; reload the parent",
         ));

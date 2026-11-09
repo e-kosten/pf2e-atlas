@@ -1,3 +1,4 @@
+use atlas_domain::ReorderPlacement;
 use rand::random;
 use rusqlite::{Connection, OptionalExtension, params};
 use time::OffsetDateTime;
@@ -8,8 +9,7 @@ use super::model::{
     ConditionDurationUnit, ConditionTiming, ConditionTurnEvent, Encounter, EncounterParticipant,
     EncounterParticipantCondition, EncounterStatus, EncounterWithParticipants, NewEncounter,
     ParticipantKind, ParticipantSide, ParticipantVariant, ReorderEncounterParticipant,
-    ReorderPlacement, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 use crate::slug::validate_slug;
 use crate::{LocalStateError, LocalStateResult};

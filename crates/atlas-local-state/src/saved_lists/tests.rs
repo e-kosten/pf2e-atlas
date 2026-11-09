@@ -1,3 +1,4 @@
+use atlas_domain::ReorderPlacement;
 use std::fs;
 use std::path::PathBuf;
 
@@ -237,7 +238,7 @@ fn saved_list_reorders_persist_snapshots_and_contiguous_positions()
         ReorderSavedListItem {
             record_key: "actions:missing".into(),
             target_record_key: "actions:first".into(),
-            placement: SavedListItemPlacement::Before,
+            placement: ReorderPlacement::Before,
         }
     )?);
     assert!(lists.reorder_item(
@@ -245,7 +246,7 @@ fn saved_list_reorders_persist_snapshots_and_contiguous_positions()
         ReorderSavedListItem {
             record_key: "actions:first".into(),
             target_record_key: "actions:last".into(),
-            placement: SavedListItemPlacement::After,
+            placement: ReorderPlacement::After,
         }
     )?);
     let reopened = TestStore::open(store.path())?;
@@ -298,7 +299,7 @@ fn saved_list_reorders_persist_snapshots_and_contiguous_positions()
                 ReorderSavedListItem {
                     record_key: source.into(),
                     target_record_key: target.into(),
-                    placement: SavedListItemPlacement::After,
+                    placement: ReorderPlacement::After,
                 }
             )?,
             expected
@@ -358,7 +359,7 @@ fn failed_saved_list_reorder_rolls_back_inside_the_callers_transaction()
                 ReorderSavedListItem {
                     record_key: "actions:third".into(),
                     target_record_key: "actions:first".into(),
-                    placement: SavedListItemPlacement::Before,
+                    placement: ReorderPlacement::Before,
                 }
             )
             .is_err()

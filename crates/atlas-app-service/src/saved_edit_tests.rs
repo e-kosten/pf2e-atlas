@@ -1,8 +1,7 @@
 use atlas_app_model::{
     AddSavedListItemRequest, AppErrorCode, CreateEncounterRequest, CreateSavedListRequest,
-    EncounterStatusView, FieldEdit, RemoveSavedListItemRequest, ReorderSavedListItemPlacementView,
-    ReorderSavedListItemRequest, UpdateEncounterRequest, UpdateSavedListItemNoteRequest,
-    UpdateSavedListRequest,
+    EncounterStatusView, FieldEdit, RemoveSavedListItemRequest, ReorderSavedListItemRequest,
+    UpdateEncounterRequest, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
 
 use crate::AtlasAppService;
@@ -60,7 +59,7 @@ fn list_note_save_merges_with_reorder_and_unrelated_edits() {
             ReorderSavedListItemRequest {
                 record_ref: SECOND.into(),
                 target_record_ref: FIRST.into(),
-                placement: ReorderSavedListItemPlacementView::Before,
+                placement: atlas_domain::ReorderPlacement::Before,
             },
         )
         .unwrap();
@@ -89,7 +88,7 @@ fn list_note_save_merges_with_reorder_and_unrelated_edits() {
             ReorderSavedListItemRequest {
                 record_ref: FIRST.into(),
                 target_record_ref: SECOND.into(),
-                placement: ReorderSavedListItemPlacementView::Before,
+                placement: atlas_domain::ReorderPlacement::Before,
             },
         )
         .unwrap();

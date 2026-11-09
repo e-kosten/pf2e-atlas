@@ -29,10 +29,11 @@ impl AtlasAppService {
             .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
             if let Some(owners) = &request.owners {
-                if crate::projection::navigation_fingerprint(owners, r.source_fingerprint())
-                    .is_some()
-                    && request.source_fingerprint.as_deref() != Some(r.source_fingerprint())
-                {
+                if !crate::records::address_fingerprint_matches(
+                    owners,
+                    request.source_fingerprint.as_deref(),
+                    r.source_fingerprint(),
+                ) {
                     return Err(AppServiceError::invalid_request(
                         "snapshot-local graph navigation belongs to another artifact",
                     ));

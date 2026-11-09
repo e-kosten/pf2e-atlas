@@ -1,3 +1,4 @@
+import type { ReorderPlacement } from "../../generated/atlas";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Tooltip, Button, Empty, Spin, theme } from "antd";
@@ -38,7 +39,7 @@ export function ListItemsPane({
   onReorder?: (
     recordKey: string,
     targetRecordKey: string,
-    placement: "before" | "after",
+    placement: ReorderPlacement,
   ) => Promise<boolean>;
   onSelect: (recordKey: string) => void;
   itemHref?: (recordKey: string) => string;

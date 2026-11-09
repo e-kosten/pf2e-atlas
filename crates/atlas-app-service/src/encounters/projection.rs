@@ -4,11 +4,11 @@ use atlas_app_model::{
     AppErrorCode, EncounterDetailView, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
     EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView, ReorderEncounterParticipantPlacementView,
+    EncounterSummaryView,
 };
 use atlas_local_state::{
     Encounter, EncounterParticipant, EncounterParticipantCondition, EncounterStatus,
-    ParticipantKind, ParticipantSide, ParticipantVariant, ReorderPlacement,
+    ParticipantKind, ParticipantSide, ParticipantVariant,
 };
 
 use crate::error::{AppServiceError, AppServiceResult};
@@ -415,15 +415,6 @@ pub(super) fn participant_variant_view(
         ParticipantVariant::Normal => EncounterParticipantVariantView::Normal,
         ParticipantVariant::Elite => EncounterParticipantVariantView::Elite,
         ParticipantVariant::Weak => EncounterParticipantVariantView::Weak,
-    }
-}
-
-pub(super) fn reorder_placement(
-    placement: ReorderEncounterParticipantPlacementView,
-) -> ReorderPlacement {
-    match placement {
-        ReorderEncounterParticipantPlacementView::Before => ReorderPlacement::Before,
-        ReorderEncounterParticipantPlacementView::After => ReorderPlacement::After,
     }
 }
 

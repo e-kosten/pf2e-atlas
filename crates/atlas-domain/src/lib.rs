@@ -67,3 +67,12 @@ mod similarity_component;
 pub use similarity_component::{
     SIMILARITY_COMPONENT_RECIPE, SimilarityComparisonKey, SimilarityComponent,
 };
+
+/// Position relative to a target in an ordered collection.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReorderPlacement {
+    Before,
+    After,
+}

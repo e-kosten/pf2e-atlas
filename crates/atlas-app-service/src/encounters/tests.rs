@@ -607,7 +607,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
                 ReorderEncounterParticipantRequest {
                     participant_key: manual_key.clone(),
                     target_participant_key: initial.participant_key.clone(),
-                    placement: ReorderEncounterParticipantPlacementView::Before,
+                    placement: atlas_domain::ReorderPlacement::Before,
                 },
             )
             .unwrap(),

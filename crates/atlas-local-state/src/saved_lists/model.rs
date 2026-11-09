@@ -97,17 +97,11 @@ pub struct ResolvedSavedListItem {
     pub note: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SavedListItemPlacement {
-    Before,
-    After,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReorderSavedListItem {
     pub record_key: String,
     pub target_record_key: String,
-    pub placement: SavedListItemPlacement,
+    pub placement: atlas_domain::ReorderPlacement,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
