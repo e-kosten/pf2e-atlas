@@ -1486,13 +1486,14 @@ Authored action costs use the shared `ActionCost` renderer over typed Rust facts
 Fixed one/two/three-action, reaction and free-action glyphs are decorative;
 their readable label remains accessible. Variable and timed costs keep their
 supplied text, and unavailable required costs remain explicit. Omit the explicit
-Rust-projected `passive` cost from individual ability displays in readers and
-encounters. Keep the existing Passive abilities section heading. Spell
-patches preserve clear/empty meanings. Physical usage is separate from action
-cost. Prepared inline glyph attributes use the same font styling with an empty
-CSS content alternative, so font characters do not add spoken text or enter
-the canonical/terminal words. Never classify cost strings or authored markup in
-the browser.
+Rust-projected `passive` marker from individual ability displays in readers and
+encounters. Keep the existing Passive abilities section heading. Preserve the
+projected spell casting label when it is `passive`. Spell patches preserve
+clear/empty meanings. Physical usage is separate from action cost. Prepared
+inline glyph attributes use the same font styling with an empty CSS content
+alternative, so font characters do not add spoken text or enter the
+canonical/terminal words. Use the projected glyph and fact state for action
+costs. Do not derive action types from authored text or markup.
 
 Use the shared fact reading policy for optional baseline whitespace-only text
 and empty lists; omit their row and resulting empty heading. Mark required text

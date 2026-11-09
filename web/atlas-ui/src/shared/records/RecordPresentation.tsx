@@ -707,7 +707,10 @@ export function RecordPresentation({
                 >
                   {link.title}
                 </Button>
-                <ActionCost fact={link.action_cost} omitPassive />
+                <ActionCost
+                  fact={link.action_cost}
+                  omitPassive={link.family !== "spell"}
+                />
                 {link.usage && !isEmptyFactValue(link.usage) && (
                   <span className="muted"> {link.usage}</span>
                 )}
