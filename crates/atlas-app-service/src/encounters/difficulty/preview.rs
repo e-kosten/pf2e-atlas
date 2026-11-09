@@ -163,7 +163,7 @@ mod tests {
         let key = encounter.encounter_key.clone();
         let request = PreviewEncounterDifficultyRequest {
             expected_revision: before.revision,
-            reference: EncounterDifficultyReferenceView {
+            reference: EncounterDifficultyReferenceInput {
                 party_level: Some(5),
                 party_size: Some(4),
             },

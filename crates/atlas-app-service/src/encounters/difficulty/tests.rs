@@ -114,7 +114,7 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
     assert_eq!(detail.difficulty.total_xp, None);
     let request = SetEncounterDifficultyRequest {
         expected_revision: detail.revision,
-        reference: EncounterDifficultyReferenceView {
+        reference: EncounterDifficultyReferenceInput {
             party_level: Some(5),
             party_size: Some(4),
         },
@@ -261,7 +261,7 @@ fn party_snapshots_supply_mixed_references_and_unknown_levels_stay_unknown() {
             PreviewEncounterDifficultyRequest {
                 addition: None,
                 expected_revision: unknown.revision,
-                reference: EncounterDifficultyReferenceView {
+                reference: EncounterDifficultyReferenceInput {
                     party_level: Some(5),
                     party_size: Some(4),
                 },
@@ -368,7 +368,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         .unwrap()
         .encounter;
     let before = f.worker.encounter(&encounter.encounter_key).unwrap();
-    let reference = EncounterDifficultyReferenceView {
+    let reference = EncounterDifficultyReferenceInput {
         party_level: Some(5),
         party_size: Some(5),
     };

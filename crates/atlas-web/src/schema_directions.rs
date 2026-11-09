@@ -42,11 +42,6 @@ const INPUT_FIELDS: &[InputFields] = &[
         nullable: &[],
     },
     InputFields {
-        component: "EncounterDifficultyReferenceView",
-        optional: &["party_level", "party_size"],
-        nullable: &[],
-    },
-    InputFields {
         component: "HpEventContextView",
         optional: &[
             "attack_or_spell_damage",

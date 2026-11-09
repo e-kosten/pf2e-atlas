@@ -4,8 +4,8 @@ mod preview;
 use crate::{AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
-    EncounterDifficultyReferenceView, EncounterDifficultyView, EncounterMutationView,
-    SetEncounterDifficultyRequest,
+    EncounterDifficultyReferenceInput, EncounterDifficultyReferenceView, EncounterDifficultyView,
+    EncounterMutationView, SetEncounterDifficultyRequest,
 };
 use atlas_local_state::{
     EncounterDifficultyReference, EncounterParticipant, ParticipantKind, ParticipantSide,
@@ -33,7 +33,7 @@ impl AtlasAppService {
         })
     }
 }
-fn local_reference(reference: EncounterDifficultyReferenceView) -> EncounterDifficultyReference {
+fn local_reference(reference: EncounterDifficultyReferenceInput) -> EncounterDifficultyReference {
     EncounterDifficultyReference {
         party_level: reference.party_level,
         party_size: reference.party_size,

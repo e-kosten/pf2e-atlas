@@ -113,7 +113,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
             PreviewEncounterDifficultyRequest {
                 addition: None,
                 expected_revision: detail.revision,
-                reference: EncounterDifficultyReferenceView {
+                reference: EncounterDifficultyReferenceInput {
                     party_level: Some(5),
                     party_size: Some(4),
                 },
