@@ -10,6 +10,8 @@ sh -n \
   "$repo_root/scripts/release/test-release-tools.sh" \
   "$repo_root/scripts/release/test-prepare-release.sh"
 
+node "$repo_root/scripts/release/cargo-dist.mjs" check
+
 npm --prefix "$repo_root/dev-tools/release" run verify
 
 ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path) }' "$repo_root"/.github/workflows/*.yml

@@ -156,6 +156,18 @@ The helper creates an annotated tag and a draft GitHub release. The tag-triggere
 
 cargo-dist is configured in `dist-workspace.toml`. The Atlas release workflow intentionally keeps repo-owned installers instead of cargo-dist-generated installers so install/update prompts, install locations, PATH guidance, and runtime-data policy remain under Atlas control.
 
+The shared build check downloads the pinned cargo-dist archives in its prepare
+job, verifies SHA-256, and shares one archive per platform with the packaging
+jobs. The Actions cache can supply verified archives across runs. On a cache
+miss, prepare retries transient upstream failures before failing the build.
+When changing `cargo-dist-version` in `dist-workspace.toml`, update the version
+and all four upstream SHA-256 pins in
+`scripts/release/cargo-dist-checksums.json` together.
+
+For acquisition failures, inspect the prepare job for the affected target,
+cache status, and download or checksum error. If a failed-job rerun can no
+longer download the tool artifacts from prepare, start a fresh workflow run.
+
 To iterate on platform packaging without publishing a release, push a branch named
 `release-build-check/<topic>` or `release-build-check-<topic>`. The
 `release build check` workflow runs the cargo-dist build matrix, assembles the

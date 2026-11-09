@@ -1,0 +1,9 @@
+{
+  "version": "0.31.0",
+  "archives": {
+    "aarch64-apple-darwin": "decb01c64c12501931c3cac3111b368a7f48adf8d9e65455c08e5757b9a1fd6f",
+    "aarch64-unknown-linux-gnu": "382cc29ff91ef12a5bf78ad8ee1804661d24e2fbe64b1bdedd6078723b677ae5",
+    "x86_64-pc-windows-msvc": "a14e17557b269b101405e0cc6b647581d56313c954a51c7fddd423bba21e17b2",
+    "x86_64-unknown-linux-gnu": "cd355dab0b4c02fb59038fef87655550021d07f45f1d82f947a34ef98560abb8"
+  }
+}

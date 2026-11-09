@@ -36,7 +36,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  DIST_VERSION: "0.31.0"
 
 jobs:
   prepare:
@@ -45,6 +44,7 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
+      dist-artifacts: ${{ steps.dist.outputs.prefix }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -97,6 +97,55 @@ jobs:
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore verified cargo-dist archives
+        id: dist-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives
+          key: cargo-dist-archives-v1-${{ hashFiles('scripts/release/cargo-dist-checksums.json') }}
+      - name: Acquire cargo-dist archives
+        id: dist
+        shell: bash
+        env:
+          DIST_ARCHIVES: ${{ runner.temp }}/atlas-cargo-dist-archives
+        run: |
+          node scripts/release/cargo-dist.mjs acquire "$DIST_ARCHIVES"
+          echo "prefix=cargo-dist-tool-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+      - name: Save verified cargo-dist archives
+        if: steps.dist-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives
+          key: ${{ steps.dist-cache.outputs.cache-primary-key }}
+      - name: Share cargo-dist for x64 Linux
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.dist.outputs.prefix }}-x86_64-unknown-linux-gnu
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives/cargo-dist-x86_64-unknown-linux-gnu.tar.xz
+          compression-level: 0
+          if-no-files-found: error
+      - name: Share cargo-dist for ARM64 Linux
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.dist.outputs.prefix }}-aarch64-unknown-linux-gnu
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives/cargo-dist-aarch64-unknown-linux-gnu.tar.xz
+          compression-level: 0
+          if-no-files-found: error
+      - name: Share cargo-dist for ARM64 macOS
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.dist.outputs.prefix }}-aarch64-apple-darwin
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives/cargo-dist-aarch64-apple-darwin.tar.xz
+          compression-level: 0
+          if-no-files-found: error
+      - name: Share cargo-dist for x64 Windows
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.dist.outputs.prefix }}-x86_64-pc-windows-msvc
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives/cargo-dist-x86_64-pc-windows-msvc.zip
+          compression-level: 0
+          if-no-files-found: error
 
   build:
     name: cargo-dist ${{ matrix.target }} (${{ matrix.variant }})
@@ -152,14 +201,17 @@ jobs:
         env:
           NIGHTLY_TAG: ${{ inputs.tag }}
         run: node dev-tools/release/dist/src/cli/nightly.js prepare --tag "$NIGHTLY_TAG"
+      - name: Download verified cargo-dist archive
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.prepare.outputs.dist-artifacts }}-${{ matrix.target }}
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives
       - name: Install cargo-dist
-        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
-        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
-      - name: Install cargo-dist on Windows
-        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        shell: pwsh
-        run: irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex
+        env:
+          DIST_ARCHIVES: ${{ runner.temp }}/atlas-cargo-dist-archives
+          DIST_TARGET: ${{ matrix.target }}
+        run: node scripts/release/cargo-dist.mjs install "$DIST_ARCHIVES" "$DIST_TARGET"
       - name: Build web UI bundle
         if: ${{ matrix.variant == 'full' }}
         shell: bash
@@ -281,9 +333,17 @@ jobs:
         env:
           NIGHTLY_TAG: ${{ inputs.tag }}
         run: node dev-tools/release/dist/src/cli/nightly.js prepare --tag "$NIGHTLY_TAG"
+      - name: Download verified cargo-dist archive
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.prepare.outputs.dist-artifacts }}-x86_64-unknown-linux-gnu
+          path: ${{ runner.temp }}/atlas-cargo-dist-archives
       - name: Install cargo-dist
         shell: bash
-        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
+        env:
+          DIST_ARCHIVES: ${{ runner.temp }}/atlas-cargo-dist-archives
+          DIST_TARGET: x86_64-unknown-linux-gnu
+        run: node scripts/release/cargo-dist.mjs install "$DIST_ARCHIVES" "$DIST_TARGET"
       - name: Add installers and notices
         shell: bash
         run: |
