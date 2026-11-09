@@ -44,6 +44,12 @@
   container: creature-sheet / inline-size;
   min-width: 0;
 }
+.record-view__pane--creature
+  .creature-reference:not(.creature-reference--caster):has(
+    .creature-reference__outline
+  ) {
+  container-name: standalone-creature-sheet;
+}
 .creature-reference__body {
   container: creature-body / inline-size;
   min-width: 0;
@@ -189,7 +195,7 @@
   margin-block: 0;
 }
 
-@container creature-sheet (min-width: 58rem) {
+@container creature-sheet (min-width: 62rem), standalone-creature-sheet (min-width: 58rem) {
   .creature-reference:not(.creature-reference--encounter)
     > .creature-reference__layout {
     display: grid;
