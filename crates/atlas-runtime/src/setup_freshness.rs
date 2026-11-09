@@ -18,6 +18,7 @@ pub(crate) fn capture_build_inputs(
         success = captured.is_ok(),
         "{message}"
     );
+    tracing::info!(target: "atlas_progress", complete = true, "Source capture ended");
     captured
 }
 pub(crate) fn source_is_fresh(

@@ -199,9 +199,9 @@ impl NativeExecution<'_, '_> {
                     atlas_index::NativeValueSelection::AlreadySelected => {}
                 }
             }
-            // Selection and inference alternate. Keep generation visible
-            // across windows once we know this profile needs new vectors.
-            if inferred == 0 && missing.is_empty() {
+            // Report reuse-only windows. A window that needs inference reports
+            // its generation progress without briefly replacing it with reuse.
+            if missing.is_empty() {
                 counted_progress(profile, consumed, raw_inputs.len());
             }
             max_missing_batch = max_missing_batch.max(missing.len());

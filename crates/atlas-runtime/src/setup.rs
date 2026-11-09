@@ -230,6 +230,7 @@ pub(crate) fn ensure_setup(
             }
         }
     }
+    progress("check_workspace", "Checking workspace index");
     let locale = configuration.indexing_locale.clone();
     let prior = stored_reference(&paths.index_path);
     let freshness: Result<bool, String> = if options.force_rebuild {
