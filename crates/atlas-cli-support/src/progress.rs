@@ -32,6 +32,38 @@ pub fn init_tracing(options: ProgressOptions) {
     let _ = tracing::subscriber::set_global_default(subscriber);
 }
 
+/// Emit versioned setup progress on stderr, leaving the final JSON envelope on stdout.
+pub fn init_desktop_progress(version: u32) {
+    let subscriber = tracing_subscriber::registry().with(DesktopProgressLayer { version });
+    let _ = tracing::subscriber::set_global_default(subscriber);
+}
+
+struct DesktopProgressLayer {
+    version: u32,
+}
+
+impl<S: Subscriber> Layer<S> for DesktopProgressLayer {
+    fn on_event(&self, event: &Event<'_>, _context: Context<'_, S>) {
+        if event.metadata().target() != "atlas_progress" || *event.metadata().level() > Level::INFO
+        {
+            return;
+        }
+        let mut fields = EventFields::default();
+        event.record(&mut fields);
+        eprintln!(
+            "{}",
+            serde_json::json!({
+                "version": self.version,
+                "message": fields.message,
+                "phase": fields.phase,
+                "current": fields.current,
+                "total": fields.total,
+                "unit": fields.unit,
+            })
+        );
+    }
+}
+
 struct CliProgressLayer {
     state: Mutex<CliProgressState>,
     options: ProgressOptions,

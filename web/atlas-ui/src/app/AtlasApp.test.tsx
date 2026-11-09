@@ -318,6 +318,20 @@ describe("AtlasApp routing", () => {
     expect(history.state.atlasSearchReset).toBe("retained-session");
   });
 
+  it("refreshes readiness after desktop setup without dropping the open search draft", async () => {
+    history.replaceState(null, "", "/search");
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    const input = await screen.findByRole("searchbox", { name: "Search records" });
+    fireEvent.change(input, { target: { value: "Unsubmitted idea" } });
+    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
+
+    fireEvent(window, new Event("atlas-reference-updated"));
+
+    await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(2));
+    expect(input).toHaveValue("Unsubmitted idea");
+    expect(location.pathname).toBe("/search");
+  });
+
   it("waits for metadata before searching and gives the URL priority over preference and launch default", async () => {
     history.replaceState(null, "", "/search?q=heal&search_profile=embeddinggemma");
     localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, "bge-base");

@@ -16,7 +16,22 @@ pub(crate) fn run_web(args: WebArgs) -> Result<std::process::ExitCode, String> {
         .build()
         .map_err(|error| format!("failed to start async runtime: {error}"))?;
 
-    let result = runtime.block_on(managed::run(args));
+    let desktop = args.desktop_launcher && args.managed_worker.is_none();
+    let result = runtime.block_on(async {
+        if !desktop {
+            return managed::run(args).await;
+        }
+        let (closed, eof) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            let _ = std::io::copy(&mut std::io::stdin().lock(), &mut std::io::sink());
+            let _ = closed.send(());
+        });
+        tokio::select! {
+            biased;
+            _ = eof => Ok(()),
+            result = managed::run(args) => result,
+        }
+    });
     runtime.shutdown_timeout(std::time::Duration::from_secs(1));
     result?;
     Ok(std::process::ExitCode::SUCCESS)

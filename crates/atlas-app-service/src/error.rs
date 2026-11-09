@@ -72,7 +72,8 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
             RuntimeErrorKind::WorkspaceMissing => AppErrorCode::SetupRequired,
             RuntimeErrorKind::WorkspaceAccess => AppErrorCode::WorkspaceAccessFailed,
             RuntimeErrorKind::WorkspaceMaintenance => AppErrorCode::WorkspaceMaintenanceRequired,
-            RuntimeErrorKind::WorkspaceIncompatible => AppErrorCode::ArtifactIncompatible,
+            RuntimeErrorKind::WorkspaceIncompatible
+            | RuntimeErrorKind::WorkspaceUpgradeRequired => AppErrorCode::ArtifactIncompatible,
             RuntimeErrorKind::ReferenceChanged { expected, actual } => {
                 return Self::artifact_generation_changed(
                     &expected.to_string(),

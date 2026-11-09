@@ -10,6 +10,10 @@ use atlas_cli_support::CliPathMode;
     after_help = "Examples:\n  atlas setup\n  atlas setup --no-embeddings\n  atlas setup --check --offline --path-mode global\n  atlas setup clean --embeddings\n  atlas setup clean --all --yes"
 )]
 pub(crate) struct SetupArgs {
+    #[arg(long, hide = true, requires = "json")]
+    pub(crate) desktop_progress: bool,
+    #[arg(long, hide = true, requires = "desktop_progress")]
+    pub(crate) desktop_cancel_on_eof: bool,
     #[command(flatten)]
     pub(crate) paths: SetupPathOptions,
     #[command(flatten)]

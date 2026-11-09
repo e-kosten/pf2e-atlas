@@ -66,6 +66,12 @@ pub(crate) enum Command {
     #[cfg(feature = "web")]
     #[command(about = "Start the local Atlas web service")]
     Web(WebArgs),
+    #[cfg(target_os = "macos")]
+    #[command(about = "Open the Atlas macOS app or a reference link")]
+    Open(commands::desktop::OpenArgs),
+    #[cfg(target_os = "macos")]
+    #[command(hide = true)]
+    DesktopProbe(commands::desktop::ProbeArgs),
     #[command(about = "Discover filter fields and values")]
     Filters(FiltersArgs),
     #[command(about = "Create and edit durable local saved lists", alias = "list")]
@@ -93,16 +99,39 @@ pub(crate) fn main() -> ExitCode {
             return ExitCode::from(error.exit_code() as u8);
         }
     };
-    init_tracing(ProgressOptions {
-        mode: cli.progress.into(),
-        json: cli.command.uses_json(),
-        setup_timing: cli.command.uses_setup_timing(),
-    });
+    if matches!(&cli.command, Command::Setup(args) if args.desktop_progress) {
+        atlas_cli_support::init_desktop_progress(1);
+    } else {
+        init_tracing(ProgressOptions {
+            mode: cli.progress.into(),
+            json: cli.command.uses_json(),
+            setup_timing: cli.command.uses_setup_timing(),
+        });
+    }
+    if matches!(&cli.command, Command::Setup(args) if args.desktop_cancel_on_eof) {
+        std::thread::spawn(|| {
+            let _ = std::io::copy(&mut std::io::stdin().lock(), &mut std::io::sink());
+            std::process::exit(130);
+        });
+    }
+    #[cfg(feature = "web")]
+    let desktop_launcher = matches!(&cli.command, Command::Web(args)
+        if args.desktop_launcher && args.managed_worker.is_none());
     let json = cli.command.uses_json();
     match run(cli) {
         Ok(code) => code,
         Err(error) => {
             tracing::info!(target:"atlas_progress",complete=true,"Command failed");
+            #[cfg(feature = "web")]
+            if desktop_launcher {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "status": "error", "error": {"code": "command_failed", "message": error}
+                    })
+                );
+                return ExitCode::from(2);
+            }
             if json {
                 let _ = write_json_error("command_failed", error);
             } else {
@@ -139,7 +168,11 @@ impl Command {
             Self::Similar(options) => options.json,
             Self::Search(options) => options.json,
             #[cfg(feature = "web")]
-            Self::Web(_) => false,
+            Self::Web(args) => args.desktop_launcher && args.managed_worker.is_none(),
+            #[cfg(target_os = "macos")]
+            Self::Open(_) => false,
+            #[cfg(target_os = "macos")]
+            Self::DesktopProbe(_) => true,
             Self::Filters(filters) => match &filters.command {
                 FiltersCommand::Fields(options) => options.json,
                 FiltersCommand::Values(options) => options.json,
@@ -169,6 +202,10 @@ impl Command {
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
+        #[cfg(target_os = "macos")]
+        Command::Open(args) => commands::desktop::open(args),
+        #[cfg(target_os = "macos")]
+        Command::DesktopProbe(args) => commands::desktop::probe(args),
         Command::BuildInfo(args) => commands::build_info::run(args),
         Command::Roll(args) => commands::roll::run_roll(args),
         Command::Setup(args) => commands::setup::run_setup(args),

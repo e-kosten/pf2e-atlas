@@ -11,4 +11,4 @@ pub use json::{
     CliError, JsonStatus, write_json_data, write_json_error, write_json_failure,
     write_json_response,
 };
-pub use progress::{ProgressMode, ProgressOptions, init_tracing};
+pub use progress::{ProgressMode, ProgressOptions, init_desktop_progress, init_tracing};

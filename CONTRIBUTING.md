@@ -26,6 +26,8 @@ prebuilt backend by default, which may differ from the code in your checkout.
 Read [setup and previews](docs/development/setup-and-preview.md) before choosing
 a backend. Keep Cargo output checkout-local and reuse existing builds.
 
+For the Apple Silicon desktop pilot, see [Build the macOS pilot](desktop/README.md).
+
 ## Development loop
 
 Complete the agreed scope, integration, tests, documentation and review fixes.

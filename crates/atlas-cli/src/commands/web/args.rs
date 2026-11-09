@@ -49,4 +49,7 @@ pub(crate) struct WebArgs {
     pub(crate) open: bool,
     #[arg(long, hide = true)]
     pub(crate) managed_worker: Option<String>,
+    /// Use stdout for the versioned ready event and stdin for the owning pipe.
+    #[arg(long, hide = true, conflicts_with = "open")]
+    pub(crate) desktop_launcher: bool,
 }
