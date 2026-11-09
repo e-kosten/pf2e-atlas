@@ -8,23 +8,23 @@ function value(): TurnResourcesView {
       kind: "this_turn",
       count: {
         label: "Actions",
-        base_value: 3n,
-        adjusted_value: 1n,
+        base_value: 3,
+        adjusted_value: 1,
         segments: [],
-        adjustments: [{ source: "stunned", label: "Stunned 2", value: -2n }],
+        adjustments: [{ source: "stunned", label: "Stunned 2", value: -2 }],
         suppressed_adjustments: [],
       },
       changes: [],
     },
     turn_key: "turn:a",
-    round_number: 1n,
-    regular_total: 1n,
-    regular_remaining: 1n,
-    extra_total: 0n,
-    extra_remaining: 0n,
+    round_number: 1,
+    regular_total: 1,
+    regular_remaining: 1,
+    extra_total: 0,
+    extra_remaining: 0,
     extra_uses: [],
-    reactions_total: 1n,
-    reactions_remaining: 1n,
+    reactions_total: 1,
+    reactions_remaining: 1,
     can_grant_reaction: false,
     start_results: [
       {
@@ -36,8 +36,8 @@ function value(): TurnResourcesView {
     pending_reason: null,
     forecast: {
       label: "Actions",
-      base_value: 3n,
-      adjusted_value: 3n,
+      base_value: 3,
+      adjusted_value: 3,
       segments: [],
       adjustments: [],
       suppressed_adjustments: [],
@@ -90,8 +90,8 @@ it("keeps an ungranted reaction visible before the first turn and tracks an expl
     <EncounterTurnResources
       value={{
         ...initial,
-        reactions_total: 1n,
-        reactions_remaining: 1n,
+        reactions_total: 1,
+        reactions_remaining: 1,
         can_grant_reaction: false,
       }}
       disabled={false}
@@ -139,8 +139,8 @@ it("keeps a restricted granted reaction focusable without permitting spending", 
   );
   const granted = {
     ...initial,
-    reactions_total: 1n,
-    reactions_remaining: 1n,
+    reactions_total: 1,
+    reactions_remaining: 1,
     can_grant_reaction: false,
   };
   rerender(
@@ -207,7 +207,7 @@ it("spends only on explicit input and retains the recorded allowance and start r
   );
   rerender(
     <EncounterTurnResources
-      value={{ ...initial, regular_remaining: 0n }}
+      value={{ ...initial, regular_remaining: 0 }}
       disabled={false}
       isCurrent
       onChange={onChange}
@@ -244,7 +244,7 @@ it("keeps an off-turn reaction usable and distinguishes spent stock from a condi
     <EncounterTurnResources
       value={{
         ...initial,
-        reactions_remaining: 0n,
+        reactions_remaining: 0,
         can_spend_reactions: { available: false, reason: "Stunned." },
       }}
       disabled={false}
@@ -260,9 +260,9 @@ it("keeps an off-turn reaction usable and distinguishes spent stock from a condi
 });
 it("shows mid-turn Quickened as a forecast rather than another current action", () => {
   const current = value();
-  current.regular_total = 3n;
-  current.regular_remaining = 2n;
-  current.forecast.adjusted_value = 4n;
+  current.regular_total = 3;
+  current.regular_remaining = 2;
+  current.forecast.adjusted_value = 4;
   render(
     <EncounterTurnResources
       value={current}
@@ -288,7 +288,7 @@ it("shows mid-turn Quickened as a forecast rather than another current action", 
 });
 
 it("toggles the clicked slot only after canonical refresh and keeps its identity and focus", async () => {
-  const initial = { ...value(), regular_total: 3n, regular_remaining: 3n };
+  const initial = { ...value(), regular_total: 3, regular_remaining: 3 };
   const onChange = vi.fn().mockResolvedValue(undefined);
   const view = (v: TurnResourcesView) => (
     <EncounterTurnResources value={v} disabled={false} isCurrent onChange={onChange} />
@@ -304,7 +304,7 @@ it("toggles the clicked slot only after canonical refresh and keeps its identity
       resource: "action",
     }),
   );
-  rerender(view({ ...initial, regular_remaining: 2n }));
+  rerender(view({ ...initial, regular_remaining: 2 }));
   expect(screen.getByRole("button", { name: "Restore action 2" })).toBe(middle);
   expect(middle).toHaveAttribute("aria-pressed", "false");
   expect(middle).toHaveFocus();
@@ -391,8 +391,8 @@ it("explains a modified allowance without duplicating chip controls or confusing
 it("keeps extra action directly toggleable with its visible restriction and no separate menu", async () => {
   const initial = {
     ...value(),
-    extra_total: 1n,
-    extra_remaining: 1n,
+    extra_total: 1,
+    extra_remaining: 1,
     extra_uses: [
       {
         kind: "restricted" as const,
@@ -420,7 +420,7 @@ it("keeps extra action directly toggleable with its visible restriction and no s
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledWith({ kind: "spend", resource: "extra_action" }),
   );
-  rerender(view({ ...initial, extra_remaining: 0n }));
+  rerender(view({ ...initial, extra_remaining: 0 }));
   fireEvent.click(screen.getByRole("button", { name: "Restore extra action 1" }));
   await waitFor(() =>
     expect(onChange).toHaveBeenLastCalledWith({
@@ -439,52 +439,41 @@ it("keeps extra action directly toggleable with its visible restriction and no s
   expect(screen.queryByText("Ordinary remaining")).toBeNull();
 });
 
-it.each(["typed", "wire"])(
-  "keeps an unmodified three-action allowance plain while chips spend and restore (%s)",
-  (representation) => {
-    const initial = {
-      ...value(),
-      regular_total: 3n,
-      regular_remaining: 2n,
-      start_results: [],
-      action_calculation: {
-        kind: "this_turn" as const,
-        count: value().forecast,
-        changes: [],
-      },
-    };
-    const supplied =
-      representation === "wire"
-        ? JSON.parse(
-            JSON.stringify(initial, (_, item) =>
-              typeof item === "bigint" ? Number(item) : item,
-            ),
-          )
-        : initial;
-    render(
-      <EncounterTurnResources
-        value={supplied}
-        disabled={false}
-        isCurrent
-        onChange={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Actions", { exact: true })).toBeVisible();
-    expect(screen.queryByRole("button", { name: /Actions:/ })).toBeNull();
-    expect(screen.getByRole("button", { name: "Spend action 1" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Restore action 3" })).toBeEnabled();
-  },
-);
+it("keeps an unmodified three-action allowance plain while chips spend and restore", () => {
+  const initial = {
+    ...value(),
+    regular_total: 3,
+    regular_remaining: 2,
+    start_results: [],
+    action_calculation: {
+      kind: "this_turn" as const,
+      count: value().forecast,
+      changes: [],
+    },
+  };
+  render(
+    <EncounterTurnResources
+      value={initial}
+      disabled={false}
+      isCurrent
+      onChange={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Actions", { exact: true })).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Actions:/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Spend action 1" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Restore action 3" })).toBeEnabled();
+});
 it("keeps explanations when modifiers cancel to the base allowance", async () => {
   const initial = {
     ...value(),
-    regular_total: 3n,
-    regular_remaining: 3n,
+    regular_total: 3,
+    regular_remaining: 3,
     start_results: [],
   };
   initial.forecast.adjustments = [
-    { source: "slowed", label: "Slowed", value: -1n },
-    { source: "quickened", label: "Quickened", value: 1n },
+    { source: "slowed", label: "Slowed", value: -1 },
+    { source: "quickened", label: "Quickened", value: 1 },
   ];
   initial.action_calculation = {
     kind: "this_turn",
@@ -536,19 +525,19 @@ it("opens the retained Stunned rules without restoring a cleared condition or sp
 
 it("keeps this turn's overlap explanation while conditions change and switches to the forecast at turn end", async () => {
   const initial = value();
-  initial.regular_total = 2n;
-  initial.regular_remaining = 2n;
+  initial.regular_total = 2;
+  initial.regular_remaining = 2;
   initial.action_calculation = {
     kind: "this_turn",
     count: {
       ...initial.forecast,
-      adjusted_value: 2n,
-      adjustments: [{ source: "stunned", label: "Stunned 1", value: -1n }],
+      adjusted_value: 2,
+      adjustments: [{ source: "stunned", label: "Stunned 1", value: -1 }],
       suppressed_adjustments: [
         {
           source: "slowed",
           label: "Slowed 1",
-          value: -1n,
+          value: -1,
           reason: "Overlaps Stunned; no additional action lost.",
         },
       ],
@@ -578,11 +567,11 @@ it("keeps this turn's overlap explanation while conditions change and switches t
   ).toBeVisible();
   const changed = {
     ...initial,
-    regular_remaining: 1n,
+    regular_remaining: 1,
     forecast: {
       ...initial.forecast,
-      adjusted_value: 1n,
-      adjustments: [{ source: "slowed", label: "Slowed 2", value: -2n }],
+      adjusted_value: 1,
+      adjustments: [{ source: "slowed", label: "Slowed 2", value: -2 }],
     },
   };
   rerender(view(changed, true));
@@ -612,7 +601,7 @@ it("keeps later automatic losses separate from the initial allocation", async ()
   initial.action_calculation = {
     kind: "this_turn",
     count: initial.forecast,
-    changes: [{ source: "stunned-during-0", label: "Stunned 1", value: -1n }],
+    changes: [{ source: "stunned-during-0", label: "Stunned 1", value: -1 }],
   };
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
@@ -660,8 +649,8 @@ it("does not reconstruct an older turn's missing calculation from today's condit
 });
 
 it.each([
-  { name: "full", stunned: 2n, slowed: 1n, additionalSlowedLoss: 0n },
-  { name: "partial", stunned: 1n, slowed: 2n, additionalSlowedLoss: 1n },
+  { name: "full", stunned: 2, slowed: 1, additionalSlowedLoss: 0 },
+  { name: "partial", stunned: 1, slowed: 2, additionalSlowedLoss: 1 },
 ])(
   "shows each condition once in the forecast for $name Stunned/Slowed overlap",
   async ({ stunned, slowed, additionalSlowedLoss }) => {
@@ -676,9 +665,9 @@ it.each([
     const initial = value();
     const forecast = {
       ...initial.forecast,
-      adjusted_value: 2n,
+      adjusted_value: 2,
       adjustments: [
-        { source: "quickened", label: "Quickened", value: 1n },
+        { source: "quickened", label: "Quickened", value: 1 },
         { source: "stunned", label: `Stunned ${stunned}`, value: -stunned },
         ...(additionalSlowedLoss
           ? [{ ...slowedRow, value: -additionalSlowedLoss }]

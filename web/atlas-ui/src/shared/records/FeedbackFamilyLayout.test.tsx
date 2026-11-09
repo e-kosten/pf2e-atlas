@@ -302,7 +302,7 @@ it.each([false, true])(
   "keeps hazard condition explanations inline without generic creature budgets (hasBudget=%s)",
   async (hasBudget) => {
     const actor = actorFixture();
-    const count = (label: string, value: bigint) => ({
+    const count = (label: string, value: number) => ({
       label,
       base_value: value,
       adjusted_value: value,
@@ -316,8 +316,8 @@ it.each([false, true])(
       action_budget: hasBudget
         ? {
             quickened_sources: [],
-            actions: count("Actions", 0n),
-            reactions: count("Reactions", 0n),
+            actions: count("Actions", 0),
+            reactions: count("Reactions", 0),
             can_act: { available: false, reason: "Unconscious blocks actions." },
             can_react: { available: false, reason: "Unconscious blocks reactions." },
             notes: [

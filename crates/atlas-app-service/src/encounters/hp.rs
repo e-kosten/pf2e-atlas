@@ -1,129 +1,72 @@
-use super::projection::{encounter_not_found, participant_side_view, participant_variant_view};
+use super::workflow::{MaximumHpEdit, ParticipantEdit, ParticipantHpEdit};
 use crate::error::{AppServiceError, AppServiceResult};
 use crate::service::AtlasAppService;
-use atlas_app_model::{
-    ApplyEncounterHpActionRequest, EncounterHpAction, EncounterMutationView,
-    UpdateEncounterParticipantRequest,
-};
+use atlas_app_model::{ApplyEncounterHpActionRequest, EncounterHpAction, EncounterMutationView};
 
 impl AtlasAppService {
     pub fn apply_encounter_hp_action(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: ApplyEncounterHpActionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         if matches!(
             &request.action,
             EncounterHpAction::Damage { .. } | EncounterHpAction::Heal { .. }
         ) {
-            return self.record_hp_amount(encounter_ref, request);
+            return self.record_hp_amount(encounter_ref, participant_key, request);
         }
-        let detail = self.with_state(|session| {
-            session
-                .local_state()?
-                .encounters()
-                .get_with_participants(encounter_ref)?
-                .ok_or_else(|| encounter_not_found(encounter_ref))
-        })?;
-        let existing = detail
-            .participants
-            .iter()
-            .find(|p| p.participant_key == request.participant_key)
-            .ok_or_else(|| {
-                AppServiceError::new(
-                    atlas_app_model::AppErrorCode::EncounterParticipantNotFound,
-                    "Encounter participant was not found",
-                )
-            })?;
-        if request.expected_revision != existing.revision {
-            return Err(
-                atlas_local_state::LocalStateError::StaleParticipantRevision {
-                    participant_key: request.participant_key,
-                    expected_revision: request.expected_revision,
-                    actual_revision: existing.revision,
-                }
-                .into(),
-            );
+        // Resolve all correction fields after the participant revision check and
+        // before the single guarded write.
+        self.edit_encounter_participant(
+            encounter_ref,
+            participant_key,
+            request.expected_revision,
+            || hp_correction(request.action).map(ParticipantEdit::Hp),
+        )
+    }
+}
+
+fn hp_correction(action: EncounterHpAction) -> AppServiceResult<ParticipantHpEdit> {
+    let correction =
+        |input: Option<&str>| input.map(|value| formula_value(value, true)).transpose();
+    let mut edit = ParticipantHpEdit::default();
+    match action {
+        EncounterHpAction::Damage { .. } | EncounterHpAction::Heal { .. } => {
+            return Err(AppServiceError::invalid_request(
+                "Damage and healing must use the shared HP event workflow",
+            ));
         }
-        let mut update = UpdateEncounterParticipantRequest {
-            participant_key: existing.participant_key.clone(),
-            expected_revision: request.expected_revision,
-            hp_edit: false,
-            max_hp_edit: false,
-            variant_edit: false,
-            use_derived_max: false,
-            display_name: existing.display_name.clone(),
-            side: participant_side_view(existing.side),
-            participant_variant: participant_variant_view(existing.participant_variant),
-            initiative: existing.initiative,
-            current_hp: existing.current_hp,
-            max_hp: existing.max_hp,
-            temporary_hp: existing.temporary_hp,
-            defeated: existing.defeated,
-            hazard_disabled: existing.hazard_disabled,
-            hidden: existing.hidden,
-            note: existing.note.clone(),
-        };
-        match request.action {
-            EncounterHpAction::Damage { .. } | EncounterHpAction::Heal { .. } => {
+        EncounterHpAction::SetCurrent { input } => {
+            edit.current = Some(correction(input.as_deref())?);
+        }
+        EncounterHpAction::SetMaximum { input } => {
+            edit.maximum = Some(MaximumHpEdit::Set(correction(input.as_deref())?));
+        }
+        EncounterHpAction::SetTemporary { input } => {
+            edit.temporary = Some(temporary_hp_value(&input)?);
+        }
+        EncounterHpAction::SetValues {
+            current,
+            maximum,
+            temporary,
+        } => {
+            if current.is_none() && maximum.is_none() && temporary.is_none() {
                 return Err(AppServiceError::invalid_request(
-                    "Damage and healing must use the shared HP event workflow",
+                    "Choose at least one HP field to correct",
                 ));
             }
-            EncounterHpAction::SetCurrent { input } => {
-                update.current_hp = input
-                    .as_deref()
-                    .map(|value| formula_value(value, true))
-                    .transpose()?;
-                update.hp_edit = true;
-            }
-            EncounterHpAction::SetMaximum { input } => {
-                update.max_hp = input
-                    .as_deref()
-                    .map(|value| formula_value(value, true))
-                    .transpose()?;
-                update.max_hp_edit = true;
-            }
-            EncounterHpAction::SetTemporary { input } => {
-                update.temporary_hp = temporary_hp_value(&input)?
-            }
-            EncounterHpAction::SetValues {
-                current,
-                maximum,
-                temporary,
-            } => {
-                if current.is_none() && maximum.is_none() && temporary.is_none() {
-                    return Err(AppServiceError::invalid_request(
-                        "Choose at least one HP field to correct",
-                    ));
-                }
-                // Interpret every submitted field before the single guarded replacement.
-                if let Some(current) = current {
-                    update.current_hp = current
-                        .input
-                        .as_deref()
-                        .map(|input| formula_value(input, true))
-                        .transpose()?;
-                    update.hp_edit = true;
-                }
-                if let Some(maximum) = maximum {
-                    update.max_hp = maximum
-                        .input
-                        .as_deref()
-                        .map(|input| formula_value(input, true))
-                        .transpose()?;
-                    update.max_hp_edit = true;
-                }
-                if let Some(temporary) = temporary {
-                    update.temporary_hp = temporary_hp_value(&temporary)?;
-                }
-            }
-            EncounterHpAction::UseDerivedMaximum => update.use_derived_max = true,
+            edit.current = current
+                .map(|value| correction(value.input.as_deref()))
+                .transpose()?;
+            edit.maximum = maximum
+                .map(|value| correction(value.input.as_deref()).map(MaximumHpEdit::Set))
+                .transpose()?;
+            edit.temporary = temporary.as_deref().map(temporary_hp_value).transpose()?;
         }
-        // Reuse provenance/derivation policy and the local-state revision check
-        // under its write transaction. Never hydrate presentation after commit.
-        self.update_encounter_participant(&detail.encounter.encounter_key, update)
+        EncounterHpAction::UseDerivedMaximum => edit.maximum = Some(MaximumHpEdit::Derive),
     }
+    Ok(edit)
 }
 
 fn temporary_hp_value(input: &str) -> AppServiceResult<i64> {

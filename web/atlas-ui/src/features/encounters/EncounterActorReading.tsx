@@ -30,7 +30,7 @@ export function EncounterActorReading(
     queryFn: ({ signal }) =>
       getEmbeddedReading(
         {
-          parent: reading!.parent,
+          parent: { record_key: reading!.parent.record_key },
           artifact_generation: reading!.generation,
           selection: { kind: "actor_content" },
         },

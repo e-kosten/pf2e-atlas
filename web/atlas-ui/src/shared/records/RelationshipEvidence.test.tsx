@@ -58,7 +58,7 @@ const occurrence: RecordRelationshipView = {
 const evidence: RelationshipEvidenceView = {
   clause_id: "link",
   occurrences: [occurrence],
-  page: { number: 1, size: 1, count: 1, total: 2n, has_more: true, next_page: 2 },
+  page: { number: 1, size: 1, count: 1, total: 2, has_more: true, next_page: 2 },
 };
 function setup() {
   const client = new QueryClient({

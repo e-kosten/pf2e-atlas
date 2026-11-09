@@ -43,7 +43,7 @@ export function EncounterPersistentRecovery({
   rollAvailable?: boolean;
   rollUnavailableReason?: string | null;
   participantKey: string;
-  encounterRevision: bigint;
+  encounterRevision: number;
   boundaryKey?: string | null;
   disabled: boolean;
   pending: boolean;
@@ -115,7 +115,7 @@ export function EncounterPersistentRecovery({
     if (result && mode === "end_turn") return;
     form.resetFields();
     form.setFieldsValue({
-      dc: source?.recovery_dc == null ? null : Number(source.recovery_dc),
+      dc: source?.recovery_dc == null ? null : source.recovery_dc,
     });
   };
   const run = async () => {
@@ -152,9 +152,9 @@ export function EncounterPersistentRecovery({
           dc_override:
             values.dc === undefined ||
             values.dc === null ||
-            BigInt(values.dc) === source?.recovery_dc
+            values.dc === source?.recovery_dc
               ? null
-              : BigInt(values.dc),
+              : values.dc,
         });
         received = true;
         onResult?.(completed);

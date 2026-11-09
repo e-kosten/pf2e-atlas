@@ -330,13 +330,15 @@ mod tests {
             .unwrap()
             .encounter
             .encounter_key;
-        w.add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "PC".into(),
-            max_hp: Some(20),
-            current_hp: Some(12),
-            initiative: None,
-        })
+        w.add_encounter_manual_participant(
+            &key,
+            AddEncounterManualParticipantRequest {
+                display_name: "PC".into(),
+                max_hp: Some(20),
+                current_hp: Some(12),
+                initiative: None,
+            },
+        )
         .unwrap();
         let p = w.encounter(&key).unwrap().participants.remove(0);
         w.set_encounter_life_settings(

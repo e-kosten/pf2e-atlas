@@ -1,11 +1,11 @@
 import type { SearchPageView } from "../../generated/atlas";
 
 export function totalPages(page: SearchPageView): bigint {
-  if (page.size <= 0 || page.total === 0n) {
+  if (page.size <= 0 || page.total === 0) {
     return 0n;
   }
   const size = BigInt(page.size);
-  return (page.total + size - 1n) / size;
+  return (BigInt(page.total) + size - 1n) / size;
 }
 
 export function pagePositionLabel(page: SearchPageView): string {

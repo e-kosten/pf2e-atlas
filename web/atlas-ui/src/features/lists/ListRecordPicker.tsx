@@ -29,18 +29,18 @@ export function ListRecordPicker({
   );
   const submitting = useRef(false);
   const add = useMutation({
-    mutationFn: (request: { list_ref: string; record_ref: string }) =>
-      addSavedListItem(request),
+    mutationFn: ({ listRef, recordRef }: { listRef: string; recordRef: string }) =>
+      addSavedListItem(listRef, { record_ref: recordRef }),
     onSuccess: async (view, request) => {
       setReceipt({
-        record: request.record_ref,
+        record: request.recordRef,
         message:
           view.outcome === "already_present"
             ? "Already in this list."
             : "Added to list.",
       });
       await invalidateSavedListQueries(client, [
-        request.list_ref,
+        request.listRef,
         view.slug,
         view.list_key,
       ]);
@@ -59,7 +59,7 @@ export function ListRecordPicker({
     submitting.current = true;
     setReceipt(null);
     try {
-      await add.mutateAsync({ list_ref: list.list_key, record_ref: candidate });
+      await add.mutateAsync({ listRef: list.list_key, recordRef: candidate });
     } catch {
       /* Mutation error stays with Add for retry. */
     } finally {

@@ -99,13 +99,15 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
         ("actors:cccccccccccccccc", None),
     ] {
         f.worker
-            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-                encounter_ref: encounter.slug.clone(),
-                record_ref: key.into(),
-                quantity: 1,
-                initiative: None,
-                participant_variant: variant,
-            })
+            .add_encounter_record_participant(
+                &encounter.slug,
+                AddEncounterRecordParticipantRequest {
+                    record_ref: key.into(),
+                    quantity: 1,
+                    initiative: None,
+                    participant_variant: variant,
+                },
+            )
             .unwrap();
     }
     let detail = f.worker.encounter(&encounter.slug).unwrap();
@@ -152,22 +154,24 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
     let saved = f.worker.encounter(&encounter.slug).unwrap();
     for p in &saved.participants {
         let mut update = super::super::tests::update(p);
-        update.defeated = p.participant_kind == EncounterParticipantKindView::Creature;
-        update.hazard_disabled = p.participant_kind == EncounterParticipantKindView::Hazard;
+        update.defeated = Some(p.participant_kind == EncounterParticipantKindView::Creature);
+        update.hazard_disabled = Some(p.participant_kind == EncounterParticipantKindView::Hazard);
         f.worker
-            .update_encounter_participant(&encounter.slug, update)
+            .update_encounter_participant(&encounter.slug, &p.participant_key, update)
             .unwrap();
     }
     let after = f.worker.encounter(&encounter.slug).unwrap();
     assert_eq!(after.difficulty, saved.difficulty);
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:dddddddddddddddd".into(),
-            quantity: 1,
-            initiative: None,
-            participant_variant: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "actors:dddddddddddddddd".into(),
+                quantity: 1,
+                initiative: None,
+                participant_variant: None,
+            },
+        )
         .unwrap();
     let unavailable = f.worker.encounter(&encounter.slug).unwrap().difficulty;
     assert_eq!(unavailable.total_xp, None);
@@ -232,13 +236,15 @@ fn party_snapshots_supply_mixed_references_and_unknown_levels_stay_unknown() {
         (4, Some(3), Some(6))
     );
     f.worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "Unknown level".into(),
-            max_hp: None,
-            current_hp: None,
-            initiative: None,
-        })
+        .add_encounter_manual_participant(
+            &key,
+            AddEncounterManualParticipantRequest {
+                display_name: "Unknown level".into(),
+                max_hp: None,
+                current_hp: None,
+                initiative: None,
+            },
+        )
         .unwrap();
     let unknown = f.worker.encounter(&key).unwrap();
     assert_eq!(
@@ -442,13 +448,15 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         )
         .unwrap();
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.encounter_key.clone(),
-            record_ref: "actors:elite00000000000".into(),
-            quantity: 2,
-            participant_variant: None,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.encounter_key,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "actors:elite00000000000".into(),
+                quantity: 2,
+                participant_variant: None,
+                initiative: None,
+            },
+        )
         .unwrap();
     let after = f.worker.encounter(&encounter.encounter_key).unwrap();
     assert_eq!(
@@ -487,13 +495,15 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
     assert_eq!(low_preview.total_xp, Some(150));
     assert_eq!(low_preview.opposition.last().unwrap().xp, Some(30));
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.encounter_key.clone(),
-            record_ref: low_addition.record_ref,
-            quantity: low_addition.quantity,
-            participant_variant: None,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.encounter_key,
+            AddEncounterRecordParticipantRequest {
+                record_ref: low_addition.record_ref,
+                quantity: low_addition.quantity,
+                participant_variant: None,
+                initiative: None,
+            },
+        )
         .unwrap();
     let committed = f.worker.encounter(&encounter.encounter_key).unwrap();
     assert_eq!(committed.difficulty.total_xp, low_preview.total_xp);

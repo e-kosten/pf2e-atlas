@@ -248,9 +248,9 @@ describe("source query state", () => {
         query: "dragon",
         mode: "text_search",
       }),
-    ).toMatchObject({ text: "dragon", mode: "hybrid" });
+    ).toMatchObject({ text: "dragon" });
   });
-  it("uses lexical list filtering while discovery searches stay hybrid", () => {
+  it("keeps retrieval mode with search execution and list identity with facet discovery", () => {
     const state = {
       ...DEFAULT_SEARCH_STATE,
       query: "dragon",
@@ -260,7 +260,6 @@ describe("source query state", () => {
       kind: "saved_list",
       list_ref: "research",
       text: "dragon",
-      mode: "lexical",
     });
     expect(buildSearchRequest(state, 1).criteria).toMatchObject({ mode: "hybrid" });
   });
@@ -425,7 +424,6 @@ it("carries complete relationship constraints in browse and saved-list discovery
     kind: "filtered",
     filter: state.filter,
     text: null,
-    mode: "hybrid",
     search_profile: "bge-base",
     expected_artifact_generation: "generation-a",
   });
@@ -435,7 +433,6 @@ it("carries complete relationship constraints in browse and saved-list discovery
 
     filter: state.filter,
     text: null,
-    mode: "lexical",
   });
 });
 

@@ -1,28 +1,39 @@
 //! HP events distinguish amounts already resolved at the table from corrections.
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DamageLethalityView {
     Lethal,
     Nonlethal,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct HpEventContextView {
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub keep_current_initiative: Option<bool>,
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub keep_upright: Option<bool>,
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub natural_rest_healing: Option<bool>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub attack_or_spell_damage: Option<bool>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub lethality: Option<DamageLethalityView>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub critical: Option<bool>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub enemy_source: Option<bool>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub responsible_participant_key: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub base_death_threshold: Option<i64>,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolveEncounterHpLifecycleRequest {
     #[serde(default)]
     pub resolution: HpLifecycleResolutionView,
@@ -31,10 +42,11 @@ pub struct ResolveEncounterHpLifecycleRequest {
     pub consequence_key: String,
     pub context: HpEventContextView,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingHpLifecycleView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub unavailable_reason: Option<String>,
     pub knockout_options: Vec<KnockoutOptionView>,
     pub required_facts: Vec<HpLifecycleRequiredFactView>,
@@ -46,7 +58,8 @@ pub struct PendingHpLifecycleView {
     pub context: HpEventContextView,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HpLifecycleRequiredFactView {
     Lethality,
@@ -55,7 +68,8 @@ pub enum HpLifecycleRequiredFactView {
     ResponsibleParticipant,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum HpLifecycleResolutionView {
     #[default]
@@ -63,7 +77,8 @@ pub enum HpLifecycleResolutionView {
     KeepCurrentState,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KnockoutOptionView {
     pub label: String,
     pub result: String,

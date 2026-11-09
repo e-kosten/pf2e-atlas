@@ -24,6 +24,7 @@ INSERT INTO encounter_condition_applications VALUES(1,'actor','consumed','condit
 INSERT INTO encounter_event_receipts VALUES(1,'event','{"event":1}','{"version":1,"payload":{"retained":true}}');
 INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_damage','fire','event');
 "#).unwrap();
+    project_legacy_tracker_order(write.connection());
     // The writer owns the transaction; use its saved-domain reader on the same snapshot.
     let state = atlas_local_state::LocalStateWrite::for_local(&write).unwrap();
     let mut latest = Vec::new();

@@ -17,9 +17,9 @@ import type {
 const api = vi.hoisted(() => ({ getEncounterConditionLifecycleActions: vi.fn() }));
 vi.mock("../../api/atlasApi", () => api);
 const condition = {
-  condition_id: 1n,
+  condition_id: 1,
   name: "Condition",
-  value: 2n,
+  value: 2,
   scope: { kind: "everyone" as const },
   extra_action: { kind: "unspecified" as const },
   immunity_override: false,
@@ -30,7 +30,7 @@ const condition = {
 function option(action: ConditionRecoveryOfferView): ConditionLifecycleOptionView {
   return {
     ...action,
-    condition_ids: [1n],
+    condition_ids: [1],
     label: "Recovery",
     available: true,
     unavailable_reason: null,
@@ -55,7 +55,7 @@ function Rows({ actor }: { actor: EncounterParticipantView }) {
 }
 function setup(action: ConditionLifecycleOptionView, removes = false) {
   api.getEncounterConditionLifecycleActions.mockResolvedValue({
-    encounter_revision: 4n,
+    encounter_revision: 4,
     actions: [action],
   });
   const onApply = vi.fn().mockResolvedValue({
@@ -67,7 +67,7 @@ function setup(action: ConditionLifecycleOptionView, removes = false) {
     const [actor, setActor] = useState(
       encounterParticipant({ conditions: [condition] }),
     );
-    const [revision, setRevision] = useState(4n);
+    const [revision, setRevision] = useState(4);
     return (
       <EncounterConditionRecovery
         encounterRef="encounter"
@@ -78,11 +78,11 @@ function setup(action: ConditionLifecycleOptionView, removes = false) {
           const result = await onApply(request);
           if (removes) {
             api.getEncounterConditionLifecycleActions.mockResolvedValue({
-              encounter_revision: 5n,
+              encounter_revision: 5,
               actions: [],
             });
             setActor({ ...actor, conditions: [] });
-            setRevision(5n);
+            setRevision(5);
           }
           return result;
         }}
@@ -112,7 +112,7 @@ it("shows recovery guidance without forms, another clear button, or writes", asy
   const onApply = setup(
     option({
       kind: "reminder",
-      condition_id: 1n,
+      condition_id: 1,
       text: "Treat Wounds or rest at full HP for 10 minutes.",
     }),
   );
@@ -125,7 +125,7 @@ it("shows recovery guidance without forms, another clear button, or writes", asy
 });
 it("uses a direct table outcome for Dying without a result-entry form", async () => {
   const onApply = setup(
-    option({ kind: "dying_recovery", check: { dc: 12n, modifier: 0n } }),
+    option({ kind: "dying_recovery", check: { dc: 12, modifier: 0 } }),
   );
   await open();
   expect(screen.getByRole("button", { name: "Roll · DC 12" })).toBeVisible();
@@ -143,10 +143,10 @@ it("uses a direct table outcome for Dying without a result-entry form", async ()
   expect(screen.queryByRole("combobox")).toBeNull();
 });
 it.each([
-  { dc: null, modifier: 5n },
-  { dc: 20n, modifier: null },
+  { dc: null, modifier: 5 },
+  { dc: 20, modifier: null },
 ])("does not ask for missing Retch facts", async (check) => {
-  const onApply = setup(option({ kind: "retch", condition_id: 1n, check, issues: [] }));
+  const onApply = setup(option({ kind: "retch", condition_id: 1, check, issues: [] }));
   await open();
   expect(screen.queryByRole("button", { name: /^Roll ·/ })).toBeNull();
   expect(screen.queryByRole("spinbutton")).toBeNull();
@@ -157,7 +157,7 @@ it.each([
       expect.objectContaining({
         action: {
           kind: "retch",
-          condition_id: 1n,
+          condition_id: 1,
           check: { kind: "table_degree", degree: "critical_success" },
         },
       }),
@@ -168,8 +168,8 @@ it("keeps known Retch as an optional integrated check", async () => {
   const onApply = setup(
     option({
       kind: "retch",
-      condition_id: 1n,
-      check: { dc: 20n, modifier: 5n },
+      condition_id: 1,
+      check: { dc: 20, modifier: 5 },
       issues: [],
     }),
   );
@@ -180,7 +180,7 @@ it("keeps known Retch as an optional integrated check", async () => {
       expect.objectContaining({
         action: {
           kind: "retch",
-          condition_id: 1n,
+          condition_id: 1,
           check: { kind: "roll" },
         },
       }),
@@ -191,12 +191,12 @@ it("shows unresolved restrictions as hints rather than action questions", async 
   setup(
     option({
       kind: "retch",
-      condition_id: 1n,
-      check: { dc: 20n, modifier: 5n },
+      condition_id: 1,
+      check: { dc: 20, modifier: 5 },
       issues: [
         {
           kind: "needs_fact",
-          source_condition_id: 2n,
+          source_condition_id: 2,
           source_key: "condition:2",
           fact: "relates_to_fascination",
           reason: "Check whether this relates to the fascination.",
@@ -229,7 +229,7 @@ it("reduces eligible Frightened directly without a minimum questionnaire", async
 });
 it("uses the server's Stunned loss and retains the row until the result closes", async () => {
   const onApply = setup(
-    option({ kind: "stunned_actions_lost", condition_id: 1n, actions_lost: 2n }),
+    option({ kind: "stunned_actions_lost", condition_id: 1, actions_lost: 2 }),
     true,
   );
   await open();
@@ -237,7 +237,7 @@ it("uses the server's Stunned loss and retains the row until the result closes",
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: { kind: "stunned_actions_lost", condition_id: 1n, actions_lost: 2n },
+        action: { kind: "stunned_actions_lost", condition_id: 1, actions_lost: 2 },
       }),
     ),
   );
@@ -253,9 +253,9 @@ it("uses the damage event's Confused scope without asking for qualifying facts o
     option({
       kind: "confused_damage_recovery",
       consequence_key: "damage",
-      source_condition_ids: [1n, 2n],
+      source_condition_ids: [1, 2],
       qualifying_damage: null,
-      check: { dc: 11n, modifier: 0n },
+      check: { dc: 11, modifier: 0 },
     }),
   );
   await open();
@@ -281,12 +281,12 @@ it("offers Frightened reduction directly in turn reminders without opening a dic
     label: "Reduce Frightened by 1",
   };
   api.getEncounterConditionLifecycleActions.mockResolvedValue({
-    encounter_revision: 4n,
+    encounter_revision: 4,
     actions: [action],
   });
   const onApply = vi.fn().mockImplementation(async () => {
     api.getEncounterConditionLifecycleActions.mockResolvedValue({
-      encounter_revision: 5n,
+      encounter_revision: 5,
       actions: [],
     });
     return { encounter_key: "encounter", request_id: "reduce", check: null };
@@ -300,7 +300,7 @@ it("offers Frightened reduction directly in turn reminders without opening a dic
           encounterRef="encounter"
           boundaryKey="outgoing"
           contextualTurnActions
-          revision={4n}
+          revision={4}
           participant={encounterParticipant({ conditions: [condition] })}
           disabled={false}
           onApply={onApply}
@@ -318,7 +318,7 @@ it("offers Frightened reduction directly in turn reminders without opening a dic
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledExactlyOnceWith({
       boundary_key: "outgoing",
-      expected_encounter_revision: 4n,
+      expected_encounter_revision: 4,
       participant_key: "actor",
       action: { kind: "frightened_end_turn" },
     }),
@@ -337,7 +337,7 @@ it("keeps a failed turn-recovery read visible with Retry", async () => {
       <EncounterConditionRecovery
         encounterRef="encounter"
         boundaryKey="outgoing"
-        revision={4n}
+        revision={4}
         participant={encounterParticipant()}
         disabled={false}
         contextualTurnActions
@@ -350,7 +350,7 @@ it("keeps a failed turn-recovery read visible with Retry", async () => {
   expect(await screen.findByText("Recovery choices unavailable")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Reduce by 1" })).toBeNull();
   api.getEncounterConditionLifecycleActions.mockResolvedValue({
-    encounter_revision: 4n,
+    encounter_revision: 4,
     actions: [
       {
         ...option({ kind: "frightened_end_turn" }),
@@ -369,7 +369,7 @@ it("retains the pending reduction control until the owner's canonical refresh fi
     label: "Reduce Frightened by 1",
   };
   api.getEncounterConditionLifecycleActions.mockResolvedValue({
-    encounter_revision: 4n,
+    encounter_revision: 4,
     actions: [action],
   });
   let finish!: () => void;
@@ -381,7 +381,7 @@ it("retains the pending reduction control until the owner's canonical refresh fi
       }),
   );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const show = (revision: bigint) => (
+  const show = (revision: number) => (
     <QueryClientProvider client={client}>
       <EncounterConditionRecovery
         encounterRef="encounter"
@@ -396,15 +396,15 @@ it("retains the pending reduction control until the owner's canonical refresh fi
       </EncounterConditionRecovery>
     </QueryClientProvider>
   );
-  const view = render(show(4n));
+  const view = render(show(4));
   const button = await screen.findByRole("button", { name: /Reduce by 1$/ });
   button.focus();
   fireEvent.click(button);
   api.getEncounterConditionLifecycleActions.mockResolvedValue({
-    encounter_revision: 5n,
+    encounter_revision: 5,
     actions: [],
   });
-  view.rerender(show(5n));
+  view.rerender(show(5));
   await waitFor(() =>
     expect(
       client.getQueryData([
@@ -414,7 +414,7 @@ it("retains the pending reduction control until the owner's canonical refresh fi
         "5",
         "outgoing",
       ]),
-    ).toEqual({ encounter_revision: 5n, actions: [] }),
+    ).toEqual({ encounter_revision: 5, actions: [] }),
   );
   expect(screen.getByRole("button", { name: /Reduce by 1$/ })).toBe(button);
   expect(button).toBeDisabled();

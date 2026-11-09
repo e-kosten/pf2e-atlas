@@ -71,7 +71,7 @@ function result(
       number: 1,
       size: 25,
       count: 1,
-      total: 1n,
+      total: 1,
       has_more: false,
       next_page: null,
     },
@@ -258,7 +258,7 @@ it("keeps the root selection default when a match opens an exact embedded docume
     selected: navigation,
   };
   vi.mocked(getRecordDetail).mockImplementation((_key, request) =>
-    Promise.resolve(request?.embedded_path.length ? child : parent),
+    Promise.resolve(request?.embedded_path?.length ? child : parent),
   );
   renderPicker();
   fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
@@ -295,10 +295,10 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
       value: {
         field: "kind",
         options: [
-          { value: "creature", distinct_roots: 4n, selected: false },
-          { value: "spell", distinct_roots: 0n, selected: false },
+          { value: "creature", distinct_roots: 4, selected: false },
+          { value: "spell", distinct_roots: 0, selected: false },
         ],
-        total_values: 2n,
+        total_values: 2,
         exhaustive: true,
         count_basis: "exact counterfactual displayed roots",
       },
@@ -426,7 +426,7 @@ it("shows loading without pagination, then completed empty for a queryless picke
   expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
   expect(screen.queryByText("No matching records")).toBeNull();
   await act(async () =>
-    finish({ ...result(), rows: [], page: { ...result().page, count: 0, total: 0n } }),
+    finish({ ...result(), rows: [], page: { ...result().page, count: 0, total: 0 } }),
   );
   expect(await screen.findByText("No matching records")).toBeVisible();
   expect(screen.queryByText("Search for a record")).toBeNull();
@@ -475,7 +475,7 @@ it("previews before explicit Add and retains the candidate when a later query ha
   search.mockResolvedValue({
     ...result(),
     rows: [],
-    page: { ...result().page, count: 0, total: 0n },
+    page: { ...result().page, count: 0, total: 0 },
   });
   await submit("dragon");
   await waitFor(() => expect(screen.queryByRole("link", { name: /Ghoul/ })).toBeNull());
@@ -487,7 +487,7 @@ function multipleCandidates() {
   vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
   search.mockResolvedValue({
     ...result(),
-    page: { ...result().page, count: 3, total: 3n },
+    page: { ...result().page, count: 3, total: 3 },
     rows: [...result().rows, ...result("Ogre").rows, ...result("Dragon").rows],
   });
   vi.mocked(getRecordDetail).mockImplementation((key) =>
@@ -653,7 +653,7 @@ it("rejects a mismatched source generation before caching or selecting the new d
 
 it("inherits a profile switch on page one while retaining the explicit candidate, reader and Add draft", async () => {
   const page = result();
-  page.page = { ...page.page, total: 100n, has_more: true };
+  page.page = { ...page.page, total: 100, has_more: true };
   let finishOld!: (value: ReturnType<typeof result>) => void;
   let finishNew!: (value: ReturnType<typeof result>) => void;
   search

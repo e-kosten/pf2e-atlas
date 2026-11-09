@@ -82,7 +82,7 @@ it("keeps selected-reader child references, owner suppression and source actions
     html: '<p><a data-atlas-reference="0" href="#">Own child</a> <a data-atlas-reference="1" href="#">Other child</a></p>',
   };
   vi.mocked(getRecordDetail).mockImplementation(async (key, request) =>
-    request?.embedded_path.length
+    request?.embedded_path?.length
       ? childDetail(key)
       : key === "actors:ghoul"
         ? parent
@@ -164,7 +164,7 @@ it("preserves the standalone visible root owner when its scoped Host is nested u
   const parent = detailFixture("actors:ghoul", "Ghoul", "actors:ghoul");
   parent.relationships[0].target = child("actors:ghoul");
   vi.mocked(getRecordDetail).mockImplementation(async (key, request) =>
-    request?.embedded_path.length ? childDetail(key) : parent,
+    request?.embedded_path?.length ? childDetail(key) : parent,
   );
   render(
     <RouterTestContext>

@@ -6,22 +6,22 @@ import { encounterParticipant } from "./encounterTestFixtures";
 function outgoing(boundary_key: string, participant_name: string) {
   return {
     event: "end" as const,
-    source_revision: 8n,
+    source_revision: 8,
     participant_removed: false,
     damage_applied: false,
     recovered_episode_ids: [],
     boundary_key,
     participant_name,
     participant_key: boundary_key,
-    round_number: 2n,
+    round_number: 2,
     reminders: [
       {
         kind: "duration_reminder" as const,
         participant_key: boundary_key,
         participant_name,
-        condition_id: 1n,
+        condition_id: 1,
         condition_name: "Condition",
-        duration: { amount: 1n, unit: "minutes" as const, timing: null },
+        duration: { amount: 1, unit: "minutes" as const, timing: null },
       },
     ],
     persistent_damage_groups: [],
@@ -31,7 +31,7 @@ function setup() {
   const onCancel = vi.fn();
   const data: EncounterTurnReviewView = {
     encounter_key: "encounter",
-    expected_revision: 9n,
+    expected_revision: 9,
     current_participant_key: "incoming",
     next_participant_key: "next",
     reminders: [],
@@ -95,13 +95,13 @@ it("keeps removed participants' original identity and sources accessible without
               {
                 episode_id: "fire",
                 damage_type: "fire",
-                selected_source_id: 7n,
+                selected_source_id: 7,
                 sources: [
                   {
-                    condition_id: 7n,
+                    condition_id: 7,
                     formula: "1d6",
                     multiplier: "normal",
-                    recovery_dc: 15n,
+                    recovery_dc: 15,
                   },
                 ],
               },
@@ -129,7 +129,7 @@ it("offers direct removal beside an expired condition and retains its notice aft
     kind: "duration_ended" as const,
     participant_key: "latest",
     participant_name: "Latest",
-    condition_id: 5n,
+    condition_id: 5,
     condition_name: "Blinded",
   };
   const onRemove = vi.fn().mockResolvedValue(undefined);
@@ -137,7 +137,7 @@ it("offers direct removal beside an expired condition and retains its notice aft
     participant_key: "latest",
     conditions: [
       {
-        condition_id: 5n,
+        condition_id: 5,
         name: "Blinded",
         scope: { kind: "everyone" },
         extra_action: { kind: "unspecified" },
@@ -190,7 +190,7 @@ it("offers direct removal beside an expired condition and retains its notice aft
 
 it("shows the supplied current Frightened value without guessing an unavailable value", () => {
   const { props, view } = setup();
-  const renderValue = (condition_value: bigint | null) => (
+  const renderValue = (condition_value: number | null) => (
     <ConfigProvider theme={{ token: { motion: false } }}>
       <EncounterTurnReview
         {...props}
@@ -203,7 +203,7 @@ it("shows the supplied current Frightened value without guessing an unavailable 
                 kind: "condition_recovery",
                 participant_key: "latest",
                 participant_name: "Latest",
-                condition_ids: [1n],
+                condition_ids: [1],
                 condition_name: "Frightened",
                 condition_value,
               },
@@ -213,7 +213,7 @@ it("shows the supplied current Frightened value without guessing an unavailable 
       />
     </ConfigProvider>
   );
-  view.rerender(renderValue(2n));
+  view.rerender(renderValue(2));
   expect(screen.getByRole("heading", { name: "Frightened 2" })).toBeVisible();
   view.rerender(renderValue(null));
   expect(screen.getByRole("heading", { name: "Frightened" })).toBeVisible();
@@ -277,7 +277,7 @@ it("shows the incoming actor and only start reminders during the start phase", (
             event: "start",
             participant_key: "dragon",
             participant_name: "Green Dragon",
-            round_number: 3n,
+            round_number: 3,
             reminders: [
               {
                 kind: "tracker_elapsed",

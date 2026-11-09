@@ -216,7 +216,7 @@ function ReferencePreview({
         route={relationshipSearchRoute(filter, profile.id)}
         summary={
           data
-            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "record" : "records"}`
+            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1 ? "record" : "records"}`
             : undefined
         }
       >

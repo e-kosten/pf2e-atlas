@@ -6,7 +6,7 @@ export function EncounterHpValue({
   ...props
 }: {
   label: string;
-  value?: bigint;
+  value?: number;
   disabled: boolean;
   addLabel?: string;
   buttonRef?: RefObject<HTMLButtonElement | null>;

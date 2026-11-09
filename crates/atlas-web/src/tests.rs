@@ -1,3 +1,4 @@
+#[cfg(feature = "embedded-ui")]
 use super::assets::WebAssets;
 use super::router::router_with_state;
 use super::service::{AtlasWebState, call_service};
@@ -18,28 +19,280 @@ use fixture::{ACTION, ACTOR, Fixture, SECOND_ACTION, TABLE};
 mod build_contract;
 
 #[test]
-fn browser_contract_covers_generated_similarity_wire_types() {
+fn browser_contract_uses_the_openapi_artifact_and_protocol_revision() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let contract = build_contract::load(&root).unwrap();
     assert_eq!(contract.identifier, super::compatibility::CONTRACT);
-    for binding in [
-        "SimilarityOptions.ts",
-        "CoreSectionSelection.ts",
-        "SimilarityComponentView.ts",
-    ] {
-        let path = root.join("crates/atlas-app-model/bindings").join(binding);
-        assert!(
-            contract.watched_paths.contains(&path),
-            "the browser contract does not cover wire binding {binding}"
-        );
+    assert_eq!(
+        contract.watched_paths,
+        [
+            root.join(build_contract::METADATA),
+            root.join(build_contract::SCHEMA)
+        ]
+    );
+}
+
+#[test]
+fn schema_preserves_wire_contract_edges() {
+    let document = crate::openapi().unwrap();
+    let schemas = &document["components"]["schemas"];
+    for name in crate::router::CLOSED_TAGGED_SCHEMAS {
+        for variant in schemas[name]["oneOf"].as_array().unwrap() {
+            let keyword = if variant["allOf"].is_array() {
+                "unevaluatedProperties"
+            } else {
+                "additionalProperties"
+            };
+            assert_eq!(variant[keyword], false, "{name}: {variant}");
+        }
     }
     assert!(
-        contract.watched_paths.iter().all(|path| {
-            path == &root.join(build_contract::METADATA)
-                || path.starts_with(root.join("crates/atlas-app-model/bindings"))
-        }),
-        "implementation sources must not define browser wire compatibility"
+        serde_json::from_value::<atlas_domain::ResultSort>(
+            json!({"kind": "relevance", "extra": true})
+        )
+        .is_err()
     );
+    assert_eq!(schemas["QueryPredicate"]["unevaluatedProperties"], false);
+    let predicate = json!({"kind": "boolean_constant", "value": true, "clause_id": "fixture"});
+    assert!(serde_json::from_value::<atlas_domain::QueryPredicate>(predicate.clone()).is_ok());
+    let mut invalid = predicate;
+    invalid["extra"] = json!(true);
+    assert!(serde_json::from_value::<atlas_domain::QueryPredicate>(invalid).is_err());
+
+    let fact = serde_json::to_value(atlas_app_model::FactView::<String> {
+        state: atlas_domain::QueryFieldState::Missing,
+        value: None,
+    })
+    .unwrap();
+    assert_eq!(fact, json!({"state": "missing", "value": null}));
+    let fact_schema = &schemas["FactView_String"];
+    assert!(
+        fact_schema["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("value"))
+    );
+    assert!(
+        fact_schema["properties"]["value"]["anyOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|variant| variant["type"] == "null")
+    );
+
+    assert_eq!(
+        schemas["CompatibilityConflict"]["additionalProperties"],
+        false
+    );
+    assert!(
+        schemas["AppError"]["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("code"))
+    );
+    for (name, fields) in [
+        ("AppReadinessView", &["artifact_generation"][..]),
+        ("SavedListItemNoteView", &["note"][..]),
+        (
+            "EncounterParticipantConditionView",
+            &["scope", "extra_action", "immunity_override", "parameters"][..],
+        ),
+        ("ConditionLifecycleResultView", &["check"][..]),
+        (
+            "LifecycleCheckResultView",
+            &["dc", "modifier", "roll", "table_result"][..],
+        ),
+    ] {
+        let required = schemas[name]["required"].as_array().unwrap();
+        for field in fields {
+            assert!(
+                required.contains(&json!(field)),
+                "{name}.{field} must be present"
+            );
+        }
+    }
+    // Optional input accepts null or omission. The corresponding response
+    // omits a missing level and emits a number when present.
+    let input = &schemas["PartyMemberInput"];
+    assert!(
+        !input["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("level"))
+    );
+    assert!(
+        input["properties"]["level"]["type"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("null"))
+    );
+    for member in [
+        json!({"name": "Scout"}),
+        json!({"name": "Scout", "level": null}),
+    ] {
+        let request = serde_json::from_value::<atlas_app_model::CreatePartyRequest>(
+            json!({"name": "Party", "members": [member]}),
+        )
+        .unwrap();
+        assert_eq!(request.members[0].level, None);
+    }
+    let output = &schemas["PartyMemberView"];
+    assert!(
+        !output["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("level"))
+    );
+    assert_eq!(output["properties"]["level"]["type"], "integer");
+    assert_eq!(
+        serde_json::to_value(atlas_app_model::PartyMemberView {
+            member_key: "scout".into(),
+            name: "Scout".into(),
+            level: None,
+        })
+        .unwrap(),
+        json!({"member_key": "scout", "name": "Scout"})
+    );
+    let hp_value = &schemas["EncounterHpValueInput"];
+    assert!(
+        hp_value["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("input"))
+    );
+    assert!(
+        hp_value["properties"]["input"]["type"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("null"))
+    );
+
+    let note = &schemas["UpdateSavedListItemNoteRequest"];
+    assert!(
+        note["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("note"))
+    );
+    assert_eq!(
+        note["properties"]["note"]["$ref"],
+        "#/components/schemas/FieldEdit_Option_String"
+    );
+    assert!(note["properties"].get("list_ref").is_none());
+    assert!(note["properties"].get("record_key").is_none());
+    assert_eq!(note["additionalProperties"], false);
+    let nullable_edit = &schemas["FieldEdit_Option_String"];
+    assert_eq!(nullable_edit["additionalProperties"], false);
+    for property in ["expected", "value"] {
+        assert!(
+            nullable_edit["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(property))
+        );
+        assert!(
+            nullable_edit["properties"][property]["oneOf"]
+                .as_array()
+                .unwrap()
+                .contains(&json!({"type": "null"}))
+        );
+    }
+    let list_update = &schemas["UpdateSavedListRequest"];
+    assert!(list_update.get("required").is_none());
+    assert!(list_update["properties"].get("list_key").is_none());
+    assert_eq!(list_update["additionalProperties"], false);
+    assert_eq!(
+        list_update["properties"]["description"],
+        json!({"$ref": "#/components/schemas/FieldEdit_Option_String"})
+    );
+    for kind in ["set_current", "set_maximum"] {
+        let action = schemas["EncounterHpAction"]["oneOf"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|variant| variant["properties"]["kind"]["enum"] == json!([kind]))
+            .unwrap();
+        assert!(
+            action["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("input"))
+        );
+        assert!(
+            serde_json::from_value::<atlas_app_model::EncounterHpAction>(json!({"kind": kind}))
+                .is_err()
+        );
+        assert!(
+            serde_json::from_value::<atlas_app_model::EncounterHpAction>(
+                json!({"kind": kind, "input": null})
+            )
+            .is_ok()
+        );
+    }
+    let delete = &document["paths"]["/api/lists/{list_ref}/items"]["delete"];
+    assert_eq!(
+        delete["requestBody"]["content"]["application/json"]["schema"]["$ref"],
+        "#/components/schemas/RemoveSavedListItemRequest"
+    );
+    assert_eq!(
+        delete["responses"]["409"]["content"]["application/json"]["schema"]["$ref"],
+        "#/components/schemas/ConflictResponse"
+    );
+}
+
+#[test]
+fn shared_schema_uses_serde_input_and_output_shapes() {
+    let document = crate::openapi().unwrap();
+    let schemas = &document["components"]["schemas"];
+    let input = &schemas["ConditionDurationViewInputSchema"];
+    let output = &schemas["ConditionDurationView"];
+    let nullable_duration = json!({"amount": 1, "unit": "rounds", "remaining_rounds": null});
+    let duration: atlas_app_model::ConditionDurationView =
+        serde_json::from_value(nullable_duration).unwrap();
+    assert_eq!(
+        serde_json::to_value(duration).unwrap(),
+        json!({"amount": 1, "unit": "rounds", "timing": null})
+    );
+    assert!(
+        !input["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("timing"))
+    );
+    assert!(
+        output["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("timing"))
+    );
+    assert_eq!(
+        input["properties"]["remaining_rounds"]["anyOf"][1]["type"],
+        "null"
+    );
+    assert_eq!(output["properties"]["remaining_rounds"]["type"], "integer");
+
+    let contains_ref = |schema: &serde_json::Value, name: &str| {
+        schema
+            .to_string()
+            .contains(&format!("\"#/components/schemas/{name}\""))
+    };
+    assert!(contains_ref(
+        &schemas["AddEncounterParticipantConditionRequest"]["properties"]["duration"],
+        "ConditionDurationViewInputSchema"
+    ));
+    assert!(contains_ref(
+        &schemas["EncounterParticipantConditionView"]["properties"]["duration"],
+        "ConditionDurationView"
+    ));
+    assert!(contains_ref(
+        &schemas["SearchCriteria"],
+        "QueryPredicateInputSchema"
+    ));
+    assert!(contains_ref(
+        &schemas["QueryExpressionInputSchema"],
+        "QueryPredicateInputSchema"
+    ));
+    assert!(contains_ref(&schemas["QueryExpression"], "QueryPredicate"));
 }
 
 #[tokio::test]
@@ -261,6 +514,7 @@ async fn readiness_route_returns_service_readiness() {
     assert_eq!(body["search_profiles"][0]["usable"], false);
 }
 
+#[cfg(feature = "embedded-ui")]
 #[tokio::test]
 async fn root_serves_embedded_frontend_index() {
     let fixture = Fixture::without_reference();
@@ -291,6 +545,7 @@ async fn root_serves_embedded_frontend_index() {
     assert!(body.contains("<div id=\"root\"></div>"));
 }
 
+#[cfg(feature = "embedded-ui")]
 #[tokio::test]
 async fn frontend_routes_fall_back_to_index_but_missing_resources_do_not() {
     let fixture = Fixture::without_reference();
@@ -328,6 +583,7 @@ async fn frontend_routes_fall_back_to_index_but_missing_resources_do_not() {
     }
 }
 
+#[cfg(feature = "embedded-ui")]
 #[tokio::test]
 async fn embedded_frontend_assets_get_long_cache_headers() {
     let fixture = Fixture::without_reference();
@@ -536,7 +792,7 @@ async fn record_and_filter_routes_use_real_router_wiring() {
             .iter()
             .any(|field| field["definition"]["id"] == "kind")
     }));
-    let context = json!({"kind":"filtered","filter":null,"text":null,"mode":"lexical"});
+    let context = json!({"kind":"filtered","filter":null,"text":null});
     let(status,body)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":null,"offset":0,"limit":100}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["outcome"]["value"]["field"], "source.pack.id");
@@ -589,11 +845,19 @@ async fn saved_list_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["items"][0]["record_key"], ACTION);
     assert_eq!(body["items"][0]["status"], "active");
-    let(status,body)=fixture.json(Method::POST,&format!("{path}/filter"),Some(json!({"list_ref":"ignored","filter":{"kind":"in","clause_id":"kind","field":"kind","values":["rule"]}}))).await;
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            &format!("{path}/filter"),
+            Some(
+                json!({"filter":{"kind":"in","clause_id":"kind","field":"kind","values":["rule"]}}),
+            ),
+        )
+        .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["list"]["list_key"], fixture.list_key);
     assert_eq!(body["items"][0]["record_key"], ACTION);
-    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"list_key":"ignored","slug":{"expected":"research","value":"renamed-research"},"name":{"expected":"Research","value":"Renamed Research"},"description":{"expected":null,"value":"Updated prep"}}))).await;
+    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"slug":{"expected":"research","value":"renamed-research"},"name":{"expected":"Research","value":"Renamed Research"},"description":{"expected":null,"value":"Updated prep"}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["list"]["list_key"], fixture.list_key);
     assert_eq!(body["list"]["slug"], "renamed-research");
@@ -603,7 +867,7 @@ async fn saved_list_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             &format!("{path}/items"),
-            Some(json!({"list_ref":"ignored","record_ref":SECOND_ACTION,"note":null})),
+            Some(json!({"record_ref":SECOND_ACTION,"note":null})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -615,7 +879,7 @@ async fn saved_list_routes_use_real_router_wiring() {
         .json(
             Method::DELETE,
             &format!("{path}/items"),
-            Some(json!({"list_ref":"ignored","record_ref":ACTION})),
+            Some(json!({"record_ref":ACTION})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -666,7 +930,7 @@ async fn encounter_routes_use_real_router_wiring() {
         fixture.participant_key
     );
     let receipt = json!({"encounter_key":fixture.encounter_key});
-    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"encounter_key":"ignored","slug":{"expected":"ambush","value":"renamed-ambush"},"name":{"expected":"Ambush","value":"Renamed Ambush"},"description":{"expected":null,"value":"Updated"},"note":{"expected":null,"value":"Updated note"},"status":{"expected":"draft","value":"complete"}}))).await;
+    let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"slug":{"expected":"ambush","value":"renamed-ambush"},"name":{"expected":"Ambush","value":"Renamed Ambush"},"description":{"expected":null,"value":"Updated"},"note":{"expected":null,"value":"Updated note"},"status":{"expected":"draft","value":"complete"}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let path = format!("/api/encounters/{}", fixture.encounter_key);
@@ -674,14 +938,18 @@ async fn encounter_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             &format!("{path}/participants/record"),
-            Some(
-                json!({"encounter_ref":"ignored","record_ref":ACTOR,"quantity":2,"initiative":18}),
-            ),
+            Some(json!({"record_ref":ACTOR,"quantity":2,"initiative":18})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
-    let(status,body)=fixture.json(Method::POST,&format!("{path}/participants/manual"),Some(json!({"encounter_ref":"ignored","display_name":"Valeros","max_hp":30,"current_hp":25,"initiative":20}))).await;
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            &format!("{path}/participants/manual"),
+            Some(json!({"display_name":"Valeros","max_hp":30,"current_hp":25,"initiative":20})),
+        )
+        .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let participant_path = format!("{path}/participants/{}", fixture.participant_key);
@@ -700,7 +968,7 @@ async fn encounter_routes_use_real_router_wiring() {
         .json(
             Method::POST,
             &format!("{path}/turn"),
-            Some(json!({"encounter_ref":"ignored","participant_key":fixture.participant_key})),
+            Some(json!({"participant_key":fixture.participant_key})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -710,7 +978,7 @@ async fn encounter_routes_use_real_router_wiring() {
         .encounter(&fixture.encounter_key)
         .unwrap()
         .revision;
-    let(status,body)=fixture.json(Method::POST,&format!("{participant_path}/conditions"),Some(json!({"participant_key":"ignored","request_id":"apply-frightened","expected_encounter_revision":revision,"name":"Frightened","value":1,"duration":{"amount":2,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}}))).await;
+    let(status,body)=fixture.json(Method::POST,&format!("{participant_path}/conditions"),Some(json!({"request_id":"apply-frightened","expected_encounter_revision":revision,"name":"Frightened","value":1,"duration":{"amount":2,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let detail = fixture.service.encounter(&fixture.encounter_key).unwrap();
@@ -721,7 +989,20 @@ async fn encounter_routes_use_real_router_wiring() {
         .unwrap()
         .conditions[0];
     let condition_path = format!("{participant_path}/conditions/{}", condition.condition_id);
-    let update = json!({"condition_id":999,"request_id":"edit-frightened","expected_encounter_revision":detail.revision,"name":"Frightened","value":2,"duration":{"amount":1,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}});
+    let update = json!({"request_id":"edit-frightened","expected_encounter_revision":detail.revision,"name":"Frightened","value":2,"duration":{"amount":1,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"end"}}});
+    for condition_id in [condition.condition_id, condition.condition_id + 1] {
+        let mut request = update.clone();
+        request["condition_id"] = json!(condition_id);
+        let (status, body) = fixture
+            .json(Method::PATCH, &condition_path, Some(request))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request");
+    }
+    assert_eq!(
+        fixture.service.encounter(&fixture.encounter_key).unwrap(),
+        detail
+    );
     let (status, body) = fixture
         .json(Method::PATCH, &condition_path, Some(update.clone()))
         .await;
@@ -768,7 +1049,7 @@ async fn encounter_routes_use_real_router_wiring() {
 }
 
 fn participant_edit(participant: &atlas_app_model::EncounterParticipantView, name: &str) -> Value {
-    json!({"participant_key":"ignored","expected_revision":participant.revision,"display_name":name,"side":"pc","participant_variant":"normal","initiative":19,"max_hp":24,"current_hp":20,"temporary_hp":1,"defeated":false,"hazard_disabled":false,"hidden":false,"note":"wounded"})
+    json!({"expected_revision":participant.revision,"display_name":name})
 }
 
 #[tokio::test]
@@ -779,11 +1060,12 @@ async fn saved_list_reorder_route_uses_path_identity_and_strict_placement() {
         .json(
             Method::POST,
             &path,
-            Some(json!({"list_ref":"ignored","record_ref":SECOND_ACTION})),
+            Some(json!({"record_ref":SECOND_ACTION})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    let request = json!({"list_ref":"ignored","record_ref":ACTION,"target_record_ref":SECOND_ACTION,"placement":"after"});
+    let request =
+        json!({"record_ref":ACTION,"target_record_ref":SECOND_ACTION,"placement":"after"});
     let path = format!("{path}/reorder");
     let (status, body) = fixture
         .json(Method::POST, &path, Some(request.clone()))
@@ -870,13 +1152,63 @@ async fn participant_revision_is_required_and_stale_edits_return_409() {
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["code"], "encounter_participant_conflict");
     request["expected_revision"] = json!(participant.revision);
+    for body in [
+        json!({"expected_revision":participant.revision,"participant_key":participant.participant_key}),
+        json!({"expected_revision":participant.revision,"max_hp":99}),
+        json!({"expected_revision":participant.revision,"display_name":null}),
+        json!([
+            participant.revision,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        ]),
+    ] {
+        let (status, body) = fixture.json(Method::PATCH, &path, Some(body)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request");
+    }
+    assert_eq!(fixture.service.encounter("ambush").unwrap(), detail);
+    request["initiative"] = json!(19);
+    request["note"] = json!("Track this");
     let (status, body) = fixture.json(Method::PATCH, &path, Some(request)).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, json!({"encounter_key":fixture.encounter_key}));
-    assert_eq!(
-        fixture.service.encounter("ambush").unwrap().participants[0].display_name,
-        "Edited"
-    );
+    let edited = fixture
+        .service
+        .encounter("ambush")
+        .unwrap()
+        .participants
+        .remove(0);
+    assert_eq!(edited.display_name, "Edited");
+    assert_eq!(edited.initiative, Some(19));
+    assert_eq!(edited.note.as_deref(), Some("Track this"));
+    assert_eq!(edited.max_hp, participant.max_hp);
+    assert_eq!(edited.current_hp, participant.current_hp);
+    assert_eq!(edited.temporary_hp, participant.temporary_hp);
+    assert_eq!(edited.variant_origin, participant.variant_origin);
+    assert_eq!(edited.hp_origin, participant.hp_origin);
+    let (status, body) = fixture
+        .json(
+            Method::PATCH,
+            &path,
+            Some(json!({"expected_revision":edited.revision,"initiative":null,"note":null})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let cleared = fixture
+        .service
+        .encounter("ambush")
+        .unwrap()
+        .participants
+        .remove(0);
+    assert_eq!(cleared.initiative, None);
+    assert_eq!(cleared.note, None);
+    assert_eq!(cleared.display_name, "Edited");
 }
 
 #[tokio::test]
@@ -926,11 +1258,7 @@ async fn turn_review_and_advance_use_explicit_revision_path_and_typed_failures()
         assert_eq!(body["code"], "invalid_request");
     }
     let (status, body) = fixture
-        .json(
-            Method::POST,
-            "/api/encounters/ambush/turn",
-            Some(json!({"encounter_ref":"ignored"})),
-        )
+        .json(Method::POST, "/api/encounters/ambush/turn", Some(json!({})))
         .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
 }
@@ -958,7 +1286,7 @@ async fn turn_resource_route_preserves_intent_and_uses_participant_path_identity
         "/api/encounters/ambush/participants/{}/turn-resources",
         fixture.participant_key
     );
-    let mut request = json!({"request_id":"manual-reaction","participant_key":"ignored","turn_key":turn_key,"expected_encounter_revision":detail.revision,"action":{"kind":"spend","resource":"reaction"}});
+    let mut request = json!({"request_id":"manual-reaction","turn_key":turn_key,"expected_encounter_revision":detail.revision,"action":{"kind":"spend","resource":"reaction"}});
     let (status, body) = fixture
         .json(Method::POST, &path, Some(request.clone()))
         .await;
@@ -983,7 +1311,7 @@ async fn hp_actions_require_explicit_contract_and_use_path_identity_and_receipt(
         "/api/encounters/ambush/participants/{}/hp",
         fixture.participant_key
     );
-    let mut request = json!({"request_id":"hp-action","participant_key":"ignored","action":{"kind":"damage","amount":"10+2"}});
+    let mut request = json!({"request_id":"hp-action","action":{"kind":"damage","amount":"10+2"}});
     let (status, body) = fixture
         .json(Method::POST, &path, Some(request.clone()))
         .await;
@@ -1021,7 +1349,6 @@ async fn persistent_preparation_routes_round_trip_a_browser_draft() {
             Method::POST,
             &format!("/api/encounters/ambush/participants/{participant}/conditions"),
             Some(json!({
-                "participant_key": participant,
                 "request_id": "persistent-condition",
                 "expected_encounter_revision": revision,
                 "condition_ref": "conditionitems:lDVqvLKA6eF3Df60",
@@ -1133,7 +1460,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
     let(status,body)=fixture.json(Method::POST,"/api/encounters/ambush/initiative",Some(json!({"request_id":"initiative-id","artifact_generation":null,"expected_revision":detail.revision,"participants":[{"participant_key":fixture.participant_key,"expected_revision":detail.participants[0].revision,"statistic":"manual","modifier_override":2,"mode":"normal"}]}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["request_id"], "initiative-id");
-    let selection = json!({"record_key":TABLE,"embedded_path":[],"fields":[],"passage":null,"source_fingerprint":null});
+    let selection = json!({"address":{"record_key":TABLE,"embedded_path":[],"source_fingerprint":null},"fields":[],"passage":null});
     let generation = fixture.service.readiness().artifact_generation.unwrap();
     let (status, body) = fixture
         .json(
@@ -1164,7 +1491,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
         .json(
             Method::POST,
             "/api/encounters/ambush/participants/record",
-            Some(json!({"encounter_ref":"ignored","record_ref":ACTOR,"quantity":1})),
+            Some(json!({"record_ref":ACTOR,"quantity":1})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1174,7 +1501,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
         .iter()
         .find(|p| p.record_key.as_deref() == Some(ACTOR))
         .unwrap();
-    let reference = json!({"artifact_generation":generation,"selection":{"record_key":ACTOR,"embedded_path":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"fields":[],"passage":null,"source_fingerprint":fixture.source_fingerprint}});
+    let reference = json!({"artifact_generation":generation,"selection":{"address":{"record_key":ACTOR,"embedded_path":[{"collection":"/items","identity":{"SnapshotLocal":{"index":0}}}],"source_fingerprint":fixture.source_fingerprint},"fields":[],"passage":null}});
     let (status, options) = fixture
         .json(
             Method::POST,
@@ -1226,10 +1553,10 @@ async fn filter_discovery_transport_keeps_explicit_vocabulary_and_optional_unava
     assert_eq!(body["scope"]["list_ref"], "research");
     assert_eq!(body["values"]["selected_values"][0], "retained");
     assert!(body["values"].get("count_basis").is_none());
-    let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":{"kind":"not","predicate":{"kind":"all_of","children":[{"kind":"set_match","clause_id":"negative-condition","field":"traits","op":"includes_any","values":["fire"]}]}},"text":null,"mode":"lexical"},"field_id":"traits","clause_id":"negative-condition","values":["fire"]}))).await;
+    let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":{"kind":"filtered","filter":{"kind":"not","predicate":{"kind":"all_of","children":[{"kind":"set_match","clause_id":"negative-condition","field":"traits","op":"includes_any","values":["fire"]}]}},"text":null},"field_id":"traits","clause_id":"negative-condition","values":["fire"]}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["counts"]["status"], "unavailable");
-    let(status,_)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon","mode":"hybrid"}}))).await;
+    let(status,_)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"vocabulary","scope":{"kind":"artifact"},"field_id":"traits","limit":20,"context":{"kind":"filtered","filter":null,"text":"dragon"}}))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
 }
 
@@ -1301,7 +1628,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::PATCH,
             &path,
-            Some(json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":"fixture note","value":"Purpose"}})),
+            Some(json!({"note":{"expected":"fixture note","value":"Purpose"}})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1312,7 +1639,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::PATCH,
             &path,
-            Some(json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":"fixture note","value":"Stale"}})),
+            Some(json!({"note":{"expected":"fixture note","value":"Stale"}})),
         )
         .await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
@@ -1322,7 +1649,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::PATCH,
             &path,
-            Some(json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":"Purpose","value":null}})),
+            Some(json!({"note":{"expected":"Purpose","value":null}})),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -1333,7 +1660,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         .json(
             Method::DELETE,
             &format!("/api/lists/{}/items", fixture.list_key),
-            Some(json!({"list_ref":"ignored","record_ref":ACTION})),
+            Some(json!({"record_ref":ACTION})),
         )
         .await;
     assert_eq!(status, StatusCode::OK);
@@ -1341,9 +1668,7 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
         (Method::GET, None),
         (
             Method::PATCH,
-            Some(
-                json!({"list_ref":"ignored","record_key":"ignored","note":{"expected":null,"value":"Removed"}}),
-            ),
+            Some(json!({"note":{"expected":null,"value":"Removed"}})),
         ),
     ] {
         let (status, body) = fixture.json(method, &path, request).await;
@@ -1358,23 +1683,23 @@ async fn saved_edit_routes_reject_blind_and_malformed_updates_without_a_compatib
     for (path, request) in [
         (
             format!("/api/lists/{}", fixture.list_key),
-            json!({"list_key":"ignored","name":"Overwrite","slug":"research","tags":[]}),
+            json!({"name":"Overwrite","slug":"research","tags":[]}),
         ),
         (
             format!("/api/encounters/{}", fixture.encounter_key),
-            json!({"encounter_key":"ignored","name":"Overwrite","slug":"ambush","status":"draft"}),
+            json!({"name":"Overwrite","slug":"ambush","status":"draft"}),
         ),
         (
             format!("/api/lists/{}/items/{ACTION}/note", fixture.list_key),
-            json!({"list_ref":"ignored","record_key":"ignored","note":null}),
+            json!({"note":null}),
         ),
         (
             format!("/api/lists/{}/items/{ACTION}/note", fixture.list_key),
-            json!({"list_ref":"ignored","record_key":"ignored","note":["fixture note",null]}),
+            json!({"note":["fixture note",null]}),
         ),
         (
             format!("/api/lists/{}/items/{ACTION}/note", fixture.list_key),
-            json!(["ignored", "ignored", {"expected":"fixture note","value":null}]),
+            json!([{"expected":"fixture note","value":null}]),
         ),
     ] {
         let (status, body) = fixture.json(Method::PATCH, &path, Some(request)).await;
@@ -1384,12 +1709,76 @@ async fn saved_edit_routes_reject_blind_and_malformed_updates_without_a_compatib
 }
 
 #[tokio::test]
+async fn routes_reject_retired_body_targets_before_writing() {
+    let fixture = Fixture::new();
+    let list = format!("/api/lists/{}", fixture.list_key);
+    let encounter = format!("/api/encounters/{}", fixture.encounter_key);
+    let participant = format!("{encounter}/participants/{}", fixture.participant_key);
+    let detail = fixture.service.encounter(&fixture.encounter_key).unwrap();
+
+    for (method, path, key, matching, valid) in [
+        (
+            Method::PATCH,
+            list.clone(),
+            "list_key",
+            &fixture.list_key,
+            json!({"name":{"expected":"Research","value":"Changed"}}),
+        ),
+        (
+            Method::PATCH,
+            format!("{list}/items/{ACTION}/note"),
+            "list_ref",
+            &fixture.list_key,
+            json!({"note":{"expected":"fixture note","value":null}}),
+        ),
+        (
+            Method::PATCH,
+            encounter,
+            "encounter_key",
+            &fixture.encounter_key,
+            json!({"name":{"expected":"Ambush","value":"Changed"}}),
+        ),
+        (
+            Method::PATCH,
+            participant,
+            "participant_key",
+            &fixture.participant_key,
+            participant_edit(&detail.participants[0], "Changed"),
+        ),
+    ] {
+        for value in [matching.as_str(), "different-target"] {
+            let mut request = valid.clone();
+            request[key] = json!(value);
+            let (status, body) = fixture.json(method.clone(), &path, Some(request)).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "{path}: {body}");
+            assert_eq!(body["code"], "invalid_request");
+        }
+    }
+
+    let path = format!("{list}/items/{ACTION}/note");
+    for value in [ACTION, SECOND_ACTION] {
+        let request = json!({"record_key":value,"note":{"expected":"fixture note","value":null}});
+        let (status, body) = fixture.json(Method::PATCH, &path, Some(request)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+
+    let (_, list) = fixture.json(Method::GET, &list, None).await;
+    assert_eq!(list["list"]["name"], "Research");
+    let (_, note) = fixture.json(Method::GET, &path, None).await;
+    assert_eq!(note["note"], "fixture note");
+    assert_eq!(
+        fixture.service.encounter(&fixture.encounter_key).unwrap(),
+        detail
+    );
+}
+
+#[tokio::test]
 async fn list_settings_patches_merge_disjoint_fields_and_reject_stale_batches() {
     let fixture = Fixture::new();
     let path = format!("/api/lists/{}", fixture.list_key);
     for patch in [
-        json!({"list_key":"ignored","name":{"expected":"Research","value":"New name"}}),
-        json!({"list_key":"ignored","description":{"expected":null,"value":"New description"}}),
+        json!({"name":{"expected":"Research","value":"New name"}}),
+        json!({"description":{"expected":null,"value":"New description"}}),
     ] {
         let (status, body) = fixture.json(Method::PATCH, &path, Some(patch)).await;
         assert_eq!(status, StatusCode::OK, "{body}");
@@ -1399,7 +1788,7 @@ async fn list_settings_patches_merge_disjoint_fields_and_reject_stale_batches() 
             Method::PATCH,
             &path,
             Some(json!({
-                "list_key":"ignored",
+
                 "name":{"expected":"Research","value":"Stale name"},
                 "description":{"expected":"New description","value":null}
             })),
@@ -1465,15 +1854,69 @@ async fn similarity_inventory_route_rejects_invalid_seeds() {
 #[tokio::test]
 async fn content_roll_reference_roll_transport_checks_the_request_shape() {
     let fixture = Fixture::new();
-    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":atlas_record::source_content::CONTENT_INTERPRETATION_VERSION,"ordinal":0,"authored_formula":"1d6[fire]"}))).await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert!(body["components"].is_array());
+    let (status, detail) = fixture
+        .json(Method::GET, &format!("/api/records/{ACTION}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    let offer = detail["presentation"]["content"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|field| field["body"]["controls"].as_array())
+        .flatten()
+        .find_map(|control| {
+            control["control"]
+                .get("roll")
+                .filter(|roll| !roll.is_null())
+        })
+        .unwrap();
     let (status, body) = fixture
         .json(
             Method::POST,
             "/api/rolls/content",
-            Some(json!({"formula":"100d100"})),
+            Some(json!({"offer": offer})),
         )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body["components"].is_array());
+    let mut tampered = offer.clone();
+    tampered["authored_formula"] = json!("100d100");
+    let mut stale = offer.clone();
+    stale["source_fingerprint"] = json!("old");
+    for rejected in [
+        offer.clone(),
+        json!({"offer": tampered}),
+        json!({"offer": stale}),
+    ] {
+        let (status, body) = fixture
+            .json(Method::POST, "/api/rolls/content", Some(rejected))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+}
+
+#[tokio::test]
+async fn embedded_reading_accepts_a_root_address_and_rejects_read_options_on_it() {
+    let fixture = Fixture::new();
+    let generation = fixture.service.readiness().artifact_generation.unwrap();
+    let mut request = json!({
+        "parent": {"record_key": ACTOR},
+        "artifact_generation": generation,
+        "selection": {"kind": "actor_content"},
+    });
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/records/embedded-reading",
+            Some(request.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["parent"]["record_key"], ACTOR);
+    assert_eq!(body["parent"]["embedded_path"], json!([]));
+    request["parent"]["field"] = json!("/system/details/publicNotes");
+    let (status, body) = fixture
+        .json(Method::POST, "/api/records/embedded-reading", Some(request))
         .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
 }
@@ -1621,33 +2064,32 @@ async fn saved_list_vocabulary_respects_ownership() {
 #[tokio::test]
 async fn discovery_rejects_record_text_before_model_work_and_keeps_value_name_search() {
     let fixture = Fixture::new();
-    for mode in ["lexical", "semantic", "hybrid"] {
-        for search_content in ["core", "all"] {
-            let context = json!({"kind":"filtered","filter":null,"text":"fire","mode":mode,"search_content":search_content});
-            let request = json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":null,"offset":0,"limit":10,"only_matching":true});
-            let (status, body) = fixture
-                .json(Method::POST, "/api/filters/values", Some(request.clone()))
-                .await;
-            assert_eq!(status, StatusCode::OK, "{body}");
-            assert_eq!(
-                body["outcome"],
-                json!({"status":"unavailable","reason":"text_context"})
-            );
-            let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":context,"field_id":"source.pack.id","clause_id":null,"values":["actions"]}))).await;
-            assert_eq!(status, StatusCode::OK, "{body}");
-            assert_eq!(
-                body["counts"],
-                json!({"status":"unavailable","reason":"text_context"})
-            );
-            let mut invalid = request;
-            invalid["limit"] = json!(0);
-            let (status, _) = fixture
-                .json(Method::POST, "/api/filters/values", Some(invalid))
-                .await;
-            assert_eq!(status, StatusCode::BAD_REQUEST);
-        }
+    for search_content in ["core", "all"] {
+        let context =
+            json!({"kind":"filtered","filter":null,"text":"fire","search_content":search_content});
+        let request = json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":null,"offset":0,"limit":10,"only_matching":true});
+        let (status, body) = fixture
+            .json(Method::POST, "/api/filters/values", Some(request.clone()))
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(
+            body["outcome"],
+            json!({"status":"unavailable","reason":"text_context"})
+        );
+        let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":context,"field_id":"source.pack.id","clause_id":null,"values":["actions"]}))).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(
+            body["counts"],
+            json!({"status":"unavailable","reason":"text_context"})
+        );
+        let mut invalid = request;
+        invalid["limit"] = json!(0);
+        let (status, _) = fixture
+            .json(Method::POST, "/api/filters/values", Some(invalid))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
     }
-    let context = json!({"kind":"filtered","filter":null,"text":"  ","mode":"hybrid"});
+    let context = json!({"kind":"filtered","filter":null,"text":"  "});
     let(status,body)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":"actions","offset":0,"limit":10,"only_matching":true}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["outcome"]["status"], "available");

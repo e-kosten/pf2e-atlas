@@ -3,12 +3,15 @@ use std::marker::PhantomData;
 
 use serde::de::{MapAccess, Visitor, value::MapAccessDeserializer};
 use serde::{Deserialize, Deserializer, Serialize};
-use ts_rs::TS;
 
 /// One proposed change and the saved value observed when editing began.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct FieldEdit<T> {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub expected: T,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub value: T,
 }
 
@@ -78,13 +81,11 @@ mod tests {
 
     #[test]
     fn sparse_nullable_edits_distinguish_omit_set_and_clear() {
-        let absent: UpdateSavedListRequest =
-            serde_json::from_value(json!({"list_key":"list"})).unwrap();
-        assert_eq!(to_value(absent).unwrap(), json!({"list_key":"list"}));
+        let absent: UpdateSavedListRequest = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(to_value(absent).unwrap(), json!({}));
 
         for (expected, value) in [(None, Some("new")), (Some("old"), None)] {
-            let input =
-                json!({"list_key":"list","description":{"expected":expected,"value":value}});
+            let input = json!({"description":{"expected":expected,"value":value}});
             let patch: UpdateSavedListRequest = serde_json::from_value(input.clone()).unwrap();
             assert_eq!(to_value(patch).unwrap(), input);
         }
@@ -100,21 +101,20 @@ mod tests {
         ] {
             assert!(
                 serde_json::from_value::<UpdateSavedListItemNoteRequest>(json!({
-                    "list_ref":"list", "record_key":"spells:example", "note":note
+                    "note":note
                 }))
                 .is_err(),
                 "{note}"
             );
         }
         let clear = json!({
-            "list_ref":"list", "record_key":"spells:example",
             "note":{"expected":"old","value":null}
         });
         let patch: UpdateSavedListItemNoteRequest = serde_json::from_value(clear.clone()).unwrap();
         assert_eq!(to_value(patch).unwrap(), clear);
         assert!(
             serde_json::from_value::<UpdateSavedListRequest>(json!({
-                "list_key":"list", "description":null
+                 "description":null
             }))
             .is_err()
         );

@@ -5,18 +5,18 @@ use atlas_domain::{
     SimilaritySeed, SimilaritySourceSections,
 };
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SimilarityPartsRequest {
     pub seed: SimilaritySeed,
-    #[ts(optional)]
     pub search_profile: Option<SearchProfileId>,
     pub expected_artifact_generation: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPartsView {
     pub artifact_generation: String,
     pub search_profile: SearchProfileId,
@@ -27,13 +27,17 @@ pub struct SimilarityPartsView {
     pub supports_corresponding_parts: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityConfigurationView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_sections: Option<SimilaritySourceSections>,
     pub search_content: SearchContentScope,
     pub candidate_identity: bool,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub core_recipe: Option<String>,
     pub resolved_selectors: Vec<SimilarityPartSelector>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub core: Option<CoreSectionSelection>,
     pub options: SimilarityOptions,
     pub recipe: String,
@@ -41,7 +45,8 @@ pub struct SimilarityConfigurationView {
     pub diagnostics: SimilarityDiagnosticsView,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityDiagnosticsView {
     pub seed_units: usize,
     pub knn_queries: usize,
@@ -50,10 +55,12 @@ pub struct SimilarityDiagnosticsView {
     pub undefined_candidate_centroids: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPartView {
     /// Record source navigation; passage selects the full section when metadata
     /// provides its canonical address, otherwise the containing field is selected.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub navigation: Option<crate::RecordNavigationView>,
     pub selector: SimilarityPartSelector,
     pub label: String,
@@ -67,10 +74,12 @@ pub struct SimilarityPartView {
     pub label_only: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SimilarityComponentView {
     Identity {
+        #[cfg_attr(feature = "openapi", schema(required))]
         navigation: Option<crate::RecordNavigationView>,
         selector: SimilarityPartSelector,
         label: String,
@@ -122,7 +131,8 @@ impl SimilarityComponentView {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityEvidenceView {
     pub truncated: bool,
     pub score: f64,
@@ -135,7 +145,8 @@ pub struct SimilarityEvidenceView {
     pub representative: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPartScoreView {
     pub part: SimilarityComponentView,
     pub score: f64,
@@ -143,7 +154,8 @@ pub struct SimilarityPartScoreView {
     pub comparable: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityRoleScoreView {
     pub key: SimilarityComparisonKey,
     pub role_label: String,
@@ -152,9 +164,11 @@ pub struct SimilarityRoleScoreView {
     pub comparable: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarityPairView {
     pub seed_part: SimilarityPartSelector,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub seed: Option<crate::SearchWitnessView>,
     pub candidate: crate::SearchWitnessView,
     pub cosine: f64,

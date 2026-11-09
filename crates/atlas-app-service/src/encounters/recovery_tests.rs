@@ -44,13 +44,15 @@ fn resting_creature(extra_items: Vec<serde_json::Value>) -> (FixtureWorker, Enco
         .unwrap()
         .encounter;
     worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.encounter_key.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            initiative: Some(12),
-        })
+        .add_encounter_record_participant(
+            &encounter.encounter_key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                initiative: Some(12),
+            },
+        )
         .unwrap();
     (fixture, encounter)
 }
@@ -255,13 +257,15 @@ fn resting_other_participants_releases_ended_turn_claims_before_resuming() {
         .participant_key
         .clone();
     worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "Resting PC".into(),
-            max_hp: Some(20),
-            current_hp: Some(10),
-            initiative: Some(5),
-        })
+        .add_encounter_manual_participant(
+            key,
+            AddEncounterManualParticipantRequest {
+                display_name: "Resting PC".into(),
+                max_hp: Some(20),
+                current_hp: Some(10),
+                initiative: Some(5),
+            },
+        )
         .unwrap();
     let resting = worker
         .encounter(key)
@@ -364,13 +368,15 @@ fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guard
             .encounter
             .encounter_key;
         worker
-            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-                participant_variant: None,
-                encounter_ref: key.clone(),
-                record_ref: "Test Creature 1".into(),
-                quantity: 1,
-                initiative: Some(10),
-            })
+            .add_encounter_record_participant(
+                &key,
+                AddEncounterRecordParticipantRequest {
+                    participant_variant: None,
+                    record_ref: "Test Creature 1".into(),
+                    quantity: 1,
+                    initiative: Some(10),
+                },
+            )
             .unwrap();
         let first = AdvanceEncounterTurnRequest {
             request_id: "first-lifetime-turn".into(),

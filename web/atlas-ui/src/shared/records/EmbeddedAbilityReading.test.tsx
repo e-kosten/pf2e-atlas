@@ -1,3 +1,4 @@
+import { immediateActivityAddress } from "./embeddedNavigation";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
@@ -57,7 +58,9 @@ function batch(request: EmbeddedReadingRequest): EmbeddedReadingBatchView {
   const target = request.selection.target;
   const index = target
     ? abilities.findIndex(
-        (activity) => JSON.stringify(activity.navigation) === JSON.stringify(target),
+        (activity) =>
+          JSON.stringify(immediateActivityAddress(activity.navigation)) ===
+          JSON.stringify(target),
       )
     : 0;
   const start = request.selection.cursor?.offset ?? Math.floor(index / 32) * 32;
@@ -68,7 +71,13 @@ function batch(request: EmbeddedReadingRequest): EmbeddedReadingBatchView {
   });
   return {
     artifact_generation: request.artifact_generation,
-    parent: request.parent,
+    parent: {
+      ...request.parent,
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    },
     availability: "value",
     total: 600,
     start,
@@ -270,7 +279,7 @@ it("lands directly on a late checked owner with a readable backward and forward 
   await screen.findByText("Ability 400 authored explanation");
   expect(api.getEmbeddedReading).toHaveBeenCalledTimes(1);
   expect(api.getEmbeddedReading.mock.calls[0][0].selection.target).toEqual(
-    abilities[400].navigation,
+    immediateActivityAddress(abilities[400].navigation),
   );
   expect(screen.queryByText("Ability 0 authored explanation")).toBeNull();
   expect(

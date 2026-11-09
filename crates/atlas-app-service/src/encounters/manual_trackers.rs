@@ -14,9 +14,10 @@ impl AtlasAppService {
     pub fn update_encounter_manual_tracker(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: UpdateEncounterManualTrackerRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let intent = serde_json::json!({"action":"manual_tracker","request":request});
+        let intent = serde_json::json!({"action":"manual_tracker","request":event_execution::receipt_request(&request, "participant_key", participant_key)});
         if let Some(receipt) =
             event_execution::recover(self, encounter_ref, &request.request_id, &intent)?
         {
@@ -27,7 +28,7 @@ impl AtlasAppService {
         let participant = snapshot
             .participants
             .iter()
-            .find(|p| p.participant_key == request.participant_key)
+            .find(|p| p.participant_key == participant_key)
             .ok_or_else(|| {
                 AppServiceError::invalid_request("Participant is no longer in this encounter.")
             })?;
@@ -90,16 +91,13 @@ impl AtlasAppService {
             intent: &intent,
             expected_revision: request.expected_encounter_revision,
             reference_revision: None,
-            participant_revision: Some((
-                &request.participant_key,
-                request.expected_participant_revision,
-            )),
+            participant_revision: Some((participant_key, request.expected_participant_revision)),
         }
         .commit(
             self,
             PreparedConditionEvent {
                 manual_trackers: vec![ManualTrackerChange {
-                    participant_key: request.participant_key.clone(),
+                    participant_key: participant_key.to_owned(),
                     tracker_key,
                     value,
                 }],

@@ -9,7 +9,7 @@ const draftContext = {
   encounter_key: "encounter",
   participant_key: "actor",
   boundary_key: null,
-  round_number: 1n,
+  round_number: 1,
   record_key: null,
   artifact_generation: "generation",
 };
@@ -22,6 +22,8 @@ const fireRoll = {
     total: 5,
   },
 };
+const fireDraft = { context: draftContext, source_condition_id: 7, roll: fireRoll };
+const issuedFireDraft = { episode_id: "fire", draft: fireDraft };
 const api = vi.hoisted(() => ({ prepareEncounterPersistentDamage: vi.fn() }));
 vi.mock("../../api/atlasApi", () => api);
 afterEach(() => vi.restoreAllMocks());
@@ -39,24 +41,24 @@ beforeEach(() => {
   api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
     complete: request.groups.length === 2,
     recovery: null,
-    draft_context: draftContext,
+    damage_draft: null,
     recovery_draft: null,
     damage: {
       encounter_key: "encounter",
       request_id: request.request_id,
       total: request.groups.reduce(
-        (sum: bigint, g: { damage: { kind: string; amount?: bigint } }) =>
-          sum + (g.damage.amount ?? 0n),
-        0n,
+        (sum: number, g: { damage: { kind: string; amount?: number } }) =>
+          sum + (g.damage.amount ?? 0),
+        0,
       ),
-      hardness_absorbed: 0n,
+      hardness_absorbed: 0,
       groups: request.groups.map(
-        (g: { episode_id: string; damage: { kind: string; amount?: bigint } }) => ({
+        (g: { episode_id: string; damage: { kind: string; amount?: number } }) => ({
           episode_id: g.episode_id,
           damage_type: g.episode_id,
-          source_condition_id: g.episode_id === "fire" ? 7n : 9n,
+          source_condition_id: g.episode_id === "fire" ? 7 : 9,
           roll: null,
-          amount: g.damage.amount ?? 0n,
+          amount: g.damage.amount ?? 0,
           table_resolved: g.damage.kind === "table_result",
         }),
       ),
@@ -67,15 +69,15 @@ const participant: EncounterParticipantView = {
   participant_key: "actor",
   display_name: "Actor",
   participant_kind: "creature",
-  revision: 1n,
+  revision: 1,
   hp_origin: "explicit",
   variant_origin: "explicit",
   participant_variant: "normal",
   status: "active",
-  position: 1n,
+  position: 1,
   side: "enemy",
-  initiative_order: 1n,
-  temporary_hp: 0n,
+  initiative_order: 1,
+  temporary_hp: 0,
   defeated: false,
   hazard_disabled: false,
   cast_unavailable_reason: null,
@@ -84,7 +86,7 @@ const participant: EncounterParticipantView = {
   conditions: [],
   track_dying: true,
   mortality: "alive",
-  base_death_threshold: 4n,
+  base_death_threshold: 4,
   manual_trackers: [],
   knockout_options: [],
   effective_max_hp: { state: "value", value: 20, adjustment: null },
@@ -92,35 +94,35 @@ const participant: EncounterParticipantView = {
     {
       episode_id: "fire",
       damage_type: "fire",
-      selected_source_id: 7n,
+      selected_source_id: 7,
       sources: [
         {
-          condition_id: 7n,
+          condition_id: 7,
           formula: "1d6",
           roll_preview: { kind: "dice", sides: [6] },
           multiplier: "normal",
-          recovery_dc: 15n,
+          recovery_dc: 15,
         },
       ],
     },
     {
       episode_id: "acid",
       damage_type: "acid",
-      selected_source_id: 9n,
+      selected_source_id: 9,
       sources: [
         {
-          condition_id: 8n,
+          condition_id: 8,
           formula: "1d8",
           roll_preview: { kind: "dice", sides: [8] },
           multiplier: "normal",
-          recovery_dc: 15n,
+          recovery_dc: 15,
         },
         {
-          condition_id: 9n,
+          condition_id: 9,
           formula: "1d4",
           roll_preview: { kind: "dice", sides: [4] },
           multiplier: "normal",
-          recovery_dc: 15n,
+          recovery_dc: 15,
         },
       ],
     },
@@ -129,23 +131,23 @@ const participant: EncounterParticipantView = {
 const result: PersistentDamageResultView = {
   encounter_key: "encounter",
   request_id: "receipt",
-  total: 8n,
-  hardness_absorbed: 0n,
+  total: 8,
+  hardness_absorbed: 0,
   groups: [
     {
       episode_id: "fire",
       damage_type: "fire",
-      source_condition_id: 7n,
+      source_condition_id: 7,
       roll: null,
-      amount: 5n,
+      amount: 5,
       table_resolved: true,
     },
     {
       episode_id: "acid",
       damage_type: "acid",
-      source_condition_id: 9n,
+      source_condition_id: 9,
       roll: null,
-      amount: 3n,
+      amount: 3,
       table_resolved: true,
     },
   ],
@@ -161,7 +163,7 @@ it("submits all damage types together and retains table totals across an uncerta
         encounterRef="encounter"
         onRecover={vi.fn()}
         participant={participant}
-        encounterRevision={6n}
+        encounterRevision={6}
         generation="generation"
         damageApplied={false}
         damageTypes={[
@@ -224,16 +226,16 @@ it("submits all damage types together and retains table totals across an uncerta
   expect(onApply.mock.calls[0][0]).toEqual(onApply.mock.calls[1][0]);
   expect(onApply).toHaveBeenLastCalledWith({
     boundary_key: null,
-    expected_encounter_revision: 6n,
+    expected_encounter_revision: 6,
     participant_key: "actor",
     artifact_generation: "generation",
     recoveries: [],
     groups: [
       {
         episode_id: "fire",
-        damage: { kind: "table_result", amount: 5n },
+        damage: { kind: "table_result", amount: 5 },
       },
-      { episode_id: "acid", damage: { kind: "table_result", amount: 3n } },
+      { episode_id: "acid", damage: { kind: "table_result", amount: 3 } },
     ],
     context: {
       lethality: null,
@@ -260,7 +262,7 @@ it("retains an automatic recovery result after its effect clears without inventi
         encounterRef="encounter"
         participant={{ ...participant, persistent_damage_groups: [] }}
         displayGroups={[participant.persistent_damage_groups[0]]}
-        encounterRevision={7n}
+        encounterRevision={7}
         generation="generation"
         damageApplied={true}
         savedResult={result}
@@ -270,7 +272,7 @@ it("retains an automatic recovery result after its effect clears without inventi
             request_id: "automatic-recovery",
             episode_id: "fire",
             damage_type: "fire",
-            dc: 0n,
+            dc: 0,
             success: true,
             roll: null,
           },
@@ -298,7 +300,7 @@ it("uses table results for the whole form when one protection requires a table r
       encounterRef="encounter"
       onRecover={vi.fn()}
       participant={participant}
-      encounterRevision={6n}
+      encounterRevision={6}
       generation="generation"
       damageApplied={false}
       damageTypes={[
@@ -326,8 +328,8 @@ it("uses table results for the whole form when one protection requires a table r
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
         groups: [
-          { episode_id: "fire", damage: { kind: "table_result", amount: 5n } },
-          { episode_id: "acid", damage: { kind: "table_result", amount: 3n } },
+          { episode_id: "fire", damage: { kind: "table_result", amount: 5 } },
+          { episode_id: "acid", damage: { kind: "table_result", amount: 3 } },
         ],
       }),
     ),
@@ -340,10 +342,10 @@ it("shows the server total after shared Hardness without claiming per-type total
       encounterRef="encounter"
       onRecover={vi.fn()}
       participant={participant}
-      encounterRevision={6n}
+      encounterRevision={6}
       generation="generation"
       damageApplied
-      savedResult={{ ...result, total: 3n, hardness_absorbed: 5n }}
+      savedResult={{ ...result, total: 3, hardness_absorbed: 5 }}
       damageTypes={[
         { value: "fire", label: "Fire" },
         { value: "acid", label: "Acid" },
@@ -364,7 +366,7 @@ it("keeps current protections as editing advice without attributing them to save
   const props = {
     encounterRef: "encounter",
     participant,
-    encounterRevision: 6n,
+    encounterRevision: 6,
     generation: "generation",
     damageApplied: false,
     damageTypes: [
@@ -382,11 +384,11 @@ it("keeps current protections as editing advice without attributing them to save
       resolutions={{
         fire: {
           kind: "known",
-          protection: { immune: true, weakness: 0n, resistance: 0n },
+          protection: { immune: true, weakness: 0, resistance: 0 },
         },
         acid: {
           kind: "known",
-          protection: { immune: false, weakness: 3n, resistance: 0n },
+          protection: { immune: false, weakness: 3, resistance: 0 },
         },
       }}
     />,
@@ -414,11 +416,11 @@ it("keeps current protections as editing advice without attributing them to save
       resolutions={{
         fire: {
           kind: "known",
-          protection: { immune: false, weakness: 0n, resistance: 9n },
+          protection: { immune: false, weakness: 0, resistance: 9 },
         },
         acid: {
           kind: "known",
-          protection: { immune: true, weakness: 0n, resistance: 0n },
+          protection: { immune: true, weakness: 0, resistance: 0 },
         },
       }}
     />,
@@ -433,7 +435,7 @@ it("shows immunity before damage and retains the recorded reason when reference 
     ...participant,
     persistent_damage_groups: [participant.persistent_damage_groups[0]],
   };
-  const protection = { immune: true, weakness: 0n, resistance: 0n };
+  const protection = { immune: true, weakness: 0, resistance: 0 };
   const onApply = vi.fn().mockResolvedValue({
     encounter_key: "encounter",
     request_id: "immune",
@@ -441,19 +443,19 @@ it("shows immunity before damage and retains the recorded reason when reference 
       {
         episode_id: "fire",
         damage_type: "fire",
-        source_condition_id: 7n,
+        source_condition_id: 7,
         roll: null,
-        amount: 0n,
+        amount: 0,
         table_resolved: false,
         protection,
       },
     ],
-    total: 0n,
-    hardness_absorbed: 0n,
+    total: 0,
+    hardness_absorbed: 0,
   });
   const props = {
     participant: source,
-    encounterRevision: 6n,
+    encounterRevision: 6,
     generation: "generation",
     damageApplied: false,
     damageTypes: [{ value: "fire", label: "Fire" }],
@@ -473,7 +475,11 @@ it("shows immunity before damage and retains the recorded reason when reference 
   api.prepareEncounterPersistentDamage.mockImplementation(async (_ref, request) => ({
     complete: true,
     recovery: null,
-    draft_context: draftContext,
+    damage_draft: request.groups.some(
+      ({ damage }: { damage: { kind: string } }) => damage.kind === "roll",
+    )
+      ? issuedFireDraft
+      : null,
     recovery_draft: null,
     damage: {
       encounter_key: "encounter",
@@ -482,15 +488,15 @@ it("shows immunity before damage and retains the recorded reason when reference 
         {
           episode_id: "fire",
           damage_type: "fire",
-          source_condition_id: 7n,
-          amount: 0n,
+          source_condition_id: 7,
+          amount: 0,
           roll: fireRoll,
           table_resolved: false,
           protection,
         },
       ],
-      total: 0n,
-      hardness_absorbed: 0n,
+      total: 0,
+      hardness_absorbed: 0,
     },
   }));
   fireEvent.click(screen.getByRole("button", { name: "Roll Fire damage" }));
@@ -504,7 +510,7 @@ it("shows immunity before damage and retains the recorded reason when reference 
       resolutions={{
         fire: {
           kind: "known",
-          protection: { immune: false, weakness: 9n, resistance: 0n },
+          protection: { immune: false, weakness: 9, resistance: 0 },
         },
       }}
     />,
@@ -514,7 +520,7 @@ it("shows immunity before damage and retains the recorded reason when reference 
 });
 
 it("explains unresolved protections and starts with an editable table amount", async () => {
-  const onApply = vi.fn().mockResolvedValue({ ...result, total: 3n });
+  const onApply = vi.fn().mockResolvedValue({ ...result, total: 3 });
   render(
     <EncounterPersistentDamageBatch
       encounterRef="encounter"
@@ -523,7 +529,7 @@ it("explains unresolved protections and starts with an editable table amount", a
         ...participant,
         persistent_damage_groups: [participant.persistent_damage_groups[0]],
       }}
-      encounterRevision={6n}
+      encounterRevision={6}
       generation="generation"
       damageApplied={false}
       damageTypes={[{ value: "fire", label: "Fire" }]}
@@ -539,9 +545,9 @@ it("explains unresolved protections and starts with an editable table amount", a
   api.prepareEncounterPersistentDamage.mockResolvedValue({
     complete: true,
     recovery: null,
-    draft_context: draftContext,
+    damage_draft: null,
     recovery_draft: null,
-    damage: { ...result, total: 3n },
+    damage: { ...result, total: 3 },
   });
   fireEvent.click(await screen.findByRole("button", { name: "Apply 3 damage" }));
   await waitFor(() =>
@@ -550,7 +556,7 @@ it("explains unresolved protections and starts with an editable table amount", a
         groups: [
           {
             episode_id: "fire",
-            damage: { kind: "table_result", amount: 3n },
+            damage: { kind: "table_result", amount: 3 },
           },
         ],
       }),
@@ -567,9 +573,9 @@ it("prepares recovery after one type while another amount is unresolved, then ap
       recovery_draft: request.recovery
         ? {
             context: draftContext,
-            source_condition_id: 7n,
-            dc: 0n,
-            dc_override: 0n,
+            source_condition_id: 7,
+            dc: 0,
+            dc_override: 0,
             roll: null,
           }
         : null,
@@ -579,7 +585,7 @@ it("prepares recovery after one type while another amount is unresolved, then ap
             request_id: request.request_id,
             episode_id: request.recovery.episode_id,
             damage_type: "fire",
-            dc: 0n,
+            dc: 0,
             roll: null,
             success: true,
           }
@@ -593,7 +599,7 @@ it("prepares recovery after one type while another amount is unresolved, then ap
       <EncounterPersistentDamageBatch
         encounterRef="encounter"
         participant={participant}
-        encounterRevision={6n}
+        encounterRevision={6}
         generation="generation"
         damageApplied={false}
         damageTypes={[
@@ -642,12 +648,12 @@ it("prepares recovery after one type while another amount is unresolved, then ap
       {
         kind: "prepared",
         episode_id: "fire",
-        draft: { context: draftContext, source_condition_id: 7n, dc: 0n },
+        draft: { context: draftContext, source_condition_id: 7, dc: 0 },
       },
     ],
     groups: [
-      { episode_id: "fire", damage: { kind: "table_result", amount: 5n } },
-      { episode_id: "acid", damage: { kind: "table_result", amount: 3n } },
+      { episode_id: "fire", damage: { kind: "table_result", amount: 5 } },
+      { episode_id: "acid", damage: { kind: "table_result", amount: 3 } },
     ],
   });
 });
@@ -658,29 +664,30 @@ it("shows the backend's refreshed protections and amount while retaining prepare
     return {
       complete: request.groups.length === 1,
       recovery: null,
-      draft_context: draftContext,
+      damage_draft: request.groups[0]?.damage.kind === "roll" ? issuedFireDraft : null,
       recovery_draft: null,
       damage: {
         encounter_key: "encounter",
         request_id: request.request_id,
-        total: refreshed ? 0n : 5n,
-        hardness_absorbed: 0n,
+        total: refreshed ? 0 : 5,
+        hardness_absorbed: 0,
         groups: request.groups.length
           ? [
               {
                 episode_id: "fire",
                 damage_type: "fire",
-                source_condition_id: 7n,
-                amount: refreshed ? 0n : 5n,
+                source_condition_id: 7,
+                amount: refreshed ? 0 : 5,
                 roll: fireRoll,
                 table_resolved: false,
-                protection: { immune: refreshed, weakness: 0n, resistance: 0n },
+                protection: { immune: refreshed, weakness: 0, resistance: 0 },
               },
             ]
           : [],
       },
     };
   });
+  const onApply = vi.fn().mockResolvedValue({ ...result, total: 0 });
   render(
     <EncounterPersistentDamageBatch
       encounterRef="encounter"
@@ -688,13 +695,13 @@ it("shows the backend's refreshed protections and amount while retaining prepare
         ...participant,
         persistent_damage_groups: [participant.persistent_damage_groups[0]],
       }}
-      encounterRevision={6n}
+      encounterRevision={6}
       generation="generation"
       damageApplied={false}
       damageTypes={[{ value: "fire", label: "Fire" }]}
       disabled={false}
       pending={false}
-      onApply={vi.fn()}
+      onApply={onApply}
       onRecover={vi.fn()}
     />,
   );
@@ -702,7 +709,63 @@ it("shows the backend's refreshed protections and amount while retaining prepare
   expect(await screen.findByText("Immune to fire")).toBeVisible();
   expect(screen.getByRole("button", { name: "Apply 0 damage" })).toBeEnabled();
   expect(screen.queryByText("5 damage")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Apply 0 damage" }));
+  await waitFor(() =>
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groups: [
+          { episode_id: "fire", damage: { kind: "prepared", draft: fireDraft } },
+        ],
+      }),
+    ),
+  );
 });
+
+it.each([null, { ...issuedFireDraft, episode_id: "acid" }])(
+  "does not stage damage when the issued draft is missing or for another episode",
+  async (damageDraft) => {
+    const original = api.prepareEncounterPersistentDamage.getMockImplementation()!;
+    api.prepareEncounterPersistentDamage.mockImplementation(async (ref, request) => {
+      const preview = await original(ref, request);
+      if (request.groups[0]?.damage.kind !== "roll") return preview;
+      return {
+        ...preview,
+        complete: true,
+        damage_draft: damageDraft,
+        damage: {
+          ...preview.damage,
+          total: fireRoll.total,
+          groups: [
+            { ...preview.damage.groups[0], roll: fireRoll, amount: fireRoll.total },
+          ],
+        },
+      };
+    });
+    const onApply = vi.fn();
+    render(
+      <EncounterPersistentDamageBatch
+        encounterRef="encounter"
+        participant={{
+          ...participant,
+          persistent_damage_groups: [participant.persistent_damage_groups[0]],
+        }}
+        encounterRevision={6}
+        generation="generation"
+        damageApplied={false}
+        damageTypes={[{ value: "fire", label: "Fire" }]}
+        disabled={false}
+        pending={false}
+        onApply={onApply}
+        onRecover={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Roll Fire damage" }));
+    expect(await screen.findByText("Couldn’t confirm the roll.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Roll Fire damage" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Apply damage" })).toBeDisabled();
+    expect(onApply).not.toHaveBeenCalled();
+  },
+);
 
 it("keeps post-Apply recovery and Clear usable with the refreshed revision", async () => {
   const onRecover = vi.fn().mockResolvedValue({
@@ -717,7 +780,7 @@ it("keeps post-Apply recovery and Clear usable with the refreshed revision", asy
   const props = {
     encounterRef: "encounter",
     participant,
-    encounterRevision: 6n,
+    encounterRevision: 6,
     generation: "generation",
     damageApplied: false,
     damageTypes: [
@@ -733,7 +796,7 @@ it("keeps post-Apply recovery and Clear usable with the refreshed revision", asy
   rerender(
     <EncounterPersistentDamageBatch
       {...props}
-      encounterRevision={8n}
+      encounterRevision={8}
       damageApplied
       savedResult={result}
       episodes={[
@@ -757,7 +820,7 @@ it("keeps post-Apply recovery and Clear usable with the refreshed revision", asy
       expect.objectContaining({
         resolution: "clear",
         episode_id: "fire",
-        expected_encounter_revision: 8n,
+        expected_encounter_revision: 8,
       }),
     ),
   );

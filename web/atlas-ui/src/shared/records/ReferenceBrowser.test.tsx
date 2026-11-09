@@ -652,7 +652,7 @@ it("shows text and reference-link evidence in the selected reader without a resu
           number: 1,
           size: 3,
           count: 1,
-          total: 1n,
+          total: 1,
           has_more: false,
           next_page: null,
         },

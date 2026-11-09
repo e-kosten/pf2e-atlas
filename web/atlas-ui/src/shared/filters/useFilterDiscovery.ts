@@ -183,7 +183,7 @@ export function useFilterOptionCounts(
           option.distinct_roots,
         ]),
       )
-    : new Map<string, bigint>();
+    : new Map<string, number>();
 }
 
 function discoveryIdentity(value?: {
@@ -204,7 +204,7 @@ function discoveryIdentity(value?: {
   }
   // Ordinary selection edits keep menu rows stable. Link eligibility includes
   // its Boolean placement, so it cannot reuse an earlier universe's counts.
-  return containsLink(_filter) ? { ...identity, filter: _filter } : identity;
+  return containsLink(_filter ?? null) ? { ...identity, filter: _filter } : identity;
 }
 
 export const VOCABULARY_PAGE_SIZE = 40;
@@ -216,7 +216,7 @@ type OptionPage = {
   contextual: boolean;
   pageKey: string;
   offset: number;
-  counts?: ReadonlyMap<string, bigint>;
+  counts?: ReadonlyMap<string, number>;
 };
 function searchPageKey(text: string, offset: number) {
   return JSON.stringify([text, offset]);

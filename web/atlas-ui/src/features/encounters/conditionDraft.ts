@@ -1,9 +1,9 @@
+import type { UpdateConditionDraft } from "./useConditionEventPreview";
 import type {
   ConditionActionView,
   ConditionParametersInputView,
   EncounterConditionDefinitionView,
   EncounterParticipantConditionView,
-  UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
 import type { ConditionEventInput } from "./useConditionEventPreview";
 
@@ -47,7 +47,7 @@ export function conditionDuration(values: ConditionFormValues): Duration | undef
   )
     return undefined;
   return {
-    amount: BigInt(values.durationAmount),
+    amount: values.durationAmount,
     unit: values.durationUnit,
     timing:
       values.durationEvent && values.durationParticipant
@@ -78,9 +78,9 @@ export function editableConditionParameters(
 
 export function conditionUpdate(
   condition: EncounterParticipantConditionView,
-  revision: bigint,
-  changes: Partial<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>,
-): Omit<UpdateEncounterParticipantConditionRequest, "request_id"> {
+  revision: number,
+  changes: Partial<UpdateConditionDraft>,
+): UpdateConditionDraft {
   return {
     expected_encounter_revision: revision,
     event_intent: "apply",
@@ -103,7 +103,7 @@ export function conditionUpdate(
 export function conditionDraft(
   values: ConditionFormValues,
   durationEdited: boolean,
-  revision: bigint,
+  revision: number,
   participantKey: string,
   definition: EncounterConditionDefinitionView | undefined,
   condition?: EncounterParticipantConditionView,
@@ -138,16 +138,14 @@ export function conditionDraft(
             ? previous.recovery
             : values.persistentRecoveryDc == null
               ? { kind: "source_dependent" }
-              : { kind: "specified", dc: BigInt(values.persistentRecoveryDc) },
+              : { kind: "specified", dc: values.persistentRecoveryDc },
       };
       break;
     case "sickened":
       parameters = {
         kind: "sickened",
         recovery_dc:
-          values.sickenedRecoveryDc == null
-            ? undefined
-            : BigInt(values.sickenedRecoveryDc),
+          values.sickenedRecoveryDc == null ? undefined : values.sickenedRecoveryDc,
       };
       break;
     case "unconscious":
@@ -170,14 +168,13 @@ export function conditionDraft(
             ? { kind: "held" }
             : values.frightenedRecovery === "source_dependent"
               ? { kind: "source_dependent" }
-              : { kind: "end_turn", minimum: BigInt(values.frightenedMinimum ?? 0) },
+              : { kind: "end_turn", minimum: values.frightenedMinimum ?? 0 },
       };
       break;
     case "broken":
       parameters = {
         kind: "broken",
-        threshold:
-          values.brokenThreshold == null ? null : BigInt(values.brokenThreshold),
+        threshold: values.brokenThreshold == null ? null : values.brokenThreshold,
       };
       break;
     default:
@@ -209,7 +206,7 @@ export function conditionDraft(
             participant_keys: values.againstKeys,
           }
         : { kind: "everyone" as const },
-    value: values.value == null ? undefined : BigInt(values.value),
+    value: values.value == null ? undefined : values.value,
     duration:
       condition && !durationEdited ? condition.duration : conditionDuration(values),
     source_participant_key: values.sourceParticipantKey,

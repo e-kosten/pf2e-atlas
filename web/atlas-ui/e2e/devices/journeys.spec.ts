@@ -439,7 +439,7 @@ test("focused titles and list text filters follow their primary page", async ({
   try {
     for (const record_ref of [sentinel, "browser-conditions:offguard00000001"]) {
       const added = await page.request.post(`/api/lists/${slug}/items`, {
-        data: { list_ref: slug, record_ref },
+        data: { record_ref },
       });
       expect(added.ok()).toBeTruthy();
     }
@@ -506,7 +506,7 @@ test("list drops retain order and geometry through delayed writes and refreshes"
   try {
     for (const key of keys) {
       const added = await page.request.post(`/api/lists/${slug}/items`, {
-        data: { list_ref: slug, record_ref: key },
+        data: { record_ref: key },
       });
       expect(added.ok()).toBeTruthy();
     }
@@ -971,7 +971,6 @@ test("encounter references retain their owner, scroll and native destination", a
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             record_ref: sentinel,
             quantity: 1,
           },
@@ -1157,7 +1156,6 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             record_ref: sentinel,
             quantity: 8,
             initiative: 12,
@@ -1175,7 +1173,6 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
         (
           await page.request.post(`${path}/participants/manual`, {
             data: {
-              encounter_ref: encounter.encounter_key,
               display_name: name,
               max_hp: 40,
               initiative: 20 - index,
@@ -1479,7 +1476,6 @@ test("named parties add everyone directly and archive views stay separate", asyn
       (
         await page.request.patch(path, {
           data: {
-            encounter_key: encounter.encounter_key,
             status: { expected: current.encounter.status, value: "archived" },
           },
         })
@@ -1514,7 +1510,6 @@ test("list entry notes stay beneath the reader and removal confirms in place", a
   try {
     const added = await page.request.post(`/api/lists/${list.list_key}/items`, {
       data: {
-        list_ref: list.list_key,
         record_ref: sentinel,
         note: "A useful guardian for the garden",
       },
@@ -1676,7 +1671,7 @@ test(
       expect(
         (
           await page.request.post(`/api/lists/${slug}/items`, {
-            data: { list_ref: slug, record_ref: sentinel },
+            data: { record_ref: sentinel },
           })
         ).ok(),
       ).toBeTruthy();
@@ -2918,6 +2913,7 @@ test("reference feedback: edition context is visible above rules and counterpart
 test("reference feedback: link picker retains direction, scope and preview when editing", async ({
   page,
 }, info) => {
+  const narrow = page.viewportSize()!.width < 992;
   await page.goto("/search");
   await activate(page.getByRole("button", { name: "Links", exact: true }), info);
   const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
@@ -2925,7 +2921,7 @@ test("reference feedback: link picker retains direction, scope and preview when 
   await activate(candidate, info);
   await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
   const results = picker.getByRole("button", { name: "Results", exact: true });
-  if (await results.isVisible()) await activate(results, info);
+  if (narrow) await activate(results, info);
   await activate(picker.getByText("Linked from", { exact: true }), info);
   await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeDisabled();
   const help = picker.getByRole("button", { name: "About link scope", exact: true });
@@ -2967,7 +2963,7 @@ test("reference feedback: link picker retains direction, scope and preview when 
   ).toBeVisible();
   await expect(picker.locator(".reference-picker__footer a")).toHaveCount(0);
   await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
-  if (await results.isVisible()) await activate(results, info);
+  if (narrow) await activate(results, info);
   await expect(
     picker.getByRole("radio", { name: "Linked from", exact: true }),
   ).toBeChecked();
@@ -2987,7 +2983,7 @@ test("reference feedback: link picker retains direction, scope and preview when 
       .first(),
   ).toBeVisible();
   const editResults = edit.getByRole("button", { name: "Results", exact: true });
-  if (await editResults.isVisible()) await activate(editResults, info);
+  if (narrow) await activate(editResults, info);
   await expect(
     edit.getByRole("radio", { name: "Linked from", exact: true }),
   ).toBeChecked();

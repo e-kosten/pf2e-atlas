@@ -32,7 +32,8 @@ import {
   applyEncounterPersistentDamage,
   resolveEncounterDrainedConsequence,
   resolveEncounterHpLifecycle,
-  previewEncounterCondition,
+  previewEncounterConditionAdd,
+  previewEncounterConditionUpdate,
   updateEncounter,
   updateEncounterParticipant,
   updateEncounterParticipantCondition,
@@ -45,13 +46,14 @@ import type {
   AddEncounterRecordParticipantRequest,
   ReorderEncounterParticipantRequest,
   UpdateEncounterParticipantConditionRequest,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
   UpdateEncounterRequest,
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
   | {
       kind: "manual-tracker";
+      participantKey: string;
       request: Omit<
         import("../../generated/atlas").UpdateEncounterManualTrackerRequest,
         "request_id"
@@ -63,6 +65,7 @@ export type EncounterMutationCommand =
     }
   | {
       kind: "ability-state";
+      participantKey: string;
       request: Omit<
         import("../../generated/atlas").UpdateEncounterAbilityStateRequest,
         "request_id"
@@ -70,6 +73,7 @@ export type EncounterMutationCommand =
     }
   | {
       kind: "turn-resources";
+      participantKey: string;
       request: Omit<
         import("../../generated/atlas").UpdateTurnResourcesRequest,
         "request_id"
@@ -95,15 +99,24 @@ export type EncounterMutationCommand =
     }
   | {
       kind: "spell";
+      participantKey: string;
       request: import("../../generated/atlas").ApplyEncounterSpellActionRequest;
     }
-  | { kind: "hp"; request: Omit<ApplyEncounterHpActionRequest, "request_id"> }
+  | {
+      kind: "hp";
+      participantKey: string;
+      request: Omit<ApplyEncounterHpActionRequest, "request_id">;
+    }
   | {
       kind: "difficulty";
       request: import("../../generated/atlas").SetEncounterDifficultyRequest;
     }
   | { kind: "metadata"; request: UpdateEncounterRequest }
-  | { kind: "participant"; request: UpdateEncounterParticipantRequest }
+  | {
+      kind: "participant";
+      participantKey: string;
+      request: UpdateEncounterParticipantEdit;
+    }
   | { kind: "add-record"; request: AddEncounterRecordParticipantRequest }
   | {
       kind: "add-party";
@@ -113,21 +126,23 @@ export type EncounterMutationCommand =
   | { kind: "reorder"; request: ReorderEncounterParticipantRequest }
   | { kind: "remove"; participantKey: string }
   | { kind: "turn"; participantKey: string }
-  | { kind: "advance"; expectedRevision: bigint }
+  | { kind: "advance"; expectedRevision: number }
   | {
       kind: "add-condition";
+      participantKey: string;
       request: Omit<AddEncounterParticipantConditionRequest, "request_id">;
     }
   | {
       kind: "update-condition";
       participantKey: string;
+      conditionId: number;
       request: Omit<UpdateEncounterParticipantConditionRequest, "request_id">;
     }
   | {
       kind: "remove-condition";
       participantKey: string;
-      conditionId: bigint;
-      expectedRevision: bigint;
+      conditionId: number;
+      expectedRevision: number;
     }
   | {
       kind: "life-settings";
@@ -173,21 +188,19 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
   const inFlight = useRef(false);
   const eventRequests = useRef(new Map<string, { identity: string; id: string }>());
   const commandIdentity = (command: EncounterMutationCommand) =>
-    JSON.stringify(command, (_key, value) =>
-      typeof value === "bigint" ? value.toString() : value,
-    );
+    JSON.stringify(command);
   const requestSlot = (command: EncounterMutationCommand) => {
     switch (command.kind) {
       case "add-condition":
-        return `${command.kind}:${command.request.participant_key}`;
+        return `${command.kind}:${command.participantKey}`;
       case "update-condition":
-        return `${command.kind}:${command.participantKey}:${command.request.condition_id}`;
+        return `${command.kind}:${command.participantKey}:${command.conditionId}`;
       case "remove-condition":
         return `${command.kind}:${command.participantKey}:${command.conditionId}`;
       case "turn-resources":
-        return `${command.kind}:${command.request.participant_key}`;
+        return `${command.kind}:${command.participantKey}`;
       case "hp":
-        return `${command.kind}:${command.request.participant_key}`;
+        return `${command.kind}:${command.participantKey}`;
       case "life-settings":
         return `${command.kind}:${command.participantKey}`;
       case "condition-lifecycle":
@@ -269,47 +282,49 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         case "recovery":
           return applyEncounterRecovery(currentRef, command.request);
         case "manual-tracker":
-          return updateEncounterManualTracker(currentRef, {
+          return updateEncounterManualTracker(currentRef, command.participantKey, {
             ...command.request,
             request_id: eventRequestId(command),
           });
         case "ability-state":
-          return updateEncounterAbilityState(currentRef, {
+          return updateEncounterAbilityState(currentRef, command.participantKey, {
             ...command.request,
             request_id: eventRequestId(command),
           });
         case "turn-resources":
-          return updateTurnResources(currentRef, {
+          return updateTurnResources(currentRef, command.participantKey, {
             ...command.request,
             request_id: eventRequestId(command),
           });
         case "initiative":
           return rollInitiative(currentRef, command.request);
         case "spell":
-          return applyEncounterSpellAction(currentRef, command.request);
+          return applyEncounterSpellAction(
+            currentRef,
+            command.participantKey,
+            command.request,
+          );
         case "hp":
-          return applyEncounterHpAction(currentRef, {
+          return applyEncounterHpAction(currentRef, command.participantKey, {
             ...command.request,
             request_id: eventRequestId(command),
           });
         case "difficulty":
           return setEncounterDifficulty(currentRef, command.request);
         case "metadata":
-          return updateEncounter(command.request);
+          return updateEncounter(currentRef, command.request);
         case "participant":
-          return updateEncounterParticipant(currentRef, command.request);
+          return updateEncounterParticipant(
+            currentRef,
+            command.participantKey,
+            command.request,
+          );
         case "add-record":
-          return addEncounterRecordParticipant({
-            ...command.request,
-            encounter_ref: currentRef,
-          });
+          return addEncounterRecordParticipant(currentRef, command.request);
         case "add-party":
           return addEncounterParty(currentRef, command.request);
         case "add-manual":
-          return addEncounterManualParticipant({
-            ...command.request,
-            encounter_ref: currentRef,
-          });
+          return addEncounterManualParticipant(currentRef, command.request);
         case "reorder":
           return reorderEncounterParticipant(currentRef, command.request);
         case "remove":
@@ -320,12 +335,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
             expected_revision: command.expectedRevision,
           });
         case "turn":
-          return setEncounterTurn({
-            encounter_ref: currentRef,
+          return setEncounterTurn(currentRef, {
             participant_key: command.participantKey,
           });
         case "add-condition":
-          return addEncounterParticipantCondition(currentRef, {
+          return addEncounterParticipantCondition(currentRef, command.participantKey, {
             ...command.request,
             request_id: eventRequestId(command),
           });
@@ -333,6 +347,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
           return updateEncounterParticipantCondition(
             currentRef,
             command.participantKey,
+            command.conditionId,
             { ...command.request, request_id: eventRequestId(command) },
           );
         case "remove-condition":
@@ -446,14 +461,34 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     participantKey: string,
     request: import("./useConditionEventPreview").ConditionEventInput,
   ) => {
-    const command: EncounterMutationCommand =
-      "condition_id" in request
-        ? { kind: "update-condition", participantKey, request }
-        : { kind: "add-condition", request };
     try {
-      return await previewEncounterCondition(currentRef, participantKey, {
-        ...request,
-        request_id: eventRequestId(command),
+      if ("condition_id" in request) {
+        const { condition_id: conditionId, ...body } = request;
+        const request_id = eventRequestId({
+          kind: "update-condition",
+          participantKey,
+          conditionId,
+          request: body,
+        });
+        return await previewEncounterConditionUpdate(
+          currentRef,
+          participantKey,
+          conditionId,
+          {
+            ...body,
+            request_id,
+          },
+        );
+      }
+      const { participant_key, ...body } = request;
+      const request_id = eventRequestId({
+        kind: "add-condition",
+        participantKey: participant_key,
+        request: body,
+      });
+      return await previewEncounterConditionAdd(currentRef, participantKey, {
+        ...body,
+        request_id,
       });
     } catch (error) {
       if (isEncounterConflict(error)) {

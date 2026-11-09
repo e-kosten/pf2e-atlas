@@ -731,7 +731,6 @@ fn size_aliases_share_label_only_editor_metadata_and_value_transport() {
                     expected_artifact_generation: None,
                     filter: None,
                     text: None,
-                    mode: RetrievalModeView::Lexical,
                 }),
                 field_id: "body.size".into(),
                 clause_id: None,

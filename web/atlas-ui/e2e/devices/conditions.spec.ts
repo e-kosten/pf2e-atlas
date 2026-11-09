@@ -26,7 +26,6 @@ test("persistent sources stay visible after reload and Remove acts directly with
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Condition Hero",
             max_hp: 30,
             current_hp: 30,

@@ -1,25 +1,29 @@
 //! Supplied reference facts; no character building or actor-runtime calculations.
 use crate::{FactView, IwrEntryView, NumberFactView, RecordNavigationView};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReferenceGrantView {
     pub name: FactView<String>,
     pub target: FactView<String>,
     pub level: NumberFactView,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub navigation: Option<RecordNavigationView>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AttributeChoiceView {
     pub free_choice: bool,
     pub choices: FactView<Vec<crate::ReferenceValueView>>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HeritageReferenceView {
     pub ancestry: FactView<String>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AncestryReferenceView {
     pub hit_points: NumberFactView,
     pub speed: NumberFactView,
@@ -36,7 +40,8 @@ pub struct AncestryReferenceView {
     pub additional_language_details: FactView<String>,
     pub grants: FactView<Vec<ReferenceGrantView>>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClassReferenceView {
     pub hit_points: NumberFactView,
     pub key_attributes: FactView<Vec<crate::ReferenceValueView>>,
@@ -64,12 +69,14 @@ pub struct ClassReferenceView {
     pub skill_feat_levels: FactView<Vec<u8>>,
     pub skill_increase_levels: FactView<Vec<u8>>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeitySanctificationView {
     pub requirement: FactView<String>,
     pub choices: FactView<Vec<String>>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeityReferenceView {
     pub attributes: FactView<Vec<crate::ReferenceValueView>>,
     pub fonts: FactView<Vec<String>>,
@@ -80,7 +87,8 @@ pub struct DeityReferenceView {
     pub favored_weapons: FactView<Vec<String>>,
     pub spells: FactView<Vec<ReferenceGrantView>>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ObjectDefensesReferenceView {
     pub armor_class: NumberFactView,
     pub hit_points: NumberFactView,
@@ -89,7 +97,8 @@ pub struct ObjectDefensesReferenceView {
     pub weaknesses: FactView<Vec<IwrEntryView>>,
     pub resistances: FactView<Vec<IwrEntryView>>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VehicleReferenceView {
     pub crew: FactView<String>,
     pub passengers: FactView<String>,
@@ -105,7 +114,8 @@ pub struct VehicleReferenceView {
     pub fortitude: NumberFactView,
     pub defenses: ObjectDefensesReferenceView,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArmyReferenceView {
     pub army_type: FactView<String>,
     pub armor_class: NumberFactView,

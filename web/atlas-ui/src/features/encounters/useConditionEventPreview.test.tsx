@@ -6,8 +6,8 @@ import {
   type ConditionEventInput,
 } from "./useConditionEventPreview";
 const request: ConditionEventInput = {
-  expected_encounter_revision: 3n,
-  condition_id: 1n,
+  expected_encounter_revision: 3,
+  condition_id: 1,
   name: "Example",
   parameters: { kind: "none" },
   scope: { kind: "everyone" },
@@ -25,7 +25,7 @@ function Harness({
 }) {
   const preview = useConditionEventPreview([], load);
   const [note, setNote] = useState(false);
-  const [value, setValue] = useState<bigint>();
+  const [value, setValue] = useState<number>();
   return (
     <>
       <button onClick={() => preview.setDraft(request)}>Edit draft</button>
@@ -39,8 +39,8 @@ function Harness({
       </button>
       <button
         onClick={() => {
-          setValue(2n);
-          preview.setDraft({ ...request, value: 2n });
+          setValue(2);
+          preview.setDraft({ ...request, value: 2 });
         }}
       >
         Edit value
@@ -68,7 +68,7 @@ function Harness({
 }
 it("shows sole HP consequences before the first Apply and preserves its explicit opt-out", async () => {
   const load = vi.fn().mockResolvedValue({
-    consequences: [{ kind: "direct_hp_loss", participant_key: "p", amount: 8n }],
+    consequences: [{ kind: "direct_hp_loss", participant_key: "p", amount: 8 }],
   });
   const commit = vi.fn();
   render(<Harness load={load} commit={commit} />);
@@ -87,7 +87,7 @@ it("shows sole HP consequences before the first Apply and preserves its explicit
 it("mixed consequences offer only the supported Prone opt-out", async () => {
   const load = vi.fn().mockResolvedValue({
     consequences: [
-      { kind: "direct_hp_loss", participant_key: "p", amount: 8n },
+      { kind: "direct_hp_loss", participant_key: "p", amount: 8 },
       { kind: "become_prone", participant_key: "p" },
       { kind: "drop_held_items", participant_key: "p" },
     ],
@@ -169,13 +169,13 @@ it("saves the latest edit during debounce when there are no application conseque
   fireEvent.click(screen.getByText("Edit value"));
   fireEvent.click(screen.getByText("Save immediately"));
   await waitFor(() =>
-    expect(commit).toHaveBeenCalledExactlyOnceWith({ ...request, value: 2n }),
+    expect(commit).toHaveBeenCalledExactlyOnceWith({ ...request, value: 2 }),
   );
 });
 it("shows newly changed consequences before allowing an immediate save", async () => {
   const load = vi.fn().mockImplementation(async (draft: ConditionEventInput) => ({
     consequences: [
-      { kind: "direct_hp_loss", participant_key: "p", amount: draft.value ?? 1n },
+      { kind: "direct_hp_loss", participant_key: "p", amount: draft.value ?? 1 },
     ],
   }));
   const commit = vi.fn();
@@ -188,7 +188,7 @@ it("shows newly changed consequences before allowing an immediate save", async (
   expect(commit).not.toHaveBeenCalled();
   fireEvent.click(screen.getByText("Save immediately"));
   await waitFor(() =>
-    expect(commit).toHaveBeenCalledExactlyOnceWith({ ...request, value: 2n }),
+    expect(commit).toHaveBeenCalledExactlyOnceWith({ ...request, value: 2 }),
   );
 });
 
@@ -198,15 +198,15 @@ it("retains the same HP preview and checkbox while the next value loads, without
   ) => void;
   const first = {
     encounter_key: "encounter",
-    encounter_revision: 3n,
+    encounter_revision: 3,
     consequences: [
-      { kind: "direct_hp_loss" as const, participant_key: "p", amount: 1n },
+      { kind: "direct_hp_loss" as const, participant_key: "p", amount: 1 },
     ],
     hp_change: {
-      current_before: 20n,
-      current_after: 19n,
-      maximum_before: 20n,
-      maximum_after: 19n,
+      current_before: 20,
+      current_after: 19,
+      maximum_before: 20,
+      maximum_after: 19,
     },
   };
   const load = vi
@@ -230,8 +230,8 @@ it("retains the same HP preview and checkbox while the next value loads, without
   await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   resolveNext({
     ...first,
-    consequences: [{ kind: "direct_hp_loss", participant_key: "p", amount: 2n }],
-    hp_change: { ...first.hp_change, current_after: 18n, maximum_after: 18n },
+    consequences: [{ kind: "direct_hp_loss", participant_key: "p", amount: 2 }],
+    hp_change: { ...first.hp_change, current_after: 18, maximum_after: 18 },
   });
   await screen.findByRole("checkbox", { name: "Lose 2 HP" });
   expect(screen.getByRole("region", { name: "HP change" })).toBe(region);

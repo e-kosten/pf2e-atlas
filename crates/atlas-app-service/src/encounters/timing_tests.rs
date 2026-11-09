@@ -19,13 +19,15 @@ fn fixture() -> (FixtureWorker, String, String, String) {
         .encounter_key;
     for (name, initiative) in [("A", 20), ("B", 10)] {
         f.worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: key.clone(),
-                display_name: name.into(),
-                max_hp: Some(20),
-                current_hp: Some(20),
-                initiative: Some(initiative),
-            })
+            .add_encounter_manual_participant(
+                &key,
+                AddEncounterManualParticipantRequest {
+                    display_name: name.into(),
+                    max_hp: Some(20),
+                    current_hp: Some(20),
+                    initiative: Some(initiative),
+                },
+            )
             .unwrap();
     }
     let snapshot = f
@@ -114,10 +116,12 @@ fn next(f: &FixtureWorker, key: &str) {
 }
 fn set(f: &FixtureWorker, key: &str, participant: &str) {
     f.worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: key.into(),
-            participant_key: participant.into(),
-        })
+        .set_encounter_turn(
+            key,
+            SetEncounterTurnRequest {
+                participant_key: participant.into(),
+            },
+        )
         .unwrap();
 }
 
@@ -449,10 +453,10 @@ fn manual_set_and_reorder_never_tick_and_any_mutation_invalidates_review() {
     f.worker
         .apply_encounter_hp_action(
             &key,
+            &a,
             ApplyEncounterHpActionRequest {
                 request_id: crate::test_support::next_request_id(),
                 context: None,
-                participant_key: a.clone(),
                 expected_revision: snapshot(&f, &key)
                     .participants
                     .iter()
@@ -494,7 +498,6 @@ fn condition_edit(
         parameters: Default::default(),
         origin: None,
         expected_encounter_revision: revision,
-        condition_id: condition.condition_id,
         condition_ref: condition.condition_key.clone(),
         name: condition.name.clone(),
         value: condition.value,
@@ -522,7 +525,12 @@ fn stale_notes_cannot_restore_countdown_and_fresh_note_source_edits_preserve_rem
     assert_eq!(amounts(&f, &key), [2]);
     assert_eq!(
         f.worker
-            .update_encounter_participant_condition(&key, &a, draft)
+            .update_encounter_participant_condition(
+                &key,
+                &a,
+                before.participants[0].conditions[0].condition_id,
+                draft
+            )
             .unwrap_err()
             .into_app_error()
             .code,
@@ -535,7 +543,12 @@ fn stale_notes_cannot_restore_countdown_and_fresh_note_source_edits_preserve_rem
     );
     fresh.source_participant_key = Some(b);
     f.worker
-        .update_encounter_participant_condition(&key, &a, fresh)
+        .update_encounter_participant_condition(
+            &key,
+            &a,
+            after.participants[0].conditions[0].condition_id,
+            fresh,
+        )
         .unwrap();
     assert_eq!(amounts(&f, &key), [2]);
     assert_eq!(
@@ -555,6 +568,7 @@ fn unrelated_legacy_notes_edit_preserves_unresolved_rounds_but_changed_duration_
         .update_encounter_participant_condition(
             &key,
             &a,
+            before.participants[0].conditions[0].condition_id,
             condition_edit(
                 &before.participants[0].conditions[0],
                 before.encounter.revision,
@@ -578,7 +592,12 @@ fn unrelated_legacy_notes_edit_preserves_unresolved_rounds_but_changed_duration_
     changed.duration.as_mut().unwrap().amount = 5;
     assert_eq!(
         f.worker
-            .update_encounter_participant_condition(&key, &a, changed)
+            .update_encounter_participant_condition(
+                &key,
+                &a,
+                after.participants[0].conditions[0].condition_id,
+                changed
+            )
             .unwrap_err()
             .into_app_error()
             .code,
@@ -621,18 +640,21 @@ fn zero_nonround_duration_is_only_a_manual_reminder() {
 fn expired_rounds_do_not_disable_modeled_condition_effects() {
     let (f, key, _, _) = fixture();
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "Test Creature 1".into(),
-            quantity: 1,
-            initiative: Some(30),
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: Some(30),
+            },
+        )
         .unwrap();
     let owner = snapshot(&f, &key).participants[0].participant_key.clone();
     f.worker
         .add_encounter_participant_condition(
             &key,
+            &owner,
             AddEncounterParticipantConditionRequest {
                 request_id: format!(
                     "fixture-timing_tests-609-{}",
@@ -646,7 +668,6 @@ fn expired_rounds_do_not_disable_modeled_condition_effects() {
                 immunity_override: false,
                 parameters: Default::default(),
                 origin: None,
-                participant_key: owner.clone(),
                 condition_ref: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
                 name: None,
                 value: Some(2),
@@ -739,13 +760,15 @@ fn present_inactive_anchor_waits_until_its_actual_boundary() {
 fn turn_order_skips_unrolled_participants_and_explains_missing_scores() {
     let (f, key, a, b) = fixture();
     f.worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "C".into(),
-            max_hp: Some(10),
-            current_hp: Some(10),
-            initiative: None,
-        })
+        .add_encounter_manual_participant(
+            &key,
+            AddEncounterManualParticipantRequest {
+                display_name: "C".into(),
+                max_hp: Some(10),
+                current_hp: Some(10),
+                initiative: None,
+            },
+        )
         .unwrap();
     let mut state = snapshot(&f, &key);
     state.encounter.current_turn_participant_key = Some(a.clone());
@@ -1063,7 +1086,6 @@ fn tracker_request(
         request_id: id.into(),
         expected_encounter_revision: view.revision,
         expected_participant_revision: p.revision,
-        participant_key: participant.into(),
         action,
     }
 }
@@ -1092,10 +1114,10 @@ fn manual_trackers_preserve_progress_replay_and_independent_participants() {
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, request.clone())
+        .update_encounter_manual_tracker(&key, &a, request.clone())
         .unwrap();
     f.worker
-        .update_encounter_manual_tracker(&key, request)
+        .update_encounter_manual_tracker(&key, &a, request)
         .unwrap();
     let saved = snapshot(&f, &key);
     assert_eq!(saved.participants[0].manual_trackers.len(), 1);
@@ -1137,7 +1159,7 @@ fn manual_trackers_preserve_progress_replay_and_independent_participants() {
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, rename)
+        .update_encounter_manual_tracker(&key, &a, rename)
         .unwrap();
     assert_eq!(
         f.worker.encounter(&key).unwrap().participants[0].manual_trackers[0].remaining_rounds,
@@ -1172,7 +1194,7 @@ fn manual_trackers_preserve_progress_replay_and_independent_participants() {
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, restart)
+        .update_encounter_manual_tracker(&key, &a, restart)
         .unwrap();
     assert_eq!(
         f.worker.encounter(&key).unwrap().participants[0].manual_trackers[0].remaining_rounds,
@@ -1189,7 +1211,7 @@ fn manual_trackers_preserve_progress_replay_and_independent_participants() {
     );
     assert!(
         f.worker
-            .update_encounter_manual_tracker(&key, foreign)
+            .update_encounter_manual_tracker(&key, &b, foreign)
             .is_err()
     );
     let remove = tracker_request(
@@ -1202,10 +1224,10 @@ fn manual_trackers_preserve_progress_replay_and_independent_participants() {
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, remove.clone())
+        .update_encounter_manual_tracker(&key, &a, remove.clone())
         .unwrap();
     f.worker
-        .update_encounter_manual_tracker(&key, remove)
+        .update_encounter_manual_tracker(&key, &a, remove)
         .unwrap();
     assert!(
         snapshot(&f, &key).participants[0]
@@ -1247,7 +1269,7 @@ fn manual_tracker_admission_is_atomic_and_guards_revisions_and_timing() {
         );
         assert!(
             f.worker
-                .update_encounter_manual_tracker(&key, request)
+                .update_encounter_manual_tracker(&key, &a, request)
                 .is_err()
         );
         assert_eq!(snapshot(&f, &key), original);
@@ -1265,7 +1287,7 @@ fn manual_tracker_admission_is_atomic_and_guards_revisions_and_timing() {
     request.expected_participant_revision -= 1;
     assert!(
         f.worker
-            .update_encounter_manual_tracker(&key, request)
+            .update_encounter_manual_tracker(&key, &a, request)
             .is_err()
     );
     assert_eq!(snapshot(&f, &key), original);
@@ -1354,7 +1376,7 @@ fn tracker_start_timing_and_deleted_anchors_remain_explicit() {
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, request)
+        .update_encounter_manual_tracker(&key, &a, request)
         .unwrap();
     set(&f, &key, &a);
     next(&f, &key);
@@ -1396,7 +1418,7 @@ fn overnight_expires_short_and_exact_durations_and_preserves_long_progress_then_
             },
         );
         f.worker
-            .update_encounter_manual_tracker(&key, request)
+            .update_encounter_manual_tracker(&key, &a, request)
             .unwrap();
         let condition_duration =
             super::timing::duration_input(Some(duration), None, &snapshot(&f, &key)).unwrap();
@@ -1514,18 +1536,20 @@ fn set_round_seconds(
     seconds: Option<i64>,
 ) -> crate::AppServiceResult<EncounterMutationView> {
     let view = f.worker.encounter(key).unwrap();
-    f.worker.update_encounter(UpdateEncounterRequest {
-        encounter_key: view.encounter.encounter_key,
-        slug: None,
-        name: None,
-        description: None,
-        note: None,
-        status: None,
-        round_duration_seconds: seconds.map(|value| FieldEdit {
-            expected: view.encounter.round_duration_seconds,
-            value,
-        }),
-    })
+    f.worker.update_encounter(
+        &view.encounter.encounter_key,
+        UpdateEncounterRequest {
+            slug: None,
+            name: None,
+            description: None,
+            note: None,
+            status: None,
+            round_duration_seconds: seconds.map(|value| FieldEdit {
+                expected: view.encounter.round_duration_seconds,
+                value,
+            }),
+        },
+    )
 }
 #[test]
 fn custom_round_lengths_preserve_elapsed_seconds_and_turn_count_trackers() {
@@ -1552,7 +1576,7 @@ fn custom_round_lengths_preserve_elapsed_seconds_and_turn_count_trackers() {
             },
         );
         f.worker
-            .update_encounter_manual_tracker(&key, request)
+            .update_encounter_manual_tracker(&key, &a, request)
             .unwrap();
     }
     let duration =
@@ -1667,7 +1691,7 @@ fn migrated_large_counters_remain_exact_when_changing_round_length_or_restarting
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, request)
+        .update_encounter_manual_tracker(&key, &a, request)
         .unwrap();
     let saved = snapshot(&f, &key);
     let mut tracker = saved.participants[0].manual_trackers[0].clone();
@@ -1719,7 +1743,7 @@ fn renaming_a_spent_large_legacy_tracker_does_not_readmit_or_restart_its_templat
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, request)
+        .update_encounter_manual_tracker(&key, &a, request)
         .unwrap();
     let saved = snapshot(&f, &key);
     let mut tracker = saved.participants[0].manual_trackers[0].clone();
@@ -1760,7 +1784,7 @@ fn renaming_a_spent_large_legacy_tracker_does_not_readmit_or_restart_its_templat
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, request)
+        .update_encounter_manual_tracker(&key, &a, request)
         .unwrap();
     let view = f.worker.encounter(&key).unwrap();
     assert_eq!(view.participants[0].manual_trackers[0].remaining_rounds, 0);
@@ -1774,7 +1798,7 @@ fn renaming_a_spent_large_legacy_tracker_does_not_readmit_or_restart_its_templat
     );
     assert!(
         f.worker
-            .update_encounter_manual_tracker(&key, restart)
+            .update_encounter_manual_tracker(&key, &a, restart)
             .is_err(),
         "restarting still requires an exactly representable projected count"
     );
@@ -1798,7 +1822,7 @@ fn add_transition_tracker(
         },
     );
     f.worker
-        .update_encounter_manual_tracker(key, request)
+        .update_encounter_manual_tracker(key, owner, request)
         .unwrap();
     snapshot(f, key)
         .participants
@@ -2087,7 +2111,7 @@ fn elapsed_tracker_current_status_distinguishes_restart_removal_and_removed_owne
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, restart)
+        .update_encounter_manual_tracker(&key, &a, restart)
         .unwrap();
     let review = f
         .worker
@@ -2110,10 +2134,10 @@ fn elapsed_tracker_current_status_distinguishes_restart_removal_and_removed_owne
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, remove.clone())
+        .update_encounter_manual_tracker(&key, &a, remove.clone())
         .unwrap();
     f.worker
-        .update_encounter_manual_tracker(&key, remove)
+        .update_encounter_manual_tracker(&key, &a, remove)
         .unwrap();
     let review = f
         .worker
@@ -2284,7 +2308,7 @@ fn start_phase_uses_incoming_actor_round_and_retains_foreign_tracker_results() {
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, restart)
+        .update_encounter_manual_tracker(&key, &b, restart)
         .unwrap();
     let incoming = f
         .worker
@@ -2308,7 +2332,7 @@ fn start_phase_uses_incoming_actor_round_and_retains_foreign_tracker_results() {
         },
     );
     f.worker
-        .update_encounter_manual_tracker(&key, remove)
+        .update_encounter_manual_tracker(&key, &b, remove)
         .unwrap();
     let incoming = f
         .worker

@@ -1,0 +1,16 @@
+{
+  "name": "@pf2e-atlas/openapi-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.18.0 || ^24.0.0 || ^26.0.0"
+  },
+  "devDependencies": {
+    "orval": "8.46.0"
+  },
+  "scripts": {
+    "generate": "node generate.mjs",
+    "check": "node generate.mjs --check"
+  }
+}

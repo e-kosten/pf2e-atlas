@@ -43,13 +43,15 @@ fn encounter(f: &FixtureWorker) -> String {
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     key
 }
@@ -202,13 +204,15 @@ fn explicit_manual_modifier_does_not_require_reference_hydration() {
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "PC".into(),
-            max_hp: None,
-            current_hp: None,
-            initiative: None,
-        })
+        .add_encounter_manual_participant(
+            &key,
+            AddEncounterManualParticipantRequest {
+                display_name: "PC".into(),
+                max_hp: None,
+                current_hp: None,
+                initiative: None,
+            },
+        )
         .unwrap();
     let crate::service::RetrievalBackend::Pooled(executor) = &f.worker.retrieval else {
         panic!("fixture executor")
@@ -267,7 +271,8 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
                 passage: None,
                 source_fingerprint: None,
                 spell_rank: None,
-            },
+            }
+            .into_selection(),
         },
         attack_number: 1,
         mode: RollMode::Normal,

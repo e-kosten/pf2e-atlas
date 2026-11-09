@@ -3,7 +3,7 @@ use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     PersistentDamageDraft, PersistentDamageInput, PersistentDamageResultView,
     PersistentDraftContext, PersistentRecoveryDraft, PersistentRecoveryResultView,
-    PreparePersistentDamageRequest, PreparedPersistentDamageView,
+    PreparePersistentDamageRequest, PreparedPersistentDamageDraft, PreparedPersistentDamageView,
 };
 use atlas_local_state::{EncounterBoundaryKind, PersistentDamageOutcome};
 
@@ -391,12 +391,23 @@ impl AtlasAppService {
                 Ok(())
             })?;
         }
-        if let Some((group, dice, multiplier, protection)) = rolling {
+        let damage_draft = if let Some((group, dice, multiplier, protection)) = rolling {
             let roll = dice
                 .roll()
                 .map_err(atlas_local_state::LocalStateError::from)?;
+            let draft = PreparedPersistentDamageDraft {
+                episode_id: group.episode_id.into(),
+                draft: PersistentDamageDraft {
+                    context: context.clone(),
+                    source_condition_id: group.selected_source.condition_id,
+                    roll: roll.clone(),
+                },
+            };
             resolved.push(rolled_damage(group, roll, multiplier, protection));
-        }
+            Some(draft)
+        } else {
+            None
+        };
         let mut recovery_draft = None;
         let recovery = recovery
             .map(|(group, dc, dc_override)| {
@@ -438,7 +449,7 @@ impl AtlasAppService {
             },
             complete,
             recovery,
-            draft_context: context,
+            damage_draft,
             recovery_draft,
         })
     }

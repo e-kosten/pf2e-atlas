@@ -35,7 +35,7 @@ export function EncounterHpControls({
   const addTemporaryButton = useRef<HTMLButtonElement>(null);
   const [temporaryFocusRequest, setTemporaryFocusRequest] = useState<{
     participantKey: string;
-    revision: bigint;
+    revision: number;
   }>();
   const restoredTemporaryFocus = useRef<typeof temporaryFocusRequest>(undefined);
   useLayoutEffect(() => {
@@ -94,7 +94,7 @@ export function EncounterHpControls({
             <span className="encounter-hp-maximum">
               <NumberFact fact={current.effective_max_hp} label="Maximum HP" />
             </span>
-            {current.temporary_hp > 0n && (
+            {current.temporary_hp > 0 && (
               <>
                 <span>+</span>
                 <EncounterHpValue
@@ -113,10 +113,10 @@ export function EncounterHpControls({
               </>
             )}
           </span>
-          {current.temporary_hp === 0n && (
+          {current.temporary_hp === 0 && (
             <EncounterHpValue
               label="Temporary HP"
-              value={0n}
+              value={0}
               addLabel="Add temp HP"
               buttonRef={addTemporaryButton}
               disabled={disabled}

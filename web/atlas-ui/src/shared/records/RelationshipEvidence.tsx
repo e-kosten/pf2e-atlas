@@ -157,13 +157,13 @@ function EvidencePage({
           </li>
         ))}
       </ul>
-      {evidence.page.total > BigInt(evidence.page.size) && (
+      {evidence.page.total > evidence.page.size && (
         <Pagination
           size="small"
           simple
           current={page}
           pageSize={evidence.page.size}
-          total={Number(evidence.page.total)}
+          total={evidence.page.total}
           showSizeChanger={false}
           itemRender={(_number, type, element) =>
             (type === "prev" || type === "next") &&

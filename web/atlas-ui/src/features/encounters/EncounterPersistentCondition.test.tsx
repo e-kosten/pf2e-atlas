@@ -8,7 +8,8 @@ import type {
   EncounterParticipantView,
 } from "../../generated/atlas";
 vi.mock("../../api/atlasApi", () => ({
-  previewEncounterCondition: vi.fn().mockResolvedValue({ consequences: [] }),
+  previewEncounterConditionAdd: vi.fn().mockResolvedValue({ consequences: [] }),
+  previewEncounterConditionUpdate: vi.fn().mockResolvedValue({ consequences: [] }),
 }));
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterConditionValue } from "./EncounterConditionValue";
@@ -20,10 +21,10 @@ it("edits typed persistent damage while preserving its episode, origin and indep
     participant_kind: "creature",
     side: "enemy",
     track_dying: false,
-    revision: 0n,
+    revision: 0,
     conditions: [
       {
-        condition_id: 9n,
+        condition_id: 9,
         condition_key: "conditionitems:example",
         name: "Burning source",
         scope: { kind: "everyone" },
@@ -34,7 +35,7 @@ it("edits typed persistent damage while preserving its episode, origin and indep
           formula: "2d6",
           damage_type: "fire",
           multiplier: "double",
-          recovery: { kind: "specified", dc: 12n },
+          recovery: { kind: "specified", dc: 12 },
           episode_id: "episode-fire",
         },
         origin: {
@@ -46,7 +47,7 @@ it("edits typed persistent damage while preserving its episode, origin and indep
           artifact_generation: null,
         },
         duration: {
-          amount: 2n,
+          amount: 2,
           unit: "rounds",
           timing: { event: "end", participant_key: "actor" },
         },
@@ -75,7 +76,7 @@ it("edits typed persistent damage while preserving its episode, origin and indep
       encounterRef="encounter"
       onPreviewCondition={onPreview}
       current={current}
-      encounterRevision={14n}
+      encounterRevision={14}
       disabled={false}
       pending={false}
       addDisabled={false}
@@ -108,14 +109,14 @@ it("edits typed persistent damage while preserving its episode, origin and indep
     expect(onUpdate).toHaveBeenCalledWith(
       "actor",
       expect.objectContaining({
-        expected_encounter_revision: 14n,
+        expected_encounter_revision: 14,
         event_intent: "apply",
         parameters: {
           kind: "persistent_damage",
           formula: "3d6",
           damage_type: "fire",
           multiplier: "double",
-          recovery: { kind: "specified", dc: 12n },
+          recovery: { kind: "specified", dc: 12 },
         },
         origin: current.conditions[0].origin,
         duration: current.conditions[0].duration,
@@ -148,7 +149,7 @@ it("edits typed persistent damage while preserving its episode, origin and indep
           formula: "3d6",
           damage_type: "cold",
           multiplier: "double",
-          recovery: { kind: "specified", dc: 12n },
+          recovery: { kind: "specified", dc: 12 },
         },
         origin: current.conditions[0].origin,
         duration: current.conditions[0].duration,
@@ -158,7 +159,7 @@ it("edits typed persistent damage while preserving its episode, origin and indep
 });
 
 it("shows linked persistent sources without disclosure and dims the backend-superseded source", async () => {
-  const condition = (id: bigint, formula: string) => ({
+  const condition = (id: number, formula: string) => ({
     condition_id: id,
     name: `Source ${id}`,
     condition_key: "conditionitems:persistent",
@@ -180,16 +181,16 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
     episode_id: "episode",
     immunity_note: "Immune to fire",
     damage_type: "fire",
-    selected_source_id: 1n,
+    selected_source_id: 1,
     sources: [
-      { condition_id: 1n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
-      { condition_id: 2n, formula: "2d6", multiplier: "normal", recovery_dc: 15n },
+      { condition_id: 1, formula: "1d6", multiplier: "normal", recovery_dc: 15 },
+      { condition_id: 2, formula: "2d6", multiplier: "normal", recovery_dc: 15 },
     ],
   };
   const current = {
     participant_key: "actor",
     display_name: "Actor",
-    conditions: [condition(1n, "1d6"), condition(2n, "2d6")],
+    conditions: [condition(1, "1d6"), condition(2, "2d6")],
     persistent_damage_groups: [group],
   } as EncounterParticipantView;
   const onRemove = vi.fn().mockResolvedValue(true);
@@ -197,7 +198,7 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
     encounterRef: "encounter",
     onPreviewCondition: vi.fn().mockResolvedValue({ consequences: [] }),
     current,
-    encounterRevision: 8n,
+    encounterRevision: 8,
     disabled: false,
     pending: false,
     addDisabled: false,
@@ -231,14 +232,14 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
   expect(screen.getByRole("button", { name: "Edit Source 1" })).toBeVisible();
   expect(screen.queryByRole("button", { name: /Persistent Damage/ })).toBeNull();
   fireEvent.click(await screen.findByRole("button", { name: "Remove Source 2" }));
-  expect(onRemove).toHaveBeenCalledWith("actor", 2n, 8n);
+  expect(onRemove).toHaveBeenCalledWith("actor", 2, 8);
   rerender(
     <EncounterConditionControls
       {...props}
       current={{
         ...current,
         persistent_damage_groups: [
-          { ...current.persistent_damage_groups[0], selected_source_id: 2n },
+          { ...current.persistent_damage_groups[0], selected_source_id: 2 },
         ],
       }}
     />,
@@ -258,7 +259,7 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
             ...current.conditions[0],
             source_participant_key: "actor",
             note: "Burning note",
-            duration: { amount: 2n, unit: "rounds", timing: null },
+            duration: { amount: 2, unit: "rounds", timing: null },
           },
         ],
         persistent_damage_groups: [
@@ -276,7 +277,7 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
   expect(screen.getByText("2 rounds · timing not configured")).toBeVisible();
   expect(screen.getByRole("button", { name: "Edit Source 1" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Remove Source 1" }));
-  expect(onRemove).toHaveBeenLastCalledWith("actor", 1n, 8n);
+  expect(onRemove).toHaveBeenLastCalledWith("actor", 1, 8);
   expect(
     screen.queryByRole("dialog", { name: /Remove|Confirm/ }),
   ).not.toBeInTheDocument();
@@ -285,7 +286,7 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
     rerender(
       <EncounterConditionControls
         {...props}
-        encounterRevision={9n}
+        encounterRevision={9}
         current={{ ...current, conditions: [], persistent_damage_groups: [] }}
       />,
     );
@@ -294,9 +295,9 @@ it("shows linked persistent sources without disclosure and dims the backend-supe
       request_id: "recovery",
       episode_id: "episode",
       damage_type: "fire",
-      dc: 15n,
+      dc: 15,
       roll: null,
-      table_result: 18n,
+      table_result: 18,
       success: true,
     };
   });
@@ -317,7 +318,7 @@ it("shows a detail-free persistent condition without an internal Reminder label 
   const current = encounterParticipant({
     conditions: [
       {
-        condition_id: 9n,
+        condition_id: 9,
         condition_key: "conditionitems:example",
         name: "Persistent Damage",
         created_at: "",
@@ -339,7 +340,7 @@ it("shows a detail-free persistent condition without an internal Reminder label 
     <EncounterConditionControls
       current={current}
       encounterRef="encounter"
-      encounterRevision={1n}
+      encounterRevision={1}
       pending={false}
       disabled={false}
       addDisabled={false}
@@ -374,8 +375,8 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
         kind: "next_turn",
         count: {
           label: "Actions",
-          base_value: 3n,
-          adjusted_value: 2n,
+          base_value: 3,
+          adjusted_value: 2,
           segments: [],
           adjustments: [],
           suppressed_adjustments: [],
@@ -398,8 +399,8 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
       can_spend_reactions: { available: true },
       forecast: {
         label: "Actions",
-        base_value: 3n,
-        adjusted_value: 2n,
+        base_value: 3,
+        adjusted_value: 2,
         segments: [],
         adjustments: [],
         suppressed_adjustments: [],
@@ -409,7 +410,7 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
           {
             name: "Slowed",
             has_value: true,
-            value: 1n,
+            value: 1,
             condition_ref: "conditionitems:xYTAsEpcJE1Ccni3",
             source_name: "Slow",
             source,
@@ -426,7 +427,7 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
     <EncounterConditionControls
       current={current}
       encounterRef="encounter"
-      encounterRevision={1n}
+      encounterRevision={1}
       disabled={false}
       pending={false}
       addDisabled={false}
@@ -469,7 +470,7 @@ it("rejects negative source values without clamping them to inactive", async () 
     <EncounterConditionValue
       name="Stupefied from Brain Blisters"
       minimum={0}
-      value={2n}
+      value={2}
       disabled={false}
       onCommit={onCommit}
       onClear={onClear}
@@ -491,7 +492,7 @@ it("rejects negative source values without clamping them to inactive", async () 
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "0" } });
   fireEvent.blur(input);
-  await waitFor(() => expect(onCommit).toHaveBeenCalledWith(0n));
+  await waitFor(() => expect(onCommit).toHaveBeenCalledWith(0));
 
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "" } });

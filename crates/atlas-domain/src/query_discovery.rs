@@ -4,7 +4,8 @@ use serde_json::Number;
 
 /// Optional contextual discovery can be unavailable for a valid query. Invalid
 /// predicates and requests remain errors rather than discovery outcomes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum QueryFacetOutcome<T> {
     Available { value: T },
@@ -18,7 +19,8 @@ impl<T> QueryFacetOutcome<T> {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FacetUnavailableReason {
     NonConjunctiveContext,
@@ -27,11 +29,13 @@ pub enum FacetUnavailableReason {
 }
 
 /// Suggestions are independent of search conditions and have no result counts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryVocabularyOption {
     pub value: QueryLiteral,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryVocabularyBasis {
     ProductArtifact,
@@ -40,7 +44,8 @@ pub enum QueryVocabularyBasis {
 /// `selected_values` contains valid selected literals, including values absent
 /// from the suggestion page. `total_values` counts available values matching
 /// vocabulary text, excluding absent selections.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryVocabulary {
     pub field: String,
     pub options: Vec<QueryVocabularyOption>,
@@ -49,7 +54,8 @@ pub struct QueryVocabulary {
     pub basis: QueryVocabularyBasis,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryStateCount {
     pub state: QueryFieldState,
     pub occurrences: u64,
@@ -57,25 +63,28 @@ pub struct QueryStateCount {
 }
 /// `counting_scope` partitions roots for root values and counts occurrences
 /// for collection-member states.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryFieldCounts {
     pub field: String,
     pub counting_scope: String,
     pub states: Vec<QueryStateCount>,
     pub exhaustive: bool,
     pub count_basis: String,
-    #[ts(type = "number | null")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<f64>))]
     pub minimum: Option<Number>,
-    #[ts(type = "number | null")]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<f64>))]
     pub maximum: Option<Number>,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryValueOption {
     pub value: QueryLiteral,
     pub distinct_roots: u64,
     pub selected: bool,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryValueOptions {
     pub field: String,
     pub options: Vec<QueryValueOption>,

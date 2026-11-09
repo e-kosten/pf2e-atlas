@@ -11,10 +11,10 @@ vi.mock("../../api/atlasApi", async (original) => ({
 
 it("retains the Drained HP preview through edits and failed refreshes without authorizing Apply", async () => {
   const initial = {
-    current_before: 10n,
-    current_after: 5n,
-    maximum_before: 20n,
-    maximum_after: 15n,
+    current_before: 10,
+    current_after: 5,
+    maximum_before: 20,
+    maximum_after: 15,
   };
   vi.mocked(previewEncounterDrainedConsequence).mockResolvedValue(initial);
   const onResolve = vi.fn();
@@ -24,14 +24,14 @@ it("retains the Drained HP preview through edits and failed refreshes without au
       <QueryClientProvider client={client}>
         <EncounterConditionConsequences
           encounterRef="encounter"
-          encounterRevision={1n}
+          encounterRevision={1}
           row={{
             condition_ref: "drained",
             consequence_key: "consequence",
             participant_key: "actor",
-            magnitude_increase: 1n,
+            magnitude_increase: 1,
           }}
-          level={5n}
+          level={5}
           disabled={false}
           pending={false}
           onResolve={onResolve}
@@ -63,7 +63,7 @@ it("retains the Drained HP preview through edits and failed refreshes without au
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   vi.mocked(previewEncounterDrainedConsequence).mockResolvedValue({
     ...initial,
-    current_after: 4n,
+    current_after: 4,
   });
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await screen.findByText("10 → 4");

@@ -16,21 +16,19 @@ vi.mock("../../api/atlasApi", () => api);
 const fire: PersistentDamageGroupView = {
   episode_id: "fire",
   damage_type: "fire",
-  selected_source_id: 2n,
+  selected_source_id: 2,
   sources: [
-    { condition_id: 2n, formula: "2d6", multiplier: "normal", recovery_dc: 15n },
-    { condition_id: 1n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
+    { condition_id: 2, formula: "2d6", multiplier: "normal", recovery_dc: 15 },
+    { condition_id: 1, formula: "1d6", multiplier: "normal", recovery_dc: 15 },
   ],
 };
 const bleed: PersistentDamageGroupView = {
   episode_id: "bleed",
   damage_type: "bleed",
-  selected_source_id: 3n,
-  sources: [
-    { condition_id: 3n, formula: "1d4", multiplier: "normal", recovery_dc: 15n },
-  ],
+  selected_source_id: 3,
+  sources: [{ condition_id: 3, formula: "1d4", multiplier: "normal", recovery_dc: 15 }],
 };
-const condition = (id: bigint, note: string): EncounterParticipantConditionView => ({
+const condition = (id: number, note: string): EncounterParticipantConditionView => ({
   condition_id: id,
   created_at: "",
   updated_at: "",
@@ -40,7 +38,7 @@ const condition = (id: bigint, note: string): EncounterParticipantConditionView 
   immunity_override: false,
   parameters: {
     kind: "persistent_damage",
-    formula: id === 1n ? "1d6" : "2d6",
+    formula: id === 1 ? "1d6" : "2d6",
     damage_type: "fire",
     multiplier: "normal",
     recovery: { kind: "standard" },
@@ -57,16 +55,16 @@ it("keeps every source and queues a table recovery without dropping its damage f
       request_id: request.request_id,
       groups: [],
       total: request.groups.reduce(
-        (sum: bigint, g: { damage: { amount: bigint } }) => sum + g.damage.amount,
-        0n,
+        (sum: number, g: { damage: { amount: number } }) => sum + g.damage.amount,
+        0,
       ),
-      hardness_absorbed: 0n,
+      hardness_absorbed: 0,
     },
   }));
   const review = {
-    encounter_revision: 1n,
+    encounter_revision: 1,
     damage_groups: [fire, bleed],
-    round_number: 1n,
+    round_number: 1,
     damage_applied: false,
     damage_result: null,
     recovery_results: [],
@@ -82,7 +80,7 @@ it("keeps every source and queues a table recovery without dropping its damage f
   const onRecover = vi.fn().mockImplementation(async () => {
     api.getEncounterPersistentReview.mockResolvedValue({
       ...review,
-      encounter_revision: 2n,
+      encounter_revision: 2,
       damage_groups: [bleed],
     });
     return {
@@ -99,17 +97,17 @@ it("keeps every source and queues a table recovery without dropping its damage f
     encounter_key: "encounter",
     request_id: "damage",
     groups: [],
-    total: 3n,
-    hardness_absorbed: 0n,
+    total: 3,
+    hardness_absorbed: 0,
   });
   render(
     <EncounterPersistentTurnReview
       encounterRef="encounter"
       participant={encounterParticipant({
         persistent_damage_groups: [fire, bleed],
-        conditions: [condition(1n, "Lingering flames"), condition(2n, "Dragon flame")],
+        conditions: [condition(1, "Lingering flames"), condition(2, "Dragon flame")],
       })}
-      encounterRevision={1n}
+      encounterRevision={1}
       boundaryKey="outgoing"
       generation={null}
       damageTypes={[
@@ -151,13 +149,13 @@ it("keeps every source and queues a table recovery without dropping its damage f
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
-        expected_encounter_revision: 1n,
+        expected_encounter_revision: 1,
         recoveries: [{ kind: "clear", episode_id: "fire", draft: null }],
         groups: [
-          { episode_id: "fire", damage: { kind: "table_result", amount: 2n } },
+          { episode_id: "fire", damage: { kind: "table_result", amount: 2 } },
           {
             episode_id: "bleed",
-            damage: { kind: "table_result", amount: 3n },
+            damage: { kind: "table_result", amount: 3 },
           },
         ],
       }),

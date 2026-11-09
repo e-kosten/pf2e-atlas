@@ -13,12 +13,11 @@ import type {
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
   SearchResultsRequest,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import { EncounterAddMenu } from "./EncounterAddMenu";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { InitiativeValueField } from "./InitiativeValueField";
-import { participantUpdate } from "./participantEdits";
 import { InitiativePopover } from "./InitiativeRollModal";
 import {
   SearchPickerModal,
@@ -91,7 +90,10 @@ export function EncounterRosterPane({
   ) => Promise<boolean>;
   onSelect: (participantKey: string) => void;
   onSetTurn: (participant: EncounterParticipantView) => void;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<unknown>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantEdit,
+  ) => Promise<unknown>;
   onRoll: (
     request: import("../../generated/atlas").RollInitiativeRequest,
   ) => Promise<import("../../generated/atlas").InitiativeRollView>;
@@ -149,7 +151,6 @@ export function EncounterRosterPane({
     setAdded("");
     try {
       const saved = await onAddRecord({
-        encounter_ref: slug,
         record_ref,
         quantity,
         ...(participant_variant === null ? {} : { participant_variant }),
@@ -172,10 +173,9 @@ export function EncounterRosterPane({
     if (disabled) return;
     try {
       const saved = await onAddManual({
-        encounter_ref: slug,
         display_name: values.name,
-        ...(values.maxHp == null ? {} : { max_hp: BigInt(values.maxHp) }),
-        ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
+        ...(values.maxHp == null ? {} : { max_hp: values.maxHp }),
+        ...(values.initiative == null ? {} : { initiative: values.initiative }),
       });
       if (saved) {
         setPcOpen(false);
@@ -225,11 +225,10 @@ export function EncounterRosterPane({
                 disabled={disabled}
                 compact
                 onSave={(value) =>
-                  onUpdate(
-                    participantUpdate(participant, {
-                      initiative: value === undefined ? undefined : BigInt(value),
-                    }),
-                  )
+                  onUpdate(participant.participant_key, {
+                    expected_revision: participant.revision,
+                    initiative: value ?? null,
+                  })
                 }
               />
             ) : (
@@ -293,9 +292,10 @@ export function EncounterRosterPane({
               disabled={disabled}
               onSetTurn={() => onSetTurn(participant)}
               onToggleDim={() =>
-                onUpdate(
-                  participantUpdate(participant, { hidden: !participant.hidden }),
-                )
+                onUpdate(participant.participant_key, {
+                  expected_revision: participant.revision,
+                  hidden: !participant.hidden,
+                })
               }
               onRemove={() => onRemove(participant)}
             />
@@ -607,7 +607,7 @@ function encounterRecordPickerRequest(query: string): SearchResultsRequest {
   };
 }
 
-function inputNumberValue(value: bigint | undefined): string {
+function inputNumberValue(value: number | undefined): string {
   return value === undefined ? "" : value.toString();
 }
 function rosterRowClass(
@@ -721,8 +721,7 @@ function rosterHpTone(participant: EncounterParticipantView): string {
     maximum.value <= 0
   )
     return "";
-  const ratio =
-    (Number(participant.current_hp) + Number(participant.temporary_hp)) / maximum.value;
+  const ratio = (participant.current_hp + participant.temporary_hp) / maximum.value;
   return ratio <= 0.25
     ? "encounter-roster__hp--critical"
     : ratio <= 0.5

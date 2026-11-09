@@ -317,7 +317,7 @@ it("hides known-empty associations", async () => {
     artifact_generation: request.expected_artifact_generation,
     sort: { kind: "relevance" },
     rows: [],
-    page: { number: 1, size: 5, count: 0, total: 0n, has_more: false, next_page: null },
+    page: { number: 1, size: 5, count: 0, total: 0, has_more: false, next_page: null },
     coverage: null,
   }));
   setup();

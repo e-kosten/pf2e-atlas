@@ -16,10 +16,10 @@ import {
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import { Settings } from "lucide-react";
-import { optionalBigIntInput, participantUpdate } from "./participantEdits";
+import { optionalIntegerInput } from "./participantEdits";
 
 type ParticipantValues = {
   name: string;
@@ -45,7 +45,10 @@ export function EncounterParticipantSettings({
   pending: boolean;
   error?: string;
   recovery?: ReactNode;
-  onUpdate: (request: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantEdit,
+  ) => Promise<boolean>;
   onLifeSettings?: (
     settings: Omit<
       import("../../generated/atlas").SetEncounterLifeSettingsRequest,
@@ -142,7 +145,7 @@ export function EncounterParticipantSettings({
           }
           onSave={async (request) => {
             if (disabled || pending) return;
-            const refreshed = await onUpdate(request);
+            const refreshed = await onUpdate(participant.participant_key, request);
             if (refreshed) setOpen(false);
             else setCommitted(true);
           }}
@@ -169,7 +172,7 @@ function ParticipantSettingsForm({
   recovery?: ReactNode;
   lifeSettings?: ReactNode;
   formId: string;
-  onSave: (request: UpdateEncounterParticipantRequest) => Promise<void>;
+  onSave: (request: UpdateEncounterParticipantEdit) => Promise<void>;
 }) {
   const name = useId();
   const [form] = Form.useForm<ParticipantValues>();
@@ -204,20 +207,21 @@ function ParticipantSettingsForm({
         disabled={disabled || pending}
         onFinish={async (values) => {
           if (disabled) return;
-          const initiative = optionalBigIntInput(values.initiative ?? "");
+          const initiative = optionalIntegerInput(values.initiative ?? "");
           if (initiative === null) return;
           try {
-            await onSave(
-              participantUpdate(participant, {
-                display_name: values.name,
-                initiative,
-                side: values.side,
-                ...(form.isFieldTouched("adjustment")
-                  ? { participant_variant: values.adjustment }
-                  : {}),
-                note: values.note || undefined,
+            await onSave({
+              expected_revision: participant.revision,
+              ...(form.isFieldTouched("name") && { display_name: values.name }),
+              ...(form.isFieldTouched("initiative") && {
+                initiative: initiative ?? null,
               }),
-            );
+              ...(form.isFieldTouched("side") && { side: values.side }),
+              ...(form.isFieldTouched("adjustment") && {
+                participant_variant: values.adjustment,
+              }),
+              ...(form.isFieldTouched("note") && { note: values.note || null }),
+            });
           } catch {
             /* The mutation owner displays the error; retain the draft. */
           }
@@ -238,7 +242,7 @@ function ParticipantSettingsForm({
           rules={[
             {
               validator: (_rule, value: string | undefined) =>
-                optionalBigIntInput(value ?? "") === null
+                optionalIntegerInput(value ?? "") === null
                   ? Promise.reject(new Error("Enter a whole number or leave blank."))
                   : Promise.resolve(),
             },
@@ -294,7 +298,7 @@ function LifeSettings({
   >;
 }) {
   const [threshold, setThreshold] = useState<number | null>(
-    Number(participant.base_death_threshold),
+    participant.base_death_threshold,
   );
   const [error, setError] = useState<string>();
   const [pendingMortality, setPendingMortality] =
@@ -333,11 +337,11 @@ function LifeSettings({
                   threshold != null &&
                   threshold > 0 &&
                   Number.isSafeInteger(threshold) &&
-                  threshold !== Number(participant.base_death_threshold)
+                  threshold !== participant.base_death_threshold
                 )
                   void save({
                     track_dying: true,
-                    base_death_threshold: BigInt(threshold),
+                    base_death_threshold: threshold,
                   });
               }}
             />

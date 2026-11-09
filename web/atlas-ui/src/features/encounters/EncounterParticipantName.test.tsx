@@ -72,17 +72,10 @@ it("retains a failed save for retry, submits once on blur, and preserves other s
   expect(input).toHaveValue(" Goblin captain ");
   fireEvent.blur(input);
   await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(2));
-  expect(onUpdate).toHaveBeenLastCalledWith(
-    expect.objectContaining({
-      participant_key: participant.participant_key,
-      expected_revision: participant.revision,
-      display_name: "Goblin captain",
-      side: participant.side,
-      hp_edit: false,
-      max_hp_edit: false,
-      variant_edit: false,
-    }),
-  );
+  expect(onUpdate).toHaveBeenLastCalledWith(participant.participant_key, {
+    expected_revision: participant.revision,
+    display_name: "Goblin captain",
+  });
   await waitFor(() => expect(screen.queryByRole("textbox")).not.toBeInTheDocument());
 });
 
@@ -113,7 +106,7 @@ it("keeps a pending save read-only and restores focus after canonical refresh", 
   expect(onUpdate).toHaveBeenCalledOnce();
   rerender(
     <EncounterParticipantName
-      participant={{ ...participant, display_name: "Captain", revision: 2n }}
+      participant={{ ...participant, display_name: "Captain", revision: 2 }}
       disabled={false}
       onUpdate={onUpdate}
     />,

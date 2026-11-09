@@ -5,6 +5,26 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Active condition control alignment
+
+The shared action columns align the value steppers and row actions across
+active conditions. The updated precedence, turn damage, and recovery images
+show the resulting name wrapping, focus bounds, and popover anchors. The
+ordinary comparison retains its existing assertions and pixel tolerance.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.65.0, source
+  `1fedf96a30cd5a39d910bb5b7d3d03b4e49ec620`.
+  Fixture SHA-256:
+  `5b5fb56da4abb0be5d64addbc7a094f98075a0c811a2701404e7bb132f597ce0`.
+- Ubuntu 24.04 x64, Playwright 1.65.0,
+  [capture 42535521070](https://github.com/e-kosten/pf2e-atlas/actions/runs/42535521070)
+  from the same source using run 42535190147's authenticated fixture.
+  Fixture SHA-256:
+  `db5023e4847966efebec9ff255785a7f93fcad4952fe77cc8865d98eb5554d24`.
+
+Both use frontend index SHA-256:
+`85a1fde68a7d881c56cebfb3402ae944d50c56e2c3e3496379c94c18f00bc9ed`.
+
 ## Encounter inspector typography
 
 The visible Turn heading, larger inspector and roster typography, and removed

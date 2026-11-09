@@ -11,7 +11,7 @@ it.each([
   const onAction = vi.fn().mockResolvedValue(true);
   render(
     <EncounterHpControls
-      current={encounterParticipant({ temporary_hp: 300n })}
+      current={encounterParticipant({ temporary_hp: 300 })}
       onAction={onAction}
     />,
   );
@@ -30,8 +30,8 @@ it.each([
 it.each(["before", "after"])(
   "clears temporary HP with canonical rendering %s completion",
   async (renderOrder) => {
-    const current = encounterParticipant({ temporary_hp: 5n });
-    const cleared = { ...current, temporary_hp: 0n, revision: current.revision + 1n };
+    const current = encounterParticipant({ temporary_hp: 5 });
+    const cleared = { ...current, temporary_hp: 0, revision: current.revision + 1 };
     const onAction = vi.fn().mockImplementation(async () => {
       if (renderOrder === "before")
         rerender(<EncounterHpControls current={cleared} onAction={onAction} />);
@@ -69,7 +69,7 @@ it("retains a rejected inline formula for correction and retry", async () => {
     .mockResolvedValue(true);
   render(
     <EncounterHpControls
-      current={encounterParticipant({ temporary_hp: 300n })}
+      current={encounterParticipant({ temporary_hp: 300 })}
       onAction={onAction}
     />,
   );
@@ -91,17 +91,17 @@ it("retains a rejected inline formula for correction and retry", async () => {
 
 it("shows updated derived HP after a submitted edit and variant capacity change", async () => {
   const current: EncounterParticipantView = {
-    revision: 0n,
+    revision: 0,
     manual_trackers: [],
     knockout_options: [],
     effective_max_hp: { state: "value", value: 20, adjustment: null },
     persistent_damage_groups: [],
     track_dying: false,
     mortality: "alive",
-    base_death_threshold: 4n,
+    base_death_threshold: 4,
     participant_key: "ghoul",
-    position: 1n,
-    initiative_order: 1n,
+    position: 1,
+    initiative_order: 1,
     display_name: "Ghoul",
     hp_origin: "derived",
     variant_origin: "default_unadjusted",
@@ -110,9 +110,9 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
     participant_variant: "normal",
     record_key: "pathfinder-bestiary:LHHgGSs0ELCR4CYK",
     status: "active",
-    max_hp: 20n,
-    current_hp: 20n,
-    temporary_hp: 0n,
+    max_hp: 20,
+    current_hp: 20,
+    temporary_hp: 0,
     defeated: false,
     hazard_disabled: false,
     cast_unavailable_reason: null,
@@ -145,8 +145,8 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
     <EncounterHpControls
       current={{
         ...current,
-        current_hp: 23n,
-        max_hp: 30n,
+        current_hp: 23,
+        max_hp: 30,
         effective_max_hp: { state: "value", value: 30, adjustment: null },
         participant_variant: "elite",
         variant_origin: "explicit",
@@ -161,15 +161,15 @@ it("shows updated derived HP after a submitted edit and variant capacity change"
 
 it("sets current and temporary HP directly, with Escape cancelling and no damage or healing event", async () => {
   const current = encounterParticipant({
-    current_hp: 12n,
-    max_hp: 30n,
+    current_hp: 12,
+    max_hp: 30,
     effective_max_hp: {
       state: "value",
       value: 20,
       adjustment: {
         authored: 30,
         applied: [
-          { source: "drained", label: "Drained", value: -10n, modifier_type: "status" },
+          { source: "drained", label: "Drained", value: -10, modifier_type: "status" },
         ],
         suppressed: [],
         notes: [],

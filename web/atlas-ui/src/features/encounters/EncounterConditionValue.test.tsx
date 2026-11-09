@@ -5,7 +5,7 @@ it("rejects blank, fractional and zero values without applying", async () => {
   render(
     <EncounterConditionValue
       name="Frightened"
-      value={2n}
+      value={2}
       disabled={false}
       onCommit={onCommit}
     />,
@@ -26,7 +26,7 @@ it("uses Remove at one and never commits zero", async () => {
   render(
     <EncounterConditionValue
       name="Frightened"
-      value={1n}
+      value={1}
       disabled={false}
       onCommit={onCommit}
       onClear={onClear}
@@ -44,13 +44,13 @@ it("steps positively once and keeps a rejected draft", async () => {
   render(
     <EncounterConditionValue
       name="Frightened"
-      value={1n}
+      value={1}
       disabled={false}
       onCommit={onCommit}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Increase Frightened value" }));
-  await waitFor(() => expect(onCommit).toHaveBeenCalledExactlyOnceWith(2n));
+  await waitFor(() => expect(onCommit).toHaveBeenCalledExactlyOnceWith(2));
   expect(screen.getByRole("spinbutton")).toHaveValue("2");
 });
 
@@ -62,7 +62,7 @@ it("keeps its focused draft read-only while a guarded write is pending", async (
         finish = resolve;
       }),
   );
-  const props = { name: "Frightened", value: 1n, disabled: false, onCommit };
+  const props = { name: "Frightened", value: 1, disabled: false, onCommit };
   const { rerender } = render(<EncounterConditionValue {...props} />);
   const input = screen.getByRole("spinbutton", { name: "Frightened value" });
   act(() => input.focus());
@@ -73,9 +73,9 @@ it("keeps its focused draft read-only while a guarded write is pending", async (
   expect(input).not.toBeDisabled();
   expect(input).toHaveAttribute("readonly");
   fireEvent.keyDown(input, { key: "Enter" });
-  expect(onCommit).toHaveBeenCalledExactlyOnceWith(2n);
+  expect(onCommit).toHaveBeenCalledExactlyOnceWith(2);
   await act(async () => finish(true));
-  rerender(<EncounterConditionValue {...props} value={2n} />);
+  rerender(<EncounterConditionValue {...props} value={2} />);
   expect(input).toHaveFocus();
   expect(input).toHaveValue("2");
   expect(input).not.toHaveAttribute("readonly");

@@ -26,7 +26,6 @@ test("encounter forms retain their anchor through expanding fields and reclamp o
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Anchor hero",
             max_hp: 30,
             current_hp: 30,

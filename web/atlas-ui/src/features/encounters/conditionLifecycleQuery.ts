@@ -5,7 +5,7 @@ import { getEncounterConditionLifecycleActions } from "../../api/atlasApi";
 export function conditionLifecycleQuery(
   encounterRef: string,
   participantKey: string,
-  revision: bigint,
+  revision: number,
   boundaryKey: string | null,
 ) {
   return queryOptions({

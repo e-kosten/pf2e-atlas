@@ -13,7 +13,7 @@ fn html(view: &RecordDetailView) -> &str {
         })
         .unwrap()
 }
-fn roll(view: &RecordDetailView) -> RollContentRequest {
+fn roll(view: &RecordDetailView) -> ContentRollOffer {
     view.presentation
         .content
         .iter()

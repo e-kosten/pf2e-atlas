@@ -50,7 +50,7 @@ function setup(
       <QueryClientProvider client={client}>
         <EncounterDifficulty
           encounterKey="encounter"
-          revision={9n}
+          revision={9}
           value={value}
           onPreview={(request) => previewEncounterDifficulty("encounter", request)}
           disabled={false}
@@ -76,7 +76,7 @@ it("previews edits without saving, and submits one explicit reference", async ()
   fireEvent.change(input, { target: { value: "6" } });
   await waitFor(() =>
     expect(previewEncounterDifficulty).toHaveBeenCalledWith("encounter", {
-      expected_revision: 9n,
+      expected_revision: 9,
       reference: { party_level: 6, party_size: null },
       addition: null,
     }),
@@ -148,7 +148,7 @@ it.each([
     fireEvent.keyDown(input, { key, code: key, keyCode });
     await waitFor(() =>
       expect(previewEncounterDifficulty).toHaveBeenCalledWith("encounter", {
-        expected_revision: 9n,
+        expected_revision: 9,
         reference,
         addition: null,
       }),

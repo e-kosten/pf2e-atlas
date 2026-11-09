@@ -26,7 +26,7 @@ export function EncounterLifeStatus({
   onResolve,
 }: {
   encounterRef: string;
-  revision: bigint;
+  revision: number;
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
   currentTurnKey?: string | null;
@@ -185,7 +185,7 @@ export function EncounterLifeStatus({
                         size="small"
                         disabled={disabled || !!participant.knockout_unavailable_reason}
                         onClick={() => {
-                          if (participant.current_hp === 0n) setOpened("tracking");
+                          if (participant.current_hp === 0) setOpened("tracking");
                           else void save({ track_dying: true });
                         }}
                       >

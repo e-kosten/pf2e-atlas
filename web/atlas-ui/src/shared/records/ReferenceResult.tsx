@@ -54,7 +54,10 @@ export function ReferenceResult({
       : [];
   const matchCount = matchNavigation
     ? BigInt(matches.length) +
-      relationshipEvidence.reduce((count, evidence) => count + evidence.page.total, 0n)
+      relationshipEvidence.reduce(
+        (count, evidence) => count + BigInt(evidence.page.total),
+        0n,
+      )
     : 0n;
   useEffect(() => {
     if (!matchesOpen) return;

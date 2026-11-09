@@ -5,7 +5,7 @@ import { rollContent } from "../../api/atlasApi";
 import type {
   ContentRollPresentationView,
   ContentRollResultView,
-  RollContentRequest,
+  ContentRollOffer,
 } from "../../generated/atlas";
 import { RollResult, UnrolledRoll } from "./RollResult";
 import { useDicePopoverFocus } from "./useDicePopoverFocus";
@@ -14,10 +14,10 @@ import "../../styles/ui/content-roll.css";
 
 /** Transient reader dice. Reopening shows the result; only Reroll replaces it. */
 export function ContentRoll({
-  request,
+  offer,
   presentation,
 }: {
-  request: RollContentRequest;
+  offer: ContentRollOffer;
   presentation: ContentRollPresentationView;
 }) {
   const [open, setOpen] = useState(false);
@@ -28,7 +28,7 @@ export function ContentRoll({
   const label = components
     .map((c) => `${c.formula}${c.label ? ` ${c.label}` : ""}`)
     .join(" + ");
-  const act = () => void roll.run(() => rollContent(request));
+  const act = () => void roll.run(() => rollContent({ offer }));
   return (
     <Popover
       trigger="click"

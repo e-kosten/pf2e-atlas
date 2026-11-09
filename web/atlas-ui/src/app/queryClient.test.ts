@@ -165,7 +165,7 @@ it("never replays a transient random command during read recovery", async () => 
   const client = createAtlasQueryClient();
   try {
     const roll = client.getMutationCache().build(client, {
-      mutationFn: () => rollFlatCheck({ dc: 15n }),
+      mutationFn: () => rollFlatCheck({ dc: 15 }),
     });
     await expect(roll.execute(undefined)).rejects.toMatchObject({ write: true });
     await client.fetchQuery({

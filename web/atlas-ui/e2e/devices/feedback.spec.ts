@@ -125,7 +125,7 @@ test("saved list entries remain usable when reference details cannot be checked"
   const { list: savedList } = await created.json();
   try {
     const added = await page.request.post(`/api/lists/${slug}/items`, {
-      data: { list_ref: slug, record_ref: "browser-conditions:offguard00000001" },
+      data: { record_ref: "browser-conditions:offguard00000001" },
     });
     expect(added.ok()).toBeTruthy();
     const { record_name: name } = await added.json();

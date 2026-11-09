@@ -11,7 +11,7 @@ export function FlatCheckRoll({
   label,
   disabled = false,
 }: {
-  dc: bigint;
+  dc: number;
   label: string;
   disabled?: boolean;
 }) {

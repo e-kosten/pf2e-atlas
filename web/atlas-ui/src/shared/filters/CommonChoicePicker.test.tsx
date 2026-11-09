@@ -94,9 +94,7 @@ function picker({
         scope={scope}
         countLimit={128}
         countContext={
-          withCounts
-            ? { kind: "filtered", filter: clause, text: null, mode: "hybrid" }
-            : undefined
+          withCounts ? { kind: "filtered", filter: clause, text: null } : undefined
         }
         onChange={(next) => {
           setClause(next);
@@ -133,10 +131,10 @@ describe("compact common choice picker", () => {
         value: {
           field: "traits",
           options: [
-            { value: "fire", distinct_roots: 4n, selected: false },
-            { value: "cold", distinct_roots: 0n, selected: false },
+            { value: "fire", distinct_roots: 4, selected: false },
+            { value: "cold", distinct_roots: 0, selected: false },
           ],
-          total_values: 2n,
+          total_values: 2,
           exhaustive: true,
           count_basis: "exact counterfactual displayed roots",
         },
@@ -156,8 +154,8 @@ describe("compact common choice picker", () => {
             scope: request.scope,
             values: {
               field: request.field_id,
-              selected_values: request.selected_values,
-              total_values: 90n,
+              selected_values: request.selected_values ?? [],
+              total_values: 90,
               options: request.offset
                 ? [{ value: "second-page", label: "Second-page" }]
                 : [
@@ -563,7 +561,7 @@ describe("compact common choice picker", () => {
     let finish: ((value: FilterValueListView) => void) | undefined;
     const initialResponse = api.discoverFilterValues.getMockImplementation()!;
     api.discoverFilterValues.mockImplementation((request) =>
-      request.kind === "vocabulary" && request.selected_values.length
+      request.kind === "vocabulary" && (request.selected_values?.length ?? 0)
         ? new Promise((resolve) => {
             finish = resolve;
           })
@@ -590,7 +588,7 @@ describe("compact common choice picker", () => {
       values: {
         field: "traits",
         selected_values: ["fire"],
-        total_values: 90n,
+        total_values: 90,
         options: [
           { value: "fire", label: "Fire" },
           { value: "cold", label: "Cold" },

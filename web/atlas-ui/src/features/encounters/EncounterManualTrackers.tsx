@@ -16,6 +16,7 @@ import { EncounterModal } from "./EncounterModal";
 import { conditionDurationLabel } from "./conditionDurationLabel";
 
 export type ManualTrackerHandler = (
+  participantKey: string,
   request: Omit<UpdateEncounterManualTrackerRequest, "request_id">,
 ) => Promise<{ active: boolean; refreshed: boolean }>;
 type Values = {
@@ -37,7 +38,7 @@ export function EncounterManualTrackers({
 }: {
   participant: EncounterParticipantView;
   participants: EncounterParticipantView[];
-  encounterRevision: bigint;
+  encounterRevision: number;
   disabled: boolean;
   pending: boolean;
   error?: string;
@@ -57,8 +58,8 @@ export function EncounterManualTrackers({
   const [committed, setCommitted] = useState(false);
   const [editor, setEditor] = useState<{
     tracker?: EncounterManualTrackerView;
-    revision: bigint;
-    participantRevision: bigint;
+    revision: number;
+    participantRevision: number;
   } | null>(null);
   const stale =
     !!editor &&
@@ -103,8 +104,7 @@ export function EncounterManualTrackers({
       fallback: editing ? opener.current : addTrigger.current,
     };
     try {
-      const result = await onChange({
-        participant_key: participant.participant_key,
+      const result = await onChange(participant.participant_key, {
         expected_encounter_revision: editing ? editor!.revision : encounterRevision,
         expected_participant_revision: editing
           ? editor!.participantRevision
@@ -195,9 +195,9 @@ export function EncounterManualTrackers({
                 ? `${conditionDurationLabel(tracker.duration)} · `
                 : ""}
               <span role="status">
-                {tracker.remaining_rounds === 0n
+                {tracker.remaining_rounds === 0
                   ? "Elapsed"
-                  : `${tracker.remaining_rounds} ${tracker.remaining_rounds === 1n ? "round" : "rounds"} remaining`}
+                  : `${tracker.remaining_rounds} ${tracker.remaining_rounds === 1 ? "round" : "rounds"} remaining`}
               </span>
             </span>
           </div>
@@ -292,7 +292,7 @@ export function EncounterManualTrackers({
           }
           initialValues={{
             name: editor?.tracker?.name ?? "",
-            durationAmount: Number(editor?.tracker?.duration.amount ?? 1n),
+            durationAmount: editor?.tracker?.duration.amount ?? 1,
             durationUnit: editor?.tracker?.duration.unit ?? "rounds",
             durationEvent: editor?.tracker?.duration.timing?.event ?? "start",
             durationParticipant:
@@ -303,7 +303,7 @@ export function EncounterManualTrackers({
           disabled={disabled}
           onFinish={(values) => {
             const duration: ConditionDurationView = {
-              amount: BigInt(values.durationAmount),
+              amount: values.durationAmount,
               unit: values.durationUnit,
               timing: {
                 participant_key: values.durationParticipant,

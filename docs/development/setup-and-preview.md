@@ -187,22 +187,18 @@ the mounted page and drafts until the user reloads. Neither recovery path replay
 mutations or clears browser caches. Vite shows the proxy/backend diagnostic without
 an automatic reload.
 
-The wire fingerprint hashes the generated TypeScript bindings and explicit
+The wire fingerprint hashes the checked-in OpenAPI document and explicit
 `protocol_revision` in `crates/atlas-web/api-contract.json`. Rust and Vite use
-identical framing, ordering and line-ending normalization. Internal Rust
-implementation, tests and comments do not change it. Generated binding changes
-remain conservative invalidations, including generated documentation comments.
-Cargo rejects stale `dist/api-contract.txt`; Vite watches contract inputs.
+the same inputs. Changes that affect the generated document invalidate the
+identifier, including changes to descriptions in the document. After editing
+a route or schema, regenerate the artifacts before building either surface.
 
-For route, transport, serde omission/null/default, encoding or protocol changes
-that TypeScript cannot express, bump `protocol_revision` and add behavioral
-regressions. Generated types alone cannot prove those semantics. UI-only changes
-can reuse a compatible backend, regardless of its Git commit. Compatibility does
-not establish freshness: a frozen compatible backend still runs its frozen rules.
-Use selected executable/build provenance to verify which implementation is served.
-See
+For wire behavior that OpenAPI cannot express, bump `protocol_revision` and
+add behavioral tests. A compatible frozen backend can serve the UI with its
+older rules. Check the selected executable and frontend build provenance when
+you need to verify the implementation being served. See
 [ADR0029](../architecture/decisions/0029-local-web-app-boundary.md#browserbackend-compatibility)
-for revision ownership, compatibility limits and the request guard.
+for revision ownership and the request guard.
 
 Status invokes read-only Atlas checks and prints a fully qualified setup command
 when a candidate needs migration or a reference update. It exits nonzero for

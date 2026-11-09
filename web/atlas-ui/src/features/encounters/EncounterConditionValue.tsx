@@ -12,17 +12,16 @@ export function EncounterConditionValue({
 }: {
   name: string;
   minimum?: number;
-  value: bigint | undefined;
+  value: number | undefined;
   disabled: boolean;
-  onCommit: (value: bigint) => Promise<boolean>;
+  onCommit: (value: number) => Promise<boolean>;
   onClear?: () => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState<number | null | undefined>(undefined);
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
   const inFlight = useRef(false);
-  const shown =
-    draft === undefined ? (value === undefined ? null : Number(value)) : draft;
+  const shown = draft === undefined ? (value === undefined ? null : value) : draft;
   const commit = async (input: number | null) => {
     if (disabled || inFlight.current) return;
     const canClear = minimum === 0 && onClear !== undefined;
@@ -35,11 +34,11 @@ export function EncounterConditionValue({
       return;
     }
     setError(undefined);
-    if ((input === null ? undefined : BigInt(input)) === value) return;
+    if ((input === null ? undefined : input) === value) return;
     inFlight.current = true;
     setSaving(true);
     try {
-      if (await (input === null ? onClear?.() : onCommit(BigInt(input)))) {
+      if (await (input === null ? onClear?.() : onCommit(input))) {
         setDraft(undefined);
       }
     } catch {

@@ -29,11 +29,11 @@ describe("reference query retirement", () => {
     const raw = cache(queryClient, recordDetailQueryOptions("spells:heal"));
     const contextual = cache(
       queryClient,
-      conditionLifecycleQuery("encounter-a", "participant-a", 4n, null),
+      conditionLifecycleQuery("encounter-a", "participant-a", 4, null),
     );
     const persistent = cache(
       queryClient,
-      persistentReviewQuery("encounter-a", "participant-a", 4n),
+      persistentReviewQuery("encounter-a", "participant-a", 4),
     );
     const savedKeys = [
       ["saved-list", "list-a"],

@@ -35,10 +35,10 @@ function setup(
     ...actor,
     conditions: [
       {
-        condition_id: 7n,
+        condition_id: 7,
         condition_key: "conditionitems:effect",
         name: "Source effect",
-        value: 1n,
+        value: 1,
         scope: { kind: "everyone" as const },
         extra_action: { kind: "unspecified" as const },
         immunity_override: false,
@@ -65,7 +65,7 @@ function setup(
   render(
     <EncounterConditionControls
       encounterRef="encounter"
-      encounterRevision={4n}
+      encounterRevision={4}
       current={current}
       participants={[current]}
       disabled={false}
@@ -101,21 +101,21 @@ it("edits typed recovery behavior and floor while preserving the source conditio
   );
   await applyWhenPreviewed({
     kind: "frightened",
-    recovery: { kind: "end_turn", minimum: 2n },
+    recovery: { kind: "end_turn", minimum: 2 },
   });
   await waitFor(() =>
     expect(onUpdate).toHaveBeenCalledWith(
       "actor",
       expect.objectContaining({
-        value: 1n,
-        parameters: { kind: "frightened", recovery: { kind: "end_turn", minimum: 2n } },
+        value: 1,
+        parameters: { kind: "frightened", recovery: { kind: "end_turn", minimum: 2 } },
       }),
     ),
   );
 });
 it("retains a failed typed broken-threshold draft without deriving it from HP", async () => {
   const { onUpdate, applyWhenPreviewed } = setup(
-    { kind: "broken", threshold: 6n },
+    { kind: "broken", threshold: 6 },
     "broken",
   );
   const threshold = await screen.findByRole("spinbutton", { name: "Broken threshold" });
@@ -123,11 +123,11 @@ it("retains a failed typed broken-threshold draft without deriving it from HP", 
     expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
   );
   fireEvent.change(threshold, { target: { value: "8" } });
-  await applyWhenPreviewed({ kind: "broken", threshold: 8n });
+  await applyWhenPreviewed({ kind: "broken", threshold: 8 });
   await waitFor(() =>
     expect(onUpdate).toHaveBeenCalledWith(
       "actor",
-      expect.objectContaining({ parameters: { kind: "broken", threshold: 8n } }),
+      expect.objectContaining({ parameters: { kind: "broken", threshold: 8 } }),
     ),
   );
   expect(threshold).toHaveValue("8");
@@ -140,9 +140,7 @@ it("uses the decrement remove action at one without a zero draft", async () => {
   fireEvent.click(
     within(dialog).getByRole("button", { name: "Remove Condition value" }),
   );
-  await waitFor(() =>
-    expect(onRemove).toHaveBeenCalledExactlyOnceWith("actor", 7n, 4n),
-  );
+  await waitFor(() => expect(onRemove).toHaveBeenCalledExactlyOnceWith("actor", 7, 4));
   expect(onUpdate).not.toHaveBeenCalled();
 });
 

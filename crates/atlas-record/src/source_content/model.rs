@@ -12,7 +12,7 @@ pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v24";
 /// alongside the authored DTO. Snapshot-local owners must not reconcile user
 /// state across rebuilds by position.
 /// `field` is relative to the last owner, for example /system/description/value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceContentLocator {
     pub record: RecordKey,
     pub owners: Vec<OwnedContentLocator>,

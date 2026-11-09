@@ -194,7 +194,7 @@ export function SearchPickerModal<FormValues>({
         profile.id,
         search.similarityGeneration ?? retrieval.generation,
         effectiveResultSort({
-          sort: request.sort,
+          sort: request.sort ?? undefined,
           query: request.criteria.kind === "text_search" ? request.criteria.query : "",
           similarSeed:
             request.criteria.kind === "similar_records"
@@ -203,7 +203,7 @@ export function SearchPickerModal<FormValues>({
         }),
       );
       if (request.criteria.kind === "similar_records")
-        assertSimilarityIdentity(page, request.criteria.similarity);
+        assertSimilarityIdentity(page, request.criteria.similarity ?? undefined);
       retrieval.adopt(ticket, page.artifact_generation, {
         queryKey: resultsKeyForGeneration(page.artifact_generation),
         data: page,
@@ -450,7 +450,10 @@ export function SearchPickerModal<FormValues>({
                   }
                   search={
                     request.criteria.kind === "similar_records"
-                      ? { ...search, similarity: request.criteria.similarity }
+                      ? {
+                          ...search,
+                          similarity: request.criteria.similarity ?? undefined,
+                        }
                       : search
                   }
                   seed={
@@ -595,7 +598,7 @@ export function SearchPickerModal<FormValues>({
                         setPageNumber(1);
                       }}
                     />
-                    {recordResults.data && recordResults.data.page.total > 0n && (
+                    {recordResults.data && recordResults.data.page.total > 0 && (
                       <div
                         className="pager__navigation"
                         role="group"
@@ -606,7 +609,7 @@ export function SearchPickerModal<FormValues>({
                           size="small"
                           current={pageNumber}
                           pageSize={search.pageSize}
-                          total={Number(recordResults.data?.page?.total ?? 0)}
+                          total={recordResults.data?.page?.total ?? 0}
                           disabled={
                             disabled ||
                             recordResults.isFetching ||

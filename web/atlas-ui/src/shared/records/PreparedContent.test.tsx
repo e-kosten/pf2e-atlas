@@ -626,7 +626,7 @@ it.each(["source", "participant"] as const)(
       encounter: {
         encounter_ref: "example",
         participant_key: "participant",
-        participant_revision: 1n,
+        participant_revision: 1,
         artifact_generation: "generation",
         condition_id: null,
       },
@@ -697,7 +697,7 @@ it.each(["source", "participant"] as const)(
     );
     expect(await screen.findByRole("status", { name: "1d6: 4" })).toBeVisible();
     expect(roll).toHaveBeenCalledTimes(1);
-    expect(roll).toHaveBeenCalledWith(request);
+    expect(roll).toHaveBeenCalledWith({ offer: request });
     const changed = structuredClone(field);
     if (
       changed.body.kind === "html" &&
@@ -711,7 +711,7 @@ it.each(["source", "participant"] as const)(
             }
           : {
               ...request,
-              encounter: { ...request.encounter, participant_revision: 2n },
+              encounter: { ...request.encounter, participant_revision: 2 },
             };
     }
     rerender(
@@ -847,7 +847,7 @@ it.each(["r", "gmr", "br"])(
     ).toContainElement(button);
     fireEvent.click(button);
     expect(await screen.findByRole("status", { name: "1d4: 3 rounds" })).toBeVisible();
-    expect(roll).toHaveBeenCalledWith(request);
+    expect(roll).toHaveBeenCalledWith({ offer: request });
     roll.mockRestore();
   },
 );
@@ -883,7 +883,10 @@ it("keeps an authored self-action label readable without reopening the same acti
   expect(reference.target?.record_key).toBe("actions:seek");
 });
 
-it.each([
+it.each<{
+  text: string;
+  control: import("../../generated/atlas").ContentControlKindView;
+}>([
   {
     text: "DC 28 basic Reflex save",
     control: {

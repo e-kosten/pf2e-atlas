@@ -26,9 +26,6 @@ function fixture() {
   mkdirSync(resolve(root, "scripts"), { recursive: true });
   mkdirSync(resolve(root, "web/atlas-ui"), { recursive: true });
   mkdirSync(resolve(root, "crates/atlas-web"), { recursive: true });
-  mkdirSync(resolve(root, "crates/atlas-app-model/bindings"), {
-    recursive: true,
-  });
   copyFileSync(
     new URL("../web/atlas-ui/apiContract.ts", import.meta.url),
     resolve(root, "web/atlas-ui/apiContract.ts"),
@@ -37,12 +34,11 @@ function fixture() {
     resolve(root, "crates/atlas-web/api-contract.json"),
     JSON.stringify({
       protocol_revision: 1,
-      bindings: "crates/atlas-app-model/bindings",
     }),
   );
   writeFileSync(
-    resolve(root, "crates/atlas-app-model/bindings/Test.ts"),
-    "export type Test = string;\n",
+    resolve(root, "crates/atlas-web/openapi.json"),
+    '{"openapi":"3.1.0","paths":{}}\n',
   );
   for (const name of ["browser-fixture.mjs", "validate-browser-candidate.mjs"])
     copyFileSync(

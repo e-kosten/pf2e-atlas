@@ -1,12 +1,13 @@
 use crate::{RecordNavigationView, RelatedCategoryView};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RemasterRelationshipsView {
     pub relationships: Vec<RemasterRelationshipView>,
     pub truncated: bool,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RemasterRelationshipView {
     pub id: String,
     pub label: String,
@@ -14,12 +15,14 @@ pub struct RemasterRelationshipView {
     pub explanation_links: Vec<RemasterExplanationLinkView>,
     pub truncated: bool,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RemasterExplanationLinkView {
     pub label: String,
     pub navigation: RecordNavigationView,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RemasterInlinePartView {
     Text {
@@ -30,7 +33,8 @@ pub enum RemasterInlinePartView {
         navigation: Box<RecordNavigationView>,
     },
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RemasterSourceContextView {
     pub heading: String,
     pub navigation: RecordNavigationView,

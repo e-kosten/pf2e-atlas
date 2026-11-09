@@ -202,7 +202,7 @@ test("unknown manual HP stays unknown until corrected and survives reload", asyn
   const path = `/api/encounters/${encounter.encounter_key}`;
   try {
     const added = await page.request.post(`${path}/participants/manual`, {
-      data: { encounter_ref: encounter.encounter_key, display_name: "Unknown Hero" },
+      data: { display_name: "Unknown Hero" },
     });
     expect(added.ok()).toBeTruthy();
     await page.goto(`/encounters/${encounter.slug}`);
@@ -305,7 +305,6 @@ test("Ghoul condition-adjusted facts and damaged elite HP survive reload", async
   try {
     const added = await page.request.post(`${path}/participants/record`, {
       data: {
-        encounter_ref: encounter.encounter_key,
         record_ref: "pathfinder-bestiary:LHHgGSs0ELCR4CYK",
         quantity: 1,
       },

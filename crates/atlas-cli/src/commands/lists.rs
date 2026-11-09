@@ -2,8 +2,8 @@ use super::product::{app_result, emit};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
     BatchAddSavedListItemsRequest, BatchSavedListItemInput, BatchSavedListItemMutationView,
-    CreateSavedListRequest, ImportSavedListRequest, RemoveSavedListItemRequest,
-    SavedListDetailView,
+    CreateSavedListRequest, FilterSavedListRequest, ImportSavedListRequest,
+    RemoveSavedListItemRequest, SavedListDetailView,
 };
 use atlas_app_service::AtlasAppService;
 use atlas_cli_support::write_json_data;
@@ -168,12 +168,14 @@ pub(crate) fn run_lists_show(o: ListShowOptions) -> Result<ExitCode, String> {
         {
             s.saved_list_snapshot(&o.slug)
         } else if sort.is_some() {
-            s.filter_saved_list(atlas_app_model::FilterSavedListRequest {
-                sort,
-                list_ref: o.slug.clone(),
-                query: None,
-                filter: None,
-            })
+            s.filter_saved_list(
+                &o.slug,
+                FilterSavedListRequest {
+                    sort,
+                    query: None,
+                    filter: None,
+                },
+            )
         } else {
             s.saved_list(&o.slug)
         },
@@ -289,10 +291,12 @@ pub(crate) fn run_lists_remove(o: ListRemoveOptions) -> Result<ExitCode, String>
     };
     emit(
         app_result(
-            s.remove_saved_list_item(RemoveSavedListItemRequest {
-                list_ref: o.slug,
-                record_ref: o.record_ref,
-            }),
+            s.remove_saved_list_item(
+                &o.slug,
+                RemoveSavedListItemRequest {
+                    record_ref: o.record_ref,
+                },
+            ),
             o.json,
         )?,
         o.json,

@@ -5,6 +5,17 @@ use axum::extract::rejection::JsonRejection;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
+#[derive(utoipa::ToSchema)]
+#[serde(untagged)]
+#[allow(
+    dead_code,
+    reason = "schema for the two existing sources of an HTTP conflict"
+)]
+pub(crate) enum ConflictResponse {
+    Application(AppError),
+    Compatibility(crate::compatibility::CompatibilityConflict),
+}
+
 #[derive(Debug)]
 pub(crate) struct WebError(pub(crate) AppError);
 

@@ -212,15 +212,17 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
     );
     let sorted = f
         .worker
-        .filter_saved_list(FilterSavedListRequest {
-            sort: Some(ResultSort::attribute(
-                atlas_domain::SortField::UnitPrice,
-                atlas_domain::SortDirection::Asc,
-            )),
-            list_ref: "ordered".into(),
-            query: None,
-            filter: None,
-        })
+        .filter_saved_list(
+            "ordered",
+            FilterSavedListRequest {
+                sort: Some(ResultSort::attribute(
+                    atlas_domain::SortField::UnitPrice,
+                    atlas_domain::SortDirection::Asc,
+                )),
+                query: None,
+                filter: None,
+            },
+        )
         .unwrap();
     assert_eq!(
         sorted
@@ -242,12 +244,17 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
     for seed in [0, u32::MAX] {
         let request = FilterSavedListRequest {
             sort: Some(ResultSort::Random { seed }),
-            list_ref: "ordered".into(),
             query: None,
             filter: None,
         };
-        let shuffled = f.worker.filter_saved_list(request.clone()).unwrap();
-        assert_eq!(shuffled, f.worker.filter_saved_list(request).unwrap());
+        let shuffled = f
+            .worker
+            .filter_saved_list("ordered", request.clone())
+            .unwrap();
+        assert_eq!(
+            shuffled,
+            f.worker.filter_saved_list("ordered", request).unwrap()
+        );
         assert_eq!(shuffled.items.len(), keys.len());
         assert_eq!(shuffled.items[4].record_key, keys[1]);
         assert_eq!(shuffled.items[5].record_key, keys[3]);
@@ -265,12 +272,14 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
     }
     let filtered = f
         .worker
-        .filter_saved_list(FilterSavedListRequest {
-            sort: None,
-            list_ref: "ordered".into(),
-            query: Some("Item".into()),
-            filter: None,
-        })
+        .filter_saved_list(
+            "ordered",
+            FilterSavedListRequest {
+                sort: None,
+                query: Some("Item".into()),
+                filter: None,
+            },
+        )
         .unwrap();
     assert_eq!(filtered.sort, ResultSort::SavedOrder {});
     assert_eq!(
@@ -288,12 +297,14 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
     );
     assert_eq!(
         f.worker
-            .filter_saved_list(FilterSavedListRequest {
-                sort: Some(ResultSort::Relevance {}),
-                list_ref: "ordered".into(),
-                query: None,
-                filter: None
-            })
+            .filter_saved_list(
+                "ordered",
+                FilterSavedListRequest {
+                    sort: Some(ResultSort::Relevance {}),
+                    query: None,
+                    filter: None
+                }
+            )
             .unwrap_err()
             .into_app_error()
             .code,

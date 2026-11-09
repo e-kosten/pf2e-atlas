@@ -161,13 +161,15 @@ mod tests {
             .encounter;
         fixture
             .worker
-            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-                participant_variant: None,
-                encounter_ref: encounter.encounter_key.clone(),
-                record_ref: "Test Creature 1".into(),
-                quantity: 2,
-                initiative: None,
-            })
+            .add_encounter_record_participant(
+                &encounter.encounter_key,
+                AddEncounterRecordParticipantRequest {
+                    participant_variant: None,
+                    record_ref: "Test Creature 1".into(),
+                    quantity: 2,
+                    initiative: None,
+                },
+            )
             .unwrap();
         let current = fixture.worker.encounter(&encounter.encounter_key).unwrap();
         let subject = &current.participants[1];
@@ -179,12 +181,12 @@ mod tests {
             .worker
             .add_encounter_participant_condition(
                 &encounter.encounter_key,
+                &subject.participant_key,
                 AddEncounterParticipantConditionRequest {
                     request_id: "concealed".into(),
                     expected_encounter_revision: current.revision,
                     event_intent: Default::default(),
                     decisions: Default::default(),
-                    participant_key: subject.participant_key.clone(),
                     condition_ref: Some(definition.condition_ref.into()),
                     name: None,
                     value: None,
@@ -228,7 +230,8 @@ mod tests {
                     spell_rank: None,
                     fields: vec![],
                     passage: None,
-                },
+                }
+                .into_selection(),
             },
             attack_number: 1,
             mode: RollMode::Normal,
@@ -255,10 +258,10 @@ mod tests {
                 .worker
                 .add_encounter_participant_condition(
                     &encounter.encounter_key,
+                    &roll.participant_key,
                     AddEncounterParticipantConditionRequest {
                         request_id: format!("attack-hint-{rule:?}"),
                         expected_encounter_revision: current.revision,
-                        participant_key: roll.participant_key.clone(),
                         condition_ref: Some(definition.condition_ref.into()),
                         value: (rule == super::super::conditions::ConditionRule::Frightened)
                             .then_some(2),
@@ -314,7 +317,11 @@ mod tests {
         );
         let mut invalid_source = roll.clone();
         invalid_source.request_id = "invalid-source".into();
-        invalid_source.reference.selection.source_fingerprint = Some("wrong-source".into());
+        invalid_source
+            .reference
+            .selection
+            .address
+            .source_fingerprint = Some("wrong-source".into());
         assert!(
             fixture
                 .worker

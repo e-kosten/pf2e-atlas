@@ -1,3 +1,4 @@
+import { recordSelection } from "../../shared/records/recordDetailQuery";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
@@ -52,13 +53,12 @@ export function EncounterStrikeControl({
   const nav = activity.navigation;
   const reference: EncounterReferenceRequest = {
     artifact_generation: generation,
-    selection: {
-      record_key: nav.record_key,
-      embedded_path: nav.embedded_path,
-      fields: [],
+    selection: recordSelection({
+      ...nav,
+      field: null,
       passage: null,
-      source_fingerprint: nav.source_fingerprint,
-    },
+      spell_rank: undefined,
+    }),
   };
   const options = useQuery({
     meta: referenceQueryMeta,

@@ -1,7 +1,7 @@
 import type { ConditionHpChangeView } from "../../generated/atlas";
 import { CalculationTable } from "../../shared/ui/tables/CalculationTable";
 export function ConditionHpPreview({ change }: { change: ConditionHpChangeView }) {
-  const value = (input: bigint | null) => input?.toString() ?? "—";
+  const value = (input: number | null) => input?.toString() ?? "—";
   return (
     <CalculationTable
       label="HP change"

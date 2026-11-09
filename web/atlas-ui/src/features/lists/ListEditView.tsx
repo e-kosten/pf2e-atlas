@@ -202,7 +202,8 @@ function ListEditForm({
   }
 
   const update = useMutation({
-    mutationFn: (request: UpdateSavedListRequest) => updateSavedList(request),
+    mutationFn: (request: UpdateSavedListRequest) =>
+      updateSavedList(saved.list_key, request),
     retry: false,
     onSuccess: (view) =>
       invalidateSavedListQueries(client, [
@@ -292,7 +293,6 @@ function ListEditForm({
           if (review || update.isPending) return;
           update.mutate(
             {
-              list_key: saved.list_key,
               ...(edits.name && { name: edits.name }),
               ...(edits.description && { description: edits.description }),
               ...(edits.tags && { tags: edits.tags }),

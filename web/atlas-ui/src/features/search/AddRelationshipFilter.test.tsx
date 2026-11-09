@@ -129,7 +129,7 @@ beforeEach(() => {
     sort: effectiveResultSort({
       ...DEFAULT_SEARCH_STATE,
       query: request.criteria.kind === "text_search" ? request.criteria.query : "",
-      sort: request.sort,
+      sort: request.sort ?? undefined,
     }),
     mode:
       request.criteria.kind === "text_search"
@@ -139,7 +139,7 @@ beforeEach(() => {
       number: request.page.number,
       size: request.page.size,
       count: 1,
-      total: 1n,
+      total: 1,
       has_more: false,
       next_page: null,
     },

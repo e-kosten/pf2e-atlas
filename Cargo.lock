@@ -138,7 +138,7 @@ dependencies = [
  "atlas-domain",
  "serde",
  "serde_json",
- "ts-rs",
+ "utoipa",
 ]
 
 [[package]]
@@ -218,9 +218,9 @@ dependencies = [
  "atlas-ingest",
  "atlas-record",
  "atlas-runtime",
- "atlas-tags",
  "atlas-search",
  "atlas-storage",
+ "atlas-tags",
  "clap",
  "serde",
  "serde_json",
@@ -239,7 +239,7 @@ dependencies = [
  "diceng",
  "serde",
  "thiserror",
- "ts-rs",
+ "utoipa",
 ]
 
 [[package]]
@@ -249,8 +249,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "ts-rs",
  "unicode-normalization",
+ "utoipa",
 ]
 
 [[package]]
@@ -354,7 +354,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "ts-rs",
 ]
 
 [[package]]
@@ -445,6 +444,8 @@ dependencies = [
  "tempfile",
  "tokio",
  "tower",
+ "utoipa",
+ "utoipa-axum",
 ]
 
 [[package]]
@@ -1582,6 +1583,8 @@ checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
  "hashbrown 0.17.1",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -3017,15 +3020,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "termcolor"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
-dependencies = [
- "winapi-util",
-]
-
-[[package]]
 name = "terminal_size"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3314,29 +3308,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ts-rs"
-version = "11.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4994acea2522cd2b3b85c1d9529a55991e3ad5e25cdcd3de9d505972c4379424"
-dependencies = [
- "serde_json",
- "thiserror",
- "ts-rs-macros",
-]
-
-[[package]]
-name = "ts-rs-macros"
-version = "11.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee6ff59666c9cbaec3533964505d39154dc4e0a56151fdea30a09ed0301f62e2"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
- "termcolor",
-]
-
-[[package]]
 name = "typed-arena"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3466,6 +3437,42 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "utoipa"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8765fe27aeff71012a3f90fa474cf1df863a7d0dd81ed25de4e63fff2544994f"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "utoipa-gen",
+]
+
+[[package]]
+name = "utoipa-axum"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "865319162dc3d0032e1e40ed11bd49d5b78e8ef576740589fd6823e2e9977423"
+dependencies = [
+ "axum",
+ "pastey",
+ "tower-layer",
+ "tower-service",
+ "utoipa",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "6.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d935f1c83fdf8b88f09bbe050d0cea78ea4afee6d7b0317403228c1200b2c8ab"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
 
 [[package]]
 name = "uuid"

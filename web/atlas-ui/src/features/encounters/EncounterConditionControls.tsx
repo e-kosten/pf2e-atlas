@@ -1,3 +1,7 @@
+import type {
+  AddConditionDraft,
+  UpdateConditionDraft,
+} from "./useConditionEventPreview";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
@@ -15,11 +19,9 @@ import { Pencil, Plus, X } from "lucide-react";
 import { Button, ConfigProvider, Popover, Space, Tooltip } from "antd";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
-  AddEncounterParticipantConditionRequest,
   EncounterConditionDefinitionView,
   EncounterParticipantConditionView,
   EncounterParticipantView,
-  UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
 import { EncounterConditionEditor } from "./EncounterConditionEditor";
 import { EncounterConditionValue } from "./EncounterConditionValue";
@@ -49,7 +51,7 @@ export function EncounterConditionControls({
   disabled: boolean;
   onAbilityState?: import("./EncounterAbilityControls").AbilityStateHandler;
   encounterRef: string;
-  encounterRevision: bigint;
+  encounterRevision: number;
   pending: boolean;
   addDisabled: boolean;
   error?: string;
@@ -60,10 +62,8 @@ export function EncounterConditionControls({
     value: string;
     label: string;
   }>;
-  standardRecoveryDc?: bigint;
-  onAddCondition: (
-    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
-  ) => Promise<boolean>;
+  standardRecoveryDc?: number;
+  onAddCondition: (condition: AddConditionDraft) => Promise<boolean>;
   onPreviewCondition: (
     participantKey: string,
     request: import("./useConditionEventPreview").ConditionEventInput,
@@ -82,12 +82,12 @@ export function EncounterConditionControls({
   ) => Promise<import("../../generated/atlas").PersistentRecoveryResultView>;
   onRemoveCondition: (
     participantKey: string,
-    conditionId: bigint,
-    expectedRevision: bigint,
+    conditionId: number,
+    expectedRevision: number,
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
+    condition: UpdateConditionDraft,
   ) => Promise<boolean>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   participants: EncounterParticipantView[];
@@ -101,8 +101,8 @@ export function EncounterConditionControls({
   const [editor, setEditor] = useState<
     | "add"
     | {
-        conditionId: bigint;
-        revision: bigint;
+        conditionId: number;
+        revision: number;
       }
     | null
   >(null);
@@ -160,8 +160,7 @@ export function EncounterConditionControls({
       ? current.conditions.find((c) => c.condition_id === editor.conditionId)
       : undefined;
   const open = editor !== null;
-  const [inlineRequest, setInlineRequest] =
-    useState<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>();
+  const [inlineRequest, setInlineRequest] = useState<UpdateConditionDraft>();
   const [valueResetEpoch, setValueResetEpoch] = useState(0);
   const cancelInlineEdit = () => {
     setInlineRequest(undefined);
@@ -178,7 +177,7 @@ export function EncounterConditionControls({
   };
   const update = (
     condition: EncounterParticipantConditionView,
-    changes: Partial<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>,
+    changes: Partial<UpdateConditionDraft>,
     revision = encounterRevision,
   ) => {
     const request = conditionUpdate(condition, revision, changes);
@@ -218,12 +217,16 @@ export function EncounterConditionControls({
             onResolve={onResolveDrained}
           />
         ));
+    const contextualAction = hpAction?.length
+      ? hpAction
+      : (recoveryAction ?? recoveryControls.conditionActions(condition.condition_id));
     return (
       <span className="encounter-condition-actions">
-        {hpAction && hpAction.length > 0
-          ? hpAction
-          : (recoveryAction ??
-            recoveryControls.conditionActions(condition.condition_id))}{" "}
+        {contextualAction && (
+          <span className="encounter-condition-recovery-action">
+            {contextualAction}
+          </span>
+        )}
         <EncounterRowAction
           tooltip="Edit"
           hideTooltip={open}
@@ -306,12 +309,12 @@ export function EncounterConditionControls({
       )}
       {condition.duration && (
         <span className="encounter-condition-meta">
-          {(condition.duration.unit === "rounds" && condition.duration.amount === 0n) ||
-          condition.duration.remaining_rounds === 0n
+          {(condition.duration.unit === "rounds" && condition.duration.amount === 0) ||
+          condition.duration.remaining_rounds === 0
             ? "Duration ended"
             : conditionDurationLabel(condition.duration)}
           {condition.duration.remaining_rounds !== undefined &&
-          condition.duration.remaining_rounds > 0n
+          condition.duration.remaining_rounds > 0
             ? ` · ${condition.duration.remaining_rounds} rounds remaining`
             : ""}
           {condition.duration.unit === "rounds" && condition.duration.timing === null
@@ -379,7 +382,7 @@ export function EncounterConditionControls({
     return (
       <div
         className={[
-          "encounter-condition-row",
+          "encounter-condition-row encounter-condition-row--active",
           hasValue && "encounter-condition-row--valued",
           (presentation?.superseded || cleared) &&
             "encounter-condition-row--superseded",
@@ -432,12 +435,7 @@ export function EncounterConditionControls({
                     onClick={() => {
                       void onUpdateCondition(
                         current.participant_key,
-                        preview.apply(
-                          inlineRequest! as Omit<
-                            UpdateEncounterParticipantConditionRequest,
-                            "request_id"
-                          >,
-                        ),
+                        preview.apply(inlineRequest!),
                       )
                         .then((ok) => {
                           if (ok) cancelInlineEdit();
@@ -570,7 +568,7 @@ export function EncounterConditionControls({
             const save =
               ordinal == null || !onAbilityState
                 ? undefined
-                : (value: bigint | null) =>
+                : (value: number | null) =>
                     onAbilityState(
                       { navigation: condition.source, rule_ordinal: ordinal },
                       { kind: "set_condition_value", value },
@@ -619,7 +617,7 @@ export function EncounterConditionControls({
                   {ordinal != null
                     ? condition.value === null
                       ? "Activation tied to "
-                      : condition.value === 0n
+                      : condition.value === 0
                         ? "Inactive · Source: "
                         : "Source: "
                     : condition.unavailable_reason
@@ -711,7 +709,7 @@ export function EncounterConditionControls({
               return condition ? [{ condition, source }] : [];
             });
             return (
-              <div key={group.episode_id}>
+              <div className="encounter-condition-group" key={group.episode_id}>
                 {conditions.map(({ condition, source }) =>
                   renderCondition(condition, {
                     immunityNote: group.immunity_note,

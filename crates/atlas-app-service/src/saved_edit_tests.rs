@@ -30,23 +30,18 @@ const SECOND: &str = "actions:testAction200000";
 
 fn add_note(worker: &AtlasAppService, list_ref: &str, record_ref: &str, note: Option<&str>) {
     worker
-        .add_saved_list_item(AddSavedListItemRequest {
-            list_ref: list_ref.into(),
-            record_ref: record_ref.into(),
-            note: note.map(str::to_owned),
-        })
+        .add_saved_list_item(
+            list_ref,
+            AddSavedListItemRequest {
+                record_ref: record_ref.into(),
+                note: note.map(str::to_owned),
+            },
+        )
         .unwrap();
 }
 
-fn note_patch(
-    list_ref: &str,
-    record_key: &str,
-    expected: Option<&str>,
-    value: Option<&str>,
-) -> UpdateSavedListItemNoteRequest {
+fn note_patch(expected: Option<&str>, value: Option<&str>) -> UpdateSavedListItemNoteRequest {
     UpdateSavedListItemNoteRequest {
-        list_ref: list_ref.into(),
-        record_key: record_key.into(),
         note: edit(expected.map(str::to_owned), value.map(str::to_owned)),
     }
 }
@@ -57,23 +52,27 @@ fn list_note_save_merges_with_reorder_and_unrelated_edits() {
     let key = list_fixture(&worker);
     add_note(&worker, &key, FIRST, Some("Original"));
     add_note(&worker, &key, SECOND, None);
-    let draft = note_patch(&key, FIRST, Some("Original"), Some("First draft"));
+    let draft = note_patch(Some("Original"), Some("First draft"));
 
     worker
-        .reorder_saved_list_item(ReorderSavedListItemRequest {
-            list_ref: key.clone(),
-            record_ref: SECOND.into(),
-            target_record_ref: FIRST.into(),
-            placement: ReorderSavedListItemPlacementView::Before,
-        })
+        .reorder_saved_list_item(
+            &key,
+            ReorderSavedListItemRequest {
+                record_ref: SECOND.into(),
+                target_record_ref: FIRST.into(),
+                placement: ReorderSavedListItemPlacementView::Before,
+            },
+        )
         .unwrap();
     worker
-        .update_saved_list_item_note(note_patch(&key, SECOND, None, Some("Second note")))
+        .update_saved_list_item_note(&key, SECOND, note_patch(None, Some("Second note")))
         .unwrap();
     worker
         .edit_saved_list_metadata(&key, Some("renamed".into()), None, None, None)
         .unwrap();
-    let saved = worker.update_saved_list_item_note(draft).unwrap();
+    let saved = worker
+        .update_saved_list_item_note(&key, FIRST, draft)
+        .unwrap();
     assert_eq!(saved.slug, "renamed");
     let current = worker.saved_list_snapshot(&key).unwrap();
     assert_eq!(
@@ -85,12 +84,14 @@ fn list_note_save_merges_with_reorder_and_unrelated_edits() {
         [(SECOND, Some("Second note")), (FIRST, Some("First draft"))]
     );
     worker
-        .reorder_saved_list_item(ReorderSavedListItemRequest {
-            list_ref: key.clone(),
-            record_ref: FIRST.into(),
-            target_record_ref: SECOND.into(),
-            placement: ReorderSavedListItemPlacementView::Before,
-        })
+        .reorder_saved_list_item(
+            &key,
+            ReorderSavedListItemRequest {
+                record_ref: FIRST.into(),
+                target_record_ref: SECOND.into(),
+                placement: ReorderSavedListItemPlacementView::Before,
+            },
+        )
         .unwrap();
     let reordered = worker.saved_list_snapshot(&key).unwrap();
     assert_eq!(reordered.items[0].note.as_deref(), Some("First draft"));
@@ -102,11 +103,11 @@ fn list_note_conflict_and_missing_entry_do_not_mutate_saved_state() {
     let key = list_fixture(&worker);
     add_note(&worker, &key, FIRST, None);
     worker
-        .update_saved_list_item_note(note_patch(&key, FIRST, None, Some("Winning note")))
+        .update_saved_list_item_note(&key, FIRST, note_patch(None, Some("Winning note")))
         .unwrap();
-    let stale = note_patch(&key, FIRST, None, Some("Winning note"));
+    let stale = note_patch(None, Some("Winning note"));
     let error = worker
-        .update_saved_list_item_note(stale.clone())
+        .update_saved_list_item_note(&key, FIRST, stale.clone())
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::SavedEditConflict);
@@ -116,17 +117,19 @@ fn list_note_conflict_and_missing_entry_do_not_mutate_saved_state() {
     );
     let remove = || {
         worker
-            .remove_saved_list_item(RemoveSavedListItemRequest {
-                list_ref: key.clone(),
-                record_ref: FIRST.into(),
-            })
+            .remove_saved_list_item(
+                &key,
+                RemoveSavedListItemRequest {
+                    record_ref: FIRST.into(),
+                },
+            )
             .unwrap();
     };
     remove();
     for error in [
         worker.saved_list_item_note(&key, FIRST).unwrap_err(),
         worker
-            .update_saved_list_item_note(stale.clone())
+            .update_saved_list_item_note(&key, FIRST, stale.clone())
             .unwrap_err(),
     ] {
         assert_eq!(
@@ -138,7 +141,7 @@ fn list_note_conflict_and_missing_entry_do_not_mutate_saved_state() {
     add_note(&worker, &key, FIRST, Some("Re-added note"));
     assert_eq!(
         worker
-            .update_saved_list_item_note(stale.clone())
+            .update_saved_list_item_note(&key, FIRST, stale.clone())
             .unwrap_err()
             .into_app_error()
             .code,
@@ -156,7 +159,7 @@ fn list_note_conflict_and_missing_entry_do_not_mutate_saved_state() {
     add_note(&worker, &key, FIRST, None);
     assert_eq!(
         worker
-            .update_saved_list_item_note(stale)
+            .update_saved_list_item_note(&key, FIRST, stale)
             .unwrap()
             .note
             .as_deref(),
@@ -169,23 +172,28 @@ fn list_metadata_saves_merge_disjoint_fields_and_reject_partial_conflicts() {
     let worker = fixture_worker().worker;
     let key = list_fixture(&worker);
     let request = || UpdateSavedListRequest {
-        list_key: key.clone(),
         slug: None,
         name: None,
         description: None,
         tags: None,
     };
     worker
-        .update_saved_list(UpdateSavedListRequest {
-            description: Some(edit(Some("Existing description".into()), None)),
-            ..request()
-        })
+        .update_saved_list(
+            &key,
+            UpdateSavedListRequest {
+                description: Some(edit(Some("Existing description".into()), None)),
+                ..request()
+            },
+        )
         .unwrap();
     let current = worker
-        .update_saved_list(UpdateSavedListRequest {
-            name: Some(edit("Planning".into(), "Planning session".into())),
-            ..request()
-        })
+        .update_saved_list(
+            &key,
+            UpdateSavedListRequest {
+                name: Some(edit("Planning".into(), "Planning session".into())),
+                ..request()
+            },
+        )
         .unwrap()
         .list;
     assert_eq!(current.description, None);
@@ -197,11 +205,14 @@ fn list_metadata_saves_merge_disjoint_fields_and_reject_partial_conflicts() {
     };
     let before_conflict = saved();
     let error = worker
-        .update_saved_list(UpdateSavedListRequest {
-            name: Some(edit("Planning".into(), "Other name".into())),
-            tags: Some(edit(current.tags.clone(), vec![])),
-            ..request()
-        })
+        .update_saved_list(
+            &key,
+            UpdateSavedListRequest {
+                name: Some(edit("Planning".into(), "Other name".into())),
+                tags: Some(edit(current.tags.clone(), vec![])),
+                ..request()
+            },
+        )
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::SavedEditConflict);
@@ -212,15 +223,18 @@ fn list_metadata_saves_merge_disjoint_fields_and_reject_partial_conflicts() {
     assert_eq!(saved(), before_conflict);
 
     worker
-        .update_saved_list(UpdateSavedListRequest {
-            tags: Some(edit(
-                current.tags,
-                vec![" Élite ".into(), "Next".into(), "next".into()],
-            )),
-            ..request()
-        })
+        .update_saved_list(
+            &key,
+            UpdateSavedListRequest {
+                tags: Some(edit(
+                    current.tags,
+                    vec![" Élite ".into(), "Next".into(), "next".into()],
+                )),
+                ..request()
+            },
+        )
         .unwrap();
-    worker.update_saved_list(request()).unwrap();
+    worker.update_saved_list(&key, request()).unwrap();
     assert_eq!(saved(), before_conflict);
 }
 
@@ -236,7 +250,6 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
         .unwrap()
         .encounter;
     let request = || UpdateEncounterRequest {
-        encounter_key: original.encounter_key.clone(),
         round_duration_seconds: None,
         slug: None,
         name: None,
@@ -245,17 +258,23 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
         status: None,
     };
     worker
-        .update_encounter(UpdateEncounterRequest {
-            status: Some(edit(original.status, EncounterStatusView::Running)),
-            ..request()
-        })
+        .update_encounter(
+            &original.encounter_key,
+            UpdateEncounterRequest {
+                status: Some(edit(original.status, EncounterStatusView::Running)),
+                ..request()
+            },
+        )
         .unwrap();
     worker
-        .update_encounter(UpdateEncounterRequest {
-            name: Some(edit(original.name.clone(), "Forest patrol".into())),
-            note: Some(edit(Some("Keep this note".into()), None)),
-            ..request()
-        })
+        .update_encounter(
+            &original.encounter_key,
+            UpdateEncounterRequest {
+                name: Some(edit(original.name.clone(), "Forest patrol".into())),
+                note: Some(edit(Some("Keep this note".into()), None)),
+                ..request()
+            },
+        )
         .unwrap();
 
     let saved = || {
@@ -276,11 +295,14 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
     );
     assert_eq!(before_conflict.note, None);
     let error = worker
-        .update_encounter(UpdateEncounterRequest {
-            status: Some(edit(original.status, EncounterStatusView::Archived)),
-            description: Some(edit(Some("Bridge".into()), None)),
-            ..request()
-        })
+        .update_encounter(
+            &original.encounter_key,
+            UpdateEncounterRequest {
+                status: Some(edit(original.status, EncounterStatusView::Archived)),
+                description: Some(edit(Some("Bridge".into()), None)),
+                ..request()
+            },
+        )
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::SavedEditConflict);
@@ -291,15 +313,20 @@ fn encounter_metadata_patches_preserve_other_fields_and_validate_atomically() {
     assert_eq!(saved(), before_conflict);
 
     let error = worker
-        .update_encounter(UpdateEncounterRequest {
-            description: Some(edit(Some("Bridge".into()), None)),
-            round_duration_seconds: Some(edit(original.round_duration_seconds, 0)),
-            ..request()
-        })
+        .update_encounter(
+            &original.encounter_key,
+            UpdateEncounterRequest {
+                description: Some(edit(Some("Bridge".into()), None)),
+                round_duration_seconds: Some(edit(original.round_duration_seconds, 0)),
+                ..request()
+            },
+        )
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::InvalidRequest);
     assert_eq!(saved(), before_conflict);
-    worker.update_encounter(request()).unwrap();
+    worker
+        .update_encounter(&original.encounter_key, request())
+        .unwrap();
     assert_eq!(saved(), before_conflict);
 }

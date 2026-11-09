@@ -20,7 +20,6 @@ test("allowing a restricted reaction retains keyboard focus without spending it"
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Restricted reaction hero",
             initiative: 20,
             max_hp: 20,
@@ -45,7 +44,6 @@ test("allowing a restricted reaction retains keyboard focus without spending it"
         data: {
           request_id: `stunned-${Date.now()}`,
           expected_encounter_revision: detail.revision,
-          participant_key: actor.participant_key,
           condition_ref: stunned.condition_ref,
           event_intent: "apply",
           decisions: { keep_upright: false },
@@ -126,7 +124,6 @@ for (const outcome of [
           (
             await page.request.post(`${path}/participants/manual`, {
               data: {
-                encounter_ref: encounter.encounter_key,
                 display_name,
                 ...(initiative === null ? {} : { initiative }),
                 max_hp: 30,
@@ -155,7 +152,6 @@ for (const outcome of [
         (
           await page.request.post(`${path}/turn`, {
             data: {
-              encounter_ref: encounter.encounter_key,
               participant_key: actor.participant_key,
             },
           })
@@ -170,7 +166,6 @@ for (const outcome of [
             expected_encounter_revision: detail.revision,
             event_intent: "apply",
             decisions: { keep_upright: false },
-            participant_key: actor.participant_key,
             condition_ref: definition.condition_ref,
             scope: { kind: "everyone" },
             extra_action: { kind: "unspecified" },
@@ -427,7 +422,6 @@ test("missing initiative explains how to start a turn from the roster", async ({
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Unassigned hero",
             current_hp: 20,
             max_hp: 20,
@@ -468,7 +462,6 @@ test("single source exposes edit and remove without disclosure or phone overflow
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Single source hero",
             current_hp: 20,
             max_hp: 20,
@@ -495,7 +488,6 @@ test("single source exposes edit and remove without disclosure or phone overflow
           expected_encounter_revision: detail.revision,
           event_intent: "apply",
           decisions: { keep_upright: false },
-          participant_key: actor.participant_key,
           condition_ref: definition.condition_ref,
           scope: { kind: "everyone" },
           extra_action: { kind: "unspecified" },
@@ -586,7 +578,6 @@ test("expired condition removal reports failure and retries without an uncaught 
         (
           await page.request.post(`${path}/participants/manual`, {
             data: {
-              encounter_ref: encounter.encounter_key,
               display_name,
               initiative,
               max_hp: 30,
@@ -602,7 +593,6 @@ test("expired condition removal reports failure and retries without an uncaught 
     );
     await page.request.post(`${path}/turn`, {
       data: {
-        encounter_ref: encounter.encounter_key,
         participant_key: actor.participant_key,
       },
     });
@@ -623,7 +613,6 @@ test("expired condition removal reports failure and retries without an uncaught 
             data: {
               request_id: crypto.randomUUID(),
               expected_encounter_revision: detail.revision,
-              participant_key: actor.participant_key,
               condition_ref: hidden.condition_ref,
               event_intent: "apply",
               decisions: { keep_upright: false },
@@ -700,7 +689,6 @@ test("real turn counts retain explanations and guard an explicit action", async 
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             record_ref: "browser-actors:sentinel00000001",
             quantity: 1,
             initiative: -1,
@@ -712,7 +700,6 @@ test("real turn counts retain explanations and guard an explicit action", async 
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             record_ref: "browser-hazards:hazard0000000001",
             quantity: 1,
           },
@@ -746,7 +733,6 @@ test("real turn counts retain explanations and guard an explicit action", async 
             data: {
               request_id: crypto.randomUUID(),
               expected_encounter_revision: state.revision,
-              participant_key: actor.participant_key,
               condition_ref: slowed.condition_ref,
               event_intent: "apply",
               decisions: { keep_upright: false },
@@ -823,7 +809,6 @@ for (const recovery of ["Reset encounter", "Rest overnight"] as const) {
       ] as const) {
         const added = await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name,
             initiative,
             max_hp: 30,
@@ -839,7 +824,6 @@ for (const recovery of ["Reset encounter", "Rest overnight"] as const) {
       );
       const assigned = await page.request.post(`${path}/turn`, {
         data: {
-          encounter_ref: encounter.encounter_key,
           participant_key: actor.participant_key,
         },
       });
@@ -859,7 +843,6 @@ for (const recovery of ["Reset encounter", "Rest overnight"] as const) {
           data: {
             request_id: crypto.randomUUID(),
             expected_encounter_revision: detail.revision,
-            participant_key: actor.participant_key,
             condition_ref: hidden.condition_ref,
             event_intent: "apply",
             decisions: { keep_upright: false },
@@ -958,7 +941,6 @@ test("manual trackers persist minute countdowns and restart after elapsing", asy
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Tracker dragon",
             initiative: 20,
             max_hp: 20,
@@ -1093,7 +1075,6 @@ for (const boundary of ["start", "end"] as const) {
         (
           await page.request.post(`${path}/participants/manual`, {
             data: {
-              encounter_ref: encounter.encounter_key,
               display_name: "Tracker owner",
               initiative: 20,
               max_hp: 20,
@@ -1191,7 +1172,6 @@ test("end and start reminders use their own actors and background sheets", async
         (
           await page.request.post(`${path}/participants/manual`, {
             data: {
-              encounter_ref: encounter.encounter_key,
               display_name,
               initiative,
               max_hp: 20,
@@ -1216,7 +1196,6 @@ test("end and start reminders use their own actors and background sheets", async
             {
               data: {
                 request_id: `phase-${event}-${Date.now()}`,
-                participant_key: participant.participant_key,
                 expected_encounter_revision: detail.revision,
                 expected_participant_revision: participant.revision,
                 action: {

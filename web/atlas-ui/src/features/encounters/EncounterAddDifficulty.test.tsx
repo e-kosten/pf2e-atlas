@@ -47,7 +47,7 @@ function setup(
   function Harness() {
     const [form] = Form.useForm<EncounterRecordAddForm>();
     const [selection, setSelection] = useState<string | null>(null);
-    const [revision, setRevision] = useState(1n);
+    const [revision, setRevision] = useState(1);
     return (
       <Form form={form}>
         <button type="button" onClick={() => setSelection("actors:ogre")}>
@@ -56,7 +56,7 @@ function setup(
         <button type="button" onClick={() => setSelection("actors:trap")}>
           Choose trap
         </button>
-        <button type="button" onClick={() => setRevision(2n)}>
+        <button type="button" onClick={() => setRevision(2)}>
           Refresh encounter
         </button>
         <Form.Item name="quantity" initialValue={1}>
@@ -112,7 +112,7 @@ it("shows current difficulty, then previews quantity and adjustment without an e
   fireEvent.click(screen.getByText("Elite", { exact: true }));
   await waitFor(() =>
     expect(onPreview).toHaveBeenLastCalledWith({
-      expected_revision: 1n,
+      expected_revision: 1,
       reference: current.reference,
       addition: {
         record_ref: "actors:ogre",

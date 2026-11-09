@@ -173,11 +173,13 @@ it("keeps table roll guidance behind an accessible information button", async ()
     <ConfigProvider theme={{ token: { motion: false } }}>
       <TableRollControl
         selection={{
-          record_key: "tables:test",
-          embedded_path: [],
+          address: {
+            record_key: "tables:test",
+            embedded_path: [],
+            source_fingerprint: null,
+          },
           fields: [],
           passage: null,
-          source_fingerprint: null,
         }}
         artifactGeneration="test"
         formula="1d6"

@@ -1,4 +1,3 @@
 {
-  "protocol_revision": 9,
-  "bindings": "crates/atlas-app-model/bindings"
+  "protocol_revision": 9
 }

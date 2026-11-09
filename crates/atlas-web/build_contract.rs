@@ -8,6 +8,8 @@ use std::{
 
 pub const METADATA: &str = "crates/atlas-web/api-contract.json";
 
+pub const SCHEMA: &str = "crates/atlas-web/openapi.json";
+
 pub struct BrowserContract {
     pub identifier: String,
     pub watched_paths: Vec<PathBuf>,
@@ -23,52 +25,20 @@ pub fn load(root: &Path) -> Result<BrowserContract, Box<dyn Error>> {
         })
         .ok_or("API protocol_revision must be a positive 32-bit integer")?
         as u32;
-    let bindings = metadata["bindings"]
-        .as_str()
-        .filter(|path| !path.is_empty())
-        .ok_or("API bindings must name the generated binding directory")?;
-    let binding_root = root.join(bindings);
-    let mut files = Vec::new();
-    collect(root, &binding_root, &mut files)?;
-    if files.is_empty() {
-        return Err("API binding directory contains no generated TypeScript contracts".into());
+    let schema_path = root.join(SCHEMA);
+    let schema = fs::read_to_string(&schema_path)?.replace("\r\n", "\n");
+    if schema.trim().is_empty() {
+        return Err("OpenAPI document is empty".into());
     }
-    files.sort();
     let mut hash = Sha256::new();
-    hash.update(b"atlas-web-protocol\0");
+    hash.update(b"atlas-web-openapi\0");
     hash.update(revision.to_string().as_bytes());
     hash.update([0]);
-    let mut watched_paths = vec![metadata_path, binding_root];
-    for file in files {
-        let path = root.join(&file);
-        hash.update(file.as_bytes());
-        hash.update([0]);
-        hash.update(fs::read_to_string(&path)?.replace("\r\n", "\n").as_bytes());
-        hash.update([0]);
-        watched_paths.push(path);
-    }
+    hash.update(schema.as_bytes());
     Ok(BrowserContract {
-        identifier: format!("atlas-web-v2-{:x}", hash.finalize()),
-        watched_paths,
+        identifier: format!("atlas-web-v3-{:x}", hash.finalize()),
+        watched_paths: vec![metadata_path, schema_path],
     })
-}
-
-fn collect(root: &Path, path: &Path, files: &mut Vec<String>) -> std::io::Result<()> {
-    if path.is_dir() {
-        for entry in fs::read_dir(path)? {
-            collect(root, &entry?.path(), files)?;
-        }
-    } else if path.extension().is_some_and(|ext| ext == "ts") {
-        files.push(
-            path.strip_prefix(root)
-                .map_err(std::io::Error::other)?
-                .components()
-                .map(|part| part.as_os_str().to_string_lossy())
-                .collect::<Vec<_>>()
-                .join("/"),
-        );
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -78,21 +48,10 @@ mod tests {
     fn fixture() -> tempfile::TempDir {
         let root = tempfile::tempdir().unwrap();
         fs::create_dir_all(root.path().join("crates/atlas-web")).unwrap();
-        fs::create_dir(root.path().join("bindings")).unwrap();
+        fs::write(root.path().join(METADATA), r#"{"protocol_revision":7}"#).unwrap();
         fs::write(
-            root.path().join(METADATA),
-            r#"{"protocol_revision":7,"bindings":"bindings"}"#,
-        )
-        .unwrap();
-        // Create in reverse path order to verify stable collection order.
-        fs::write(
-            root.path().join("bindings/B.ts"),
-            "export type B = \"ready\" | \"busy\";\n",
-        )
-        .unwrap();
-        fs::write(
-            root.path().join("bindings/A.ts"),
-            "export type A = { value: string };\r\n",
+            root.path().join(SCHEMA),
+            "{\"openapi\":\"3.1.0\",\"paths\":{}}\r\n",
         )
         .unwrap();
         root
@@ -104,11 +63,11 @@ mod tests {
         let before = load(root.path()).unwrap();
         assert_eq!(
             before.identifier,
-            "atlas-web-v2-16d06f503005aaab173401cb8ced6199baf44f44398b368eb96407cf49dedf01"
+            "atlas-web-v3-08d4cc97bc6f443b0b8ffd103ae35b5684d30514cd77246159e8ba45eaa86854"
         );
         fs::write(
-            root.path().join("bindings/A.ts"),
-            "export type A = { value: string };\n",
+            root.path().join(SCHEMA),
+            "{\"openapi\":\"3.1.0\",\"paths\":{}}\n",
         )
         .unwrap();
         assert_eq!(load(root.path()).unwrap().identifier, before.identifier);
@@ -135,29 +94,22 @@ mod tests {
     }
 
     #[test]
-    fn changed_added_and_removed_bindings_invalidate_the_fingerprint() {
-        let root = fixture();
-        let before = load(root.path()).unwrap().identifier;
-        let file = root.path().join("bindings/A.ts");
-        fs::write(&file, "export type A = { value: bigint };\n").unwrap();
-        let changed = load(root.path()).unwrap().identifier;
-        assert_ne!(changed, before);
-        fs::write(root.path().join("bindings/C.ts"), "export type C = A;\n").unwrap();
-        let added = load(root.path()).unwrap().identifier;
-        assert_ne!(added, changed);
-        fs::remove_file(file).unwrap();
-        assert_ne!(load(root.path()).unwrap().identifier, added);
-    }
-
-    #[test]
-    fn protocol_revision_covers_semantics_absent_from_typescript() {
+    fn changed_schema_invalidates_the_fingerprint() {
         let root = fixture();
         let before = load(root.path()).unwrap().identifier;
         fs::write(
-            root.path().join(METADATA),
-            r#"{"protocol_revision":8,"bindings":"bindings"}"#,
+            root.path().join(SCHEMA),
+            "{\"openapi\":\"3.1.0\",\"paths\":{\"/api/test\":{}}}\n",
         )
         .unwrap();
+        assert_ne!(load(root.path()).unwrap().identifier, before);
+    }
+
+    #[test]
+    fn protocol_revision_covers_semantics_absent_from_openapi() {
+        let root = fixture();
+        let before = load(root.path()).unwrap().identifier;
+        fs::write(root.path().join(METADATA), r#"{"protocol_revision":8}"#).unwrap();
         assert_ne!(load(root.path()).unwrap().identifier, before);
     }
 
@@ -167,7 +119,7 @@ mod tests {
         let before = load(root.path()).unwrap().identifier;
         fs::write(
             root.path().join(METADATA),
-            "{ \"bindings\": \"bindings\", \"protocol_revision\": 7.0 }\n",
+            "{ \"protocol_revision\": 7.0 }\n",
         )
         .unwrap();
         assert_eq!(load(root.path()).unwrap().identifier, before);
@@ -179,18 +131,13 @@ mod tests {
         for revision in ["0", "-1", "1.5", "4294967296", "null", "\"1\""] {
             fs::write(
                 root.path().join(METADATA),
-                format!(r#"{{"protocol_revision":{revision},"bindings":"bindings"}}"#),
+                format!(r#"{{"protocol_revision":{revision}}}"#),
             )
             .unwrap();
             assert!(load(root.path()).is_err(), "revision {revision}");
         }
-        fs::write(
-            root.path().join(METADATA),
-            r#"{"protocol_revision":7,"bindings":"bindings"}"#,
-        )
-        .unwrap();
-        fs::remove_file(root.path().join("bindings/A.ts")).unwrap();
-        fs::remove_file(root.path().join("bindings/B.ts")).unwrap();
+        fs::write(root.path().join(METADATA), r#"{"protocol_revision":7}"#).unwrap();
+        fs::write(root.path().join(SCHEMA), "\n").unwrap();
         assert!(load(root.path()).is_err());
     }
 }
