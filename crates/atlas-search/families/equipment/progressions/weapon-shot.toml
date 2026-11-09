@@ -1,0 +1,10 @@
+name = "Weapon Shot"
+source_note = "Treasure Vault (Remastered). Four grades of the same shot grant progressively stronger weapon rune effects."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:kR53wN4yZ30PxysG", name = "Weapon Shot (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:9Brjb8WQMVCT0P2v", name = "Weapon Shot (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Pp4JyxzRSqpOiQyL", name = "Weapon Shot (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:jOuY6D1XmtHeax9H", name = "Weapon Shot (Major)", attributes = ["Major"] },
+]

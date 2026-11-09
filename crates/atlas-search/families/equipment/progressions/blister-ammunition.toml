@@ -1,0 +1,9 @@
+name = "Blister Ammunition"
+source_note = "Treasure Vault (Remastered). The same irritant ammunition scales its affliction and save DCs."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:uoWWFCt1B0lKtjwZ", name = "Blister Ammunition (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:xKME7GEjssNkyTgt", name = "Blister Ammunition (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:xm8FszDcmRrnlk09", name = "Blister Ammunition (Greater)", attributes = ["Greater"] },
+]

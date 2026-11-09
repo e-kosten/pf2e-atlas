@@ -1,0 +1,9 @@
+name = "Magnetic Shot"
+source_note = "Treasure Vault (Remastered). The same metal-targeting shot improves its damage dice and attack bonus."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:A8Rv4EWEiQEaNSEX", name = "Magnetic Shot (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:5RJivM5SShjbqFf0", name = "Magnetic Shot (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:JqKNiEJxSZX1sD06", name = "Magnetic Shot (Greater)", attributes = ["Greater"] },
+]

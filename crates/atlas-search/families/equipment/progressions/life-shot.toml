@@ -1,0 +1,12 @@
+name = "Life Shot"
+source_note = "Treasure Vault (Remastered). Six healing cartridges share the non-damaging hit and increase healing and upper-grade bonuses."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:Oo0KZTmFsu9iCAR9", name = "Life Shot (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:hguIfHmI3LjhvlWO", name = "Life Shot (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:l3itUlHLuWP6qlA0", name = "Life Shot (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:MpuFL2midIke1Sbn", name = "Life Shot (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:R6qfTzNv79GH1xHU", name = "Life Shot (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:UzyjCLHxs3JQuFt5", name = "Life Shot (True)", attributes = ["True"] },
+]

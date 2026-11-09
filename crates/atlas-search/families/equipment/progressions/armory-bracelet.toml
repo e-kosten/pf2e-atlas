@@ -1,0 +1,11 @@
+name = "Armory Bracelet"
+source_note = "Treasure Vault (Remastered). Five grades conjure the same weapon options with stronger runes."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:u6BZFzBYUnCmfnRr", name = "Armory Bracelet (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:DmzkzKB4EBleK0DA", name = "Armory Bracelet (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:X5QdnhQyF5Lk1VWV", name = "Armory Bracelet (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:4Rc4arQ7p61MCb0p", name = "Armory Bracelet (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:bz052lqiBuGmD790", name = "Armory Bracelet (Major)", attributes = ["Major"] },
+]

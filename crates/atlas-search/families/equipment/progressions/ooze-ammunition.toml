@@ -1,0 +1,10 @@
+name = "Ooze Ammunition"
+source_note = "Treasure Vault (Remastered). Four grades of the same acid ammunition scale persistent damage, movement penalty, and DC."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:fSO6mFltCGuSapsi", name = "Ooze Ammunition (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:SfqfTak3o0cuSqhL", name = "Ooze Ammunition (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:SEToMRNTXAVVRwyd", name = "Ooze Ammunition (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:qJaIfdtDrysjcy37", name = "Ooze Ammunition (Major)", attributes = ["Major"] },
+]

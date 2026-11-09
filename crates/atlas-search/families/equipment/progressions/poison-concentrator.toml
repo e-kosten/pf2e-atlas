@@ -1,0 +1,10 @@
+name = "Poison Concentrator"
+source_note = "Treasure Vault (Remastered). Four grades of the same apparatus can concentrate progressively higher-level poison."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:vCf4otZtC4RHtXdI", name = "Poison Concentrator (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:PUeRq04dCRkYRx5s", name = "Poison Concentrator (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:TieVxNRNuXsU7m7R", name = "Poison Concentrator (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:tOYitD9BanOPovcD", name = "Poison Concentrator (Major)", attributes = ["Major"] },
+]
