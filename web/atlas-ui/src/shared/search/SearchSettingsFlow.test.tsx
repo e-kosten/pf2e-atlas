@@ -153,7 +153,7 @@ it("resets only the draft until Apply and preserves other family preferences", a
   );
   expect(remember).toHaveBeenCalledWith(
     expect.objectContaining({
-      matchDisplay: "sections" as const,
+      matchDisplay: "hidden" as const,
       showSmallerWeights: false,
       sourceSectionsByFamily: { hazard: "all", npc: "core" },
     }),
@@ -214,11 +214,11 @@ it("offers match display for text searches without showing Similar-only weight c
   expect(screen.queryByText("Content searched for your query.")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Explanation details" }));
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match display" }));
-  fireEvent.click(screen.getByText("Hidden", { exact: true }));
+  fireEvent.click(screen.getByText("Matching sections", { exact: true }));
   expect(screen.queryByRole("switch", { name: "Show smaller weights" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(remember).toHaveBeenCalledWith(
-    expect.objectContaining({ matchDisplay: "hidden" }),
+    expect.objectContaining({ matchDisplay: "sections" }),
   );
   expect(apply).not.toHaveBeenCalled();
 });

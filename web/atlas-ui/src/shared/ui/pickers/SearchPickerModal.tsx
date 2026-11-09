@@ -525,6 +525,7 @@ export function SearchPickerModal<FormValues>({
             </div>
             <ReferenceBrowser
               rows={currentRows}
+              matchDisplay="sections"
               query={
                 recordResults.data?.mode.kind === "text_search"
                   ? recordResults.data.mode.query

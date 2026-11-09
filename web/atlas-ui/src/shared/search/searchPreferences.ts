@@ -9,7 +9,7 @@ export const LEGACY_SEARCH_PROFILE_KEY = "atlas.search.profile.v1";
 
 export type SimilarityMethod = "passages" | "content-average" | "baseline";
 export type MatchDisplay = "hidden" | "sections" | "detailed";
-export const DEFAULT_MATCH_DISPLAY: MatchDisplay = "sections";
+export const DEFAULT_MATCH_DISPLAY: MatchDisplay = "hidden";
 
 export type CandidateParts = "any" | "corresponding";
 export type SimilarityPreferences = {

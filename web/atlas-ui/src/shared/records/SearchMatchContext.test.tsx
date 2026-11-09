@@ -29,7 +29,7 @@ function renderMatches(
   return {
     ...render(
       <ReaderMatchNavigation.Provider value={onNavigate}>
-        <SearchMatchContext {...props} />
+        <SearchMatchContext matchDisplay="sections" {...props} />
       </ReaderMatchNavigation.Provider>,
     ),
     onNavigate,
@@ -168,14 +168,14 @@ it("renders the candidate when seed evidence is absent", () => {
   expect(fireEvent.click(candidate, { metaKey: true })).toBe(true);
 });
 
-it("hides similarity details by default while preserving ordinary text match context", () => {
+it("hides match explanations by default and supports both opt-in displays", () => {
   const props = {
     row: { ...row, similarity: similarityEvidenceFixture(navigation, null) },
     query: "fire",
   };
   const view = render(<SearchMatchContext {...props} />);
   expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
-  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
   view.rerender(<SearchMatchContext {...props} matchDisplay="detailed" />);
   expect(screen.getByRole("region", { name: "Similarity comparison" })).toBeVisible();
   view.rerender(<SearchMatchContext {...props} matchDisplay="sections" />);
@@ -187,7 +187,7 @@ it("switches Similar results between compact matches and details without hiding 
   const props = {
     row: { ...row, similarity: similarityEvidenceFixture(navigation, null) },
   };
-  const view = render(<SearchMatchContext {...props} />);
+  const view = render(<SearchMatchContext {...props} matchDisplay="sections" />);
   let context = screen.getByRole("region", { name: "Search matches" });
   const href = within(context)
     .getByRole("link", { name: "Breath Fire" })

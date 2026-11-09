@@ -451,6 +451,12 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
     path: "../../scratch/browser-validation/ghoul-fever.png",
     fullPage: true,
   });
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "atlas.search.preferences.v1",
+      JSON.stringify({ version: 1, matchDisplay: "sections" }),
+    ),
+  );
   await page.goto("/search?q=%22Soul%20Degradation%22");
   await page.locator(".reference-result").first().locator("[data-record-key]").click();
   await page
