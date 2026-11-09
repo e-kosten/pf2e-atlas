@@ -93,8 +93,9 @@ policy before expensive builds or additional database copies.
 For cross-cutting changes, identify the affected owners, acceptance cases and
 validation obligations before implementation. Preserve the agreed scope and
 explicit non-goals during review. Keep durable design decisions in architecture
-docs and remaining work in the tracked backlog; temporary task notes are not
-contributor documentation.
+docs and temporary task status in task notes. Follow the
+[issue tracking guidance](CONTRIBUTING.md#tracking-future-work) when discussing
+or filing future work.
 
 Respect tracked hooks. Commit hooks check formatting/whitespace; substantive
 validation and independent review are required before merge readiness.

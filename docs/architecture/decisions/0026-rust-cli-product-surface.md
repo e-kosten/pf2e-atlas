@@ -23,7 +23,6 @@ PF2e Atlas is a Rust CLI and first-party skill product.
 
 - `atlas` is the primary user and agent interface.
 - The first-party skill package is the agent guidance surface and is installed by `atlas agent skills`.
-- Future interactive terminal work should be a Ratatui workbench over the Rust runtime crates.
 - Future derived-tag work should be a Rust-owned redesign against record kinds, explicit metadata axes, typed discovery, and artifact ownership. ADR 0028 accepts the concrete Rust tagging model for that follow-up.
 - Transport compatibility is not a planned product surface.
 
@@ -31,9 +30,7 @@ PF2e Atlas is a Rust CLI and first-party skill product.
 
 Product documentation should describe `atlas` commands and skill installation directly.
 
-Architecture documentation should describe the Rust workspace as the current architecture. Historical rationale belongs in ADRs or backlog history, not in active product or contributor docs.
-
-Backlog entries that preserve useful product intent should be reframed as Rust CLI, skill, Ratatui, search, graph, artifact, or derived-tag redesign work.
+Architecture documentation should describe the Rust workspace as the current architecture. ADRs own historical rationale. Product follow-ups belong in [GitHub Issues](https://github.com/e-kosten/pf2e-atlas/issues).
 
 New durable behavior should route through the owning Rust crate:
 

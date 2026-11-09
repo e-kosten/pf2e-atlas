@@ -97,8 +97,25 @@ Passing checks does not provide merge authorization.
 For substantial changes, make scope, affected owners, dependencies and acceptance
 checks clear enough for implementation and review. Task notes and planning tools
 may vary between contributors. Keep durable boundaries in architecture documents
-and remaining work in the backlog; do not turn temporary execution notes into
-repository policy.
+and temporary execution notes with the task.
+
+## Tracking future work
+
+Use [GitHub Issues](https://github.com/e-kosten/pf2e-atlas/issues) to track
+future work independently of the current pull request. Search issues and related
+PRs before filing. Give each issue a clear outcome or question, the relevant
+evidence, and links to related decisions or work. Use a plain issue reference
+for partial work and a closing reference when the PR fulfills the issue.
+
+For agent-assisted work, an explicit request to file or track an item authorizes
+filing it in this repository. Reuse an existing issue when it covers the work,
+share the link, and resume the current task. Keep brainstorming and deferral
+in the conversation. If a concrete follow-up would benefit from tracking, offer
+to file it. Ask before filing agent-discovered work. If a finding affects the
+current task's acceptance criteria, raise it as a scope decision.
+
+Filing an issue records work for consideration. Implementation, assignment,
+priority, and release commitments follow their own decisions.
 
 ## Documentation changes
 

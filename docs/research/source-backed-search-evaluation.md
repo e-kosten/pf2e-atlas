@@ -1,10 +1,9 @@
 # Source-backed Search Evaluation Notes
 
-Pinned PF2e 6.12.4 local evaluation, recorded 2026-10-13. This preserves the dated findings and evidence limits from the research backlog. Its stage descriptions and proposals are historical; current work is in the linked backlog item.
+Local evaluation against pinned PF2e 6.12.4, recorded 2026-10-13. The stage descriptions and proposals document the study as it was run.
 
 Start with the [cross-experiment synthesis](search-evaluation-synthesis.md) and
 [curated grading/ranking evidence](evaluations/2026-10-search/README.md).
-Open work: [backlog item](../backlog/items/rust-search-quality-tuning.md).
 
 ## Lexical and fusion decision, 2026-10-18
 
@@ -163,9 +162,15 @@ Maintained evaluation tooling, if needed, belongs in a separately reviewed devel
 surface. The local TypeScript research harness does not add a product command or
 establish a second retrieval implementation.
 
+### Lexical inflection follow-up
+
+If fresh queries show inflection misses such as breath, breathes and breathing,
+compare the existing unicode61 tokenizer with SQLite's porter wrapper. Check
+diacritics, prefixes, exact names and embedded names. Indexing and query
+construction must agree on normalization. A tokenizer change also requires
+updated artifact validation and a rebuild.
+
 ## References
 
 - [Artifact contract](../architecture/artifact-contract.md)
 - [ADR 0046](../architecture/decisions/0046-source-backed-reference-artifact.md)
-- [FTS tokenization exploration](../backlog/items/rust-fts-tokenization-stemming.md)
-- [Completed saved-list and app-wide UI consistency](../backlog/history/items/shared-ui-consistency-and-saved-lists.md)

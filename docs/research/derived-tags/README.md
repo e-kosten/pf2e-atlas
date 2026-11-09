@@ -34,8 +34,7 @@ Node implementation is referenced by exact ancestor commit.
 | What are the preserved local-only bytes? | [Snapshot manifest](sources/manifest.md) |
 | Can the chat, scratch files, plans and old worktrees be deleted? | [Deletion-readiness audit](deletion-readiness.md) |
 
-The [deferred backlog item](../../backlog/items/rust-derived-tag-redesign.md)
-tracks the reopening condition. [ADR0054](../../architecture/decisions/0054-derived-tag-deferral.md)
+[ADR0054](../../architecture/decisions/0054-derived-tag-deferral.md)
 records this deferral. [Tagging architecture](../../architecture/tagging.md)
 distinguishes the existing file validator from unimplemented product tagging.
 

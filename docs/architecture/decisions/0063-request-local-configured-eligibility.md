@@ -110,15 +110,14 @@ One-selection controls were 2.1–3.7% slower, and ordinary warm BGE controls we
 Further quiet paired process replication is needed before claiming ordinary
 stability. Small correlated samples, uncontrolled OS cache state and sampled
 TEMP observations do not establish tail latency or a total SQLite/disk bound.
-Coordinator integration/publication is separate from this experiment. The
-existing backlog owner retains these limitations and follow-up decisions.
+Coordinator integration and publication are separate from this experiment.
 
 A subsequent ordinary-search replication preserved the original cohort and
 compared six independent counterbalanced pairs per profile/scope in diagnostic
 and overlay-free release modes. Both plain BGE cells supported bounded stability;
 diagnostic Core retained +2.210 ms/+4.845% with matching CPU and missed the frozen
 2 ms tolerance. Separate AI review confirmed the mixed/unresolved overall verdict.
-No causal mechanism is established or ordinary production path changed. The
-existing backlog owner records all per-cell effects and the remaining publication
-uncertainty; this follow-up does not establish general non-regression or tail
-improvement and does not justify selectively extending the cohort.
+No causal mechanism is established or ordinary production path changed. The local
+research packet records the per-cell effects. This follow-up does not establish
+general non-regression or tail improvement and does not justify selectively
+extending the cohort.

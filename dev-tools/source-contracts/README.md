@@ -588,7 +588,7 @@ The PF2e 8.6.1 pin has 45 roots: five document kinds (all 25 Item and eight Acto
 
 The summary records a source digest, source version, Git commit/dirty state when the source is a checkout, TypeScript version and dependency lock digest. Archives have no Git identity. The source digest covers relative names and bytes of `src`, `types`, the package and system manifests, compiler config and English localization; it is independent of checkout location. The lock digest identifies the intended environment; it does not attest an arbitrary external `node_modules` installation.
 
-Save outputs for each source revision and use a normal JSON diff to discover field, vocabulary and metadata changes. Extraction output is developer evidence, not a runtime admission gate or a tracked generated Rust model. See the [source-contract experiment](../../docs/backlog/history/items/rust-source-contract-generation.md) and [selective recovery inventory](../../docs/backlog/items/rust-integration-recovery.md) for the remaining work.
+Save outputs for each source revision and use a normal JSON diff to discover field, vocabulary and metadata changes. Extraction output is developer evidence, not a runtime admission gate or a tracked generated Rust model. See the [maintained source portfolio](../../docs/research/maintained-source-portfolio.md) for coverage and the [historical recovery inventory](../../docs/research/integration-recovery-inventory.md) for the original comparison.
 
 ## Condition and trait-immunity facts
 

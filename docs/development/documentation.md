@@ -17,7 +17,7 @@ provides the editing workflow; this guide owns repository documentation policy.
 | Detailed contributor procedures | The relevant guide in this directory |
 | Module ownership and current architecture | [Architecture overview](../architecture/overview.md), [runtime](../architecture/runtime.md), [artifact contract](../architecture/artifact-contract.md) |
 | Durable decision and its rationale | [ADRs](../architecture/decisions/README.md) |
-| Open work and completed work | [Backlog](../backlog/backlog.md) and its history |
+| Future work and issue intake | [GitHub Issues](https://github.com/e-kosten/pf2e-atlas/issues) and the [tracking guidance](../../CONTRIBUTING.md#tracking-future-work) |
 | Research findings and uncertainty | [Research](../research/README.md) |
 | Cross-surface product copy and interaction | [Product guidelines](../product-guidelines.md) |
 | Frontend implementation and design | [Frontend AGENTS](../../web/atlas-ui/AGENTS.md) and its linked guides |
@@ -90,8 +90,8 @@ workspace; the saved-domain owner remains `atlas-local-state`. Archiving the old
 file layout must not erase that surviving boundary. Do not rewrite an old
 rationale to make it appear that the newer decision was always in force.
 
-Keep temporary task status in the current plan and durable remaining work in the
-backlog. Preserve research snapshots and files covered by recorded hashes,
+Keep temporary task status in the current plan and durable remaining work in
+GitHub Issues. Preserve research snapshots and files covered by recorded hashes,
 including manifests and historical validation evidence. Update links around those
 frozen files rather than editing their contents to match new defaults. Remove duplicated or obsolete explanations
 when their useful rationale already has a maintained home or historical record.

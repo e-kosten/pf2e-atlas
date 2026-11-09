@@ -19,7 +19,7 @@ build time, peak memory, audit costs and the input ownership retrieval tradeoff.
 
 The [remaster information review](remaster-information.md) inventories pinned-source
 change declarations, missing legacy text, alias/pair limitations and presentation
-requirements. Its implementation scope is tracked in the linked backlog.
+requirements. ADR0067 records the implemented scope.
 The [available-counterpart audit](remaster-counterpart-coverage.md) follows the
 implementation with a complete same-name candidate census, additional journal
 bindings to review, real changed-body examples and search-preference coverage limits.

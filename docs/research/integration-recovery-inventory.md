@@ -1,8 +1,6 @@
 # Integration Recovery Inventory
 
-Historical comparison recorded 2026-10-06 against the pinned commits below. This preserves the original inventory and proposed recovery sequence; current feature review is in the linked backlog item.
-
-Current task: [backlog item](../backlog/items/rust-integration-recovery.md).
+Historical comparison recorded 2026-10-06 against the pinned commits below. This preserves the original inventory and proposed recovery sequence. Later deliveries include reference reading and filter work in PRs #68, #69, #71 and #73, encounter status and conditions in PRs #78 and #91, and browse and relationship filtering in PRs #97–99.
 
 ## Direction and reference candidates
 
@@ -32,7 +30,7 @@ is useful recovery guidance, not a statement that main already implements it.
 
 ### Declaration extraction and trait metadata — implement independently
 
-The first PR follows [source generation and catalog research](../backlog/history/items/rust-source-contract-generation.md):
+The first PR follows [source generation and catalog research](maintained-source-portfolio.md):
 extract inspectable common/physical declarations and upstream trait/other-tag
 metadata without changing ingest, storage or UI. It needs the pinned upstream
 TypeScript environment, configuration and localization inputs; it does not need

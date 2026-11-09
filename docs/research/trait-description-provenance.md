@@ -10,8 +10,9 @@ Scope: the catalog and localized descriptions delivered in
 The source path and applicable upstream notices are documented below. The pin
 does **not** establish a paragraph-level license for each localized description.
 This review therefore does not clear every description for use or redistribution.
-The required content attribution/permission decision remains explicit in the
-[separate follow-up](../backlog/items/trait-description-content-rights.md).
+A decision to extend coverage or redistribute descriptions requires evidence of
+permission and attribution at paragraph level, including mixed rules and setting
+text.
 
 Atlas's Apache 2.0 license covers its own code. The generated catalog retains the
 upstream system-code attribution; neither licenses the acquired rules prose as
