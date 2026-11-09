@@ -75,8 +75,11 @@ configuration at the package root, implementation under `src/`, and tests under
 modules own the reusable implementation. Source-contract fixtures and saved
 large declaration graphs live in ignored caches, separate from implementation and small fixtures. `dev-tools/release`
 owns notice, manifest, checksum and archive tooling. Operational shell and
-PowerShell workflows and installers remain under `scripts/`. Rust developer
-commands continue to live in the owning Cargo crates.
+PowerShell workflows and installers remain under `scripts/`. Expose recurring Rust diagnostics and maintainer reports through `atlas-dev`
+and keep shared domain behavior in the owning crates. Keep narrow probes and
+executables with a dedicated caller as Cargo examples in their owning crates.
+Expose checkout workflows through Just recipes that delegate to their
+orchestration scripts.
 
 atlas-cli-support owns the presentation primitives used by both Rust CLIs:
 path/progress argument vocabulary, JSON envelopes, and progress rendering.

@@ -122,7 +122,10 @@ sh scripts/validation/run-check.sh 'frontend verify' npm --prefix web/atlas-ui r
 Developer-only `atlas-dev` changes use the standalone developer gate selected by
 `verify-changed --full`: formatting, both Clippy policies, tests for `atlas-dev`
 and `atlas-cli-support`, and an `atlas-dev` build. This owner builds independently
-of the web UI per ADR0033. Shared/runtime changes still select the workspace gate.
+of the web UI per ADR0033. The standalone CI job uses the same phase definitions
+and retains its validation evidence. When CI also runs the workspace gate, the
+standalone job runs the build and tests, with formatting and Clippy covered by the
+workspace gate. Shared/runtime changes still select the workspace gate.
 
 ## Local frontend gate
 
@@ -385,6 +388,22 @@ Follow the frontend guidelines for visual review and actual-device checks;
 passing emulation does not certify a physical phone's software keyboard, browser
 chrome or text-enlargement behavior.
 
+## OpenAPI freshness
+
+For changes to HTTP routes, wire schemas, generated output, or the generator,
+run the same freshness check as the Rust CI job. Prepare the private package's
+dependencies first.
+
+```sh
+npm --prefix dev-tools/openapi ci --ignore-scripts
+npm --prefix dev-tools/openapi run check
+```
+
+The check compiles the Rust exporter, generates temporary files, and compares the
+tracked OpenAPI document and Fetch client. Use the [generation command](../../web/atlas-ui/README.md#dtos)
+to update those files. Run the freshness check explicitly alongside local
+changed-path validation.
+
 ## Changed-path selection and hooks
 
 For path-sensitive formatting or explicit full validation (the range below assumes a PR against `main`; substitute the actual PR base for integration or stacked work):
@@ -410,7 +429,7 @@ a gate.
 | Browser packaging/runner scripts | Tooling regressions plus affected local browser flows; CI fixture/browser matrix |
 | Frontend | Frontend gate and affected local browser flows; CI builds the real Rust fixture and runs the browser matrix, without unrelated full Rust workspace verification |
 | Browser specs/configuration | Frontend checks/bundle and affected local browser flows; CI fixture/matrix, without unrelated Vitest or full Rust workspace verification |
-| App-model contracts | Both Rust and frontend |
+| HTTP routes, app-model contracts, or generated client | Rust and frontend gates plus the [OpenAPI freshness check](#openapi-freshness) |
 | Foundry model | Rust and source-contract generation |
 | Source-contract tooling | Fixture tests and pinned generation |
 | Release tooling | Tool tests, notices and installer checks; CI includes three OSes |
