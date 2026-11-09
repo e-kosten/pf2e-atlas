@@ -4,10 +4,20 @@ use atlas_ingest::{BuildArtifactOptions, CapturedBuildInputs, IngestError};
 pub(crate) fn capture_build_inputs(
     options: BuildArtifactOptions,
 ) -> Result<CapturedBuildInputs, IngestError> {
+    tracing::info!(target:"atlas_progress",phase="check_source_freshness","Capturing source inputs");
     let started = std::time::Instant::now();
     let captured = CapturedBuildInputs::capture(options);
-    tracing::info!(target:"atlas_progress",phase="check_source_freshness",
-        elapsed_seconds=started.elapsed().as_secs_f64(),success=captured.is_ok(),"Captured source inputs");
+    let message = if captured.is_ok() {
+        "Captured source inputs"
+    } else {
+        "Source input capture failed"
+    };
+    tracing::info!(
+        phase = "check_source_freshness",
+        elapsed_seconds = started.elapsed().as_secs_f64(),
+        success = captured.is_ok(),
+        "{message}"
+    );
     captured
 }
 pub(crate) fn source_is_fresh(

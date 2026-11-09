@@ -1661,6 +1661,45 @@ fn similar_guard_errors_keep_json_pure_and_include_copyable_rediscovery() {
 }
 
 #[test]
+fn setup_logs_failed_source_capture_without_a_success_message() {
+    let fixture = Fixture::new();
+    fs::write(fixture.root.join("module.json"), "{invalid").unwrap();
+    let output = fixture
+        .isolated_repo_command()
+        .env("ATLAS_LOG", "info")
+        .env_remove("ATLAS_PROGRESS")
+        .args([
+            "--progress",
+            "always",
+            "setup",
+            "--path-mode",
+            "repo",
+            "--no-embeddings",
+            "--offline",
+            "--check",
+            "--json",
+            "--source",
+        ])
+        .arg(&fixture.root)
+        .arg("--index")
+        .arg(&fixture.index)
+        .arg("--embedding-cache-path")
+        .arg(fixture.root.join("models"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let progress = String::from_utf8(output.stderr).unwrap();
+    assert!(progress.contains("Capturing source inputs"), "{progress}");
+    assert!(
+        progress.contains("Source input capture failed"),
+        "{progress}"
+    );
+    assert!(!progress.contains("Captured source inputs"), "{progress}");
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["data"]["ready"], false);
+}
+
+#[test]
 fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search_or_saved_state() {
     let fixture = Fixture::new();
     fixture.data(&["lists", "create", "Keep", "--slug", "keep", "--json"]);

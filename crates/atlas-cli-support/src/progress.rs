@@ -87,7 +87,8 @@ where
     S: Subscriber,
 {
     fn on_event(&self, event: &Event<'_>, _context: Context<'_, S>) {
-        if *event.metadata().level() > Level::INFO {
+        let level = *event.metadata().level();
+        if level > Level::INFO {
             return;
         }
         let target = event.metadata().target();
@@ -107,16 +108,16 @@ where
             Ok(state) => state,
             Err(poisoned) => poisoned.into_inner(),
         };
-        if target == "atlas_progress" {
-            if self.internal_logs_enabled && !fields.fields.is_empty() {
-                state.log(&message, &fields.fields);
-            }
-            let render = progress_render_mode(self.options, state.is_interactive);
-            if render.enabled() {
-                state.progress(&message, &fields, self.options.setup_timing, render);
-            }
-        } else {
-            state.log(&message, &fields.fields);
+        if target != "atlas_progress" || level < Level::INFO {
+            state.log(level, &message, &fields.fields);
+            return;
+        }
+        if self.internal_logs_enabled && !fields.fields.is_empty() {
+            state.log(level, &message, &fields.fields);
+        }
+        let render = progress_render_mode(self.options, state.is_interactive);
+        if render.enabled() {
+            state.progress(&message, &fields, self.options.setup_timing, render);
         }
     }
 }
@@ -361,8 +362,8 @@ impl CliProgressState {
         self.progress_phase = None;
     }
 
-    fn log(&mut self, message: &str, fields: &[(String, String)]) {
-        let line = format_log_line(self.started_at.elapsed(), message, fields);
+    fn log(&mut self, level: Level, message: &str, fields: &[(String, String)]) {
+        let line = format_log_line(self.started_at.elapsed(), level, message, fields);
         if let Some(progress_bar) = &self.progress_bar {
             progress_bar.suspend(|| eprintln!("{line}"));
         } else {
@@ -526,8 +527,13 @@ fn work_timing(current: u64, total: u64, elapsed: Duration) -> String {
     text
 }
 
-fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
-    let mut line = format!("{} INFO {message}", log_elapsed_prefix(elapsed));
+fn format_log_line(
+    elapsed: Duration,
+    level: Level,
+    message: &str,
+    fields: &[(String, String)],
+) -> String {
+    let mut line = format!("{} {level} {message}", log_elapsed_prefix(elapsed));
     for (name, value) in fields {
         let _ = write!(line, " {name}={value}");
     }
@@ -609,6 +615,47 @@ mod tests {
         fn flush(&self) -> io::Result<()> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn progress_warning_keeps_the_active_step() {
+        use tracing_subscriber::prelude::*;
+
+        let subscriber = tracing_subscriber::registry().with(super::CliProgressLayer::new(
+            ProgressOptions {
+                mode: ProgressMode::Always,
+                json: false,
+                setup_timing: true,
+            },
+            false,
+        ));
+        let layer = subscriber
+            .downcast_ref::<super::CliProgressLayer>()
+            .unwrap();
+        let mut state = layer.state.lock().unwrap();
+        state.is_interactive = true;
+        state.ensure_display(
+            Some("current_step".into()),
+            None,
+            None,
+            ProgressDrawTarget::hidden(),
+        );
+
+        drop(state);
+        let dispatch = tracing::Dispatch::new(subscriber);
+        tracing::dispatcher::with_default(&dispatch, || {
+            tracing::warn!(target: "atlas_progress", phase = "reclaim_space",
+                "Database space was not reclaimed");
+        });
+        let layer = dispatch.downcast_ref::<super::CliProgressLayer>().unwrap();
+        assert_eq!(
+            layer.state.lock().unwrap().progress_phase.as_deref(),
+            Some("current_step")
+        );
+        assert_eq!(
+            super::format_log_line(Duration::ZERO, tracing::Level::WARN, "test", &[]),
+            "[0s] WARN test"
+        );
     }
 
     #[test]

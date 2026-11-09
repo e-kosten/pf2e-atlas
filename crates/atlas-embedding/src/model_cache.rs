@@ -205,7 +205,8 @@ fn prepare_cache_file(
         "tokenizer.json" => "tokenizer",
         _ => "configuration",
     };
-    info!(target: "atlas_progress", phase = "embedding_model_cache",
+    info!(target: "atlas_progress",
+        phase = %format!("embedding_model_cache:{}/{}/{}", file.source_repo, file.source_revision, file.source_path),
         repo = file.source_repo, revision = file.source_revision, asset = file.source_path,
         "Downloading {label} {asset}");
     // The existing verified temporary-file/rename path preserves any previous
@@ -339,6 +340,34 @@ mod tests {
             crate::BASELINE_SEGMENTATION_TOKENIZER_SHA256
         );
     }
+    #[test]
+    fn model_asset_downloads_have_distinct_progress_phases() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = EmbeddingRuntimeConfig::new(
+            crate::EmbeddingModelId::EmbeddingGemma300M,
+            directory.path(),
+        );
+        let files = required_embedding_model_cache_files(&config);
+        let (_, events) = crate::tests::observed_progress(|| {
+            for file in &files {
+                let result = prepare_cache_file(file, |_| {
+                    Err(EmbeddingError::ModelCacheDownloadFailed {
+                        url: "test://download".into(),
+                        path: file.local_path.display().to_string(),
+                        message: "fixture".into(),
+                    })
+                });
+                assert!(result.is_err());
+            }
+        });
+        assert_eq!(events.len(), files.len());
+        let phases = events
+            .iter()
+            .map(|event| &event["phase"])
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(phases.len(), files.len());
+    }
+
     #[test]
     fn selected_checksum_repair_is_verified_atomic_and_failed_partial_download_preserves_previous_bytes()
      {
