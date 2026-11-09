@@ -1,0 +1,11 @@
+name = "Silverscrap Bomb"
+source_note = "Adventure Path: Hellbreakers. Three grades of the same silver bomb scale piercing damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:QvfHp3lgIQqqiCQF", name = "Silverscrap Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:WCA8vovbzZuoHzu9", name = "Silverscrap Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ECqOpC2J3dc6kNjM", name = "Silverscrap Bomb (Greater)", attributes = ["Greater"] },
+]

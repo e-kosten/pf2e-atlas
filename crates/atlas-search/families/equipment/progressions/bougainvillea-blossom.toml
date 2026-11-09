@@ -1,0 +1,11 @@
+name = "Bougainvillea Blossom"
+source_note = "#202: Severed at the Root. Four grades of the same plant-spell catalyst increase the added piercing damage."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:gEDLO9RQ1Qs6x5aO", name = "Bougainvillea Blossom (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:kaYxmbz5arHnCkLn", name = "Bougainvillea Blossom (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:7VNwyrkZS8ui4HmF", name = "Bougainvillea Blossom (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Tm1MfO24oe8NsxbY", name = "Bougainvillea Blossom (Major)", attributes = ["Major"] },
+]

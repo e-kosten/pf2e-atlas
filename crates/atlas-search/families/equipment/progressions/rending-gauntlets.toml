@@ -1,0 +1,9 @@
+name = "Rending Gauntlets"
+source_note = "#208: Hoof, Cinder, and Storm. Three grades of the same two-Strike finisher increase piercing damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:22mke3o7VmNt3Mvb", name = "Rending Gauntlets (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:8ypsabK300Sdf2X8", name = "Rending Gauntlets (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:GgR1zcLI8daml05a", name = "Rending Gauntlets (Greater)", attributes = ["Greater"] },
+]
