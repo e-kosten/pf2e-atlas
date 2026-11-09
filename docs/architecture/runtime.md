@@ -966,7 +966,7 @@ recreating a metric store.
 Macro-inspired UI actions, source-local asset ingestion, independent runtime display
 locale, broader label selection, representative root embeddings/reranking and new
 embedding models beyond the two pinned baseline profiles require separate bounded design/evidence. Their retained source
-data does not imply runtime execution support. See the active backlog and ADR0046.
+data does not imply runtime execution support. See [ADR0046](decisions/0046-source-backed-reference-artifact.md) for the source-backed boundary.
 
 ### Encounter participation and regain forecasts
 

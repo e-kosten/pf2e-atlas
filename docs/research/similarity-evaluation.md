@@ -91,6 +91,4 @@ All opened holdouts are now exposed. Evaluate Core presets, the separate identit
 component, equipment variants and decay with fresh cases before proposing further
 default changes. Current policy lives in
 [ADR 0059](../architecture/decisions/0059-configurable-similarity.md) and
-[ADR 0060](../architecture/decisions/0060-core-sections-and-search-scope.md);
-remaining work is tracked in the
-[search-quality backlog](../backlog/items/rust-search-quality-tuning.md).
+[ADR 0060](../architecture/decisions/0060-core-sections-and-search-scope.md).

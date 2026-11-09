@@ -7,8 +7,8 @@ findings remain useful; its declaration framework is not an implementation requi
 Research date: 2026-11-05. Atlas baseline: `344395cf917c840f7b2c10469c19200e2bbf4c16`
 (merged PR #213). Foundry source: `28d9d156f252d084371d994dc359509b49eadf18`,
 PF2e 8.6.1, English. This report separates observed behavior from proposed changes.
-This baseline report predates the implementation now
-[in progress](../backlog/items/remaster-relationship-coverage.md). See the
+This baseline report predates the compact counterpart navigation shipped in
+[PR #219](https://github.com/e-kosten/pf2e-atlas/pull/219). See the
 [2026-11-06 counterpart audit](remaster-counterpart-coverage.md) for current
 declaration/alias counts, available but unbound old records and comparison coverage.
 
@@ -237,10 +237,8 @@ pages demonstrate why equal names do not establish equal content. Atlas should
 preserve exact reading URLs and use its existing drawer/history rather than
 redirecting the chosen document.
 
-The local working plan owns proposed schema details, execution order, acceptance
-cases and unresolved product choices. The [backlog item](../backlog/items/remaster-relationship-coverage.md)
-owns durable scope. Additional reference providers, a general identity-redirect
-system, and explicit saved-entry conversion are separate potential workstreams.
+ADR0067 records the accepted scope. Additional reference providers, a general
+identity-redirect system, and saved-entry conversion remain separate proposals.
 
 Product decision on 2026-11-05: saved records follow current content at their
 selected key. Historical record snapshots and pinning are excluded. The proposed

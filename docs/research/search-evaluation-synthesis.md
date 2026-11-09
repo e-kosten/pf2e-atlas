@@ -147,6 +147,6 @@ independent; switching fusion requires no new embeddings.
 - Reuse exact vectors and ranking captures when the hypothesis permits. Avoid new
   inference merely to change fusion, inspect a slice, or correct a judgment.
 
-The [search backlog](../backlog/items/rust-search-quality-tuning.md) tracks open
-work. Architecture owns product policy; the research archive records evidence and
-its limitations. Historical proposals are not authorization for new implementation.
+Architecture owns product policy. The research archive records evidence and its
+limitations. Define a fresh query set and evaluation goal before proposing another
+ranking change.

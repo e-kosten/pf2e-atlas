@@ -40,8 +40,8 @@ historical plan's instructions.
 
 ## Consequences
 
-The backlog tracks a deferred capability, not a promised implementation. Current
-architecture documents distinguish the small existing validator from conditional
-future integration. Saved-list grouping tags remain an independent local-state
+Current architecture documents distinguish the small existing validator from
+conditional future integration. Reopen the design when a demonstrated discovery
+gap warrants it. Saved-list grouping tags remain an independent local-state
 feature. Local research cleanup must verify snapshot coverage and omitted raw
 artifacts before removal; this decision does not authorize deleting worktrees.

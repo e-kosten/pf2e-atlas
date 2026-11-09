@@ -33,7 +33,8 @@ These are separate from the repaired strike/read-continuity defects and have not
 1. Several mutation buttons still use immediate boolean `loading`: HP/condition/spell/resource saves, persistent recovery, list edits/removal, party editors and modal submissions. These keep drafts/content, but fast writes may flash a spinner or change the button footprint. A follow-up should delay visual busy feedback while retaining an immediate explicit pending guard; changing the spinner alone can accidentally permit duplicate input. Relevant owners include `EncounterHpEditor`, `EncounterConditionEditor`, `EncounterSpellControls`, `EncounterPersistentRecovery`, `ListEntryNote`, `CreateListModal` and shared `DangerActionButton`.
 2. `EncounterLifeStatus` initially derives its split-button shape from an empty lifecycle read, and `EncounterConditionLifecycle` derives secondary actions from asynchronously loaded choices. A cold read can reveal controls later. Review a reserved control footprint or preparation before disclosure; do not invent unavailable actions or preload every participant unconditionally.
 
-The encounter follow-up owner is [Encounter runner usability follow-through](../../backlog/items/rust-web-encounter-runner-polish.md).
+Recheck these dated observations in the current encounter runner before filing a
+specific loading or layout issue.
 
 ## Evidence and limits
 

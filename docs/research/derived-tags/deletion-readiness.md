@@ -10,7 +10,7 @@ replay every generated review session.
 
 | Knowledge | Durable home |
 | --- | --- |
-| Why the feature is deferred and what would justify reopening | [Entry point](README.md), ADR0054 and deferred backlog |
+| Why the feature is deferred and what would justify reopening | [Entry point](README.md), ADR0054 |
 | History, useful vocabulary, semantic pitfalls and why the brittle matcher should not return | [History and lessons](history-and-lessons.md) |
 | Stable meaning versus browse groups; native overlap; ontology/assessment loops; applicability, coverage, versions, negatives, evidence, UI/coordinator feedback and open choices | [Design if revisited](design-if-revisited.md), full October plan snapshot |
 | Annotation/reviewer research, limitations and proposed evaluation | [Research and evaluation](research-and-evaluation.md) |
