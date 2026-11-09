@@ -1,0 +1,9 @@
+name = "Leaper's Elixir"
+source_note = "Core Rulebook. Both grades enhance jumping, and Greater adds more vertical reach."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:uG3xtNrs26scOVgW", name = "Leaper's Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:6eQvHNHf1IC2X5Rx", name = "Leaper's Elixir (Greater)", attributes = ["Greater"] },
+]

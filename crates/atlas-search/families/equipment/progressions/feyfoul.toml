@@ -1,0 +1,10 @@
+name = "Feyfoul"
+source_note = "Kingmaker. Three grades increase the strength and duration of the same protection against fey."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:JbkAk2j7h31izKyR", name = "Feyfoul (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:LbRuAXvoACxPqHqn", name = "Feyfoul (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:9wwCHxuCfBA9w6Ik", name = "Feyfoul (Greater)", attributes = ["Greater"] },
+]

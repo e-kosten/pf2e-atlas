@@ -1,0 +1,10 @@
+name = "Energized Shield"
+source_note = "Battlecry!. Four grades of the same steel shield increase the force blast damage and save DC."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:u2rlekTlwFOUkxLN", name = "Energized Shield (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:c3rgT6PKYery9QH8", name = "Energized Shield (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:j66vP9yPSDe5by2k", name = "Energized Shield (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:EpWa6SEocKadswN7", name = "Energized Shield (Major)", attributes = ["Major"] },
+]

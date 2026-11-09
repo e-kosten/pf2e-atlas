@@ -1,0 +1,9 @@
+name = "Olfactory Obfuscator"
+source_note = "Advanced Player's Guide. The same scent-masking elixir lasts longer at Greater."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:R0gsYr0jD1giTzpx", name = "Olfactory Obfuscator (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:MBL8rOfvokYmUvwc", name = "Olfactory Obfuscator (Greater)", attributes = ["Greater"] },
+]

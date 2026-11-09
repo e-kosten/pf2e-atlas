@@ -1,0 +1,11 @@
+name = "Explosive Mine"
+source_note = "Guns & Gears. Four grades of the same trigger mine scale damage and DC, with a larger area at Major."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:7e57yUVtRgYLOFwT", name = "Explosive Mine (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:aiL53pkt0wFrsAQb", name = "Explosive Mine (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:e2Von0aDHB03Iz3f", name = "Explosive Mine (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:FBS2dhoOfSlcuPt6", name = "Explosive Mine (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,12 @@
+name = "Redpitch Bomb"
+source_note = "Blog. Four grades of the same redpitch bomb scale fire damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:HtcjYkGS8vuC0e7T", name = "Redpitch Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:qWRigVOjyLvSW6UA", name = "Redpitch Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:CS3mKu9koUfRiHJo", name = "Redpitch Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:riHdB9PBAXZUMsWC", name = "Redpitch Bomb (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,12 @@
+name = "Ablative Shield Plating"
+source_note = "Guns & Gears. Five grades of shield plating absorb progressively more damage and last longer at higher grades."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:qF2GDYQCpSZ12Nk7", name = "Ablative Shield Plating (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:aY6Ukb7ZsMDelhmH", name = "Ablative Shield Plating (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:SUn5qFbHYTLobgTt", name = "Ablative Shield Plating (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:dwRqo9KQki2iCwHu", name = "Ablative Shield Plating (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:HD0RIJcRIIKKAdkn", name = "Ablative Shield Plating (True)", attributes = ["True"] },
+]

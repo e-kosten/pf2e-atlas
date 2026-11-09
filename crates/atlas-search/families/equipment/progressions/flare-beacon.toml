@@ -1,0 +1,11 @@
+name = "Flare Beacon"
+source_note = "Guns & Gears. Four grades of the same signal flare scale visibility, affected area, and saving throw DC."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:aP5wvs60j6VaKvWL", name = "Flare Beacon (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:WAQABCTFGuHvC0yR", name = "Flare Beacon (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:9UGxCsNE778Y5rk0", name = "Flare Beacon (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:VJ9mXi70JprHHA0z", name = "Flare Beacon (Major)", attributes = ["Major"] },
+]
