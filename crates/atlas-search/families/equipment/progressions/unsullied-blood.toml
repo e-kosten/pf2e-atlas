@@ -1,0 +1,11 @@
+name = "Unsullied Blood"
+source_note = "Lost Omens Impossible Lands. Four grades of the same healing catalyst support more spells and higher ranks."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:605M9h4bMsNCQne6", name = "Unsullied Blood (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:FClD2GoWpq3qdPQl", name = "Unsullied Blood (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:3YnHsf98MAe3lcdH", name = "Unsullied Blood (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:62IVHZyHA6239PHe", name = "Unsullied Blood (Major)", attributes = ["Major"] },
+]

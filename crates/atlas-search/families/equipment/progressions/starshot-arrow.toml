@@ -1,0 +1,8 @@
+name = "Starshot Arrow"
+source_note = "Lost Omens Legends. Both grades share the same supernatural shot, with Greater increasing range and travel effects."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:HUPCdlFkJQC7Krim", name = "Starshot Arrow (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:4dwBcqeuXePd89qW", name = "Starshot Arrow (Greater)", attributes = ["Greater"] },
+]

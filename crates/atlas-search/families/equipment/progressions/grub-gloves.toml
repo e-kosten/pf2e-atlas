@@ -1,0 +1,9 @@
+name = "Grub Gloves"
+source_note = "Lost Omens Highhelm. Three grades improve the same ranching gloves' skill bonuses and healing."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:pDaFDSY1keNfbdTl", name = "Grub Gloves (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:cxVbGSUjmc2yxVh5", name = "Grub Gloves (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:oEfcbqK68enZLOoR", name = "Grub Gloves (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Night Sky Elixir"
+source_note = "Lost Omens Cheliax, Infernal Inheritance. Three grades extend the same protection against devils and increase its bonus."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:gtDdDx9zbpkMoyLV", name = "Night Sky Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:BqxcT008uwb8vWik", name = "Night Sky Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:mHTOxBHwCnChS12G", name = "Night Sky Elixir (Greater)", attributes = ["Greater"] },
+]

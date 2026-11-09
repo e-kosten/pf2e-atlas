@@ -1,0 +1,10 @@
+name = "Applereed Mutagen"
+source_note = "Lost Omens Legends. Three grades share the same leg-lengthening tradeoff with stronger bonuses and longer duration."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:0RTsyWutvO42O0zK", name = "Applereed Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:8e37h6HBr4ZyBSGt", name = "Applereed Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:vTEWlRBUD4VzVwxK", name = "Applereed Mutagen (Greater)", attributes = ["Greater"] },
+]

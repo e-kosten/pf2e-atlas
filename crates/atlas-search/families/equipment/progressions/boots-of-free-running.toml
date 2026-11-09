@@ -1,0 +1,9 @@
+name = "Boots of Free Running"
+source_note = "Lost Omens Firebrands. Three grades improve the same traction and movement benefits."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:0T7JuFupBTfDBiHv", name = "Boots of Free Running (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:kcRQT67sLes1cC72", name = "Boots of Free Running (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:NQGVqxIWaa2fize3", name = "Boots of Free Running (Greater)", attributes = ["Greater"] },
+]

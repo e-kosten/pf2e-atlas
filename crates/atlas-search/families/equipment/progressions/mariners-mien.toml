@@ -1,0 +1,8 @@
+name = "Mariner’s Mien"
+source_note = "Lost Omens High Seas. Both masks grant the same nautical bonuses with greater strength and duration at the upper grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:KpXVjLp5JroHDz4v", name = "Mariner’s Mien (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:kcPeStVvCJDa29XD", name = "Mariner’s Mien (Greater)", attributes = ["Greater"] },
+]
