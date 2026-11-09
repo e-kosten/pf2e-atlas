@@ -1,0 +1,12 @@
+name = "Necrotic Bomb"
+source_note = "#165: Eyes of Empty Death. Four grades of the same void bomb scale damage, splash, and upper-grade effects."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:8JnOYyTdatqRnAV4", name = "Necrotic Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:moBSgma1rtJqh7Rp", name = "Necrotic Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:u41wQz3bgu6J1XKo", name = "Necrotic Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:RC8EmoFiMITFUopr", name = "Necrotic Bomb (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,11 @@
+name = "War Blood Mutagen"
+source_note = "#178: Punks in a Powder Keg. Four grades share the same weapon-binding tradeoff and increase bonuses, duration, and weapon-removal DC."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:H3KAt7cHJ6ZLTJQE", name = "War Blood Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:AOAXZzH4AOsQqYYv", name = "War Blood Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:oaGUNWmrqtKhy1HP", name = "War Blood Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Qa4qjxk5aPzx7HTR", name = "War Blood Mutagen (Major)", attributes = ["Major"] },
+]

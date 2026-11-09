@@ -1,0 +1,11 @@
+name = "Prey Mutagen"
+source_note = "#194: Cult of the Cave Worm. Four grades share the same predator-attracting tradeoff and improve speed bonuses and duration."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:60DuFyGQoZhPj4To", name = "Prey Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:JiMljGYKx60DHs8O", name = "Prey Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:qoyelABKtk9DRSEk", name = "Prey Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:fiBThkOOXEdcTSMf", name = "Prey Mutagen (Major)", attributes = ["Major"] },
+]

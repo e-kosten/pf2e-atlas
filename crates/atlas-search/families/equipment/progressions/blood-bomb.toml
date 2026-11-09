@@ -1,0 +1,12 @@
+name = "Blood Bomb"
+source_note = "#194: Cult of the Cave Worm. Four grades of the same shrapnel bomb scale persistent bleed damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:wdJ0AFtkJVycVRjX", name = "Blood Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:ODXNXvcLQGBw6kXj", name = "Blood Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:kuHr6dEOxN0WAnUP", name = "Blood Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:3SZAUzXG6MWYWoXZ", name = "Blood Bomb (Major)", attributes = ["Major"] },
+]

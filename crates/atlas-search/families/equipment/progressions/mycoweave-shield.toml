@@ -1,0 +1,9 @@
+name = "Mycoweave Shield"
+source_note = "#193: Mantle of Gold. Three grades of the same fungal shield increase durability and strengthen its poison effects."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:AXewacUHP6rs980k", name = "Mycoweave Shield (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:i8UuRf5yLztt43TN", name = "Mycoweave Shield (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Ruul32xBBYYVwFHC", name = "Mycoweave Shield (Major)", attributes = ["Major"] },
+]

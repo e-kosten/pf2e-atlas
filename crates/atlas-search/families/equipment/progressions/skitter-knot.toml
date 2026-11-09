@@ -1,0 +1,10 @@
+name = "Skitter Knot"
+source_note = "#201: Pactbreaker. Three grades use the same protective root movement with increased distance and Hardness."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:JZvkPv1Vj6mpSA9P", name = "Skitter Knot (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:1GT08roPjKBbJ5lG", name = "Skitter Knot (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:R0CLbiSu4sst4Hf9", name = "Skitter Knot (Major)", attributes = ["Major"] },
+]
