@@ -86,6 +86,8 @@ test("short landscape filter popovers keep their footer reachable by pointer", a
   await page.getByRole("button", { name: "Edit Traits filter", exact: true }).click();
   const menu = page.getByRole("dialog", { name: "Traits choices", exact: true });
   const footer = menu.getByRole("checkbox", { name: "Show all values" });
+  // The picker focuses its search field after the opening motion finishes.
+  await expect(menu.getByLabel("Search traits choices", { exact: true })).toBeFocused();
   await expect(footer).toBeVisible();
   await expect
     .poll(async () => {
