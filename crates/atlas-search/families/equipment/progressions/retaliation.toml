@@ -1,0 +1,10 @@
+name = "Retaliation"
+source_note = "Treasure Vault. Four grades of the shield rune share the Shield Block trigger and scale force damage and save DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:slkvVyRBrUJyZQj8", name = "Retaliation (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:vUXtEGa3eFLO5MCt", name = "Retaliation (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:pRgnCoqOntDqZchB", name = "Retaliation (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:XpS6X7QKtMQCVkdY", name = "Retaliation (Major)", attributes = ["Major"] },
+]

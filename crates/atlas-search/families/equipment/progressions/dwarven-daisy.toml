@@ -1,0 +1,10 @@
+name = "Dwarven Daisy"
+source_note = "Society Quest #5: The Dragon who Stole Evoking Day. Both grades of the same firecracker bomb scale damage and save DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:xZFT5JdEvDi7q467", name = "Dwarven Daisy (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Do4rJuA1nhr2TTiF", name = "Dwarven Daisy (Moderate)", attributes = ["Moderate"] },
+]

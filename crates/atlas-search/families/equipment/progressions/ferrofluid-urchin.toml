@@ -1,0 +1,10 @@
+name = "Ferrofluid Urchin"
+source_note = "Rage of Elements. Three grades share the same affixed armor trigger and scale its resistance."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:vqGAy24GXV3jyGoZ", name = "Ferrofluid Urchin (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:4DfaAHIxnWPMoWb5", name = "Ferrofluid Urchin (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:dhn6dx5bvZBgZGHs", name = "Ferrofluid Urchin (Greater)", attributes = ["Greater"] },
+]

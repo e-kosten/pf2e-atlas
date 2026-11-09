@@ -1,0 +1,12 @@
+name = "Steelscour"
+source_note = "Wake the Dead #5. Four grades of the same metal-corroding alchemical goo scale damage and upper-grade effects."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:1l23ulONSlgc9kFx", name = "Steelscour (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:biHvCGfajSjUDGBS", name = "Steelscour (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:jCthkWVsGBfTxSAT", name = "Steelscour (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:eYT7T5I0LwnM9doD", name = "Steelscour (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,10 @@
+name = "True Name Amulet"
+source_note = "Secrets of Magic. Four grades share rules that use item level for the named creature limit and spell or counteract rank."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:KnI89eneLdJeURob", name = "True Name Amulet (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:t28PWYfoGoj1Sq3e", name = "True Name Amulet (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:dABsOA9Qiy0nkGgV", name = "True Name Amulet (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:D9OGy69XaLBwjdd1", name = "True Name Amulet (Major)", attributes = ["Major"] },
+]
