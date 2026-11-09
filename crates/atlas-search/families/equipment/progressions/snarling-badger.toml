@@ -1,0 +1,10 @@
+name = "Snarling Badger"
+source_note = "Treasure Vault (Remastered). Three grades share the talisman's trigger and increase the granted spell rank."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:qnR646Oph1q88RNo", name = "Snarling Badger (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:0ySQli0JRrkZySOB", name = "Snarling Badger (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:po9gLNA6GjystED5", name = "Snarling Badger (Greater)", attributes = ["Greater"] },
+]

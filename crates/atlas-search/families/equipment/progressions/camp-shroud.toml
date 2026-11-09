@@ -1,0 +1,12 @@
+name = "Camp Shroud"
+source_note = "Lost Omens Knights of Lastwall. Five grades of the same concealment powder expand its area and increase the detection DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:Yqz5M71vM1RcvlCx", name = "Camp Shroud (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:1XoBUEUearOzrwEs", name = "Camp Shroud (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:JPNKZPtsdNpoLsBT", name = "Camp Shroud (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:AGD0qLB8zKGinKwv", name = "Camp Shroud (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:HgI87CKuhY8IbFWG", name = "Camp Shroud (Major)", attributes = ["Major"] },
+]

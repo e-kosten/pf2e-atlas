@@ -1,0 +1,12 @@
+name = "Reinforcing Rune"
+source_note = "GM Core. The six shield runes scale Hardness, Hit Points, Broken Threshold, and their limits."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:x9SNVpAAnXKJeoqp", name = "Reinforcing Rune (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:o65PFCSOyMje6fwi", name = "Reinforcing Rune (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:bvROhtzAez0KP7Vt", name = "Reinforcing Rune (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:vT1LG3uNuCCnZhPq", name = "Reinforcing Rune (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:1Nhc0C2gdJvIM7Mv", name = "Reinforcing Rune (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:0iPTcAgtbtMj6Lwn", name = "Reinforcing Rune (Supreme)", attributes = ["Supreme"] },
+]

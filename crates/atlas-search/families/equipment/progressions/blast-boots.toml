@@ -1,0 +1,11 @@
+name = "Blast Boots"
+source_note = "Guns & Gears. Four grades of the same rocket footwear improve jumping distance and options."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:nybZVDfQWMhwvL2C", name = "Blast Boots (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:FVB9noeUXXyau029", name = "Blast Boots (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:bwqyL0H9Ssa7dedV", name = "Blast Boots (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:sK2zEyhxxP6UnhQk", name = "Blast Boots (Major)", attributes = ["Major"] },
+]

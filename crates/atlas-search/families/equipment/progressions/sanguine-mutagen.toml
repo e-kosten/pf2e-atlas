@@ -1,0 +1,11 @@
+name = "Sanguine Mutagen"
+source_note = "Treasure Vault (Remastered). Four grades share the blood-production tradeoff and scale the saving throw bonuses and benefits."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:VIHsu1q3078gdQut", name = "Sanguine Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:pP7RqEkNYg5ayWqx", name = "Sanguine Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:se2g3LNsmQSsRv9w", name = "Sanguine Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:vmwrU3lz1HFfadAS", name = "Sanguine Mutagen (Major)", attributes = ["Major"] },
+]

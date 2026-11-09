@@ -1,0 +1,12 @@
+name = "Pernicious Spore Bomb"
+source_note = "#176: Lost Mammoth Valley. Four grades of the same spore bomb scale damage and improve the spore area effect."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:841G24r5ITFYk5zQ", name = "Pernicious Spore Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:cbgJbCMU330TVmmO", name = "Pernicious Spore Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:TvEnLYsYjijBe1Cg", name = "Pernicious Spore Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:4Thv3O2smZ8AHNjP", name = "Pernicious Spore Bomb (Major)", attributes = ["Major"] },
+]

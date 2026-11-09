@@ -1,0 +1,12 @@
+name = "Potion of Fire Retaliation"
+source_note = "Player Core 2. Five fire-specific grades scale retaliation damage and extend the trigger at Moderate and above."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:ugIxgGIkJh2aXE2N", name = "Potion of Fire Retaliation (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:67KiGZtoTMbl7nv2", name = "Potion of Fire Retaliation (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:AgBIZtwciSsCZeNN", name = "Potion of Fire Retaliation (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:hMUYvp0neF0LAFqc", name = "Potion of Fire Retaliation (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:TalLb1YlvXzutuPc", name = "Potion of Fire Retaliation (Major)", attributes = ["Major"] },
+]

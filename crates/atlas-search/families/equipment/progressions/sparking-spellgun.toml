@@ -1,0 +1,10 @@
+name = "Sparking Spellgun"
+source_note = "Treasure Vault (Remastered). Three grades of the same fire spellgun scale initial and persistent damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:Jc0OJe0fRDdHXXWu", name = "Sparking Spellgun (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:6UoPcaXO70MNyU6W", name = "Sparking Spellgun (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:AvbQWGCBZIOsK45X", name = "Sparking Spellgun (Greater)", attributes = ["Greater"] },
+]

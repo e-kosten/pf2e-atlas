@@ -1,0 +1,9 @@
+name = "Comprehension Elixir"
+source_note = "Player Core 2. Both grades grant the same reading comprehension effect for different durations."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:3Klm2gPmzOw6ntVb", name = "Comprehension Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:OcBPjVplvy2GbQ8P", name = "Comprehension Elixir (Greater)", attributes = ["Greater"] },
+]

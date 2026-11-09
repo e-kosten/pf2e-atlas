@@ -1,0 +1,10 @@
+name = "Stone Body Mutagen"
+source_note = "Treasure Vault (Remastered). Three grades share the same stone-body tradeoff with longer duration and higher resistance."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:5ftFTiKY0BMvhzL9", name = "Stone Body Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:FZ6SMwiei6NnEp3e", name = "Stone Body Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:cqTCg6C0lvYUKQmx", name = "Stone Body Mutagen (Greater)", attributes = ["Greater"] },
+]

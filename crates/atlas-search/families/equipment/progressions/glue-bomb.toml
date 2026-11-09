@@ -1,0 +1,12 @@
+name = "Glue Bomb"
+source_note = "GM Core. The same adhesive bomb scales the movement penalty, escape difficulty, and attack bonus."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:T6Appwwl6nUl56Xj", name = "Glue Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:evBPzM1VsuYcoenn", name = "Glue Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:5Qkz4RVJr2Kx3RL6", name = "Glue Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:BxJNWWvpxacDIsdt", name = "Glue Bomb (Major)", attributes = ["Major"] },
+]

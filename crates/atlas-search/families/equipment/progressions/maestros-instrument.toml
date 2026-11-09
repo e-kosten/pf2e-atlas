@@ -1,0 +1,9 @@
+name = "Maestro's Instrument"
+source_note = "GM Core. The same Performance instrument increases its bonus and gains higher-rank magic at the upper grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:bAfyWCvgsYDyw3ff", name = "Maestro's Instrument (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:3mprh9aZ670HfNhT", name = "Maestro's Instrument (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:rlDIbl6EQYXQpWVs", name = "Maestro's Instrument (Greater)", attributes = ["Greater"] },
+]

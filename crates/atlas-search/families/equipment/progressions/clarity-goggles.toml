@@ -1,0 +1,9 @@
+name = "Clarity Goggles"
+source_note = "Treasure Vault (Remastered). Three grades improve the same visual aid and its spell rank and level ceiling."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:UgfTCOJjjMsrqynr", name = "Clarity Goggles (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:mDIxIVMhbZ7voLhU", name = "Clarity Goggles (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:fbhRZskdWPrh4ML8", name = "Clarity Goggles (Greater)", attributes = ["Greater"] },
+]

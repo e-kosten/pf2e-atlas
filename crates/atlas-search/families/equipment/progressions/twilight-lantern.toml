@@ -1,0 +1,10 @@
+name = "Twilight Lantern"
+source_note = "#172: Secrets of the Temple-City. Four grades of the same twilight lantern improve coverage and the counteract modifier."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Q5YwZv3PbCHkEImh", name = "Twilight Lantern (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:hpNsjNQn9Gg6N8Kh", name = "Twilight Lantern (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:OmiMLervOVa8G8zK", name = "Twilight Lantern (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:0Bp6uVAX4AvjhsOI", name = "Twilight Lantern (Major)", attributes = ["Major"] },
+]

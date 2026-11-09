@@ -1,0 +1,12 @@
+name = "Bottled Sunlight"
+source_note = "Book of the Dead. Four grades scale the same glowing bomb's fire and vitality effects."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:iGT4UeQq3YFcNpEb", name = "Bottled Sunlight (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:wIQjJGLZOKCY1es9", name = "Bottled Sunlight (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:AH0u9DDvs4napvdh", name = "Bottled Sunlight (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:xoucExiZTvCbjWMB", name = "Bottled Sunlight (Major)", attributes = ["Major"] },
+]

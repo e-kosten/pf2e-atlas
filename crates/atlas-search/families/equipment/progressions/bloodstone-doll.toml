@@ -1,0 +1,10 @@
+name = "Bloodstone Doll"
+source_note = "Lost Omens Rival Academies. Three grades share the same summon-spell reaction with higher counteract ranks and modifiers."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:TU9wvn31TE2Mz9UW", name = "Bloodstone Doll (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:aWqnw30XavBrcKTp", name = "Bloodstone Doll (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:4NCo6f0aMnIgA5jw", name = "Bloodstone Doll (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,10 @@
+name = "Red-Rib Gill Mask"
+source_note = "#171: Hurricane's Howl. Three grades of the same toxin-sensing mask increase bonuses and duration."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:x4QLLKEShYqUjCCn", name = "Red-Rib Gill Mask (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:J7ZoRlhqiP6988t2", name = "Red-Rib Gill Mask (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Wyh13xRaOL57fve7", name = "Red-Rib Gill Mask (Greater)", attributes = ["Greater"] },
+]

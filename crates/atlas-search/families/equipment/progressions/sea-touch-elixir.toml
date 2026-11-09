@@ -1,0 +1,10 @@
+name = "Sea Touch Elixir"
+source_note = "GM Core. The three grades extend the swimming benefit, with water breathing at Moderate and Greater."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:zcJgT5RS8p2MEbOB", name = "Sea Touch Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:2hc1EEcb3pfr7Hac", name = "Sea Touch Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:i4D4B7tpYv9vMvQY", name = "Sea Touch Elixir (Greater)", attributes = ["Greater"] },
+]

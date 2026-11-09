@@ -1,0 +1,12 @@
+name = "Animal Repellent"
+source_note = "Treasure Vault (Remastered). The same repellent formulation scales the animal's save DC across five grades."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:7V5fKnnvW7DUgbAd", name = "Animal Repellent (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:YVLwV9IGzNqIzbmV", name = "Animal Repellent (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:OHxRdRv4ZLBGPQi6", name = "Animal Repellent (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:OjNaLZI13rWlyqmM", name = "Animal Repellent (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:PxrYRcawI6a3lRcf", name = "Animal Repellent (Major)", attributes = ["Major"] },
+]

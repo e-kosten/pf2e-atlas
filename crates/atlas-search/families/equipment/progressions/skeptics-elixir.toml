@@ -1,0 +1,10 @@
+name = "Skeptic's Elixir"
+source_note = "#163: Ruins of Gauntlight. Three grades of the same detection elixir increase the bonus and duration."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:eHVZBmtzEcnsHSk8", name = "Skeptic's Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:xGmX6Vuuhivyal8v", name = "Skeptic's Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:SjbenbdzV4rgGxZP", name = "Skeptic's Elixir (Greater)", attributes = ["Greater"] },
+]

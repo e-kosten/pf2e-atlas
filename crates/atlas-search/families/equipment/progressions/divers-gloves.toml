@@ -1,0 +1,9 @@
+name = "Diver's Gloves"
+source_note = "Lost Omens Firebrands. Three grades increase the same aquatic benefits, granting stronger swim Speeds at higher grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:wRZGJohTF0FFJBrq", name = "Diver's Gloves (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:MlrVt5CaZ85PvEm9", name = "Diver's Gloves (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:XXz3Gt5IUb8QdnBS", name = "Diver's Gloves (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Smoke Ball"
+source_note = "GM Core. The same smoke effect expands to a larger burst at Greater."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:MoBlVd36uD9xVvZC", name = "Smoke Ball (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:ehss8yPTXxiUdVlJ", name = "Smoke Ball (Greater)", attributes = ["Greater"] },
+]

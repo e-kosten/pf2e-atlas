@@ -1,0 +1,11 @@
+name = "Bendy-Arm Mutagen"
+source_note = "Treasure Vault (Remastered). Four grades scale Acrobatics, duration, and the extra reach of the same limb-stretching effect."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:9F3d43xMDCJNIkDo", name = "Bendy-Arm Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:6VCaHBbUBk4eBlPC", name = "Bendy-Arm Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:RsAoEbp28Za4hlLH", name = "Bendy-Arm Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:bvIVxDq1wh6IavHP", name = "Bendy-Arm Mutagen (Major)", attributes = ["Major"] },
+]

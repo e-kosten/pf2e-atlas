@@ -1,0 +1,10 @@
+name = "Spiderfoot Brew"
+source_note = "Treasure Vault (Remastered). Three grades scale the same climbing benefit through Speed, bonus, and duration."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:HuyWiPnkDZoAVhW9", name = "Spiderfoot Brew (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:L4Db3CncPcZFPzGN", name = "Spiderfoot Brew (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ETLSXa4Po518z9Qx", name = "Spiderfoot Brew (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Affliction Suppressant"
+source_note = "Treasure Vault (Remastered). Four grades increase the same broad affliction protection, with an extra save at Major."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:2Vd9v0TvEXdVyMTP", name = "Affliction Suppressant (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:CrOj1a997n9tku6x", name = "Affliction Suppressant (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:F9VX2CR9NaFmbTj4", name = "Affliction Suppressant (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:njXFDv63y1w0qvz0", name = "Affliction Suppressant (Major)", attributes = ["Major"] },
+]

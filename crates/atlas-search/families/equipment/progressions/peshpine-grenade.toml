@@ -1,0 +1,12 @@
+name = "Peshpine Grenade"
+source_note = "#149: Against the Scarlet Triad. Four grades of the same needle bomb scale piercing damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:c124j3cpv8rl5MLp", name = "Peshpine Grenade (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:AvGZqDfalwwbYFvA", name = "Peshpine Grenade (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ZVhSxudgfnSO4AMd", name = "Peshpine Grenade (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:b1gx7ZhuFJAyJOo8", name = "Peshpine Grenade (Major)", attributes = ["Major"] },
+]

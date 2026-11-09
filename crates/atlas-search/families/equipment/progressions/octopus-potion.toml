@@ -1,0 +1,10 @@
+name = "Octopus Potion"
+source_note = "Rage of Elements. Three grades of the same tentacle effect increase Athletics, escape DC, and damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:QWKDGY62Buq9dryf", name = "Octopus Potion (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:0jhX5ibOIt77UmPP", name = "Octopus Potion (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:igJxUzuMlYdrwSU2", name = "Octopus Potion (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Fury Cocktail"
+source_note = "Treasure Vault (Remastered). Higher grades strengthen and prolong the same rage-like cocktail."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:BeX3ForBrKTQD4T5", name = "Fury Cocktail (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:JmxKmYQPQmUlauO4", name = "Fury Cocktail (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:MUL0ABe8h7Ugc1Jt", name = "Fury Cocktail (Greater)", attributes = ["Greater"] },
+]

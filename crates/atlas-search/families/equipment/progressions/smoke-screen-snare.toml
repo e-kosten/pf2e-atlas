@@ -1,0 +1,9 @@
+name = "Smoke Screen Snare"
+source_note = "#176: Lost Mammoth Valley. Both grades share the same concealment snare, with a larger smoke area at Greater."
+item_type = "consumable"
+category = "snare"
+
+members = [
+    { key = "equipment-srd:BJtpbzjSza4wUlQX", name = "Smoke Screen Snare (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:AUHgdsygq9gaOZh4", name = "Smoke Screen Snare (Greater)", attributes = ["Greater"] },
+]

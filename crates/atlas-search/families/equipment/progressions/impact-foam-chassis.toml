@@ -1,0 +1,11 @@
+name = "Impact Foam Chassis"
+source_note = "Guns & Gears. Four grades of the same fall-triggered device protect against progressively longer falls."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:2kFaQDsMZmPIEOct", name = "Impact Foam Chassis (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:CM0Hq7KKCwUv0BV6", name = "Impact Foam Chassis (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:cjAyXfWmn0IpOsaY", name = "Impact Foam Chassis (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:YvmRcEky6fuIR0xp", name = "Impact Foam Chassis (Major)", attributes = ["Major"] },
+]

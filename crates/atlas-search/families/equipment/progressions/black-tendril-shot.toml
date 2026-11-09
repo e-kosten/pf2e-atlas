@@ -1,0 +1,9 @@
+name = "Black Tendril Shot"
+source_note = "Treasure Vault (Remastered). The same restraining tendrils gain a higher save DC across three grades."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:T7o5nMvWS8YeJOst", name = "Black Tendril Shot (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:16INAWEN5mkuGTga", name = "Black Tendril Shot (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:NOPrIz6UNxof1M5d", name = "Black Tendril Shot (Greater)", attributes = ["Greater"] },
+]

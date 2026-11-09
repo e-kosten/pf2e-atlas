@@ -1,0 +1,9 @@
+name = "Dread"
+source_note = "Lost Omens The Grand Bazaar. Three grades of the armor rune improve its frightened-condition effect and save DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:gSSibF07emWGpGKw", name = "Dread (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:4cbe0WVSHn1FxygQ", name = "Dread (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:6PW3zAn8fWW3IYA0", name = "Dread (Greater)", attributes = ["Greater"] },
+]

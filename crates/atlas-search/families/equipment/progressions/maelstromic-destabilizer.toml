@@ -1,0 +1,10 @@
+name = "Maelstromic Destabilizer"
+source_note = "Lost Omens Rival Academies. Three grades strengthen the same planar anchoring effect."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:JcFofHcCc2FDN99x", name = "Maelstromic Destabilizer (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:P1DyjpDWtnMrXX1e", name = "Maelstromic Destabilizer (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:xsPP4JVf1NJX0s7u", name = "Maelstromic Destabilizer (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,10 @@
+name = "Demolition Fulu"
+source_note = "Treasure Vault (Remastered). Three delayed demolition fulus scale damage and detection and disarm DCs."
+item_type = "consumable"
+category = "fulu"
+
+members = [
+    { key = "equipment-srd:7WuJbX5c3SCB04Uw", name = "Demolition Fulu (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:pAldqSrzPotjYQe6", name = "Demolition Fulu (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:VXxwxLwJiDODlUZq", name = "Demolition Fulu (Greater)", attributes = ["Greater"] },
+]

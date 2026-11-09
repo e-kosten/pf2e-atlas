@@ -1,0 +1,12 @@
+name = "Atrophy Bomb"
+source_note = "Adventure Path: Hellbreakers. Four grades of the same strength-sapping bomb scale persistent void damage and associated effects."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:Ey9g17eK5KxeuOIR", name = "Atrophy Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Jgi6iWyH9ihgXC7w", name = "Atrophy Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Nqy9whrqYrChgkHh", name = "Atrophy Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:HuVDfEm6U7Quq9Y4", name = "Atrophy Bomb (Major)", attributes = ["Major"] },
+]

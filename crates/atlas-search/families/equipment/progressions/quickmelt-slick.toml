@@ -1,0 +1,10 @@
+name = "Quickmelt Slick"
+source_note = "#176: Lost Mammoth Valley. Three grades melt progressively larger areas or objects and increase the counteract rank."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:ENAlE5JV00GFkGjb", name = "Quickmelt Slick (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:8D71bv2HsX29ZtwC", name = "Quickmelt Slick (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:jUiva1MoZDtbi6xI", name = "Quickmelt Slick (Greater)", attributes = ["Greater"] },
+]

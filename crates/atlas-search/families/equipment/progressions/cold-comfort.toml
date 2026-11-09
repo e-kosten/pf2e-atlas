@@ -1,0 +1,9 @@
+name = "Cold Comfort"
+source_note = "Lost Omens The Grand Bazaar. Both grades create ice with the same pellets, with Greater extending duration and expanding the effect."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:t3NpyArNDTpY6qU8", name = "Cold Comfort (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:sVTg7RMv8qFuQD3y", name = "Cold Comfort (Greater)", attributes = ["Greater"] },
+]

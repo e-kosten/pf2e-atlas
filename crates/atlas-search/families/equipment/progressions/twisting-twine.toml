@@ -1,0 +1,9 @@
+name = "Twisting Twine"
+source_note = "Player Core 2. The same animated rope has a longer useful duration and stronger Athletics at higher grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:wJTpzqL8EJ0xVW0y", name = "Twisting Twine (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:5QbocabfxRZjb3qn", name = "Twisting Twine (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ULHYQIoVL2gKN7TM", name = "Twisting Twine (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Roaring Potion"
+source_note = "Treasure Vault (Remastered). Three grades scale the same two activations through spell rank, sonic damage, and save DC."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:oYjlcrarrZoA01D0", name = "Roaring Potion (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Vm0xyg3xE4iMq3V3", name = "Roaring Potion (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:m6oNZUSSWYMnk7ii", name = "Roaring Potion (Greater)", attributes = ["Greater"] },
+]

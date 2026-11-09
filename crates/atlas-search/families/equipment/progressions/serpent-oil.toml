@@ -1,0 +1,12 @@
+name = "Serpent Oil"
+source_note = "Treasure Vault (Remastered). Five grades transform progressively larger objects into correspondingly larger snakes."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:K6D2Ld8Md6PVsAaV", name = "Serpent Oil (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:l2M9P6kI3z3xPBOa", name = "Serpent Oil (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:BnYABzPAgdU89nLk", name = "Serpent Oil (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:VTuKWBEGuBS3HqF4", name = "Serpent Oil (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:1DmcPUZERWeKpiMM", name = "Serpent Oil (True)", attributes = ["True"] },
+]

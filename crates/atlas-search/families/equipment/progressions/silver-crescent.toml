@@ -1,0 +1,10 @@
+name = "Silver Crescent"
+source_note = "Treasure Vault (Remastered). Three grades scale the same light-producing confection and its vitality attack."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:Pjxotvrj7uXe92Qc", name = "Silver Crescent (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:2wV9SHAWbC4rUlcc", name = "Silver Crescent (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:XWO5pMQcYNybqWzf", name = "Silver Crescent (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Dr. Ushernacht's Astonishing Ink"
+source_note = "Lost Omens Rival Academies. Three grades of the same engine-linked ink increase its check modifier and save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:tk7LRIidkTl9dYPw", name = "Dr. Ushernacht's Astonishing Ink (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:0Pa0XDVF3DwRPqCu", name = "Dr. Ushernacht's Astonishing Ink (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:S5FMXJdf9ktWXJRp", name = "Dr. Ushernacht's Astonishing Ink (Major)", attributes = ["Major"] },
+]

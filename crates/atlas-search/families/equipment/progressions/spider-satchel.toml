@@ -1,0 +1,12 @@
+name = "Spider Satchel"
+source_note = "#203: Shepherd of Decay. Four grades of the same spider bomb scale damage and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:NDIHtSxYUoQwtP2z", name = "Spider Satchel (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:hOuFviZYTOjN1hxM", name = "Spider Satchel (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:r0eGBESoYYiFbhEm", name = "Spider Satchel (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:pEuFCloUo1SdfORL", name = "Spider Satchel (Major)", attributes = ["Major"] },
+]

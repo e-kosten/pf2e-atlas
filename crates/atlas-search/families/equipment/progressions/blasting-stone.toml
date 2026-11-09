@@ -1,0 +1,12 @@
+name = "Blasting Stone"
+source_note = "Player Core 2. Four grades scale the same sonic bomb's damage, save DC, and attack bonus."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:Xnqglykl3Cif8rN9", name = "Blasting Stone (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:JOaELkzLWTywhn5Z", name = "Blasting Stone (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:dsMkvuLgpOOGLWDy", name = "Blasting Stone (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:IuGydh0En8LbfnWo", name = "Blasting Stone (Major)", attributes = ["Major"] },
+]

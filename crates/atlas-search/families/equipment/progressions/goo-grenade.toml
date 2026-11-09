@@ -1,0 +1,12 @@
+name = "Goo Grenade"
+source_note = "Lost Omens Impossible Lands. Four grades scale the same ooze bomb's damage, movement penalty, and escape DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:t2A5PzInAqmErLzK", name = "Goo Grenade (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:wi97vRj8IXx3wLmZ", name = "Goo Grenade (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:SAtG9jrqey2y8EGb", name = "Goo Grenade (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:W0RWd2E0jkF2ZXhf", name = "Goo Grenade (Major)", attributes = ["Major"] },
+]

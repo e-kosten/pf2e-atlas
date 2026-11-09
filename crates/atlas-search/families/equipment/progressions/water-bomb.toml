@@ -1,0 +1,12 @@
+name = "Water Bomb"
+source_note = "#176: Lost Mammoth Valley. Four grades of the same water bomb scale nonlethal damage and splash."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:BG04L9GjWerSgWX3", name = "Water Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:hZ0s1gz0Cr0LGOLG", name = "Water Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:itn6l0yJGRw7EFwu", name = "Water Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:EjJUCXG4Yr3T6DTM", name = "Water Bomb (Major)", attributes = ["Major"] },
+]

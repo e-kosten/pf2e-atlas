@@ -1,0 +1,12 @@
+name = "Tenderizer Grenade"
+source_note = "#203: Shepherd of Decay. Four grades of the same acidic fruit bomb increase damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:KMfbKiCHmzenEEhQ", name = "Tenderizer Grenade (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:V9ZhiUJhemaUDYzq", name = "Tenderizer Grenade (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:3W0PWkDuAZFEGQtx", name = "Tenderizer Grenade (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:bo0HMGgyrp6v5Dn0", name = "Tenderizer Grenade (Major)", attributes = ["Major"] },
+]

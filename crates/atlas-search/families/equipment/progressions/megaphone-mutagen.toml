@@ -1,0 +1,11 @@
+name = "Megaphone Mutagen"
+source_note = "Lost Omens Cheliax, Infernal Inheritance. Four grades increase the same auditory bonuses, projection, and duration."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:Tc6Cjo814FoNfujn", name = "Megaphone Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:TDEsq6EotCp2PtsM", name = "Megaphone Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:QMZJNmrFV3OB7rf8", name = "Megaphone Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:tJ2URF9RHWMR8xEr", name = "Megaphone Mutagen (Major)", attributes = ["Major"] },
+]

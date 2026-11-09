@@ -1,0 +1,11 @@
+name = "Elixir of the Peaks"
+source_note = "#219: Lord of the Trinity Star. Four grades of the same mountain elixir extend duration and improve cold protection."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:8RMUxzQuyGA5ainJ", name = "Elixir of the Peaks (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:h3ZAXh2w4JIhju4a", name = "Elixir of the Peaks (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:uS04H5rQ3mGny9Kl", name = "Elixir of the Peaks (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ZF7dbHcqnnyFl7nY", name = "Elixir of the Peaks (Major)", attributes = ["Major"] },
+]

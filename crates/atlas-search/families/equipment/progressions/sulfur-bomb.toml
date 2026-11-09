@@ -1,0 +1,12 @@
+name = "Sulfur Bomb"
+source_note = "Lost Omens The Grand Bazaar. Four grades of the same sulfur bomb scale acid damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:ndVATyJ2c8Ka3HKm", name = "Sulfur Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:2pfEtA97lpG93kG2", name = "Sulfur Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:2GngLv6m3uHObFGZ", name = "Sulfur Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:yPndyLkx3Nj2GMiz", name = "Sulfur Bomb (Major)", attributes = ["Major"] },
+]

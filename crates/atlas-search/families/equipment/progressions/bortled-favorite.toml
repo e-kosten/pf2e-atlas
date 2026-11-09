@@ -1,0 +1,9 @@
+name = "Bortled Favorite"
+source_note = "Adventure Path: Hellbreakers. The same porridge grants extra minutes of Hustle during exploration, with a longer allowance at Moderate."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:SN3zU6CpyN79OINk", name = "Bortled Favorite (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:DVPP0DF0ijId1ZYO", name = "Bortled Favorite (Moderate)", attributes = ["Moderate"] },
+]

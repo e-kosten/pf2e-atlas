@@ -1,0 +1,8 @@
+name = "Rusting Ammunition"
+source_note = "Treasure Vault (Remastered). Both grades corrode metal targets, with stronger damage and an expanded effect at Greater."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:lQn0OkifOW0Grp9z", name = "Rusting Ammunition (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Z333awQuoTxGkbgG", name = "Rusting Ammunition (Greater)", attributes = ["Greater"] },
+]

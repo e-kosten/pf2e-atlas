@@ -1,0 +1,10 @@
+name = "Chromatic Jellyfish Oil"
+source_note = "Treasure Vault (Remastered). The same oil grants progressively stronger resistance across three grades."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:BFre5eREvbqQdwPC", name = "Chromatic Jellyfish Oil (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:fDLABfn3nY1R670j", name = "Chromatic Jellyfish Oil (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:SeIweTBlvD1EipTQ", name = "Chromatic Jellyfish Oil (Greater)", attributes = ["Greater"] },
+]

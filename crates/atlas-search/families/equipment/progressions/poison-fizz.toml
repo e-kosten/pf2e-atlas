@@ -1,0 +1,10 @@
+name = "Poison Fizz"
+source_note = "Treasure Vault (Remastered). Three grades scale the same poison protection and poisonous discharge."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:XdHMroAomWalt7I9", name = "Poison Fizz (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:GDbDpe7W7vOEwnEr", name = "Poison Fizz (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:D8i3OBVMkxmCCREV", name = "Poison Fizz (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Metalmist Sphere"
+source_note = "Lost Omens Pathfinder Society Guide. Three grades of the same metal mist expand the burst."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:llqztgP14IJGSxU4", name = "Metalmist Sphere (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:KgF3nPT2tEskXqSS", name = "Metalmist Sphere (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:dyvwp4EHgJDzVjJh", name = "Metalmist Sphere (Greater)", attributes = ["Greater"] },
+]

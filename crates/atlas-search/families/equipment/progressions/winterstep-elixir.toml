@@ -1,0 +1,11 @@
+name = "Winterstep Elixir"
+source_note = "#176: Lost Mammoth Valley. Four grades grant the same ice and snow movement benefits for progressively longer durations."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:R3AnwcaHru4PFHJ4", name = "Winterstep Elixir (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:6nmOC0blUxtrlLaY", name = "Winterstep Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:NZ1z3ee75XfctFwM", name = "Winterstep Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:8eKDnjLeP9KpZFD3", name = "Winterstep Elixir (Greater)", attributes = ["Greater"] },
+]

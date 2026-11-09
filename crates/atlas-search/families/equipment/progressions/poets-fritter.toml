@@ -1,0 +1,10 @@
+name = "Poet's Fritter"
+source_note = "Adventure Path: Bastion of Blasphemies. Three grades of the same pastry increase its skill bonus and secondary effect."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:QXW6txYvNIlQK0qE", name = "Poet's Fritter (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:iWiKC10ojE0fiykT", name = "Poet's Fritter (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:CNkugF5infTbBDsF", name = "Poet's Fritter (Greater)", attributes = ["Greater"] },
+]

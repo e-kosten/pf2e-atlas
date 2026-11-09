@@ -1,0 +1,10 @@
+name = "Energy Ointment"
+source_note = "Lost Omens Cheliax, Infernal Inheritance. Three grades scale the same chosen-energy resistance, duration, and help ending persistent damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:NONhINFtdo95qY3V", name = "Energy Ointment (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:1WJ94lyi4bAjNCOy", name = "Energy Ointment (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:7bD0dAcvKxg378P5", name = "Energy Ointment (Greater)", attributes = ["Greater"] },
+]

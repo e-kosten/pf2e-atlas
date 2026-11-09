@@ -1,0 +1,11 @@
+name = "Wood-Rotted Root"
+source_note = "#202: Severed at the Root. Four grades of the same root catalyst expand or strengthen the added poison effect."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:JQqtNuiMQrU3DW11", name = "Wood-Rotted Root (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:dFHJyZV5Kx6IRbWC", name = "Wood-Rotted Root (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:1PG9vWx48TWopxpm", name = "Wood-Rotted Root (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:vIMax5wxd9zS1MpW", name = "Wood-Rotted Root (Major)", attributes = ["Major"] },
+]

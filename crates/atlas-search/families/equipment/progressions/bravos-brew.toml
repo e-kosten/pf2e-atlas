@@ -1,0 +1,10 @@
+name = "Bravo's Brew"
+source_note = "GM Core. The grades increase Will and fear-save bonuses, with an added fear-save effect at Greater."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:zM9VX3QwM81DzDUA", name = "Bravo's Brew (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:oCuwJ9IUDAuzsUwa", name = "Bravo's Brew (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:sWPkbSlWAEAStBqD", name = "Bravo's Brew (Greater)", attributes = ["Greater"] },
+]

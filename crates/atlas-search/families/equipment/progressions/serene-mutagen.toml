@@ -1,0 +1,11 @@
+name = "Serene Mutagen"
+source_note = "Player Core 2. The same serenity tradeoff improves skill and save bonuses and adds a mental-save benefit."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:bOPQDM54W8ZDoULY", name = "Serene Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:XEYveTvLH1lJ4jeI", name = "Serene Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Yej7lnnDYDZybGqo", name = "Serene Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ccrdVliTNBh2mNZf", name = "Serene Mutagen (Major)", attributes = ["Major"] },
+]

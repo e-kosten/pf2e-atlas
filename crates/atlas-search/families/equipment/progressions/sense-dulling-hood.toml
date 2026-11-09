@@ -1,0 +1,9 @@
+name = "Sense-Dulling Hood"
+source_note = "Treasure Vault (Remastered). The same protection grants a higher bonus and lasts longer at Greater."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:YoYqtOXWo5reE2ql", name = "Sense-Dulling Hood (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:KQfx4Ae8c3iMlwXM", name = "Sense-Dulling Hood (Greater)", attributes = ["Greater"] },
+]

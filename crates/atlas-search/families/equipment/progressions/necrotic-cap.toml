@@ -1,0 +1,11 @@
+name = "Necrotic Cap"
+source_note = "#202: Severed at the Root. Four grades of the same fungus catalyst increase the severity of its effects."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:sUZxDEiwCKiMpN7T", name = "Necrotic Cap (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Oxai9zyjeocPNUzO", name = "Necrotic Cap (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:cDyoBhYeAMkCmjiP", name = "Necrotic Cap (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:CM3GrNvvZBdPmxe5", name = "Necrotic Cap (Major)", attributes = ["Major"] },
+]

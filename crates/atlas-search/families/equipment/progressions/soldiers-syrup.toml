@@ -1,0 +1,12 @@
+name = "Soldier's Syrup"
+source_note = "#218: Titanbane. Five grades share the delayed potion activation, with maximum potion level set by the syrup's level."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:6VbMcDOjk4OHzEfx", name = "Soldier's Syrup (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:5AD7oDOGBd7CrqL5", name = "Soldier's Syrup (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Vnl0tgVKGKsqHvny", name = "Soldier's Syrup (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:qnBpdjITfJFSO7T8", name = "Soldier's Syrup (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:lgQK6qzBkEZOUr7k", name = "Soldier's Syrup (Major)", attributes = ["Major"] },
+]

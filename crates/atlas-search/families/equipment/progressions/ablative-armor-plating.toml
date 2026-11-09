@@ -1,0 +1,12 @@
+name = "Ablative Armor Plating"
+source_note = "Guns & Gears. Five grades of armor plating absorb progressively more damage and last longer at higher grades."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:U9XNSFQzCOo6KMD1", name = "Ablative Armor Plating (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:P7Evi8Wv8zIwLYtU", name = "Ablative Armor Plating (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Qm0ZiyXail7Lv0dq", name = "Ablative Armor Plating (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:xXvuQABxlRH2HXsO", name = "Ablative Armor Plating (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:RdsQliP7Gi1xe8xH", name = "Ablative Armor Plating (True)", attributes = ["True"] },
+]

@@ -1,0 +1,13 @@
+name = "Numbing Tonic"
+source_note = "Treasure Vault (Remastered). Six grades grant progressively more recurring temporary Hit Points."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:V35j3JEJMUbuJZNX", name = "Numbing Tonic (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:7D6ENmL3mRfUOMwf", name = "Numbing Tonic (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:WnJwPbObxmTNvYJy", name = "Numbing Tonic (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:wuVD3kolQaFAEeBK", name = "Numbing Tonic (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:EAgWYY1C4mDRfwqo", name = "Numbing Tonic (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:7VDf5tQKh01XV6HQ", name = "Numbing Tonic (True)", attributes = ["True"] },
+]

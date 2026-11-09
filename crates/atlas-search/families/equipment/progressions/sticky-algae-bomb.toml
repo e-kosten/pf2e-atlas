@@ -1,0 +1,12 @@
+name = "Sticky Algae Bomb"
+source_note = "Rage of Elements. Four grades of the same underwater-compatible bomb scale poison damage and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:S1TrEDE8JNkchMca", name = "Sticky Algae Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:h6O5uto0Ry1WDjXn", name = "Sticky Algae Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:cVUhP1qWxe9USvVp", name = "Sticky Algae Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:AAoAQCBwAITvHJSu", name = "Sticky Algae Bomb (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Rope of Climbing"
+source_note = "Advanced Player's Guide. The three ropes share the same animation and commands with different activation frequencies."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:G4cmHHhAChAlypFN", name = "Rope of Climbing (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:9XrsaIc80eXhKaoM", name = "Rope of Climbing (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:gfBAxuitJje6NL7G", name = "Rope of Climbing (Greater)", attributes = ["Greater"] },
+]

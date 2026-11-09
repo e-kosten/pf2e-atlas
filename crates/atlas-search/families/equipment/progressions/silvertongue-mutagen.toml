@@ -1,0 +1,11 @@
+name = "Silvertongue Mutagen"
+source_note = "Player Core 2. The same social mutagen grants higher bonuses and lasts longer at higher grades."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:YwRAHWW8yUI07sy9", name = "Silvertongue Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:lIExlUFBKvBue8hb", name = "Silvertongue Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:uggpIk6vguWFXVli", name = "Silvertongue Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:uD5vRYVOXNJ53sEE", name = "Silvertongue Mutagen (Major)", attributes = ["Major"] },
+]

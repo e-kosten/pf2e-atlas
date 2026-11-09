@@ -1,0 +1,11 @@
+name = "Antifungal Salve"
+source_note = "#210: Whispers in the Dirt. Four grades increase the same fungal protection and add an immediate saving throw at Major."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:TEd1rxn3CfPeh0jZ", name = "Antifungal Salve (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:QPaArkVoNOBv5YRU", name = "Antifungal Salve (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:8v5fKBgw7jsCBu8U", name = "Antifungal Salve (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:rS3DCw5B0fEVICVW", name = "Antifungal Salve (Major)", attributes = ["Major"] },
+]

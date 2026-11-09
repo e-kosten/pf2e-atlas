@@ -1,0 +1,9 @@
+name = "Thurible of Revelation"
+source_note = "GM Core. The graded censer increases its Religion bonus and adds stronger divination at higher grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:xaWuuQoBJiMLzggR", name = "Thurible of Revelation (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:QEPx1fCf74xdpXBH", name = "Thurible of Revelation (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:VBCk7JXGsuG0cug1", name = "Thurible of Revelation (Greater)", attributes = ["Greater"] },
+]

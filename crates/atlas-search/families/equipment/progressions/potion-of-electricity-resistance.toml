@@ -1,0 +1,10 @@
+name = "Potion of Electricity Resistance"
+source_note = "GM Core. The three electricity-specific potions share a one-hour duration and increase electricity resistance."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:cAyxcRSSnfscGyMa", name = "Potion of Electricity Resistance (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:MHoghQhxbvZRyyaB", name = "Potion of Electricity Resistance (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:F8vrGctUqYIEkKOz", name = "Potion of Electricity Resistance (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Camouflage Dye"
+source_note = "Treasure Vault (Remastered). The same camouflage effect persists longer at Greater."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:RBYn6syZKENT0UiZ", name = "Camouflage Dye (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:4TzKhSM0gD9czMdC", name = "Camouflage Dye (Greater)", attributes = ["Greater"] },
+]

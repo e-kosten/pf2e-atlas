@@ -1,0 +1,11 @@
+name = "Vermin Repellent Agent"
+source_note = "Lost Omens Pathfinder Society Guide. Four grades of the same repellent increase its poison protection and insect save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:lgqyRmQ3GZbbxQsD", name = "Vermin Repellent Agent (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:WGbE7qAGw8O5yH07", name = "Vermin Repellent Agent (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:CReWZjAd3szYQ6Mx", name = "Vermin Repellent Agent (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:C6v5p0ZtIUroYlU2", name = "Vermin Repellent Agent (Major)", attributes = ["Major"] },
+]

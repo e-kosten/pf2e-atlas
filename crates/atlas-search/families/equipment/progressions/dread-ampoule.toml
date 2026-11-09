@@ -1,0 +1,12 @@
+name = "Dread Ampoule"
+source_note = "GM Core. Four grades of the same bomb increase mental and splash damage and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:ds0OdA989ZZw9km1", name = "Dread Ampoule (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:IvFEJqp2MUew65nQ", name = "Dread Ampoule (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:kpJmjm843vaMZjIu", name = "Dread Ampoule (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:MCHYtxP8E7njLC3s", name = "Dread Ampoule (Major)", attributes = ["Major"] },
+]

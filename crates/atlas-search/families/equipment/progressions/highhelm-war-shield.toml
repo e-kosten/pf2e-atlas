@@ -1,0 +1,9 @@
+name = "Highhelm War Shield"
+source_note = "Lost Omens Highhelm. Three grades improve the same bladed shield's integrated weapon runes and activation DC."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:fQcPx1CmWwPpnkyI", name = "Highhelm War Shield (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Lwso6G0uaVawoRMK", name = "Highhelm War Shield (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ODpis1NRtTWohcqS", name = "Highhelm War Shield (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Soothing Powder"
+source_note = "Treasure Vault (Remastered). The Greater version adds a persistent benefit to the same persistent-damage remedy."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:OymrUAv6RGFaI1nm", name = "Soothing Powder (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:4hJDqukTYPMZv2vg", name = "Soothing Powder (Greater)", attributes = ["Greater"] },
+]

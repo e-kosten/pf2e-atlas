@@ -1,0 +1,9 @@
+name = "Flowing Water"
+source_note = "#207: The Resurrection Flood. Three grades share the same river tattoo and increase its calming effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:tIFPeuMvkTun3xC2", name = "Flowing Water (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:jNuPjthEfk31Ewhb", name = "Flowing Water (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Y3arObjLqt31dfNr", name = "Flowing Water (Greater)", attributes = ["Greater"] },
+]

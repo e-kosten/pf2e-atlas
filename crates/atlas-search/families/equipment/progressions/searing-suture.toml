@@ -1,0 +1,9 @@
+name = "Searing Suture"
+source_note = "#178: Punks in a Powder Keg. Both grades share the same cauterizing application, with a lower recovery flat-check DC at Greater."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:dymL1IbxU5zR9fqo", name = "Searing Suture (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:bImVngTkDNsdWIjr", name = "Searing Suture (Greater)", attributes = ["Greater"] },
+]

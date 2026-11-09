@@ -1,0 +1,11 @@
+name = "Blood Sight Elixir"
+source_note = "Adventure: Prey for Death. Four grades grant the same blood-sensing ability with increased duration or precision."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:Lz643qJldVUItZOS", name = "Blood Sight Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:lQATunGUOqGVpaxE", name = "Blood Sight Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:PWh9oBvwMmItEmHH", name = "Blood Sight Elixir (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ECJCsH4a1qHSk1JW", name = "Blood Sight Elixir (Major)", attributes = ["Major"] },
+]
