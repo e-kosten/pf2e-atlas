@@ -1,0 +1,14 @@
+name = "Marvelous Miniature"
+source_note = "GM Core and adventure material. Includes the Swift Sparrow with comma punctuation."
+order_by_level = true
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:24hmJWXhSmfVebEE", name = "Marvelous Miniature (Campfire)", attributes = ["Campfire"] },
+    { key = "equipment-srd:3cWko20JPnjeoofV", name = "Marvelous Miniature (Ladder)", attributes = ["Ladder"] },
+    { key = "equipment-srd:AB9MZTjKQMTBXyi4", name = "Marvelous Miniature, Swift Sparrow", attributes = ["Swift Sparrow"] },
+    { key = "equipment-srd:Dn2KQgIeWNijaUzL", name = "Marvelous Miniature (Chest)", attributes = ["Chest"] },
+    { key = "equipment-srd:TknN7T2RDy9cUtKU", name = "Marvelous Miniature (Horse)", attributes = ["Horse"] },
+    { key = "equipment-srd:WzsKbMMewXbf1nws", name = "Marvelous Miniature (Boat)", attributes = ["Boat"] },
+]

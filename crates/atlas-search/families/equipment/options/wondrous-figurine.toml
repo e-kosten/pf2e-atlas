@@ -1,0 +1,17 @@
+name = "Wondrous Figurine"
+source_note = "Core Rulebook and adventure paths. Creature-transforming figurines, including Stuffed Fox with comma punctuation."
+order_by_level = true
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:BANLXq8FhwqsDu0v", name = "Wondrous Figurine (Onyx Dog)", attributes = ["Onyx Dog"] },
+    { key = "equipment-srd:6rhind8MDhtJHlwq", name = "Wondrous Figurine (Candy Constrictor)", attributes = ["Candy Constrictor"] },
+    { key = "equipment-srd:v935rvhKtJm7PSNF", name = "Wondrous Figurine, Stuffed Fox", attributes = ["Stuffed Fox"] },
+    { key = "equipment-srd:RjJw7iHantxqeJu1", name = "Wondrous Figurine (Jade Serpent)", attributes = ["Jade Serpent"] },
+    { key = "equipment-srd:YO2X0EE3txascuuP", name = "Wondrous Figurine (Rubber Bear)", attributes = ["Rubber Bear"] },
+    { key = "equipment-srd:04V1qwob0JGPEx3k", name = "Wondrous Figurine (Bismuth Leopards)", attributes = ["Bismuth Leopards"] },
+    { key = "equipment-srd:YXTrUT7Z7emAn2gb", name = "Wondrous Figurine (Ruby Hippopotamus)", attributes = ["Ruby Hippopotamus"] },
+    { key = "equipment-srd:RTxne78VqPqTz2VN", name = "Wondrous Figurine (Golden Lions)", attributes = ["Golden Lions"] },
+    { key = "equipment-srd:TXPQfQriNJqMYcfp", name = "Wondrous Figurine (Marble Elephant)", attributes = ["Marble Elephant"] },
+    { key = "equipment-srd:RnpzfRWsOW6zmAgN", name = "Wondrous Figurine (Obsidian Steed)", attributes = ["Obsidian Steed"] },
+]

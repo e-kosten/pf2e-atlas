@@ -1,0 +1,9 @@
+name = "Jolt Coil"
+source_note = "Treasure Vault (Remastered). Three spellheart grades, including the level-3 base item."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:0gxqSZhYdOeJhPrp", name = "Jolt Coil", attributes = ["Base item"] },
+    { key = "equipment-srd:auEm7vmpG9V8xpAJ", name = "Jolt Coil (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:TucjFO5NQHvUUc7a", name = "Jolt Coil (Major)", attributes = ["Major"] },
+]

@@ -1,65 +1,17 @@
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_domain::{RecordKey, SourceRecordSummary, normalize_record_name};
 use atlas_record::source_record::{ItemSourceView, SourceFieldView, SourceNodeView};
-use serde::Deserialize;
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::sync::LazyLock;
 
+use super::catalog::{Catalog, Family, Fit, Member};
 use super::{Compatibility, VariantGroupResult, VariantSuggestionEvidence, compatibility};
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Catalog {
-    families: BTreeMap<String, Family>,
-    exclusions: Vec<Exclusion>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Family {
-    name: String,
-    #[serde(rename = "source_note")]
-    _source_note: String,
-    members: Vec<Member>,
-    #[serde(default)]
-    order_by_level: bool,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Member {
-    key: RecordKey,
-    name: String,
-    item_type: String,
-    #[serde(default)]
-    attributes: Vec<String>,
-    category: Option<String>,
-    group: Option<String>,
-    fit: Option<Fit>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Fit {
-    ammo_type: String,
-    weapons: Vec<Weapon>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Weapon {
-    key: RecordKey,
-    name: String,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Exclusion {
-    members: Vec<RecordKey>,
-    others: Vec<RecordKey>,
-}
-
-static CATALOG: LazyLock<Result<Catalog, serde_json::Error>> =
-    LazyLock::new(|| serde_json::from_str(include_str!("equipment_families.json")));
+static CATALOG: LazyLock<Result<Catalog, serde_json::Error>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!(concat!(
+        env!("OUT_DIR"),
+        "/equipment_families.json"
+    )))
+});
 
 fn catalog() -> Result<&'static Catalog, SearchError> {
     CATALOG.as_ref().map_err(|error| {
@@ -99,7 +51,7 @@ pub(super) fn verified_group(
     }
     let mut reviewed = Vec::with_capacity(keys.len());
     for (member, summary) in family.members.iter().zip(batch.records) {
-        if !member.matches(retrieval, &summary)? {
+        if !member.matches(retrieval, family, &summary)? {
             return Ok(None);
         }
         let evidence = VariantSuggestionEvidence {
@@ -164,15 +116,16 @@ impl Member {
     fn matches(
         &self,
         retrieval: &AtlasRetrievalService,
+        family: &Family,
         summary: &SourceRecordSummary,
     ) -> Result<bool, SearchError> {
         if summary.document_kind != "Item"
-            || summary.source_type.as_value() != Some(&self.item_type)
+            || summary.source_type.as_value() != Some(&family.item_type)
             || !name_matches(summary, &self.name)
         {
             return Ok(false);
         }
-        if self.category.is_none() && self.fit.is_none() {
+        if family.category.is_none() && self.fit.is_none() {
             return Ok(true);
         }
         let Some(record) = retrieval.index.read_source_record(&self.key)? else {
@@ -190,10 +143,10 @@ impl Member {
                 .is_some_and(|base| token_matches(base, Some(&fit.ammo_type)))
                 && fit.matches(retrieval)?);
         }
-        let category = self.category.as_deref();
+        let category = family.category.as_deref();
         Ok(match compatibility(&record) {
             Some(Compatibility::Weapon(value, group)) => {
-                token_matches(value, category) && token_matches(group, self.group.as_deref())
+                token_matches(value, category) && token_matches(group, family.group.as_deref())
             }
             Some(Compatibility::Armor(value)) => token_matches(value, category),
             Some(Compatibility::Consumable(value)) => token_matches(value, category),
@@ -258,7 +211,7 @@ mod tests {
     fn catalog_has_disjoint_family_members_and_supported_attributes() {
         let mut keys = BTreeSet::new();
         for family in catalog().unwrap().families.values() {
-            assert!(!family._source_note.trim().is_empty());
+            assert!(!family.source_note.trim().is_empty());
             assert!(family.members.len() >= 2);
             for member in &family.members {
                 assert_eq!(member.key.pack().as_str(), "equipment-srd");
@@ -272,6 +225,7 @@ mod tests {
     }
 
     fn fixture(
+        family: &Family,
         member: &Member,
         name: &str,
         level: Option<i32>,
@@ -281,10 +235,10 @@ mod tests {
             "Item",
             json!({
                 "_id": member.key.id().as_str(),
-                "type": member.item_type,
+                "type": family.item_type,
                 "name": name,
                 "system": {
-                    "category": member.category,
+                    "category": family.category,
                     "level": level.map(|value| json!({"value": value})),
                     "traits": {"value": [], "rarity": "common"}
                 }
@@ -311,7 +265,7 @@ mod tests {
             family
                 .members
                 .iter()
-                .map(|member| fixture(member, &member.name, fixture_level(member)))
+                .map(|member| fixture(family, member, &member.name, fixture_level(member)))
                 .collect(),
             false,
         )
@@ -342,9 +296,9 @@ mod tests {
                     .filter_map(|member| {
                         if member.name.contains("Stuffed Fox") {
                             return include_renamed
-                                .then(|| fixture(member, "Some Other Figurine", Some(0)));
+                                .then(|| fixture(family, member, "Some Other Figurine", Some(0)));
                         }
-                        Some(fixture(member, &member.name, fixture_level(member)))
+                        Some(fixture(family, member, &member.name, fixture_level(member)))
                     })
                     .collect(),
                 false,
@@ -367,11 +321,12 @@ mod tests {
     #[test]
     fn kit_refill_exclusions_survive_a_missing_verified_member() {
         let catalog = catalog().unwrap();
-        let kit = &catalog.families["disguise-kit"].members[0];
+        let family = &catalog.families["disguise-kit"];
+        let kit = &family.members[0];
         let refills = &catalog.exclusions[0].others;
         let (retrieval, _artifact) = test_support::open_source_fixture(
             vec![
-                fixture(kit, &kit.name, Some(0)),
+                fixture(family, kit, &kit.name, Some(0)),
                 test_support::record(
                     "equipment-srd",
                     "Item",

@@ -178,14 +178,20 @@ checks the distance sequence rather than arbitrary tied IDs.
 
 ## Equipment family review during a source upgrade
 
-The equipment family catalog is
-[maintained with retrieval](../../crates/atlas-search/src/variants/equipment_families.json).
-Its source notes explain the member selection for maintainers. The order of
-members records the progression unless the family is marked for level ordering.
-Keep stable Foundry keys and review the expected names, item types, physical
-categories, and any ammunition references against the new source pin. Review
-new potential siblings and exclusions before adjusting verified membership.
-Explore falls back to possible variants if a reviewed member no longer matches.
+The [equipment family files](../../crates/atlas-search/families/equipment) are
+maintained with retrieval. Each TOML file declares one family. Its filename stem
+is the stable family ID, regardless of its subdirectory. Declare the expected
+item type and applicable category or weapon group once per family. Each member
+has its exact Foundry key, expected name, and display attributes or weapon
+compatibility evidence. File order defines the progression unless
+`order_by_level = true`. Exclusions are declared alongside the family files.
+
+Cargo checks the authoring files and bundles them with Atlas. When changing the
+source pin, compare names, compatibility fields, and any weapon ammunition
+references against the new source. Review new candidates and exclusions before
+editing membership. The source note records why the members belong together
+for future maintainers. Explore falls back to possible variants when a reviewed
+set no longer matches the active reference data.
 
 For a baseline comparison, run this on the private development workspace for
 each candidate source revision. Use the source pin appropriate to the candidate
@@ -197,3 +203,12 @@ sqlite3 -readonly "$db" "SELECT key FROM records WHERE pack_id='equipment-srd' O
   cargo run --locked --quiet -p atlas-search --example equipment_variant_audit -- \
     "$db" "$(sqlite3 -readonly "$db" 'PRAGMA user_version')"
 ```
+
+Pass `--propose-grades` before the database path to emit review candidates
+instead of per-record outcomes. Feed the complete equipment key list so the
+tool can check that every member produces the same proposal. It looks for
+known grade labels that advance with item level, one publication and edition,
+and a complete, unambiguous result from each member. Each candidate includes
+its Foundry keys and source paths. Check those records and look for missing
+siblings, same-name editions, or related accessories before adding a family
+file. The tool writes its report to stdout and leaves the catalog files alone.

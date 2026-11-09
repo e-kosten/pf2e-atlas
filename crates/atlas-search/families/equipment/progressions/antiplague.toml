@@ -1,0 +1,11 @@
+name = "Antiplague"
+source_note = "GM Core. The four elixirs share protection against disease, with graded bonuses and an additional effect at Major."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:UqinuuCWePTYGhVO", name = "Antiplague (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:biRbqKo2C97XLfQ0", name = "Antiplague (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ORDaAzMZLrf6Hn8A", name = "Antiplague (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kajpTXg3oHIJStQa", name = "Antiplague (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,12 @@
+name = "Healing Potion"
+source_note = "GM Core. One potion progression with the same activation and increasing Hit Point recovery, from Minor to Major."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:2RuepCemJhrpKKao", name = "Healing Potion (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:e0vSAQfxhHauiAoD", name = "Healing Potion (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:G7haQ5gDt30ftJLC", name = "Healing Potion (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:TSrbwHW8zm0mhkwb", name = "Healing Potion (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:p3ppzFSsZXFRe3H8", name = "Healing Potion (Major)", attributes = ["Major"] },
+]

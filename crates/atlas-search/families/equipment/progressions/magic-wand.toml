@@ -1,0 +1,16 @@
+name = "Magic Wand"
+source_note = "GM Core. Generic spell wands from first through ninth rank."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:UJWiN0K3jqVjxvKk", name = "Magic Wand (1st-Rank Spell)", attributes = ["1st-Rank Spell"] },
+    { key = "equipment-srd:vJZ49cgi8szuQXAD", name = "Magic Wand (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:wrDmWkGxmwzYtfiA", name = "Magic Wand (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:Sn7v9SsbEDMUIwrO", name = "Magic Wand (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:5BF7zMnrPYzyigCs", name = "Magic Wand (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:kiXh4SUWKr166ZeM", name = "Magic Wand (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:nmXPj9zuMRQBNT60", name = "Magic Wand (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:Qs8RgNH6thRPv2jt", name = "Magic Wand (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+    { key = "equipment-srd:Fgv722039TVM5JTc", name = "Magic Wand (9th-Rank Spell)", attributes = ["9th-Rank Spell"] },
+]

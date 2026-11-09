@@ -1,0 +1,11 @@
+name = "Cloister Robe"
+source_note = "Treasure Vault (Remastered). Four grades share the clerical robe's rules and scale its armor and special benefits."
+item_type = "armor"
+category = "unarmored"
+
+members = [
+    { key = "equipment-srd:gawhJLVsVsUFAPd6", name = "Cloister Robe (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:VMksM7bLAZW9LxH4", name = "Cloister Robe (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:XPIDpF7dP6VyGKOM", name = "Cloister Robe (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:mhCLoihjfhoqpiVp", name = "Cloister Robe (Major)", attributes = ["Major"] },
+]

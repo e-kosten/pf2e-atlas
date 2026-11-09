@@ -1,0 +1,10 @@
+name = "Darkvision Elixir"
+source_note = "GM Core. The same darkvision effect lasts 10 minutes, 1 hour, or 24 hours across the three grades."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:88pGCHV0uKMskTVO", name = "Darkvision Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Y8115p3cmQJBqk5d", name = "Darkvision Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:bz8Y8bVUe7QfBk9g", name = "Darkvision Elixir (Greater)", attributes = ["Greater"] },
+]

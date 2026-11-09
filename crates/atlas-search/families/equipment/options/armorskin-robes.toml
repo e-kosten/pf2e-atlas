@@ -1,0 +1,11 @@
+name = "Armorskin Robes"
+source_note = "Rage of Elements. Air, fire and water robes share the construction and elemental sheath activation."
+order_by_level = true
+item_type = "armor"
+category = "unarmored"
+
+members = [
+    { key = "equipment-srd:HHqBGkHQDpQu0bMK", name = "Armorskin Robes of Air", attributes = ["Air"] },
+    { key = "equipment-srd:wxiwAGxbEt2Qzo7m", name = "Armorskin Robes of Fire", attributes = ["Fire"] },
+    { key = "equipment-srd:XPXoUbp3VwdAa5VH", name = "Armorskin Robes of Water", attributes = ["Water"] },
+]

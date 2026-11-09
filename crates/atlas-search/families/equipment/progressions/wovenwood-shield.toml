@@ -1,0 +1,12 @@
+name = "Wovenwood Shield"
+source_note = "The Grand Bazaar. Six grades of the same reinforced wooden shield improve durability, ending at True."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:7jolv0cuttvjI1JD", name = "Wovenwood Shield (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:LZAwOTKk3dKwsGDd", name = "Wovenwood Shield (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:nRLMg1NB2OSmzSqX", name = "Wovenwood Shield (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Fr75q2wqO9AFG53z", name = "Wovenwood Shield (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:e9Xiei2wduOEGI5r", name = "Wovenwood Shield (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:qXzP7yH72fxAChNU", name = "Wovenwood Shield (True)", attributes = ["True"] },
+]
