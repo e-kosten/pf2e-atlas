@@ -1,0 +1,12 @@
+name = "Junk Bomb"
+source_note = "Special: Fumbus!. Four grades of the same scrap bomb scale slashing damage, bleed, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:WJMHv8xXowLNP2Di", name = "Junk Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:1MuIK1TnzdKuqZJO", name = "Junk Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:QhUTsTnbehv1ft9u", name = "Junk Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:K291ECjrRssmH93Q", name = "Junk Bomb (Major)", attributes = ["Major"] },
+]

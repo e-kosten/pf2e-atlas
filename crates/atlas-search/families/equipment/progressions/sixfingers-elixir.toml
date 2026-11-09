@@ -1,0 +1,10 @@
+name = "Sixfingers Elixir"
+source_note = "Adventure: The Slithering. Three grades grant the same disarm protection and climbing benefit for longer durations."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:JAOWw2GhupaYoYg9", name = "Sixfingers Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:ieVRS2BjiWqauly6", name = "Sixfingers Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:6odVabL0WL2H89Ic", name = "Sixfingers Elixir (Greater)", attributes = ["Greater"] },
+]
