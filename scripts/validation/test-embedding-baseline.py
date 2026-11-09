@@ -113,8 +113,36 @@ class Routing(unittest.TestCase):
         self.git("add", str(self.pin))
         self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
 
+    def test_schema_cutover_runs_all_four_targets(self):
+        cutoff = self.root / STACK["RELEASE_PREDECESSOR_PIN"]
+        cutoff.write_text("{}")
+        self.git("add", str(cutoff))
+        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+
 
 class PinTransition(unittest.TestCase):
+    def test_exact_schema_cutover_keeps_execution_ids_and_retires_old_fixture(self):
+        old = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_29_PIN"])
+        current = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_41_PIN"])
+        checks = PROBE["pinned_checks"](current, old)
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(next(iter(checks)), (
+            PROBE["RELEASE_TAG"], PROBE["RELEASE_ASSET"], PROBE["RELEASE_DIGEST"],
+        ))
+        changed = dict(current, **{"bge-base": {**current["bge-base"], "execution_policy": "changed"}})
+        with self.assertRaisesRegex(RuntimeError, "approved ID transition"):
+            PROBE["pinned_checks"](changed, old)
+
+    def test_packaged_pin_still_requires_reviewed_id_for_future_replacement(self):
+        profile = "bge-base"
+        old = PROBE["SCHEMA_41_PIN"]
+        new = {**PROBE["SCHEMA_29_PIN"], "tag": "embedding-baseline-v2",
+               "sha256": "b" * 64, "execution_policy": "next"}
+        with self.assertRaisesRegex(RuntimeError, "approved ID transition"):
+            PROBE["pinned_checks"]({profile: new}, {profile: old})
+        checks = PROBE["pinned_checks"]({profile: new}, {profile: {**old, "transition_to": "next"}})
+        self.assertEqual(len(checks), 2)
+
     def test_switch_requires_prior_transition_and_keeps_old_fixture_in_check(self):
         pin = {
             "tag": "embedding-baseline-v1", "asset": "embedding-compatibility-baseline.tar.gz",

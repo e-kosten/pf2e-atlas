@@ -59,6 +59,7 @@ fn validate_admitted_context(
 
 // Admission for the schema-28 reconstruction, which still has both legacy
 // tables. Keep this separate from the current reader's required physical shape.
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn validate_pre_fingerprint(c: &Connection) -> Result<(), IndexError> {
     let (context, _) = validate_admitted_context(c)?;
     let fields = crate::search_schema_closeout::legacy_catalog_fields(c)?;

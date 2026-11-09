@@ -1,14 +1,14 @@
 {
   "bge-base": {
-    "tag": "embedding-baseline-v1",
-    "asset": "embedding-compatibility-baseline.tar.gz",
-    "sha256": "7a5cedd86c4ae2826a9fa0d73a75ca570749d5ab0349dda70b2bac6912e4a374",
+    "tag": "v0.1.0-nightly.20261109050726.g787c00b3b26e",
+    "asset": "cli-only-release",
+    "sha256": "6cc6cae16566251cf6e3937d786a2672071aff40ee34f6a7ead4fd6bacddc7f5",
     "execution_policy": "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4"
   },
   "embeddinggemma": {
-    "tag": "embedding-baseline-v1",
-    "asset": "embedding-compatibility-baseline.tar.gz",
-    "sha256": "7a5cedd86c4ae2826a9fa0d73a75ca570749d5ab0349dda70b2bac6912e4a374",
+    "tag": "v0.1.0-nightly.20261109050726.g787c00b3b26e",
+    "asset": "cli-only-release",
+    "sha256": "6cc6cae16566251cf6e3937d786a2672071aff40ee34f6a7ead4fd6bacddc7f5",
     "execution_policy": "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4"
   }
 }

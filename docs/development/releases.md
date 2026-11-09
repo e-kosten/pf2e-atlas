@@ -192,8 +192,13 @@ Local validation covers Rust checks, `dist plan`, release-helper dry runs, insta
 
 ### Publish an embedding compatibility fixture
 
-Publish the first baseline for both profiles. After that, publish a new bundle
-when an approved upgrade increments a profile's compatibility ID. Generate the
+The release schema cutoff pins a published schema 41 CLI archive for each
+release target in `scripts/validation/schema-41-predecessor.json`. CI verifies
+the archive, frozen source fixture and ledger, then generates a disposable
+predecessor on that target. Both profile execution policies carry forward.
+
+Publish a new bundle when an approved upgrade increments a profile's
+compatibility ID. Generate the
 fixture using the packaged Linux x86_64 CLI from a pinned release build check on
 main or a verified product release. Record the actual target and build used if
 generating on another platform.
@@ -215,11 +220,10 @@ a new `embedding-baseline-v<N>` tag at the producer commit. Mark it as a
 prerelease with latest disabled. Attach the verified archive to the draft and
 then publish. Download the published bytes and rerun the probe before pinning.
 
-In the CI activation PR, create `scripts/validation/embedding-baseline.json`
-with one entry each for `bge-base` and `embeddinggemma`. Each entry records
-`tag`, `asset`, `sha256` and `execution_policy` from the published bundle.
-Both profiles can initially point to the same archive. Preserve earlier assets
-and update the pin for just the affected profile after a compatibility change.
+In the CI activation PR, update the affected profile entry in
+`scripts/validation/embedding-baseline.json`. A bundle entry records `tag`,
+`asset`, `sha256` and `execution_policy` from the published bundle. Preserve
+earlier assets so the previous pin can still be reproduced.
 If an asset becomes unavailable, restore the exact archive at a new fixture tag
 and update the pin with the same SHA-256 and execution policy. If the exact bytes
 are unavailable, review fixture recovery separately before changing the pin.

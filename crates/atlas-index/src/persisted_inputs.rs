@@ -120,6 +120,7 @@ pub(crate) fn read_attested_persisted_input(
 }
 /// Sole owner: the immutable schema20 similarity backfill. Preserve its private
 /// historical call name; all current readers use the attested entry above.
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn read_persisted_input(
     c: &Connection,
     context: &SourceArtifactBuildContext,
@@ -140,6 +141,7 @@ pub(crate) fn read_persisted_input(
 }
 /// Only schema28's historical callback can read before attestations exist. This
 /// is private migration composition, never a current reader fallback.
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn read_pre_component_digest_migration_input(
     c: &Connection,
     context: &SourceArtifactBuildContext,

@@ -7,7 +7,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [features]
-test-support = ["dep:atlas-local-state"]
+test-support = ["dep:atlas-local-state", "atlas-local-state/test-support"]
 
 [dependencies]
 atlas-local-state = { workspace = true, optional = true }
@@ -29,7 +29,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 tracing-subscriber.workspace = true
-atlas-local-state.workspace = true
+atlas-local-state = { workspace = true, features = ["test-support"] }
 atlas-storage = { workspace = true, features = ["diagnostics"] }
 
 [[example]]

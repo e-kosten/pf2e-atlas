@@ -175,13 +175,15 @@ Saved-domain and reference migrations share the same ledger and transaction.
 Atlas executes and hashes migration SQL with LF line endings and authenticates
 the ledger against that single checksum.
 
-Reference DDL lives in
-[the index baseline SQL](../../crates/atlas-index/migrations/00000000000001_create_artifact/up.sql);
-saved-domain DDL lives in
-[local-state schema.sql](../../crates/atlas-local-state/src/schema.sql).
-Both execute through rusqlite on admitted sessions. FTS5, sqlite-vec, dynamic
-eligibility relations and validation pragmas remain index-owned SQL. Stored data
-never supplies executable SQL.
+The current reference DDL lives in
+[the index release schema](../../crates/atlas-index/src/release_schema.sql).
+The [local-state release schema](../../crates/atlas-local-state/src/release/schema.sql)
+and its three saved-owner table definitions own saved-domain DDL. The production
+paths are direct creation at schema 42 and the authenticated schema 41 bridge
+described in [ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
+Historical migration descriptions in this contract record the provenance of
+retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation
+pragmas remain index-owned SQL. Stored data never supplies executable SQL.
 
 ## Stored families
 

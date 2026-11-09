@@ -1,20 +1,29 @@
 #![deny(unsafe_code)]
 
 mod atomic_action;
+#[cfg(any(test, feature = "test-support"))]
 mod clock_migration;
+#[cfg(any(test, feature = "test-support"))]
 pub use clock_migration::backfill_encounter_clock;
 mod encounters;
 mod error;
 mod parties;
 pub use parties::{PartiesRead, PartiesWrite, Party, PartyMember, PartyMemberInput};
 mod references;
+mod release;
+pub use release::upgrade_release_owners;
 mod saved_lists;
+#[cfg(any(test, feature = "test-support"))]
 mod saved_state_closeout;
+#[cfg(any(test, feature = "test-support"))]
 mod saved_state_integrity;
+#[cfg(any(test, feature = "test-support"))]
 pub use saved_state_closeout::{
     SAVED_STATE_CLOSEOUT_SCHEMA_VERSION, backfill_saved_state_closeout,
 };
+#[cfg(any(test, feature = "test-support"))]
 mod schema;
+#[cfg(any(test, feature = "test-support"))]
 pub use saved_state_integrity::backfill_saved_state_integrity;
 mod slug;
 mod store;
@@ -53,15 +62,18 @@ pub use saved_lists::{
     SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems, SavedListsRead,
     SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
 };
+#[cfg(any(test, feature = "test-support"))]
 pub use schema::{
     ABILITY_STATE_SCHEMA_SQL, STATELESS_STRIKE_ROLLS_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL,
 };
+#[cfg(any(test, feature = "test-support"))]
 pub use schema::{
     CONDITION_SYSTEM_SCHEMA_SQL, CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
     ENCOUNTER_DIFFICULTY_SCHEMA_SQL, ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL,
     LOCAL_STATE_SCHEMA_SQL, PARTIES_SCHEMA_SQL, PARTY_LEVELS_SCHEMA_SQL,
     PERSISTENT_PREPARATION_SCHEMA_SQL,
 };
+#[cfg(any(test, feature = "test-support"))]
 pub use schema::{
     ENCOUNTER_CLOCK_SCHEMA_SQL, ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL,
     ENCOUNTER_RECOVERY_SCHEMA_SQL, MANUAL_TRACKER_ORDER_SCHEMA_SQL,

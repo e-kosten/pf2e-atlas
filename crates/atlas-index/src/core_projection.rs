@@ -7,6 +7,7 @@ use atlas_record::source_record::{
 use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeSet;
 
+#[cfg(any(test, feature = "test-support"))]
 pub const CORE_SECTIONS_SCHEMA_SQL: &str = "
 CREATE TABLE core_roots(
  record_id INTEGER PRIMARY KEY REFERENCES records ON DELETE CASCADE,

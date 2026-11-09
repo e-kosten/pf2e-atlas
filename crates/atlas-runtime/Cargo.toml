@@ -7,7 +7,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [features]
-test-support = []
+test-support = ["atlas-index/test-support", "atlas-local-state/test-support"]
 
 [dependencies]
 atlas-domain.workspace = true
@@ -23,6 +23,7 @@ atlas-search.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+atlas-local-state = { workspace = true, features = ["test-support"] }
 atlas-record.workspace = true
 rusqlite.workspace = true
 atlas-search = {workspace = true, features=["test-support"]}

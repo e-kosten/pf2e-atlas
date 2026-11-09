@@ -1,8 +1,36 @@
 //! Composition of domain-owned schemas into one ordered workspace history.
-use atlas_storage::{Migration, StorageResult, Workspace};
+use atlas_storage::{
+    DataBackfill, Migration, MigrationHistory, MigrationPredecessor, StorageResult, Workspace,
+};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_VERSION;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = RELEASE_HISTORY.target();
+
+const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
+    migrations: &[Migration {
+        version: 42,
+        name: "release-baseline",
+        sql: concat!(
+            include_str!("../../atlas-index/src/release_schema.sql"),
+            include_str!("../../atlas-local-state/src/release/saved_lists.sql"),
+            include_str!("../../atlas-local-state/src/release/parties.sql"),
+            include_str!("../../atlas-local-state/src/release/encounters.sql"),
+            include_str!("../../atlas-local-state/src/release/schema.sql"),
+        ),
+        backfill: None,
+    }],
+    predecessor: Some(MigrationPredecessor {
+        // Schema 41 history at b17f8482d, from an executable-created workspace.
+        ledger_sha256: "063c58315d7841c8dff56ed43ddc6a9465d92e1ff9924e59f250879d9815dd85",
+        bridge: DataBackfill {
+            reconstruct_tables: true,
+            id: "release-explicit-saved-owners/v1",
+            apply: atlas_local_state::upgrade_release_owners,
+        },
+    }),
+};
+
+#[cfg(any(test, feature = "test-support"))]
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -301,8 +329,27 @@ const MIGRATIONS: &[Migration] = &[
 pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> {
     register_extensions()?;
     let workspace = Workspace::at(path)?;
-    workspace.migrate(MIGRATIONS, |_| Ok(()))?;
+    workspace.migrate_history(RELEASE_HISTORY, |_| Ok(()))?;
     Ok(workspace)
+}
+
+pub(crate) fn check_workspace_history(workspace: &Workspace) -> StorageResult<()> {
+    let version = workspace.check_migration_history(RELEASE_HISTORY)?;
+    if version != WORKSPACE_SCHEMA_VERSION {
+        return Err(atlas_storage::StorageError::Schema {
+            expected: WORKSPACE_SCHEMA_VERSION,
+            actual: version,
+        });
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn upgrade_historical_fixture(path: impl AsRef<Path>) -> StorageResult<Workspace> {
+    register_extensions()?;
+    let workspace = Workspace::at(path)?;
+    workspace.migrate(MIGRATIONS, |_| Ok(()))?;
+    initialize_workspace(workspace.path())
 }
 
 pub(crate) fn begin_reference_repair(
@@ -315,7 +362,10 @@ pub(crate) fn begin_reference_repair(
     String,
 > {
     let (repair, configuration) = owner
-        .begin_reference_repair(MIGRATIONS, atlas_index::read_requested_reference_config)
+        .begin_reference_repair(
+            RELEASE_HISTORY,
+            atlas_index::read_requested_reference_config,
+        )
         .map_err(|e| e.to_string())?;
     let configuration = configuration
         .ok_or_else(|| "workspace has no saved reference build configuration".to_string())?;
@@ -387,6 +437,18 @@ mod historical_similarity_tests;
 mod reference_upgrade_tests;
 
 #[cfg(test)]
+#[path = "release_migration_tests.rs"]
+mod release_migration_tests;
+
+#[cfg(test)]
+fn historical_backup(workspace: &Workspace) -> atlas_storage::ReadSession {
+    Workspace::existing(&workspace.upgrade_backup_path())
+        .unwrap()
+        .read(41)
+        .unwrap()
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
@@ -439,7 +501,7 @@ mod tests {
             .unwrap();
         write.commit().unwrap();
 
-        let error = initialize_workspace(&path).unwrap_err().to_string();
+        let error = upgrade_historical_fixture(&path).unwrap_err().to_string();
         assert!(
             error.contains("core_lexical_units contains a mismatched record owner"),
             "{error}"
@@ -466,7 +528,7 @@ mod tests {
         assert!(!before.is_empty());
         write.commit().unwrap();
 
-        let workspace = initialize_workspace(&path).unwrap();
+        let workspace = upgrade_historical_fixture(&path).unwrap();
         let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(
             crate::test_support::occurrence_vector_bits(write.connection()),
@@ -549,7 +611,7 @@ mod tests {
         "#).unwrap();
         write.commit().unwrap();
 
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         assert!(matches!(
             upgraded.read(36),
             Err(atlas_storage::StorageError::Schema {
@@ -595,7 +657,7 @@ mod tests {
         let snapshot = serde_json::json!({"version":1,"payload":{"snapshot":{"participants":[{"manual_trackers":[tracker],"conditions":[{"duration":{"amount":1,"unit":"minutes","remaining_rounds":9}}]}]},"marker":"preserve"}});
         write.connection().execute("INSERT INTO encounter_outgoing_turns(encounter_id,boundary_key,request_id,intent_json,payload_json) VALUES(1,'old','old','{}',?1)",[snapshot.to_string()]).unwrap();
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let saved = LocalStateRead::for_local(&read)
             .unwrap()
@@ -651,7 +713,7 @@ mod tests {
           DELETE FROM encounter_participant_conditions WHERE id=99;
         "#).unwrap();
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         let local = LocalStateWrite::for_local(&write).unwrap();
         let saved = local
@@ -750,7 +812,7 @@ mod tests {
             let read = published.read(21).unwrap();
             (saved_row(read.connection()), history(read.connection()))
         };
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let local = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(saved_row(read.connection()), before);
@@ -765,7 +827,7 @@ mod tests {
                 .manual_trackers
                 .is_empty()
         );
-        assert_eq!(history(read.connection()), ledger);
+        assert_eq!(history(historical_backup(&upgraded).connection()), ledger);
         assert!(
             local
                 .encounters()
@@ -774,7 +836,8 @@ mod tests {
                 .is_none()
         );
         assert_eq!(
-            read.connection()
+            historical_backup(&upgraded)
+                .connection()
                 .query_row(
                     "SELECT name FROM schema_migrations WHERE version=22",
                     [],
@@ -815,7 +878,7 @@ mod tests {
             )
             .unwrap()
         };
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let after = LocalStateRead::for_local(&read)
             .unwrap()
@@ -1054,9 +1117,12 @@ mod tests {
         };
         let published_history = main_ledger(write.connection());
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        assert_eq!(main_ledger(read.connection()), published_history);
+        assert_eq!(
+            main_ledger(historical_backup(&upgraded).connection()),
+            published_history
+        );
         assert_eq!(vectors(read.connection()), before);
         assert_eq!(read.reference_revision().unwrap(), revision as u64 + 1);
         assert_eq!(
@@ -1111,7 +1177,10 @@ mod tests {
         );
         let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(read.reference_revision().unwrap(), published_revision);
-        assert_eq!(main_ledger(read.connection()), published_history);
+        assert_eq!(
+            main_ledger(historical_backup(&reopened).connection()),
+            published_history
+        );
         assert_eq!(vectors(read.connection()), before);
         assert_eq!(
             LocalStateRead::for_local(&read)
@@ -1259,7 +1328,7 @@ mod tests {
         };
         let before = snapshot(write.connection());
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         {
             let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
             assert_eq!(snapshot(read.connection()), before);
@@ -1366,7 +1435,7 @@ mod tests {
             INSERT INTO encounter_event_receipts VALUES(1,'kept-request','{}','{"version":1,"payload":{}}');
         "#).unwrap();
         write.commit().unwrap();
-        let workspace = initialize_workspace(&path).unwrap();
+        let workspace = upgrade_historical_fixture(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let detail = LocalStateRead::for_local(&read)
             .unwrap()
@@ -1422,7 +1491,7 @@ mod tests {
         write.connection().execute("INSERT INTO encounter_event_receipts SELECT id,'retained-request','{}','{\"version\":1,\"payload\":{}}' FROM encounters WHERE encounter_key=?1",[encounter_key]).unwrap();
         write.connection().execute("INSERT INTO encounter_boundary_claims SELECT id,'retained-actor',4,'persistent_damage','','retained-request' FROM encounters WHERE encounter_key=?1",[encounter_key]).unwrap();
         write.commit().unwrap();
-        let workspace = initialize_workspace(&path).unwrap();
+        let workspace = upgrade_historical_fixture(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let row=read.connection().query_row("SELECT p.current_hp,p.temporary_hp,c.round_number,c.kind,c.request_id,r.receipt_json FROM encounter_participants p JOIN encounter_boundary_claims c ON c.participant_key=p.participant_key JOIN encounter_command_receipts r ON r.encounter_id=c.encounter_id AND r.family='event' AND r.request_id=c.request_id",[],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,String>(5)?))).unwrap();
         assert_eq!(
@@ -1458,7 +1527,7 @@ mod tests {
             .unwrap();
         write.connection().execute("INSERT INTO encounters(encounter_key,slug,name,status,round_number,created_at,updated_at) VALUES('ambush-key','ambush','Ambush','draft',1,'now','now')",[]).unwrap();
         write.commit().unwrap();
-        let workspace = initialize_workspace(&path).unwrap();
+        let workspace = upgrade_historical_fixture(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let state = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(state.saved_lists().list().unwrap(), vec![list]);
@@ -1482,7 +1551,7 @@ mod tests {
             INSERT INTO encounter_participants(encounter_id,participant_key,participant_kind,position,display_name,initiative_order,max_hp,current_hp,note,created_at,updated_at)
             VALUES(1,'h','hazard',0,'Hazard',0,30,17,'Keep this','before','before');").unwrap();
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let detail = LocalStateRead::for_local(&read)
             .unwrap()
@@ -1512,7 +1581,7 @@ mod tests {
             VALUES(1,'h','hazard',0,'Hazard',0,30,17,1,'before','before'),
                   (1,'c','creature',1,'Creature',1,30,0,1,'before','before');").unwrap();
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let detail = LocalStateRead::for_local(&read)
             .unwrap()
@@ -1558,14 +1627,24 @@ mod tests {
     fn invalid_new_domain_migration_rolls_back_entire_fresh_baseline() {
         let directory = tempfile::tempdir().unwrap();
         let workspace = Workspace::at(directory.path().join("atlas.sqlite")).unwrap();
-        let mut migrations = MIGRATIONS.to_vec();
+        let mut migrations = RELEASE_HISTORY.migrations.to_vec();
         migrations.push(Migration {
             backfill: None,
             version: WORKSPACE_SCHEMA_VERSION + 1,
             name: "invalid",
             sql: "INSERT INTO missing_table VALUES(1);",
         });
-        assert!(workspace.migrate(&migrations, |_| Ok(())).is_err());
+        assert!(
+            workspace
+                .migrate_history(
+                    MigrationHistory {
+                        migrations: &migrations,
+                        ..RELEASE_HISTORY
+                    },
+                    |_| Ok(())
+                )
+                .is_err()
+        );
         let connection = rusqlite::Connection::open(workspace.path()).unwrap();
         assert_eq!(connection.query_row("SELECT count(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'", [], |row| row.get::<_, u32>(0)).unwrap(), 0);
         assert_eq!(
@@ -1597,7 +1676,7 @@ mod tests {
         let write = workspace.write(6).unwrap();
         write.connection().execute_batch("INSERT INTO encounters(encounter_key,slug,name,status,created_at,updated_at) VALUES('kept','kept','Kept','running','before','before');").unwrap();
         write.commit().unwrap();
-        let upgraded = initialize_workspace(&path).unwrap();
+        let upgraded = upgrade_historical_fixture(&path).unwrap();
         let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         let party = LocalStateWrite::for_local(&write)
             .unwrap()
@@ -1650,7 +1729,7 @@ mod tests {
             INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,created_at,updated_at) VALUES(2,1,'creature','creature',1,'Kept creature',1,'before','before');
             INSERT INTO encounter_participant_conditions(participant_id,name,value,note,created_at,updated_at) VALUES(1,'Frightened',2,'Keep condition note','before','before');").unwrap();
         write.commit().unwrap();
-        let upgraded = initialize_workspace(workspace.path()).unwrap();
+        let upgraded = upgrade_historical_fixture(workspace.path()).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let state = LocalStateRead::for_local(&read).unwrap();
         assert_eq!(state.parties().get(&party.party_key).unwrap(), party);

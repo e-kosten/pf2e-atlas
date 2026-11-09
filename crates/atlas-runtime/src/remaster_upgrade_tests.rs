@@ -72,7 +72,7 @@ fn remaster_v29_upgrade_rolls_back_then_preserves_state_until_source_reprepare()
             .any(|e| e.file_name().to_string_lossy().contains("backup")),
         "migration creates a retained backup before mutation"
     );
-    let upgraded = initialize_workspace(&path).unwrap();
+    let upgraded = upgrade_historical_fixture(&path).unwrap();
     {
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(snapshot(read.connection()), saved);

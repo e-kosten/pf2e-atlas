@@ -6,6 +6,7 @@ use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(any(test, feature = "test-support"))]
 pub const TRAIT_SCHEMA_SQL: &str = "
 CREATE TABLE trait_definitions(key TEXT PRIMARY KEY, definition_json TEXT NOT NULL CHECK(json_valid(definition_json)),definition_hash TEXT NOT NULL) STRICT;
 CREATE TABLE trait_vectors(trait_key TEXT NOT NULL REFERENCES trait_definitions(key) ON DELETE CASCADE,profile_id TEXT NOT NULL,input_hash TEXT NOT NULL,vector_json TEXT NOT NULL CHECK(json_valid(vector_json)),chunks_json TEXT NOT NULL CHECK(json_valid(chunks_json)),vector_hash TEXT NOT NULL,PRIMARY KEY(trait_key,profile_id)) WITHOUT ROWID,STRICT;
@@ -413,6 +414,7 @@ impl SqliteIndexReader {
     }
 }
 
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn write_seed(
     c: &Connection,
     unit: &TraitVectorInput,
@@ -1164,6 +1166,7 @@ pub struct TraitReference {
     pub evidence: String,
 }
 
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn validate_seed(
     definition: &TraitDefinition,
     model: &crate::SourceSearchProfileIdentity,

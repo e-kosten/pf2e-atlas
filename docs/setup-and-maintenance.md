@@ -35,9 +35,17 @@ Successful rebuilds report admitted, partial, quarantined and excluded source
 counts; JSON output includes excluded file paths and reasons under
 `build.admission.exclusions`.
 
-Older pre-release versions used separate reference and saved-state files. Those
-formats are not converted automatically; check the reported error before creating
-a new workspace.
+### Upgrade an older prerelease workspace
+
+The release upgrades an existing SQLite workspace from schema 41. If setup
+reports an older schema, [back up your workspace](#back-up-and-restore-your-workspace)
+first. Run `atlas setup` on that workspace with the
+[schema 41 prerelease](https://github.com/e-kosten/pf2e-atlas/releases/tag/v0.1.0-nightly.20261109050726.g787c00b3b26e).
+Once it succeeds, switch to the current Atlas and run setup again. Atlas keeps
+a separate upgrade backup beside the workspace.
+
+If your old version stored reference and saved state in separate files, follow
+the reported error and keep those files for recovery.
 
 ## Run setup without downloads
 

@@ -3,15 +3,18 @@
 import argparse
 import gzip
 import hashlib
+import io
 import json
 import math
 import os
+import platform
 from pathlib import Path
 import re
 import shutil
 import sqlite3
 import subprocess
 import tarfile
+import zipfile
 from contextlib import closing
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,6 +22,21 @@ PROFILES = ("bge-base", "embeddinggemma")
 QUERIES = ("frighten an enemy using a threatening display", "restore health to a wounded ally")
 SCORE_TOLERANCE = 2e-5
 PIN_PATH = "scripts/validation/embedding-baseline.json"
+
+SOURCE_FIXTURE = "crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types"
+RELEASE_PIN = "scripts/validation/schema-41-predecessor.json"
+RELEASE_TAG = "v0.1.0-nightly.20261109050726.g787c00b3b26e"
+RELEASE_ASSET = "cli-only-release"
+RELEASE_DIGEST = "6cc6cae16566251cf6e3937d786a2672071aff40ee34f6a7ead4fd6bacddc7f5"
+SCHEMA_29_PIN = {
+    "tag": "embedding-baseline-v1",
+    "asset": "embedding-compatibility-baseline.tar.gz",
+    "sha256": "7a5cedd86c4ae2826a9fa0d73a75ca570749d5ab0349dda70b2bac6912e4a374",
+    "execution_policy": "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4",
+}
+SCHEMA_41_PIN = {
+    **SCHEMA_29_PIN, "tag": RELEASE_TAG, "asset": RELEASE_ASSET, "sha256": RELEASE_DIGEST,
+}
 
 
 class AtlasCommandError(RuntimeError):
@@ -198,9 +216,9 @@ def compare_queries(expected, actual, profile, phase):
         compare(rows, actual[query], f"{profile} {phase} ({query})")
 
 
-def capture(baseline, cache, root, profiles, provenance):
+def capture(baseline, cache, root, profiles, provenance, fixture=None):
     source = root / "source"
-    shutil.copytree(ROOT / "crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types", source)
+    shutil.copytree(fixture if fixture is not None else ROOT / SOURCE_FIXTURE, source)
     for ordinal, path in enumerate(sorted(source.glob("packs/*/*.json")), start=1):
         record = json.loads(path.read_text())
         record["_id"] = f"{ordinal:016d}"
@@ -214,7 +232,7 @@ def capture(baseline, cache, root, profiles, provenance):
     if any(inferred[profile]["inferred_inputs"] <= 0 for profile in profiles):
         raise RuntimeError("Predecessor lacks real inference evidence")
     invoke(baseline, [
-        "lists", "create", "compatibility", "--name", "Compatibility sentinel",
+        "lists", "create", "Compatibility sentinel", "--slug", "compatibility",
         "--record", "actions:0000000000000001", "--index", index,
     ], root / "list-create.json")
     saved = invoke(baseline, ["lists", "show", "compatibility", "--index", index], root / "list-before.json")
@@ -377,12 +395,18 @@ def read_pins(base):
 
 def pinned_checks(current, previous):
     checks = {}
+    # The workspace cutoff replaces only the exact old pair of pins. All other
+    # fixture or execution-policy changes continue through the ordinary guard.
+    cutoff = previous == dict.fromkeys(PROFILES, SCHEMA_29_PIN) and current == dict.fromkeys(PROFILES, SCHEMA_41_PIN)
 
     def add(profile, pin, transition):
         tag, asset, digest = (pin[key] for key in ("tag", "asset", "sha256"))
-        if (not re.fullmatch(r"embedding-baseline-v[1-9][0-9]*", tag)
-                or asset != "embedding-compatibility-baseline.tar.gz"
-                or not re.fullmatch(r"[0-9a-f]{64}", digest)
+        packaged = (tag, asset, digest) == (RELEASE_TAG, RELEASE_ASSET, RELEASE_DIGEST)
+        bundle = (re.fullmatch(r"embedding-baseline-v[1-9][0-9]*", tag)
+                  and asset == "embedding-compatibility-baseline.tar.gz"
+                  and re.fullmatch(r"[0-9a-f]{64}", digest))
+        if ((not packaged and not bundle)
+                or (packaged and pin["execution_policy"] != SCHEMA_41_PIN["execution_policy"])
                 or transition == pin["execution_policy"]):
             raise RuntimeError(f"Invalid baseline pin for {profile}")
         checks.setdefault((tag, asset, digest), {})[profile] = (pin["execution_policy"], transition)
@@ -390,12 +414,95 @@ def pinned_checks(current, previous):
     for profile, pin in current.items():
         old = previous.get(profile, pin)
         same_fixture = all(old[key] == pin[key] for key in ("sha256", "execution_policy"))
-        if not same_fixture:
+        if not same_fixture and not cutoff:
             if old.get("transition_to") != pin["execution_policy"] or pin.get("transition_to"):
                 raise RuntimeError(f"{profile} baseline pin can advance only after an approved ID transition")
             add(profile, old, pin["execution_policy"])
         add(profile, pin, pin.get("transition_to"))
     return checks
+
+
+def release_target():
+    arch = {"arm64": "aarch64", "amd64": "x86_64"}.get(platform.machine().lower(), platform.machine().lower())
+    suffix = {"Darwin": "apple-darwin", "Linux": "unknown-linux-gnu", "Windows": "pc-windows-msvc"}
+    return f"{arch}-{suffix[platform.system()]}"
+
+
+def predecessor_ledger(index):
+    digest = hashlib.sha256(b"atlas-predecessor-ledger/v1\0")
+    with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
+        rows = db.execute("SELECT version,name,checksum FROM schema_migrations ORDER BY version")
+        for version, name, checksum in rows:
+            digest.update(version.to_bytes(4, "big"))
+            for field in (name, checksum):
+                encoded = field.encode("utf-8")
+                digest.update(len(encoded).to_bytes(8, "big"))
+                digest.update(encoded)
+    return digest.hexdigest()
+
+
+def extract_release_executable(archive, destination):
+    filename = destination.name
+    if archive.suffix == ".zip":
+        with zipfile.ZipFile(archive) as package:
+            members = [item for item in package.infolist()
+                       if not item.is_dir() and Path(item.filename).name == filename]
+            if len(members) != 1:
+                raise RuntimeError("Expected one Atlas executable in the pinned archive")
+            with package.open(members[0]) as source, destination.open("wb") as output:
+                shutil.copyfileobj(source, output)
+    else:
+        with tarfile.open(archive, "r:xz") as package:
+            members = [item for item in package.getmembers()
+                       if item.isfile() and Path(item.name).name == filename]
+            if len(members) != 1:
+                raise RuntimeError("Expected one Atlas executable in the pinned archive")
+            with package.extractfile(members[0]) as source, destination.open("wb") as output:
+                shutil.copyfileobj(source, output)
+    destination.chmod(0o700)
+
+
+def capture_release_predecessor(repository, download_env, cache, evidence, profiles):
+    receipt = ROOT / RELEASE_PIN
+    if hashlib.sha256(receipt.read_bytes().replace(b"\r\n", b"\n")).hexdigest() != RELEASE_DIGEST:
+        raise RuntimeError("Schema 41 producer receipt differs from the cutover pin")
+    release = json.loads(receipt.read_text(encoding="utf-8"))
+    if release["tag"] != RELEASE_TAG or release["schema"] != 41 or tuple(release["queries"]) != QUERIES:
+        raise RuntimeError("Schema 41 producer or query recipes differ from the cutover")
+    target = release_target()
+    pin = release["assets"][target]
+    archive = evidence / pin["asset"]
+    subprocess.run(
+        ["gh", "release", "download", RELEASE_TAG, "--repo", repository,
+         "--pattern", pin["asset"], "--output", str(archive)],
+        env=download_env, check=True, timeout=120,
+    )
+    if sha256(archive) != pin["sha256"]:
+        raise RuntimeError("Schema 41 producer archive SHA-256 mismatch")
+    baseline = evidence / ("atlas.exe" if archive.suffix == ".zip" else "atlas")
+    extract_release_executable(archive, baseline)
+    version = subprocess.check_output([str(baseline), "--version"], text=True, timeout=20).strip()
+    if version != f"atlas {RELEASE_TAG[1:]}":
+        raise RuntimeError("Unexpected version in the schema 41 producer archive")
+
+    tree = subprocess.check_output(
+        ["git", "rev-parse", f"{release['commit']}:{SOURCE_FIXTURE}"], cwd=ROOT, text=True,
+    ).strip()
+    if tree != release["source_tree"]:
+        raise RuntimeError("Schema 41 capture input tree differs from the cutover pin")
+    source = subprocess.check_output(
+        ["git", "archive", "--format=tar", release["commit"], SOURCE_FIXTURE], cwd=ROOT,
+    )
+    fixture_dir = evidence / "frozen-input"
+    with tarfile.open(fileobj=io.BytesIO(source), mode="r:") as package:
+        package.extractall(fixture_dir, filter="data")
+    manifest = capture(baseline, cache, evidence, tuple(profiles), {
+        "commit": release["commit"], "target": target, "build": RELEASE_TAG,
+    }, fixture_dir / SOURCE_FIXTURE)
+    index = evidence / "predecessor.sqlite"
+    if workspace_schema(index) != 41 or predecessor_ledger(index) != release["ledger_sha256"]:
+        raise RuntimeError("Pinned producer did not create the authenticated schema 41 predecessor")
+    return manifest
 
 
 def check_pins(candidate, cache, root, base, repository, migrator=None):
@@ -405,15 +512,18 @@ def check_pins(candidate, cache, root, base, repository, migrator=None):
     # Keep the CI credential out of candidate and migrator subprocesses.
     os.environ.pop("GH_TOKEN", None)
     for ordinal, ((tag, asset, digest), profiles) in enumerate(pinned_checks(*read_pins(base)).items()):
-        archive = root / f"baseline-{ordinal}.tar.gz"
-        subprocess.run(
-            ["gh", "release", "download", tag, "--repo", repository,
-             "--pattern", asset, "--output", str(archive)],
-            env=download_env, check=True, timeout=120,
-        )
         evidence = root / f"bundle-{ordinal}"
         evidence.mkdir()
-        manifest = extract_bundle(archive, digest, evidence)
+        if asset == RELEASE_ASSET:
+            manifest = capture_release_predecessor(repository, download_env, cache, evidence, profiles)
+        else:
+            archive = root / f"baseline-{ordinal}.tar.gz"
+            subprocess.run(
+                ["gh", "release", "download", tag, "--repo", repository,
+                 "--pattern", asset, "--output", str(archive)],
+                env=download_env, check=True, timeout=120,
+            )
+            manifest = extract_bundle(archive, digest, evidence)
         transitions = {}
         for profile, (policy, transition) in profiles.items():
             if manifest["profiles"][profile]["execution_policy"] != policy:

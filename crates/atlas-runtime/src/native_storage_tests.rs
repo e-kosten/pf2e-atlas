@@ -670,7 +670,7 @@ fn invalid_old_native_values_reject_the_entire_main24_upgrade() {
         }
         let before = snapshot(write.connection());
         write.commit().unwrap();
-        let error = initialize_workspace(workspace.path())
+        let error = upgrade_historical_fixture(workspace.path())
             .unwrap_err()
             .to_string();
         let expected = match corrupt {
@@ -743,7 +743,7 @@ fn failure_after_native_drop_section_reconstruction_or_final_schema_restores_mai
             1
         );
         drop(read);
-        initialize_workspace(workspace.path()).unwrap();
+        upgrade_historical_fixture(workspace.path()).unwrap();
     }
 }
 
@@ -802,7 +802,7 @@ fn published_schema_nine_replay_preserves_vectors_and_forced_pending_without_ass
         "SELECT version,name,checksum FROM schema_migrations ORDER BY version",
     );
     write.commit().unwrap();
-    initialize_workspace(workspace.path()).unwrap();
+    upgrade_historical_fixture(workspace.path()).unwrap();
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(
         crate::test_support::occurrence_vector_bits(read.connection()),
@@ -817,7 +817,7 @@ fn published_schema_nine_replay_preserves_vectors_and_forced_pending_without_ass
     );
     assert_eq!(
         rows(
-            read.connection(),
+            historical_backup(&workspace).connection(),
             "SELECT version,name,checksum FROM schema_migrations WHERE version<=9 ORDER BY version"
         ),
         ledger
@@ -870,7 +870,7 @@ fn published_empty_profiles_upgrade_without_inventing_numerical_values() {
     );
     let revision = read.reference_revision().unwrap();
     drop(read);
-    initialize_workspace(workspace.path()).unwrap();
+    upgrade_historical_fixture(workspace.path()).unwrap();
     let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(read.reference_revision().unwrap(), revision + 1);
     assert_eq!(
@@ -1009,7 +1009,7 @@ fn trait_similarity_retirement_preserves_document_values_on_historical_upgrade()
                 native_before
             );
         }
-        workspace.migrate(MIGRATIONS, |_| Ok(())).unwrap();
+        upgrade_historical_fixture(workspace.path()).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(read.workspace_key().unwrap(), key);
         assert_eq!(read.reference_revision().unwrap(), revision + 1);
