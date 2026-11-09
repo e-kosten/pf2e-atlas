@@ -176,7 +176,13 @@ pub fn setup(
             reasons
                 .iter()
                 .rev()
-                .find(|reason| reason["status"] == "failed" || reason["status"] == "blocked")
+                .find(|reason| reason["status"] == "failed")
+                .or_else(|| {
+                    reasons
+                        .iter()
+                        .rev()
+                        .find(|reason| reason["status"] == "blocked")
+                })
                 .or_else(|| reasons.first())
         })
         .and_then(|reason| reason["message"].as_str())
