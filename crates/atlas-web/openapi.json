@@ -14634,6 +14634,9 @@
                       "$ref": "#/components/schemas/RecordSummaryView"
                     },
                     "type": "array"
+                  },
+                  "verified": {
+                    "type": "boolean"
                   }
                 },
                 "required": [

@@ -26,6 +26,9 @@ pub struct VariantGroupView {
     pub base_name: String,
     pub variants: Vec<RecordSummaryView>,
     pub evidence: Vec<VariantEvidenceView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub verified: Option<bool>,
     pub ambiguous: bool,
     pub truncated: bool,
 }

@@ -582,6 +582,7 @@ it("renders Versions with shared result cards and compares complete records with
   await selectTab("Versions");
   const result = await screen.findByRole("link", { name: /^Greater creature/ });
   expect(result).toHaveAttribute("data-record-key", "actors:variant");
+  expect(screen.getByRole("heading", { name: "Possible variants" })).toBeVisible();
   fireEvent.click(result);
   expect(onReference).toHaveBeenCalledWith("actors:variant", result);
   const compare = screen.getByRole("button", { name: "Compare" });
@@ -607,6 +608,46 @@ it("renders Versions with shared result cards and compares complete records with
   fireEvent.keyDown(dialog, { key: "Escape", code: "Escape", keyCode: 27 });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(compare).toHaveFocus();
+});
+
+it("shows verified equipment variants with their attributes and omits the current item", async () => {
+  const seed = summaryFixture("actors:seed", "Energy Breath Potion (Fire, Lesser)");
+  const sibling = summaryFixture(
+    "items:sibling",
+    "Energy Breath Potion (Sonic, Moderate)",
+  );
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    show_versions: true,
+    variants: {
+      kind: "content",
+      content: {
+        seed,
+        base_name: "Energy Breath Potion",
+        variants: [seed, sibling],
+        verified: true,
+        evidence: [
+          {
+            record_key: sibling.record_key,
+            naming_convention: "reviewed_membership",
+            qualifier: "Sonic, Moderate",
+            compatibility: "reviewed equipment family",
+          },
+        ],
+        ambiguous: false,
+        truncated: false,
+      },
+    },
+  });
+
+  renderRelated();
+  openRelated();
+  await selectTab("Versions");
+
+  expect(await screen.findByRole("heading", { name: "Variants" })).toBeVisible();
+  expect(screen.getByText("Sonic, Moderate", { exact: true })).toBeVisible();
+  expect(screen.queryByRole("link", { name: /Fire, Lesser/ })).toBeNull();
+  expect(screen.getByRole("button", { name: "Compare" })).toBeVisible();
 });
 
 it("retires preview rows after a generation conflict and retains a local recovery action", async () => {

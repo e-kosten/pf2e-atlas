@@ -411,6 +411,15 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
   };
   const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
+  const verified = variants?.kind === "content" && variants.content.verified;
+  const variantLabels = new Map(
+    verified && variants.kind === "content"
+      ? variants.content.evidence.map(({ record_key, qualifier }) => [
+          record_key,
+          qualifier,
+        ])
+      : [],
+  );
   const choices =
     variants?.kind === "content"
       ? variants.content.variants.filter(
@@ -460,10 +469,10 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       />
       {choices.length > 0 && (
         <section>
-          <h3>Suggested variants</h3>
+          <h3>{verified ? "Variants" : "Possible variants"}</h3>
           {variants?.kind === "content" && variants.content.ambiguous && (
             <Typography.Paragraph type="secondary">
-              These suggestions are uncertain; compare before treating them as variants.
+              Some matches are uncertain. Compare them to check how they differ.
             </Typography.Paragraph>
           )}
           <div className="record-explore__results" role="list">
@@ -471,6 +480,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
               <VersionCard
                 key={record.record_key}
                 record={record}
+                context={variantLabels.get(record.record_key)}
                 onReference={onReference}
                 onCompare={() =>
                   setComparison({ target: record.record_key, open: true })
@@ -480,7 +490,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           </div>
           {variants?.kind === "content" && variants.content.truncated && (
             <Typography.Paragraph type="secondary">
-              More suggested variants may exist.
+              More possible variants may exist.
             </Typography.Paragraph>
           )}
         </section>
@@ -491,7 +501,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           related.data.source_remaster_context.kind === "empty") && (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No other editions or suggested variants found."
+            description="No other editions or variants found."
           />
         )}
       {comparison && (
