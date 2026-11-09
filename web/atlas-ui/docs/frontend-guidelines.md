@@ -951,6 +951,25 @@ change. Use the [focused Linux runner](../../../docs/development/validation.md#f
 failures against the same candidate without repeating full gates. Pixel checks
 supplement the interaction, focus, anchor and transition assertions.
 
+### Shared-control verification
+
+For a shared control or theme change, identify callers by their implementation
+owner as well as their visible role. A decrement button that removes a condition
+at one and a separate row Remove action can have the same accessible name while
+using different owners. Exercise each affected family, including native links,
+semantic selections and disabled/pending variants, against the existing
+[interaction roles](theme-design.md#selected-controls-and-interaction-contrast).
+
+Inspect compact labels and values within the text space left after borders,
+padding and trailing icons. Include signed and multi-digit values, digit-boundary
+updates and the narrowest supported host. Check the resting surface and cursor
+separately from hover/focus feedback, preserving text-entry and disabled cursors.
+
+Use actual browser keyboard activation for changed controls. A synthetic key
+event can omit native button activation. When a focused chip or editor disappears,
+verify the surviving focus target after queued updates and the overlay's closing
+lifecycle. Review open/close motion with normal motion as well as settled captures.
+
 ## Source-backed records and filters
 
 Render generated app DTOs. Prepared content is sanitized HTML with field-local reference and interaction sidecars; use DOMPurify at the browser boundary and make supported markers keyboard accessible. Unknown commands and unavailable targets remain visible inert labels. Never execute Foundry commands, scripts, or rules. Selected owner and passage routes carry backend navigation, including its source fingerprint for snapshot-local addresses.
