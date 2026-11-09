@@ -16,7 +16,7 @@ it("uses record Similar defaults", () => {
     ranking: "score",
     searchContent: "all",
     sourceSectionsByFamily: {},
-    matchDisplay: "sections",
+    matchDisplay: "hidden",
     showSmallerWeights: false,
     recordSimilarity: { method: "passages", decay: 0.5, candidateParts: "any" },
   });
@@ -61,7 +61,7 @@ it("remembers general preferences across browser-owner launches", () => {
   expect(readSearchPreferences()).toEqual(preferences);
 });
 
-it("defaults to Matching sections without losing existing browser preferences", () => {
+it("defaults to Hidden without losing existing browser preferences", () => {
   localStorage.setItem(
     SEARCH_PREFERENCES_KEY,
     JSON.stringify({ version: 1, model: "embeddinggemma", ranking: "rrf" }),
@@ -69,7 +69,7 @@ it("defaults to Matching sections without losing existing browser preferences", 
   expect(readSearchPreferences()).toMatchObject({
     model: "embeddinggemma",
     ranking: "rrf",
-    matchDisplay: "sections",
+    matchDisplay: "hidden",
     showSmallerWeights: false,
   });
 });
@@ -178,8 +178,8 @@ it.each(["hidden", "sections", "detailed"] as const)(
 );
 it.each([
   [true, "detailed"],
-  [false, "sections"],
-  [undefined, "sections"],
+  [false, "hidden"],
+  [undefined, "hidden"],
 ])("migrates legacy details %s to %s", (legacy, expected) => {
   localStorage.setItem(
     SEARCH_PREFERENCES_KEY,
@@ -201,5 +201,5 @@ it("recovers an invalid display preference without accepting arbitrary values", 
     SEARCH_PREFERENCES_KEY,
     JSON.stringify({ version: 1, matchDisplay: "invalid" }),
   );
-  expect(readSearchPreferences().matchDisplay).toBe("sections");
+  expect(readSearchPreferences().matchDisplay).toBe("hidden");
 });

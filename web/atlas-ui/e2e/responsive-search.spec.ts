@@ -338,6 +338,12 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
 test("reader matches keep result rows stable and navigate without scrolling app chrome", async ({
   page,
 }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "atlas.search.preferences.v1",
+      JSON.stringify({ version: 1, matchDisplay: "sections" }),
+    ),
+  );
   await page.goto("/search?q=%22Firewyrm%22%20fire&search_profile=bge-base");
   const row = page.locator(".reference-result").filter({
     has: page.locator('[data-record-key="pathfinder-monster-core:MX2cLbODuo4gECPJ"]'),
@@ -371,6 +377,12 @@ test("reader matches keep result rows stable and navigate without scrolling app 
 test("long match excerpts stay within two lines at desktop and phone widths", async ({
   page,
 }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "atlas.search.preferences.v1",
+      JSON.stringify({ version: 1, matchDisplay: "sections" }),
+    ),
+  );
   await page.goto(
     "/search/records/sky-kings-tomb-bestiary:RVdRHveFJmeCscI6?search_profile=bge-base&q=wriggly+bug",
   );
