@@ -1,0 +1,10 @@
+name = "Potion Patch"
+source_note = "Treasure Vault (Remastered). The same skin patch supports progressively higher-level potions."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:pSAnfP76xGS9aVec", name = "Potion Patch (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:hdxm6sdXLzI7ozul", name = "Potion Patch (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:VbVw8IDiYczzbIHt", name = "Potion Patch (Greater)", attributes = ["Greater"] },
+]

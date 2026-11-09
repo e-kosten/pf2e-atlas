@@ -1,0 +1,11 @@
+name = "Theatrical Mutagen"
+source_note = "Treasure Vault (Remastered). Four grades share the performance tradeoff and increase bonuses, duration, or Speed."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:kScHu3XS3XPvN9Db", name = "Theatrical Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:8rQ7HkUtSa8so0Et", name = "Theatrical Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:BB9ErvPViT4TtiYp", name = "Theatrical Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Wv0ck7AMP0s0jIue", name = "Theatrical Mutagen (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,12 @@
+name = "Vaccine"
+source_note = "Treasure Vault (Remastered). Five grades grant protection against increasingly high-level disease for longer durations."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:yi1iL9dbLDSr4NZd", name = "Vaccine (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:nzeTcOyQmZNrurVF", name = "Vaccine (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:HilBL7oeSSXqDor7", name = "Vaccine (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:9mXjEGJaESesndWh", name = "Vaccine (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:JZZmDY1IJmKcdR2D", name = "Vaccine (Major)", attributes = ["Major"] },
+]

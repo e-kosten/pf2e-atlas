@@ -1,0 +1,11 @@
+name = "Torrent Spellgun"
+source_note = "Treasure Vault (Remastered). Four grades of the same water spellgun increase bludgeoning damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:0rxTsnAGYWYaQaMl", name = "Torrent Spellgun (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:G1YeBTz26wnL2Meo", name = "Torrent Spellgun (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:xBZniAmkWcLfQ48d", name = "Torrent Spellgun (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:zELyHWSfkD4yRUjZ", name = "Torrent Spellgun (Major)", attributes = ["Major"] },
+]
