@@ -1,6 +1,7 @@
 import { Button, Popover, theme, Tooltip } from "antd";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { InlineIconButton } from "./actions/InlineAction";
 import { restoreOverlayFocus } from "./overlays/restoreOverlayFocus";
 
 /** An explanation of readable content; children must not contain other controls. */
@@ -33,6 +34,13 @@ export function ValueExplanation({
     event.stopPropagation();
     close();
   };
+  const triggerProps = {
+    ref: trigger,
+    "aria-haspopup": "dialog",
+    "aria-expanded": open,
+    "aria-controls": open ? popupId : undefined,
+    onKeyDown: dismissEscape,
+  } as const;
   return (
     <Popover
       open={open}
@@ -78,41 +86,45 @@ export function ValueExplanation({
         </div>
       }
     >
-      <Button
-        ref={trigger}
-        type="text"
-        size="small"
-        className={`explained-value${iconOnly ? " explained-value--icon" : ""}`}
-        aria-haspopup="dialog"
-        aria-label={iconOnly ? label : undefined}
-        aria-labelledby={iconOnly ? undefined : `${popupId}-context ${popupId}-value`}
-        title={iconOnly ? label : undefined}
-        aria-expanded={open}
-        aria-controls={open ? popupId : undefined}
-        onKeyDown={dismissEscape}
-        style={{ "--explanation-hover": token.colorLinkHover } as CSSProperties}
-        styles={{
-          root: {
-            display: "inline",
-            height: "auto",
-            maxWidth: "100%",
-            padding: 0,
-            borderWidth: 0,
-            color: "inherit",
-            background: "transparent",
-            font: "inherit",
-            whiteSpace: "normal",
-            textAlign: "start",
-          },
-        }}
-      >
-        <span id={`${popupId}-context`} className="sr-only">
-          {label}:
-        </span>
-        <span id={`${popupId}-value`} className="explained-value__label">
-          {children}
-        </span>
-      </Button>
+      {iconOnly ? (
+        <InlineIconButton
+          {...triggerProps}
+          icon={<Info aria-hidden="true" />}
+          label={label}
+          title={label}
+          tooltip={false}
+        />
+      ) : (
+        <Button
+          {...triggerProps}
+          type="text"
+          size="small"
+          className="explained-value"
+          aria-labelledby={`${popupId}-context ${popupId}-value`}
+          style={{ "--explanation-hover": token.colorLinkHover } as CSSProperties}
+          styles={{
+            root: {
+              display: "inline",
+              height: "auto",
+              maxWidth: "100%",
+              padding: 0,
+              borderWidth: 0,
+              color: "inherit",
+              background: "transparent",
+              font: "inherit",
+              whiteSpace: "normal",
+              textAlign: "start",
+            },
+          }}
+        >
+          <span id={`${popupId}-context`} className="sr-only">
+            {label}:
+          </span>
+          <span id={`${popupId}-value`} className="explained-value__label">
+            {children}
+          </span>
+        </Button>
+      )}
     </Popover>
   );
 }

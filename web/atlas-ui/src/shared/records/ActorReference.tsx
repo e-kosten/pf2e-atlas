@@ -7,7 +7,7 @@ import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
 import { Alert, Button, Collapse, Popover, Typography } from "antd";
-import { InfoCircleOutlined } from "@ant-design/icons";
+import { Info } from "lucide-react";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
   ActorActivityView,
@@ -518,7 +518,7 @@ export function ActorSkills({
                                 trigger="click"
                               >
                                 <InlineIconButton
-                                  icon={<InfoCircleOutlined />}
+                                  icon={<Info aria-hidden="true" />}
                                   label={`${sentenceCase(skill.label)}: condition details`}
                                 />
                               </Popover>

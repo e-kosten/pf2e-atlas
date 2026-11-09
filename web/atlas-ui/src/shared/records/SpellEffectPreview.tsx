@@ -1,10 +1,10 @@
-import { InfoCircleOutlined } from "@ant-design/icons";
 import type {
   ReferenceHelpView,
   SpellEffectPreviewView,
   SpellEffectFactView,
 } from "../../generated/atlas";
 import { ReferenceHelpLink } from "./ReferenceHelp";
+import { InlineContext } from "../ui/actions/InlineAction";
 import { ValueExplanation } from "../ui/ValueExplanation";
 import { FactLine, FactRow } from "./presentationFacts";
 import { TraitBadge } from "./TraitBadge";
@@ -31,13 +31,11 @@ function EffectFact({
                 content={<>Base rank: {fact.base_value}</>}
                 iconOnly={Boolean(help?.destination)}
               >
-                {help?.destination ? <InfoCircleOutlined /> : value}
+                {help?.destination ? null : value}
               </ValueExplanation>
             );
             return help?.destination ? (
-              <>
-                {content} {explanation}
-              </>
+              <InlineContext actions={explanation}>{content}</InlineContext>
             ) : (
               explanation
             );

@@ -7,6 +7,7 @@ import type {
   ContentRollResultView,
   ContentRollOffer,
 } from "../../generated/atlas";
+import { InlineIconButton } from "../ui/actions/InlineAction";
 import { RollResult, UnrolledRoll } from "./RollResult";
 import { useDicePopoverFocus } from "./useDicePopoverFocus";
 import { useDiceRoll } from "./useDiceRoll";
@@ -106,12 +107,11 @@ export function ContentRoll({
         title={`${roll.result ? "View roll for" : "Roll"} ${label}`}
         trigger={["hover", "focus"]}
       >
-        <Button
+        <InlineIconButton
           ref={trigger}
-          type="text"
-          size="small"
-          icon={<Dices size={15} />}
-          aria-label={`${roll.result ? "View roll for" : "Roll"} ${label}`}
+          tooltip={false}
+          icon={<Dices aria-hidden="true" />}
+          label={`${roll.result ? "View roll for" : "Roll"} ${label}`}
         />
       </Tooltip>
     </Popover>

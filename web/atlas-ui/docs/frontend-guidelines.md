@@ -334,18 +334,19 @@ on failed refresh and provide local Retry.
 
 ### Inline context actions
 
-Use `InlineIconButton` or `InlineIconLink` with `InlineContext` when an information
-or help icon annotates prose, a fact value, or a standalone text label. For example,
+Use `InlineIconButton` or `InlineIconLink` with `InlineContext` for an action
+attached to prose, a fact value, or a standalone text label. Use Lucide Info for
+explanations and the dice glyph for rolls. For example,
 a remaster explanation beside a former name and a conditional-skill explanation
 beside its modifier belong to this pattern. `PaneIconButton` and `PaneIconLink`
 belong to pane headers and toolbars; their control-box baseline is not an inline
 text-alignment policy.
 
 The shared inline treatment owns its geometry: text-relative middle alignment,
-a glyph around one text em, a click/focus target of at least 24 CSS pixels, and the
-4px spacing role between content and action. Glyph size and target size are
-separate. Callers must not add local vertical transforms, baseline nudges, button
-padding or a second gap to make the icon fit. Keep theme colors, hover and focus
+a glyph around one text em, a click/focus target of at least 24 CSS pixels, and
+an inset focus outline. The inset around the glyph supplies the gap beside the
+label. Preserve authored whitespace after the action and leave alignment and
+spacing to the shared control. Keep theme colors, hover and focus
 feedback with the shared Ant control.
 
 Let `InlineContext` keep the action attached to the final content fragment when
@@ -353,9 +354,10 @@ wrapping. The complete sentence must still wrap. Do not set a whole long sentenc
 to nowrap, duplicate a native anchor into extra focus stops, or insert hidden
 characters into copied text to force the layout. Preserve a rich content element's
 identity and allow its own text to wrap without leaving the action on a line alone.
-Literal text attaches the action to its last word. Rich content, such as a record
-link, stays in one wrapping group with its action aligned to the final line; the
-group may move to the next line rather than splitting the anchor into fragments.
+Literal text attaches the action to its last word. Prepared content uses the same
+layout around the existing formula or rich check label and its portal host.
+Rich content such as a record link stays in one wrapping group, with the action
+aligned to the final line. The whole group may move to the next line.
 
 The caller owns what activation does. Preserve controlled help/popover state,
 content, dismissal and focus restoration when changing a trigger's geometry.

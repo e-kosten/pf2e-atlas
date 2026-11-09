@@ -1,7 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Button, ConfigProvider, Popover } from "antd";
 import { createRef, type ComponentRef } from "react";
-import { InlineContext, InlineIconButton, InlineIconLink } from "./InlineAction";
+import {
+  attachInlineAction,
+  detachInlineAction,
+  InlineContext,
+  InlineIconButton,
+  InlineIconLink,
+} from "./InlineAction";
 
 it("opens caption-only help on a direct click, keeps a focus-before-click open, and dismisses outside/Escape without focus loss", async () => {
   render(
@@ -93,4 +99,39 @@ it("keeps one original content anchor, exact copy and caller-owned native activa
   expect(fireEvent.click(action, { metaKey: true })).toBe(true);
   expect(click).toHaveBeenCalledOnce();
   expect(click.mock.calls[0][0].metaKey).toBe(true);
+});
+
+it("preserves one focused authored link and its surrounding content as portal hosts move and detach", () => {
+  const { container } = render(
+    <div>
+      <span className="inline-context-content">
+        <a href="/records/first">First record</a>
+      </span>
+      <span className="inline-context-actions">Authored sibling</span>
+      <a href="/records/second">Second record</a>
+    </div>,
+  );
+  const first = screen.getByRole("link", { name: "First record" });
+  const second = screen.getByRole("link", { name: "Second record" });
+  const original = first.parentElement;
+  const one = document.createElement("span");
+  const two = document.createElement("span");
+
+  first.focus();
+  attachInlineAction(first, one);
+  attachInlineAction(first, two);
+  expect(first).toHaveFocus();
+  expect(one.parentElement).toBe(two.parentElement);
+  expect(screen.getAllByRole("link")).toHaveLength(2);
+
+  attachInlineAction(second, one);
+  expect(first.closest(".inline-context-tail")).toContainElement(two);
+  expect(second.closest(".inline-context-tail")).toContainElement(one);
+
+  detachInlineAction(two);
+  expect(first.parentElement).toBe(original);
+  expect(first).toHaveFocus();
+  expect(screen.getByText("Authored sibling")).toBeVisible();
+  detachInlineAction(one);
+  expect(container.querySelector(".inline-context-tail")).toBeNull();
 });
