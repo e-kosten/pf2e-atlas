@@ -87,7 +87,8 @@ where
     S: Subscriber,
 {
     fn on_event(&self, event: &Event<'_>, _context: Context<'_, S>) {
-        if *event.metadata().level() > Level::INFO {
+        let level = *event.metadata().level();
+        if level > Level::INFO {
             return;
         }
         let target = event.metadata().target();
@@ -107,16 +108,16 @@ where
             Ok(state) => state,
             Err(poisoned) => poisoned.into_inner(),
         };
-        if target == "atlas_progress" {
-            if self.internal_logs_enabled && !fields.fields.is_empty() {
-                state.log(&message, &fields.fields);
-            }
-            let render = progress_render_mode(self.options, state.is_interactive);
-            if render.enabled() {
-                state.progress(&message, &fields, self.options.setup_timing, render);
-            }
-        } else {
-            state.log(&message, &fields.fields);
+        if target != "atlas_progress" || level < Level::INFO {
+            state.log(level, &message, &fields.fields);
+            return;
+        }
+        if self.internal_logs_enabled && !fields.fields.is_empty() {
+            state.log(level, &message, &fields.fields);
+        }
+        let render = progress_render_mode(self.options, state.is_interactive);
+        if render.enabled() {
+            state.progress(&message, &fields, self.options.setup_timing, render);
         }
     }
 }
@@ -188,7 +189,7 @@ impl CliProgressState {
             return;
         }
         let Some(total) = fields.total else {
-            self.spinner(message, fields.phase.as_ref(), setup_timing, render);
+            self.spinner(message, fields, setup_timing, render);
             return;
         };
         let current = fields.current.unwrap_or(0);
@@ -298,54 +299,60 @@ impl CliProgressState {
     fn spinner(
         &mut self,
         message: &str,
-        phase: Option<&String>,
+        fields: &EventFields,
         setup_timing: bool,
         render: ProgressRenderMode,
     ) {
         if render == ProgressRenderMode::Hidden {
             return;
         }
+        let count = fields.current.map(|current| {
+            let unit = fields.unit.as_deref().unwrap_or("completed");
+            format!("{current} {unit}")
+        });
         if render == ProgressRenderMode::Plain {
-            self.ensure_display(phase.cloned(), None, None, ProgressDrawTarget::hidden());
+            self.ensure_display(
+                fields.phase.clone(),
+                None,
+                None,
+                ProgressDrawTarget::hidden(),
+            );
+            let count = count.map_or_else(String::new, |count| format!(" · {count}"));
             if setup_timing {
                 eprintln!(
-                    "[total {}] {message}",
+                    "[total {}] {message}{count}",
                     compact_elapsed(self.started_at.elapsed())
                 );
             } else {
-                eprintln!("{message}");
+                eprintln!("{message}{count}");
             }
             return;
         }
 
-        self.ensure_display(phase.cloned(), None, None, interactive_draw_target());
-        self.update_spinner(message, setup_timing);
+        self.ensure_display(fields.phase.clone(), None, None, interactive_draw_target());
+        self.update_spinner(message, setup_timing, count);
     }
 
-    fn update_spinner(&mut self, message: &str, setup_timing: bool) {
+    fn update_spinner(&self, message: &str, setup_timing: bool, count: Option<String>) {
         if let Some(progress_bar) = &self.progress_bar {
             let started_at = self.started_at;
-            progress_bar.set_style(spinner_style(setup_timing).with_key(
-                "total_elapsed",
-                move |_: &ProgressState, writer: &mut dyn fmt::Write| {
-                    let _ = write!(writer, "{}", compact_elapsed(started_at.elapsed()));
-                },
-            ));
+            progress_bar.set_style(
+                spinner_style(setup_timing, count.is_some())
+                    .with_key(
+                        "total_elapsed",
+                        move |_: &ProgressState, writer: &mut dyn fmt::Write| {
+                            let _ = write!(writer, "{}", compact_elapsed(started_at.elapsed()));
+                        },
+                    )
+                    .with_key(
+                        "count",
+                        move |_: &ProgressState, writer: &mut dyn fmt::Write| {
+                            let _ = writer.write_str(count.as_deref().unwrap_or_default());
+                        },
+                    ),
+            );
             progress_bar.set_message(message.to_string());
         }
-    }
-
-    #[cfg(test)]
-    fn spinner_with_draw_target_for_test(
-        &mut self,
-        phase: Option<String>,
-        message: &str,
-        setup_timing: bool,
-        draw_target: ProgressDrawTarget,
-    ) {
-        self.ensure_display(phase, None, None, draw_target);
-        self.progress_bar.as_ref().unwrap().disable_steady_tick();
-        self.update_spinner(message, setup_timing);
     }
 
     fn clear_progress(&mut self) {
@@ -355,8 +362,8 @@ impl CliProgressState {
         self.progress_phase = None;
     }
 
-    fn log(&mut self, message: &str, fields: &[(String, String)]) {
-        let line = format_log_line(self.started_at.elapsed(), message, fields);
+    fn log(&mut self, level: Level, message: &str, fields: &[(String, String)]) {
+        let line = format_log_line(self.started_at.elapsed(), level, message, fields);
         if let Some(progress_bar) = &self.progress_bar {
             progress_bar.suspend(|| eprintln!("{line}"));
         } else {
@@ -418,11 +425,14 @@ fn interactive_draw_target() -> ProgressDrawTarget {
     ProgressDrawTarget::term_like_with_hz(Box::new(console::Term::buffered_stderr()), 10)
 }
 
-fn spinner_style(setup_timing: bool) -> ProgressStyle {
-    progress_style_with_phase_elapsed(
-        spinner_template(setup_timing),
-        ProgressStyle::default_spinner,
-    )
+fn spinner_style(setup_timing: bool, has_count: bool) -> ProgressStyle {
+    let template = spinner_template(setup_timing);
+    let template = if has_count {
+        format!("{template}\n{{count}}")
+    } else {
+        template.to_string()
+    };
+    progress_style_with_phase_elapsed(&template, ProgressStyle::default_spinner)
 }
 
 fn progress_template(setup_timing: bool) -> &'static str {
@@ -458,7 +468,7 @@ fn counted_style(setup_timing: bool, unit: Option<&str>, started_at: Instant) ->
 
 fn spinner_template(setup_timing: bool) -> &'static str {
     if setup_timing {
-        "[total {total_elapsed}] {wide_msg}\n{spinner:.cyan} {phase_elapsed}"
+        "[total {total_elapsed}] {spinner:.cyan} {wide_msg} · {phase_elapsed}"
     } else {
         "{spinner:.cyan} {wide_msg} · {phase_elapsed}"
     }
@@ -517,8 +527,13 @@ fn work_timing(current: u64, total: u64, elapsed: Duration) -> String {
     text
 }
 
-fn format_log_line(elapsed: Duration, message: &str, fields: &[(String, String)]) -> String {
-    let mut line = format!("{} INFO {message}", log_elapsed_prefix(elapsed));
+fn format_log_line(
+    elapsed: Duration,
+    level: Level,
+    message: &str,
+    fields: &[(String, String)],
+) -> String {
+    let mut line = format!("{} {level} {message}", log_elapsed_prefix(elapsed));
     for (name, value) in fields {
         let _ = write!(line, " {name}={value}");
     }
@@ -600,6 +615,47 @@ mod tests {
         fn flush(&self) -> io::Result<()> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn progress_warning_keeps_the_active_step() {
+        use tracing_subscriber::prelude::*;
+
+        let subscriber = tracing_subscriber::registry().with(super::CliProgressLayer::new(
+            ProgressOptions {
+                mode: ProgressMode::Always,
+                json: false,
+                setup_timing: true,
+            },
+            false,
+        ));
+        let layer = subscriber
+            .downcast_ref::<super::CliProgressLayer>()
+            .unwrap();
+        let mut state = layer.state.lock().unwrap();
+        state.is_interactive = true;
+        state.ensure_display(
+            Some("current_step".into()),
+            None,
+            None,
+            ProgressDrawTarget::hidden(),
+        );
+
+        drop(state);
+        let dispatch = tracing::Dispatch::new(subscriber);
+        tracing::dispatcher::with_default(&dispatch, || {
+            tracing::warn!(target: "atlas_progress", phase = "reclaim_space",
+                "Database space was not reclaimed");
+        });
+        let layer = dispatch.downcast_ref::<super::CliProgressLayer>().unwrap();
+        assert_eq!(
+            layer.state.lock().unwrap().progress_phase.as_deref(),
+            Some("current_step")
+        );
+        assert_eq!(
+            super::format_log_line(Duration::ZERO, tracing::Level::WARN, "test", &[]),
+            "[0s] WARN test"
+        );
     }
 
     #[test]
@@ -735,7 +791,10 @@ mod tests {
 
         state.spinner(
             "Searching records",
-            Some(&"search".to_string()),
+            &EventFields {
+                phase: Some("search".into()),
+                ..Default::default()
+            },
             false,
             ProgressRenderMode::Hidden,
         );
@@ -755,7 +814,10 @@ mod tests {
 
         state.spinner(
             "Loading embedding model",
-            Some(&"load-embeddings".to_string()),
+            &EventFields {
+                phase: Some("load-embeddings".into()),
+                ..Default::default()
+            },
             false,
             ProgressRenderMode::Plain,
         );
@@ -772,7 +834,7 @@ mod tests {
         );
         assert_eq!(
             spinner_template(true),
-            "[total {total_elapsed}] {wide_msg}\n{spinner:.cyan} {phase_elapsed}"
+            "[total {total_elapsed}] {spinner:.cyan} {wide_msg} · {phase_elapsed}"
         );
     }
 
@@ -843,7 +905,7 @@ mod tests {
             None,
             ProgressDrawTarget::term_like(Box::new(term.clone())),
         );
-        progress_bar.set_style(super::spinner_style(true).with_key(
+        progress_bar.set_style(super::spinner_style(true, false).with_key(
             "total_elapsed",
             |_: &indicatif::ProgressState, writer: &mut dyn std::fmt::Write| {
                 let _ = write!(writer, "42s");
@@ -859,32 +921,57 @@ mod tests {
             "rendered spinner should start with total and phase elapsed: {rendered:?}"
         );
         assert!(rendered.contains("Rendering spinner"));
+        assert_eq!(rendered.lines().count(), 1, "{rendered:?}");
     }
 
     #[test]
-    fn spinner_state_renders_total_and_phase_elapsed() {
-        let term = RecordingTerm::default();
-        let mut state = CliProgressState {
-            is_interactive: true,
-            started_at: Instant::now() - Duration::from_secs(42),
-            progress_bar: None,
-            progress_phase: None,
-        };
+    fn streaming_spinner_keeps_its_label_timer_and_checkpoint_count_visible() {
+        for width in [60, 80] {
+            let term = InMemoryTerm::new(4, width);
+            let mut state = CliProgressState {
+                is_interactive: true,
+                started_at: Instant::now() - Duration::from_secs(143),
+                progress_bar: None,
+                progress_phase: None,
+            };
+            let mut fields = EventFields {
+                phase: Some("embeddinggemma:inference".into()),
+                unit: Some("unique passages".into()),
+                ..Default::default()
+            };
+            state.ensure_display(
+                fields.phase.clone(),
+                None,
+                None,
+                ProgressDrawTarget::term_like(Box::new(term.clone())),
+            );
+            let bar = state.progress_bar.as_ref().unwrap().clone();
+            bar.disable_steady_tick();
+            bar.set_elapsed(Duration::from_secs(17));
 
-        state.spinner_with_draw_target_for_test(
-            Some("phase_one".to_string()),
-            "State spinner",
-            true,
-            ProgressDrawTarget::term_like(Box::new(term.clone())),
-        );
-
-        let rendered = term.contents();
-        assert!(
-            rendered.starts_with("[total 42s] "),
-            "rendered state spinner should use total elapsed and per-phase elapsed: {rendered:?}"
-        );
-        assert!(rendered.contains("State spinner"));
+            for current in [32, 64] {
+                fields.current = Some(current);
+                state.progress(
+                    "Generating EmbeddingGemma embeddings",
+                    &fields,
+                    true,
+                    ProgressRenderMode::Interactive,
+                );
+                bar.tick();
+                let rendered = term.contents();
+                let lines = rendered.lines().collect::<Vec<_>>();
+                assert_eq!(lines.len(), 2, "{rendered:?}");
+                assert!(lines[0].starts_with("[total 2m 23s] "), "{rendered:?}");
+                assert!(
+                    lines[0].contains("Generating EmbeddingGemma embeddings"),
+                    "{rendered:?}"
+                );
+                assert!(lines[0].ends_with(" · 17s"), "{rendered:?}");
+                assert_eq!(lines[1], format!("{current} unique passages"));
+            }
+        }
     }
+
     #[test]
     fn progress_timing_omits_unknown_and_completed_estimates() {
         assert_eq!(super::work_timing(0, 100, Duration::from_secs(10)), "10s");
@@ -1009,7 +1096,7 @@ mod tests {
             None,
             ProgressDrawTarget::hidden(),
         );
-        state.update_spinner("Checking the next stage", true);
+        state.update_spinner("Checking the next stage", true, None);
         assert_eq!(
             display.upgrade().unwrap().message(),
             "Checking the next stage"

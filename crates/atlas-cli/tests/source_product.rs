@@ -953,18 +953,24 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
     assert_eq!(first["build"]["source_fingerprint"], fingerprint);
     assert_eq!(first["search_profiles"].as_array().unwrap().len(), 1);
     assert_eq!(first["search_profiles"][0]["profile_id"], "embeddinggemma");
-    assert!(first["build"]["inferred_inputs"].as_u64().unwrap() > 0);
+    let inferred = first["build"]["inferred_inputs"].as_u64().unwrap();
+    assert!(inferred > 0);
     eprintln!("Gemma-only normal setup: {}", first["build"]["profiles"]);
     assert!(progress.contains("Generating EmbeddingGemma embeddings"));
     let generation = progress
         .lines()
         .filter(|line| line.contains("Generating EmbeddingGemma embeddings"))
         .collect::<Vec<_>>();
-    assert!(!generation.is_empty());
     assert!(
         generation
             .iter()
-            .all(|line| !line.contains(" / ") && !line.contains("ETA")),
+            .any(|line| line.ends_with(&format!(" · {inferred} unique passages"))),
+        "generation reports its final checkpoint count: {generation:?}"
+    );
+    assert!(
+        generation
+            .iter()
+            .all(|line| !line.contains('/') && !line.contains("ETA")),
         "streamed generation has no invented total or ETA"
     );
     assert!(!progress.contains("occurrences"));
@@ -1034,7 +1040,10 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
     assert_eq!(reused["inferred_inputs"], 0);
     assert!(reused["reused_inputs"].as_u64().unwrap() > 0);
     assert!(
-        progress.contains("Using saved EmbeddingGemma embeddings") && !progress.contains("0/0")
+        progress.contains("Checking saved EmbeddingGemma embeddings")
+            && !progress.contains("Generating EmbeddingGemma embeddings")
+            && !progress.contains("0/0"),
+        "{progress}"
     );
     eprintln!(
         "Both-profile setup with Gemma zero-inference reuse: {}",
@@ -1649,6 +1658,45 @@ fn similar_guard_errors_keep_json_pure_and_include_copyable_rediscovery() {
         );
         assert!(message.ends_with(" --json"), "{message}");
     }
+}
+
+#[test]
+fn setup_logs_failed_source_capture_without_a_success_message() {
+    let fixture = Fixture::new();
+    fs::write(fixture.root.join("module.json"), "{invalid").unwrap();
+    let output = fixture
+        .isolated_repo_command()
+        .env("ATLAS_LOG", "info")
+        .env_remove("ATLAS_PROGRESS")
+        .args([
+            "--progress",
+            "always",
+            "setup",
+            "--path-mode",
+            "repo",
+            "--no-embeddings",
+            "--offline",
+            "--check",
+            "--json",
+            "--source",
+        ])
+        .arg(&fixture.root)
+        .arg("--index")
+        .arg(&fixture.index)
+        .arg("--embedding-cache-path")
+        .arg(fixture.root.join("models"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let progress = String::from_utf8(output.stderr).unwrap();
+    assert!(progress.contains("Capturing source inputs"), "{progress}");
+    assert!(
+        progress.contains("Source input capture failed"),
+        "{progress}"
+    );
+    assert!(!progress.contains("Captured source inputs"), "{progress}");
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["data"]["ready"], false);
 }
 
 #[test]
