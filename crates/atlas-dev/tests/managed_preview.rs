@@ -62,6 +62,10 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_port(None)
+    }
+
+    fn with_port(port: Option<u16>) -> Self {
         let temporary = tempfile::tempdir().unwrap();
         let checkout = temporary.path().canonicalize().unwrap();
         assert!(
@@ -86,9 +90,10 @@ impl Fixture {
             "version":1,"id":"seed","created_at":"fixture","build":{"sha256":digest(&fs::read(&binary).unwrap()),"commit":"baseline-source"},
             "database":{},"assets":{},"captured_from":"fixture","validation":{}
         })).unwrap()).unwrap();
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = listener.local_addr().unwrap().port();
-        drop(listener);
+        let port = port.unwrap_or_else(|| {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.local_addr().unwrap().port()
+        });
         Self {
             _temporary: temporary,
             checkout,
@@ -344,8 +349,8 @@ fn concurrent_refreshes_are_serialized_and_never_mix_artifacts() {
 
 #[test]
 fn foreign_listener_and_stale_receipts_never_authorize_process_control() {
-    let fixture = Fixture::new();
-    let listener = TcpListener::bind(("127.0.0.1", fixture.port)).unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let fixture = Fixture::with_port(Some(listener.local_addr().unwrap().port()));
     let (binary, index) = fixture.app("first", "ok");
     let output = fixture
         .command("web")
