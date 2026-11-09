@@ -197,3 +197,93 @@ fn developer_inspection_decodes_checked_snapshot_and_only_reads_verified_origina
             .contains("hash mismatch")
     );
 }
+
+#[test]
+fn family_audit_enumerates_equipment_and_proposes_grades_without_external_tools() {
+    let fixture = Fixture::new();
+    let equipment = fixture.0.join("packs/equipment");
+    fs::create_dir(&equipment).unwrap();
+    let manifest = fixture.0.join("module.json");
+    let mut module: Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap();
+    module["packs"].as_array_mut().unwrap().push(serde_json::json!({
+        "name": "equipment-srd", "label": "Equipment", "type": "Item", "path": "packs/equipment",
+    }));
+    fs::write(manifest, serde_json::to_vec(&module).unwrap()).unwrap();
+
+    let write_item = |id: String, name: String, level| {
+        let item = serde_json::json!({
+            "_id": id,
+            "name": name,
+            "type": "equipment",
+            "system": {
+                "level": {"value": level},
+                "publication": {"title": "Fixture source", "remaster": true, "license": "ORC"},
+                "description": {"value": "<p>Fixture equipment.</p>"}
+            }
+        });
+        fs::write(
+            equipment.join(format!("{id}.json")),
+            serde_json::to_vec(&item).unwrap(),
+        )
+        .unwrap();
+    };
+    for number in 0..100 {
+        write_item(format!("{number:016}"), format!("Filler item {number}"), 1);
+    }
+    write_item("zzzzzzzzzzzzzzz1".into(), "Tonic (Lesser)".into(), 1);
+    write_item("zzzzzzzzzzzzzzz2".into(), "Tonic (Greater)".into(), 5);
+
+    let index = fixture.artifact();
+    let original_database = fs::read(&index).unwrap();
+    let invoke = |flags: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
+            .args(["families", "audit", "--json", "--index"])
+            .arg(&index)
+            .args(flags)
+            .env("PATH", "")
+            .output()
+            .unwrap()
+    };
+    let audit = data(invoke(&[]));
+    let records = audit["records"].as_array().unwrap();
+    assert_eq!(records.len(), 102);
+    assert_eq!(records[0]["key"], "equipment-srd:0000000000000000");
+    assert_eq!(records[100]["key"], "equipment-srd:zzzzzzzzzzzzzzz1");
+    assert_eq!(records[101]["key"], "equipment-srd:zzzzzzzzzzzzzzz2");
+    assert_eq!(records[100]["outcome"]["verified"], false);
+
+    let proposal = data(invoke(&["--propose-grades"]));
+    assert_eq!(proposal["proposals"].as_array().unwrap().len(), 1);
+    let tonic = &proposal["proposals"][0];
+    assert_eq!(tonic["family"], "Tonic");
+    assert_eq!(tonic["members"][0]["grade"], "Lesser");
+    assert_eq!(tonic["members"][1]["grade"], "Greater");
+    assert_eq!(tonic["members"][1]["level"], 5);
+    assert_eq!(fs::read(index).unwrap(), original_database);
+}
+
+#[test]
+fn family_audit_help_and_missing_workspace_use_developer_cli_conventions() {
+    let help = Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
+        .args(["families", "audit", "--help"])
+        .output()
+        .unwrap();
+    assert!(help.status.success());
+    let help = String::from_utf8(help.stdout).unwrap();
+    for flag in ["--index", "--path-mode", "--propose-grades", "--json"] {
+        assert!(help.contains(flag));
+    }
+
+    let fixture = Fixture::new();
+    let missing = fixture.0.join("missing.sqlite");
+    let output = Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
+        .args(["families", "audit", "--json", "--index"])
+        .arg(&missing)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["status"], "error");
+    assert_eq!(response["error"]["code"], "command_failed");
+    assert!(!missing.exists());
+}

@@ -193,22 +193,10 @@ editing membership. The source note records why the members belong together
 for future maintainers. Explore falls back to possible variants when a reviewed
 set no longer matches the active reference data.
 
-For a baseline comparison, run this on the private development workspace for
-each candidate source revision. Use the source pin appropriate to the candidate
-and compare the JSON lines by record key.
-
-```sh
-db=.atlas/workspace.sqlite
-sqlite3 -readonly "$db" "SELECT key FROM records WHERE pack_id='equipment-srd' ORDER BY key" |
-  cargo run --locked --quiet -p atlas-search --example equipment_variant_audit -- \
-    "$db" "$(sqlite3 -readonly "$db" 'PRAGMA user_version')"
-```
-
-Pass `--propose-grades` before the database path to emit review candidates
-instead of per-record outcomes. Feed the complete equipment key list so the
-tool can check that every member produces the same proposal. It looks for
-known grade labels that advance with item level, one publication and edition,
-and a complete, unambiguous result from each member. Each candidate includes
-its Foundry keys and source paths. Check those records and look for missing
-siblings, same-name editions, or related accessories before adding a family
-file. The tool writes its report to stdout and leaves the catalog files alone.
+For a baseline comparison, run the [equipment family audit](developer-commands.md#review-equipment-families)
+on a private workspace for each candidate source revision. Compare audit records
+by Foundry key. Use the grade proposal report to find progressions where every
+member returns the same complete, unambiguous group, the grade labels advance
+with item level, and the publication and edition agree. Each proposal includes
+the member keys and source paths. Check those records and look for missing
+siblings, same-name editions, or related accessories before adding a family file.
