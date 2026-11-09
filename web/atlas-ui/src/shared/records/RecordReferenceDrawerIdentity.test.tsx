@@ -33,7 +33,7 @@ it.each([undefined, 0, 3, 8])(
   },
 );
 
-it("groups identity facts in the Drawer header without duplicating the title or textual action cost", () => {
+it("groups identity facts in the Drawer header without repeating the title or showing a passive activation", () => {
   const detail = detailFixture("actionspf2e:treat-wounds", "Treat Wounds");
   detail.presentation.classification = "Rule";
   detail.presentation.identity.publication = "Pathfinder Player Core";
@@ -87,11 +87,8 @@ it("groups identity facts in the Drawer header without duplicating the title or 
   const source = header.getByText("Pathfinder Player Core").parentElement;
   expect(source).toBeVisible();
   expect(source).toHaveTextContent("Source: Pathfinder Player Core");
-  expect(header.queryByText("passive")).toBeNull();
-  expect(screen.getByText("Activation").closest(".record-fact")).toHaveTextContent(
-    "Activation passive",
-  );
-  expect(screen.getAllByText("passive")).toHaveLength(1);
+  expect(screen.queryByText("Activation")).toBeNull();
+  expect(screen.queryByText("passive")).toBeNull();
   expect(header.queryByRole("heading", { name: "Description" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Description" })).toBeNull();
   expect(screen.getByText(/Requirements: a healer's toolkit/)).toBeVisible();

@@ -732,6 +732,7 @@ export function ActorActivity({
   interactive?: boolean;
 }) {
   const id = useId();
+  const omitPassive = activity.family !== "spell";
   const isSourceOwnerSelected = useSourceOwnerSelection();
   const sourceOwnerClass = isSourceOwnerSelected(activity.navigation)
     ? "source-owner-selected"
@@ -780,7 +781,7 @@ export function ActorActivity({
                   activity.title
                 )}{" "}
                 {!activationControls && activity.action_cost.state === "value" && (
-                  <ActionCost fact={activity.action_cost} />
+                  <ActionCost fact={activity.action_cost} omitPassive={omitPassive} />
                 )}
               </h4>
             )}
@@ -810,7 +811,7 @@ export function ActorActivity({
             {inline && activationControls && (
               <div className="actor-activity__activation">
                 {activity.action_cost.state === "value" && (
-                  <ActionCost fact={activity.action_cost} />
+                  <ActionCost fact={activity.action_cost} omitPassive={omitPassive} />
                 )}
                 {activationControls}
               </div>
@@ -895,7 +896,11 @@ export function ActorActivity({
             />
           )}
         {!hideCost && (!inline || activity.action_cost.state !== "value") && (
-          <ActionCost fact={activity.action_cost} label="Activation" />
+          <ActionCost
+            fact={activity.action_cost}
+            label="Activation"
+            omitPassive={omitPassive}
+          />
         )}
         {rollControls ?? (
           <>

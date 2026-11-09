@@ -1391,8 +1391,7 @@ the classification chip also opens the rank menu: Spell 2 with a dropdown arrow,
 Explore and Add to list share the same control height. Keep traits directly below
 the natural title row; do not add a separate rank-action row or reserve its height.
 The tools wrap beneath the title when necessary on narrow panes. Action glyphs stay beside the title;
-textual activation facts such as Treat Wounds' supplied "passive" belong in the
-document body, not in its heading or classification. Keep
+other visible activation facts belong in the document body. Keep
 rank selection and exact owner/reference links in this shared identity, without
 duplicating them in the body. Phone action groups wrap by row; substantial header
 details can scroll within a bounded header so the document body remains
@@ -1504,13 +1503,16 @@ missing state in the browser or apply this exception to patches.
 
 Authored action costs use the shared `ActionCost` renderer over typed Rust facts.
 Fixed one/two/three-action, reaction and free-action glyphs are decorative;
-their readable label remains accessible. Variable, timed and passive costs keep
-their supplied text, and unavailable required costs remain explicit. Spell
-patches preserve clear/empty meanings. Physical usage is separate from action
-cost. Prepared inline glyph attributes use the same font styling with an empty
-CSS content alternative, so font characters do not add spoken text or enter
-the canonical/terminal words. Never classify cost strings or authored markup in
-the browser.
+their readable label remains accessible. Variable and timed costs keep their
+supplied text, and unavailable required costs remain explicit. Omit the explicit
+Rust-projected `passive` marker from individual ability displays in readers and
+encounters. Keep the existing Passive abilities section heading. Preserve the
+projected spell casting label when it is `passive`. Spell patches preserve
+clear/empty meanings. Physical usage is separate from action cost. Prepared
+inline glyph attributes use the same font styling with an empty CSS content
+alternative, so font characters do not add spoken text or enter the
+canonical/terminal words. Use the projected glyph and fact state for action
+costs. Do not derive action types from authored text or markup.
 
 Use the shared fact reading policy for optional baseline whitespace-only text
 and empty lists; omit their row and resulting empty heading. Mark required text

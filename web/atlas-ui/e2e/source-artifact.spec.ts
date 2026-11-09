@@ -436,9 +436,8 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   // including action cost, rather than the search match's selected prose field.
   await expect(feverLink).toBeVisible();
   const inlineFever = feverLink.locator("..");
-  await expect(inlineFever).toHaveText("Ghoul Fever passive");
-  await expect(inlineFever.locator('.action-cost[title="passive"]')).toHaveCount(1);
-  await expect(inlineFever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
+  await expect(inlineFever).toHaveText("Ghoul Fever");
+  await expect(inlineFever.locator(".action-cost")).toHaveCount(0);
   await page.goto((await feverLink.getAttribute("href"))!);
   await expect(page).toHaveURL(
     (url) => url.pathname.startsWith("/records/") && url.searchParams.has("at"),

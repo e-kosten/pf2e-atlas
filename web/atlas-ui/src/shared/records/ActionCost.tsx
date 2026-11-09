@@ -11,15 +11,18 @@ export function ActionCost({
   fact,
   label,
   patch = false,
+  omitPassive = false,
   renderValue,
 }: {
   fact: FactView<ActionCostView>;
   label?: string;
   patch?: boolean;
+  omitPassive?: boolean;
   renderValue?: FactValueRenderer;
 }) {
   if (!hasReadingFact(fact, { patch })) return null;
   const cost = fact.state === "value" ? fact.value : null;
+  if (omitPassive && cost?.glyph === null && cost.label === "passive") return null;
   if (cost && isEmptyFactValue(cost.label) && !patch) return null;
   const fallback =
     patch && fact.state === "null"

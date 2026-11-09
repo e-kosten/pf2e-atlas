@@ -102,6 +102,33 @@ describe("authored action costs", () => {
     expect(screen.getByText("reaction")).toHaveClass("sr-only");
   });
 
+  it("preserves authored spell casting text that matches the passive ability label", () => {
+    const actionCost = knownFact({ glyph: null, label: "passive" });
+    const activity = {
+      ...activityFixture("Example spell"),
+      kind: "spell" as const,
+      family: "spell",
+      action_cost: actionCost,
+    };
+    const { rerender } = render(
+      <ActorActivity activity={activity} onReference={vi.fn()} selected />,
+    );
+    expect(screen.getByText("passive")).toBeVisible();
+
+    const presentation = detailFixture("actors:party", "Party").presentation;
+    presentation.embedded = [
+      {
+        navigation: activity.navigation,
+        title: activity.title,
+        family: activity.family,
+        usage: null,
+        action_cost: actionCost,
+      },
+    ];
+    rerender(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
+    expect(screen.getByText("passive")).toBeVisible();
+  });
+
   it.each(["missing", "null", "invalid"] as const)(
     "keeps %s action cost out of the record heading",
     (state) => {
