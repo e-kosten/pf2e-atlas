@@ -1,7 +1,7 @@
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Button, Space, Tooltip, theme } from "antd";
+import { Button, Space, theme } from "antd";
 import { useId, useRef, useState } from "react";
 import type {
   TurnResourceAction,
@@ -89,7 +89,6 @@ export function EncounterTurnResources({
               pending={busy}
               canEdit={value.can_edit_actions}
               canSpend={value.can_spend_actions.available}
-              reason={value.can_spend_actions.reason}
               onAction={act}
             />
             {value.extra_total !== null && Number(value.extra_total) > 0 && (
@@ -103,7 +102,6 @@ export function EncounterTurnResources({
                 pending={busy}
                 canEdit={value.can_edit_actions}
                 canSpend={value.can_spend_actions.available}
-                reason={value.can_spend_actions.reason}
                 onAction={act}
               />
             )}
@@ -133,67 +131,54 @@ export function EncounterTurnResources({
             {stock !== null && Number(value.reactions_total) === 0 ? (
               <span>None this turn</span>
             ) : (
-              <Tooltip
-                title={
+              <Button
+                aria-disabled={busy || reactionBlocked}
+                styles={
+                  reactionBlocked
+                    ? {
+                        root: {
+                          color: token.colorTextDisabled,
+                          background: token.colorBgContainerDisabled,
+                          borderColor: token.colorBorderDisabled,
+                          boxShadow: "none",
+                          cursor: "not-allowed",
+                        },
+                      }
+                    : undefined
+                }
+                aria-label={
                   grantReaction
-                    ? "The GM decides whether this creature can use a reaction before its first turn."
+                    ? "Allow reaction"
                     : Number(stock) > 0
-                      ? value.can_spend_reactions.available
-                        ? "Spend reaction"
-                        : value.can_spend_reactions.reason
+                      ? "Spend reaction"
                       : "Restore reaction"
                 }
-                trigger={["hover", "focus"]}
-              >
-                <Button
-                  aria-disabled={busy || reactionBlocked}
-                  styles={
-                    reactionBlocked
-                      ? {
-                          root: {
-                            color: token.colorTextDisabled,
-                            background: token.colorBgContainerDisabled,
-                            borderColor: token.colorBorderDisabled,
-                            boxShadow: "none",
-                            cursor: "not-allowed",
-                          },
-                        }
-                      : undefined
-                  }
-                  aria-label={
+                aria-pressed={grantReaction ? undefined : Number(stock) > 0}
+                color={Number(stock) > 0 ? "primary" : "default"}
+                variant={Number(stock) > 0 ? "solid" : "outlined"}
+                icon={
+                  grantReaction ? undefined : (
+                    <span
+                      className="action-cost__glyph"
+                      data-atlas-action-glyph="reaction"
+                      aria-hidden="true"
+                    />
+                  )
+                }
+                onClick={() => {
+                  if (busy || reactionBlocked) return;
+                  void act(
                     grantReaction
-                      ? "Allow reaction"
-                      : Number(stock) > 0
-                        ? "Spend reaction"
-                        : "Restore reaction"
-                  }
-                  aria-pressed={grantReaction ? undefined : Number(stock) > 0}
-                  color={Number(stock) > 0 ? "primary" : "default"}
-                  variant={Number(stock) > 0 ? "solid" : "outlined"}
-                  icon={
-                    grantReaction ? undefined : (
-                      <span
-                        className="action-cost__glyph"
-                        data-atlas-action-glyph="reaction"
-                        aria-hidden="true"
-                      />
-                    )
-                  }
-                  onClick={() => {
-                    if (busy || reactionBlocked) return;
-                    void act(
-                      grantReaction
-                        ? { kind: "grant_reaction" }
-                        : {
-                            kind: Number(stock) > 0 ? "spend" : "restore",
-                            resource: "reaction",
-                          },
-                    ).catch(() => {});
-                  }}
-                >
-                  {grantReaction ? "Allow" : undefined}
-                </Button>
-              </Tooltip>
+                      ? { kind: "grant_reaction" }
+                      : {
+                          kind: Number(stock) > 0 ? "spend" : "restore",
+                          resource: "reaction",
+                        },
+                  ).catch(() => {});
+                }}
+              >
+                {grantReaction ? "Allow" : undefined}
+              </Button>
             )}
           </div>
         )}
@@ -286,7 +271,6 @@ function ResourceCounter({
   pending,
   canEdit,
   canSpend,
-  reason,
   onAction,
 }: {
   label: string;
@@ -301,7 +285,6 @@ function ResourceCounter({
   pending: boolean;
   canEdit: boolean;
   canSpend: boolean;
-  reason?: string;
   onAction: TurnResourceHandler;
 }) {
   const count = calculation?.count;
@@ -408,48 +391,35 @@ function ResourceCounter({
       ) : null}
       <Space size={4} wrap>
         {slots.available.map((available, index) => (
-          <Tooltip
+          <Button
             key={index}
-            title={
-              available
-                ? !canSpend
-                  ? reason
-                  : `Spend ${kind === "action" ? "action" : "extra action"}`
-                : `Restore ${kind === "action" ? "action" : "extra action"}`
+            aria-label={`${available ? "Spend" : "Restore"} ${kind === "action" ? "action" : "extra action"} ${index + 1}`}
+            aria-pressed={available}
+            disabled={disabled || !canEdit || (available && !canSpend)}
+            aria-disabled={pending || disabled || !canEdit || (available && !canSpend)}
+            color={available ? "primary" : "default"}
+            variant={available ? "solid" : "outlined"}
+            icon={
+              <span
+                className="action-cost__glyph"
+                data-atlas-action-glyph="one_action"
+                aria-hidden="true"
+              />
             }
-            trigger={["hover", "focus"]}
-          >
-            <Button
-              aria-label={`${available ? "Spend" : "Restore"} ${kind === "action" ? "action" : "extra action"} ${index + 1}`}
-              aria-pressed={available}
-              disabled={disabled || !canEdit || (available && !canSpend)}
-              aria-disabled={
-                pending || disabled || !canEdit || (available && !canSpend)
-              }
-              color={available ? "primary" : "default"}
-              variant={available ? "solid" : "outlined"}
-              icon={
-                <span
-                  className="action-cost__glyph"
-                  data-atlas-action-glyph="one_action"
-                  aria-hidden="true"
-                />
-              }
-              onClick={() => {
-                if (pending) return;
-                setSlots((current) => ({
-                  ...current,
-                  target: { index, remaining: remaining + (available ? -1 : 1) },
-                }));
-                void onAction({
-                  kind: available ? "spend" : "restore",
-                  resource: kind,
-                }).catch(() =>
-                  setSlots((current) => ({ ...current, target: undefined })),
-                );
-              }}
-            />
-          </Tooltip>
+            onClick={() => {
+              if (pending) return;
+              setSlots((current) => ({
+                ...current,
+                target: { index, remaining: remaining + (available ? -1 : 1) },
+              }));
+              void onAction({
+                kind: available ? "spend" : "restore",
+                resource: kind,
+              }).catch(() =>
+                setSlots((current) => ({ ...current, target: undefined })),
+              );
+            }}
+          />
         ))}
       </Space>
     </div>
