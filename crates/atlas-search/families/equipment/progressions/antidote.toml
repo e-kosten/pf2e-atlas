@@ -1,0 +1,11 @@
+name = "Antidote"
+source_note = "GM Core. The four elixirs share protection against poison, with graded bonuses and an additional effect at Major."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:ktjFOp3U0wQD9t0Z", name = "Antidote (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:AJ1dC7EtTIfBey0M", name = "Antidote (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:XWkeL34yJK6t5qUE", name = "Antidote (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ANzB9WzlGQXDn76G", name = "Antidote (Major)", attributes = ["Major"] },
+]

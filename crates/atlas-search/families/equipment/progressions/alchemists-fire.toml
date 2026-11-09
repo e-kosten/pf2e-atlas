@@ -1,0 +1,12 @@
+name = "Alchemist's Fire"
+source_note = "GM Core. One bomb progression scales fire, persistent fire, and splash damage."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:yd3kEK21YknZLlcT", name = "Alchemist's Fire (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:gWr4q4HiyGhETA8H", name = "Alchemist's Fire (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:n5yTlTs63o53n3k6", name = "Alchemist's Fire (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:cLZrOihPht5M7eTw", name = "Alchemist's Fire (Major)", attributes = ["Major"] },
+]

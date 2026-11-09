@@ -203,3 +203,12 @@ sqlite3 -readonly "$db" "SELECT key FROM records WHERE pack_id='equipment-srd' O
   cargo run --locked --quiet -p atlas-search --example equipment_variant_audit -- \
     "$db" "$(sqlite3 -readonly "$db" 'PRAGMA user_version')"
 ```
+
+Pass `--propose-grades` before the database path to emit review candidates
+instead of per-record outcomes. Feed the complete equipment key list so the
+tool can check that every member produces the same proposal. It looks for
+known grade labels that advance with item level, one publication and edition,
+and a complete, unambiguous result from each member. Each candidate includes
+its Foundry keys and source paths. Check those records and look for missing
+siblings, same-name editions, or related accessories before adding a family
+file. The tool writes its report to stdout and leaves the catalog files alone.

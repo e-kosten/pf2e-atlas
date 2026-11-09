@@ -1,0 +1,12 @@
+name = "Frost Vial"
+source_note = "Player Core 2. Four grades of the same alchemical bomb scale the cold and splash damage."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:EpxmUtLpCkE8R6KJ", name = "Frost Vial (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:nVvH1ZcM7OwIVIs8", name = "Frost Vial (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:intVPcEzbE9o4NQd", name = "Frost Vial (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:4DJQID8GIlxQ7b9C", name = "Frost Vial (Major)", attributes = ["Major"] },
+]

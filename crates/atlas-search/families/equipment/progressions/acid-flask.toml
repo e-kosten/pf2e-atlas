@@ -1,0 +1,12 @@
+name = "Acid Flask"
+source_note = "GM Core. Four grades of the same martial bomb scale its persistent acid and splash damage."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:M1k5QQc1qQLxzyCK", name = "Acid Flask (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:SgtqZxt26BdjUmEB", name = "Acid Flask (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:jC8GmH0Un6vDxdMj", name = "Acid Flask (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:GttLYMT2welSpwCd", name = "Acid Flask (Major)", attributes = ["Major"] },
+]

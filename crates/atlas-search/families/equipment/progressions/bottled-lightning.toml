@@ -1,0 +1,12 @@
+name = "Bottled Lightning"
+source_note = "Player Core 2. All four bombs deal electricity damage and apply the same on-hit condition."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:AFR01HVd7DcZvkpP", name = "Bottled Lightning (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:97QyNEOAyYLdGaYc", name = "Bottled Lightning (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:r2iTRbt1zpkAqHj2", name = "Bottled Lightning (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:rpbbfkexLhtadBDV", name = "Bottled Lightning (Major)", attributes = ["Major"] },
+]

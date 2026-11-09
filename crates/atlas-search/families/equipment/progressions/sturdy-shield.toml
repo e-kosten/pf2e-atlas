@@ -1,0 +1,12 @@
+name = "Sturdy Shield"
+source_note = "GM Core. Six grades of the same steel shield improve durability, ending at Supreme."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:f9ygr5Cjrmop8LWV", name = "Sturdy Shield (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:nDZX25OwoN0Imrq6", name = "Sturdy Shield (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:pNQJ9PTOEHxEZCgp", name = "Sturdy Shield (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:rrnWORxT2Ch4pUFb", name = "Sturdy Shield (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:BWQzaHbGVqlBuMww", name = "Sturdy Shield (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:7Z8XXGiUiyyisKOD", name = "Sturdy Shield (Supreme)", attributes = ["Supreme"] },
+]

@@ -1,0 +1,11 @@
+name = "Juggernaut Mutagen"
+source_note = "Player Core 2. All four versions share the same mutagen tradeoff, with increasing Fortitude bonuses and temporary Hit Points."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:xE0EdDrf734l2fQH", name = "Juggernaut Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:mj9i9GeQTADByNPZ", name = "Juggernaut Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:TMtQnY6yvIRCpK9v", name = "Juggernaut Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:1kNp6yOS0aZPBPzZ", name = "Juggernaut Mutagen (Major)", attributes = ["Major"] },
+]
