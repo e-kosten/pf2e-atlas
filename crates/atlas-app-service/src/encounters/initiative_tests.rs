@@ -274,17 +274,28 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
             }
             .into_selection(),
         },
-        attack_number: 1,
-        mode: RollMode::Normal,
-        modifier_override: None,
-        roll_kind: StrikeRollKind::Damage,
+        action: StrikeRollAction::Damage {},
     };
     let result = f
         .worker
         .roll_encounter_strike(&key, request.clone())
         .unwrap();
-    assert_eq!(result.damage_total, Some(5));
-    assert_eq!(result.persistent_total, Some(2));
+    let StrikeRollResult::Damage {
+        damage_total,
+        persistent_total,
+        damage_totals,
+        ..
+    } = result.result
+    else {
+        panic!("expected a damage roll")
+    };
+    assert_eq!(damage_total, Some(5));
+    assert_eq!(persistent_total, Some(2));
+    assert!(
+        damage_totals
+            .iter()
+            .any(|total| total.persistent && total.damage_type == "bleed" && total.total == 2)
+    );
 
     atlas_search::test_support::invalidate_reference(
         f.worker.workspace_path(),

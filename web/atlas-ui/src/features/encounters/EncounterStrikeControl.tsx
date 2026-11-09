@@ -182,15 +182,19 @@ function StrikeRollPopover({
   const popover = useRef<import("antd").TooltipRef>(null);
   const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
   const roll = useDiceRoll<{
-    result: EncounterStrikeRollView;
+    receipt: EncounterStrikeRollView;
     request: RollEncounterStrikeRequest;
     options: EncounterStrikeOptionsView;
   }>({ retainResultOnError: true });
-  const result = roll.result?.result;
+  const result = roll.result?.receipt.result;
+  const attackResult = result?.kind === "attack" ? result : undefined;
+  const damageResult = result?.kind === "damage" ? result : undefined;
   const original = roll.result?.request;
   const resultOptions = roll.result?.options ?? options;
   const strikeContext =
-    contextRequested && original ? renderStrikeContext?.(original.request_id) : null;
+    contextRequested && original?.action.kind === "attack" && attackResult
+      ? renderStrikeContext?.(original.request_id)
+      : null;
   const contextOpen = contextRequested && Boolean(strikeContext);
   useLayoutEffect(() => {
     if (!open) return;
@@ -219,21 +223,31 @@ function StrikeRollPopover({
         expected_participant_revision: current.expected_participant_revision,
         participant_key: participantKey,
         reference,
-        attack_number: attackNumber ?? 1,
-        mode,
-        modifier_override: null,
-        roll_kind: attack ? ("attack" as const) : ("damage" as const),
+        action:
+          attackNumber === undefined
+            ? { kind: "damage" }
+            : {
+                kind: "attack",
+                attack_number: attackNumber,
+                mode,
+                modifier_override: null,
+              },
       };
       setContextRequested(false);
       const result = await rollEncounterStrike(encounterKey, request);
-      if (attack)
+      if (
+        result.request_id !== request.request_id ||
+        result.result.kind !== request.action.kind
+      )
+        throw new Error("Strike response did not match the roll request.");
+      if (request.action.kind === "attack" && result.result.kind === "attack")
         onPrepareStrike?.({
           strike: { participant_key: participantKey, reference },
-          attackNumber: attackNumber!,
-          rollId: request.request_id,
-          rolledModifier: result.attack_modifier,
+          attackNumber: request.action.attack_number,
+          rollId: result.request_id,
+          rolledModifier: result.result.attack_modifier,
         });
-      return { result, request, options: current };
+      return { receipt: result, request, options: current };
     });
   return (
     <Popover
@@ -285,8 +299,8 @@ function StrikeRollPopover({
             )}
           </div>
           {!result && <div>{label}</div>}
-          {result?.attack && (
-            <RollResult outcome={result.attack} pending={roll.animating} />
+          {attackResult && (
+            <RollResult outcome={attackResult.attack} pending={roll.animating} />
           )}
           {attack &&
             resultOptions?.applied?.map((hint) => (
@@ -305,19 +319,24 @@ function StrikeRollPopover({
               {!contextOpen && (
                 <Button
                   ref={contextButton}
-                  disabled={disabled || roll.busy || !original || !result?.attack}
+                  disabled={
+                    disabled ||
+                    roll.busy ||
+                    original?.action.kind !== "attack" ||
+                    !attackResult
+                  }
                   loading={contextRequested ? { delay: 500 } : false}
                   onClick={(event) => {
-                    if (!original || !result?.attack) return;
+                    if (original?.action.kind !== "attack" || !attackResult) return;
                     contextOrigin.current = event.currentTarget;
                     contextDialog.current =
                       event.currentTarget.closest("[role=dialog]");
                     setContextRequested(true);
                     onBeginStrike?.({
                       strike: { participant_key: participantKey, reference },
-                      attackNumber: attackNumber!,
+                      attackNumber: original.action.attack_number,
                       rollId: original.request_id,
-                      rolledModifier: result?.attack_modifier,
+                      rolledModifier: attackResult.attack_modifier,
                     });
                   }}
                 >
@@ -329,7 +348,7 @@ function StrikeRollPopover({
               )}
             </>
           )}
-          {result?.damage.map((component) => (
+          {damageResult?.damage.map((component) => (
             <div key={component.id}>
               <strong>{component.label}</strong>{" "}
               {component.outcome ? (
@@ -339,17 +358,17 @@ function StrikeRollPopover({
               )}
             </div>
           ))}
-          {result?.damage_total != null && !roll.animating && (
-            <strong>Damage: {result.damage_total}</strong>
+          {damageResult?.damage_total != null && !roll.animating && (
+            <strong>Damage: {damageResult.damage_total}</strong>
           )}
-          {result?.persistent_total != null && !roll.animating && (
-            <strong>Persistent damage: {result.persistent_total}</strong>
+          {damageResult?.persistent_total != null && !roll.animating && (
+            <strong>Persistent damage: {damageResult.persistent_total}</strong>
           )}
-          {!!result &&
+          {!!damageResult &&
             !roll.animating &&
-            (result.damage_minimum_adjustment > 0 ||
-              result.persistent_minimum_adjustment > 0 ||
-              result.damage_totals.some((t) => t.raw_total !== t.total)) && (
+            (damageResult.damage_minimum_adjustment > 0 ||
+              damageResult.persistent_minimum_adjustment > 0 ||
+              damageResult.damage_totals.some((t) => t.raw_total !== t.total)) && (
               <small>Minimum damage applied.</small>
             )}
           {(attack ? options?.unavailable : options?.damage_unavailable) && (

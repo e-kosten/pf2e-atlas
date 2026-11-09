@@ -91,7 +91,7 @@ mod strike_roll;
 pub use strike_roll::{
     EncounterStrikeOptionsRequest, EncounterStrikeOptionsView, EncounterStrikeRollView,
     RollEncounterStrikeRequest, StrikeAttackOptionView, StrikeDamageRollView,
-    StrikeDamageTotalView, StrikeRollKind,
+    StrikeDamageTotalView, StrikeRollAction, StrikeRollResult,
 };
 
 mod dice;

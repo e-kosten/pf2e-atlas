@@ -157,6 +157,7 @@ pub(crate) const CLOSED_TAGGED_SCHEMAS: &[&str] = &[
     "SimilarityOptions",
     "SimilaritySeed",
     "SourcePassageAddress",
+    "StrikeRollAction",
 ];
 
 pub fn openapi() -> Result<serde_json::Value, Box<dyn std::error::Error>> {

@@ -233,10 +233,11 @@ mod tests {
                 }
                 .into_selection(),
             },
-            attack_number: 1,
-            mode: RollMode::Normal,
-            modifier_override: None,
-            roll_kind: StrikeRollKind::Attack,
+            action: StrikeRollAction::Attack {
+                attack_number: 1,
+                mode: RollMode::Normal,
+                modifier_override: None,
+            },
         };
         let baseline = fixture
             .worker
@@ -332,8 +333,13 @@ mod tests {
             .worker
             .roll_encounter_strike(&encounter.encounter_key, roll.clone())
             .unwrap();
-        assert!(original.attack.is_some());
-        assert_eq!(original.attack_modifier, Some(options.attacks[0].modifier));
+        let StrikeRollResult::Attack {
+            attack_modifier, ..
+        } = original.result
+        else {
+            panic!("expected an attack roll")
+        };
+        assert_eq!(attack_modifier, options.attacks[0].modifier);
 
         let context_request = EncounterStrikeContextRequest {
             strike: EncounterStrikeOptionsRequest {

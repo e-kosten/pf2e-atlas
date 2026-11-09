@@ -2699,10 +2699,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
             }
             .into_selection(),
         },
-        attack_number: 1,
-        mode: RollMode::Normal,
-        modifier_override: None,
-        roll_kind: StrikeRollKind::Damage,
+        action: StrikeRollAction::Damage {},
     };
     let workspace = atlas_runtime::initialize_workspace(f.worker.workspace_path()).unwrap();
     let before = f
@@ -2731,21 +2728,54 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
         .worker
         .roll_encounter_strike(&encounter.encounter_key, request.clone())
         .unwrap();
-    assert!(rolled.attack.is_none());
-    assert_eq!(rolled.damage.len(), 1);
-    assert_eq!(rolled.damage[0].formula.as_deref(), Some("(1d6+4)-1"));
-    assert!((4..=9).contains(&rolled.damage[0].outcome.as_ref().unwrap().total));
-    let mut attack = request.clone();
-    attack.roll_kind = StrikeRollKind::Attack;
-    attack.mode = RollMode::Fortune;
-    attack.modifier_override = Some(321);
+    let StrikeRollResult::Damage { damage, .. } = rolled.result else {
+        panic!("expected a damage roll")
+    };
+    assert_eq!(damage.len(), 1);
+    assert_eq!(damage[0].formula.as_deref(), Some("(1d6+4)-1"));
+    assert!((4..=9).contains(&damage[0].outcome.as_ref().unwrap().total));
     // Reusing a display correlation ID neither recovers an old result nor conflicts.
-    let attack_roll = f
-        .worker
-        .roll_encounter_strike(&encounter.encounter_key, attack)
-        .unwrap();
-    assert_eq!(attack_roll.attack_modifier, Some(321));
-    assert_eq!(attack_roll.attack.unwrap().formula, "2d20kh1+321");
+    for (mode, formula) in [
+        (RollMode::Normal, "1d20+321"),
+        (RollMode::Fortune, "2d20kh1+321"),
+        (RollMode::Misfortune, "2d20kl1+321"),
+    ] {
+        let mut attack = request.clone();
+        attack.action = StrikeRollAction::Attack {
+            attack_number: 1,
+            mode: mode.clone(),
+            modifier_override: Some(321),
+        };
+        let roll = f
+            .worker
+            .roll_encounter_strike(&encounter.encounter_key, attack)
+            .unwrap();
+        let StrikeRollResult::Attack {
+            attack,
+            attack_modifier,
+        } = roll.result
+        else {
+            panic!("expected an attack roll")
+        };
+        assert_eq!(attack_modifier, 321);
+        assert_eq!(attack.formula, formula);
+        let atlas_dice::RollExpression::Binary { left, .. } = attack.expression else {
+            panic!("expected the attack modifier to be added to a die roll")
+        };
+        let atlas_dice::RollExpression::Dice { dice, total } = *left else {
+            panic!("expected d20 outcomes")
+        };
+        assert_eq!(dice.len(), if mode == RollMode::Normal { 1 } else { 2 });
+        assert!(dice.iter().all(|die| die.sides == 20));
+        assert_eq!(dice.iter().filter(|die| die.kept).count(), 1);
+        let kept = match mode {
+            RollMode::Normal => dice[0].value,
+            RollMode::Fortune => dice.iter().map(|die| die.value).max().unwrap(),
+            RollMode::Misfortune => dice.iter().map(|die| die.value).min().unwrap(),
+        };
+        assert_eq!(total, kept);
+        assert_eq!(attack.total, kept + 321);
+    }
     let after = f
         .worker
         .with_state(|session| {
