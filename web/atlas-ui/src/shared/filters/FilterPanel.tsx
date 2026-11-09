@@ -471,7 +471,9 @@ export function FilterControls({
         {additionalFilters}
         <div className="filter-panel-actions">
           <Tooltip
-            title={advancedApplied ? "Additional filters applied" : undefined}
+            title={
+              advancedApplied && !advanced ? "Additional filters applied" : undefined
+            }
             trigger={["hover", "focus"]}
           >
             <Button
@@ -495,7 +497,7 @@ export function FilterControls({
             search.filterError ||
             prepared.error ||
             (prepared.query?.rules.length ?? 0) > 0) && (
-            <Tooltip title="Clear filters">
+            <Tooltip title="Clear filters" trigger={["hover", "focus"]}>
               <Button
                 icon={<ClearOutlined aria-hidden="true" />}
                 aria-label="Clear filters"

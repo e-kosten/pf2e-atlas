@@ -185,7 +185,7 @@ export function EncounterAbilityControls({
             >
               Use
             </Button>
-            <Tooltip title="Restore one use">
+            <Tooltip title="Restore one use" trigger={["hover", "focus"]}>
               <Button
                 type="text"
                 icon={<UndoOutlined />}

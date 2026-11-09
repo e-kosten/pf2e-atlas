@@ -73,22 +73,17 @@ export function ListItemsPane({
         }}
       >
         {reorderEnabled && (
-          <Tooltip
-            title="Drag to reorder. With a keyboard, press Space then use the arrow keys."
-            trigger={["hover", "focus"]}
-          >
-            <Button
-              {...bindings?.attributes}
-              {...bindings?.listeners}
-              ref={bindings?.setActivatorNodeRef}
-              type="text"
-              size="small"
-              disabled={disabled || overlay}
-              className="list-member__drag-handle"
-              aria-label={`Reorder ${title}`}
-              icon={<GripVertical size={16} aria-hidden="true" />}
-            />
-          </Tooltip>
+          <Button
+            {...bindings?.attributes}
+            {...bindings?.listeners}
+            ref={bindings?.setActivatorNodeRef}
+            type="text"
+            size="small"
+            disabled={disabled || overlay}
+            className="list-member__drag-handle"
+            aria-label={`Reorder ${title}`}
+            icon={<GripVertical size={16} aria-hidden="true" />}
+          />
         )}
         {item.status !== "unresolved" && item.record ? (
           <RecordBrowseSummary

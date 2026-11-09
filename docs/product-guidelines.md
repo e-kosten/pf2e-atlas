@@ -44,8 +44,10 @@ and its [design principles](../web/atlas-ui/docs/frontend-guidelines.md#design-p
 - Show predictable consequences and supported opt-outs before the first submission.
   One task has one submission; moving a second step into the same modal is not a
   single-step flow. Compute previews while editing rather than after clicking Apply.
-- Prevent invalid input at the control. Disabled actions need an understandable,
-  actionable reason; never strand the user behind an unexplained disabled button.
+- Prevent invalid input at the control. When a disabled action would leave the
+  user unsure why it is blocked or how to proceed, show the reason near the
+  action. An existing label or state can be enough, such as Immune on a
+  condition choice.
 - Adjacent buttons in the same action group must use the same size and aligned
   height. Express primary/secondary importance with variant or emphasis, not a
   smaller secondary button. Dense inline actions may use small buttons only when
@@ -95,9 +97,10 @@ These rules apply to all user-visible copy, including text projected by Rust int
 web and CLI responses.
 
 - Prefer icons for familiar compact actions when their meaning is clear in context,
-  with accessible names and concise hover/focus tooltips. This is a contextual
-  preference, not an icons-only rule: use text when it improves comprehension,
-  distinguishes choices, or makes an unfamiliar action clear.
+  with accessible names and a concise tooltip when a caption helps. Use a
+  visible label for unfamiliar actions. Keep tooltip copy to an action label
+  such as Edit HP or one brief optional fact. Put information that changes a
+  decision beside the action or in its confirmation summary.
 - Prefer no helper text when the label, value, control or visible state already
   communicates the behavior. Do not add a sentence merely to explain the feature.
 - Every note must give a concrete fact, consequence or useful next action. Avoid

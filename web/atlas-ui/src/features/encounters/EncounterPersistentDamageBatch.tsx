@@ -750,23 +750,21 @@ export function EncounterPersistentDamageBatch({
               ) : (
                 <span className="muted">Updating total…</span>
               )}
+              {current?.value?.complete && (
+                <div className="muted">Damage applies as one event.</div>
+              )}
               {clearingTypes.length > 0 && <div>Clear {clearingTypes.join(", ")}</div>}
             </div>
-            <Tooltip
-              title="Damage applies together; effects triggered by damage happen once."
-              trigger={["hover", "focus"]}
+            <Button
+              type="primary"
+              htmlType="submit"
+              disabled={!ready || !current?.value?.complete}
+              loading={pending}
             >
-              <Button
-                type="primary"
-                htmlType="submit"
-                disabled={!ready || !current?.value?.complete}
-                loading={pending}
-              >
-                {current?.value?.complete
-                  ? `Apply ${current.value.damage.total} damage`
-                  : "Apply damage"}
-              </Button>
-            </Tooltip>
+              {current?.value?.complete
+                ? `Apply ${current.value.damage.total} damage`
+                : "Apply damage"}
+            </Button>
           </div>
         )}
       </Form>

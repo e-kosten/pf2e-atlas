@@ -13,7 +13,6 @@ export function EncounterRowAction({
       title={tooltip}
       trigger={["hover", "focus"]}
       open={hideTooltip ? false : undefined}
-      styles={{ root: { pointerEvents: "none" } }}
     >
       <Button {...buttonProps} type="text" size="small" />
     </Tooltip>

@@ -279,7 +279,10 @@ export function EncounterSpellResources({
   };
   return (
     <>
-      <Tooltip title={`Manage ${title} resources`}>
+      <Tooltip
+        title={draft ? undefined : `Manage ${title} resources`}
+        trigger={["hover", "focus"]}
+      >
         <Button
           type="text"
           size="small"
@@ -381,11 +384,9 @@ export function EncounterSpellResources({
 function ResourceCount({ resource }: { resource: EncounterSpellResourceView }) {
   const description = `${resource.label}: ${resource.remaining} of ${resource.capacity} remaining`;
   return (
-    <Tooltip title={description}>
-      <span className="encounter-casting__count" aria-label={description}>
-        {spellResourceCount(resource)}
-      </span>
-    </Tooltip>
+    <span className="encounter-casting__count" aria-label={description}>
+      {spellResourceCount(resource)}
+    </span>
   );
 }
 

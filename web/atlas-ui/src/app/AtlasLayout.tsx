@@ -75,7 +75,6 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
       }}
       button={{ classNames: atlasButtonClassNames }}
       radio={{ styles: atlasRadioStyles(resolvedColorScheme) }}
-      tooltip={{ styles: { root: { pointerEvents: "none" } } }}
       popover={{
         styles: atlasPopoverStyles(resolvedColorScheme),
       }}

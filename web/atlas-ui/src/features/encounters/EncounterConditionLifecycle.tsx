@@ -2,7 +2,7 @@ import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Popover, Space, Tooltip } from "antd";
-import { createContext, use, useState, type ReactNode } from "react";
+import { createContext, Fragment, use, useState, type ReactNode } from "react";
 import { Dice5, HeartPulse } from "lucide-react";
 import { RollResult } from "../../shared/dice/RollResult";
 import { useDiceRoll } from "../../shared/dice/useDiceRoll";
@@ -18,12 +18,14 @@ import type {
 } from "../../generated/atlas";
 type RecoveryControls = {
   conditionActions: (id: number) => ReactNode;
+  conditionReason: (id: number) => string;
   retainedCondition?: EncounterParticipantConditionView;
   notice?: ReactNode;
   turnActions?: ReactNode;
 };
 const RecoveryContext = createContext<RecoveryControls>({
   conditionActions: () => null,
+  conditionReason: () => "",
 });
 export const useConditionRecoveryControls = () => use(RecoveryContext);
 export function EncounterTurnRecoveryActions() {
@@ -37,6 +39,17 @@ export function EncounterTurnRecoveryActions() {
 }
 const optionKey = (option: ConditionLifecycleOptionView) =>
   `${option.kind}:${"condition_id" in option ? option.condition_id : ""}:${"consequence_key" in option ? option.consequence_key : ""}`;
+
+function optionReason(option: ConditionLifecycleOptionView) {
+  return !option.available && option.unavailable_reason !== option.label
+    ? option.unavailable_reason
+    : null;
+}
+
+function unavailableReason(choices: ConditionLifecycleOptionView[]) {
+  if (choices.some((choice) => choice.available)) return "";
+  return [...new Set(choices.map(optionReason).filter(Boolean))].join(" · ");
+}
 
 /** One query owner; condition rows and turn reminders place its hints and actions. */
 export function EncounterConditionRecovery({
@@ -77,6 +90,8 @@ export function EncounterConditionRecovery({
   const [pendingTurnOption, setPendingTurnOption] =
     useState<ConditionLifecycleOptionView>();
   const options = query.data?.actions ?? [];
+  const conditionOptions = (id: number) =>
+    options.filter((option) => option.condition_ids.includes(id));
   const renderActions = (
     anchor: string,
     choices: ConditionLifecycleOptionView[],
@@ -86,11 +101,10 @@ export function EncounterConditionRecovery({
   ) => {
     const active = selected?.anchor === anchor;
     if (!choices.length && !active) return null;
-    const unavailable =
-      choices.length > 0 && choices.every((choice) => !choice.available);
-    return (
+    const hasAvailableChoice = choices.some((choice) => choice.available);
+    const reason = conditionId === undefined ? unavailableReason(choices) : "";
+    const action = (
       <Popover
-        key={anchor}
         open={active}
         trigger="click"
         placement="bottom"
@@ -162,14 +176,17 @@ export function EncounterConditionRecovery({
               ) : (
                 <Space orientation="vertical" align="start">
                   {choices.map((option) => (
-                    <Tooltip key={optionKey(option)} title={option.unavailable_reason}>
+                    <div key={optionKey(option)}>
                       <Button
                         disabled={disabled || !option.available}
                         onClick={() => setSelected({ ...selected, option })}
                       >
                         {option.label}
                       </Button>
-                    </Tooltip>
+                      {optionReason(option) && (
+                        <div className="muted">{optionReason(option)}</div>
+                      )}
+                    </div>
                   ))}
                 </Space>
               )}
@@ -177,12 +194,7 @@ export function EncounterConditionRecovery({
           ) : null
         }
       >
-        <Tooltip
-          title={
-            active ? undefined : unavailable ? choices[0]?.unavailable_reason : label
-          }
-          trigger={["hover", "focus"]}
-        >
+        <Tooltip title={active ? undefined : label} trigger={["hover", "focus"]}>
           <Button
             type="text"
             size="small"
@@ -193,7 +205,7 @@ export function EncounterConditionRecovery({
             }
             disabled={
               disabled ||
-              unavailable ||
+              !hasAvailableChoice ||
               query.isFetching ||
               query.isPlaceholderData ||
               !!query.error
@@ -204,6 +216,12 @@ export function EncounterConditionRecovery({
           />
         </Tooltip>
       </Popover>
+    );
+    return (
+      <Fragment key={anchor}>
+        {action}
+        {reason && <span className="muted">{reason}</span>}
+      </Fragment>
     );
   };
   // Keep an in-flight action mounted until its owner's canonical refresh finishes.
@@ -219,11 +237,12 @@ export function EncounterConditionRecovery({
     conditionActions: (id) =>
       renderActions(
         `condition:${id}`,
-        options.filter((option) => option.condition_ids.includes(id)),
+        conditionOptions(id),
         `Recover ${participant.conditions.find((condition) => condition.condition_id === id)?.name ?? selected?.condition?.name ?? "condition"}`,
         <HeartPulse size={14} aria-hidden="true" />,
         id,
       ),
+    conditionReason: (id) => unavailableReason(conditionOptions(id)),
     retainedCondition:
       selected?.condition &&
       !participant.conditions.some(
@@ -303,7 +322,7 @@ function RecoveryContent({
   const dice = useDiceRoll<ConditionLifecycleResultView>();
   const apply = (action: ConditionLifecycleActionView) =>
     dice.run(() => onApply(action));
-  const blocked = disabled || dice.busy || changed;
+  const blocked = disabled || !option.available || dice.busy || changed;
   const check = "check" in option ? option.check : undefined;
   const canRoll =
     check?.dc != null &&
@@ -322,6 +341,9 @@ function RecoveryContent({
     }
   };
   if (option.kind === "reminder") return <p>{option.text}</p>;
+  if (!option.available && !changed && !dice.result) {
+    return <p>{optionReason(option) ?? option.label}</p>;
+  }
   if (dice.result) {
     const result = dice.result.check;
     return (
@@ -459,25 +481,24 @@ function TurnFrightenedReduction({
   const [error, setError] = useState<string>();
   return (
     <>
-      <Tooltip title={option.unavailable_reason}>
-        <Button
-          disabled={disabled || pending || !option.available}
-          loading={pending}
-          onClick={async () => {
-            setPending(true);
-            setError(undefined);
-            try {
-              await onApply();
-            } catch (cause) {
-              setError(userErrorMessage(cause, "Could not reduce Frightened."));
-            } finally {
-              setPending(false);
-            }
-          }}
-        >
-          {label}
-        </Button>
-      </Tooltip>
+      <Button
+        disabled={disabled || pending || !option.available}
+        loading={pending}
+        onClick={async () => {
+          setPending(true);
+          setError(undefined);
+          try {
+            await onApply();
+          } catch (cause) {
+            setError(userErrorMessage(cause, "Could not reduce Frightened."));
+          } finally {
+            setPending(false);
+          }
+        }}
+      >
+        {label}
+      </Button>
+      {optionReason(option) && <span className="muted">{optionReason(option)}</span>}
       {error && <ErrorNotice error={error} title={error} />}
     </>
   );
