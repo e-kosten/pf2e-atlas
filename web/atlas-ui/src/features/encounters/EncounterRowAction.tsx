@@ -11,6 +11,7 @@ export function EncounterRowAction({
   return (
     <Tooltip
       title={tooltip}
+      placement="right"
       trigger={["hover", "focus"]}
       open={hideTooltip ? false : undefined}
     >
