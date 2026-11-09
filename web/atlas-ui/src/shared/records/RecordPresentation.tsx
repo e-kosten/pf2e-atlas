@@ -118,7 +118,7 @@ export function ContentFields({
               </h3>
             )}
             {field.routine_header && field.routine_header.traits.length > 0 && (
-              <div className="record-reference__traits">
+              <div className="badge-row record-reference__traits">
                 {field.routine_header.traits.map((trait) => (
                   <TraitBadge key={trait.value} trait={trait} />
                 ))}

@@ -213,9 +213,6 @@
   gap: var(--space-control);
   margin-top: var(--space-control);
 }
-.record-reference__metadata .badge-row {
-  margin: 0;
-}
 .record-reference__source {
   margin: var(--space-control) 0 0;
   font-size: 0.9rem;
@@ -238,8 +235,10 @@
   justify-content: flex-start;
   gap: 6px;
   flex-wrap: wrap;
-  margin-top: 8px;
   min-width: 0;
+}
+.record-reference__content > .record-reference__traits {
+  margin-block-end: var(--space-control);
 }
 .record-reference .muted {
   color: var(--muted);
