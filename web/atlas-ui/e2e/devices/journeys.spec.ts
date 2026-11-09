@@ -957,6 +957,76 @@ test("list tags, editing and explicit Add survive constrained space", async ({
   }
 });
 
+test("encounter strike controls send and display attack and damage variants", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Strike contract ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const added = await page.request.post(`${path}/participants/record`, {
+      data: { record_ref: sentinel, quantity: 1 },
+    });
+    expect(added.ok()).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    if ((page.viewportSize()?.width ?? 1440) < 768) {
+      await activate(page.locator("[data-participant-key]").first(), info);
+      await expect(page.getByRole("button", { name: "Back to roster" })).toBeVisible();
+    }
+
+    const roll = () =>
+      page.waitForResponse((response) =>
+        new URL(response.url()).pathname.endsWith("/strike-rolls"),
+      );
+    const attackResponse = roll();
+    await activate(
+      page.getByRole("button", { name: /^Strike Claw attack / }).first(),
+      info,
+    );
+    const attack = await attackResponse;
+    expect(attack.ok()).toBeTruthy();
+    expect(attack.request().postDataJSON().action).toMatchObject({
+      kind: "attack",
+      attack_number: 1,
+      mode: "normal",
+    });
+    expect((await attack.json()).result).toMatchObject({
+      kind: "attack",
+      attack: { total: expect.any(Number) },
+      attack_modifier: expect.any(Number),
+    });
+    const attackDialog = page.getByRole("dialog", { name: "Claw · Attack" });
+    await expect(
+      attackDialog.getByRole("button", { name: "Target & checks" }),
+    ).toBeEnabled();
+    await activate(
+      attackDialog.getByRole("button", { name: "Close", exact: true }),
+      info,
+    );
+
+    const damageResponse = roll();
+    await activate(
+      page.getByRole("button", { name: "Roll Claw damage", exact: true }),
+      info,
+    );
+    const damage = await damageResponse;
+    expect(damage.ok()).toBeTruthy();
+    expect(damage.request().postDataJSON().action).toEqual({ kind: "damage" });
+    const { result } = await damage.json();
+    expect(result).toMatchObject({ kind: "damage", damage_total: expect.any(Number) });
+    await expect(
+      page
+        .getByRole("dialog", { name: "Claw · Damage" })
+        .getByText(`Damage: ${result.damage_total}`, { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await page.request.delete(path);
+  }
+});
+
 test("encounter references retain their owner, scroll and native destination", async ({
   page,
 }, info) => {

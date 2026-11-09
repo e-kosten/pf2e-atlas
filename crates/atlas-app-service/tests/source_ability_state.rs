@@ -701,10 +701,11 @@ fn unknown_source_condition_cannot_roll_an_authored_strike_subtotal() {
                     }
                     .into_selection(),
                 },
-                attack_number: 1,
-                mode: RollMode::Normal,
-                modifier_override: None,
-                roll_kind: StrikeRollKind::Attack,
+                action: StrikeRollAction::Attack {
+                    attack_number: 1,
+                    mode: RollMode::Normal,
+                    modifier_override: None,
+                },
             },
         )
         .unwrap_err()

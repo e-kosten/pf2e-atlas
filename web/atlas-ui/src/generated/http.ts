@@ -3744,21 +3744,27 @@ export interface StrikeDamageTotalView {
   total: number;
 }
 
-export interface EncounterStrikeRollView {
-  attack: RollOutcome | null;
-  /** @nullable */
-  attack_modifier: number | null;
+export type StrikeRollResult = {
+  attack: RollOutcome;
+  attack_modifier: number;
+  kind: 'attack';
+} | {
   damage: StrikeDamageRollView[];
   damage_minimum_adjustment: number;
   /** @nullable */
   damage_total: number | null;
   damage_totals: StrikeDamageTotalView[];
-  encounter_key: string;
-  participant_key: string;
+  kind: 'damage';
   persistent_minimum_adjustment: number;
   /** @nullable */
   persistent_total: number | null;
+};
+
+export interface EncounterStrikeRollView {
+  encounter_key: string;
+  participant_key: string;
   request_id: string;
+  result: StrikeRollResult;
   title: string;
 }
 
@@ -4814,26 +4820,27 @@ export interface RollContentRequest {
   offer: ContentRollOfferInputSchema;
 }
 
-export type StrikeRollKind = typeof StrikeRollKind[keyof typeof StrikeRollKind];
-
-
-export const StrikeRollKind = {
-  attack: 'attack',
-  damage: 'damage',
-} as const;
-
-export interface RollEncounterStrikeRequest {
-  /** @minimum 0 */
+export type StrikeRollAction = {
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
   attack_number: number;
-  expected_participant_revision: number;
-  expected_revision: number;
+  kind: 'attack';
   mode: RollMode;
   /** @nullable */
   modifier_override?: number | null;
+} | {
+  kind: 'damage';
+};
+
+export interface RollEncounterStrikeRequest {
+  action: StrikeRollAction;
+  expected_participant_revision: number;
+  expected_revision: number;
   participant_key: string;
   reference: EncounterReferenceRequest;
   request_id: string;
-  roll_kind: StrikeRollKind;
 }
 
 /**

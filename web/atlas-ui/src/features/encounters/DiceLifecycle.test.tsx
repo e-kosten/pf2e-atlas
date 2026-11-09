@@ -188,30 +188,38 @@ it("moves focus into initiative controls and restores the roster opener on dismi
   fireEvent.keyDown(popup, { key: "Escape", code: "Escape" });
   await waitFor(() => expect(trigger).toHaveFocus());
 });
-function strikeReceipt(request: RollEncounterStrikeRequest): EncounterStrikeRollView {
+function strikeReceipt(
+  request: RollEncounterStrikeRequest,
+  attack = outcome,
+  modifier = 9,
+): EncounterStrikeRollView {
   return {
     request_id: request.request_id,
     encounter_key: "e",
     participant_key: "p",
     title: "Jaws",
-    attack: null,
-    attack_modifier: null,
-    damage: [
-      {
-        id: "primary",
-        label: "Piercing",
-        formula: "1d6",
-        damage_type: "piercing",
-        category: "normal",
-        outcome,
-        unavailable: null,
-      },
-    ],
-    damage_totals: [],
-    damage_total: outcome.total,
-    persistent_total: null,
-    damage_minimum_adjustment: 0,
-    persistent_minimum_adjustment: 0,
+    result:
+      request.action.kind === "attack"
+        ? { kind: "attack", attack, attack_modifier: modifier }
+        : {
+            kind: "damage",
+            damage: [
+              {
+                id: "primary",
+                label: "Piercing",
+                formula: "1d6",
+                damage_type: "piercing",
+                category: "normal",
+                outcome,
+                unavailable: null,
+              },
+            ],
+            damage_totals: [],
+            damage_total: outcome.total,
+            persistent_total: null,
+            damage_minimum_adjustment: 0,
+            persistent_minimum_adjustment: 0,
+          },
   };
 }
 function renderStrike() {
@@ -257,9 +265,8 @@ it("damage roll makes a fresh attempt after an uncertain response and on reroll"
     expect(request.request_id).toEqual(expect.stringMatching(/\S+/));
     expect(request).toMatchObject({
       participant_key: "p",
-      roll_kind: "damage",
-      mode: "normal",
     });
+    expect(request.action).toEqual({ kind: "damage" });
   }
 });
 it.each([400, 409])(
@@ -278,10 +285,13 @@ it.each([400, 409])(
     expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   },
 );
-it("retains the displayed damage after a failed reroll and loses it on unmount", async () => {
+it("retains the displayed damage after an uncorrelated reroll response and loses it on unmount", async () => {
   vi.mocked(rollEncounterStrike)
     .mockImplementationOnce(async (_key, request) => strikeReceipt(request))
-    .mockRejectedValueOnce(new TypeError("Connection interrupted"));
+    .mockImplementationOnce(async (_key, request) => ({
+      ...strikeReceipt(request),
+      request_id: "unrelated",
+    }));
   const mounted = renderStrike();
   fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
   await screen.findByRole("button", { name: "Reroll" });
@@ -390,14 +400,13 @@ it("initiative stops resubmission after a typed revision conflict", async () => 
 
 it("attack rolls immediately with selected MAP, makes fresh attempts, and context opens without rolling", async () => {
   const beginContext = vi.fn();
+  const prepareContext = vi.fn();
   const renderContext = vi.fn(() => <div>Target questions</div>);
   vi.mocked(rollEncounterStrike)
-    .mockRejectedValueOnce(new TypeError("Connection interrupted"))
-    .mockImplementation(async (_key, request) => ({
-      ...strikeReceipt(request),
-      attack: outcome,
-      damage: [],
-    }));
+    .mockImplementationOnce(async (_key, request) =>
+      strikeReceipt({ ...request, action: { kind: "damage" } }),
+    )
+    .mockImplementation(async (_key, request) => strikeReceipt(request));
   render(
     <EncounterStrikeControl
       encounterKey="e"
@@ -405,6 +414,7 @@ it("attack rolls immediately with selected MAP, makes fresh attempts, and contex
       participant={participant}
       activity={activityFixture()}
       onBeginStrike={beginContext}
+      onPrepareStrike={prepareContext}
       renderStrikeContext={renderContext}
       disabled={false}
     />,
@@ -417,14 +427,18 @@ it("attack rolls immediately with selected MAP, makes fresh attempts, and contex
     }),
   );
   expect(screen.getByRole("button", { name: "Target & checks" })).toBeDisabled();
-  fireEvent.click(await screen.findByRole("button", { name: "Roll again" }));
+  const retry = await screen.findByRole("button", { name: "Roll again" });
+  expect(prepareContext).not.toHaveBeenCalled();
+  fireEvent.click(retry);
   await screen.findByRole("button", { name: "Reroll" });
   const calls = vi.mocked(rollEncounterStrike).mock.calls;
   expect(calls[0][1]).toMatchObject({
-    attack_number: choice.attack_number,
-    roll_kind: "attack",
+    action: { kind: "attack", attack_number: choice.attack_number, mode: "normal" },
   });
   expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
+  expect(prepareContext).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ rollId: calls[1][1].request_id, rolledModifier: 9 }),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Target & checks" }));
   expect(beginContext).toHaveBeenCalledWith(
     expect.objectContaining({ rollId: calls[1][1].request_id }),
@@ -480,12 +494,9 @@ it("reopens retained attacks in the result view after switching context owners",
     targeting_check: null,
     action: { issues: [], confused: false, disruption: null, targeting: null },
   });
-  vi.mocked(rollEncounterStrike).mockImplementation(async (_key, request) => ({
-    ...strikeReceipt(request),
-    attack: outcome,
-    attack_modifier: 9,
-    damage: [],
-  }));
+  vi.mocked(rollEncounterStrike).mockImplementation(async (_key, request) =>
+    strikeReceipt(request),
+  );
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <StrikeContextHarness />
@@ -537,23 +548,19 @@ it("retains the displayed attack's adjustment hints until another roll succeeds"
     .mockResolvedValueOnce(base)
     .mockResolvedValue(changed);
   vi.mocked(rollEncounterStrike)
-    .mockImplementationOnce(async (_key, request) => ({
-      ...strikeReceipt(request),
-      attack: outcome,
-      attack_modifier: 9,
-      damage: [],
-    }))
+    .mockImplementationOnce(async (_key, request) => strikeReceipt(request))
     .mockRejectedValueOnce(new TypeError("Lost response"))
-    .mockImplementationOnce(async (_key, request) => ({
-      ...strikeReceipt(request),
-      attack: {
-        formula: "1d20+7",
-        total: 17,
-        expression: { kind: "number", value: 17 },
-      },
-      attack_modifier: 7,
-      damage: [],
-    }));
+    .mockImplementationOnce(async (_key, request) =>
+      strikeReceipt(
+        request,
+        {
+          formula: "1d20+7",
+          total: 17,
+          expression: { kind: "number", value: 17 },
+        },
+        7,
+      ),
+    );
   render(
     <EncounterStrikeControl
       encounterKey="e"
@@ -619,11 +626,9 @@ it("prepares checks during roll reveal and keeps the result view until the reque
         resolve = done;
       }),
   );
-  vi.mocked(rollEncounterStrike).mockImplementation(async (_key, request) => ({
-    ...strikeReceipt(request),
-    attack: outcome,
-    damage: [],
-  }));
+  vi.mocked(rollEncounterStrike).mockImplementation(async (_key, request) =>
+    strikeReceipt(request),
+  );
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <StrikeContextHarness />

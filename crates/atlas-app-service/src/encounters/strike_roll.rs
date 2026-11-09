@@ -25,7 +25,9 @@ impl AtlasAppService {
         if request.request_id.is_empty() || request.request_id.len() > 128 {
             return Err(AppServiceError::invalid_request("Invalid roll request ID."));
         }
-        if !(1..=3).contains(&request.attack_number) {
+        if let StrikeRollAction::Attack { attack_number, .. } = &request.action
+            && !(1..=3).contains(attack_number)
+        {
             return Err(AppServiceError::invalid_request("Choose attack 1, 2 or 3"));
         }
         let encounter_ref = encounter_ref.to_owned();
@@ -61,106 +63,148 @@ impl AtlasAppService {
                         .into(),
                     );
                 }
-                let mut view = EncounterStrikeRollView {
+                let result = match request.action {
+                    StrikeRollAction::Attack {
+                        attack_number,
+                        mode,
+                        modifier_override,
+                    } => {
+                        let attack_modifier = modifier_override
+                            .or_else(|| {
+                                options
+                                    .attacks
+                                    .iter()
+                                    .find(|attack| attack.attack_number == attack_number)
+                                    .map(|attack| attack.modifier)
+                            })
+                            .filter(|modifier| (-10000..=10000).contains(modifier))
+                            .ok_or_else(|| {
+                                AppServiceError::invalid_request("Attack modifier unavailable.")
+                            })?;
+                        let die = match mode {
+                            RollMode::Normal => "1d20",
+                            RollMode::Fortune => "2d20kh1",
+                            RollMode::Misfortune => "2d20kl1",
+                        };
+                        let attack = atlas_dice::roll(&format!("{die}{attack_modifier:+}"))
+                            .map_err(atlas_local_state::LocalStateError::from)?;
+                        StrikeRollResult::Attack {
+                            attack,
+                            attack_modifier,
+                        }
+                    }
+                    StrikeRollAction::Damage {} => {
+                        roll_damage(activity.damage, options.damage_unavailable)?
+                    }
+                };
+                Ok(EncounterStrikeRollView {
                     request_id: request.request_id,
                     encounter_key: encounter.encounter_key,
                     participant_key: request.participant_key,
                     title: options.title,
-                    attack: None,
-                    attack_modifier: None,
-                    damage: vec![],
-                    damage_totals: vec![],
-                    damage_total: None,
-                    persistent_total: None,
-                    damage_minimum_adjustment: 0,
-                    persistent_minimum_adjustment: 0,
-                };
-                if request.roll_kind == StrikeRollKind::Attack {
-                    let modifier = request
-                        .modifier_override
-                        .or_else(|| {
-                            options
-                                .attacks
-                                .iter()
-                                .find(|attack| attack.attack_number == request.attack_number)
-                                .map(|attack| attack.modifier)
-                        })
-                        .filter(|modifier| (-10000..=10000).contains(modifier))
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request("Attack modifier unavailable.")
-                        })?;
-                    let die = match request.mode {
-                        RollMode::Normal => "1d20",
-                        RollMode::Fortune => "2d20kh1",
-                        RollMode::Misfortune => "2d20kl1",
-                    };
-                    view.attack = Some(
-                        atlas_dice::roll(&format!("{die}{modifier:+}"))
-                            .map_err(atlas_local_state::LocalStateError::from)?,
-                    );
-                    view.attack_modifier = Some(modifier);
-                    return Ok(view);
-                }
-                if let Some(reason) = options.damage_unavailable {
-                    return Err(AppServiceError::invalid_request(reason));
-                }
-                // Validate the complete pool before drawing any dice.
-                let damage = activity
-                    .damage
-                    .into_iter()
-                    .filter(|part| !part.formula.trim().is_empty())
-                    .map(|part| {
-                        if let Some(reason) = part.unavailable_reason {
-                            return Err(AppServiceError::invalid_request(reason));
-                        }
-                        let formula = part.adjusted_formula.unwrap_or(part.formula);
-                        let prepared = atlas_dice::prepare(&formula)
-                            .map_err(atlas_local_state::LocalStateError::from)?;
-                        let label = [part.damage_type.clone(), part.category.clone()]
-                            .into_iter()
-                            .flatten()
-                            .collect::<Vec<_>>()
-                            .join(" ");
-                        let mut chars = label.chars();
-                        let label = chars
-                            .next()
-                            .map(|first| format!("{}{}", first.to_uppercase(), chars.as_str()))
-                            .unwrap_or_else(|| "Untyped".into());
-                        Ok((
-                            StrikeDamageRollView {
-                                id: part.damage_id,
-                                label,
-                                formula: Some(formula),
-                                damage_type: part.damage_type,
-                                category: part.category,
-                                outcome: None,
-                                unavailable: None,
-                            },
-                            prepared,
-                        ))
-                    })
-                    .collect::<AppServiceResult<Vec<_>>>()?;
-                view.damage = damage
-                    .into_iter()
-                    .map(|(mut component, prepared)| {
-                        component.outcome = Some(prepared.roll()?);
-                        Ok(component)
-                    })
-                    .collect::<atlas_local_state::LocalStateResult<Vec<_>>>()?;
-                view.damage_totals = damage_totals(&view.damage)?;
-                (view.damage_total, view.damage_minimum_adjustment) =
-                    damage_sum(&view.damage_totals, false)?;
-                (view.persistent_total, view.persistent_minimum_adjustment) =
-                    damage_sum(&view.damage_totals, true)?;
-                Ok(view)
+                    result,
+                })
             },
         )
     }
 }
 
+fn roll_damage(
+    expressions: Vec<super::stat_block::DamageExpressionView>,
+    unavailable: Option<String>,
+) -> AppServiceResult<StrikeRollResult> {
+    if let Some(reason) = unavailable {
+        return Err(AppServiceError::invalid_request(reason));
+    }
+    // Validate the complete pool before drawing any dice.
+    let damage = expressions
+        .into_iter()
+        .filter(|part| !part.formula.trim().is_empty())
+        .map(|part| {
+            if let Some(reason) = part.unavailable_reason {
+                return Err(AppServiceError::invalid_request(reason));
+            }
+            let formula = part.adjusted_formula.unwrap_or(part.formula);
+            let prepared =
+                atlas_dice::prepare(&formula).map_err(atlas_local_state::LocalStateError::from)?;
+            let label = [part.damage_type.clone(), part.category.clone()]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(" ");
+            let mut chars = label.chars();
+            let label = chars
+                .next()
+                .map(|first| format!("{}{}", first.to_uppercase(), chars.as_str()))
+                .unwrap_or_else(|| "Untyped".into());
+            Ok((
+                StrikeDamageRollView {
+                    id: part.damage_id,
+                    label,
+                    formula: Some(formula),
+                    damage_type: part.damage_type,
+                    category: part.category,
+                    outcome: None,
+                    unavailable: None,
+                },
+                prepared,
+            ))
+        })
+        .collect::<AppServiceResult<Vec<_>>>()?;
+    let damage = damage
+        .into_iter()
+        .map(|(mut component, prepared)| {
+            component.outcome = Some(prepared.roll()?);
+            Ok(component)
+        })
+        .collect::<atlas_local_state::LocalStateResult<Vec<_>>>()?;
+    let damage_totals = damage_totals(&damage)?;
+    let (damage_total, damage_minimum_adjustment) = damage_sum(&damage_totals, false)?;
+    let (persistent_total, persistent_minimum_adjustment) = damage_sum(&damage_totals, true)?;
+    Ok(StrikeRollResult::Damage {
+        damage,
+        damage_totals,
+        damage_total,
+        persistent_total,
+        damage_minimum_adjustment,
+        persistent_minimum_adjustment,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn strike_damage_rejects_the_complete_pool_if_any_formula_is_invalid() {
+        use crate::encounters::stat_block::{DamageEffectKindView, DamageExpressionView};
+        let valid = DamageExpressionView {
+            ability: None,
+            ability_known: true,
+            unavailable_reason: None,
+            source_ordinal: 0,
+            damage_id: "valid".into(),
+            label: None,
+            formula: "1d6".into(),
+            adjusted_formula: None,
+            damage_type: Some("fire".into()),
+            category: None,
+            effect_kind: DamageEffectKindView::Damage,
+            modifiers: vec![],
+            suppressed_modifiers: vec![],
+        };
+        let invalid = DamageExpressionView {
+            damage_id: "invalid".into(),
+            source_ordinal: 1,
+            adjusted_formula: Some("1d6+".into()),
+            ..valid.clone()
+        };
+        assert!(matches!(
+            roll_damage(vec![valid.clone()], None).unwrap(),
+            StrikeRollResult::Damage { .. }
+        ));
+        assert!(roll_damage(vec![valid, invalid], None).is_err());
+    }
+
     #[test]
     fn strike_attack_penalties_preserve_agile_and_unknown_modifiers() {
         let mut activity: ActorActivityView = serde_json::from_value(serde_json::json!({

@@ -6322,83 +6322,28 @@
       },
       "EncounterStrikeRollView": {
         "properties": {
-          "attack": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RollOutcome"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "attack_modifier": {
-            "format": "int32",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "damage": {
-            "items": {
-              "$ref": "#/components/schemas/StrikeDamageRollView"
-            },
-            "type": "array"
-          },
-          "damage_minimum_adjustment": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "damage_total": {
-            "format": "int32",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "damage_totals": {
-            "items": {
-              "$ref": "#/components/schemas/StrikeDamageTotalView"
-            },
-            "type": "array"
-          },
           "encounter_key": {
             "type": "string"
           },
           "participant_key": {
             "type": "string"
           },
-          "persistent_minimum_adjustment": {
-            "format": "int32",
-            "type": "integer"
-          },
-          "persistent_total": {
-            "format": "int32",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "request_id": {
             "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/StrikeRollResult"
           },
           "title": {
             "type": "string"
           }
         },
         "required": [
-          "attack_modifier",
           "request_id",
           "encounter_key",
           "participant_key",
           "title",
-          "attack",
-          "damage",
-          "damage_totals",
-          "damage_total",
-          "persistent_total",
-          "damage_minimum_adjustment",
-          "persistent_minimum_adjustment"
+          "result"
         ],
         "type": "object"
       },
@@ -15176,11 +15121,10 @@
         "type": "object"
       },
       "RollEncounterStrikeRequest": {
+        "additionalProperties": false,
         "properties": {
-          "attack_number": {
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
+          "action": {
+            "$ref": "#/components/schemas/StrikeRollAction"
           },
           "expected_participant_revision": {
             "format": "int64",
@@ -15190,16 +15134,6 @@
             "format": "int64",
             "type": "integer"
           },
-          "mode": {
-            "$ref": "#/components/schemas/RollMode"
-          },
-          "modifier_override": {
-            "format": "int32",
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
           "participant_key": {
             "type": "string"
           },
@@ -15208,9 +15142,6 @@
           },
           "request_id": {
             "type": "string"
-          },
-          "roll_kind": {
-            "$ref": "#/components/schemas/StrikeRollKind"
           }
         },
         "required": [
@@ -15219,9 +15150,7 @@
           "participant_key",
           "expected_participant_revision",
           "reference",
-          "attack_number",
-          "mode",
-          "roll_kind"
+          "action"
         ],
         "type": "object"
       },
@@ -18347,12 +18276,138 @@
         ],
         "type": "object"
       },
-      "StrikeRollKind": {
-        "enum": [
-          "attack",
-          "damage"
-        ],
-        "type": "string"
+      "StrikeRollAction": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "attack_number": {
+                "format": "int32",
+                "maximum": 3,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "attack"
+                ],
+                "type": "string"
+              },
+              "mode": {
+                "$ref": "#/components/schemas/RollMode"
+              },
+              "modifier_override": {
+                "format": "int32",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "attack_number",
+              "mode",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "damage"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StrikeRollResult": {
+        "oneOf": [
+          {
+            "properties": {
+              "attack": {
+                "$ref": "#/components/schemas/RollOutcome"
+              },
+              "attack_modifier": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "attack"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "attack",
+              "attack_modifier",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "damage": {
+                "items": {
+                  "$ref": "#/components/schemas/StrikeDamageRollView"
+                },
+                "type": "array"
+              },
+              "damage_minimum_adjustment": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "damage_total": {
+                "format": "int32",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "damage_totals": {
+                "items": {
+                  "$ref": "#/components/schemas/StrikeDamageTotalView"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "enum": [
+                  "damage"
+                ],
+                "type": "string"
+              },
+              "persistent_minimum_adjustment": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "persistent_total": {
+                "format": "int32",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "damage",
+              "damage_totals",
+              "damage_total",
+              "persistent_total",
+              "damage_minimum_adjustment",
+              "persistent_minimum_adjustment",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "TableResultPresentationView": {
         "properties": {

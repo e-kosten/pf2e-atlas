@@ -33,6 +33,52 @@ fn browser_contract_uses_the_openapi_artifact_and_protocol_revision() {
 }
 
 #[test]
+fn strike_roll_schema_separates_attack_and_damage_fields() {
+    let document = crate::openapi().unwrap();
+    let schemas = &document["components"]["schemas"];
+    let request = &schemas["RollEncounterStrikeRequest"];
+    assert_eq!(request["additionalProperties"], false);
+    assert!(
+        request["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("action"))
+    );
+    assert!(request["properties"].get("attack_number").is_none());
+
+    let action = &schemas["StrikeRollAction"];
+    let attack = &action["oneOf"][0];
+    let damage = &action["oneOf"][1];
+    assert_eq!(attack["properties"]["kind"]["enum"], json!(["attack"]));
+    assert_eq!(attack["properties"]["attack_number"]["minimum"], 1);
+    assert_eq!(attack["properties"]["attack_number"]["maximum"], 3);
+    assert_eq!(
+        damage["properties"],
+        json!({"kind":{"type":"string","enum":["damage"]}})
+    );
+
+    let result = &schemas["StrikeRollResult"];
+    let attack = &result["oneOf"][0];
+    let damage = &result["oneOf"][1];
+    assert_eq!(attack["properties"]["kind"]["enum"], json!(["attack"]));
+    assert_eq!(damage["properties"]["kind"]["enum"], json!(["damage"]));
+    assert!(
+        attack["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("attack_modifier"))
+    );
+    assert!(attack["properties"].get("damage").is_none());
+    assert!(
+        damage["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("persistent_total"))
+    );
+    assert!(damage["properties"].get("attack_modifier").is_none());
+}
+
+#[test]
 fn schema_preserves_wire_contract_edges() {
     let document = crate::openapi().unwrap();
     let schemas = &document["components"]["schemas"];
@@ -1471,7 +1517,7 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
         .await;
     assert_eq!(status, StatusCode::OK, "{options}");
     assert_eq!(options["title"], "Claw");
-    let mut strike = json!({"participant_key":actor.participant_key,"reference":reference,"request_id":"strike-id","expected_revision":detail.revision,"expected_participant_revision":actor.revision-1,"attack_number":2,"mode":"fortune","modifier_override":null,"roll_kind":"attack"});
+    let mut strike = json!({"participant_key":actor.participant_key,"reference":reference,"request_id":"strike-id","expected_revision":detail.revision,"expected_participant_revision":actor.revision-1,"action":{"kind":"attack","attack_number":2,"mode":"fortune","modifier_override":null}});
     let (status, body) = fixture
         .json(
             Method::POST,
@@ -1486,14 +1532,67 @@ async fn dice_routes_forward_typed_requests_and_conflicts() {
         .json(
             Method::POST,
             "/api/encounters/ambush/strike-rolls",
-            Some(strike),
+            Some(strike.clone()),
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["request_id"], "strike-id");
     assert_eq!(body["participant_key"], actor.participant_key);
-    assert_eq!(body["attack_modifier"], 3);
-    assert_eq!(body["attack"]["formula"], "2d20kh1+3");
+    assert_eq!(body["result"]["kind"], "attack");
+    assert_eq!(body["result"]["attack_modifier"], 3);
+    assert_eq!(body["result"]["attack"]["formula"], "2d20kh1+3");
+    assert!(body["result"].get("damage").is_none());
+
+    let mut mixed = strike.clone();
+    mixed["action"] = json!({"kind":"damage","attack_number":2,"mode":"fortune"});
+    let mut old_envelope = strike.clone();
+    old_envelope["roll_kind"] = json!("attack");
+    let mut mixed_attack = strike.clone();
+    mixed_attack["action"]["damage"] = json!([]);
+    let mut incomplete_attack = strike.clone();
+    incomplete_attack["action"] = json!({"kind":"attack","mode":"normal"});
+    for request in [mixed, old_envelope, mixed_attack, incomplete_attack] {
+        let (status, body) = fixture
+            .json(
+                Method::POST,
+                "/api/encounters/ambush/strike-rolls",
+                Some(request),
+            )
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request");
+    }
+
+    let mut bad_number = strike.clone();
+    bad_number["action"]["attack_number"] = json!(4);
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/encounters/missing/strike-rolls",
+            Some(bad_number),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["message"], "Choose attack 1, 2 or 3");
+
+    let mut damage = strike;
+    damage["action"] = json!({"kind":"damage"});
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/encounters/ambush/strike-rolls",
+            Some(damage),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["result"]["kind"], "damage");
+    assert!(body["result"].get("attack").is_none());
+    assert_eq!(body["result"]["damage"][0]["formula"], "1d6+2");
+    assert_eq!(
+        body["result"]["damage_totals"][0]["damage_type"],
+        "slashing"
+    );
+    assert!(body["result"]["persistent_total"].is_null());
     let (status, body) = fixture
         .json(
             Method::POST,
