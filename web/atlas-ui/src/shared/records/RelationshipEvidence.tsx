@@ -1,3 +1,4 @@
+import { referenceRecordTarget } from "./recordReferenceDestination";
 import { useReferenceRecordNavigation } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { ErrorNotice } from "../feedback/ErrorNotice";
@@ -133,29 +134,32 @@ function EvidencePage({
         />
       )}
       <ul className="relationship-evidence__list">
-        {displayed.occurrences.map((occurrence, index) => (
-          <li key={JSON.stringify([occurrence.source, occurrence.ordinal, index])}>
-            <Space wrap>
-              <EvidenceLink
-                selection={occurrence.source_navigation}
-                title={occurrence.source_title ?? "Referring record"}
-                onNavigate={onNavigate}
-              />
-              <Typography.Text type="secondary">→</Typography.Text>
-              {occurrence.target ? (
+        {displayed.occurrences.map((occurrence, index) => {
+          const target = referenceRecordTarget(occurrence.destination);
+          return (
+            <li key={JSON.stringify([occurrence.source, occurrence.ordinal, index])}>
+              <Space wrap>
                 <EvidenceLink
-                  selection={occurrence.target}
-                  title={occurrence.target_title ?? "Referenced record"}
+                  selection={occurrence.source_navigation}
+                  title={occurrence.source_title ?? "Referring record"}
                   onNavigate={onNavigate}
                 />
-              ) : (
-                <Typography.Text type="secondary">
-                  Reference unavailable
-                </Typography.Text>
-              )}
-            </Space>
-          </li>
-        ))}
+                <Typography.Text type="secondary">→</Typography.Text>
+                {target ? (
+                  <EvidenceLink
+                    selection={target}
+                    title={occurrence.target_title ?? "Referenced record"}
+                    onNavigate={onNavigate}
+                  />
+                ) : (
+                  <Typography.Text type="secondary">
+                    Reference unavailable
+                  </Typography.Text>
+                )}
+              </Space>
+            </li>
+          );
+        })}
       </ul>
       {evidence.page.total > evidence.page.size && (
         <Pagination

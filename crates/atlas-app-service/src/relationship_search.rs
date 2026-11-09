@@ -162,7 +162,7 @@ pub(crate) fn evidence_views(
             .into_iter()
             .map(|mut v| {
                 v.source_title = Some(label(&v.source_navigation));
-                v.target_title = v.target.as_ref().map(label);
+                v.target_title = v.destination.record_target().map(label);
                 v
             })
             .collect(),

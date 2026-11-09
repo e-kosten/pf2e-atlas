@@ -355,8 +355,8 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     assert_eq!(result.weight.value, Some(2.into()));
     assert!(detail.relationships.iter().any(|r| {
         r.kind == "TableResult"
-            && r.target
-                .as_ref()
+            && r.destination
+                .record_target()
                 .is_some_and(|t| t.record_key == "items:item000000000000")
     }));
     let result = &table_body.results.value.as_ref().unwrap()[1];

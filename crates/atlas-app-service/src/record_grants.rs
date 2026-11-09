@@ -31,7 +31,7 @@ pub(crate) fn attach(
         .relationships
         .iter()
         .filter(|reference| reference.origin == "content")
-        .filter_map(|reference| reference.target.as_ref())
+        .filter_map(|reference| reference.destination.record_target())
         .collect();
     for field in &detail.presentation.content {
         if let PreparedFieldBodyView::Html { inclusions, .. } = &field.body {
@@ -39,7 +39,7 @@ pub(crate) fn attach(
                 inclusion
                     .references
                     .iter()
-                    .filter_map(|reference| reference.target.as_ref())
+                    .filter_map(|reference| reference.destination.record_target())
             }));
         }
     }
@@ -70,7 +70,7 @@ pub(crate) fn attach(
         .iter()
         .filter(|reference| reference.kind == "DeclaredGrant")
     {
-        let Some(target) = &reference.target else {
+        let Some(target) = reference.destination.record_target() else {
             // Keep missing references visible without making up a destination or display name.
             unavailable.insert(reference.authored_target.clone());
             continue;

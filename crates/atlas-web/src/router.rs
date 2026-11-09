@@ -141,6 +141,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
 // Utoipa applies Serde's deny_unknown_fields to structs but leaves tagged
 // enum branches open. QueryExpression is closed at its flattened wrapper.
 pub(crate) const CLOSED_TAGGED_SCHEMAS: &[&str] = &[
+    "RecordReferenceDestinationView",
     "DiscoverFilterValuesRequest",
     "EmbeddedReadingSelection",
     "EncounterAbilityStateAction",

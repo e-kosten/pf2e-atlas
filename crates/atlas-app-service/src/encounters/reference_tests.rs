@@ -223,10 +223,17 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         .find(|r| r.kind == "CompendiumProvenance")
         .unwrap();
     assert_eq!(
-        origin.target.as_ref().unwrap().record_key,
+        origin.destination.record_target().unwrap().record_key,
         "equipment:oooooooooooooooo"
     );
-    assert!(origin.target.as_ref().unwrap().owners.is_empty());
+    assert!(
+        origin
+            .destination
+            .record_target()
+            .unwrap()
+            .owners
+            .is_empty()
+    );
     let mut update = super::tests::update(participant);
     update.participant_variant = Some(EncounterParticipantVariantView::Elite);
     {

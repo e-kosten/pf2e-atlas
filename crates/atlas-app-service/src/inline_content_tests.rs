@@ -222,8 +222,8 @@ fn inline_content_composes_nested_occurrences_with_exact_binding_sources() {
     assert_eq!(f.worker.last_read_metrics().source_body_decodes, 3);
     assert!(detail.relationships.iter().any(|r| {
         r.kind == "uuid"
-            && r.target
-                .as_ref()
+            && r.destination
+                .record_target()
                 .is_some_and(|t| t.record_key == "features:featTarget100000")
     }));
 }
@@ -300,7 +300,7 @@ fn inline_content_links_existing_headings_and_leaves_untitled_content_as_prose()
             .unwrap()
             .references[0];
         assert_eq!(
-            source.target.as_ref().unwrap().record_key,
+            source.destination.record_target().unwrap().record_key,
             "features:featTarget100000"
         );
         assert!(html.contains("Benefit rules."));
@@ -363,7 +363,7 @@ fn inline_content_honors_all_observed_source_option_combinations() {
             .find(|r| r.kind == "uuid")
             .unwrap();
         assert_eq!(
-            reference.target.as_ref().unwrap().record_key,
+            reference.destination.record_target().unwrap().record_key,
             "actions:actionTarget1000"
         );
         assert_eq!(
@@ -406,8 +406,8 @@ fn inline_content_stops_at_the_depth_limit_without_losing_following_rules() {
     assert!(!html.contains("Rules at depth 5."));
     assert!(html.contains("More content is available") && html.contains("Open reference"));
     assert!(bindings.iter().flat_map(|b| &b.references).any(|r| {
-        r.target
-            .as_ref()
+        r.destination
+            .record_target()
             .is_some_and(|t| t.record_key == "actions:depth00000000005")
     }));
 }
@@ -431,7 +431,10 @@ fn inline_content_bounds_large_repeated_prose_and_retains_the_exact_destination(
             .relationships
             .iter()
             .filter(|r| r.kind == "embed")
-            .map(|r| r.target.as_ref().map(|target| target.record_key.as_str()))
+            .map(|r| r
+                .destination
+                .record_target()
+                .map(|target| target.record_key.as_str()))
             .collect::<Vec<_>>(),
         vec![Some("features:featTarget100000"); 12]
     );

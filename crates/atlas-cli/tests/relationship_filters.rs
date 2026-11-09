@@ -353,6 +353,17 @@ fn exact_embedded_cel_selection_retains_owner_scope_and_checks_fingerprint() {
     assert_eq!(error["error"]["code"], "invalid_request");
 }
 
+fn assert_armor_destination(occurrence: &Value) {
+    assert_eq!(occurrence["destination"]["kind"], "resolved_record");
+    assert_eq!(
+        occurrence["destination"]["target"]["record_key"],
+        "items:armor00000000000"
+    );
+    for legacy in ["status", "target", "url"] {
+        assert!(occurrence.get(legacy).is_none(), "{occurrence}");
+    }
+}
+
 #[test]
 fn occurrence_pages_require_generation_and_relevant_positive_proof() {
     let fixture = Fixture::new();
@@ -375,6 +386,22 @@ fn occurrence_pages_require_generation_and_relevant_positive_proof() {
     assert_eq!(page["page"]["total"], 2);
     assert_eq!(page["occurrences"].as_array().unwrap().len(), 1);
     assert_eq!(page["occurrences"][0]["source_title"], "Fixture Scout");
+    assert_armor_destination(&page["occurrences"][0]);
+
+    let scout = "actors:scout00000000000";
+    let row = result["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["record"]["record_key"] == scout)
+        .unwrap();
+    assert_armor_destination(&row["relationship_evidence"][0]["occurrences"][0]);
+
+    let detail = fixture.data(&["record", "get", scout, "--json"]);
+    assert_armor_destination(&detail["results"][0]["value"]["relationships"][0]);
+
+    let graph = fixture.data(&["graph", "links", scout, "--json"]);
+    assert_armor_destination(&graph["outgoing"]["occurrences"][0]);
     let stale = fixture.command(
         &[
             "graph",

@@ -146,6 +146,27 @@ pub struct RecordDetailView {
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum RecordReferenceDestinationView {
+    ResolvedRecord { target: RecordNavigationView },
+    ResolvedEmbedded { target: RecordNavigationView },
+    ResolvedUrl { url: String },
+    UnverifiedUrl { url: String },
+    Unresolved,
+    Blocked,
+}
+
+impl RecordReferenceDestinationView {
+    pub fn record_target(&self) -> Option<&RecordNavigationView> {
+        match self {
+            Self::ResolvedRecord { target } | Self::ResolvedEmbedded { target } => Some(target),
+            _ => None,
+        }
+    }
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordRelationshipView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
@@ -165,11 +186,7 @@ pub struct RecordRelationshipView {
     pub audiences: Vec<String>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub availability: Option<atlas_domain::QueryFieldState>,
-    pub status: String,
-    #[cfg_attr(feature = "openapi", schema(required))]
-    pub target: Option<RecordNavigationView>,
-    #[cfg_attr(feature = "openapi", schema(required))]
-    pub url: Option<String>,
+    pub destination: RecordReferenceDestinationView,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub effect_label: Option<EffectReferenceLabelView>,
     // Verified local reading context; the authored target remains unchanged.

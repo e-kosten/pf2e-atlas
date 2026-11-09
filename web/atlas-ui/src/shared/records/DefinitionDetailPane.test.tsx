@@ -46,9 +46,10 @@ it("renders prepared nested reference markers through their existing exact ordin
     references: [
       {
         ordinal: 7,
-        status: "resolved_record",
-        target: rootNavigation("abilities:darkvision"),
-        url: null,
+        destination: {
+          kind: "resolved_record",
+          target: rootNavigation("abilities:darkvision"),
+        },
       },
     ],
   };

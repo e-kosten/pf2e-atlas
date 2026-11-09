@@ -179,11 +179,7 @@ pub struct ContentRollComponentResultView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PreparedReferenceView {
     pub ordinal: usize,
-    pub status: String,
-    #[cfg_attr(feature = "openapi", schema(required))]
-    pub target: Option<crate::RecordNavigationView>,
-    #[cfg_attr(feature = "openapi", schema(required))]
-    pub url: Option<String>,
+    pub destination: crate::RecordReferenceDestinationView,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub effect_label: Option<crate::EffectReferenceLabelView>,

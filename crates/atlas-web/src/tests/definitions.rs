@@ -46,9 +46,9 @@ async fn glossary_reading_and_typed_associations_share_generation_and_identity()
         "reference-definition/v1"
     );
     let inline = &detail["content"]["references"][0];
-    assert_eq!(inline["status"], "resolved_record");
+    assert_eq!(inline["destination"]["kind"], "resolved_record");
     assert_eq!(
-        inline["target"]["record_key"],
+        inline["destination"]["target"]["record_key"],
         "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6"
     );
     let generation = detail["artifact_generation"].clone();

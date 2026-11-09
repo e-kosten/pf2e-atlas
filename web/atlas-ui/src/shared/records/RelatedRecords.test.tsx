@@ -78,15 +78,16 @@ function graphFixture(): GraphContextView {
     occurrence_path: null,
     audiences: [],
     availability: null,
-    status: "resolved_record",
-    target: navigation(seed.record_key),
-    url: null,
+    destination: { kind: "resolved_record", target: navigation(seed.record_key) },
   };
   const outgoing = {
     ...incoming,
     source: { record: seed.record_key, embedded_path: [], field: source.field },
     source_navigation: { ...navigation(seed.record_key), field: source.field },
-    target: navigation("spell:target"),
+    destination: {
+      kind: "resolved_record" as const,
+      target: navigation("spell:target"),
+    },
   };
   return {
     seed,

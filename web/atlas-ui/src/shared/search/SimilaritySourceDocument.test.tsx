@@ -319,9 +319,14 @@ it.each([
             source_fingerprint: "spell-snapshot",
           }
         : undefined;
-    const reference = {
+    const reference: import("../../generated/atlas").RecordRelationshipView = {
       ...detailFixture("rules:host", "Host", spellKey).relationships[0],
-      target: landing ?? target,
+      destination: {
+        kind: (landing ?? target).embedded_path.length
+          ? "resolved_embedded"
+          : "resolved_record",
+        target: landing ?? target,
+      },
     };
     api.detail.mockImplementation((key: string, request?: RecordDetailRequest) => {
       const detail = detailFixture(key, "Fireball");

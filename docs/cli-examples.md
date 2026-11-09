@@ -436,6 +436,13 @@ Page occurrences independently using the complete filter and returned generation
 atlas graph occurrences RESULT_KEY --links-to 'Leather Armor' --artifact-generation GENERATION --page 2 --limit 20 --json
 ```
 
+Record relationships and prepared references use a tagged `destination` object
+in CLI JSON. For example, `destination.kind` is `resolved_record` when
+`destination.target` contains record navigation, or `unverified_url` when
+`destination.url` contains an authored external address. Unresolved and blocked
+destinations carry only their kind. This shape is shared by record details,
+graph output, and relationship evidence in Search and Similar.
+
 When several positive link conditions exist, pass `--clause-id` from the search
 relationship summary. Changing the expression can change generated clause IDs;
 repeat the original expression. If reference data has changed, the command fails;

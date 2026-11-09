@@ -321,7 +321,7 @@ export function RecordPresentationIdentity({
         (relationship) =>
           relationship.origin === "structured" &&
           relationship.kind === "CompendiumProvenance" &&
-          relationship.status === "resolved_record",
+          relationship.destination.kind === "resolved_record",
       )
     : undefined;
   const abilityHelp =
@@ -330,10 +330,13 @@ export function RecordPresentationIdentity({
       : undefined;
   const referenceHelp =
     abilityHelp ??
-    (provenance?.target
+    (provenance?.destination.kind === "resolved_record"
       ? {
           definition_key: null,
-          destination: { kind: "record" as const, navigation: provenance.target },
+          destination: {
+            kind: "record" as const,
+            navigation: provenance.destination.target,
+          },
         }
       : undefined);
   return (

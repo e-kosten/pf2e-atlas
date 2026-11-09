@@ -1,3 +1,7 @@
+import {
+  referenceExternalUrl,
+  referenceRecordTarget,
+} from "./recordReferenceDestination";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { sanitizePreparedHtml } from "./PreparedHtml";
@@ -328,18 +332,19 @@ export function PreparedContentBody({
         }
         return;
       }
+      const url = referenceExternalUrl(fact?.destination);
       if (
-        fact?.url &&
-        (fact.status === "resolved_url" || fact.status === "unverified_url") &&
+        url &&
         marker.tagName === "A" &&
-        DOMPurify.isValidAttribute("a", "href", fact.url)
+        DOMPurify.isValidAttribute("a", "href", url)
       ) {
-        marker.setAttribute("href", fact.url);
+        marker.setAttribute("href", url);
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
         return;
       }
-      if (!fact?.target) {
+      const authoredTarget = referenceRecordTarget(fact?.destination);
+      if (!authoredTarget) {
         marker.removeAttribute("href");
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
@@ -349,13 +354,13 @@ export function PreparedContentBody({
         }
         return;
       }
-      const readingTarget = fact?.contextual_target ?? fact?.target;
+      const readingTarget = fact?.contextual_target ?? authoredTarget;
       if (readingTarget) {
         if (
           fact?.contextual_target &&
-          (fact.contextual_target.record_key !== fact.target?.record_key ||
+          (fact.contextual_target.record_key !== authoredTarget.record_key ||
             JSON.stringify(fact.contextual_target.embedded_path) !==
-              JSON.stringify(fact.target?.embedded_path))
+              JSON.stringify(authoredTarget.embedded_path))
         )
           marker.setAttribute("title", "Spell from this item");
         marker.removeAttribute("aria-disabled");
@@ -392,14 +397,15 @@ export function PreparedContentBody({
         if (!ownsEvent(e)) return;
         const marker = (e.target as Element).closest(ACTIVATION_MARKER);
         if (!marker || !container.current?.contains(marker)) return;
-        if (fact?.target && e instanceof MouseEvent && !isPrimaryActivation(e)) return;
+        if (e instanceof MouseEvent && !isPrimaryActivation(e)) return;
         e.preventDefault();
         const reference = marker.getAttribute("data-atlas-reference");
         if (reference !== null) {
           const ordinal = Number(reference);
           const fact = markerReferences.find((r) => r.ordinal === ordinal);
-          if (!fact?.target) return;
-          const target = fact.contextual_target ?? fact.target;
+          const authored = referenceRecordTarget(fact?.destination);
+          if (!authored) return;
+          const target = fact?.contextual_target ?? authored;
           openReference(target.record_key, marker as HTMLElement, target);
           return;
         }

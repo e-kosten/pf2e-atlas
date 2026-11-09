@@ -1,3 +1,4 @@
+import { referenceRecordTarget } from "./recordReferenceDestination";
 import { fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { RecordPresentation } from "./RecordPresentation";
 import {
@@ -301,7 +302,6 @@ describe("semantic family presentation", () => {
       ...detail.relationships[0],
       origin: "structured",
       kind: "CompendiumProvenance",
-      status: "resolved_record",
       target_title: "Staff",
     };
     const view = (available = true) => (
@@ -313,7 +313,7 @@ describe("semantic family presentation", () => {
           relationships={[
             available
               ? relationship
-              : { ...relationship, status: "unresolved", target: null },
+              : { ...relationship, destination: { kind: "unresolved" } },
           ]}
           onReference={onReference}
         />
@@ -333,7 +333,10 @@ describe("semantic family presentation", () => {
       {
         definition_key: null,
 
-        destination: { kind: "record", navigation: relationship.target },
+        destination: {
+          kind: "record",
+          navigation: referenceRecordTarget(relationship.destination),
+        },
       },
       original,
       undefined,
@@ -370,7 +373,6 @@ describe("semantic family presentation", () => {
               ...olderSource,
               origin: "structured",
               kind: "CompendiumProvenance",
-              status: "resolved_record",
               target_title: "Old Grab",
             },
           ]}
