@@ -1,0 +1,10 @@
+name = "Cold Iron Blanch"
+source_note = "Lost Omens Pathfinder Society Guide. Three grades of the same coating support higher-level targets and last longer."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:cImNgwDCqwa6Dil1", name = "Cold Iron Blanch (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:jnCP2zYJamUeZsJC", name = "Cold Iron Blanch (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:WXnGIl4d62detRlf", name = "Cold Iron Blanch (Greater)", attributes = ["Greater"] },
+]

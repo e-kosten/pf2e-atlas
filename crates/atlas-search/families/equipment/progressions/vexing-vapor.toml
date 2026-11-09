@@ -1,0 +1,12 @@
+name = "Vexing Vapor"
+source_note = "Lost Omens The Grand Bazaar. Four grades of the same berry bomb scale mental damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:Bb3cvysXG8rCM5FM", name = "Vexing Vapor (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Z9TThSU2KtCX9gfD", name = "Vexing Vapor (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:0MPBjp2lOYVCsgeg", name = "Vexing Vapor (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:RXpM5Kbuf3BYfK6f", name = "Vexing Vapor (Major)", attributes = ["Major"] },
+]

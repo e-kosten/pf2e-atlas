@@ -1,0 +1,9 @@
+name = "Queasy Lantern"
+source_note = "Lost Omens The Grand Bazaar. Three grades share the same lantern and strengthen its sickness effect and save DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:rJan8OyK6gmtxXmt", name = "Queasy Lantern (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:lqzVHgmpCDnOVZs3", name = "Queasy Lantern (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ToSrWLocAD4AffSB", name = "Queasy Lantern (Greater)", attributes = ["Greater"] },
+]

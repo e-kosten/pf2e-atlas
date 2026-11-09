@@ -1,0 +1,9 @@
+name = "Rainbow Vinegar"
+source_note = "Lost Omens Tian Xia Character Guide. Both grades share the same protective alteration, with higher damage and resistance at Greater."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:NVssWHKyKlaRmHog", name = "Rainbow Vinegar (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:iq7hL6HDsPCPU4pt", name = "Rainbow Vinegar (Greater)", attributes = ["Greater"] },
+]

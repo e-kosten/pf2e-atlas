@@ -1,0 +1,10 @@
+name = "Portable Seal"
+source_note = "Lost Omens Rival Academies. Three grades of the same deployable seal increase the save DC."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:XYweIphfMqFeEo7D", name = "Portable Seal (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:OfIhe6Fa6J4ZfZeL", name = "Portable Seal (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:VGQ18qI1Y8sLORuG", name = "Portable Seal (Major)", attributes = ["Major"] },
+]

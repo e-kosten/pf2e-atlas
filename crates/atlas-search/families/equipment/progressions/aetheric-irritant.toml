@@ -1,0 +1,11 @@
+name = "Aetheric Irritant"
+source_note = "Lost Omens Rival Academies. Four grades of the same chime increase affected radius and save DC."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:3jUoOPFVoYtM7A9F", name = "Aetheric Irritant (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:sY3Do9bKjwAC9TMV", name = "Aetheric Irritant (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:LjTbLOTj0K0CKvsd", name = "Aetheric Irritant (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:7jUxSSn0SFkSvUsq", name = "Aetheric Irritant (Major)", attributes = ["Major"] },
+]

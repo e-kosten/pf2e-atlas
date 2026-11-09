@@ -1,0 +1,11 @@
+name = "Quartz-Coil Rail Transport"
+source_note = "Lost Omens Rival Academies. Four grades of the same electrical rail device increase reach and damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:KFCXhqEAEMN7IH6p", name = "Quartz-Coil Rail Transport (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:2JrQLWnVE4DrOLUE", name = "Quartz-Coil Rail Transport (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:8RcvD4xTCKpsJBLj", name = "Quartz-Coil Rail Transport (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:iVhkA8bpG2phbb0Q", name = "Quartz-Coil Rail Transport (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,11 @@
+name = "Vanishing Shocker"
+source_note = "Lost Omens Rival Academies. Four grades of the same electrical invisibility device increase the save DC."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:l5V2Bbik0g6eLBUA", name = "Vanishing Shocker (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:NnoESOFI359hAYjT", name = "Vanishing Shocker (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:vR2EZPD9TcLrkBz6", name = "Vanishing Shocker (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:zftpNNqFzlmeuWl6", name = "Vanishing Shocker (Major)", attributes = ["Major"] },
+]
