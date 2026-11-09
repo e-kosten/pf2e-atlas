@@ -321,7 +321,20 @@ export function PreparedContentBody({
           const formula = Array.from(
             marker.querySelectorAll<HTMLElement>("[data-atlas-roll-formula]"),
           ).find((node) => node.closest("[data-atlas-interaction]") === marker);
-          (formula ?? marker).after(host);
+          if (formula) {
+            // Keep the authored formula and its action together without taking
+            // the following words out of the normal text flow.
+            let group = formula.parentElement;
+            if (!group?.classList.contains("content-roll-formula")) {
+              group = document.createElement("span");
+              group.className = "content-roll-formula";
+              formula.before(group);
+              group.append(formula);
+            }
+            group.append(host);
+          } else {
+            marker.after(host);
+          }
           portals.push(
             createPortal(
               <ContentRoll offer={control.roll} presentation={control.literal} />,
