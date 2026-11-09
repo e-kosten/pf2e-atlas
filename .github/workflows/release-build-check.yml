@@ -100,7 +100,7 @@ jobs:
 
       - name: Restore verified cargo-dist archives
         id: dist-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ runner.temp }}/atlas-cargo-dist-archives
           key: cargo-dist-archives-v1-${{ hashFiles('scripts/release/cargo-dist-checksums.json') }}
@@ -114,7 +114,7 @@ jobs:
           echo "prefix=cargo-dist-tool-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - name: Save verified cargo-dist archives
         if: steps.dist-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: ${{ runner.temp }}/atlas-cargo-dist-archives
           key: ${{ steps.dist-cache.outputs.cache-primary-key }}
