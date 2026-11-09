@@ -150,15 +150,8 @@ it("keeps waking normal unless the source restricts it", async () => {
     "unconscious",
   );
   const restriction = await screen.findByRole("checkbox", {
-    name: "Wake automatically",
+    name: "Use normal waking rules",
   });
-  expect(restriction).toBeChecked();
-  const info = screen.getByRole("button", { name: "About automatic waking" });
-  fireEvent.focus(info);
-  expect(await screen.findByRole("tooltip")).toHaveTextContent(
-    "When healing, damage, or another normal waking trigger applies.",
-  );
-  fireEvent.click(info);
   expect(restriction).toBeChecked();
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),

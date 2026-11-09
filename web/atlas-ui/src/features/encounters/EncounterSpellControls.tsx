@@ -445,29 +445,19 @@ export function SharedResourceControl({
             />
           )}
           <Space>
-            <Tooltip
-              title={`Expend one ${resource.label}`}
-              trigger={["hover", "focus"]}
-            >
-              <Button
-                aria-label={`Expend one ${resource.label}`}
-                icon={<Minus size={14} />}
-                disabled={disabled || pending || remaining === 0}
-                onClick={() => void update(remaining - 1)}
-              />
-            </Tooltip>
+            <Button
+              aria-label={`Expend one ${resource.label}`}
+              icon={<Minus size={14} />}
+              disabled={disabled || pending || remaining === 0}
+              onClick={() => void update(remaining - 1)}
+            />
             <span aria-live="polite">{spellResourceCount(resource)}</span>
-            <Tooltip
-              title={`Restore one ${resource.label}`}
-              trigger={["hover", "focus"]}
-            >
-              <Button
-                aria-label={`Restore one ${resource.label}`}
-                icon={<Plus size={14} />}
-                disabled={disabled || pending || remaining === capacity}
-                onClick={() => void update(remaining + 1)}
-              />
-            </Tooltip>
+            <Button
+              aria-label={`Restore one ${resource.label}`}
+              icon={<Plus size={14} />}
+              disabled={disabled || pending || remaining === capacity}
+              onClick={() => void update(remaining + 1)}
+            />
           </Space>
           <Button
             disabled={disabled || pending || remaining === capacity}
