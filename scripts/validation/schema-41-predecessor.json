@@ -1,0 +1,29 @@
+{
+  "tag": "v0.1.0-nightly.20261109050726.g787c00b3b26e",
+  "commit": "787c00b3b26e5d73a39dc69708f72e95e686c402",
+  "schema": 41,
+  "ledger_sha256": "063c58315d7841c8dff56ed43ddc6a9465d92e1ff9924e59f250879d9815dd85",
+  "source_tree": "7619ff3b8c5f8635871b49464c7e87c95c732289",
+  "queries": [
+    "frighten an enemy using a threatening display",
+    "restore health to a wounded ally"
+  ],
+  "assets": {
+    "aarch64-apple-darwin": {
+      "asset": "atlas-cli-only-aarch64-apple-darwin.tar.xz",
+      "sha256": "5c0e8fd2a17d965ace0734b5f63b79fff9fc2514d587a44017f39620b5d05734"
+    },
+    "aarch64-unknown-linux-gnu": {
+      "asset": "atlas-cli-only-aarch64-unknown-linux-gnu.tar.xz",
+      "sha256": "0c27bc183b99692e1fc823c9dfb1de79c1746e87bd2e000f11e8386559d63d20"
+    },
+    "x86_64-pc-windows-msvc": {
+      "asset": "atlas-cli-only-x86_64-pc-windows-msvc.zip",
+      "sha256": "30dd35bf5ed48f43c852882ac769db290f990d4df6b2ed94ab0a489865a9741e"
+    },
+    "x86_64-unknown-linux-gnu": {
+      "asset": "atlas-cli-only-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "c84bcc72ea89354a9e0fadbe344ca0afb5d0b153e0d6bb4b6d59c6d1f1bfaea0"
+    }
+  }
+}

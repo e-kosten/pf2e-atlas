@@ -17,6 +17,7 @@ PACKAGES = {
 
 
 BASELINE_PIN = "scripts/validation/embedding-baseline.json"
+RELEASE_PREDECESSOR_PIN = "scripts/validation/schema-41-predecessor.json"
 FULL_MATRIX = ["ubuntu-24.04", "ubuntu-24.04-arm", "macos-26", "windows-2022"]
 
 
@@ -55,7 +56,7 @@ def selected_runners(base, manual):
     native = PACKAGES - {"text-splitter"}
     if (paths & {".gitattributes", "rust-toolchain.toml", "crates/atlas-embedding/Cargo.toml"}
             or any(path.startswith((".cargo/", "crates/atlas-sqlite-vec/")) for path in paths)
-            or (BASELINE_PIN in paths and not git("ls-tree", "--name-only", base, BASELINE_PIN).strip())
+            or paths & {BASELINE_PIN, RELEASE_PREDECESSOR_PIN}
             or [row for row in before["packages"] if row["name"] in native]
             != [row for row in after["packages"] if row["name"] in native]
             or any(before["workspace_dependencies"].get(name) != after["workspace_dependencies"].get(name)
