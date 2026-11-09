@@ -405,6 +405,12 @@ reminders versus complete sources and selects or preserves the canonical episode
 Stored states remain distinct. HP damage/healing uses the product HP action command;
 resolved damage, healing and direct loss remain internal policy inputs.
 
+When an add or update preview reads reference data, it returns that revision.
+Browser apply carries it alongside the encounter revision. Rust rejects stale
+reference input before preparing a fresh write and checks the prepared revision
+again under the write guard. Receipt recovery precedes both checks, and the
+preview uses a separate request ID from the one retained for saving.
+
 ## Consequences
 
 Rule changes belong in the shared owner with cross-consumer acceptance cases.

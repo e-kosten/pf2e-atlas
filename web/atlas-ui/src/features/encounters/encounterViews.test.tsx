@@ -3354,6 +3354,53 @@ describe("encounter views", () => {
       apiMocks.updateEncounterParticipantCondition.mock.calls[2][3].request_id,
     ).not.toBe(firstRequest.request_id);
   });
+  it("refreshes a stale condition preview and saves the retained draft only on the next apply", async () => {
+    let referenceRevision = 4;
+    apiMocks.previewEncounterCondition.mockImplementation(async () => ({
+      consequences: [],
+      reference_revision: referenceRevision,
+    }));
+    apiMocks.updateEncounterParticipantCondition
+      .mockImplementationOnce(async () => {
+        referenceRevision = 5;
+        throw new AtlasApiError(409, "Reference changed", {
+          code: "artifact_generation_changed",
+          message: "Reference changed",
+        });
+      })
+      .mockResolvedValueOnce({ encounter_key: "encounter_ambush" });
+
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Frightened" }));
+    const note = await screen.findByLabelText("Condition note");
+    fireEvent.change(note, { target: { value: "Keep this draft" } });
+    await clickConditionApply();
+    await waitFor(() =>
+      expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(2),
+    );
+    expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledTimes(1);
+    expect(apiMocks.updateEncounterParticipantCondition.mock.calls[0][3]).toMatchObject(
+      {
+        expected_reference_revision: 4,
+        note: "Keep this draft",
+      },
+    );
+    expect(note).toHaveValue("Keep this draft");
+
+    await clickConditionApply();
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledTimes(2),
+    );
+    expect(apiMocks.updateEncounterParticipantCondition.mock.calls[1][3]).toMatchObject(
+      {
+        expected_reference_revision: 5,
+        note: "Keep this draft",
+      },
+    );
+  });
+
   it("does not navigate an old successful Save over a newly selected editor", async () => {
     const saving = deferred<{ encounter_key: string }>();
     apiMocks.updateEncounter.mockReturnValueOnce(saving.promise);

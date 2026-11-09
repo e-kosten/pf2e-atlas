@@ -9,6 +9,8 @@ const api = vi.hoisted(() => ({
   applyEncounterSpellAction: vi.fn(),
   applyEncounterHpAction: vi.fn(),
   addEncounterParty: vi.fn(),
+  addEncounterParticipantCondition: vi.fn(),
+  previewEncounterConditionAdd: vi.fn(),
   getEncounter: vi.fn(),
   updateEncounterParticipant: vi.fn(),
   updateEncounter: vi.fn(),
@@ -329,6 +331,32 @@ it("keeps an uncertain raw HP intent id and gives a later deliberate click a fre
   }
   expect(calls[0][2].request_id).toBe(calls[1][2].request_id);
   expect(calls[2][2].request_id).not.toBe(calls[1][2].request_id);
+});
+
+it("keeps the original condition save ID when another draft is previewed", async () => {
+  api.addEncounterParticipantCondition
+    .mockRejectedValueOnce(new Error("Connection lost"))
+    .mockResolvedValueOnce({ encounter_key: "encounter-key" });
+  api.previewEncounterConditionAdd.mockResolvedValue({ consequences: [] });
+  const { result } = mount();
+  const request = { expected_encounter_revision: 4, name: "Drained", value: 2 };
+  const command = { kind: "add-condition" as const, participantKey: "actor", request };
+
+  await act(async () => {
+    await expect(result.current.run(command)).rejects.toThrow("Connection lost");
+    await result.current.previewCondition("actor", {
+      ...request,
+      participant_key: "actor",
+      value: 3,
+    });
+    await result.current.run(command);
+  });
+
+  const [first, retry] = api.addEncounterParticipantCondition.mock.calls;
+  expect(retry[2]).toEqual(first[2]);
+  expect(api.previewEncounterConditionAdd.mock.calls[0][2].request_id).not.toBe(
+    first[2].request_id,
+  );
 });
 
 it("never resubmits a committed party addition when its refresh fails", async () => {

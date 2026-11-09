@@ -672,6 +672,7 @@ mod hp_lifecycle_tests {
                 key,
                 participant,
                 AddEncounterParticipantConditionRequest {
+                    expected_reference_revision: None,
                     request_id: id.into(),
                     expected_encounter_revision: worker.encounter(key).unwrap().revision,
                     event_intent: ConditionEventIntentView::Correction,

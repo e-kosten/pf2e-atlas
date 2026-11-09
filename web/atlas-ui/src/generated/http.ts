@@ -854,6 +854,12 @@ export interface AddEncounterParticipantConditionRequest {
   duration?: ConditionDurationViewInputSchema | null;
   event_intent?: ConditionEventIntentView;
   expected_encounter_revision: number;
+  /**
+     * Reference revision used by the confirmed preview, when it consulted source data.
+     * @minimum 0
+     * @nullable
+     */
+  expected_reference_revision?: number | null;
   extra_action?: ConditionExtraActionViewInputSchema;
   immunity_override?: boolean;
   /** @nullable */
@@ -1523,6 +1529,8 @@ export interface ConditionEventPreviewView {
   encounter_revision: number;
   hp_change?: ConditionHpChangeView;
   persistent_precedence?: PersistentDamagePrecedenceView;
+  /** @minimum 0 */
+  reference_revision?: number;
 }
 
 export interface LifecycleCheckFactsView {
@@ -5387,6 +5395,12 @@ export interface UpdateEncounterParticipantConditionRequest {
   duration?: ConditionDurationViewInputSchema | null;
   event_intent?: ConditionEventIntentView;
   expected_encounter_revision: number;
+  /**
+     * Reference revision used by the confirmed preview, when it consulted source data.
+     * @minimum 0
+     * @nullable
+     */
+  expected_reference_revision?: number | null;
   extra_action?: ConditionExtraActionViewInputSchema;
   immunity_override?: boolean;
   name: string;

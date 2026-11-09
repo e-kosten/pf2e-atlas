@@ -1164,6 +1164,7 @@ fn partial_persistent_reminder_round_trips_without_joining_automation_then_can_b
             &key,
             &participant,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: "reminder-add".into(),
                 expected_encounter_revision: initial.revision,
                 condition_ref: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
@@ -1214,6 +1215,7 @@ fn partial_persistent_reminder_round_trips_without_joining_automation_then_can_b
             &participant,
             reminder.condition_id,
             UpdateEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: "reminder-complete".into(),
                 expected_encounter_revision: detail.revision,
                 condition_ref: reminder.condition_key.clone(),
@@ -1267,6 +1269,7 @@ fn persistent_edits_preserve_or_admit_episode_identity_without_browser_authority
     let saved = snapshot(&f, &key);
     let source = &saved.participants[0].conditions[0];
     let edit = |id: &str, kind: &str, revision| UpdateEncounterParticipantConditionRequest {
+        expected_reference_revision: None,
         request_id: id.into(),
         expected_encounter_revision: revision,
         condition_ref: source.condition_key.clone(),
@@ -1453,6 +1456,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         }
     }
     let request = |id: &str, formula: &str| AddEncounterParticipantConditionRequest {
+        expected_reference_revision: None,
         request_id: id.into(),
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
         condition_ref: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
@@ -1545,6 +1549,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         .find(|c| c.condition_id == d6)
         .unwrap();
     let edit = UpdateEncounterParticipantConditionRequest {
+        expected_reference_revision: None,
         request_id: "edit-choice".into(),
         expected_encounter_revision: detail.revision,
         condition_ref: source.condition_key.clone(),

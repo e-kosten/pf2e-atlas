@@ -489,6 +489,7 @@ fn condition_edit(
     revision: i64,
 ) -> UpdateEncounterParticipantConditionRequest {
     UpdateEncounterParticipantConditionRequest {
+        expected_reference_revision: None,
         request_id: "fixture-timing_tests-470".into(),
         event_intent: Default::default(),
         decisions: Default::default(),
@@ -656,6 +657,7 @@ fn expired_rounds_do_not_disable_modeled_condition_effects() {
             &key,
             &owner,
             AddEncounterParticipantConditionRequest {
+                expected_reference_revision: None,
                 request_id: format!(
                     "fixture-timing_tests-609-{}",
                     f.worker.encounter(&key).unwrap().revision
