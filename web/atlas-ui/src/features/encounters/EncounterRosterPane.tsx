@@ -1,3 +1,4 @@
+import type { ReorderPlacement } from "../../generated/atlas";
 import { EncounterRecordAdjustment } from "./EncounterRecordAdjustment";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { encounterStatusLabels } from "./encounterStatus";
@@ -86,7 +87,7 @@ export function EncounterRosterPane({
   onReorder: (
     participantKey: string,
     targetParticipantKey: string,
-    placement: "before" | "after",
+    placement: ReorderPlacement,
   ) => Promise<boolean>;
   onSelect: (participantKey: string) => void;
   onSetTurn: (participant: EncounterParticipantView) => void;

@@ -15051,20 +15051,13 @@
         ],
         "type": "object"
       },
-      "ReorderEncounterParticipantPlacementView": {
-        "enum": [
-          "before",
-          "after"
-        ],
-        "type": "string"
-      },
       "ReorderEncounterParticipantRequest": {
         "properties": {
           "participant_key": {
             "type": "string"
           },
           "placement": {
-            "$ref": "#/components/schemas/ReorderEncounterParticipantPlacementView"
+            "$ref": "#/components/schemas/ReorderPlacement"
           },
           "target_participant_key": {
             "type": "string"
@@ -15077,7 +15070,8 @@
         ],
         "type": "object"
       },
-      "ReorderSavedListItemPlacementView": {
+      "ReorderPlacement": {
+        "description": "Position relative to a target in an ordered collection.",
         "enum": [
           "before",
           "after"
@@ -15088,7 +15082,7 @@
         "additionalProperties": false,
         "properties": {
           "placement": {
-            "$ref": "#/components/schemas/ReorderSavedListItemPlacementView"
+            "$ref": "#/components/schemas/ReorderPlacement"
           },
           "record_ref": {
             "type": "string"

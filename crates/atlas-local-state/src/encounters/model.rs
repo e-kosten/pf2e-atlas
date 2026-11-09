@@ -336,17 +336,11 @@ pub struct UpdateEncounterParticipant {
     pub note: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ReorderPlacement {
-    Before,
-    After,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReorderEncounterParticipant {
     pub participant_key: String,
     pub target_participant_key: String,
-    pub placement: ReorderPlacement,
+    pub placement: atlas_domain::ReorderPlacement,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

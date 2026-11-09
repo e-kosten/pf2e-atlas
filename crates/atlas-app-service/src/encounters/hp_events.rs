@@ -399,7 +399,7 @@ impl AtlasAppService {
                     initiative_moves: vec![atlas_local_state::ReorderEncounterParticipant {
                         participant_key: participant.participant_key.clone(),
                         target_participant_key: source,
-                        placement: atlas_local_state::ReorderPlacement::Before,
+                        placement: atlas_domain::ReorderPlacement::Before,
                     }],
                     ..Default::default()
                 }

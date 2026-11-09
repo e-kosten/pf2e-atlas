@@ -22,7 +22,7 @@ use super::hydration::{prepare_participant_records, resolve_record_ref};
 use super::mechanics::effective_max;
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
-    participant_side, participant_variant, reorder_placement,
+    participant_side, participant_variant,
 };
 use super::timing::{turn_review, turn_update};
 use super::turns::next_turn_after_removed;
@@ -702,7 +702,7 @@ impl AtlasAppService {
                 .reorder_participant(ReorderEncounterParticipant {
                     participant_key: request.participant_key,
                     target_participant_key: request.target_participant_key,
-                    placement: reorder_placement(request.placement),
+                    placement: request.placement,
                 })?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
             Ok(receipt)

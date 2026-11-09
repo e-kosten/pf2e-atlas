@@ -1067,9 +1067,21 @@ async fn encounter_routes_use_real_router_wiring() {
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body, receipt);
     let other = &detail.participants[1].participant_key;
-    let(status,body)=fixture.json(Method::POST,&format!("{path}/participants/reorder"),Some(json!({"participant_key":other,"target_participant_key":fixture.participant_key,"placement":"before"}))).await;
-    assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body, receipt);
+    for placement in ["before", "after"] {
+        let (status, body) = fixture
+            .json(
+                Method::POST,
+                &format!("{path}/participants/reorder"),
+                Some(json!({
+                    "participant_key": other,
+                    "target_participant_key": fixture.participant_key,
+                    "placement": placement,
+                })),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body, receipt);
+    }
     let (status, body) = fixture
         .json(
             Method::POST,
@@ -1188,6 +1200,18 @@ async fn saved_list_reorder_route_uses_path_identity_and_strict_placement() {
         )
         .await;
     assert_eq!(detail["items"][0]["record_key"], SECOND_ACTION);
+    let mut before = request.clone();
+    before["placement"] = json!("before");
+    let (status, body) = fixture.json(Method::POST, &path, Some(before)).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (_, detail) = fixture
+        .json(
+            Method::GET,
+            &format!("/api/lists/{}", fixture.list_key),
+            None,
+        )
+        .await;
+    assert_eq!(detail["items"][0]["record_key"], ACTION);
     for invalid in [
         {
             let mut v = request.clone();

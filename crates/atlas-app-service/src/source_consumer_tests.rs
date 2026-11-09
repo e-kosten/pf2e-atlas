@@ -43,7 +43,7 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
             ReorderSavedListItemRequest {
                 record_ref: keys[2].into(),
                 target_record_ref: keys[0].into(),
-                placement: ReorderSavedListItemPlacementView::Before,
+                placement: atlas_domain::ReorderPlacement::Before,
             },
         )
         .unwrap();
@@ -99,7 +99,7 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
                 ReorderSavedListItemRequest {
                     record_ref: source.into(),
                     target_record_ref: target.into(),
-                    placement: ReorderSavedListItemPlacementView::After,
+                    placement: atlas_domain::ReorderPlacement::After,
                 },
             )
             .unwrap_err();

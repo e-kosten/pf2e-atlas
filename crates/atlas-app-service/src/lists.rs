@@ -5,8 +5,8 @@ use atlas_app_model::{
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
     ImportSavedListView, ImportedListResolutionView, RecordResolutionAmbiguousView,
-    RemoveSavedListItemRequest, ReorderSavedListItemPlacementView, ReorderSavedListItemRequest,
-    SavedListCreateView, SavedListDetailView, SavedListExportDocumentView, SavedListExportItemView,
+    RemoveSavedListItemRequest, ReorderSavedListItemRequest, SavedListCreateView,
+    SavedListDetailView, SavedListExportDocumentView, SavedListExportItemView,
     SavedListExportListView, SavedListIndexView, SavedListItemMutationOutcomeView,
     SavedListItemMutationView, SavedListItemNoteView, SavedListItemSnapshotView,
     SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
@@ -16,8 +16,7 @@ use atlas_domain::RecordKey;
 use atlas_local_state::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
     NewSavedList, ReorderSavedListItem, ResolvedSavedListItem, SavedList, SavedListItem,
-    SavedListItemPlacement, SavedListItemStatus, SavedListWithItems, UpdateSavedList,
-    hydrate_saved_list_item,
+    SavedListItemStatus, SavedListWithItems, UpdateSavedList, hydrate_saved_list_item,
 };
 use atlas_search::{GetRecordsRequest, RecordRefResolutionResult, ResolveRecordRefRequest};
 use serde_json::json;
@@ -506,16 +505,12 @@ impl AtlasAppService {
             let list = lists
                 .get(list_ref)?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
-            let placement = match request.placement {
-                ReorderSavedListItemPlacementView::Before => SavedListItemPlacement::Before,
-                ReorderSavedListItemPlacementView::After => SavedListItemPlacement::After,
-            };
             let moved = lists.reorder_item(
                 &list.list_key,
                 ReorderSavedListItem {
                     record_key: request.record_ref.clone(),
                     target_record_key: request.target_record_ref,
-                    placement,
+                    placement: request.placement,
                 },
             )?;
             if !moved {

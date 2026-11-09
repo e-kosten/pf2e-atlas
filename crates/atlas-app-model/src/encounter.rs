@@ -757,14 +757,6 @@ where
     Option::deserialize(deserializer).map(Some)
 }
 
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReorderEncounterParticipantPlacementView {
-    Before,
-    After,
-}
-
 /// A supplied exact value; null explicitly clears current/maximum availability.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -828,7 +820,7 @@ pub struct ApplyEncounterHpActionRequest {
 pub struct ReorderEncounterParticipantRequest {
     pub participant_key: String,
     pub target_participant_key: String,
-    pub placement: ReorderEncounterParticipantPlacementView,
+    pub placement: atlas_domain::ReorderPlacement,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

@@ -148,15 +148,7 @@ pub struct RemoveSavedListItemRequest {
 pub struct ReorderSavedListItemRequest {
     pub record_ref: String,
     pub target_record_ref: String,
-    pub placement: ReorderSavedListItemPlacementView,
-}
-
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReorderSavedListItemPlacementView {
-    Before,
-    After,
+    pub placement: atlas_domain::ReorderPlacement,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

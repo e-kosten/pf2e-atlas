@@ -286,7 +286,7 @@ fn plan_damage_lifecycle(
                 .push(atlas_local_state::ReorderEncounterParticipant {
                     participant_key: participant.participant_key.clone(),
                     target_participant_key: source.clone(),
-                    placement: atlas_local_state::ReorderPlacement::Before,
+                    placement: atlas_domain::ReorderPlacement::Before,
                 });
         } else {
             changes.pending.push(SavedPendingConsequence {

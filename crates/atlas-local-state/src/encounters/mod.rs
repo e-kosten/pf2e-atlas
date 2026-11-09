@@ -47,8 +47,8 @@ pub use model::{
     EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
     EncounterWithParticipantCount, EncounterWithParticipants, NewEncounter, ParticipantHpOrigin,
     ParticipantKind, ParticipantSide, ParticipantVariant, ParticipantVariantOrigin,
-    ReorderEncounterParticipant, ReorderPlacement, SpellResource, UpdateEncounter,
-    UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
+    ReorderEncounterParticipant, SpellResource, UpdateEncounter, UpdateEncounterParticipant,
+    UpdateEncounterParticipantCondition,
 };
 pub use service::{EncountersRead, EncountersWrite};
 

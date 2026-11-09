@@ -4792,30 +4792,25 @@ export interface RemoveSavedListItemRequest {
   record_ref: string;
 }
 
-export type ReorderEncounterParticipantPlacementView = typeof ReorderEncounterParticipantPlacementView[keyof typeof ReorderEncounterParticipantPlacementView];
+/**
+ * Position relative to a target in an ordered collection.
+ */
+export type ReorderPlacement = typeof ReorderPlacement[keyof typeof ReorderPlacement];
 
 
-export const ReorderEncounterParticipantPlacementView = {
+export const ReorderPlacement = {
   before: 'before',
   after: 'after',
 } as const;
 
 export interface ReorderEncounterParticipantRequest {
   participant_key: string;
-  placement: ReorderEncounterParticipantPlacementView;
+  placement: ReorderPlacement;
   target_participant_key: string;
 }
 
-export type ReorderSavedListItemPlacementView = typeof ReorderSavedListItemPlacementView[keyof typeof ReorderSavedListItemPlacementView];
-
-
-export const ReorderSavedListItemPlacementView = {
-  before: 'before',
-  after: 'after',
-} as const;
-
 export interface ReorderSavedListItemRequest {
-  placement: ReorderSavedListItemPlacementView;
+  placement: ReorderPlacement;
   record_ref: string;
   target_record_ref: string;
 }
