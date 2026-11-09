@@ -1962,8 +1962,8 @@ fn rich_prerequisites_are_prepared_attributed_and_keep_unavailable_entries() {
     assert!(html.contains("or trained in Medicine"));
     assert!(!html.contains("@UUID"));
     assert!(detail.relationships.iter().any(|r| {
-        r.target
-            .as_ref()
+        r.destination
+            .record_target()
             .is_some_and(|t| t.record_key == "feats:bbbbbbbbbbbbbbbb")
     }));
     let PreparedFieldBodyView::Html { html, .. } = &fields[1].body else {

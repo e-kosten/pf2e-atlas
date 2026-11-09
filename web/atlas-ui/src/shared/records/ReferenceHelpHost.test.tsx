@@ -42,7 +42,7 @@ const definition: DefinitionDetailView = {
       controls: [],
       html: '<p>A trait definition with a <span data-atlas-reference="0">Condition reference</span>.</p>',
     },
-    references: [{ ordinal: 0, target, status: "resolved_record", url: null }],
+    references: [{ ordinal: 0, destination: { kind: "resolved_record", target } }],
   },
   related_filters: [],
   publications: [],

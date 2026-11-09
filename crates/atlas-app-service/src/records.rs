@@ -418,8 +418,9 @@ impl<'a> LoadedRecordDetail<'a> {
             .into_iter()
             .map(|mut relationship| {
                 if relationship.kind == "CompendiumProvenance"
-                    && relationship.status == "resolved_record"
-                    && let Some(target) = &mut relationship.target
+                    && let atlas_app_model::RecordReferenceDestinationView::ResolvedRecord {
+                        target,
+                    } = &mut relationship.destination
                 {
                     target.spell_rank = spell_rank;
                 }

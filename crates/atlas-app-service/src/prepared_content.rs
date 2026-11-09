@@ -620,16 +620,14 @@ pub(crate) fn reference_body(
             .into_iter()
             .filter(|reference| reference.visible)
             .map(|reference| {
-                let (status, target, url) = crate::projection::content_reference_destination(
+                let destination = crate::projection::content_reference_destination(
                     reference.resolution,
                     retrieval.source_fingerprint(),
                 );
                 PreparedReferenceView {
                     self_action_reference: None,
                     ordinal: reference.ordinal,
-                    status: status.into(),
-                    target,
-                    url,
+                    destination,
                     effect_label: None,
                     contextual_target: None,
                 }

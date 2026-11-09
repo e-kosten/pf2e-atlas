@@ -228,15 +228,16 @@ export function detailFixture(
             occurrence_path: null,
             audiences: [],
             availability: null,
-            status: "resolved_root",
-            target: {
-              record_key: target,
-              embedded_path: [],
-              field: null,
-              passage: null,
-              source_fingerprint: null,
+            destination: {
+              kind: "resolved_record",
+              target: {
+                record_key: target,
+                embedded_path: [],
+                field: null,
+                passage: null,
+                source_fingerprint: null,
+              },
             },
-            url: null,
           },
         ]
       : [],

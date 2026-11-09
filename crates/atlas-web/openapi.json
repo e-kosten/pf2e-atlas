@@ -12061,6 +12061,9 @@
           "contextual_target": {
             "$ref": "#/components/schemas/RecordNavigationView"
           },
+          "destination": {
+            "$ref": "#/components/schemas/RecordReferenceDestinationView"
+          },
           "effect_label": {
             "$ref": "#/components/schemas/EffectReferenceLabelView"
           },
@@ -12071,32 +12074,11 @@
           "self_action_reference": {
             "description": "Derived action command targets its containing root action; readers retain\nthe label without offering redundant navigation. Target evidence remains.",
             "type": "boolean"
-          },
-          "status": {
-            "type": "string"
-          },
-          "target": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecordNavigationView"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "url": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         },
         "required": [
           "ordinal",
-          "status",
-          "target",
-          "url"
+          "destination"
         ],
         "type": "object"
       },
@@ -13877,6 +13859,116 @@
         ],
         "type": "object"
       },
+      "RecordReferenceDestinationView": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "resolved_record"
+                ],
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/components/schemas/RecordNavigationView"
+              }
+            },
+            "required": [
+              "target",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "resolved_embedded"
+                ],
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/components/schemas/RecordNavigationView"
+              }
+            },
+            "required": [
+              "target",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "resolved_url"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "unverified_url"
+                ],
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "unresolved"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "blocked"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "RecordRelationshipView": {
         "properties": {
           "audiences": {
@@ -13903,6 +13995,9 @@
           },
           "contextual_target": {
             "$ref": "#/components/schemas/RecordNavigationView"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/RecordReferenceDestinationView"
           },
           "effect_label": {
             "oneOf": [
@@ -13943,27 +14038,8 @@
           "source_title": {
             "type": "string"
           },
-          "status": {
-            "type": "string"
-          },
-          "target": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/RecordNavigationView"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "target_title": {
             "type": "string"
-          },
-          "url": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         },
         "required": [
@@ -13976,9 +14052,7 @@
           "occurrence_path",
           "audiences",
           "availability",
-          "status",
-          "target",
-          "url",
+          "destination",
           "effect_label"
         ],
         "type": "object"

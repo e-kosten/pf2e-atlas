@@ -40,7 +40,7 @@ pub(super) fn resolve_self_effects(
                         && relationship.source.owners == activity.navigation.owners
                         && relationship.authored_target == effect.authored_target.value
                 })
-                .and_then(|relationship| relationship.target.clone());
+                .and_then(|relationship| relationship.destination.record_target().cloned());
         }
     }
     Ok(())

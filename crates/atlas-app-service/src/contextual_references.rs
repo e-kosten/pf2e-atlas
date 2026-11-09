@@ -52,7 +52,7 @@ pub(crate) fn attach_consumable_spell(
     for edge in &mut view.relationships {
         if edge.origin == "content"
             && edge.source.owners == view.selected.owners
-            && edge.target.as_ref().is_some_and(|target| {
+            && edge.destination.record_target().is_some_and(|target| {
                 target.record_key == canonical.to_string() && target.owners.is_empty()
             })
         {
@@ -92,7 +92,7 @@ pub(crate) fn attach_ranked_effects(
         if edge.origin != "content" || edge.source.owners != view.selected.owners {
             continue;
         }
-        let Some(target) = &edge.target else {
+        let Some(target) = edge.destination.record_target() else {
             continue;
         };
         if !records.contains_key(&target.record_key) {
@@ -209,7 +209,7 @@ mod tests {
                     .find(|e| e.origin == "content")
                     .unwrap();
                 assert_eq!(
-                    edge.target.as_ref().unwrap().record_key,
+                    edge.destination.record_target().unwrap().record_key,
                     "spells:hhhhhhhhhhhhhhhh"
                 );
                 assert_eq!(edge.contextual_target.is_some(), matches, "{mode}");

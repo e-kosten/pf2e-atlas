@@ -375,8 +375,8 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
     assert!(first.entries[0].relationships.iter().any(|edge| {
         edge.kind == "TableResult"
             && edge
-                .target
-                .as_ref()
+                .destination
+                .record_target()
                 .is_some_and(|target| target.record_key == "items:item000000000000")
     }));
     let metrics = fixture.worker.last_read_metrics();
@@ -473,8 +473,8 @@ fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
     assert!(entry.relationships.iter().any(|r| {
         r.source.owners == entry.navigation.owners
             && r.source.field == fields[0].locator.field
-            && r.target
-                .as_ref()
+            && r.destination
+                .record_target()
                 .is_some_and(|t| t.record_key == "actions:testAction100000")
     }));
 }

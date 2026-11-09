@@ -1,3 +1,4 @@
+import { referenceRecordTarget } from "./recordReferenceDestination";
 import { RouterTestContext } from "../../test/router";
 import { within, waitFor, fireEvent, render, screen } from "@testing-library/react";
 import { PreparedContent } from "./PreparedContent";
@@ -72,8 +73,8 @@ describe("prepared source HTML", () => {
       "href",
       destinationHref(
         recordDestination({
-          recordKey: edge.target!.record_key,
-          selection: edge.target!,
+          recordKey: referenceRecordTarget(edge.destination)!.record_key,
+          selection: referenceRecordTarget(edge.destination)!,
         }),
       ),
     );
@@ -81,9 +82,9 @@ describe("prepared source HTML", () => {
     expect(onReference).not.toHaveBeenCalled();
     fireEvent.click(link);
     expect(onReference).toHaveBeenCalledWith(
-      edge.target!.record_key,
+      referenceRecordTarget(edge.destination)!.record_key,
       link,
-      edge.target,
+      referenceRecordTarget(edge.destination),
     );
     rerender(
       <PreparedContent
@@ -134,7 +135,13 @@ describe("prepared source HTML", () => {
     const inner = {
       ...detail.relationships[0],
       ordinal: 1,
-      target: { ...detail.relationships[0].target!, record_key: "rules:inner" },
+      destination: {
+        kind: "resolved_record" as const,
+        target: {
+          ...referenceRecordTarget(detail.relationships[0].destination)!,
+          record_key: "rules:inner",
+        },
+      },
     };
     const callback = vi.fn();
     render(
@@ -168,9 +175,7 @@ describe("prepared source HTML", () => {
     const external = {
       ...detail.relationships[0],
       ordinal: 1,
-      target: null,
-      url: "https://example.com",
-      status: "resolved_url",
+      destination: { kind: "resolved_url" as const, url: "https://example.com" },
     };
     const callback = vi.fn();
     render(
@@ -255,7 +260,7 @@ describe("prepared source HTML", () => {
     expect(callback).toHaveBeenCalledWith(
       "rules:nested",
       expect.anything(),
-      detail.relationships[0].target,
+      referenceRecordTarget(detail.relationships[0].destination),
     );
     const reference = screen.getByText("Nested Rule");
     expect(reference).toHaveAttribute(
@@ -263,7 +268,7 @@ describe("prepared source HTML", () => {
       destinationHref(
         recordDestination({
           recordKey: "rules:nested",
-          selection: detail.relationships[0].target!,
+          selection: referenceRecordTarget(detail.relationships[0].destination)!,
         }),
       ),
     );
@@ -314,11 +319,9 @@ describe("prepared source HTML", () => {
     };
     const safe = {
       ...detail.relationships[0],
-      target: null,
-      url: "https://example.com",
-      status: "resolved_url",
+      destination: { kind: "resolved_url" as const, url: "https://example.com" },
     };
-    const blocked = { ...safe, ordinal: 1, status: "blocked", url: null };
+    const blocked = { ...safe, ordinal: 1, destination: { kind: "blocked" as const } };
     render(
       <PreparedContent
         content={content}
@@ -338,12 +341,12 @@ describe("prepared source HTML", () => {
 it("retains exact native local addresses, modifiers and target intent through listener replacement and unavailable refresh", () => {
   const detail = detailFixture("actors:parent", "Parent", "rules:linked");
   const target = {
-    ...detail.relationships[0].target!,
+    ...referenceRecordTarget(detail.relationships[0].destination)!,
     embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index: 3 } } }],
     field: "system.description.value",
     source_fingerprint: "copy-a",
   };
-  detail.relationships[0].target = target;
+  detail.relationships[0].destination = { kind: "resolved_embedded", target };
   const callback = vi.fn();
   const nextCallback = vi.fn();
   const props = {
@@ -380,7 +383,9 @@ it("retains exact native local addresses, modifiers and target intent through li
   rerender(
     <PreparedContent
       {...props}
-      relationships={[{ ...detail.relationships[0], target: null }]}
+      relationships={[
+        { ...detail.relationships[0], destination: { kind: "unresolved" } },
+      ]}
       onReference={nextCallback}
     />,
   );
@@ -404,7 +409,7 @@ it("opens verified item context without changing the original citation", () => {
   const edge = {
     ...detail.relationships[0],
     contextual_target: {
-      ...detail.relationships[0].target!,
+      ...referenceRecordTarget(detail.relationships[0].destination)!,
       record_key: "equipment:wand",
       embedded_path: [
         { collection: "/system/spell", identity: { Stable: "localspell" } },
@@ -412,7 +417,7 @@ it("opens verified item context without changing the original citation", () => {
       spell_rank: 2,
     },
   };
-  const original = structuredClone(edge.target);
+  const original = structuredClone(referenceRecordTarget(edge.destination));
   const onReference = vi.fn();
   render(
     <PreparedContent
@@ -437,7 +442,7 @@ it("opens verified item context without changing the original citation", () => {
     link,
     edge.contextual_target,
   );
-  expect(edge.target).toEqual(original);
+  expect(referenceRecordTarget(edge.destination)).toEqual(original);
 });
 
 it("keeps authored table nodes, links and horizontal position across unchanged-content updates", () => {
@@ -500,7 +505,13 @@ it("binds inclusion links to their own exact targets while checks remain plain t
   const field = detail.presentation.content[0];
   const nested = {
     ...detail.relationships[0],
-    target: { ...detail.relationships[0].target!, record_key: "actions:nested" },
+    destination: {
+      kind: "resolved_record" as const,
+      target: {
+        ...referenceRecordTarget(detail.relationships[0].destination)!,
+        record_key: "actions:nested",
+      },
+    },
   };
   field.body = {
     kind: "html",
@@ -562,7 +573,9 @@ it.each([false, true])(
       html: `<p><span data-atlas-reference="0">${implicit ? "Animal Form (Bear)" : "Bear"}</span></p>`,
       controls: [],
     };
-    const original = structuredClone(detail.relationships[0].target!);
+    const original = structuredClone(
+      referenceRecordTarget(detail.relationships[0].destination)!,
+    );
     const contextual = { ...original, spell_rank: 4 };
     const edge = {
       ...detail.relationships[0],
@@ -591,7 +604,7 @@ it.each([false, true])(
     expect(onReference).not.toHaveBeenCalled();
     fireEvent.click(link);
     expect(onReference).toHaveBeenCalledWith(contextual.record_key, link, contextual);
-    expect(edge.target).toEqual(original);
+    expect(referenceRecordTarget(edge.destination)).toEqual(original);
   },
 );
 
@@ -880,7 +893,7 @@ it("keeps an authored self-action label readable without reopening the same acti
   expect(screen.queryByRole("button", { name: /Perception/ })).toBeNull();
   fireEvent.click(label);
   expect(onReference).not.toHaveBeenCalled();
-  expect(reference.target?.record_key).toBe("actions:seek");
+  expect(referenceRecordTarget(reference.destination)?.record_key).toBe("actions:seek");
 });
 
 it.each<{

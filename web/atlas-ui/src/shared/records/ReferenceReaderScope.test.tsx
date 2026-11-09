@@ -69,11 +69,14 @@ function childDetail(key: string): RecordDetailView {
 it("keeps selected-reader child references, owner suppression and source actions local beneath the real app host", async () => {
   history.replaceState(null, "", "/search");
   const parent = detailFixture("actors:ghoul", "Ghoul", "actors:ghoul");
-  parent.relationships[0].target = child("actors:ghoul");
+  parent.relationships[0].destination = {
+    kind: "resolved_embedded",
+    target: child("actors:ghoul"),
+  };
   parent.relationships.push({
     ...parent.relationships[0],
     ordinal: 1,
-    target: child("actors:dragon"),
+    destination: { kind: "resolved_embedded", target: child("actors:dragon") },
   });
   parent.presentation.content[0].body = {
     kind: "html",
@@ -162,7 +165,10 @@ it("keeps selected-reader child references, owner suppression and source actions
 it("preserves the standalone visible root owner when its scoped Host is nested under the app fallback", async () => {
   history.replaceState(null, "", "/records/actors:ghoul");
   const parent = detailFixture("actors:ghoul", "Ghoul", "actors:ghoul");
-  parent.relationships[0].target = child("actors:ghoul");
+  parent.relationships[0].destination = {
+    kind: "resolved_embedded",
+    target: child("actors:ghoul"),
+  };
   vi.mocked(getRecordDetail).mockImplementation(async (key, request) =>
     request?.embedded_path?.length ? childDetail(key) : parent,
   );

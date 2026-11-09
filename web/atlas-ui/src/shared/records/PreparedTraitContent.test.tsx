@@ -18,7 +18,7 @@ it("renders prepared definition references with their checked destination and st
         html: '<p>Become <span data-atlas-reference="0">Stupefied 1</span>.</p><img src="x" onerror="alert(1)"><script>alert(1)</script>',
         controls: [],
       }}
-      references={[{ ordinal: 0, target, status: "resolved_record", url: null }]}
+      references={[{ ordinal: 0, destination: { kind: "resolved_record", target } }]}
       onReference={open}
     />,
   );

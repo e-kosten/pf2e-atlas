@@ -224,8 +224,9 @@ pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadiness
 pub use record::{
     ContentLocationView, EffectReferenceLabelView, RecordAddress, RecordBadgeView,
     RecordDetailRequest, RecordDetailView, RecordEditionView, RecordNavigationView,
-    RecordRefResolutionView, RecordRelationshipView, RecordResolutionAmbiguousView,
-    RecordResolutionCandidateView, RecordSelection, RecordSummaryView,
+    RecordRefResolutionView, RecordReferenceDestinationView, RecordRelationshipView,
+    RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSelection,
+    RecordSummaryView,
 };
 pub use search::{
     ConnectionScopeUnavailableReason, ConnectionScopeView, MatchPreviewView,

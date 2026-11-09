@@ -1,3 +1,7 @@
+import {
+  referenceExternalUrl,
+  referenceRecordTarget,
+} from "./recordReferenceDestination";
 import { useReferenceRecordNavigation as useContextualReference } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { similarityPartsQueryOptions } from "../search/similarityQueries";
@@ -70,7 +74,9 @@ export function RelatedRecords(props: ExploreProps) {
   const graph = related.data?.references;
   const otherReferences =
     graph?.kind === "content" &&
-    graph.content.outgoing.occurrences.some((entry) => !entry.target);
+    graph.content.outgoing.occurrences.some(
+      (entry) => !referenceRecordTarget(entry.destination),
+    );
   const hasIncoming =
     !!incoming.query.error ||
     !incoming.query.data ||
@@ -285,7 +291,9 @@ function OtherReferences({ detail, onReload, reloadLabel }: ExploreProps) {
   const graph = related.data?.references;
   const other =
     graph?.kind === "content"
-      ? graph.content.outgoing.occurrences.filter((entry) => !entry.target)
+      ? graph.content.outgoing.occurrences.filter(
+          (entry) => !referenceRecordTarget(entry.destination),
+        )
       : [];
   if (related.error)
     return (
@@ -309,25 +317,22 @@ function OtherReferences({ detail, onReload, reloadLabel }: ExploreProps) {
     <div className="record-explore__other">
       <h3>Other references</h3>
       <ul>
-        {other.slice(0, 5).map((entry, index) => (
-          <li key={index}>
-            {entry.url &&
-            ["resolved_url", "unverified_url"].includes(entry.status) &&
-            DOMPurify.isValidAttribute("a", "href", entry.url) ? (
-              <Typography.Link
-                href={entry.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                External reference
-              </Typography.Link>
-            ) : (
-              <Typography.Text type="secondary">
-                This reference is unavailable in the current collection.
-              </Typography.Text>
-            )}
-          </li>
-        ))}
+        {other.slice(0, 5).map((entry, index) => {
+          const url = referenceExternalUrl(entry.destination);
+          return (
+            <li key={index}>
+              {url && DOMPurify.isValidAttribute("a", "href", url) ? (
+                <Typography.Link href={url} target="_blank" rel="noopener noreferrer">
+                  External reference
+                </Typography.Link>
+              ) : (
+                <Typography.Text type="secondary">
+                  This reference is unavailable in the current collection.
+                </Typography.Text>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

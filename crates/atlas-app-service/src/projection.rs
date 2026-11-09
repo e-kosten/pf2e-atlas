@@ -268,39 +268,36 @@ pub(crate) fn search_results_view(
 pub(crate) fn content_reference_destination(
     resolution: atlas_record::source_content::ContentReferenceResolution,
     fingerprint: &str,
-) -> (&'static str, Option<RecordNavigationView>, Option<String>) {
+) -> atlas_app_model::RecordReferenceDestinationView {
+    use atlas_app_model::RecordReferenceDestinationView as Destination;
     use atlas_record::source_content::{
         ContentReferenceResolution as Resolution, ContentReferenceTarget as Target,
     };
     match resolution {
-        Resolution::Resolved(Target::Record { key }) => (
-            "resolved_record",
-            Some(RecordNavigationView {
+        Resolution::Resolved(Target::Record { key }) => Destination::ResolvedRecord {
+            target: RecordNavigationView {
                 spell_rank: None,
                 record_key: key.to_string(),
                 owners: vec![],
                 field: None,
                 passage: None,
                 source_fingerprint: None,
-            }),
-            None,
-        ),
-        Resolution::Resolved(Target::OwnedNode { key, owners }) => (
-            "resolved_embedded",
-            Some(RecordNavigationView {
+            },
+        },
+        Resolution::Resolved(Target::OwnedNode { key, owners }) => Destination::ResolvedEmbedded {
+            target: RecordNavigationView {
                 spell_rank: None,
                 record_key: key.to_string(),
                 source_fingerprint: navigation_fingerprint(&owners, fingerprint),
                 owners,
                 field: None,
                 passage: None,
-            }),
-            None,
-        ),
-        Resolution::Resolved(Target::Url { url }) => ("resolved_url", None, Some(url)),
-        Resolution::UnverifiedUrl { url } => ("unverified_url", None, Some(url)),
-        Resolution::Unresolved => ("unresolved", None, None),
-        Resolution::Blocked => ("blocked", None, None),
+            },
+        },
+        Resolution::Resolved(Target::Url { url }) => Destination::ResolvedUrl { url },
+        Resolution::UnverifiedUrl { url } => Destination::UnverifiedUrl { url },
+        Resolution::Unresolved => Destination::Unresolved,
+        Resolution::Blocked => Destination::Blocked,
     }
 }
 
@@ -318,7 +315,6 @@ pub(crate) fn relationship_view(
     let self_action_reference = (derived_action && o.locator.owners.is_empty()
         && matches!(&o.resolution, ContentReferenceResolution::Resolved(ContentReferenceTarget::Record { key }) if key == &o.locator.record))
         .then_some(true);
-    let (status, target, url) = content_reference_destination(o.resolution, fingerprint);
     atlas_app_model::RecordRelationshipView {
         self_action_reference,
         source_title: None,
@@ -340,9 +336,7 @@ pub(crate) fn relationship_view(
         occurrence_path: o.occurrence_path,
         audiences: o.details.audiences,
         availability: o.details.availability.map(field_state),
-        status: status.into(),
-        target,
-        url,
+        destination: content_reference_destination(o.resolution, fingerprint),
         effect_label: None,
         contextual_target: None,
     }
@@ -658,7 +652,7 @@ mod tests {
         let view = relationship_view(action.clone(), "snapshot");
         assert_eq!(view.self_action_reference, Some(true));
         assert_eq!(
-            view.target.unwrap().record_key,
+            view.destination.record_target().unwrap().record_key,
             "actions:aaaaaaaaaaaaaaaa",
             "Resolved evidence remains available"
         );
@@ -714,7 +708,7 @@ mod tests {
             distinct[0].effect_label.as_ref().unwrap().title,
             "Spell Effect: Enlarge"
         );
-        assert_eq!(distinct[0].target, single[0].target);
+        assert_eq!(distinct[0].destination, single[0].destination);
 
         let mut next_paragraph = second.clone();
         next_paragraph.details.label.as_mut().unwrap().block = "/1".into();
@@ -776,12 +770,12 @@ mod tests {
             ["Claim Corpse - Fleshy", "Claim Corpse - Skeletal"]
         );
         assert_eq!(
-            views[0].target,
-            relationship_view(fleshy, "snapshot").target
+            views[0].destination,
+            relationship_view(fleshy, "snapshot").destination
         );
         assert_eq!(
-            views[1].target,
-            relationship_view(skeletal, "snapshot").target
+            views[1].destination,
+            relationship_view(skeletal, "snapshot").destination
         );
     }
 
@@ -867,7 +861,10 @@ mod tests {
                 );
                 assert!(view.source_navigation.passage.is_none());
                 assert_eq!(view.ordinal, ordinal);
-                assert_eq!(view.target.unwrap().record_key, seed_key.to_string());
+                assert_eq!(
+                    view.destination.record_target().unwrap().record_key,
+                    seed_key.to_string()
+                );
             }
         }
     }

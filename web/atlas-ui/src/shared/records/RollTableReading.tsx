@@ -1,3 +1,4 @@
+import { referenceRecordTarget } from "./recordReferenceDestination";
 import { recordSelection } from "./recordDetailQuery";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { LoadingStatus } from "../ui/LoadingStatus";
@@ -173,12 +174,13 @@ function TableResultContent({
   entry: EmbeddedReadingEntryView;
   onReference: RecordReferenceHandler;
 }) {
-  const links = entry.relationships.filter(
-    (link) => link.kind === "TableResult" && link.target,
-  );
+  const targets = entry.relationships.flatMap((link) => {
+    const target = referenceRecordTarget(link.destination);
+    return link.kind === "TableResult" && target ? [target] : [];
+  });
   const label = simpleResultLabel(entry);
-  if (links.length === 1 && label) {
-    const target = links[0].target!;
+  if (targets.length === 1 && label) {
+    const target = targets[0];
     return (
       <Typography.Link
         href={destinationHref(
@@ -207,8 +209,7 @@ function TableResultContent({
           onReference={onReference}
         />
       ))}
-      {links.map((link, index) => {
-        const target = link.target!;
+      {targets.map((target, index) => {
         return (
           <Button
             key={index}

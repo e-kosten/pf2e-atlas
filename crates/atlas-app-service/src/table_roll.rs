@@ -292,8 +292,8 @@ mod service_tests {
             }
             assert!(rolled.matches[0].relationships.iter().any(|relationship| {
                 relationship
-                    .target
-                    .as_ref()
+                    .destination
+                    .record_target()
                     .is_some_and(|target| target.record_key == "tables:table00000000001")
             }));
             assert!(rolled.matches[0].presentation.content.iter().any(|field| matches!(&field.body, atlas_app_model::PreparedFieldBodyView::Html { html, .. } if html.contains("Other table") && html.contains("data-atlas-reference"))));

@@ -2000,6 +2000,24 @@ export interface DefinitionDetailRequest {
   expected_artifact_generation?: string | null;
 }
 
+export type RecordReferenceDestinationView = {
+  kind: 'resolved_record';
+  target: RecordNavigationView;
+} | {
+  kind: 'resolved_embedded';
+  target: RecordNavigationView;
+} | {
+  kind: 'resolved_url';
+  url: string;
+} | {
+  kind: 'unverified_url';
+  url: string;
+} | {
+  kind: 'unresolved';
+} | {
+  kind: 'blocked';
+};
+
 export interface EffectReferenceLabelView {
   text: string;
   title: string;
@@ -2011,6 +2029,7 @@ export interface RecordRelationshipView {
   authored_target: string | null;
   availability: QueryFieldState | null;
   contextual_target?: RecordNavigationView;
+  destination: RecordReferenceDestinationView;
   effect_label: EffectReferenceLabelView | null;
   kind: string;
   /** @nullable */
@@ -2026,11 +2045,7 @@ export interface RecordRelationshipView {
   source: ContentLocationView;
   source_navigation: RecordNavigationView;
   source_title?: string;
-  status: string;
-  target: RecordNavigationView | null;
   target_title?: string;
-  /** @nullable */
-  url: string | null;
 }
 
 /**
@@ -2066,6 +2081,7 @@ export type PreparedFieldBodyView = {
  */
 export interface PreparedReferenceView {
   contextual_target?: RecordNavigationView;
+  destination: RecordReferenceDestinationView;
   effect_label?: EffectReferenceLabelView;
   /** @minimum 0 */
   ordinal: number;
@@ -2074,10 +2090,6 @@ export interface PreparedReferenceView {
      * the label without offering redundant navigation. Target evidence remains.
      */
   self_action_reference?: boolean;
-  status: string;
-  target: RecordNavigationView | null;
-  /** @nullable */
-  url: string | null;
 }
 
 /**

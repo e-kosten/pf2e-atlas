@@ -72,7 +72,7 @@ fn exact_effect_link_carries_selected_rank_without_replacing_authored_destinatio
         .iter()
         .find(|r| r.origin == "content")
         .unwrap();
-    let authored = link.target.as_ref().unwrap();
+    let authored = link.destination.record_target().unwrap();
     let context = link.contextual_target.as_ref().unwrap();
     assert_eq!(authored.record_key, context.record_key);
     assert_eq!(authored.spell_rank, None);

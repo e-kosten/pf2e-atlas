@@ -226,8 +226,10 @@ describe("record route views", () => {
     apiMocks.getRecordDetail.mockImplementation(
       (recordKey: string, selection?: RecordDetailRequest) => {
         const result = recordDetailFixture(recordKey);
-        result.relationships[0].target =
-          recordKey === primary.record_key ? first : second;
+        result.relationships[0].destination = {
+          kind: "resolved_embedded",
+          target: recordKey === primary.record_key ? first : second,
+        };
         if (selection)
           result.selected = {
             record_key: selection.record_key,

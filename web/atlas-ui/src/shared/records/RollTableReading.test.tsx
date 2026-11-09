@@ -52,7 +52,9 @@ it("reads a batch of complete table text and opens its checked reference in plac
             },
           },
         ],
-        relationships: [{ kind: "TableResult", target }],
+        relationships: [
+          { kind: "TableResult", destination: { kind: "resolved_record", target } },
+        ],
       },
     ],
   });
