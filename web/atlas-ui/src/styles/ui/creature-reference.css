@@ -19,6 +19,13 @@
 }
 /* Fit the full reading measure, outline, and both page insets before widening. */
 @media (min-width: 68rem) {
+  .record-view:has(
+    > .record-view__pane--creature
+      .creature-reference:not(.creature-reference--caster)
+      .creature-reference__outline
+  ) {
+    container: creature-sheet / inline-size;
+  }
   .record-view__pane--creature:has(
     .creature-reference:not(.creature-reference--caster) .creature-reference__outline
   ) {
@@ -26,6 +33,10 @@
       var(--document-measure) + var(--creature-outline-width) + var(--space-section) +
         2 * var(--record-page-inset) + 2px
     );
+    /* The page can fit the outline even after the sheet has capped its width. */
+    .creature-reference {
+      container-name: none;
+    }
   }
 }
 .record-view__pane--creature > .record-reference__header,
@@ -43,12 +54,6 @@
 .creature-reference {
   container: creature-sheet / inline-size;
   min-width: 0;
-}
-.record-view__pane--creature
-  .creature-reference:not(.creature-reference--caster):has(
-    .creature-reference__outline
-  ) {
-  container-name: standalone-creature-sheet;
 }
 .creature-reference__body {
   container: creature-body / inline-size;
@@ -195,7 +200,7 @@
   margin-block: 0;
 }
 
-@container creature-sheet (min-width: 62rem), standalone-creature-sheet (min-width: 58rem) {
+@container creature-sheet (min-width: 62rem) {
   .creature-reference:not(.creature-reference--encounter)
     > .creature-reference__layout {
     display: grid;
