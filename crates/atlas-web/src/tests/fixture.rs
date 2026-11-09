@@ -111,7 +111,7 @@ impl Fixture {
             record(
                 "actions",
                 "Item",
-                json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"publication":{"remaster":false},"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["fire"]},"description":{"value":"<p>Flame @Damage[1d6[fire]] burns.</p>"}}}),
+                json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"publication":{"remaster":false},"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["fire"]},"description":{"value":"<p>Flame @Damage[1d6[fire]] burns.</p><h2>Lantern Colors</h2><table><tr><th>Color</th><th>Meaning</th></tr><tr><td>Amber</td><td>Stop</td></tr></table><h2>Lantern Signals</h2><p>One flash means wait.</p><p>Two flashes mean go.</p><h2>Lantern Warning</h2><p>Deals @Damage[(@actor.level)d6[@actor.flags.system.barbarian.instinct.dragon.damageType]] damage.</p>"}}}),
             ),
             record(
                 "actions",

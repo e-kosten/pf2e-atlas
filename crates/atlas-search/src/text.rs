@@ -60,7 +60,9 @@ pub struct SearchWitness {
     pub location: SourceUnitLocation,
     pub lane: SearchLane,
     pub label: Option<String>,
-    pub snippet: Option<String>,
+    pub preview: Option<atlas_record::source_record::SourceMatchPreview>,
+    #[serde(skip)]
+    pub parent_heading: Option<String>,
     pub lexical_rank: Option<f64>,
     pub semantic_similarity: Option<f64>,
 }
@@ -129,7 +131,8 @@ fn lexical_witness(hit: SourceLexicalHit) -> SearchWitness {
         label: hit.label.clone(),
         location: hit.location,
         lane: SearchLane::Lexical,
-        snippet: None,
+        preview: None,
+        parent_heading: None,
         lexical_rank: Some(hit.rank),
         semantic_similarity: None,
     }
@@ -139,7 +142,8 @@ fn semantic_witness(hit: SourceVectorHit) -> SearchWitness {
         label: label(&hit.location),
         location: hit.location,
         lane: SearchLane::Semantic,
-        snippet: None,
+        preview: None,
+        parent_heading: None,
         lexical_rank: None,
         semantic_similarity: Some(1.0 - hit.distance),
     }
@@ -406,54 +410,16 @@ impl AtlasRetrievalService {
         for batch in owned_locations.chunks(256) {
             owned_labels.extend(self.index.owned_search_labels(batch)?);
         }
-        let mut locators = selected
+        let locations = selected
             .iter()
-            .flat_map(|r| &r.witnesses)
-            .filter(|m| {
-                matches!(
-                    m.location.address,
-                    Some(SourcePassageAddress::HtmlSection { .. })
-                )
-            })
-            .filter_map(|m| {
-                m.location.field.as_ref().map(|f| {
-                    atlas_record::source_content::SourceContentLocator {
-                        record: m.location.record.clone(),
-                        owners: m.location.owners.clone(),
-                        field: f.clone(),
-                    }
-                })
-            })
+            .flat_map(|root| &root.witnesses)
+            .map(|witness| witness.location.clone())
             .collect::<Vec<_>>();
-        let mut unique = Vec::with_capacity(locators.len());
-        locators.retain(|locator| {
-            if unique.contains(locator) {
-                false
-            } else {
-                unique.push(locator.clone());
-                true
-            }
-        });
-        let mut prepared = Vec::new();
-        for chunk in locators.chunks(256) {
-            for field in self.index.read_content(chunk)?.fields {
-                prepared.push(field);
-            }
-        }
+        let previews = self.index.recover_match_previews(&locations)?;
+        let mut previews = previews.into_iter();
         let mut records = Vec::new();
         for (root, record) in selected.into_iter().zip(summaries) {
             let mut matches = root.witnesses;
-            let needs_body = matches.iter().any(|m| {
-                matches!(
-                    m.location.address,
-                    Some(SourcePassageAddress::PlainSection { .. })
-                )
-            });
-            let source = if needs_body {
-                self.index.read_source_record(&root.key)?
-            } else {
-                None
-            };
             for witness in &mut matches {
                 if !witness.location.owners.is_empty()
                     && let Some((_, _, owner_label)) =
@@ -472,25 +438,9 @@ impl AtlasRetrievalService {
                 if witness.label.is_none() && witness.location.owners.is_empty() {
                     witness.label = record.name.as_value().cloned();
                 }
-                if let (Some(address), Some(field)) =
-                    (&witness.location.address, &witness.location.field)
-                {
-                    let locator = atlas_record::source_content::SourceContentLocator {
-                        record: root.key.clone(),
-                        owners: witness.location.owners.clone(),
-                        field: field.clone(),
-                    };
-                    let html = prepared
-                        .iter()
-                        .find(|h| h.locator == locator)
-                        .and_then(|h| h.html.as_deref());
-                    let plain = source
-                        .as_ref()
-                        .and_then(|s| s.authored_content_at(&locator).value());
-                    witness.snippet = Some(reading_excerpt(
-                        &atlas_record::source_record::recover_source_passage(html, plain, address)
-                            .map_err(|e| SearchError::artifact_contract_violation(e.to_string()))?,
-                    ));
+                if let Some(evidence) = previews.next().flatten() {
+                    witness.preview = evidence.preview;
+                    witness.parent_heading = evidence.parent_heading;
                 }
             }
             records.push(TextSearchRecord {
@@ -523,47 +473,6 @@ impl AtlasRetrievalService {
     }
 }
 
-/// Compact prose for both product surfaces; preserve words and mark shortening.
-pub(crate) fn reading_excerpt(text: &str) -> String {
-    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let limit = 240;
-    let Some((boundary, _)) = text.char_indices().nth(limit) else {
-        return text;
-    };
-    let prefix = &text[..boundary];
-    let end = prefix
-        .rfind(char::is_whitespace)
-        .filter(|end| *end > 0)
-        .unwrap_or(boundary);
-    format!("{}…", prefix[..end].trim_end())
-}
-
 #[cfg(test)]
 #[path = "text_inference_tests.rs"]
 mod inference_tests;
-
-#[cfg(test)]
-mod excerpt_tests {
-    use super::reading_excerpt;
-
-    #[test]
-    fn excerpts_collapse_layout_and_shorten_on_a_unicode_word_boundary() {
-        assert_eq!(
-            reading_excerpt("\nEffect\t\tA creature.\n"),
-            "Effect A creature."
-        );
-        let input = "créature ".repeat(40);
-        let excerpt = reading_excerpt(&input);
-        assert_eq!(excerpt, format!("{}…", ["créature"; 26].join(" ")));
-        assert_eq!(
-            reading_excerpt("Complete short sentence."),
-            "Complete short sentence."
-        );
-        for (length, expected) in [
-            (240, "🐉".repeat(240)),
-            (241, format!("{}…", "🐉".repeat(240))),
-        ] {
-            assert_eq!(reading_excerpt(&"🐉".repeat(length)), expected);
-        }
-    }
-}

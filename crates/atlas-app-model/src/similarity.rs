@@ -170,7 +170,6 @@ pub struct SimilarityPairView {
     pub seed_part: SimilarityPartSelector,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub seed: Option<crate::SearchWitnessView>,
-    pub seed_text: String,
     pub candidate: crate::SearchWitnessView,
     pub cosine: f64,
 }

@@ -10,6 +10,7 @@ import type {
   SearchResultRow,
 } from "../../generated/atlas";
 import { RelationshipEvidence } from "./RelationshipEvidence";
+import { MatchPreview } from "./MatchPreview";
 import { SimilarityExplanation } from "./SimilarityExplanation";
 
 export function SearchMatchContext({
@@ -34,6 +35,10 @@ export function SearchMatchContext({
   const { token } = theme.useToken();
   const onNavigate = useContext(ReaderMatchNavigation);
   if (matchDisplay === "hidden") return null;
+  const phrase = query?.trim();
+  const searchHeading = phrase
+    ? `Search matches for ${phrase.startsWith('"') && phrase.endsWith('"') ? phrase : `“${phrase}”`}`
+    : "Search matches";
   const similarity = matchDisplay === "detailed" ? row.similarity : undefined;
   const sections = !similarity || query?.trim() ? (row.matching_sections ?? []) : [];
   const evidence =
@@ -60,7 +65,7 @@ export function SearchMatchContext({
       {!!sections.length && (
         <section aria-label="Search matches">
           <Typography.Title level={3} style={{ fontSize: token.fontSizeLG, margin: 0 }}>
-            {query?.trim() ? `Search matches for “${query}”` : "Search matches"}
+            {searchHeading}
           </Typography.Title>
           <ul className="reader-match-context__sections">
             {sections.map((section) => (
@@ -80,15 +85,7 @@ export function SearchMatchContext({
                 >
                   {section.label}
                 </Typography.Link>
-                {section.snippet && (
-                  <Typography.Paragraph
-                    type="secondary"
-                    ellipsis={{ rows: 2 }}
-                    style={{ margin: 0 }}
-                  >
-                    {section.snippet}
-                  </Typography.Paragraph>
-                )}
+                <MatchPreview preview={section.preview} />
               </li>
             ))}
           </ul>

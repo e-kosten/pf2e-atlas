@@ -295,11 +295,14 @@ it("uses the shared Matches interaction and preserves precise native destination
     page(request, [
       {
         ...row("actors:referrer", "Referring creature"),
+        matching_sections: [
+          { navigation: expected, label: "Checked ability", preview: null },
+        ],
         matches: [
           {
             navigation: expected,
-            label: "Checked ability",
-            snippet: null,
+            label: "Raw witness label",
+            preview: null,
             lane: "lexical",
             lexical_rank: null,
             semantic_similarity: null,

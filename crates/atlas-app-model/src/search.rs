@@ -166,12 +166,25 @@ pub struct SearchResultRow {
     pub matching_sections: Option<Vec<SearchMatchSectionView>>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MatchPreviewView {
+    Text {
+        blocks: Vec<String>,
+        truncated: bool,
+    },
+    Table {
+        columns: Vec<String>,
+    },
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchMatchSectionView {
     pub navigation: RecordNavigationView,
     pub label: String,
     #[cfg_attr(feature = "openapi", schema(required))]
-    pub snippet: Option<String>,
+    pub preview: Option<MatchPreviewView>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -181,7 +194,7 @@ pub struct SearchWitnessView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub label: Option<String>,
     #[cfg_attr(feature = "openapi", schema(required))]
-    pub snippet: Option<String>,
+    pub preview: Option<MatchPreviewView>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub lexical_rank: Option<f64>,
     #[cfg_attr(feature = "openapi", schema(required))]

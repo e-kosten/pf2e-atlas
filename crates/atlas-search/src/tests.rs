@@ -473,7 +473,9 @@ fn exact_owned_names_and_definition_witnesses_stay_navigable() {
             )
         })
         .unwrap();
-    assert!(witness.snippet.as_ref().unwrap().contains("souls"));
+    assert!(
+        matches!(&witness.preview, Some(atlas_record::source_record::SourceMatchPreview::Text { blocks, .. }) if blocks.iter().any(|block| block.contains("souls")))
+    );
     assert!(
         service
             .recover_passage(&witness.location)
@@ -722,7 +724,9 @@ fn real_ghoul_fever_and_soul_degradation_open_exact_owned_and_gm_sources() {
         Some("/system/description/gm"),
         "actual heading definition precedes the public mention"
     );
-    assert!(witness.snippet.as_ref().unwrap().contains("Curse 7"));
+    assert!(
+        matches!(&witness.preview, Some(atlas_record::source_record::SourceMatchPreview::Text { blocks, .. }) if blocks.iter().any(|block| block.contains("Curse 7")))
+    );
     let locator = atlas_record::source_content::SourceContentLocator {
         record: soul.records[0].record.key.clone(),
         owners: witness.location.owners.clone(),

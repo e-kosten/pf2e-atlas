@@ -43,12 +43,7 @@ export function ReferenceResult({
   const matchesOpen = matchNavigation?.open ?? false;
   const setMatchesOpen = matchNavigation?.onOpenChange;
   const trigger = useRef<HTMLButtonElement>(null);
-  const matches = row.matches.filter(
-    (match) =>
-      match.navigation.embedded_path.length ||
-      (match.navigation.field && match.navigation.field !== "identity") ||
-      match.navigation.passage,
-  );
+  const matches = row.matching_sections ?? [];
   const relationshipEvidence =
     generation && filter
       ? (row.relationship_evidence ?? []).filter((evidence) =>
@@ -114,9 +109,9 @@ export function ReferenceResult({
                       ?.focus({ preventScroll: true });
                   }}
                 >
-                  {matches.map((match, index) => (
+                  {matches.map((match) => (
                     <Button
-                      key={index}
+                      key={JSON.stringify(match.navigation)}
                       color="default"
                       variant="text"
                       block
@@ -143,7 +138,7 @@ export function ReferenceResult({
                         );
                       }}
                     >
-                      {match.label || "Matching passage"}
+                      {match.label}
                     </Button>
                   ))}
                   {generation &&

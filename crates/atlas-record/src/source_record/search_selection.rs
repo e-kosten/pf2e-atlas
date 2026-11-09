@@ -12,6 +12,9 @@ use scraper::{ElementRef, Html};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fmt};
 
+mod preview;
+pub use preview::{SourceMatchEvidence, SourceMatchPreview, recover_source_match_previews};
+
 pub const SOURCE_CONTENT_SELECTION_VERSION: &str = "structural-source-sections/v4";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -706,33 +709,12 @@ pub fn recover_source_passage(
         SourcePassageAddress::Identity {} => {
             Err(SourceSelectionError("identity has no prose passage".into()))
         }
-        SourcePassageAddress::HtmlSection {
-            prepared_html_sha256,
-            canonical_text_sha256,
-            selection_version,
-            section_ordinal,
-            label,
-            chunk_bytes,
-        } => {
+        SourcePassageAddress::HtmlSection { .. } => {
             let html =
                 html.ok_or_else(|| SourceSelectionError("prepared HTML is unavailable".into()))?;
-            if selection_version != SOURCE_CONTENT_SELECTION_VERSION
-                || hash(html) != *prepared_html_sha256
-            {
-                return Err(SourceSelectionError(
-                    "HTML passage preparation/selection identity changed".into(),
-                ));
-            }
             let sections = select_prepared_html_sections(html)?;
-            let section = sections.get(*section_ordinal).ok_or_else(|| {
-                SourceSelectionError("HTML section ordinal is unavailable".into())
-            })?;
-            if hash(&section.text) != *canonical_text_sha256 || section.label != *label {
-                return Err(SourceSelectionError(
-                    "HTML section source identity changed".into(),
-                ));
-            }
-            extract(&section.text, *chunk_bytes)
+            let (section, range) = checked_html_section(&hash(html), &sections, address)?;
+            extract(&section.text, range)
         }
         SourcePassageAddress::PlainSection {
             source_text_sha256,
@@ -756,6 +738,42 @@ pub fn recover_source_passage(
         }
     }
 }
+fn checked_html_section<'a>(
+    prepared_hash: &str,
+    sections: &'a [SourceSelectedSection],
+    address: &SourcePassageAddress,
+) -> Result<(&'a SourceSelectedSection, SourceByteRange), SourceSelectionError> {
+    let SourcePassageAddress::HtmlSection {
+        prepared_html_sha256,
+        canonical_text_sha256,
+        selection_version,
+        section_ordinal,
+        label,
+        chunk_bytes,
+    } = address
+    else {
+        return Err(SourceSelectionError(
+            "HTML section address is required".into(),
+        ));
+    };
+    if selection_version != SOURCE_CONTENT_SELECTION_VERSION
+        || prepared_hash != prepared_html_sha256
+    {
+        return Err(SourceSelectionError(
+            "HTML passage preparation/selection identity changed".into(),
+        ));
+    }
+    let section = sections
+        .get(*section_ordinal)
+        .ok_or_else(|| SourceSelectionError("HTML section ordinal is unavailable".into()))?;
+    if hash(&section.text) != *canonical_text_sha256 || section.label != *label {
+        return Err(SourceSelectionError(
+            "HTML section source identity changed".into(),
+        ));
+    }
+    Ok((section, *chunk_bytes))
+}
+
 fn extract(text: &str, range: SourceByteRange) -> Result<String, SourceSelectionError> {
     range
         .extract(text)

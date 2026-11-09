@@ -133,7 +133,17 @@ pub(crate) fn search_witness_view(witness: SearchWitness, fingerprint: &str) -> 
             SearchLane::Semantic => SearchLaneView::Semantic,
         },
         label: witness.label,
-        snippet: witness.snippet,
+        preview: witness.preview.map(|preview| {
+            use atlas_record::source_record::SourceMatchPreview;
+            match preview {
+                SourceMatchPreview::Text { blocks, truncated } => {
+                    atlas_app_model::MatchPreviewView::Text { blocks, truncated }
+                }
+                SourceMatchPreview::Table { columns } => {
+                    atlas_app_model::MatchPreviewView::Table { columns }
+                }
+            }
+        }),
         lexical_rank: witness.lexical_rank,
         semantic_similarity: witness.semantic_similarity,
     }
@@ -228,16 +238,25 @@ pub(crate) fn search_results_view(
             .records
             .into_iter()
             .map(|r| {
-                let matches: Vec<_> = r
+                let (matches, parent_headings): (Vec<_>, Vec<_>) = r
                     .matches
                     .into_iter()
-                    .map(|w| search_witness_view(w, retrieval.source_fingerprint()))
-                    .collect();
+                    .map(|mut witness| {
+                        let parent_heading = witness.parent_heading.take();
+                        (
+                            search_witness_view(witness, retrieval.source_fingerprint()),
+                            parent_heading,
+                        )
+                    })
+                    .unzip();
                 atlas_app_model::SearchResultRow {
                     similarity: None,
                     relationship_evidence: vec![],
                     record: localized_summary_view(&r.record, retrieval),
-                    matching_sections: crate::search_match_sections::matching_sections(&matches),
+                    matching_sections: crate::search_match_sections::matching_sections(
+                        &matches,
+                        &parent_headings,
+                    ),
                     matches,
                 }
             })

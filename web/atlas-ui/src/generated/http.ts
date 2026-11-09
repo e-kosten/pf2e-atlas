@@ -4322,6 +4322,15 @@ export interface LevelOverrideInputView {
   value?: number | null;
 }
 
+export type MatchPreviewView = {
+  blocks: string[];
+  kind: 'text';
+  truncated: boolean;
+} | {
+  columns: string[];
+  kind: 'table';
+};
+
 export interface PartyMemberView {
   level?: number;
   member_key: string;
@@ -5024,8 +5033,7 @@ export const SearchLaneView = {
 export interface SearchMatchSectionView {
   label: string;
   navigation: RecordNavigationView;
-  /** @nullable */
-  snippet: string | null;
+  preview: MatchPreviewView | null;
 }
 
 export type SearchModeSummary = {
@@ -5058,10 +5066,9 @@ export interface SearchWitnessView {
   /** @nullable */
   lexical_rank: number | null;
   navigation: RecordNavigationView;
+  preview: MatchPreviewView | null;
   /** @nullable */
   semantic_similarity: number | null;
-  /** @nullable */
-  snippet: string | null;
 }
 
 export interface SimilarityPairView {
@@ -5069,7 +5076,6 @@ export interface SimilarityPairView {
   cosine: number;
   seed: SearchWitnessView | null;
   seed_part: SimilarityPartSelector;
-  seed_text: string;
 }
 
 export type SimilarityRole = typeof SimilarityRole[keyof typeof SimilarityRole];

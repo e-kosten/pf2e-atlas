@@ -51,9 +51,10 @@ pub use relationships::{
 };
 pub use resolver::{SourceReferenceContribution, SourceReferenceIndex};
 pub use search_selection::{
-    SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, SourceSelectedField,
-    SourceSelectedIdentity, SourceSelectedSection, SourceSelectedSectionKind, SourceSelectionError,
-    mark_source_html_passage, recover_source_passage, searchable_identity_traits,
+    SOURCE_CONTENT_SELECTION_VERSION, SourceMatchEvidence, SourceMatchPreview,
+    SourceSearchSelection, SourceSelectedField, SourceSelectedIdentity, SourceSelectedSection,
+    SourceSelectedSectionKind, SourceSelectionError, mark_source_html_passage,
+    recover_source_match_previews, recover_source_passage, searchable_identity_traits,
     section_annotated_prepared_html, select_prepared_html_sections, select_record_search,
     single_section_annotated_prepared_html,
 };

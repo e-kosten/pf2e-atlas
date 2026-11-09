@@ -633,11 +633,16 @@ The direct scorer reports baseline read-plus-SQL-scoring separately because SQLi
 calculates the legacy distance while reading; it is not pure vector I/O. No extra
 embedding inference, artifact rebuild, or persistent centroid projection is needed.
 
-For query-backed reader context, app-service also projects `matching_sections`:
-whole-entry and precise witnesses for the same checked entry share one useful
-destination, while distinct embedded identities and passages remain separate.
-Raw witnesses, retrieval-lane attribution and ranking remain unchanged; adapters
-render the projected labels, excerpts and exact navigation. Selected HTML passage
+For query-backed reader context, app-service projects `matching_sections` from
+the ranked witnesses. It folds equivalent evidence at the same checked landing
+and retains distinct excerpts and owner identities. The reader and the Matches
+menu use these display destinations, while scoring continues to use the original
+witnesses and Similar pairs. A bounded `preview` carries text blocks or verified
+table headings. Missing evidence leaves a link alone. The same preview appears
+on each available Similar witness and in CLI JSON. CLI text renders the structured
+preview in compact form. Passage recovery derives this presentation from the
+prepared source within the existing batch and keeps canonical text and byte
+ranges for ranking and exact navigation. Selected HTML passage
 responses mark the checked section start using the same source selection policy;
 the reader lands, focuses and briefly highlights that marker while retaining the
 complete field. The marker is added only to the response after passage validation;

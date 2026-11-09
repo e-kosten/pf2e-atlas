@@ -14,7 +14,13 @@ const row: SearchResultRow = {
   record: summaryFixture("actors:firewyrm", "Firewyrm"),
   matches: [],
   relationship_evidence: [],
-  matching_sections: [{ navigation, label: "Breath Fire", snippet: "A cone of fire." }],
+  matching_sections: [
+    {
+      navigation,
+      label: "Breath Fire",
+      preview: { kind: "text", blocks: ["A cone of fire."], truncated: false },
+    },
+  ],
 };
 function renderMatches(
   props: Parameters<typeof SearchMatchContext>[0],
@@ -48,6 +54,30 @@ it("shows named locations and excerpts with exact native destinations and delibe
   expect(onNavigate).not.toHaveBeenCalled();
   fireEvent.click(link);
   expect(onNavigate).toHaveBeenCalledExactlyOnceWith(navigation, link);
+});
+
+it("presents a structured table preview and quotes an exact phrase once", () => {
+  renderMatches({
+    query: '"Undead Skeletons"',
+    row: {
+      ...row,
+      matching_sections: [
+        {
+          navigation,
+          label: "Undead Skeletons",
+          preview: { kind: "table", columns: ["Level", "Size", "Creature Name"] },
+        },
+      ],
+    },
+  });
+  const context = screen.getByRole("region", { name: "Search matches" });
+  expect(
+    within(context).getByRole("heading", {
+      name: 'Search matches for "Undead Skeletons"',
+    }),
+  ).toBeVisible();
+  expect(within(context).getByText("Table · Level, Size, Creature Name")).toBeVisible();
+  expect(within(context).getByRole("link", { name: "Undead Skeletons" })).toBeVisible();
 });
 
 it.each([undefined, "", "  "])(
@@ -122,7 +152,7 @@ it("shows similarity coverage, contributions, caveats and both exact passage des
   expect(onNavigate).toHaveBeenCalledExactlyOnceWith(navigation, candidate);
 });
 
-it("leaves trait seed excerpts without fabricated record links and native candidates work without a reader host", () => {
+it("renders the candidate when seed evidence is absent", () => {
   render(
     <SearchMatchContext
       matchDisplay="detailed"
@@ -130,7 +160,7 @@ it("leaves trait seed excerpts without fabricated record links and native candid
     />,
   );
   const context = screen.getByRole("region", { name: "Similarity comparison" });
-  expect(within(context).getByText("Source excerpt")).toBeVisible();
+  expect(within(context).queryByText("Source excerpt")).toBeNull();
   expect(within(context).queryByRole("link", { name: "Seed description" })).toBeNull();
   const candidate = within(context).getByRole("link", {
     name: "Candidate description",

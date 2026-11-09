@@ -10315,6 +10315,56 @@
         ],
         "type": "object"
       },
+      "MatchPreviewView": {
+        "oneOf": [
+          {
+            "properties": {
+              "blocks": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "enum": [
+                  "text"
+                ],
+                "type": "string"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "blocks",
+              "truncated",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "columns": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "enum": [
+                  "table"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "columns",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "MortalityStateView": {
         "enum": [
           "alive",
@@ -16084,17 +16134,21 @@
           "navigation": {
             "$ref": "#/components/schemas/RecordNavigationView"
           },
-          "snippet": {
-            "type": [
-              "string",
-              "null"
+          "preview": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MatchPreviewView"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
         "required": [
           "navigation",
           "label",
-          "snippet"
+          "preview"
         ],
         "type": "object"
       },
@@ -16464,16 +16518,20 @@
           "navigation": {
             "$ref": "#/components/schemas/RecordNavigationView"
           },
+          "preview": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MatchPreviewView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "semantic_similarity": {
             "format": "double",
             "type": [
               "number",
-              "null"
-            ]
-          },
-          "snippet": {
-            "type": [
-              "string",
               "null"
             ]
           }
@@ -16482,7 +16540,7 @@
           "navigation",
           "lane",
           "label",
-          "snippet",
+          "preview",
           "lexical_rank",
           "semantic_similarity"
         ],
@@ -17074,15 +17132,11 @@
           },
           "seed_part": {
             "$ref": "#/components/schemas/SimilarityPartSelector"
-          },
-          "seed_text": {
-            "type": "string"
           }
         },
         "required": [
           "seed_part",
           "seed",
-          "seed_text",
           "candidate",
           "cosine"
         ],

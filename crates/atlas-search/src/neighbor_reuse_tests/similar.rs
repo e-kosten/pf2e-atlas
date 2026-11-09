@@ -35,7 +35,7 @@ fn evidence_signature(evidence: &[(RecordKey, SimilarityEvidence)]) -> Value {
         "parts": value.parts.iter().map(|p| (&p.part, p.score.to_bits(), p.weight.to_bits(), p.comparable)).collect::<Vec<_>>(),
         "roles": value.roles.iter().map(|r| (&r.key, r.score.to_bits(), r.weight.to_bits(), r.comparable)).collect::<Vec<_>>(),
         "pairs": value.pairs.iter().map(|p| json!({
-            "part": p.seed_part, "seed": p.seed, "seed_text": p.seed_text,
+            "part": p.seed_part, "seed": p.seed,
             "candidate": p.candidate, "cosine": p.cosine.to_bits()
         })).collect::<Vec<_>>(),
         "representative": value.representative, "truncated": value.truncated

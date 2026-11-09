@@ -59,20 +59,35 @@ pub(crate) fn print_summary(view: &atlas_app_model::RecordSummaryView) {
         );
     }
 }
+pub(crate) fn match_preview_text(preview: &atlas_app_model::MatchPreviewView) -> String {
+    use atlas_app_model::MatchPreviewView;
+    match preview {
+        MatchPreviewView::Text { blocks, truncated } => {
+            let mut text = blocks.join("\n  ");
+            if *truncated {
+                text.push('…');
+            }
+            text
+        }
+        MatchPreviewView::Table { columns } if columns.is_empty() => "Table".into(),
+        MatchPreviewView::Table { columns } => format!("Table · {}", columns.join(", ")),
+    }
+}
+
 pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow]) {
     for r in records {
         print_summary(&r.record);
-        if let Some(w) = r
+        if let Some((witness, preview)) = r
             .matches
             .iter()
-            .find(|w| w.snippet.as_ref().is_some_and(|s| !s.trim().is_empty()))
+            .find_map(|witness| witness.preview.as_ref().map(|preview| (witness, preview)))
         {
-            let label = w
+            let label = witness
                 .label
                 .as_deref()
                 .filter(|label| *label != r.record.title && !label.trim().is_empty());
             let prefix = label.map(|label| format!("{label}: ")).unwrap_or_default();
-            println!("  {prefix}{}", w.snippet.as_deref().unwrap_or_default());
+            println!("  {prefix}{}", match_preview_text(preview));
         } else if !r
             .matches
             .iter()
