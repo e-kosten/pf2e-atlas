@@ -2314,7 +2314,8 @@ Persistent turn reminders show all sources directly, with the active source firs
 and superseded entries muted. Recovery and per-type Clear effect buttons share one aligned
 action row. Clear records the table outcome without a DC form or dice roll; it
 ends that turn's applicable sources and leaves later sources intact. Table damage
-is labeled Damage taken with an After IWR tooltip. Incomplete persistent entries
+is labeled Damage taken. Explain once above the table inputs that amounts include
+immunities, weaknesses, and resistances. Incomplete persistent entries
 show only supplied details, without an internal Reminder prefix or empty metadata.
 
 Keep persistent turn review organized by damage type: sources, damage entry or
