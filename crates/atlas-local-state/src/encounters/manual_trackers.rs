@@ -28,7 +28,7 @@ pub(super) fn read(
     owner_id: i64,
     key: &str,
 ) -> LocalStateResult<Vec<ManualTracker>> {
-    let mut statement = connection.prepare("SELECT t.payload_json FROM encounter_manual_trackers t JOIN encounter_participants p USING(participant_key) JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2 ORDER BY tracker_key")?;
+    let mut statement = connection.prepare("SELECT t.payload_json FROM encounter_manual_trackers t JOIN encounter_participants p USING(participant_key) JOIN encounters e ON e.id=p.encounter_id WHERE p.participant_key=?1 AND e.owner_id=?2 ORDER BY t.position")?;
     let rows = statement.query_map(params![key, owner_id], |row| row.get::<_, String>(0))?;
     rows.map(|row| receipt_codec::decode(&row?)).collect()
 }
@@ -37,7 +37,7 @@ pub(super) fn read_for_encounter(
     owner_id: i64,
     encounter: &str,
 ) -> LocalStateResult<std::collections::BTreeMap<String, Vec<ManualTracker>>> {
-    let mut statement = connection.prepare("SELECT t.participant_key,t.payload_json FROM encounter_manual_trackers t JOIN encounter_participants p ON p.participant_key=t.participant_key WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY t.participant_key,t.tracker_key")?;
+    let mut statement = connection.prepare("SELECT t.participant_key,t.payload_json FROM encounter_manual_trackers t JOIN encounter_participants p ON p.participant_key=t.participant_key WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1 AND owner_id=?2) ORDER BY t.participant_key,t.position")?;
     let rows = statement.query_map(params![encounter, owner_id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
@@ -65,7 +65,14 @@ impl EncountersWrite<'_> {
         }
         match &change.value {
             Some(value) => {
-                self.connection.execute("INSERT INTO encounter_manual_trackers(participant_key,tracker_key,payload_json) VALUES(?1,?2,?3) ON CONFLICT(participant_key,tracker_key) DO UPDATE SET payload_json=excluded.payload_json",params![change.participant_key,change.tracker_key,receipt_codec::encode(value)?])?;
+                self.connection.execute(
+                    "INSERT INTO encounter_manual_trackers(participant_key, tracker_key, payload_json, position)
+                     SELECT ?1, ?2, ?3, COALESCE(MAX(position), 0) + 1
+                     FROM encounter_manual_trackers WHERE participant_key = ?1
+                     ON CONFLICT(participant_key, tracker_key)
+                     DO UPDATE SET payload_json = excluded.payload_json",
+                    params![change.participant_key, change.tracker_key, receipt_codec::encode(value)?],
+                )?;
             }
             None => {
                 self.connection.execute("DELETE FROM encounter_manual_trackers WHERE participant_key=?1 AND tracker_key=?2",params![change.participant_key,change.tracker_key])?;

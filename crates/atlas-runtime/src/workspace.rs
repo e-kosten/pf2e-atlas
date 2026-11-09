@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_index::SEARCH_SCHEMA_CLOSEOUT_VERSION;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_VERSION;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -288,6 +288,12 @@ const MIGRATIONS: &[Migration] = &[
             apply: atlas_index::backfill_search_schema_closeout,
         }),
     },
+    Migration {
+        version: atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_VERSION,
+        name: "manual-tracker-order",
+        sql: atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -342,6 +348,18 @@ pub(crate) fn open_workspace_index(
 pub(crate) fn register_extensions() -> StorageResult<()> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| atlas_storage::StorageError::Unsupported(e.to_string()))
+}
+
+// Historical fixtures use the current reader to construct saved receipts.
+#[cfg(test)]
+fn project_legacy_tracker_order(connection: &rusqlite::Connection) {
+    connection
+        .execute_batch(
+            "CREATE TEMP VIEW encounter_manual_trackers AS
+         SELECT *, row_number() OVER (PARTITION BY participant_key ORDER BY tracker_key) AS position
+         FROM main.encounter_manual_trackers",
+        )
+        .unwrap();
 }
 
 #[cfg(test)]

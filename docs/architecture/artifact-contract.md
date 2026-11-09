@@ -1001,3 +1001,8 @@ converts tracker, creation-baseline and outgoing-turn payloads from migration 23
 six-second representation. Changing round length preserves remaining elapsed time;
 round-unit durations continue counting turns. The old remaining-round storage
 column and tracker payload path are removed in the same migration.
+
+Workspace migration 41 saves manual tracker positions per participant. It assigns
+existing positions in the prior tracker-key order. New trackers append, while
+updates retain position. Snapshots continue to carry tracker order through their
+existing arrays, which restore uses to assign positions.

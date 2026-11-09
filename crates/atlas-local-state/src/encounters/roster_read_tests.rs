@@ -143,18 +143,19 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
         },
         progress: TrackerProgress::Seconds(7),
     });
-    for tracker in trackers.iter().rev() {
+    for (position, tracker) in (1_i64..).zip(trackers.iter().rev()) {
         connection.execute(
-            "INSERT INTO encounter_manual_trackers VALUES(?1,?2,?3)",
+            "INSERT INTO encounter_manual_trackers VALUES(?1,?2,?3,?4)",
             rusqlite::params![
                 one.participant_key,
                 tracker.tracker_key,
-                super::super::receipt_codec::encode(tracker)?
+                super::super::receipt_codec::encode(tracker)?,
+                position
             ],
         )?;
     }
     connection.execute(
-        "INSERT INTO encounter_manual_trackers VALUES(?1,'invalid','not-json')",
+        "INSERT INTO encounter_manual_trackers VALUES(?1,'invalid','not-json',1)",
         [&other.participant_key],
     )?;
     let roster = EncountersRead::from_connection(&connection, 1)
@@ -191,7 +192,10 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
             .remaining_seconds,
         Some(7)
     );
-    assert_eq!(first.manual_trackers, trackers);
+    assert_eq!(
+        first.manual_trackers,
+        [trackers[1].clone(), trackers[0].clone()]
+    );
     assert_eq!(
         first.persistent_precedence,
         vec![

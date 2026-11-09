@@ -151,14 +151,15 @@ fn write_participant(
             VALUES(?1,?2,?3,?4)", params![p.participant_key,serde_json::to_string(&ability.owner)?,
             ordinal,receipt_codec::encode(ability)?])?;
     }
-    for tracker in &p.manual_trackers {
+    for (position, tracker) in (1_i64..).zip(&p.manual_trackers) {
         db.execute(
-            "INSERT INTO encounter_manual_trackers(participant_key,tracker_key,payload_json)
-            VALUES(?1,?2,?3)",
+            "INSERT INTO encounter_manual_trackers(participant_key,tracker_key,payload_json,position)
+            VALUES(?1,?2,?3,?4)",
             params![
                 p.participant_key,
                 tracker.tracker_key,
-                receipt_codec::encode(tracker)?
+                receipt_codec::encode(tracker)?,
+                position,
             ],
         )?;
     }
