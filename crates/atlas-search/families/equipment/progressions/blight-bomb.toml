@@ -1,0 +1,12 @@
+name = "Blight Bomb"
+source_note = "Player Core 2. Four grades scale poison, persistent poison, splash damage, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:j8ajvNqyyQGBpBch", name = "Blight Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:158vwM1andv8DbRI", name = "Blight Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:LhMXIGelSrFPYild", name = "Blight Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:sJjuv1991SZ7DWWD", name = "Blight Bomb (Major)", attributes = ["Major"] },
+]

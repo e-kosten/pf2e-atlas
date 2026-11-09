@@ -1,0 +1,9 @@
+name = "Essence Forge"
+source_note = "#214: The Broken Palace. Three grades of the same forge increase skill DCs and the resulting bonuses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LmksnUQdwRu0SPCK", name = "Essence Forge (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:tjxoE6w85Hlg2To4", name = "Essence Forge (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:MIBPJ73gjQ17kweK", name = "Essence Forge (Greater)", attributes = ["Greater"] },
+]

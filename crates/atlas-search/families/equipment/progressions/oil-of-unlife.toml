@@ -1,0 +1,12 @@
+name = "Oil of Unlife"
+source_note = "GM Core. Five grades heal the same targets with progressively larger healing amounts."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:fTQ5e4utVfgtXV1e", name = "Oil of Unlife (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:BSInwFNVBVkfFK0B", name = "Oil of Unlife (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:YHev1WJ2tOiTBg9o", name = "Oil of Unlife (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:RhOx5wenvlljzOku", name = "Oil of Unlife (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:obER4cKi8UbGhSg7", name = "Oil of Unlife (Major)", attributes = ["Major"] },
+]

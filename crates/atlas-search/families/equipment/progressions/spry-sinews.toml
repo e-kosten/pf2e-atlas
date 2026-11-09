@@ -1,0 +1,8 @@
+name = "Spry Sinews"
+source_note = "Howl of the Wild. Both grades enhance the same Leap distances, with larger increases at Greater."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:giDq25tzS7rWG9ch", name = "Spry Sinews (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:dFoQzB7B1cA9dwMc", name = "Spry Sinews (Greater)", attributes = ["Greater"] },
+]

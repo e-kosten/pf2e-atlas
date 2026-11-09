@@ -1,0 +1,9 @@
+name = "Malleable Mixture"
+source_note = "Lost Omens The Grand Bazaar. Both grades grant the same softening effect, with Greater improving flexibility and duration."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:p0TKEjVqYFZmfz6v", name = "Malleable Mixture (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:TKOe8epJTCef87Bj", name = "Malleable Mixture (Greater)", attributes = ["Greater"] },
+]

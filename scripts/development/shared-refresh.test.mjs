@@ -103,7 +103,11 @@ for (const profile of ["dev", "release"])
         process.execPath,
         [
           "scripts/development/shared-refresh.mjs",
-          ...(profile === "dev" ? ["--profile", "dev"] : []),
+          ...(profile === "dev"
+            ? fail
+              ? ["--profile", "dev"]
+              : ["--profile=dev"]
+            : []),
         ],
         {
           cwd: f.root,

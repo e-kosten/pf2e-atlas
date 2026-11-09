@@ -1,0 +1,9 @@
+name = "Wardrobe Stone"
+source_note = "Lost Omens The Grand Bazaar. Three grades share the same clothing transformation and add progressively stronger associated benefits."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:9k7X59AB8yDlIJ4s", name = "Wardrobe Stone (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:72gfEUjIcdKVJZg0", name = "Wardrobe Stone (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:gbDVj8XRLN9OVVjL", name = "Wardrobe Stone (Greater)", attributes = ["Greater"] },
+]

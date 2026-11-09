@@ -1,0 +1,8 @@
+name = "Camouflaging Chromatophores"
+source_note = "Howl of the Wild. Both grades grant the same camouflage with a higher bonus and more frequent activation at Greater."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:RmIA4czgAOH8Ml7e", name = "Camouflaging Chromatophores (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:v2aOpKhNP0uIZFER", name = "Camouflaging Chromatophores (Greater)", attributes = ["Greater"] },
+]

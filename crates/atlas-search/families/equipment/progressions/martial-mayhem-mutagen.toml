@@ -1,0 +1,11 @@
+name = "Martial Mayhem Mutagen"
+source_note = "Lost Omens Cheliax, Infernal Inheritance. Four grades strengthen the same martial tradeoff and add a critical-hit effect at Major."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:2EzE8fdNzD4Cp2ST", name = "Martial Mayhem Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:9Wt5Jokp8IHAQZHy", name = "Martial Mayhem Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:4JPLGSOoAJi0g5Qp", name = "Martial Mayhem Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:AXlHVbcQINWgbHNa", name = "Martial Mayhem Mutagen (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,12 @@
+name = "Digly's Oil of Sympathy"
+source_note = "NPC Core. Five grades share the same weapon-linked healing effect and increase the healing amount."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:upgNYvc48y8jUUEO", name = "Digly's Oil of Sympathy (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:Mgrrrb7iWmDTCd2u", name = "Digly's Oil of Sympathy (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:T2DGpe7qXEuQEKWH", name = "Digly's Oil of Sympathy (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:HWInHkg9upnnSJi2", name = "Digly's Oil of Sympathy (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:cEHi51OKIQ4wEPFc", name = "Digly's Oil of Sympathy (Major)", attributes = ["Major"] },
+]

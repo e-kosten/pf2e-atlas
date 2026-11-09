@@ -1,0 +1,11 @@
+name = "Addiction Suppressant"
+source_note = "Lost Omens Legends. Four grades suppress the same condition and increase the associated bonus."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:SNMggNsvgPoAYjpU", name = "Addiction Suppressant (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:cWYa0i1BqhbEruD6", name = "Addiction Suppressant (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ZOOrK4yEW6rFpPJ1", name = "Addiction Suppressant (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:esDSCEI1cf8Op93I", name = "Addiction Suppressant (Major)", attributes = ["Major"] },
+]

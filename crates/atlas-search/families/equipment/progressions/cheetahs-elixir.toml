@@ -1,0 +1,10 @@
+name = "Cheetah's Elixir"
+source_note = "GM Core. All grades enhance Speed; the strength and duration rise with the grade."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:tyt6rFtv32MZ4DT9", name = "Cheetah's Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:AqLxu3ir4UGzdOaz", name = "Cheetah's Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:t4X6GDybqLmt7UkN", name = "Cheetah's Elixir (Greater)", attributes = ["Greater"] },
+]

@@ -15,12 +15,16 @@ reported, never overwritten. Cold acquisition requires Git and network access;
 warm check/offline use does not fetch.
 
 A separate `vendor/pf2e` checkout may be used for developer diagnostics or passed
-explicitly with `--source`. Atlas never pulls or checks out supplied directories.
-Existing workspaces retain their saved source selection. To move one to the
-managed repo-mode source without touching the old checkout or saved state:
+explicitly with `--source`. Atlas treats supplied source directories as inputs.
+Normal setup advances an existing managed source in the same cache to the current
+pin. To switch a private repo-mode workspace from a custom source, run setup
+using this checkout's compiled pin. Setup updates the workspace's source
+selection and reference data while preserving saved app data.
 
 ```bash
-atlas setup --path-mode repo --source .cache/pf2e/4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+pin="$(node -p 'require("./dev-tools/source-contracts/source-pin.json").commit')"
+cargo run --locked -p atlas-cli --no-default-features -- setup \
+  --path-mode repo --source ".cache/pf2e/$pin"
 ```
 
 PF2e system sources must declare the supported version for product builds.
@@ -193,22 +197,10 @@ editing membership. The source note records why the members belong together
 for future maintainers. Explore falls back to possible variants when a reviewed
 set no longer matches the active reference data.
 
-For a baseline comparison, run this on the private development workspace for
-each candidate source revision. Use the source pin appropriate to the candidate
-and compare the JSON lines by record key.
-
-```sh
-db=.atlas/workspace.sqlite
-sqlite3 -readonly "$db" "SELECT key FROM records WHERE pack_id='equipment-srd' ORDER BY key" |
-  cargo run --locked --quiet -p atlas-search --example equipment_variant_audit -- \
-    "$db" "$(sqlite3 -readonly "$db" 'PRAGMA user_version')"
-```
-
-Pass `--propose-grades` before the database path to emit review candidates
-instead of per-record outcomes. Feed the complete equipment key list so the
-tool can check that every member produces the same proposal. It looks for
-known grade labels that advance with item level, one publication and edition,
-and a complete, unambiguous result from each member. Each candidate includes
-its Foundry keys and source paths. Check those records and look for missing
-siblings, same-name editions, or related accessories before adding a family
-file. The tool writes its report to stdout and leaves the catalog files alone.
+For a baseline comparison, run the [equipment family audit](developer-commands.md#review-equipment-families)
+on a private workspace for each candidate source revision. Compare audit records
+by Foundry key. Use the grade proposal report to find progressions where every
+member returns the same complete, unambiguous group, the grade labels advance
+with item level, and the publication and edition agree. Each proposal includes
+the member keys and source paths. Check those records and look for missing
+siblings, same-name editions, or related accessories before adding a family file.

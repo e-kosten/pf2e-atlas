@@ -1,0 +1,9 @@
+name = "Thorn of Milani"
+source_note = "Adventure Path: Hellbreakers. Both grades share the same weapon-hit trigger, with higher spirit damage at Moderate."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:TzGABJvUoCJVmLlE", name = "Thorn of Milani (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:hkcRHApzlqRVhfEv", name = "Thorn of Milani (Moderate)", attributes = ["Moderate"] },
+]

@@ -1,0 +1,9 @@
+name = "Aurochs' Might Tattoo"
+source_note = "#207: The Resurrection Flood. Three grades of the same tattoo strengthen the charge damage and save DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:rU9KFul4FRiIGgr4", name = "Aurochs' Might Tattoo (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:tJhgV3lPtgaSmI41", name = "Aurochs' Might Tattoo (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:pX31bW6RrpxJNJms", name = "Aurochs' Might Tattoo (Greater)", attributes = ["Greater"] },
+]

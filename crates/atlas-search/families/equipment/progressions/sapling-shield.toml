@@ -1,0 +1,12 @@
+name = "Sapling Shield"
+source_note = "Treasure Vault (Remastered). Six grades of the same buckler scale Hardness, Hit Points, and Broken Threshold."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:w0SXrrYSH1EL088n", name = "Sapling Shield (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:nS4ev4BZn9OUPYgt", name = "Sapling Shield (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:3yeRZNUF4qZzCzHp", name = "Sapling Shield (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:QR7rqHMuU72NA47A", name = "Sapling Shield (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Qm9mmqMNKBaMn5so", name = "Sapling Shield (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:VJiKPxewJNLhimEi", name = "Sapling Shield (True)", attributes = ["True"] },
+]

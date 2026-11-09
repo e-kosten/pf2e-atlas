@@ -1,0 +1,10 @@
+name = "Blood Booster"
+source_note = "Treasure Vault (Remastered). Three elixirs grant increasing resistance to the same persistent damage types."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:8g2U2PMC0lkPZEvq", name = "Blood Booster (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:LNzJ2WwTg58g7vam", name = "Blood Booster (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:3UXsXwUbvOdpPg6b", name = "Blood Booster (Greater)", attributes = ["Greater"] },
+]

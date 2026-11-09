@@ -1,0 +1,12 @@
+name = "Inflammation Flask"
+source_note = "#203: Shepherd of Decay. Four grades of the same acid bomb scale damage, sensitivity effects, and save DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:IGwM0rPKZt7vZ7zq", name = "Inflammation Flask (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:A3uCOubAKyCSRPRv", name = "Inflammation Flask (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:zbwV685YkIVxPNWE", name = "Inflammation Flask (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:AOGJdyn5J0nB9ThV", name = "Inflammation Flask (Major)", attributes = ["Major"] },
+]

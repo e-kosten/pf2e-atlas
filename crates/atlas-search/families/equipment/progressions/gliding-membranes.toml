@@ -1,0 +1,8 @@
+name = "Gliding Membranes"
+source_note = "Howl of the Wild. Both grades reduce effective falling distance, with a larger reduction at Greater."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:bKnEt5fSc0Swz1p5", name = "Gliding Membranes (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:aoQ1zaJCgbjaGb3S", name = "Gliding Membranes (Greater)", attributes = ["Greater"] },
+]

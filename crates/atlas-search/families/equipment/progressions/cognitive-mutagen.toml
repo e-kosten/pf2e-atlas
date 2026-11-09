@@ -1,0 +1,11 @@
+name = "Cognitive Mutagen"
+source_note = "Player Core 2. The same cognitive tradeoff progresses through larger skill bonuses and added training."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:wbr6rkyaVYnDhdgV", name = "Cognitive Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:qpzL9UnTi4cDhy6J", name = "Cognitive Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ZGojRKG1yYiVWemR", name = "Cognitive Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:VBK9i74dry8yf8f0", name = "Cognitive Mutagen (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Mirror Goggles"
+source_note = "Treasure Vault (Remastered). Three grades scale the same visual protection and reflected effect DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:YafmTpwzMsKiAg5b", name = "Mirror Goggles (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:KFWi1lxXJi46VDmz", name = "Mirror Goggles (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:uT8HoQ3BKI5La8Fu", name = "Mirror Goggles (Greater)", attributes = ["Greater"] },
+]

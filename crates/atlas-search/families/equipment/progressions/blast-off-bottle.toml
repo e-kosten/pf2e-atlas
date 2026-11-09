@@ -1,0 +1,10 @@
+name = "Blast-Off Bottle"
+source_note = "Lost Omens Cheliax, Infernal Inheritance. Three grades increase the same propulsion device's distance, damage, and save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:D5IJf3jZgeLFa7yf", name = "Blast-Off Bottle (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:LyXTw2FkQpbQGyah", name = "Blast-Off Bottle (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:kF8FRuRq04ucUKj7", name = "Blast-Off Bottle (Greater)", attributes = ["Greater"] },
+]

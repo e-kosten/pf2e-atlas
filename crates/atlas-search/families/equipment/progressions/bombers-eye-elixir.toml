@@ -1,0 +1,9 @@
+name = "Bomber's Eye Elixir"
+source_note = "GM Core. Both grades reduce cover against the user's alchemical bomb Strikes, with a higher reduction at Greater."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:T4ouD4mVFHA3EHs6", name = "Bomber's Eye Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:lasqzrPVEHI5MkQd", name = "Bomber's Eye Elixir (Greater)", attributes = ["Greater"] },
+]

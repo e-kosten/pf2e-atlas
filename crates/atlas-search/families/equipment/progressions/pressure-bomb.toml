@@ -1,0 +1,12 @@
+name = "Pressure Bomb"
+source_note = "Special: Fumbus!. Four grades of the same shockwave bomb improve damage and the size or number of targets displaced."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:HYxnpGzoDL70FrVs", name = "Pressure Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:da6nSPRUwGicvx3c", name = "Pressure Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:DheIz1WCPXwUhxQD", name = "Pressure Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Otd9pV58s2LFK1gW", name = "Pressure Bomb (Major)", attributes = ["Major"] },
+]

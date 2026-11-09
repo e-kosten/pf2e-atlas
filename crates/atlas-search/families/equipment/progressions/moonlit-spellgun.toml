@@ -1,0 +1,12 @@
+name = "Moonlit Spellgun"
+source_note = "Treasure Vault (Remastered). Five grades share the silver-infused shot and scale its damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:wU8HH03cNxe6Pkfi", name = "Moonlit Spellgun (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:7VjM9vjBMxhukiTf", name = "Moonlit Spellgun (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:LbgblC0CzbTWJTmC", name = "Moonlit Spellgun (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:Hh2qMYtJU4WTOUFC", name = "Moonlit Spellgun (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:iYOBu0hMYzqFYvZN", name = "Moonlit Spellgun (Major)", attributes = ["Major"] },
+]

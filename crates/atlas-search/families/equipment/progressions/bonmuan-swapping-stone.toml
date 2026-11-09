@@ -1,0 +1,11 @@
+name = "Bonmuan Swapping Stone"
+source_note = "#166: Despair on Danger Island. Four grades share the same swapping activation and raise the save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:ARY8jRkg8aUJ6Zdv", name = "Bonmuan Swapping Stone (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:JukXiZWas5RJaE3M", name = "Bonmuan Swapping Stone (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:eoSvkOAkx4YGLQ2O", name = "Bonmuan Swapping Stone (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:X3DCIU2fmj97pi1J", name = "Bonmuan Swapping Stone (Major)", attributes = ["Major"] },
+]

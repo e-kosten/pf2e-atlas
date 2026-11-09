@@ -1,0 +1,10 @@
+name = "Dragon Scute"
+source_note = "Lost Omens Draconic Codex. Three grades of the same catalyst improve the rank and defensive values of the altered spell."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:PjGZEG8hnzcYc6vm", name = "Dragon Scute (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:wZU5FVR7ifZbhuv6", name = "Dragon Scute (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:989VZoKytQMJYRuR", name = "Dragon Scute (Greater)", attributes = ["Greater"] },
+]

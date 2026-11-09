@@ -1,0 +1,9 @@
+name = "Tome of Restorative Cleansing"
+source_note = "Treasure Vault (Remastered). Three grades share the same healing activation and increase the amount healed."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:KqzTdCwrfoqfSR5b", name = "Tome of Restorative Cleansing (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:NwyyVc5G6zUbcXRs", name = "Tome of Restorative Cleansing (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:m9v1YKUvQuFGVZ10", name = "Tome of Restorative Cleansing (Greater)", attributes = ["Greater"] },
+]

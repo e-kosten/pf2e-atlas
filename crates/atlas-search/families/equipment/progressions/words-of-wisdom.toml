@@ -1,0 +1,9 @@
+name = "Words of Wisdom"
+source_note = "Lost Omens Highhelm. Three grades of the same tattoo increase its recall bonus and duration."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:5nqxkc2OlZAPpU4t", name = "Words of Wisdom (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:mXfoYKagvi8z4xkk", name = "Words of Wisdom (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:wOBIx55awoePSEIz", name = "Words of Wisdom (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Oil of Ownership"
+source_note = "Treasure Vault (Remastered). The same object-marking effect remains active for progressively longer periods."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:6XMuLT5QKkoznKz9", name = "Oil of Ownership (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:dUREATQUwEOGiV13", name = "Oil of Ownership (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:3TxupnJlz7qXfdIr", name = "Oil of Ownership (Greater)", attributes = ["Greater"] },
+]

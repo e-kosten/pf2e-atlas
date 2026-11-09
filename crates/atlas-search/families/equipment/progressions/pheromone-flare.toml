@@ -1,0 +1,10 @@
+name = "Pheromone Flare"
+source_note = "Howl of the Wild. Three grades of the same animal-attracting flare scale the save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:5QuImSHXH5QTDju1", name = "Pheromone Flare (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:1AxZlZmCuOK3NtVs", name = "Pheromone Flare (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:p2bU2w6qbtgrBchc", name = "Pheromone Flare (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Animal Nip"
+source_note = "Rage of Elements. Three grades of the same animal attractant increase the save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:suTxnYr8arqC9pt7", name = "Animal Nip (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:d6u3xqPPvx3xWaqF", name = "Animal Nip (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:8XFicWnOf9VwSklQ", name = "Animal Nip (Major)", attributes = ["Major"] },
+]

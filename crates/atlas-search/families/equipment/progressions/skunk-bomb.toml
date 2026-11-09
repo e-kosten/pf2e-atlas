@@ -1,0 +1,12 @@
+name = "Skunk Bomb"
+source_note = "Treasure Vault (Remastered). Four grades of the same odor bomb scale poison damage, attack bonus, and save DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:3Sij5RwC6Z1ZVuFp", name = "Skunk Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:m091zbWD9EoH6kWC", name = "Skunk Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:7WwKI53IcXVIHbkh", name = "Skunk Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Dv1bozSbR39McpWd", name = "Skunk Bomb (Major)", attributes = ["Major"] },
+]

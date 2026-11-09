@@ -1,0 +1,10 @@
+name = "Potion of Annulment"
+source_note = "#182: Graveclaw. Three grades use the same supernatural-bargain counteract effect with increasing modifiers."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:a46f60lt7NEUvNEy", name = "Potion of Annulment (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:4B8jRW7jGybSlovV", name = "Potion of Annulment (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:J5LsHDGEv4CVN7vr", name = "Potion of Annulment (Greater)", attributes = ["Greater"] },
+]

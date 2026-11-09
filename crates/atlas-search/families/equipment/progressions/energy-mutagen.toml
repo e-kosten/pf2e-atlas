@@ -1,0 +1,11 @@
+name = "Energy Mutagen"
+source_note = "Treasure Vault (Remastered). Four grades share the selected-energy tradeoff and scale resistance and offensive effects."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:mbrwudO35tItsldq", name = "Energy Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:SLJTJwyIRjuWjfuK", name = "Energy Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:xVtyaEnYZ1aJT4ki", name = "Energy Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:34MbgwW1SGlowyk2", name = "Energy Mutagen (Major)", attributes = ["Major"] },
+]

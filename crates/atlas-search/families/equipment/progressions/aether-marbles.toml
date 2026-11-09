@@ -1,0 +1,11 @@
+name = "Aether Marbles"
+source_note = "Adventure Path: Gatewalkers. Three grades of the same force bomb scale damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:JMu3VUwhQu1SLSFd", name = "Aether Marbles (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:67pe75mLVekaVqZH", name = "Aether Marbles (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:5XImTvAN58GhnNIE", name = "Aether Marbles (Greater)", attributes = ["Greater"] },
+]

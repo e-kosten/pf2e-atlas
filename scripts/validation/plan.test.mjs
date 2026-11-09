@@ -7,6 +7,7 @@ import {
   existsSync,
   mkdirSync,
   chmodSync,
+  rmSync,
 } from "node:fs";
 import { resolve } from "node:path";
 import { validationPlan, flatChecks } from "./plan.mjs";
@@ -52,7 +53,8 @@ test("mixed application checks share one bundle before the fixed frontend/Rust p
   assert(
     flatChecks(plan).some(
       (task) =>
-        task.join(" ") === "workspace tests cargo nextest run --workspace --locked",
+        task.join(" ") ===
+        "workspace tests cargo nextest run --workspace --locked",
     ),
   );
   assert(
@@ -61,6 +63,64 @@ test("mixed application checks share one bundle before the fixed frontend/Rust p
     ),
   );
 });
+
+for (const [mode, expected] of [
+  [
+    "--developer",
+    [
+      "cargo fmt",
+      "broad clippy",
+      "strict runtime clippy",
+      "developer tests",
+      "developer build",
+    ],
+  ],
+  ["--developer-build-test", ["developer tests", "developer build"]],
+])
+  test(`standalone CI selection ${mode} runs its phases without a frontend bundle`, (t) => {
+    const f = fixture(t);
+    rmSync(resolve(f.cwd, "web/atlas-ui/node_modules"), { recursive: true });
+    const bin = resolve(f.cwd, "../bin");
+    mkdirSync(bin);
+    const pinned = /channel\s*=\s*"([^"]+)"/.exec(
+      readFileSync(resolve(f.cwd, "rust-toolchain.toml"), "utf8"),
+    )[1];
+    writeFileSync(
+      resolve(bin, "rustc"),
+      `#!/bin/sh\nprintf 'rustc ${pinned} (fixture)\\n'\n`,
+      { mode: 0o755 },
+    );
+    writeFileSync(
+      resolve(bin, "cargo"),
+      `#!/bin/sh
+case "$1" in
+  metadata) printf '{"target_directory":"%s/target","packages":[]}\\n' "$PWD";;
+  fmt|clippy|test|build|--version) echo fixture-cargo;;
+  *) exit 10;;
+esac
+`,
+      { mode: 0o755 },
+    );
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/validation/verify.mjs", mode, "--verbose"],
+      {
+        cwd: f.cwd,
+        env: { ...f.env, PATH: `${bin}:${f.env.PATH}` },
+        encoding: "utf8",
+        timeout: 8000,
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const records = f.records();
+    assert.deepEqual(
+      records.map((record) => record.label).sort(),
+      [...expected].sort(),
+    );
+    assert(records.every((record) => record.status === "passed"));
+    assert.match(result.stdout + result.stderr, /fixture-cargo/);
+    assert(!existsSync(resolve(f.cwd, "web/atlas-ui/dist")));
+  });
 
 test("tooling-only plan includes actual regressions and excludes application builds", () => {
   const plan = validationPlan(new Set(["tooling"]));

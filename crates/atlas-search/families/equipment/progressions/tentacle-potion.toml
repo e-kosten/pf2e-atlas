@@ -1,0 +1,10 @@
+name = "Tentacle Potion"
+source_note = "Treasure Vault (Remastered). Three grades extend the ectoplasmic limb's duration and increase what it can do."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:pzUHY3C7JfmUgjuO", name = "Tentacle Potion (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:DFxyS72Uh2vqT2MZ", name = "Tentacle Potion (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ipaBbiROyAN4McWA", name = "Tentacle Potion (Greater)", attributes = ["Greater"] },
+]

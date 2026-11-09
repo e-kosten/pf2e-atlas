@@ -1,0 +1,11 @@
+name = "Thunderbird Tuft"
+source_note = "Impossible Magic. Four spell catalysts share the electricity enhancement, with upper grades adding stronger damage."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:Led9ciHzpF8uPN6Y", name = "Thunderbird Tuft (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:ik15k2r6znOdguXo", name = "Thunderbird Tuft (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:sYTvRLIlhfUd1Dm5", name = "Thunderbird Tuft (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:xYJwgmn2Nmthztb7", name = "Thunderbird Tuft (Major)", attributes = ["Major"] },
+]

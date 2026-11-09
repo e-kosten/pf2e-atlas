@@ -1,0 +1,10 @@
+name = "Witchwarg Elixir"
+source_note = "Player Core 2. The three grades protect against progressively more severe cold."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:n9VrmK9Us0viv20P", name = "Witchwarg Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:2prxM8Q0F4sdSwPx", name = "Witchwarg Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:aDn5blt2iiYJpzbe", name = "Witchwarg Elixir (Greater)", attributes = ["Greater"] },
+]

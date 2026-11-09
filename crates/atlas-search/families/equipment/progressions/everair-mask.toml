@@ -1,0 +1,10 @@
+name = "Everair Mask"
+source_note = "Lost Omens Highhelm. Four grades preserve the same inhaled-poison protection and increase available air duration."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:cw3onzGfq0Ori5Mn", name = "Everair Mask (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:DIBJnuEG85FYwqnM", name = "Everair Mask (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:pVjtw5KSQF1YF4Jp", name = "Everair Mask (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:nZygpiYsx4AlQKle", name = "Everair Mask (Major)", attributes = ["Major"] },
+]

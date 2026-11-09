@@ -1,0 +1,11 @@
+name = "Crystal Shards"
+source_note = "Player Core 2. The three pressurized crystal bombs scale piercing damage, splash damage, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:V4wgOWYmHlbSZsVG", name = "Crystal Shards (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ivaL0xt33k6QNwQK", name = "Crystal Shards (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:V2knI4GpdJYLupjg", name = "Crystal Shards (Major)", attributes = ["Major"] },
+]

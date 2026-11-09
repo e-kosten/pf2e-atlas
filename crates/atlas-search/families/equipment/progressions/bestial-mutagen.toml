@@ -1,0 +1,11 @@
+name = "Bestial Mutagen"
+source_note = "Player Core 2. Four grades share the bestial attacks and tradeoff while raising damage, bonuses, and duration."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:IQK9N2mEOyAj3iWU", name = "Bestial Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:VISk5uLPVIvNWovB", name = "Bestial Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:gDheph8YteBtnyKp", name = "Bestial Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:nS75vsM3x5jxlUqn", name = "Bestial Mutagen (Major)", attributes = ["Major"] },
+]

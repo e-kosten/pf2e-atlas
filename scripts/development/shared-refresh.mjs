@@ -8,7 +8,7 @@ import {
   rmSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import { buildProfile, selectedProfile } from "./build-profile.mjs";
 import { runChecks } from "../validation/run-check.mjs";
 import {
@@ -16,6 +16,7 @@ import {
   output,
   requireReadiness,
   retainedTool,
+  sharedStore,
   toolCapabilities,
 } from "./preflight.mjs";
 
@@ -53,12 +54,7 @@ try {
   const toolReceipt = JSON.parse(readFileSync(tool + ".json", "utf8"));
   if (toolReceipt.binary_sha256 !== digest(readFileSync(tool)))
     throw new Error("Retained tool/receipt mismatch; run just dev-tool-build.");
-  const common = output(
-    "git",
-    ["rev-parse", "--path-format=absolute", "--git-common-dir"],
-    root,
-  );
-  const store = resolve(dirname(common), ".atlas/dev-baselines");
+  const store = sharedStore(root);
   const selected = JSON.parse(
     readFileSync(resolve(store, "current.json"), "utf8"),
   ).baseline;

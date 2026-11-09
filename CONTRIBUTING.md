@@ -6,8 +6,8 @@ setup and everyday use belong in [README.md](README.md).
 
 ## Quick start
 
-Use a short-lived feature branch. A linked worktree is useful for concurrent
-changes or preserving an existing checkout; see [worktrees and cleanup](docs/development/worktrees-and-cleanup.md).
+Use a linked worktree on a short-lived feature branch for the setup below.
+See [worktrees and cleanup](docs/development/worktrees-and-cleanup.md).
 Reuse a suitable checkout for related revisions, preserve unrelated changes and
 active previews, and verify the intended base before editing. Start from current
 `main` unless the task identifies a dependent PR or another explicit base.
@@ -25,6 +25,9 @@ For a reusable development environment with the full reference content, use
 prebuilt backend by default, which may differ from the code in your checkout.
 Read [setup and previews](docs/development/setup-and-preview.md) before choosing
 a backend. Keep Cargo output checkout-local and reuse existing builds.
+
+Use the [developer command map](docs/development/developer-commands.md) to choose
+a diagnostic, build, preview, or validation command and see which files it uses.
 
 For the Apple Silicon desktop pilot, see [Build the macOS pilot](desktop/README.md).
 

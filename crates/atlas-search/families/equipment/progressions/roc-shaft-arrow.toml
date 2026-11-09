@@ -1,0 +1,10 @@
+name = "Roc-Shaft Arrow"
+source_note = "#208: Hoof, Cinder, and Storm. Three grades of the same arrow improve the displacement distance and saving throw DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:7pHKxibsckGy220n", name = "Roc-Shaft Arrow (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:wzZbMIlvKbAwaYC0", name = "Roc-Shaft Arrow (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:jg3gsPDcrA5xUogf", name = "Roc-Shaft Arrow (Greater)", attributes = ["Greater"] },
+]

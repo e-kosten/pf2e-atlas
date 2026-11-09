@@ -1,0 +1,9 @@
+name = "Cape of Illumination"
+source_note = "Lost Omens Firebrands. Three grades improve the same cape's light rank and dazzling effect DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:HM0uhpM9t97MAABn", name = "Cape of Illumination (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:vsTtpwdYANxP4EPZ", name = "Cape of Illumination (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:3Q8nG1JW4FMMJ4l7", name = "Cape of Illumination (Greater)", attributes = ["Greater"] },
+]

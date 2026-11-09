@@ -1,0 +1,10 @@
+name = "Midday Lantern"
+source_note = "#172: Secrets of the Temple-City. Four grades of the same sunlight lantern raise the spell rank and counteract modifier."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:fsqAB2lS9N8MRaO5", name = "Midday Lantern (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:8usnglqucr4Q0YO6", name = "Midday Lantern (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:gvMmQh9icawtnmlR", name = "Midday Lantern (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:W0tqTUmRE5lEhWUl", name = "Midday Lantern (Major)", attributes = ["Major"] },
+]

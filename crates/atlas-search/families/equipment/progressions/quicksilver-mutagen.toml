@@ -1,0 +1,11 @@
+name = "Quicksilver Mutagen"
+source_note = "Player Core 2. All grades share the same speed and agility tradeoff with larger bonuses and duration."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:5MKBwpE401uz4kNN", name = "Quicksilver Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:n52BSbZsnx4Vmt2p", name = "Quicksilver Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:eQDTsetadI8u8Kc0", name = "Quicksilver Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:4GXzTN6iSDGfYEAi", name = "Quicksilver Mutagen (Major)", attributes = ["Major"] },
+]

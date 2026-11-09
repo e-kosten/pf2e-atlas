@@ -1,0 +1,8 @@
+name = "Cleft Head Marking"
+source_note = "#207: The Resurrection Flood. Both grades share the same tattoo and increase its Deception bonus and precision damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:bfDByCXIwWxX7Fiz", name = "Cleft Head Marking (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:6Vg2ugx0hdazJ57g", name = "Cleft Head Marking (Greater)", attributes = ["Greater"] },
+]

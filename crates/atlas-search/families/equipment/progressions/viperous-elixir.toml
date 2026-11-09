@@ -1,0 +1,10 @@
+name = "Viperous Elixir"
+source_note = "Howl of the Wild. Three grades of the same venomous fang elixir increase its bonus and venom uses."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:LmNp6og59w1KhlIX", name = "Viperous Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:HwDlOobl1bsTG5mA", name = "Viperous Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:avCckBXMRbzAudZG", name = "Viperous Elixir (Greater)", attributes = ["Greater"] },
+]

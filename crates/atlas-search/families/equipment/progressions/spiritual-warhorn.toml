@@ -1,0 +1,11 @@
+name = "Spiritual Warhorn"
+source_note = "Treasure Vault (Remastered). Four grades of the same horn summon more manifestations and increase their attack modifier."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:9MpwTXDxblLFgx2J", name = "Spiritual Warhorn (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:TWSdWjp6dpodZkeV", name = "Spiritual Warhorn (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:mMP0ycsdW2nLlCeO", name = "Spiritual Warhorn (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:NfMteX8WWC5mxc52", name = "Spiritual Warhorn (Major)", attributes = ["Major"] },
+]

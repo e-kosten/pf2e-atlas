@@ -1,0 +1,10 @@
+name = "Crimson Godsblood Serum"
+source_note = "Lost Omens Shining Kingdoms. Three grades improve the same serum's bonuses and healing."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:bO6CN8rkGo7f14rk", name = "Crimson Godsblood Serum (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:e2iOKWEs2PsAbgmo", name = "Crimson Godsblood Serum (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:jkjqpRWXdi0rGWey", name = "Crimson Godsblood Serum (Greater)", attributes = ["Greater"] },
+]

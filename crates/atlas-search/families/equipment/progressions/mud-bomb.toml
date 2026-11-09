@@ -1,0 +1,12 @@
+name = "Mud Bomb"
+source_note = "#176: Lost Mammoth Valley. Four grades of the same mud bomb scale bludgeoning damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:HtBqmBFYuxJp2QiZ", name = "Mud Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:0U4qXSxfZDMIJDtA", name = "Mud Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:9j3sqH9sG5mUe6rI", name = "Mud Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Djp91D21I6QW6dlw", name = "Mud Bomb (Major)", attributes = ["Major"] },
+]

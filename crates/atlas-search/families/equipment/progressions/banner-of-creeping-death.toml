@@ -1,0 +1,10 @@
+name = "Banner of Creeping Death"
+source_note = "Battlecry!. The same banner scales its void damage and save DC across four grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:VkbmZ9gkhuPTz6dn", name = "Banner of Creeping Death (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:qssQ3oMvONWZCX8u", name = "Banner of Creeping Death (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:BkC3xfOIOZ365gST", name = "Banner of Creeping Death (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:eFIReVuLOx0GzArc", name = "Banner of Creeping Death (Major)", attributes = ["Major"] },
+]

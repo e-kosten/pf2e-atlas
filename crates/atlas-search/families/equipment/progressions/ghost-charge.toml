@@ -1,0 +1,12 @@
+name = "Ghost Charge"
+source_note = "Player Core 2. Four grades of the same anti-undead bomb scale vitality damage and its additional effects."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:LNd5u19GqC51ngby", name = "Ghost Charge (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Wf94e8YNhZdIvWc9", name = "Ghost Charge (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:28osNZINXLWzqzUL", name = "Ghost Charge (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:i7bJcib5TUJKOd4Z", name = "Ghost Charge (Major)", attributes = ["Major"] },
+]

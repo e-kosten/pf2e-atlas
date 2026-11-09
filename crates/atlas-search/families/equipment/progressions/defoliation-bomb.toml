@@ -1,0 +1,12 @@
+name = "Defoliation Bomb"
+source_note = "#202: Severed at the Root. Four grades of the same plant-targeting bomb scale void damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:M1P2Tn4e9L92Wadw", name = "Defoliation Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:bPWqAnZAoDPko7sw", name = "Defoliation Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:tcHzNhjP6BesejWT", name = "Defoliation Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Ey3AowmoC3Fo0OJ9", name = "Defoliation Bomb (Major)", attributes = ["Major"] },
+]

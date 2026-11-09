@@ -1,0 +1,11 @@
+name = "Soothing Tonic"
+source_note = "Treasure Vault (Remastered). Four grades grant progressively more fast healing for the same duration."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:zA2UPGE9RYwlLPZJ", name = "Soothing Tonic (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:RM7WoJYfd2edlNZ8", name = "Soothing Tonic (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:HIPkTfJLlLu4bWE3", name = "Soothing Tonic (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:UeUPNFw600HEdDgF", name = "Soothing Tonic (Major)", attributes = ["Major"] },
+]

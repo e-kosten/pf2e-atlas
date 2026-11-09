@@ -1,0 +1,10 @@
+name = "Tangibility Resonator"
+source_note = "Lost Omens Rival Academies. Three grades of the same tangibility effect increase its save DC."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:LCw1mtusKGterDR4", name = "Tangibility Resonator (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Om6RqpjwuPINOepb", name = "Tangibility Resonator (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:tJquEIyMHgbFEH9N", name = "Tangibility Resonator (Major)", attributes = ["Major"] },
+]

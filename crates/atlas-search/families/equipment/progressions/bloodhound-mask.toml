@@ -1,0 +1,10 @@
+name = "Bloodhound Mask"
+source_note = "Advanced Player's Guide. Higher grades of the same mask increase scent range, bonus, and duration."
+item_type = "consumable"
+category = "toolkit"
+
+members = [
+    { key = "equipment-srd:mDJSaarQsIMX7Opi", name = "Bloodhound Mask (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:qasFfdiZKIczoZ9p", name = "Bloodhound Mask (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:2x8F5s3PyKzYsRrZ", name = "Bloodhound Mask (Greater)", attributes = ["Greater"] },
+]

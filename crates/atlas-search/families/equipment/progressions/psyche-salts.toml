@@ -1,0 +1,10 @@
+name = "Psyche Salts"
+source_note = "#214: The Broken Palace. Three grades of the same salts improve the counteract rank, modifier, and secondary bonus."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:ue0MB4HnIQ9iCwWb", name = "Psyche Salts (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:aQ2PgxzGbqU5rKx9", name = "Psyche Salts (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:eOUZqtwBKdXagplE", name = "Psyche Salts (Greater)", attributes = ["Greater"] },
+]

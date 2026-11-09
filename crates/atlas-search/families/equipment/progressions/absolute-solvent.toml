@@ -1,0 +1,10 @@
+name = "Absolute Solvent"
+source_note = "Player Core 2. Three grades dissolve adhesives with stronger counteract ranks and modifiers."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:QSVIv5obLhKkmy67", name = "Absolute Solvent (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:mR9RD9S08jIX1IPm", name = "Absolute Solvent (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:jdkMRl7zxOVGUuGI", name = "Absolute Solvent (Greater)", attributes = ["Greater"] },
+]

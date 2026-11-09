@@ -1,0 +1,9 @@
+name = "Revealing Mist"
+source_note = "Treasure Vault (Remastered). The same revealing spray covers a larger cone at Greater."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:F5LJiS0wcwSqRrQ9", name = "Revealing Mist (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:5OiGlKiNFKlcP4k1", name = "Revealing Mist (Greater)", attributes = ["Greater"] },
+]

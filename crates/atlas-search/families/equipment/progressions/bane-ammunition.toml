@@ -1,0 +1,9 @@
+name = "Bane Ammunition"
+source_note = "Treasure Vault (Remastered). The same creature-type ammunition deals increasing persistent poison damage."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:arNOPU7h8nNbnZ1N", name = "Bane Ammunition (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:RL2VI9IGuOtXsEX6", name = "Bane Ammunition (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:qZvCxp4noVqYGkT0", name = "Bane Ammunition (Greater)", attributes = ["Greater"] },
+]

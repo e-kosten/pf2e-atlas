@@ -1,0 +1,10 @@
+name = "Sealing Chest"
+source_note = "Lost Omens Pathfinder Society Guide. The four chests share the same containment rules, which use the chest's item level as the blocking threshold."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:g9pOZsJykSihdyrL", name = "Sealing Chest (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:nI5x32JWjcEqYCq6", name = "Sealing Chest (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:JPVQ0qvTaKkTF2z4", name = "Sealing Chest (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:iwC6V10pTd6Sk0ML", name = "Sealing Chest (Major)", attributes = ["Major"] },
+]

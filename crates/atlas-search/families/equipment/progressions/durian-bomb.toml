@@ -1,0 +1,12 @@
+name = "Durian Bomb"
+source_note = "#203: Shepherd of Decay. Four grades of the same fruit bomb increase damage, save DC, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:RIhdmH0yMzht7OD5", name = "Durian Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:B9BYJQt5Jlwv2cxv", name = "Durian Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:mE2MpteGPmGeYbOL", name = "Durian Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:9crpQ6bymgYcKGjq", name = "Durian Bomb (Major)", attributes = ["Major"] },
+]

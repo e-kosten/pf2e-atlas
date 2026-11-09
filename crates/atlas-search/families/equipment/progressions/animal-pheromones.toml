@@ -1,0 +1,10 @@
+name = "Animal Pheromones"
+source_note = "Howl of the Wild. Three grades of the same animal-tailored scent scale the save DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:HHsMAKU0fPgYWspm", name = "Animal Pheromones (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:erLH6cQYhyZB5CLM", name = "Animal Pheromones (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:GxVwATDdSGbZbx9B", name = "Animal Pheromones (Greater)", attributes = ["Greater"] },
+]

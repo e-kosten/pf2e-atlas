@@ -1,0 +1,9 @@
+name = "Anylength Rope"
+source_note = "Lost Omens Firebrands. Three grades of the same extending rope increase maximum length and adjust activation frequency."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:V5oTXRa6Jk8KXyXl", name = "Anylength Rope (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:l4FxEma0PrvUPeMe", name = "Anylength Rope (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:EVq8BRD0HO63S1GF", name = "Anylength Rope (Greater)", attributes = ["Greater"] },
+]

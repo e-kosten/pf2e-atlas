@@ -1,0 +1,10 @@
+name = "Contagion Metabolizer"
+source_note = "Treasure Vault (Remastered). The same counteract effect gains a higher modifier and rank with grade."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:EKhROfCklhZ7Je7h", name = "Contagion Metabolizer (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:GWMrc8hZINhmDwvt", name = "Contagion Metabolizer (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ommn7wIgLyWHGL11", name = "Contagion Metabolizer (Greater)", attributes = ["Greater"] },
+]

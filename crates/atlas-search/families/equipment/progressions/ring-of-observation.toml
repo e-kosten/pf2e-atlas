@@ -1,0 +1,9 @@
+name = "Ring of Observation"
+source_note = "Lost Omens Firebrands. Three grades increase the same observation range and duration and add stronger spell options."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:WNlkRCPzc8YGQOAp", name = "Ring of Observation (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:geXmZMgU7kVbLHIj", name = "Ring of Observation (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:wc1T0d1mGSwJallY", name = "Ring of Observation (Greater)", attributes = ["Greater"] },
+]

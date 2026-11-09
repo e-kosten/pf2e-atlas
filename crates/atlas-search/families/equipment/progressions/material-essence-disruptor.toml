@@ -1,0 +1,11 @@
+name = "Material Essence Disruptor"
+source_note = "Guns & Gears. Four grades of the same material counteract device increase range, modifier, and rank."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:wu9cqBx65txvAODd", name = "Material Essence Disruptor (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:rfU6tyzEadCXHSSN", name = "Material Essence Disruptor (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:byFW6sILekJaPERu", name = "Material Essence Disruptor (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:omWrYy6RY9rxeF50", name = "Material Essence Disruptor (Major)", attributes = ["Major"] },
+]

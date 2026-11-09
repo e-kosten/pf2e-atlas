@@ -1,0 +1,11 @@
+name = "Deadweight Mutagen"
+source_note = "Treasure Vault (Remastered). The same stabilizing tradeoff gains larger bonuses and can affect larger creatures."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:JPALWW3w4z8STAYV", name = "Deadweight Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:qLwwxk1j04rgXSF9", name = "Deadweight Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:xanr7nay2UQeR4Ec", name = "Deadweight Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Wx5WhSNOmeICgHSC", name = "Deadweight Mutagen (Major)", attributes = ["Major"] },
+]

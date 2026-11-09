@@ -1,0 +1,12 @@
+name = "Nail Bomb"
+source_note = "#202: Severed at the Root. Four grades of the same cold iron bomb scale piercing damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:2zDOPJy5goJjRREN", name = "Nail Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:19njoGhqVm3UYsn1", name = "Nail Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:YZ8WY378H1WFaD6s", name = "Nail Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:qmFVrqzvkGU9g5lt", name = "Nail Bomb (Major)", attributes = ["Major"] },
+]

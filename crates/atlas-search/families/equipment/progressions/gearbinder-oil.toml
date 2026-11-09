@@ -1,0 +1,10 @@
+name = "Gearbinder Oil"
+source_note = "Treasure Vault (Remastered). Three grades use the same mechanism-jamming effect with increasing save DCs."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:wyD9xIa4TAxoHnuQ", name = "Gearbinder Oil (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:A3rdTH2lpqQMoX6N", name = "Gearbinder Oil (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:OtFKHfUQnn97ILBC", name = "Gearbinder Oil (Greater)", attributes = ["Greater"] },
+]

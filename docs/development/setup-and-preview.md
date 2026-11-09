@@ -5,13 +5,11 @@ selecting a development backend, or sharing and refreshing a human preview.
 
 ## Checkout setup
 
-Use the pinned Rust toolchain and Node 22.18+ in the 22.x line (the frontend's
-`.node-version`, matching CI), or the supported Node 24.x line. Check
-`rustc --version` and `node --version` before gates; do not inherit an arbitrary
-global runtime. Frontend npm metadata enforces these Node lines on installation.
-The supported Node versions also provide native type stripping for contributor
-TypeScript tools. Install frontend dependencies with `npm --prefix web/atlas-ui ci`;
-keep their lockfile consistent and use private dependencies for isolated runs.
+Use the pinned Rust toolchain and a [supported Node version](dependencies.md#javascript-toolchains).
+Check `rustc --version` and `node --version` before running gates. CI uses Node 26,
+and the frontend's `engines.node` field owns the accepted local range. Install
+frontend dependencies with `npm --prefix web/atlas-ui ci` in each checkout that
+needs them.
 
 Use `just preflight --validation` for Cargo readiness or `just preflight --preview`
 for a managed preview. Actual operations also check their selected prerequisites
@@ -21,7 +19,8 @@ install dependencies/toolchains, rebuild, or migrate data. Version probes set
 selectors are rejected with a repair hint rather than checking a different
 compiler from Cargo's selection. Supported wrappers/flags are fingerprinted.
 
-Install tracked git hooks and verify this checkout:
+From a linked worktree on a branch other than `main`, install tracked Git hooks
+and verify the checkout:
 
 ```bash
 scripts/install-git-hooks.sh
@@ -43,14 +42,16 @@ normal Cargo build and retains the executable under the primary checkout at
 no Rust build or Python runtime, even from a new worktree.
 
 Refresh with `just dev-tool-build` after changing its Rust inputs or when readiness
-reports an obsolete capability or receipt. The retained binary has a content-based
-receipt covering local crate dependencies, assets, Cargo configuration and compiler
-environment. A commit alone does not invalidate it; a mismatched binary/receipt
-fails closed. Refreshing replaces only the retained developer tool;
-it does not change baseline executables, manifests, data, or existing previews.
-`ATLAS_DEV_BINARY=/absolute/path/to/atlas-dev` explicitly selects a candidate
-developer tool for the thin shell launchers. The selected Atlas app executable
-is a separate choice controlled by `--binary`.
+reports an obsolete capability or receipt. Managed preview and shared refresh
+check the retained tool's capabilities, binary checksum, and input receipt before
+proceeding. The receipt covers local crate dependencies, assets, Cargo
+configuration, and compiler environment. Refreshing the tool replaces its
+executable and receipt.
+
+The build-free baseline launcher checks that the selected tool is executable.
+Set `ATLAS_DEV_BINARY=/absolute/path/to/atlas-dev` to select a tool explicitly.
+Managed preview and shared refresh also require a matching receipt for that
+override. Use `--binary` to select the separate Atlas app executable.
 
 If the shared preview baseline is behind the current required API contract,
 schema or content policy, establish what is stale and how it affects the preview.
@@ -224,9 +225,11 @@ Keep baseline versions referenced by `.atlas/dev-workspace.json` or running
 processes. Retire unused versions only after checking those dependencies and any
 saved state. Existing previews never follow the moving default automatically.
 
-The commands can be tried before merge from another checkout with
-`just --justfile /absolute/path/to/task/justfile dev-status`; they operate on the
-invoking checkout. `--checkout /absolute/path` selects a different checkout.
+To try another checkout's Justfile against your task workspace, run
+`(cd /path/to/task && just --justfile /path/to/tooling/justfile dev-status)`.
+The recipe supplies the invoking directory as the checkout. To pass the path
+explicitly, invoke the tool directly with
+`atlas-dev baseline status --checkout /path/to/task`.
 `just dev-baseline-test` runs the focused snapshot/publication/isolation tests
 without models. The same tests run in the existing Rust workspace CI gate.
 

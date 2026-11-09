@@ -1,0 +1,12 @@
+name = "Twigjack Sack"
+source_note = "#175: Broken Tusk Moon. Four grades of the same bramble bomb scale piercing damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:tm5l8uXtQQGMTvgY", name = "Twigjack Sack (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Ix5w4UNElK0ncBm2", name = "Twigjack Sack (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:yq5BoByEscKRZsto", name = "Twigjack Sack (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:8h5UFFk5EodKZh19", name = "Twigjack Sack (Major)", attributes = ["Major"] },
+]

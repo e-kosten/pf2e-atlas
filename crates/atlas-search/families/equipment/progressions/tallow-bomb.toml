@@ -1,0 +1,12 @@
+name = "Tallow Bomb"
+source_note = "#175: Broken Tusk Moon. Four grades of the same burning-oil bomb scale damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:OOqno1OwqJQBEtXe", name = "Tallow Bomb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:4pVGwkVi6izoUuLC", name = "Tallow Bomb (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:5IUyrJItXkMASgmq", name = "Tallow Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:l29fzEJ6SSIP2wJn", name = "Tallow Bomb (Major)", attributes = ["Major"] },
+]

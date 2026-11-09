@@ -1,0 +1,10 @@
+name = "Clinging Bubbles"
+source_note = "Lost Omens Firebrands. Three grades scale the same sticky bubbles' area, movement penalty, and escape difficulty."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:5iNNOlIqvN1zb8v7", name = "Clinging Bubbles (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:MLbE6FZGXKcoTB52", name = "Clinging Bubbles (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:haDkOWAZClCQA6Yq", name = "Clinging Bubbles (Greater)", attributes = ["Greater"] },
+]

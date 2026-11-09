@@ -1,0 +1,10 @@
+name = "Implosion Dust"
+source_note = "Treasure Vault (Remastered). The same compression effect gains a higher save DC across three grades."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:LKTbRpaw8bH3WHv1", name = "Implosion Dust (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:ve73Sb8MwLY9GDBD", name = "Implosion Dust (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ye6XAJY21YQqRnKH", name = "Implosion Dust (Greater)", attributes = ["Greater"] },
+]

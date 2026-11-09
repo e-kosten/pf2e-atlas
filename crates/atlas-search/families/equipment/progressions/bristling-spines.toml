@@ -1,0 +1,9 @@
+name = "Bristling Spines"
+source_note = "Howl of the Wild. Three grades of the same graft scale burst damage and save DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:4Pb2znon7PTxVtqM", name = "Bristling Spines (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:3qTVRohDdcCyDA0w", name = "Bristling Spines (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:sTs1xUtk0PoeAtes", name = "Bristling Spines (Greater)", attributes = ["Greater"] },
+]

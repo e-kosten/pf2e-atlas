@@ -1,0 +1,9 @@
+name = "Alchemical Chart"
+source_note = "Treasure Vault (Remastered). The same quick-alchemy aid supports higher item levels at higher grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:cKYWot4ifTOa6ans", name = "Alchemical Chart (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:dtQnQn4LBSIAzQCZ", name = "Alchemical Chart (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:MnKL30xS3FHlwdS1", name = "Alchemical Chart (Greater)", attributes = ["Greater"] },
+]

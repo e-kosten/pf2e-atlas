@@ -1,0 +1,12 @@
+name = "Star Grenade"
+source_note = "#180: The Smoking Gun. Four grades of the same cross-shaped blast scale fire damage, splash, and attack bonuses."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:RsCLCgCgGAn67ry5", name = "Star Grenade (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:KFTkiLXWENatK9XY", name = "Star Grenade (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:W1XG0qStVh8fmeJ6", name = "Star Grenade (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:PkqzU1Ap3O3IicUv", name = "Star Grenade (Major)", attributes = ["Major"] },
+]

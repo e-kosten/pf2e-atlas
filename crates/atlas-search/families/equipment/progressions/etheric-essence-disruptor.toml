@@ -1,0 +1,11 @@
+name = "Etheric Essence Disruptor"
+source_note = "Guns & Gears. Four grades of the same etheric device increase range, counteract modifier, and rank."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:SRMgleqCK2tsZjvS", name = "Etheric Essence Disruptor (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:d49GcmPZ2xWxU8Zj", name = "Etheric Essence Disruptor (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:LcNUAglIYiTxwmNo", name = "Etheric Essence Disruptor (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:KO7ZftYQrcE5GFkJ", name = "Etheric Essence Disruptor (Major)", attributes = ["Major"] },
+]
