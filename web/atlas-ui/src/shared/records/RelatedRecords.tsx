@@ -12,7 +12,7 @@ import { recordDestination, searchDestination } from "../../app/destinations";
 import { Button, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { useEffect, useState } from "react";
-import { GitCompareArrows } from "lucide-react";
+import { Columns2 } from "lucide-react";
 import { SearchPreviewRows } from "./SearchPreviewRows";
 import { ReferenceResult } from "./ReferenceResult";
 import { useQuery } from "@tanstack/react-query";
@@ -360,7 +360,7 @@ function VersionCard({
         actions={
           <Button
             size="small"
-            icon={<GitCompareArrows size={14} aria-hidden="true" />}
+            icon={<Columns2 size={14} aria-hidden="true" />}
             onClick={onCompare}
           >
             Compare
@@ -400,7 +400,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       <Button
         key={JSON.stringify(target.navigation)}
         size="small"
-        icon={<GitCompareArrows size={14} aria-hidden="true" />}
+        icon={<Columns2 size={14} aria-hidden="true" />}
         onClick={() =>
           setComparison({ target: target.navigation.record_key, open: true })
         }
