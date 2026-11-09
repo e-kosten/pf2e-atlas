@@ -4,6 +4,7 @@ use atlas_cli_support::{CliProgressMode, ProgressOptions, init_tracing, write_js
 use clap::{Parser, Subcommand};
 
 use crate::commands;
+use crate::commands::families::{FamiliesArgs, FamiliesCommand};
 use crate::commands::index::args::{IndexArgs, IndexCommand};
 use crate::commands::source::args::{SourceArgs, SourceCommand};
 use crate::commands::tags::args::{TagsArgs, TagsCommand};
@@ -33,6 +34,8 @@ enum Command {
     Source(SourceArgs),
     #[command(about = "Inspect built Atlas artifacts")]
     Index(IndexArgs),
+    /// Audit equipment families and propose grade progressions.
+    Families(FamiliesArgs),
     /// Validate authored tag data.
     Tags(TagsArgs),
     /// Evaluate stored-vector Similar methods with frozen inputs.
@@ -57,6 +60,9 @@ pub(crate) fn main() -> ExitCode {
             TagsCommand::Validate(options) => options.json,
         },
         Command::Similarity(args) => args.json(),
+        Command::Families(args) => match &args.command {
+            FamiliesCommand::Audit(options) => options.json,
+        },
         Command::Source(args) => match &args.command {
             SourceCommand::Load(options) => options.json,
             SourceCommand::Analyze(options) => options.json,
@@ -79,6 +85,9 @@ pub(crate) fn main() -> ExitCode {
             TagsCommand::Validate(options) => commands::tags::run_tags_validate(options),
         },
         Command::Similarity(args) => commands::similarity::run(args),
+        Command::Families(args) => match args.command {
+            FamiliesCommand::Audit(options) => commands::families::run(options),
+        },
         Command::Source(args) => match args.command {
             SourceCommand::Load(options) => commands::source::run_source_load(options),
             SourceCommand::Analyze(options) => commands::source::run_source_analyze(options),

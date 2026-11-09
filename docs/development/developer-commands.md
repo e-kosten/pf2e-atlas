@@ -1,4 +1,19 @@
-# Rust developer commands
+# Developer commands
+
+## Choose an entry point
+
+| Your task | Entry point |
+| --- | --- |
+| Set up, search, or serve an Atlas workspace | `atlas` |
+| Inspect source or artifacts, run an evaluation, or generate a recurring maintainer report | `atlas-dev` |
+| Run a checkout workflow that coordinates builds, previews, or validation | `just` |
+| Use a separate toolchain, such as the Foundry TypeScript compiler | The owning package under `dev-tools/` |
+| Probe a crate during an experiment or provide a focused executable for an automated caller | A crate-local Cargo example |
+
+Keep recurring Rust reports reachable through `atlas-dev --help`. A command can
+use the owning crate without moving that crate's product logic into the CLI.
+
+## Rust diagnostics
 
 Build and run developer diagnostics independently of the product CLI, web UI
 bundle, and Node:
@@ -64,3 +79,21 @@ surface is included in published product bundles; atlas-dev is built locally.
 Run `atlas-dev tags validate` from the repository root to validate the catalog,
 assignments and ontology suggestions under `data/tags`. Use `--path` for a
 different corpus root and `--json` for the validation report.
+
+
+## Review equipment families
+
+From the Atlas checkout, run the family audit against a private development
+workspace. Use `--path-mode repo` for the checkout default or pass `--index`
+for a separate preview copy.
+
+```sh
+cargo run --locked -p atlas-dev -- families audit --path-mode repo
+cargo run --locked -p atlas-dev -- families audit --path-mode repo --propose-grades --json > proposals.json
+```
+
+The audit reads the entire equipment pack in a single workspace snapshot.
+Add `--json` to get the standard JSON envelope with `data.records` for the
+audit or `data.proposals` for grade candidates. The command leaves the workspace
+and catalog files alone. See [equipment family review](source-research.md#equipment-family-review-during-a-source-upgrade)
+for the source checks that precede catalog changes.
