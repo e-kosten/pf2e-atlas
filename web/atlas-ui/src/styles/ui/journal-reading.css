@@ -82,9 +82,6 @@
 .record-reference .prepared-content .document-heading {
   margin-block: var(--space-section) var(--space-control);
 }
-.record-reference .prepared-content > :is(h1, h2, h3, h4, h5, h6):first-child {
-  margin-block-start: 0;
-}
 
 /* Inserted source prose shares the document flow, without nested record cards. */
 .prepared-inclusion {
