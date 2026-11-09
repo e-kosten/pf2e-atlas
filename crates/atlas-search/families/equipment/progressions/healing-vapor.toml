@@ -1,5 +1,5 @@
 name = "Healing Vapor"
-source_note = "Treasure Vault (Remastered). The same dispersing vapor scales the duration or strength of recovery benefits."
+source_note = "Treasure Vault (Remastered). The same ten-minute mist heals more quickly at higher grades, with stronger disease and poison save bonuses at Greater and Major."
 item_type = "consumable"
 category = "other"
 

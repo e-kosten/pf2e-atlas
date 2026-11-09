@@ -1,5 +1,5 @@
 name = "Bortled Favorite"
-source_note = "Adventure Path: Hellbreakers. Both grades share the same porridge's recovery benefit with a stronger effect at Moderate."
+source_note = "Adventure Path: Hellbreakers. The same porridge grants extra minutes of Hustle during exploration, with a longer allowance at Moderate."
 item_type = "consumable"
 category = "other"
 
