@@ -4887,22 +4887,6 @@ export interface RollTableRequest {
   selection: RecordSelection;
 }
 
-export interface SavedListSummaryView {
-  created_at: string;
-  description?: string;
-  /** @minimum 0 */
-  item_count: number;
-  list_key: string;
-  name: string;
-  slug: string;
-  tags: string[];
-  updated_at: string;
-}
-
-export interface SavedListCreateView {
-  list: SavedListSummaryView;
-}
-
 export interface SavedListItemSnapshotView {
   kind?: string;
   title: string;
@@ -4924,6 +4908,18 @@ export interface SavedListItemView {
   record_key: string;
   snapshot: SavedListItemSnapshotView;
   status: SavedListItemStatusView;
+}
+
+export interface SavedListSummaryView {
+  created_at: string;
+  description?: string;
+  /** @minimum 0 */
+  item_count: number;
+  list_key: string;
+  name: string;
+  slug: string;
+  tags: string[];
+  updated_at: string;
 }
 
 export interface SavedListDetailView {
@@ -4965,7 +4961,7 @@ export interface SavedListItemNoteView {
   title: string;
 }
 
-export interface SavedListUpdateView {
+export interface SavedListMutationView {
   list: SavedListSummaryView;
 }
 
@@ -7400,7 +7396,7 @@ export const getCreateSavedListUrl = () => {
   return `/api/lists`
 }
 
-export const createSavedList = async (createSavedListRequest: CreateSavedListRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListCreateView> => {
+export const createSavedList = async (createSavedListRequest: CreateSavedListRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListMutationView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7416,7 +7412,7 @@ export const createSavedList = async (createSavedListRequest: CreateSavedListReq
     }
     return headers;
   };
-return fetchGenerated<SavedListCreateView>(getCreateSavedListUrl(),
+return fetchGenerated<SavedListMutationView>(getCreateSavedListUrl(),
   {
     ...options,
     method: 'POST',
@@ -7478,7 +7474,7 @@ export const getUpdateSavedListUrl = (listRef: string,) => {
 }
 
 export const updateSavedList = async (listRef: string,
-    updateSavedListRequest: UpdateSavedListRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListUpdateView> => {
+    updateSavedListRequest: UpdateSavedListRequest, options?: Parameters<typeof fetchGenerated>[1]): Promise<SavedListMutationView> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7494,7 +7490,7 @@ export const updateSavedList = async (listRef: string,
     }
     return headers;
   };
-return fetchGenerated<SavedListUpdateView>(getUpdateSavedListUrl(listRef),
+return fetchGenerated<SavedListMutationView>(getUpdateSavedListUrl(listRef),
   {
     ...options,
     method: 'PATCH',

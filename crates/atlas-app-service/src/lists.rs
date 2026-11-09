@@ -5,12 +5,12 @@ use atlas_app_model::{
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
     ImportSavedListView, ImportedListResolutionView, RecordResolutionAmbiguousView,
-    RemoveSavedListItemRequest, ReorderSavedListItemRequest, SavedListCreateView,
-    SavedListDetailView, SavedListExportDocumentView, SavedListExportItemView,
-    SavedListExportListView, SavedListIndexView, SavedListItemMutationOutcomeView,
-    SavedListItemMutationView, SavedListItemNoteView, SavedListItemSnapshotView,
-    SavedListItemStatusView, SavedListItemView, SavedListSummaryView, SavedListUpdateView,
-    UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
+    RemoveSavedListItemRequest, ReorderSavedListItemRequest, SavedListDetailView,
+    SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
+    SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
+    SavedListItemNoteView, SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
+    SavedListMutationView, SavedListSummaryView, UpdateSavedListItemNoteRequest,
+    UpdateSavedListRequest,
 };
 use atlas_domain::RecordKey;
 use atlas_local_state::{
@@ -140,14 +140,14 @@ impl AtlasAppService {
     pub fn create_saved_list(
         &self,
         request: CreateSavedListRequest,
-    ) -> AppServiceResult<SavedListCreateView> {
+    ) -> AppServiceResult<SavedListMutationView> {
         self.create_saved_list_inner(request, false)
     }
 
     pub fn create_saved_list_with_generated_slug(
         &self,
         request: CreateSavedListRequest,
-    ) -> AppServiceResult<SavedListCreateView> {
+    ) -> AppServiceResult<SavedListMutationView> {
         self.create_saved_list_inner(request, true)
     }
 
@@ -155,11 +155,11 @@ impl AtlasAppService {
         &self,
         request: CreateSavedListRequest,
         generate_slug: bool,
-    ) -> AppServiceResult<SavedListCreateView> {
+    ) -> AppServiceResult<SavedListMutationView> {
         self.with_write(move |session| {
             let store = session.local_state()?;
             let list = create_list(&store.saved_lists(), request, generate_slug)?;
-            Ok(SavedListCreateView {
+            Ok(SavedListMutationView {
                 list: saved_list_summary(list),
             })
         })
@@ -235,7 +235,7 @@ impl AtlasAppService {
         &self,
         list_ref: &str,
         request: UpdateSavedListRequest,
-    ) -> AppServiceResult<SavedListUpdateView> {
+    ) -> AppServiceResult<SavedListMutationView> {
         self.save_list_metadata(list_ref, |current| {
             if current.list_key != list_ref {
                 return Err(saved_list_not_found(list_ref));
@@ -270,7 +270,7 @@ impl AtlasAppService {
         name: Option<String>,
         description: Option<Option<String>>,
         tags: Option<Vec<String>>,
-    ) -> AppServiceResult<SavedListUpdateView> {
+    ) -> AppServiceResult<SavedListMutationView> {
         self.save_list_metadata(list_ref, |_| {
             Ok(ListMetadataEdit {
                 slug,
@@ -285,7 +285,7 @@ impl AtlasAppService {
         &self,
         list_ref: &str,
         edit: impl FnOnce(&SavedList) -> AppServiceResult<ListMetadataEdit>,
-    ) -> AppServiceResult<SavedListUpdateView> {
+    ) -> AppServiceResult<SavedListMutationView> {
         self.with_write(|session| {
             let lists = session.local_state()?.saved_lists();
             let current = lists
@@ -301,7 +301,7 @@ impl AtlasAppService {
                     tags: edit.tags,
                 })?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
-            Ok(SavedListUpdateView {
+            Ok(SavedListMutationView {
                 list: saved_list_summary(list),
             })
         })

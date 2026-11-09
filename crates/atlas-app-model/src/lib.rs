@@ -184,12 +184,11 @@ pub use list::{
     BatchSavedListItemMutationView, BatchSavedListItemOutcomeView, BatchSavedListItemResultView,
     CreateSavedListRequest, DeleteSavedListView, FilterSavedListRequest, ImportSavedListRequest,
     ImportSavedListView, ImportedListResolutionView, RemoveSavedListItemRequest,
-    ReorderSavedListItemRequest, SavedListCreateView, SavedListDetailView,
-    SavedListExportDocumentView, SavedListExportItemView, SavedListExportListView,
-    SavedListIndexView, SavedListItemMutationOutcomeView, SavedListItemMutationView,
-    SavedListItemNoteView, SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView,
-    SavedListSummaryView, SavedListUpdateView, UpdateSavedListItemNoteRequest,
-    UpdateSavedListRequest,
+    ReorderSavedListItemRequest, SavedListDetailView, SavedListExportDocumentView,
+    SavedListExportItemView, SavedListExportListView, SavedListIndexView,
+    SavedListItemMutationOutcomeView, SavedListItemMutationView, SavedListItemNoteView,
+    SavedListItemSnapshotView, SavedListItemStatusView, SavedListItemView, SavedListMutationView,
+    SavedListSummaryView, UpdateSavedListItemNoteRequest, UpdateSavedListRequest,
 };
 pub use prepared_content::{
     CheckDetailsView, ContentControlKindView, ContentControlView, ContentRollComponentResultView,

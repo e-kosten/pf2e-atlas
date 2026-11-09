@@ -92,7 +92,7 @@ pub(crate) async fn filter_saved_list(
     ))
 }
 
-#[utoipa::path(post, path = "/api/lists", operation_id = "createSavedList", request_body = CreateSavedListRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListCreateView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(post, path = "/api/lists", operation_id = "createSavedList", request_body = CreateSavedListRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn create_saved_list(
     State(state): State<AtlasWebState>,
     payload: Result<Json<CreateSavedListRequest>, JsonRejection>,
@@ -104,7 +104,7 @@ pub(crate) async fn create_saved_list(
     ))
 }
 
-#[utoipa::path(patch, path = "/api/lists/{list_ref}", operation_id = "updateSavedList", params(("list_ref" = String, Path)), request_body = UpdateSavedListRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListUpdateView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+#[utoipa::path(patch, path = "/api/lists/{list_ref}", operation_id = "updateSavedList", params(("list_ref" = String, Path)), request_body = UpdateSavedListRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::SavedListMutationView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn update_saved_list(
     State(state): State<AtlasWebState>,
     Path(list_ref): Path<String>,

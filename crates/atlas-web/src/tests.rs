@@ -944,6 +944,7 @@ async fn saved_list_routes_use_real_router_wiring() {
         )
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body.as_object().unwrap().len(), 1, "{body}");
     assert_eq!(body["list"]["slug"], "encounters");
     assert_eq!(body["list"]["tags"], json!([]));
     let path = format!("/api/lists/{}", fixture.list_key);
@@ -966,6 +967,7 @@ async fn saved_list_routes_use_real_router_wiring() {
     let(status,body)=fixture.json(Method::PATCH,&path,Some(json!({"slug":{"expected":"research","value":"renamed-research"},"name":{"expected":"Research","value":"Renamed Research"},"description":{"expected":null,"value":"Updated prep"}}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["list"]["list_key"], fixture.list_key);
+    assert_eq!(body.as_object().unwrap().len(), 1, "{body}");
     assert_eq!(body["list"]["slug"], "renamed-research");
     assert_eq!(body["list"]["name"], "Renamed Research");
     assert_eq!(body["list"]["description"], "Updated prep");

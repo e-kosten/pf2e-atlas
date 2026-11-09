@@ -15757,17 +15757,6 @@
         ],
         "type": "object"
       },
-      "SavedListCreateView": {
-        "properties": {
-          "list": {
-            "$ref": "#/components/schemas/SavedListSummaryView"
-          }
-        },
-        "required": [
-          "list"
-        ],
-        "type": "object"
-      },
       "SavedListDetailView": {
         "properties": {
           "items": {
@@ -15925,6 +15914,17 @@
         ],
         "type": "object"
       },
+      "SavedListMutationView": {
+        "properties": {
+          "list": {
+            "$ref": "#/components/schemas/SavedListSummaryView"
+          }
+        },
+        "required": [
+          "list"
+        ],
+        "type": "object"
+      },
       "SavedListSummaryView": {
         "properties": {
           "created_at": {
@@ -15965,17 +15965,6 @@
           "item_count",
           "created_at",
           "updated_at"
-        ],
-        "type": "object"
-      },
-      "SavedListUpdateView": {
-        "properties": {
-          "list": {
-            "$ref": "#/components/schemas/SavedListSummaryView"
-          }
-        },
-        "required": [
-          "list"
         ],
         "type": "object"
       },
@@ -22757,7 +22746,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SavedListCreateView"
+                  "$ref": "#/components/schemas/SavedListMutationView"
                 }
               }
             },
@@ -22904,7 +22893,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SavedListUpdateView"
+                  "$ref": "#/components/schemas/SavedListMutationView"
                 }
               }
             },

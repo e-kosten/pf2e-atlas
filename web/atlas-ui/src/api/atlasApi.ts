@@ -31,14 +31,13 @@ import type {
   RemoveSavedListItemRequest,
   ReorderEncounterParticipantRequest,
   ReorderSavedListItemRequest,
-  SavedListCreateView,
+  SavedListMutationView,
   SearchResultsPage,
   SimilarityPartsRequest,
   SimilarityPartsView,
   SavedListDetailView,
   SavedListIndexView,
   SavedListItemMutationView,
-  SavedListUpdateView,
   SetEncounterTurnRequest,
   UpdateEncounterParticipantConditionRequest,
   UpdateEncounterParticipantEdit,
@@ -549,14 +548,14 @@ export async function filterSavedList(
 
 export async function createSavedList(
   request: CreateSavedListRequest,
-): Promise<SavedListCreateView> {
+): Promise<SavedListMutationView> {
   return http.createSavedList(checkRequest(request), { intent: "action" });
 }
 
 export async function updateSavedList(
   listRef: string,
   request: UpdateSavedListRequest,
-): Promise<SavedListUpdateView> {
+): Promise<SavedListMutationView> {
   return http.updateSavedList(listRef, checkRequest(request), {
     intent: "action",
   });
