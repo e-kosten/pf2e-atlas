@@ -140,14 +140,36 @@ fn captured_pack_systems(capture: &SourceCapture) -> BTreeMap<String, Option<Str
     }
     systems
 }
+/// How to attribute the files read by the build.
+#[derive(Clone, Copy)]
+pub enum SourceRevision<'a> {
+    DetectGit,
+    Verified(&'a str),
+    Unspecified,
+}
+
 impl CapturedBuildInputs {
     pub fn capture(options: BuildArtifactOptions) -> Result<Self, IngestError> {
+        Self::capture_with_revision(options, SourceRevision::DetectGit)
+    }
+
+    /// Capture inputs from a managed snapshot whose revision the caller verified.
+    pub fn capture_with_revision(
+        options: BuildArtifactOptions,
+        revision: SourceRevision<'_>,
+    ) -> Result<Self, IngestError> {
         let started = Instant::now();
-        let source_revision = source_git_commit_if_clean(&options.source_root).ok();
+        let before = match revision {
+            SourceRevision::DetectGit => source_git_commit_if_clean(&options.source_root).ok(),
+            SourceRevision::Verified(revision) => Some(revision.to_owned()),
+            SourceRevision::Unspecified => None,
+        };
         let capture =
             SourceCapture::capture(&options.source_root, options.manifest_path.as_deref())?;
-        let source_revision = source_revision.filter(|revision| {
-            source_git_commit_if_clean(&options.source_root).is_ok_and(|after| after == *revision)
+        let source_revision = before.filter(|before| {
+            !matches!(revision, SourceRevision::DetectGit)
+                || source_git_commit_if_clean(&options.source_root)
+                    .is_ok_and(|after| after == *before)
         });
         crate::source_compatibility::validate_parsed_manifest(
             &capture.manifest_path,
@@ -238,16 +260,27 @@ pub(crate) fn build_artifact(
     schema: u32,
     options: BuildArtifactOptions,
 ) -> Result<BuildArtifactReport, IngestError> {
+    build_artifact_with_revision(workspace, schema, options, SourceRevision::DetectGit)
+}
+
+pub fn build_artifact_with_revision(
+    workspace: &atlas_storage::Workspace,
+    schema: u32,
+    options: BuildArtifactOptions,
+    revision: SourceRevision<'_>,
+) -> Result<BuildArtifactReport, IngestError> {
     let started = Instant::now();
     let (owner, scratch) = begin_build(workspace, schema, &options)?;
-    let inputs = CapturedBuildInputs::capture(options)?;
+    let inputs = CapturedBuildInputs::capture_with_revision(options, revision)?;
     finish_build(workspace, schema, &owner, scratch, inputs, started, None)
 }
 
 pub fn rebuild_artifact(
     repair: atlas_storage::ReferenceRepair<'_>,
-    mut options: BuildArtifactOptions,
+    options: BuildArtifactOptions,
+    revision: SourceRevision<'_>,
 ) -> Result<BuildArtifactReport, IngestError> {
+    let mut options = options;
     let started = Instant::now();
     let owner = repair.owner();
     let schema = repair.schema();
@@ -259,7 +292,7 @@ pub fn rebuild_artifact(
     }
     options.reuse_passage_layouts = false;
     let scratch = atlas_index::BuildScratch::new(owner).map_err(index_error)?;
-    let inputs = CapturedBuildInputs::capture(options)?;
+    let inputs = CapturedBuildInputs::capture_with_revision(options, revision)?;
     finish_build(
         &workspace,
         schema,

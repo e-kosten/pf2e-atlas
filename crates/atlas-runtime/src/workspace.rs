@@ -6,7 +6,7 @@ use std::path::Path;
 
 pub const WORKSPACE_SCHEMA_VERSION: u32 = RELEASE_HISTORY.target();
 
-const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
+pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
     migrations: &[Migration {
         version: 42,
         name: "release-baseline",
@@ -589,6 +589,64 @@ mod tests {
                 .unwrap(),
             0
         );
+    }
+
+    #[test]
+    fn ordinary_startup_refuses_a_supported_predecessor_until_explicit_setup() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("predecessor.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..41], |_| Ok(())).unwrap();
+        let runtime = crate::AtlasRuntime::resolve(crate::AtlasRuntimeOptions {
+            overrides: crate::AtlasPathOverrides {
+                source_root: Some(directory.path().join("unavailable-source")),
+                index_path: Some(path.clone()),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .unwrap();
+
+        assert!(
+            runtime
+                .check_workspace_if_present()
+                .unwrap_err()
+                .message()
+                .contains("atlas setup")
+        );
+        assert_eq!(
+            workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
+            41
+        );
+        assert!(!workspace.upgrade_backup_path().exists());
+
+        let _owner = workspace.service_guard().unwrap();
+        let options = crate::RuntimeSetupOptions {
+            target: crate::SetupTarget::Records,
+            offline: true,
+            ..Default::default()
+        };
+        let blocked = runtime.ensure_setup(options.clone());
+        assert!(blocked.checks.iter().any(|action| {
+            action
+                .reason
+                .as_deref()
+                .is_some_and(|reason| reason.contains("close Atlas"))
+        }));
+        assert_eq!(
+            workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
+            41
+        );
+        drop(_owner);
+
+        runtime.ensure_setup(options);
+        assert_eq!(
+            workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
+            WORKSPACE_SCHEMA_VERSION
+        );
+        assert!(workspace.upgrade_backup_path().is_file());
+        runtime.check_workspace_if_present().unwrap();
     }
 
     #[test]

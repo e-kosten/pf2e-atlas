@@ -505,6 +505,7 @@ fn source_petrified_fixture(
         record("conditionitems", "Item", json!({"_id":id,"type":"condition","name":"Petrified","system":{"slug":"petrified","value":{"isValued":false,"value":null}}})),
     ], false).unwrap();
     drop(retrieval);
+    atlas_runtime::initialize_workspace(artifact.path()).unwrap();
     let f = FixtureWorker {
         worker: crate::AtlasAppService::start(crate::AtlasAppServiceOptions {
             default_search_profile: None,

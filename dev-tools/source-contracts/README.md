@@ -130,6 +130,11 @@ graph is committed.
 
 ### Trait changes during an upstream upgrade
 
+For a new pin, run `python3 dev-tools/source-contracts/hash-managed-archive.py
+<checkout>` from the repository root and record the digest in
+`archiveTreeSha256`. This digest binds the extracted file names and bytes, so
+changes to GitHub's archive compression do not affect verification.
+
 Retain fresh extraction outputs for both sources before replacing the old pin.
 Use each version's appropriate declaration dependencies as described below:
 

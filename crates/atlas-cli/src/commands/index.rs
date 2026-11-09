@@ -1,6 +1,6 @@
 use atlas_cli_support::write_json_data;
 use atlas_embedding::EmbeddingRuntimeConfig;
-use atlas_ingest::{BuildArtifactOptions, build_artifact};
+use atlas_ingest::{BuildArtifactOptions, build_artifact_with_revision};
 use atlas_runtime::{
     AtlasPathMode, AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, SetupTarget,
 };
@@ -20,6 +20,10 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
         },
     })
     .map_err(|e| e.to_string())?;
+    let workspace = runtime
+        .workspace_location()
+        .map_err(|error| error.to_string())?;
+    let _setup = workspace.setup_guard().map_err(|error| error.to_string())?;
     let configuration = runtime.configure_reference_build(
         &atlas_runtime::RuntimeSetupOptions {
             target: if options.no_embeddings {
@@ -36,7 +40,8 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     let paths = runtime.paths();
     let workspace =
         atlas_runtime::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
-    let report = build_artifact(
+    let revision = runtime.verified_source_revision(&configuration);
+    let report = build_artifact_with_revision(
         &workspace,
         atlas_runtime::WORKSPACE_SCHEMA_VERSION,
         BuildArtifactOptions {
@@ -58,6 +63,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
             reuse_passage_layouts: true,
             embedding_batch_size: options.embedding_batch_size,
         },
+        revision,
     )
     .map_err(|e| e.to_string())?;
     tracing::info!(target:"atlas_progress",complete=true,"Index build finished");

@@ -8,6 +8,22 @@ pub(crate) fn resolve_configuration(
     options: &RuntimeSetupOptions,
     manifest_override: Option<&std::path::Path>,
 ) -> Result<RequestedReferenceConfig, String> {
+    resolve(paths, options, manifest_override, false)
+}
+
+pub(crate) fn resolve_setup_configuration(
+    paths: &ResolvedAtlasPaths,
+    options: &RuntimeSetupOptions,
+) -> Result<RequestedReferenceConfig, String> {
+    resolve(paths, options, None, true)
+}
+
+fn resolve(
+    paths: &ResolvedAtlasPaths,
+    options: &RuntimeSetupOptions,
+    manifest_override: Option<&std::path::Path>,
+    setup: bool,
+) -> Result<RequestedReferenceConfig, String> {
     let mut requested = std::collections::BTreeSet::new();
     for profile in &options.search_profiles {
         atlas_embedding::search_profile(profile).map_err(|e| e.to_string())?;
@@ -64,6 +80,17 @@ pub(crate) fn resolve_configuration(
         indexing_locale: "en".into(),
         search_profiles: vec![],
     });
+    let previous_managed_pin = config.source_root.parent() == paths.managed_source_root.parent()
+        && config
+            .source_root
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| {
+                name.len() == 40 && name.bytes().all(|byte| byte.is_ascii_hexdigit())
+            });
+    if setup && previous_managed_pin {
+        config.source_root.clone_from(&paths.managed_source_root);
+    }
     if paths.source_root_explicit {
         config.source_root = paths.source_root.clone();
     }
@@ -132,6 +159,56 @@ mod tests {
             embedding_cache_root: root.join("models"),
             index_path: root.join("workspace.sqlite"),
         }
+    }
+
+    #[test]
+    fn setup_uses_the_new_pin_without_changing_a_custom_source() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut paths = paths(dir.path());
+        let cache = dir.path().join("pf2e");
+        paths.managed_source_root = cache.join("a".repeat(40));
+        paths.source_root = paths.managed_source_root.clone();
+        paths.source_root_explicit = false;
+        let options = RuntimeSetupOptions::default();
+        let old = super::resolve_setup_configuration(&paths, &options)
+            .unwrap()
+            .source_root;
+
+        paths.managed_source_root = cache.join("b".repeat(40));
+        paths.source_root = paths.managed_source_root.clone();
+        let check = RuntimeSetupOptions {
+            check: true,
+            ..options.clone()
+        };
+        assert_eq!(
+            super::resolve_setup_configuration(&paths, &check)
+                .unwrap()
+                .source_root,
+            paths.managed_source_root
+        );
+        assert_eq!(
+            resolve_configuration(&paths, &check).unwrap().source_root,
+            old
+        );
+        assert_eq!(
+            super::resolve_setup_configuration(&paths, &options)
+                .unwrap()
+                .source_root,
+            paths.managed_source_root
+        );
+
+        let custom = dir.path().join("custom-source");
+        paths.source_root = custom.clone();
+        paths.source_root_explicit = true;
+        super::resolve_setup_configuration(&paths, &options).unwrap();
+        paths.source_root = paths.managed_source_root.clone();
+        paths.source_root_explicit = false;
+        assert_eq!(
+            super::resolve_setup_configuration(&paths, &options)
+                .unwrap()
+                .source_root,
+            custom
+        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Explicit setup is the sole runtime path allowed to inspect/fetch the source clone.
+//! Explicit setup is the sole runtime path allowed to inspect or acquire the managed source snapshot.
 use crate::setup_freshness::{capture_build_inputs, source_is_fresh};
 use crate::workspace::open_workspace_index;
 use crate::{ResolvedAtlasPaths, setup_model::*};
@@ -75,8 +75,45 @@ pub(crate) fn ensure_setup(
     // Emit progress before configuration and workspace checks, which can take
     // noticeable time on a fresh install or a large existing workspace.
     progress("check_setup", "Checking setup");
+    let _setup = if options.check {
+        None
+    } else {
+        match atlas_storage::Workspace::at(&paths.index_path)
+            .and_then(|workspace| workspace.setup_guard())
+        {
+            Ok(guard) => Some(guard),
+            Err(atlas_storage::StorageError::Busy) => {
+                return configuration_failure(paths, &options, "setup already running".into());
+            }
+            Err(error) => return configuration_failure(paths, &options, error.to_string()),
+        }
+    };
+    let _upgrade = if !options.check && paths.index_path.is_file() {
+        let workspace = match atlas_storage::Workspace::existing(&paths.index_path) {
+            Ok(workspace) => workspace,
+            Err(error) => return configuration_failure(paths, &options, error.to_string()),
+        };
+        match workspace.check_migration_history(crate::workspace::RELEASE_HISTORY) {
+            Ok(version) if version < crate::WORKSPACE_SCHEMA_VERSION => {
+                match workspace.service_guard() {
+                    Ok(guard) => Some(guard),
+                    Err(atlas_storage::StorageError::Busy) => {
+                        return configuration_failure(
+                            paths, &options,
+                            "close Atlas desktop and atlas web sessions for this workspace before upgrading".into(),
+                        );
+                    }
+                    Err(error) => return configuration_failure(paths, &options, error.to_string()),
+                }
+            }
+            Ok(_) => None,
+            Err(error) => return configuration_failure(paths, &options, error.to_string()),
+        }
+    } else {
+        None
+    };
     let configuration =
-        match crate::source_configuration::resolve_configuration(paths, &options, None) {
+        match crate::source_configuration::resolve_setup_configuration(paths, &options) {
             Ok(configuration) => configuration,
             Err(error) => return configuration_failure(paths, &options, error),
         };
@@ -164,15 +201,21 @@ pub(crate) fn ensure_setup(
             Ok(())
         }
         .and_then(|()| {
-            capture_build_inputs(BuildArtifactOptions {
-                source_root: paths.source_root.clone(),
-                output_path: paths.index_path.clone(),
-                manifest_path: configuration.manifest_path.clone(),
-                locale: configuration.indexing_locale.clone(),
-                search_profiles: configurations.clone(),
-                reuse_passage_layouts: !options.force_rebuild,
-                embedding_batch_size: options.embedding_batch_size,
-            })
+            capture_build_inputs(
+                BuildArtifactOptions {
+                    source_root: paths.source_root.clone(),
+                    output_path: paths.index_path.clone(),
+                    manifest_path: configuration.manifest_path.clone(),
+                    locale: configuration.indexing_locale.clone(),
+                    search_profiles: configurations.clone(),
+                    reuse_passage_layouts: !options.force_rebuild,
+                    embedding_batch_size: options.embedding_batch_size,
+                },
+                crate::source_acquisition::revision(
+                    managed_source,
+                    configuration.manifest_path.is_some(),
+                ),
+            )
             .map_err(|error| {
                 let failed = !matches!(error, atlas_ingest::IngestError::SourceIncompatible(_));
                 (error.to_string(), failed)

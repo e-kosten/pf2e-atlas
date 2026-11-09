@@ -52,6 +52,7 @@ fn fixture_with_items(
     }
     let (retrieval, artifact) = open_source_fixture(records, false).unwrap();
     drop(retrieval);
+    atlas_runtime::initialize_workspace(artifact.path()).unwrap();
     let service = AtlasAppService::start(AtlasAppServiceOptions {
         default_search_profile: None,
         path_mode: atlas_runtime::AtlasPathMode::Repo,

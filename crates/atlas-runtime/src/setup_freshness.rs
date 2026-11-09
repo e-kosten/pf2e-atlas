@@ -3,10 +3,11 @@ use atlas_ingest::{BuildArtifactOptions, CapturedBuildInputs, IngestError};
 
 pub(crate) fn capture_build_inputs(
     options: BuildArtifactOptions,
+    verified_revision: atlas_ingest::SourceRevision<'_>,
 ) -> Result<CapturedBuildInputs, IngestError> {
     tracing::info!(target:"atlas_progress",phase="check_source_freshness","Capturing source inputs");
     let started = std::time::Instant::now();
-    let captured = CapturedBuildInputs::capture(options);
+    let captured = CapturedBuildInputs::capture_with_revision(options, verified_revision);
     let message = if captured.is_ok() {
         "Captured source inputs"
     } else {

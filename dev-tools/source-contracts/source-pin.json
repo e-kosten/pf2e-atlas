@@ -3,6 +3,7 @@
   "commit": "28d9d156f252d084371d994dc359509b49eadf18",
   "systemVersion": "8.6.1",
   "sourceDigest": "c1ee148d16a58ace19114544105ccd50c625ba356d5a79fffd40f49165b68d3b",
+  "archiveTreeSha256": "0e36d382c7d488071e7d30b5f42a2539f60dd27e279354dfb41b93956f131377",
   "inputFileCount": 1683,
   "typescriptVersion": "6.0.3",
   "ruleKeys": [

@@ -462,6 +462,7 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         let error = crate::build::rebuild_artifact(
             atlas_index::test_support::reference_repair(&owner).unwrap(),
             options.clone(),
+            crate::SourceRevision::DetectGit,
         )
         .unwrap_err();
         assert!(
@@ -1173,6 +1174,7 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     let rebuilt = crate::build::rebuild_artifact(
         atlas_index::test_support::reference_repair(&owner).unwrap(),
         options,
+        crate::SourceRevision::DetectGit,
     )
     .unwrap();
     assert_eq!(rebuilt.reused_inputs, 0);

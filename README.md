@@ -39,10 +39,10 @@ Follow any PATH instructions printed by the installer so your terminal can find
 atlas setup
 ```
 
-Run setup once after installation and again after upgrading to a newer version of
-Atlas. It downloads the Pathfinder reference content and a search model, then
-prepares them for local searching. The first run may take a while; later runs
-reuse work already completed.
+Run setup after installation, when Atlas asks you to upgrade the workspace, or
+when you want to update reference data. Setup downloads and verifies the pinned
+Pathfinder reference content and a search model, then prepares them for local
+searching. You do not need Git. Later runs reuse work already completed.
 
 **3. Open Atlas.**
 
@@ -51,7 +51,10 @@ atlas web --open
 ```
 
 Keep the command running while you use Atlas. If the browser does not open,
-visit the local address printed in the terminal.
+visit the local address printed in the terminal. Additional launches for the same
+workspace can share the running service. When the last launcher exits, the
+service shuts down. Compatible CLI searches can reuse the loaded model while the
+service is running.
 
 Start with something you’re looking for—a particular spell, a creature concept,
 or an idea for your next session. Explore the results, save useful finds in lists,

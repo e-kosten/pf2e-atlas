@@ -21,10 +21,15 @@ atlas-storage.workspace = true
 atlas-sqlite-vec.workspace = true
 atlas-search.workspace = true
 tracing.workspace = true
+sha2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+ureq.workspace = true
+flate2 = "1.1"
+tar = { version = "0.4.46", default-features = false }
 
 [dev-dependencies]
 atlas-local-state = { workspace = true, features = ["test-support"] }
 atlas-record.workspace = true
 rusqlite.workspace = true
 atlas-search = {workspace = true, features=["test-support"]}
-serde_json.workspace = true
