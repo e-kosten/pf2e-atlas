@@ -43,19 +43,19 @@ const participant: EncounterParticipantView = {
   persistent_damage_groups: [],
   track_dying: false,
   mortality: "alive",
-  base_death_threshold: 4n,
+  base_death_threshold: 4,
   participant_key: "p",
   display_name: "Goblin",
   participant_kind: "creature",
-  revision: 1n,
+  revision: 1,
   hp_origin: "explicit",
   variant_origin: "explicit",
   participant_variant: "normal",
   status: "active",
-  position: 1n,
+  position: 1,
   side: "enemy",
-  initiative_order: 1n,
-  temporary_hp: 0n,
+  initiative_order: 1,
+  temporary_hp: 0,
   defeated: false,
   hazard_disabled: false,
   cast_unavailable_reason: null,
@@ -93,8 +93,8 @@ beforeEach(() => {
   vi.mocked(getEncounterStrikeOptions).mockResolvedValue({
     applied: [],
     conditional: [],
-    expected_revision: 1n,
-    expected_participant_revision: 1n,
+    expected_revision: 1,
+    expected_participant_revision: 1,
     title: "Jaws",
     attacks: activityFixture().attack_options,
     unavailable: null,
@@ -104,11 +104,11 @@ beforeEach(() => {
   vi.mocked(getInitiativeOptions).mockResolvedValue({
     encounter_key: "e",
     artifact_generation: "generation",
-    expected_revision: 1n,
+    expected_revision: 1,
     participants: [
       {
         participant_key: "p",
-        expected_revision: 1n,
+        expected_revision: 1,
         statistics: [{ key: "perception", label: "Perception", modifier: 9 }],
       },
     ],
@@ -297,7 +297,7 @@ it("retains the displayed damage after a failed reroll and loses it on unmount",
 
 function renderInitiative(
   onRoll: (request: RollInitiativeRequest) => Promise<InitiativeRollView>,
-  initiative?: bigint,
+  initiative?: number,
 ) {
   render(
     <InitiativeRollModal
@@ -335,11 +335,11 @@ it("initiative reloads after an uncertain save and rolls again only on request",
   expect(onRoll.mock.calls[0][0]).toMatchObject({
     request_id: expect.stringMatching(/\S+/),
     artifact_generation: "generation",
-    expected_revision: 1n,
+    expected_revision: 1,
     participants: [
       {
         participant_key: "p",
-        expected_revision: 1n,
+        expected_revision: 1,
         statistic: "perception",
         mode: "normal",
         modifier_override: null,
@@ -364,7 +364,7 @@ it("an uncertain reroll clears the old reveal and shows the current roster total
       ],
     }))
     .mockRejectedValueOnce(new TypeError("Network interrupted"));
-  renderInitiative(onRoll, 12n);
+  renderInitiative(onRoll, 12);
   fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
   const reroll = await screen.findByRole("button", { name: "Reroll" });
   expect(screen.getByLabelText("Goblin initiative total")).toHaveValue("19");
@@ -438,7 +438,7 @@ it("attack rolls immediately with selected MAP, makes fresh attempts, and contex
 function StrikeContextHarness() {
   const strike = useEncounterStrike({
     encounterRef: "e",
-    revision: 1n,
+    revision: 1,
     generation: "generation",
     participants: [participant],
     mutations: { pending: false, refreshError: null } as ReturnType<
@@ -465,11 +465,13 @@ it("reopens retained attacks in the result view after switching context owners",
     reference: {
       artifact_generation: "generation",
       selection: {
-        record_key: "creatures:actor",
-        embedded_path: [],
+        address: {
+          record_key: "creatures:actor",
+          embedded_path: [],
+          source_fingerprint: null,
+        },
         fields: [],
         passage: null,
-        source_fingerprint: null,
       },
     },
   });
@@ -515,8 +517,8 @@ it("retains the displayed attack's adjustment hints until another roll succeeds"
   const base: EncounterStrikeOptionsView = {
     applied: [],
     conditional: [{ source: "hidden", label: "Hidden", reason: "Check detection" }],
-    expected_revision: 1n,
-    expected_participant_revision: 1n,
+    expected_revision: 1,
+    expected_participant_revision: 1,
     title: "Jaws",
     attacks: activityFixture().attack_options,
     unavailable: null,
@@ -525,8 +527,8 @@ it("retains the displayed attack's adjustment hints until another roll succeeds"
   };
   const changed: EncounterStrikeOptionsView = {
     ...base,
-    expected_revision: 2n,
-    expected_participant_revision: 2n,
+    expected_revision: 2,
+    expected_participant_revision: 2,
     applied: [{ source: "frightened", label: "Frightened", reason: "-2 attack" }],
     conditional: [],
     attacks: base.attacks.map((a) => ({ ...a, modifier: a.modifier - 2 })),
@@ -598,11 +600,13 @@ it("prepares checks during roll reveal and keeps the result view until the reque
     reference: {
       artifact_generation: "generation",
       selection: {
-        record_key: "creatures:actor",
-        embedded_path: [],
+        address: {
+          record_key: "creatures:actor",
+          embedded_path: [],
+          source_fingerprint: null,
+        },
         fields: [],
         passage: null,
-        source_fingerprint: null,
       },
     },
   });

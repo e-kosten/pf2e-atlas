@@ -224,8 +224,7 @@ function AddToRecordModal({
       }
       if (!destination) throw new Error("Choose a destination.");
       if (kind === "list") {
-        const receipt = await addSavedListItem({
-          list_ref: destination.key,
+        const receipt = await addSavedListItem(destination.key, {
           record_ref: recordKey,
           ...(note ? { note } : {}),
         });
@@ -242,8 +241,7 @@ function AddToRecordModal({
         creature,
         form,
       );
-      const receipt = await addEncounterRecordParticipant({
-        encounter_ref: destination.key,
+      const receipt = await addEncounterRecordParticipant(destination.key, {
         ...addition,
         ...(participant_variant === null ? {} : { participant_variant }),
       });

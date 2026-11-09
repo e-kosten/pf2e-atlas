@@ -204,7 +204,7 @@ function page(
       number: 1,
       size: 5,
       count: rows.length,
-      total: BigInt(total),
+      total: total,
       has_more: total > rows.length,
       next_page: total > rows.length ? 2 : null,
     },

@@ -6,8 +6,8 @@ import type { ActorRuntimeView, RuntimeCountView } from "../../generated/atlas";
 function runtime(): ActorRuntimeView {
   const count = (label: string): RuntimeCountView => ({
     label,
-    base_value: 0n,
-    adjusted_value: 0n,
+    base_value: 0,
+    adjusted_value: 0,
     segments: [],
     adjustments: [],
     suppressed_adjustments: [],

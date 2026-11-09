@@ -13,7 +13,6 @@ test("overnight review reopens a stale draft and checks current values after a l
   const add = async (name: string, hp: number) => {
     const response = await page.request.post(`${path}/participants/manual`, {
       data: {
-        encounter_ref: encounter.encounter_key,
         display_name: name,
         max_hp: 30,
         current_hp: hp,
@@ -126,7 +125,6 @@ test("inline HP formulas stay bounded without displacing facts or actions", asyn
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Formula Hero",
             current_hp: 300,
             max_hp: 500,
@@ -302,7 +300,6 @@ test("persistent form uses visible workarea, flat DC, accessible damage row and 
       (
         await page.request.post(`${path}/participants/manual`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             display_name: "Form Hero",
             initiative: 20,
             current_hp: 30,
@@ -413,7 +410,6 @@ test("incomplete persistent damage is a reminder without eager errors or automat
   try {
     await page.request.post(`${path}/participants/manual`, {
       data: {
-        encounter_ref: encounter.encounter_key,
         display_name: "Reminder Hero",
         initiative: 20,
         current_hp: 30,
@@ -541,7 +537,6 @@ test("life status stays compact and stable while saving, without replacing the s
       (
         await page.request.post(`${path}/participants/record`, {
           data: {
-            encounter_ref: encounter.encounter_key,
             record_ref: "browser-actors:sentinel00000001",
             quantity: 1,
           },
@@ -667,7 +662,7 @@ test("overnight review preserves zero healing and unavailable HP through the rea
       expect(
         (
           await page.request.post(`${path}/participants/manual`, {
-            data: { encounter_ref: encounter.encounter_key, ...participant },
+            data: { ...participant },
           })
         ).ok(),
       ).toBeTruthy();

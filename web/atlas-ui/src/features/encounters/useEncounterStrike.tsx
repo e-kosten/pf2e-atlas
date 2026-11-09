@@ -13,10 +13,7 @@ import { useRetainedRecord } from "../../shared/records/useRetainedRecord";
 import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
 import { actionIssueSourceLabel } from "./actionIssueLabels";
 import type { useEncounterMutations } from "./useEncounterMutations";
-const checkIdentity = (check: unknown) =>
-  JSON.stringify(check, (_key, value) =>
-    typeof value === "bigint" ? value.toString() : value,
-  );
+const checkIdentity = (check: unknown) => JSON.stringify(check);
 
 export type StrikeLaunch = {
   strike: EncounterStrikeOptionsRequest;
@@ -27,7 +24,7 @@ export type StrikeLaunch = {
 
 function strikeContextQuery(
   encounterRef: string,
-  revision: bigint,
+  revision: number,
   generation: string | null,
   strike: EncounterStrikeOptionsRequest | null,
   targetKey?: string,
@@ -62,7 +59,7 @@ export function useEncounterStrike({
   mutations,
 }: {
   encounterRef: string;
-  revision: bigint;
+  revision: number;
   generation: string | null;
   participants: EncounterParticipantView[];
   mutations: ReturnType<typeof useEncounterMutations>;

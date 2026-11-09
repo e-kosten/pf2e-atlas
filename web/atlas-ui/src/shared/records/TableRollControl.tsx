@@ -2,7 +2,7 @@ import { Alert, Button, Popover, Space, Typography } from "antd";
 import { Info } from "lucide-react";
 import { useEffect } from "react";
 import { rollTable } from "../../api/atlasApi";
-import type { RecordDetailRequest, TableRollView } from "../../generated/atlas";
+import type { RecordSelection, TableRollView } from "../../generated/atlas";
 import { RollResult } from "../dice/RollResult";
 import { useDiceRoll } from "../dice/useDiceRoll";
 
@@ -14,7 +14,7 @@ export function TableRollControl({
   rollNote,
   onResult,
 }: {
-  selection: RecordDetailRequest;
+  selection: RecordSelection;
   artifactGeneration: string;
   formula: string | null;
   rollNote: string;

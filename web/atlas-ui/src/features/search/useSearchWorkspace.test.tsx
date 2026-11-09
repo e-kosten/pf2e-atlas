@@ -160,7 +160,7 @@ describe("useSearchWorkspace", () => {
         result.current.resultPage?.rows.map((row) => row.record.record_key),
       ).toEqual(keys),
     );
-    expect(result.current.resultPage?.page.total).toBe(2n);
+    expect(result.current.resultPage?.page.total).toBe(2);
     expect(apiMocks.searchPage.mock.lastCall?.[0]).toEqual({
       search_profile: "bge-base",
       ranking: "score",
@@ -195,7 +195,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
       searchResultsPage([], {
         pageNumber: request.page.number,
-        profile: request.search_profile,
+        profile: request.search_profile ?? undefined,
       }),
     );
     const { result, rerender } = renderHook(
@@ -240,7 +240,7 @@ describe("useSearchWorkspace", () => {
         number: request.page.number,
         size: 5,
         count: request.page.number === 3 ? 2 : 0,
-        total: 12n,
+        total: 12,
         has_more: false,
         next_page: null,
       },
@@ -272,7 +272,7 @@ describe("useSearchWorkspace", () => {
         number: request.page.number,
         size: 5,
         count: 0,
-        total: 0n,
+        total: 0,
         has_more: false,
         next_page: null,
       },
@@ -298,7 +298,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage
       .mockResolvedValueOnce({
         ...searchResultsPage(["spell:fire"]),
-        page: { ...searchResultsPage().page, total: 1n, count: 1 },
+        page: { ...searchResultsPage().page, total: 1, count: 1 },
       })
       .mockReturnValueOnce(nextPage.promise);
     const { result } = renderHook(
@@ -314,7 +314,7 @@ describe("useSearchWorkspace", () => {
     await act(async () =>
       nextPage.resolve({
         ...searchResultsPage([], { pageNumber: 5 }),
-        page: { ...searchResultsPage().page, number: 5, total: 1n },
+        page: { ...searchResultsPage().page, number: 5, total: 1 },
       }),
     );
     expect(new URLSearchParams(location.search).get("page")).toBeNull();
@@ -619,7 +619,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
         ...searchResultsPage([], {
-          profile: request.search_profile,
+          profile: request.search_profile ?? undefined,
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
@@ -697,7 +697,7 @@ describe("useSearchWorkspace", () => {
       );
       apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
         ...searchResultsPage([], {
-          profile: request.search_profile,
+          profile: request.search_profile ?? undefined,
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
@@ -968,7 +968,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.getRecordDetail.mockResolvedValue(detailFixture(recordKey));
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
       ...searchResultsPage([recordKey], { pageNumber: request.page.number }),
-      page: { ...searchResultsPage().page, number: request.page.number, total: 100n },
+      page: { ...searchResultsPage().page, number: request.page.number, total: 100 },
     }));
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
@@ -1149,7 +1149,7 @@ describe("useSearchWorkspace", () => {
       Promise.resolve({
         ...searchResultsPage(),
         similarity: similarityConfigurationFixture(recordSimilarity),
-        page: { ...searchResultsPage().page, number: request.page.number, total: 100n },
+        page: { ...searchResultsPage().page, number: request.page.number, total: 100 },
         mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
       }),
     );
@@ -1228,7 +1228,7 @@ describe("useSearchWorkspace", () => {
         const { fields, ...address } = selection;
         return Promise.resolve({
           ...detail,
-          selected: { ...address, field: fields[0] ?? null },
+          selected: { ...address, field: fields?.[0] ?? null },
         });
       },
     );
@@ -2255,11 +2255,10 @@ function searchResultsPage(
       number: options.pageNumber || 1,
       size: 25,
       count: recordKeys.length,
-      total: BigInt(
+      total:
         (options.pageNumber ?? 1) > 1
           ? ((options.pageNumber ?? 1) - 1) * 25 + Math.max(1, recordKeys.length)
           : recordKeys.length,
-      ),
       has_more: false,
       next_page: null,
     },
@@ -2341,7 +2340,7 @@ it("pages retained link evidence with its producing OR tree while a new NOT tree
             number: 1,
             size: 1,
             count: 0,
-            total: 2n,
+            total: 2,
             has_more: true,
             next_page: 2,
           },
@@ -2410,7 +2409,7 @@ describe("Core preset handoff preparation", () => {
       return {
         ...searchResultsPage([], {
           generation: "generation-b",
-          similarity: criteria.similarity,
+          similarity: criteria.similarity ?? undefined,
         }),
         similarity,
         mode: {

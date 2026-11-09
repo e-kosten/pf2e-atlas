@@ -375,10 +375,10 @@ export function valuesFixture(
         options: values.map((value) => ({
           value,
           label: labels[value] ?? String(value),
-          distinct_roots: 1n,
+          distinct_roots: 1,
           selected: false,
         })),
-        total_values: BigInt(values.length),
+        total_values: values.length,
         exhaustive: true,
         count_basis: "distinct roots",
       },

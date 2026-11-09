@@ -22,7 +22,7 @@ it("starts tracking a defeated zero-HP enemy using knockout choices without ente
   const onSave = vi.fn().mockResolvedValue(true);
   const actor = encounterParticipant({
     track_dying: false,
-    current_hp: 0n,
+    current_hp: 0,
     defeated: true,
     manual_trackers: [],
     knockout_options: [{ label: "Normal", result: "Dying 2 · Unconscious", context }],
@@ -32,7 +32,7 @@ it("starts tracking a defeated zero-HP enemy using knockout choices without ente
       <ConfigProvider theme={{ token: { motion: false } }}>
         <EncounterLifeStatus
           encounterRef="encounter"
-          revision={1n}
+          revision={1}
           onResolve={vi.fn()}
           participant={actor}
           participants={[actor]}
@@ -60,14 +60,14 @@ it("marks a dead creature alive without changing its tracking preference or HP",
     actor = encounterParticipant({
       track_dying: false,
       mortality: "dead",
-      current_hp: 0n,
+      current_hp: 0,
     });
   render(
     <QueryClientProvider client={new QueryClient()}>
       <ConfigProvider theme={{ token: { motion: false } }}>
         <EncounterLifeStatus
           encounterRef="encounter"
-          revision={1n}
+          revision={1}
           onResolve={vi.fn()}
           participant={actor}
           participants={[actor]}
@@ -90,7 +90,7 @@ it("clears defeated directly without opening a status form", async () => {
     <QueryClientProvider client={new QueryClient()}>
       <EncounterLifeStatus
         encounterRef="encounter"
-        revision={1n}
+        revision={1}
         onResolve={vi.fn()}
         onSave={vi.fn()}
         participant={encounterParticipant({ defeated: true })}

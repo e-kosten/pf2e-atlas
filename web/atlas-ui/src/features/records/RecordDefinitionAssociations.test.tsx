@@ -121,7 +121,7 @@ beforeEach(() => {
         relationship_evidence: [],
       },
     ],
-    page: { number: 1, size: 5, count: 1, total: 1n, has_more: false, next_page: null },
+    page: { number: 1, size: 5, count: 1, total: 1, has_more: false, next_page: null },
   });
 });
 

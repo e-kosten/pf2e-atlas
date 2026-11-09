@@ -11,22 +11,27 @@ import type {
   EncounterParticipantView,
   UpdateEncounterParticipantConditionRequest,
 } from "../../generated/atlas";
-export type ConditionEventInput =
-  | Omit<AddEncounterParticipantConditionRequest, "request_id">
-  | Omit<UpdateEncounterParticipantConditionRequest, "request_id">;
+export type AddConditionDraft = Omit<
+  AddEncounterParticipantConditionRequest,
+  "request_id"
+> & {
+  participant_key: string;
+};
+export type UpdateConditionDraft = Omit<
+  UpdateEncounterParticipantConditionRequest,
+  "request_id"
+> & {
+  condition_id: number;
+};
+export type ConditionEventInput = AddConditionDraft | UpdateConditionDraft;
 // Notes are persisted metadata, not input to application consequences.
 const identityOf = (request: ConditionEventInput) =>
-  JSON.stringify({ ...request, note: undefined }, (_key, value) =>
-    typeof value === "bigint" ? value.toString() : value,
-  );
+  JSON.stringify({ ...request, note: undefined });
 const consequencesOf = (preview: ConditionEventPreviewView) =>
-  JSON.stringify(
-    {
-      consequences: preview.consequences,
-      persistent_precedence: preview.persistent_precedence,
-    },
-    (_key, value) => (typeof value === "bigint" ? value.toString() : value),
-  );
+  JSON.stringify({
+    consequences: preview.consequences,
+    persistent_precedence: preview.persistent_precedence,
+  });
 export function useConditionEventPreview(
   participants: EncounterParticipantView[],
   loadPreview: (request: ConditionEventInput) => Promise<ConditionEventPreviewView>,
@@ -184,7 +189,7 @@ export function useConditionEventPreview(
                 Actions {String(c.before)} → {String(c.after)} ·{" "}
                 {c.stunned_after == null
                   ? "Check remaining Stunned at its source"
-                  : c.stunned_after === 0n
+                  : c.stunned_after === 0
                     ? "Stunned clears"
                     : `Stunned ${c.stunned_after} remains`}
               </p>

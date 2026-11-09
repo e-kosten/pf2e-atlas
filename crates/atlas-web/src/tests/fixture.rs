@@ -73,23 +73,27 @@ impl Fixture {
         Self::with_actor_adjustment(remaster, None)
     }
     pub fn with_actor_adjustment(remaster: bool, adjustment: Option<&str>) -> Self {
-        Self::with_reference_data(remaster, adjustment, None)
+        Self::with_reference_data(remaster, adjustment, None, 16)
     }
     pub fn with_glossary() -> Self {
-        Self::with_reference_data(false, None, Some(true))
+        Self::with_reference_data(false, None, Some(true), 16)
     }
     pub fn with_legacy_glossary() -> Self {
-        Self::with_reference_data(false, None, Some(false))
+        Self::with_reference_data(false, None, Some(false), 16)
+    }
+    pub fn with_actor_armor_class(armor_class: i64) -> Self {
+        Self::with_reference_data(false, None, None, armor_class)
     }
     fn with_reference_data(
         remaster: bool,
         adjustment: Option<&str>,
         coverage: Option<bool>,
+        armor_class: i64,
     ) -> Self {
         let glossary = coverage == Some(true);
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("workspace.sqlite");
-        let mut actor = json!({"_id":"cccccccccccccccc","type":"npc","name":"Test Creature","system":{"details":{"level":{"value":1}},"traits":{"value":[]},"attributes":{"ac":{"value":16},"hp":{"max":20}},"saves":{"fortitude":{"value":5},"reflex":{"value":6},"will":{"value":4}}},"items":[{"_id":"eeeeeeeeeeeeeeee","type":"melee","name":"Claw","system":{"bonus":{"value":7},"traits":{"value":["agile"]},"damageRolls":{"main":{"damage":"1d6+2","damageType":"slashing"}},"description":{"value":"<p>A claw.</p>"}}},{"_id":"eeeeeeeeeeeeeeee","type":"action","name":"Duplicate identity","system":{"description":{"value":"<p>Snapshot-local identity.</p>"}}}]});
+        let mut actor = json!({"_id":"cccccccccccccccc","type":"npc","name":"Test Creature","system":{"details":{"level":{"value":1}},"traits":{"value":[]},"attributes":{"ac":{"value":armor_class},"hp":{"max":20}},"saves":{"fortitude":{"value":5},"reflex":{"value":6},"will":{"value":4}}},"items":[{"_id":"eeeeeeeeeeeeeeee","type":"melee","name":"Claw","system":{"bonus":{"value":7},"traits":{"value":["agile"]},"damageRolls":{"main":{"damage":"1d6+2","damageType":"slashing"}},"description":{"value":"<p>A claw.</p>"}}},{"_id":"eeeeeeeeeeeeeeee","type":"action","name":"Duplicate identity","system":{"description":{"value":"<p>Snapshot-local identity.</p>"}}}]});
         if let Some(adjustment) = adjustment {
             actor["system"]["attributes"]["adjustment"] = json!(adjustment);
         }
@@ -196,13 +200,15 @@ impl Fixture {
             .encounter
             .encounter_key;
         service
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: encounter_key.clone(),
-                display_name: "Kyra".into(),
-                max_hp: Some(24),
-                current_hp: Some(20),
-                initiative: Some(15),
-            })
+            .add_encounter_manual_participant(
+                &encounter_key,
+                AddEncounterManualParticipantRequest {
+                    display_name: "Kyra".into(),
+                    max_hp: Some(24),
+                    current_hp: Some(20),
+                    initiative: Some(15),
+                },
+            )
             .unwrap();
         let participant_key = service.encounter(&encounter_key).unwrap().participants[0]
             .participant_key
@@ -218,11 +224,13 @@ impl Fixture {
             .list
             .list_key;
         service
-            .add_saved_list_item(AddSavedListItemRequest {
-                list_ref: list_key.clone(),
-                record_ref: ACTION.into(),
-                note: Some("fixture note".into()),
-            })
+            .add_saved_list_item(
+                &list_key,
+                AddSavedListItemRequest {
+                    record_ref: ACTION.into(),
+                    note: Some("fixture note".into()),
+                },
+            )
             .unwrap();
         Self {
             service,

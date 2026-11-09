@@ -2,13 +2,13 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { ConfigProvider } from "antd";
 import { ContentRoll } from "./ContentRoll";
 import { rollContent } from "../../api/atlasApi";
-import type { ContentRollResultView, RollContentRequest } from "../../generated/atlas";
+import type { ContentRollResultView, ContentRollOffer } from "../../generated/atlas";
 
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   rollContent: vi.fn(),
 }));
-const request: RollContentRequest = {
+const request: ContentRollOffer = {
   content_interpretation_version: "foundry-content/v12",
   source: {
     record: "items:example",
@@ -59,7 +59,7 @@ const outcome: ContentRollResultView = {
 function show() {
   return render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <ContentRoll request={request} presentation={presentation} />
+      <ContentRoll offer={request} presentation={presentation} />
     </ConfigProvider>,
   );
 }
@@ -71,7 +71,7 @@ it("rolls once on activation, retains the result through dismissal and only rero
   const opener = screen.getByRole("button", { name: "Roll 4d8+10 bludgeoning damage" });
   fireEvent.click(opener);
   await screen.findByRole("status", { name: "4d8+10: 28" });
-  expect(rollContent).toHaveBeenCalledExactlyOnceWith(request);
+  expect(rollContent).toHaveBeenCalledExactlyOnceWith({ offer: request });
   const dialog = screen.getByRole("dialog", { name: "Bludgeoning damage" });
   fireEvent.keyDown(dialog, { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -149,7 +149,7 @@ it("promotes an authored purpose to the stable dialog heading without repeating 
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <ContentRoll
-        request={request}
+        offer={request}
         presentation={{
           ...presentation,
           heading: "Counteract",
@@ -193,7 +193,7 @@ it.each([1, 3])("shows time units beside a duration total of %s", async (value) 
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <ContentRoll
-        request={request}
+        offer={request}
         presentation={{
           heading: "Duration",
           components: [
@@ -225,7 +225,7 @@ it("retains type labels that distinguish multiple damage components", async () =
   render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <ContentRoll
-        request={request}
+        offer={request}
         presentation={{
           heading: "Damage",
           components: [

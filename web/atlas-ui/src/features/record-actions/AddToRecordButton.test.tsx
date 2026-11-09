@@ -94,8 +94,7 @@ it("creates and adds to a list in one submission, preserving the browsing locati
     slug: "ambush",
     tags: [],
   });
-  expect(api.addSavedListItem).toHaveBeenCalledWith({
-    list_ref: list.list_key,
+  expect(api.addSavedListItem).toHaveBeenCalledWith(list.list_key, {
     record_ref: creature.record_key,
   });
   expect(window.location.href).toBe(location);
@@ -133,11 +132,13 @@ it("retains a created destination after an add failure and retries only the add"
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(api.createEncounter).toHaveBeenCalledOnce();
   expect(api.addEncounterRecordParticipant).toHaveBeenCalledTimes(2);
-  expect(api.addEncounterRecordParticipant).toHaveBeenLastCalledWith({
-    encounter_ref: encounter.encounter_key,
-    record_ref: creature.record_key,
-    quantity: 1,
-  });
+  expect(api.addEncounterRecordParticipant).toHaveBeenLastCalledWith(
+    encounter.encounter_key,
+    {
+      record_ref: creature.record_key,
+      quantity: 1,
+    },
+  );
 });
 it("guards a pending create-and-add against repeat submissions and dismissal", async () => {
   let finish!: (value: unknown) => void;

@@ -1,9 +1,9 @@
 //! Explicit, source-independent encounter countdowns.
 use crate::ConditionDurationView;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterManualTrackerView {
     pub tracker_key: String,
     pub name: String,
@@ -12,7 +12,8 @@ pub struct EncounterManualTrackerView {
     pub timing_label: String,
     pub timing_available: bool,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EncounterManualTrackerAction {
     Add {
@@ -31,12 +32,12 @@ pub enum EncounterManualTrackerAction {
         tracker_key: String,
     },
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateEncounterManualTrackerRequest {
     pub request_id: String,
     pub expected_encounter_revision: i64,
     pub expected_participant_revision: i64,
-    pub participant_key: String,
     pub action: EncounterManualTrackerAction,
 }

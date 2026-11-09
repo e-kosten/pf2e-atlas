@@ -2,15 +2,15 @@
 use crate::RecordNavigationView;
 use atlas_domain::QueryPredicate;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 /// A source token and its supplied presentation; the label never becomes identity.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReferenceValueView {
     pub value: String,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<ReferenceHelpView>,
 }
 impl From<String> for ReferenceValueView {
@@ -28,7 +28,8 @@ impl From<&str> for ReferenceValueView {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ReferenceDestinationView {
     Record {
@@ -39,49 +40,62 @@ pub enum ReferenceDestinationView {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReferenceHelpView {
     /// Property identity is independent of a shared real-record destination.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub definition_key: Option<String>,
     pub destination: ReferenceDestinationView,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReferenceFilterActionView {
     pub label: String,
     pub predicate: QueryPredicate,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DefinitionDetailRequest {
     pub definition_key: String,
     pub expected_artifact_generation: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DefinitionDetailView {
     pub artifact_generation: String,
     pub definition_key: String,
     pub label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub help: Option<ReferenceHelpView>,
     /// Record-backed entries retain a destination, without a second body.
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub content: Option<ReferenceContentView>,
     pub publications: Vec<DefinitionPublicationView>,
     pub notices: Vec<DefinitionNoticeView>,
     pub related_filters: Vec<ReferenceFilterActionView>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DefinitionPublicationView {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub title: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub page: Option<u32>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub license: Option<String>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DefinitionNoticeView {
     pub id: String,
     pub text: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_url: Option<String>,
 }
 
@@ -127,10 +141,11 @@ mod tests {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ReferenceContentView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub section_rendering: Option<crate::PreparedSectionRenderingView>,
     pub body: crate::PreparedFieldBodyView,
     pub references: Vec<crate::PreparedReferenceView>,

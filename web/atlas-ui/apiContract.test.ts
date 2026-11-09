@@ -23,6 +23,7 @@ import {
 describe("browser wire compatibility", () => {
   let root: string;
   const metadata = "crates/atlas-web/api-contract.json";
+  const schema = "crates/atlas-web/openapi.json";
   const write = (file: string, contents: string) => {
     const path = join(root, file);
     mkdirSync(dirname(path), { recursive: true });
@@ -31,10 +32,8 @@ describe("browser wire compatibility", () => {
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), "atlas-api-contract-"));
-    write(metadata, JSON.stringify({ protocol_revision: 7, bindings: "bindings" }));
-    // Reverse insertion order and mixed line endings match the Rust fixture.
-    write("bindings/B.ts", 'export type B = "ready" | "busy";\n');
-    write("bindings/A.ts", "export type A = { value: string };\r\n");
+    write(metadata, JSON.stringify({ protocol_revision: 7 }));
+    write(schema, '{"openapi":"3.1.0","paths":{}}\r\n');
   });
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
@@ -42,9 +41,9 @@ describe("browser wire compatibility", () => {
   it("matches the shared Rust vector and normalizes line endings", () => {
     const before = readAtlasApiContract(root).identifier;
     expect(before).toBe(
-      "atlas-web-v2-16d06f503005aaab173401cb8ced6199baf44f44398b368eb96407cf49dedf01",
+      "atlas-web-v3-08d4cc97bc6f443b0b8ffd103ae35b5684d30514cd77246159e8ba45eaa86854",
     );
-    write("bindings/A.ts", "export type A = { value: string };\n");
+    write(schema, '{"openapi":"3.1.0","paths":{}}\n');
     expect(readAtlasApiContract(root).identifier).toBe(before);
   });
 
@@ -59,45 +58,38 @@ describe("browser wire compatibility", () => {
     }
     const after = readAtlasApiContract(root);
     expect(after.identifier).toBe(before);
-    expect(after.watchedPaths).toEqual([join(root, metadata), join(root, "bindings")]);
+    expect(after.watchedPaths).toEqual([join(root, metadata), join(root, schema)]);
   });
 
-  it("changes when bindings change, appear or disappear", () => {
+  it("changes when the OpenAPI document changes", () => {
     const before = readAtlasApiContract(root).identifier;
-    write("bindings/A.ts", "export type A = { value: bigint };\n");
-    const changed = readAtlasApiContract(root).identifier;
-    expect(changed).not.toBe(before);
-    write("bindings/C.ts", "export type C = A;\n");
-    const added = readAtlasApiContract(root).identifier;
-    expect(added).not.toBe(changed);
-    rmSync(join(root, "bindings/A.ts"));
-    expect(readAtlasApiContract(root).identifier).not.toBe(added);
+    write(schema, '{"openapi":"3.1.0","paths":{"/api/test":{}}}\n');
+    expect(readAtlasApiContract(root).identifier).not.toBe(before);
   });
 
-  it("uses the protocol revision for wire behavior absent from TypeScript", () => {
+  it("uses the protocol revision for wire behavior absent from OpenAPI", () => {
     const before = readAtlasApiContract(root).identifier;
-    write(metadata, JSON.stringify({ protocol_revision: 8, bindings: "bindings" }));
+    write(metadata, JSON.stringify({ protocol_revision: 8 }));
     expect(readAtlasApiContract(root).identifier).not.toBe(before);
   });
 
   it("ignores metadata formatting and accepts equivalent numeric JSON", () => {
     const before = readAtlasApiContract(root).identifier;
-    write(metadata, '{ "bindings": "bindings", "protocol_revision": 7.0 }\n');
+    write(metadata, '{ "protocol_revision": 7.0 }\n');
     expect(readAtlasApiContract(root).identifier).toBe(before);
   });
 
   it.each([0, -1, 1.5, 4294967296, null, "1"])(
     "rejects invalid protocol revision %s",
     (protocol_revision) => {
-      write(metadata, JSON.stringify({ protocol_revision, bindings: "bindings" }));
+      write(metadata, JSON.stringify({ protocol_revision }));
       expect(() => readAtlasApiContract(root)).toThrow("protocol_revision");
     },
   );
 
-  it("rejects an empty binding inventory", () => {
-    rmSync(join(root, "bindings/A.ts"));
-    rmSync(join(root, "bindings/B.ts"));
-    expect(() => readAtlasApiContract(root)).toThrow("no generated TypeScript");
+  it("rejects an empty OpenAPI document", () => {
+    write(schema, "\n");
+    expect(() => readAtlasApiContract(root)).toThrow("OpenAPI document is empty");
   });
 });
 
@@ -134,13 +126,9 @@ describe("frontend build provenance", () => {
       "crates/atlas-web/api-contract.json",
       JSON.stringify({
         protocol_revision: 1,
-        bindings: "crates/atlas-app-model/bindings",
       }),
     );
-    write(
-      "crates/atlas-app-model/bindings/View.ts",
-      "export type View = { value: string };\n",
-    );
+    write("crates/atlas-web/openapi.json", '{"openapi":"3.1.0","paths":{}}\n');
     write("web/atlas-ui/src/App.tsx", "export const title = 'candidate A';\n");
     write("web/atlas-ui/package-lock.json", '{"lockfileVersion":3}\n');
   });

@@ -70,7 +70,6 @@ function renderInput(
                   values: value,
                 },
                 text: null,
-                mode: "hybrid",
               }
             : undefined
         }
@@ -144,10 +143,10 @@ describe("shared value control vocabulary", () => {
         value: {
           field: "traits",
           options: [
-            { value: "fire", distinct_roots: 8n, selected: false },
-            { value: "cold", distinct_roots: 0n, selected: false },
+            { value: "fire", distinct_roots: 8, selected: false },
+            { value: "cold", distinct_roots: 0, selected: false },
           ],
-          total_values: 2n,
+          total_values: 2,
           exhaustive: true,
           count_basis: "exact counterfactual displayed roots",
         },
@@ -167,8 +166,8 @@ describe("shared value control vocabulary", () => {
               scope: request.scope,
               values: {
                 field: "traits",
-                selected_values: request.selected_values,
-                total_values: 90n,
+                selected_values: request.selected_values ?? [],
+                total_values: 90,
                 options: request.offset
                   ? [{ value: "second-page", label: "Second-page" }]
                   : [{ value: "fire", label: "Fire" }],
@@ -190,7 +189,7 @@ describe("shared value control vocabulary", () => {
       values: {
         field: "traits",
         selected_values: [],
-        total_values: 3n,
+        total_values: 3,
         options: [
           { value: "", label: "" },
           { value: " ", label: "" },
@@ -303,10 +302,10 @@ describe("shared value control vocabulary", () => {
         value: {
           field: "traits",
           options: [
-            { value: "acid", label: "Acid", distinct_roots: 4n, selected: true },
-            { value: "cold", label: "Cold", distinct_roots: 2n, selected: true },
+            { value: "acid", label: "Acid", distinct_roots: 4, selected: true },
+            { value: "cold", label: "Cold", distinct_roots: 2, selected: true },
           ],
-          total_values: 2n,
+          total_values: 2,
           exhaustive: true,
           count_basis: "exact counterfactual displayed roots",
         },
@@ -342,9 +341,9 @@ describe("shared value control vocabulary", () => {
             value: {
               field: "traits",
               options: [
-                { value: "acid", label: "Acid", distinct_roots: 4n, selected: false },
+                { value: "acid", label: "Acid", distinct_roots: 4, selected: false },
               ],
-              total_values: 1n,
+              total_values: 1,
               exhaustive: true,
               count_basis: "exact counterfactual displayed roots",
             },
@@ -355,9 +354,9 @@ describe("shared value control vocabulary", () => {
         scope: request.scope,
         values: {
           field: "traits",
-          selected_values: request.selected_values,
+          selected_values: request.selected_values ?? [],
           options: [{ value: "cold", label: "Cold" }],
-          total_values: 1n,
+          total_values: 1,
           basis: "product_key_scope",
         },
       };
@@ -471,8 +470,8 @@ it("uses supplied Actions labels and Read while refusing arbitrary manual values
       kind: "vocabulary",
       values: {
         field: "actions",
-        selected_values: request.selected_values,
-        total_values: 1n,
+        selected_values: request.selected_values ?? [],
+        total_values: 1,
         options: [
           {
             value: key,
@@ -554,14 +553,15 @@ it("retains a chosen action's label while searching and reopening its picker", a
   const key = "bestiary-ability-glossary-srd:grab";
   api.discoverFilterValues.mockClear().mockImplementation(async (request) => {
     if (request.kind !== "vocabulary") throw new Error("Expected vocabulary");
-    if (request.selected_values.length && !request.text) return new Promise(() => {});
+    if ((request.selected_values?.length ?? 0) && !request.text)
+      return new Promise(() => {});
     return {
       kind: "vocabulary",
       scope: request.scope,
       values: {
         field: "actions",
-        selected_values: request.selected_values,
-        total_values: request.text ? 0n : 1n,
+        selected_values: request.selected_values ?? [],
+        total_values: request.text ? 0 : 1,
         options: [
           {
             value: key,

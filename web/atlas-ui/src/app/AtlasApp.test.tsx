@@ -92,7 +92,7 @@ describe("AtlasApp routing", () => {
     apiMocks.discoverFilterEditor.mockResolvedValue(emptyFilterEditor());
     apiMocks.discoverFilterValues.mockResolvedValue({
       field_id: "kind",
-      matching_record_count: 0n,
+      matching_record_count: 0,
       options: [],
     });
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
@@ -120,9 +120,9 @@ describe("AtlasApp routing", () => {
     apiMocks.getSavedLists.mockResolvedValue(savedListIndexFixture());
     routerSlot.current = createAtlasRouter();
     apiMocks.addSavedListItem.mockImplementation(
-      ({ record_ref, list_ref }: { record_ref: string; list_ref: string }) =>
+      (listRef: string, { record_ref }: { record_ref: string }) =>
         Promise.resolve({
-          list_key: list_ref,
+          list_key: listRef,
           slug: "research",
           record_key: record_ref,
           record_name: "heal",
@@ -292,7 +292,7 @@ describe("AtlasApp routing", () => {
     );
     apiMocks.searchPage.mockResolvedValue({
       ...searchResultsPage(),
-      page: { ...searchResultsPage().page, number: 2, total: 50n },
+      page: { ...searchResultsPage().page, number: 2, total: 50 },
     });
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
     expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
@@ -404,7 +404,7 @@ describe("AtlasApp routing", () => {
           const { fields, ...address } = request;
           return Promise.resolve({
             ...detail,
-            selected: { ...address, field: fields[0] ?? null },
+            selected: { ...address, field: fields?.[0] ?? null },
           });
         },
       );
@@ -840,8 +840,7 @@ describe("AtlasApp routing", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
     await waitFor(() =>
-      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        list_ref: "list_research",
+      expect(apiMocks.addSavedListItem).toHaveBeenCalledWith("list_research", {
         record_ref: "spell:heal",
       }),
     );
@@ -884,7 +883,7 @@ describe("AtlasApp routing", () => {
         budgets: [{ label: "Extreme", xp: 160 }],
       };
       apiMocks.getEncounter.mockResolvedValue({
-        revision: 1n,
+        revision: 1,
         artifact_generation: "generation-a",
         difficulty,
       });
@@ -953,14 +952,14 @@ describe("AtlasApp routing", () => {
         : apiMocks.addSavedListItem;
       await waitFor(() => expect(mutation).toHaveBeenCalledTimes(1));
       expect(mutation).toHaveBeenCalledWith(
+        compatible ? "enc_ambush" : "list_research",
         compatible
           ? {
-              encounter_ref: "enc_ambush",
               record_ref: linkedKey,
               quantity: 2,
               ...(kind === "creature" ? { participant_variant: "weak" } : {}),
             }
-          : { list_ref: "list_research", record_ref: linkedKey },
+          : { record_ref: linkedKey },
       );
       await waitFor(() => expect(picker).not.toBeVisible());
       expect(preview).toBeVisible();
@@ -1026,7 +1025,7 @@ function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
       number: 1,
       size: 25,
       count: recordKeys.length,
-      total: BigInt(recordKeys.length),
+      total: recordKeys.length,
       has_more: false,
       next_page: null,
     },

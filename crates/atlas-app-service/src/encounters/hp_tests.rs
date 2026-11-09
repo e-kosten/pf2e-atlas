@@ -17,13 +17,15 @@ fn manual(max: Option<i64>, current: Option<i64>) -> (FixtureWorker, String, Str
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "PC".into(),
-            max_hp: max,
-            current_hp: current,
-            initiative: Some(12),
-        })
+        .add_encounter_manual_participant(
+            &key,
+            AddEncounterManualParticipantRequest {
+                display_name: "PC".into(),
+                max_hp: max,
+                current_hp: current,
+                initiative: Some(12),
+            },
+        )
         .unwrap();
     let participant = f
         .worker
@@ -93,10 +95,10 @@ fn apply(
     let receipt = worker
         .apply_encounter_hp_action(
             key,
+            participant,
             ApplyEncounterHpActionRequest {
                 request_id: crate::test_support::next_request_id(),
                 context: None,
-                participant_key: participant.into(),
                 expected_revision: revision,
                 action,
             },
@@ -394,10 +396,10 @@ fn exact_corrections_preserve_outliers_availability_and_maximum_intent() {
             f.worker
                 .apply_encounter_hp_action(
                     &key,
+                    &p,
                     ApplyEncounterHpActionRequest {
                         request_id: crate::test_support::next_request_id(),
                         context: None,
-                        participant_key: p.clone(),
                         expected_revision: before.revision,
                         action
                     }
@@ -451,10 +453,10 @@ fn invalid_or_stale_actions_leave_every_field_unchanged() {
             f.worker
                 .apply_encounter_hp_action(
                     &key,
+                    &p,
                     ApplyEncounterHpActionRequest {
                         request_id: crate::test_support::next_request_id(),
                         context: None,
-                        participant_key: p.clone(),
                         expected_revision: before.revision,
                         action
                     }
@@ -470,10 +472,10 @@ fn invalid_or_stale_actions_leave_every_field_unchanged() {
         f.worker
             .apply_encounter_hp_action(
                 &key,
+                &p,
                 ApplyEncounterHpActionRequest {
                     request_id: crate::test_support::next_request_id(),
                     context: None,
-                    participant_key: p,
                     expected_revision: before.revision - 1,
                     action: EncounterHpAction::Damage {
                         amount: "invalid".into()
@@ -494,7 +496,6 @@ fn concurrent_amount_actions_cannot_overwrite_from_the_same_revision() {
     let request = ApplyEncounterHpActionRequest {
         request_id: crate::test_support::next_request_id(),
         context: None,
-        participant_key: p,
         expected_revision: saved(&f.worker, &key).revision,
         action: EncounterHpAction::Heal {
             amount: "-5".into(),
@@ -503,8 +504,11 @@ fn concurrent_amount_actions_cannot_overwrite_from_the_same_revision() {
     let mut other_request = request.clone();
     other_request.request_id = crate::test_support::next_request_id();
     let outcomes = std::thread::scope(|scope| {
-        let first = scope.spawn(|| f.worker.apply_encounter_hp_action(&key, request.clone()));
-        let second = scope.spawn(|| f.worker.apply_encounter_hp_action(&key, other_request));
+        let first = scope.spawn(|| {
+            f.worker
+                .apply_encounter_hp_action(&key, &p, request.clone())
+        });
+        let second = scope.spawn(|| f.worker.apply_encounter_hp_action(&key, &p, other_request));
         [first.join().unwrap(), second.join().unwrap()]
     });
     assert_eq!(outcomes.iter().filter(|r| r.is_ok()).count(), 1);
@@ -536,13 +540,15 @@ fn hp_receipt_does_not_depend_on_postcommit_reference_hydration() {
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "Test Creature 1".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     let before = saved(&f.worker, &key);
     executor.fail_after_submissions(0);
@@ -576,13 +582,15 @@ fn derived_maximum_reuses_existing_deficit_policy() {
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "Test Creature 1".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     let p = saved(&f.worker, &key).participant_key;
     apply(
@@ -619,13 +627,12 @@ fn healing_overflow_and_wrong_encounter_owner_do_not_write() {
     let action = ApplyEncounterHpActionRequest {
         request_id: crate::test_support::next_request_id(),
         context: None,
-        participant_key: p.clone(),
         expected_revision: before.revision,
         action: EncounterHpAction::Heal { amount: "1".into() },
     };
     assert_eq!(
         f.worker
-            .apply_encounter_hp_action(&key, action.clone())
+            .apply_encounter_hp_action(&key, &p, action.clone())
             .unwrap_err()
             .into_app_error()
             .code,
@@ -643,7 +650,7 @@ fn healing_overflow_and_wrong_encounter_owner_do_not_write() {
         .encounter_key;
     assert_eq!(
         f.worker
-            .apply_encounter_hp_action(&other, action)
+            .apply_encounter_hp_action(&other, &p, action)
             .unwrap_err()
             .into_app_error()
             .code,
@@ -666,13 +673,15 @@ fn same_value_exact_current_correction_marks_derived_hp_edited() {
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "Test Creature 1".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     let before = saved(&f.worker, &key);
     assert_eq!(
@@ -791,10 +800,10 @@ fn atomic_corrections_reject_any_invalid_or_stale_field_without_partial_write() 
             f.worker
                 .apply_encounter_hp_action(
                     &key,
+                    &p,
                     ApplyEncounterHpActionRequest {
                         request_id: crate::test_support::next_request_id(),
                         context: None,
-                        participant_key: p.clone(),
                         expected_revision: before.revision,
                         action
                     }
@@ -810,10 +819,10 @@ fn atomic_corrections_reject_any_invalid_or_stale_field_without_partial_write() 
         f.worker
             .apply_encounter_hp_action(
                 &key,
+                &p,
                 ApplyEncounterHpActionRequest {
                     request_id: crate::test_support::next_request_id(),
                     context: None,
-                    participant_key: p,
                     expected_revision: before.revision - 1,
                     action: EncounterHpAction::SetValues {
                         current: exact(Some("8")),
@@ -844,13 +853,15 @@ fn omitted_atomic_fields_preserve_derived_provenance_and_supplied_same_values_ma
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "Test Creature 1".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     let p = saved(&f.worker, &key).participant_key;
     let temp = apply(

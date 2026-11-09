@@ -265,7 +265,7 @@ pub(crate) fn content_controls(
                             && options
                                 .values()
                                 .all(|value| !value.contains('@') && !value.contains("resolve(")))
-                        .then(|| RollContentRequest {
+                        .then(|| ContentRollOffer {
                             content_interpretation_version:
                                 atlas_record::source_content::CONTENT_INTERPRETATION_VERSION.into(),
                             source: content_location(locator.clone()),
@@ -302,7 +302,7 @@ pub(crate) fn content_controls(
                         });
                     let roll = source.and_then(|(locator, context)| {
                         literal.as_ref().filter(|roll| roll.has_dice)?;
-                        Some(RollContentRequest {
+                        Some(ContentRollOffer {
                             content_interpretation_version:
                                 atlas_record::source_content::CONTENT_INTERPRETATION_VERSION.into(),
                             source: content_location(locator.clone()),

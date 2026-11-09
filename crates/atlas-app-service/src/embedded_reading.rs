@@ -18,15 +18,6 @@ impl AtlasAppService {
         &self,
         request: EmbeddedReadingRequest,
     ) -> AppServiceResult<EmbeddedReadingBatchView> {
-        validate_navigation(&request.parent)?;
-        if !request.parent.owners.is_empty()
-            || request.parent.field.is_some()
-            || request.parent.passage.is_some()
-        {
-            return Err(AppServiceError::invalid_request(
-                "embedded reading requires the parent record address",
-            ));
-        }
         let key = RecordKey::parse(&request.parent.record_key)
             .map_err(|e| AppServiceError::invalid_request(e.to_string()))?;
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
@@ -38,6 +29,14 @@ impl AtlasAppService {
                     atlas_app_model::AppRecoverableAction::ReloadRecord,
                 ));
             }
+            let parent = RecordNavigationView {
+                spell_rank: None,
+                record_key: key.to_string(),
+                owners: vec![],
+                field: None,
+                passage: None,
+                source_fingerprint: None,
+            };
             let detail = r
                 .get_record(GetRecordRequest {
                     record_key: &key,
@@ -75,7 +74,7 @@ impl AtlasAppService {
                 activities.state
             };
             let (candidates, start, single) = match &request.selection {
-                EmbeddedReadingSelection::ActorContent => (vec![request.parent.clone()], 0, true),
+                EmbeddedReadingSelection::ActorContent => (vec![parent.clone()], 0, true),
                 EmbeddedReadingSelection::TableResults { cursor } => {
                     let candidates: Vec<_> = crate::presentation::owned_links(
                         &detail.source,
@@ -132,7 +131,9 @@ impl AtlasAppService {
                         checked_activity(target, &key, r.source_fingerprint())?;
                         let index = candidates
                             .iter()
-                            .position(|a| a.owners == target.owners)
+                            .position(|a| {
+                                a.owners.as_slice() == std::slice::from_ref(&target.owner)
+                            })
                             .ok_or_else(|| {
                                 AppServiceError::invalid_request(
                                     "target ability does not exist in this source snapshot",
@@ -158,13 +159,15 @@ impl AtlasAppService {
                     }
                     (candidates, start, false)
                 }
-                EmbeddedReadingSelection::Activity { navigation } => {
-                    checked_activity(navigation, &key, r.source_fingerprint())?;
+                EmbeddedReadingSelection::Activity { address } => {
+                    checked_activity(address, &key, r.source_fingerprint())?;
                     let activity = activities
                         .value
                         .unwrap_or_default()
                         .into_iter()
-                        .find(|a| a.navigation.owners == navigation.owners)
+                        .find(|a| {
+                            a.navigation.owners.as_slice() == std::slice::from_ref(&address.owner)
+                        })
                         .ok_or_else(|| {
                             AppServiceError::invalid_request(
                                 "requested activity does not exist in this source snapshot",
@@ -286,14 +289,7 @@ impl AtlasAppService {
             };
             Ok(EmbeddedReadingBatchView {
                 artifact_generation: generation.clone(),
-                parent: RecordNavigationView {
-                    spell_rank: None,
-                    record_key: key.to_string(),
-                    owners: vec![],
-                    field: None,
-                    passage: None,
-                    source_fingerprint: None,
-                },
+                parent,
                 availability,
                 total,
                 start,
@@ -306,42 +302,24 @@ impl AtlasAppService {
     }
 }
 
-fn validate_navigation(navigation: &RecordNavigationView) -> AppServiceResult<()> {
-    crate::records::validate_request(&RecordDetailRequest {
-        expected_artifact_generation: None,
-        spell_rank: None,
-        record_key: navigation.record_key.clone(),
-        owners: navigation.owners.clone(),
-        fields: navigation.field.iter().cloned().collect(),
-        passage: navigation.passage.clone(),
-        source_fingerprint: navigation.source_fingerprint.clone(),
-    })
-}
 fn checked_activity(
-    navigation: &RecordNavigationView,
+    address: &EmbeddedActivityAddress,
     key: &RecordKey,
     fingerprint: &str,
 ) -> AppServiceResult<()> {
-    validate_navigation(navigation)?;
-    if navigation.record_key != key.to_string() || navigation.owners.len() != 1 {
+    crate::records::validate_address_bounds(std::slice::from_ref(&address.owner))?;
+    if address.record_key != key.to_string() {
         return Err(AppServiceError::invalid_request(
             "select an immediate activity of this parent",
         ));
     }
-    if navigation
-        .owners
-        .iter()
-        .any(|o| matches!(o.identity, OwnedContentIdentity::SnapshotLocal { .. }))
-        && navigation.source_fingerprint.as_deref() != Some(fingerprint)
+    if matches!(
+        address.owner.identity,
+        OwnedContentIdentity::SnapshotLocal { .. }
+    ) && address.source_fingerprint.as_deref() != Some(fingerprint)
     {
         return Err(AppServiceError::invalid_request(
             "snapshot-local activity belongs to a different artifact; reload the parent",
-        ));
-    }
-    // Field/passage selection is separate from the activity anchor and cannot change its owner.
-    if navigation.field.is_some() || navigation.passage.is_some() {
-        return Err(AppServiceError::invalid_request(
-            "activity reading selects its complete authored fields",
         ));
     }
     Ok(())

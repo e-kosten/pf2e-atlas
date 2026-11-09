@@ -2,7 +2,8 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceByteRange {
     pub start: usize,
@@ -22,7 +23,8 @@ impl SourceByteRange {
 
 /// Root, owner chain and field belong to the outer hit/field locator. Hashes bind
 /// sections to one source/preparation context; these are not cross-build IDs.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SourcePassageAddress {
     Identity {},
@@ -31,6 +33,7 @@ pub enum SourcePassageAddress {
         canonical_text_sha256: String,
         selection_version: String,
         section_ordinal: usize,
+        #[cfg_attr(feature = "openapi", schema(required))]
         label: Option<String>,
         chunk_bytes: SourceByteRange,
     },
@@ -38,6 +41,7 @@ pub enum SourcePassageAddress {
         source_text_sha256: String,
         selection_version: String,
         section_ordinal: usize,
+        #[cfg_attr(feature = "openapi", schema(required))]
         label: Option<String>,
         chunk_bytes: SourceByteRange,
     },
@@ -78,15 +82,15 @@ mod tests {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS)]
-#[ts(rename = "EmbeddedContentLocator")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct OwnedContentLocator {
     pub collection: String,
     pub identity: OwnedContentIdentity,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS)]
-#[ts(rename = "EmbeddedContentIdentity")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum OwnedContentIdentity {
     /// A source ID whose validity and uniqueness were checked by the caller.
     Stable(String),

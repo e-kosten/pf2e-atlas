@@ -14,15 +14,8 @@ impl AtlasAppService {
         request: RelatedRecordsRequest,
     ) -> AppServiceResult<RelatedRecordsView> {
         let selection = request.selection;
-        crate::records::validate_request(&atlas_app_model::RecordDetailRequest {
-            expected_artifact_generation: None,
-            spell_rank: None,
-            record_key: selection.record_key.clone(),
-            owners: selection.owners.clone(),
-            fields: selection.field.iter().cloned().collect(),
-            passage: selection.passage.clone(),
-            source_fingerprint: selection.source_fingerprint.clone(),
-        })?;
+        crate::records::validate_address_bounds(&selection.owners)?;
+        crate::records::validate_field_bounds(selection.field.as_slice())?;
         let key = RecordKey::parse(&selection.record_key)
             .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {

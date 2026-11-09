@@ -137,7 +137,7 @@ export function FilterValueInput({
           label: choice.label,
           disabled:
             !excluded &&
-            counts.get(String(choice.value)) === 0n &&
+            counts.get(String(choice.value)) === 0 &&
             !selectedChoices.includes(String(choice.value)) &&
             !["neq", "excludes_any"].includes(operator),
         }))}

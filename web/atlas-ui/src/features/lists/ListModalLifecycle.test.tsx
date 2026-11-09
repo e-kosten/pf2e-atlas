@@ -141,8 +141,7 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   fireEvent.click(add);
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(api.addSavedListItem).toHaveBeenCalledTimes(2);
-  expect(api.addSavedListItem).toHaveBeenLastCalledWith({
-    list_ref: "list_review",
+  expect(api.addSavedListItem).toHaveBeenLastCalledWith("list_review", {
     record_ref: "spells:light",
     note: "  Prepare for the night watch.  ",
   });
@@ -172,15 +171,15 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
   expect(api.createSavedList).toHaveBeenCalledOnce();
   expect(api.addSavedListItem.mock.calls).toEqual([
     [
+      "list_review",
       {
-        list_ref: "list_review",
         record_ref: "spells:light",
         note: "Watch duty\nKeep a light ready.",
       },
     ],
     [
+      "list_review",
       {
-        list_ref: "list_review",
         record_ref: "spells:light",
         note: "Watch duty\nKeep a light ready.",
       },
@@ -199,8 +198,7 @@ it("omits a whitespace-only entry note", async () => {
   });
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
   await waitFor(() =>
-    expect(api.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "list_review",
+    expect(api.addSavedListItem).toHaveBeenCalledWith("list_review", {
       record_ref: "spells:light",
     }),
   );

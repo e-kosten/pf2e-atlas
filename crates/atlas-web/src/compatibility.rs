@@ -10,8 +10,22 @@ use axum::{
 pub(crate) const HEADER: &str = "x-atlas-api-contract";
 pub(crate) const CONTRACT: &str = env!("ATLAS_API_CONTRACT");
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CompatibilityConflict {
+    message: &'static str,
+}
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub(crate) struct CompatibilityHandshake {
+    api_contract: &'static str,
+}
+
+#[utoipa::path(get, path = "/api/compatibility", operation_id = "handshake", responses((status = 200, description = "Successful response", body = CompatibilityHandshake), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn handshake() -> impl IntoResponse {
-    Json(serde_json::json!({ "api_contract": CONTRACT }))
+    Json(CompatibilityHandshake {
+        api_contract: CONTRACT,
+    })
 }
 
 pub(crate) async fn check(request: Request, next: Next) -> Response {
@@ -23,9 +37,9 @@ pub(crate) async fn check(request: Request, next: Next) -> Response {
         .get(HEADER)
         .is_some_and(|expected| expected.as_bytes() != CONTRACT.as_bytes());
     let mut response = if mismatch {
-        (StatusCode::CONFLICT, Json(serde_json::json!({
-            "message": "Atlas frontend and backend versions differ. Reload the page or restart a matching backend."
-        }))).into_response()
+        (StatusCode::CONFLICT, Json(CompatibilityConflict {
+            message: "Atlas frontend and backend versions differ. Reload the page or restart a matching backend.",
+        })).into_response()
     } else {
         next.run(request).await
     };

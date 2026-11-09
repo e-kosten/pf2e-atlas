@@ -1,60 +1,49 @@
 //! The editor sends the shared typed predicate; CEL is an independent CLI surface.
-use crate::RetrievalModeView;
 use atlas_domain::{
     QueryError, QueryFacetOutcome, QueryFieldDefinition, QueryLimits, QueryLiteral, QueryPredicate,
     QueryValueOptions, QueryVocabularyBasis,
 };
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FilterDiscoveryContext {
     Filtered {
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
         connection_scope: Option<crate::SearchConnectionScope>,
         #[serde(default)]
-        #[ts(optional)]
         search_content: Option<atlas_domain::SearchContentScope>,
-        #[ts(optional)]
         search_profile: Option<atlas_domain::SearchProfileId>,
-        #[ts(optional)]
         expected_artifact_generation: Option<String>,
         filter: Option<QueryPredicate>,
         text: Option<String>,
-        mode: RetrievalModeView,
     },
     SavedList {
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
         connection_scope: Option<crate::SearchConnectionScope>,
         #[serde(default)]
-        #[ts(optional)]
         search_content: Option<atlas_domain::SearchContentScope>,
-        #[ts(optional)]
         search_profile: Option<atlas_domain::SearchProfileId>,
-        #[ts(optional)]
         expected_artifact_generation: Option<String>,
         list_ref: String,
         filter: Option<QueryPredicate>,
         text: Option<String>,
-        mode: RetrievalModeView,
     },
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DiscoverFilterEditorRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub expected_artifact_generation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub filter: Option<QueryPredicate>,
     #[serde(default)]
     pub selected_field_ids: Vec<String>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DiscoverFilterValuesRequest {
     Contextual {
@@ -79,20 +68,23 @@ pub enum DiscoverFilterValuesRequest {
         selected_values: Vec<QueryLiteral>,
     },
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FilterVocabularyScope {
     Artifact,
     SavedList { list_ref: String },
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DiscoverFilterCountsRequest {
     pub context: FilterDiscoveryContext,
     pub field_id: String,
     pub clause_id: Option<String>,
     pub values: Vec<QueryLiteral>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterEditorView {
     pub artifact_generation: String,
     pub relationship_clauses: Vec<crate::RelationshipClausePresentationView>,
@@ -101,64 +93,74 @@ pub struct FilterEditorView {
     pub groups: Vec<FilterEditorGroupView>,
     pub common_field_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub sense_qualifiers: Option<Vec<SenseQualifierView>>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SenseQualifierView {
     pub sense: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub acuity: Option<String>,
     pub has_range: bool,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterEditorGroupView {
     pub id: String,
     pub label: String,
     pub fields: Vec<FilterEditorFieldView>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterEditorFieldView {
     pub definition: QueryFieldDefinition,
     pub control: FilterControlView,
     pub placement: FilterFieldPlacement,
     pub label: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub help: Option<String>,
     pub choices: Vec<FilterChoiceView>,
     // Short lists retain zero-match choices; searchable lists narrow before paging.
     pub short_choices: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub allow_custom_values: Option<bool>,
     pub applicable: bool,
     pub unit_fields: Vec<FilterUnitFieldView>,
     pub operators: Vec<FilterOperatorView>,
     // Compact editor for collections whose entries have a category and optional amount.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub collection_control: Option<FilterCollectionControlView>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterUnitFieldView {
     pub field_id: String,
     pub unit: String,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterCollectionControlView {
     pub category_field_id: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub amount_field_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub qualifier_field_id: Option<String>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterChoiceView {
     pub value: QueryLiteral,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterOperatorView {
     pub operator: String,
     pub label: String,
@@ -166,7 +168,8 @@ pub struct FilterOperatorView {
 }
 /// The editor input required by an executable operator.
 /// Field definitions retain literal types and allowed choices.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterOperandView {
     Scalar,
@@ -175,7 +178,8 @@ pub enum FilterOperandView {
     State,
     Predicate,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterControlView {
     Text,
@@ -184,18 +188,22 @@ pub enum FilterControlView {
     Set,
     Collection,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterFieldPlacement {
     InitiallyVisible,
     Addable,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterValidationResult {
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub predicate: Option<QueryPredicate>,
     pub errors: Vec<QueryError>,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FilterValueListView {
     Contextual {
@@ -208,24 +216,27 @@ pub enum FilterValueListView {
         values: FilterVocabularyView,
     },
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterCountsView {
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
     pub counts: QueryFacetOutcome<QueryValueOptions>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterValueOptionView {
     pub value: QueryLiteral,
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub help: Option<crate::ReferenceHelpView>,
     pub distinct_roots: u64,
     pub selected: bool,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterValueOptionsView {
     pub field: String,
     pub options: Vec<FilterValueOptionView>,
@@ -233,7 +244,8 @@ pub struct FilterValueOptionsView {
     pub exhaustive: bool,
     pub count_basis: String,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FilterVocabularyView {
     pub field: String,
     pub options: Vec<FilterChoiceView>,

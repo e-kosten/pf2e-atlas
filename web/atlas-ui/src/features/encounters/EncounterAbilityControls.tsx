@@ -179,7 +179,7 @@ export function EncounterAbilityControls({
             <Button
               className="encounter-ability-controls__use"
               aria-label={`Use ${ability.label}`}
-              disabled={unavailable || state.remaining === 0n}
+              disabled={unavailable || state.remaining === 0}
               loading={pending ? { delay: 300 } : false}
               onClick={() => void update({ kind: "spend_use" })}
             >

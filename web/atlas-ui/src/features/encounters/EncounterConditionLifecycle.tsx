@@ -17,7 +17,7 @@ import type {
   LifecycleCheckInputView,
 } from "../../generated/atlas";
 type RecoveryControls = {
-  conditionActions: (id: bigint) => ReactNode;
+  conditionActions: (id: number) => ReactNode;
   retainedCondition?: EncounterParticipantConditionView;
   notice?: ReactNode;
   turnActions?: ReactNode;
@@ -52,7 +52,7 @@ export function EncounterConditionRecovery({
   encounterRef: string;
   boundaryKey?: string | null;
   contextualTurnActions?: boolean;
-  revision: bigint;
+  revision: number;
   participant: EncounterParticipantView;
   disabled: boolean;
   children: ReactNode;
@@ -71,7 +71,7 @@ export function EncounterConditionRecovery({
   const [selected, setSelected] = useState<{
     anchor: string;
     option?: ConditionLifecycleOptionView;
-    revision: bigint;
+    revision: number;
     condition?: EncounterParticipantConditionView;
   } | null>(null);
   const [pendingTurnOption, setPendingTurnOption] =
@@ -82,7 +82,7 @@ export function EncounterConditionRecovery({
     choices: ConditionLifecycleOptionView[],
     label: string,
     icon: ReactNode,
-    conditionId?: bigint,
+    conditionId?: number,
   ) => {
     const active = selected?.anchor === anchor;
     if (!choices.length && !active) return null;

@@ -43,19 +43,20 @@ ATLAS_API_PROXY=http://127.0.0.1:4728 npm run dev
 
 ## DTOs
 
-The frontend imports a local aggregation file at `src/generated/atlas.ts`, which re-exports the checked-in Rust-generated bindings from `crates/atlas-app-model/bindings`.
-
-Regenerate backend DTO bindings from the repository root with:
-
-```bash
-cargo test -p atlas-app-model export_typescript_bindings -- --ignored
-```
-
-Normal backend validation catches stale generated DTOs with:
+The annotated Rust HTTP routes own the OpenAPI document. After a route or
+schema change, regenerate the document and Fetch client from the repository root.
 
 ```bash
-cargo test -p atlas-app-model
+npm --prefix dev-tools/openapi ci --ignore-scripts
+npm --prefix dev-tools/openapi run generate
+npm --prefix dev-tools/openapi run check
 ```
+
+Feature code imports application types through `src/generated/atlas.ts`.
+Orval generates the HTTP client and wire types in `http.ts`. The frontend API
+boundary checks JSON numbers before sending requests and after parsing responses.
+Commit all regenerated files together. The generation check compares each file
+against a fresh export.
 
 Frontend validation commands:
 

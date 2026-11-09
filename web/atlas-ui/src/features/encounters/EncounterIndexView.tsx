@@ -200,7 +200,7 @@ function encounterColumns(
       title: "Round",
       dataIndex: "round_number",
       width: 90,
-      render: (round: bigint) => round.toLocaleString(),
+      render: (round: number) => round.toLocaleString(),
     },
     { title: "Participants", dataIndex: "participant_count", width: 120 },
     { title: "Updated", dataIndex: "updated_at", width: 180, render: formatDate },

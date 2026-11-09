@@ -112,7 +112,7 @@ describe("search pane composition", () => {
       page: {
         ...searchResultsPage().page,
         number: 1,
-        total: 0n,
+        total: 0,
         count: 0,
         has_more: false,
         next_page: null,
@@ -225,7 +225,7 @@ describe("ResultPaneHeader", () => {
               candidate_roots: 664,
               count_basis: "bounded candidates",
             },
-            page: { ...page.page, total: 664n },
+            page: { ...page.page, total: 664 },
           },
         })}
       />,
@@ -239,7 +239,7 @@ describe("ResultPaneHeader", () => {
     undefined,
     {
       ...searchResultsPage(),
-      page: { ...searchResultsPage().page, number: 1, total: 0n, count: 0 },
+      page: { ...searchResultsPage().page, number: 1, total: 0, count: 0 },
     },
   ])("does not render pagination without a nonempty result page", (resultPage) => {
     render(<ResultPaneHeader workspace={workspace({ resultPage })} />);
@@ -365,7 +365,6 @@ function workspace(
       kind: "filtered",
       filter: null,
       text: null,
-      mode: "hybrid",
     },
     vocabularyScope: { kind: "artifact" },
     filterDiscoveryError: null,
@@ -392,7 +391,7 @@ function searchResultsPage(): SearchResultsPage {
       number: 13,
       size: 25,
       count: 25,
-      total: 14_736n,
+      total: 14_736,
       has_more: true,
       next_page: 14,
     },

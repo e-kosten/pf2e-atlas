@@ -11,7 +11,6 @@ test("committed edits keep refresh feedback compact and Retry only reloads", asy
   const detailPath = `/api/encounters/${encounter.encounter_key}`;
   const added = await page.request.post(`${detailPath}/participants/manual`, {
     data: {
-      encounter_ref: encounter.encounter_key,
       display_name: "Recovery Hero",
       max_hp: 30,
       current_hp: 30,

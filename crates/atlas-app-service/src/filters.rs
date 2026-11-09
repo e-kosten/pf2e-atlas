@@ -349,7 +349,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
         FilterDiscoveryContext::Filtered {
             filter,
             text,
-            mode: _,
             search_profile,
             expected_artifact_generation,
             search_content,
@@ -367,7 +366,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             list_ref,
             filter,
             text,
-            mode: _,
             search_profile,
             expected_artifact_generation,
             search_content,
@@ -517,7 +515,6 @@ mod tests {
             expected_artifact_generation: None,
             filter: None,
             text,
-            mode: atlas_app_model::RetrievalModeView::Lexical,
         };
         for text in [None, Some(" ".into())] {
             for scope in [
@@ -542,8 +539,7 @@ mod tests {
         );
     }
     use atlas_app_model::{
-        AppErrorCode, FilterOperandView, RetrievalModeView, SearchCriteria, SearchPageRequest,
-        SearchResultsRequest,
+        AppErrorCode, FilterOperandView, SearchCriteria, SearchPageRequest, SearchResultsRequest,
     };
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -606,7 +602,6 @@ mod tests {
                             expected_artifact_generation: None,
                             filter: Some(predicate),
                             text: None,
-                            mode: RetrievalModeView::Lexical,
                         },
                         field_id: "kind".into(),
                         clause_id: Some("invalid".into()),

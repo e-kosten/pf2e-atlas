@@ -252,10 +252,10 @@ overlays independent. Local-state supplies encounter-index participant counts wi
 hydrating roster details.
 There is no generic section/value/profile layout interpreter or second encounter
 stat-block response. App-service projects checked source locators into app content
-addresses. App-model stays a transient DTO/export boundary with no record-interpretation
-dependency; run
-`cargo test -p atlas-app-model` and regenerate checked bindings intentionally
-with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
+addresses. App-model owns transient DTOs without record-interpretation
+dependencies. Atlas Web exports the HTTP schema from those DTOs and the
+annotated Axum router. See [ADR0029](./decisions/0029-local-web-app-boundary.md#browserbackend-compatibility)
+for browser compatibility.
 
 Search-page requests include criteria, page and an optional expected artifact
 generation. Mismatches require an explicit browser refresh from page1, preserving

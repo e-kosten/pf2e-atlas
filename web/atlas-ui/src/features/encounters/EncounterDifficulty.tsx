@@ -19,7 +19,7 @@ import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocu
 
 export interface EncounterDifficultyProps {
   encounterKey: string;
-  revision: bigint;
+  revision: number;
   artifactGeneration?: string | null;
   value: EncounterDifficultyView;
   disabled: boolean;

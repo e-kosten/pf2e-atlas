@@ -24,7 +24,6 @@ import {
   type EncounterDifficultyProps,
 } from "./EncounterDifficulty";
 import { InitiativeRollModal } from "./InitiativeRollModal";
-import { participantUpdate } from "./participantEdits";
 import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 type EncounterDetailViewProps = {
@@ -119,7 +118,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   const mutations = useEncounterMutations(route.slug, encounterKey);
   const strikes = useEncounterStrike({
     encounterRef: encounterKey ?? route.slug,
-    revision: encounter.data?.revision ?? 0n,
+    revision: encounter.data?.revision ?? 0,
     generation: encounter.data?.artifact_generation ?? null,
     participants: encounter.data?.participants ?? [],
     mutations,
@@ -194,7 +193,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       followAfterRefresh.current = false;
     }
   };
-  const advanceTurn = async (expectedRevision: bigint) => {
+  const advanceTurn = async (expectedRevision: number) => {
     // Pin the outgoing inspector before the canonical current turn changes.
     if (encounter.data?.current_turn_participant_key)
       setSelectedParticipantKey(encounter.data.current_turn_participant_key);
@@ -231,7 +230,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       followTurn(
         client.getQueryData<typeof encounter.data>(["encounter", encounterKey]),
       ),
-    expectedRevision: encounter.data?.revision ?? 0n,
+    expectedRevision: encounter.data?.revision ?? 0,
   });
   const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;
@@ -500,7 +499,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                       followAfterRefresh.current = false;
                     });
                 }}
-                onUpdate={(request) => mutations.run({ kind: "participant", request })}
+                onUpdate={(participantKey, request) =>
+                  mutations.run({ kind: "participant", participantKey, request })
+                }
                 participants={encounter.data?.participants ?? []}
                 selectedParticipantKey={selected?.participant_key ?? null}
                 slug={encounterSummary?.encounter_key ?? route.slug}
@@ -524,8 +525,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   if (!encounter.data) return;
                   await mutations.run({
                     kind: "turn-resources",
+                    participantKey: participant.participant_key,
                     request: {
-                      participant_key: participant.participant_key,
                       expected_encounter_revision: encounter.data.revision,
                       turn_key: participant.turn_resources?.turn_key ?? null,
                       action,
@@ -553,15 +554,16 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 }}
                 encounterKey={encounterKey ?? route.slug}
                 artifactGeneration={encounter.data?.artifact_generation ?? null}
-                encounterRevision={encounter.data?.revision ?? 0n}
+                encounterRevision={encounter.data?.revision ?? 0}
                 pending={mutations.pending}
                 recovery={recovery}
                 spellError={
                   mutations.errorKind === "spell" ? mutations.errorMessage : undefined
                 }
-                onManualTracker={async (request) => {
+                onManualTracker={async (participantKey, request) => {
                   const result = await mutations.run({
                     kind: "manual-tracker",
+                    participantKey,
                     request,
                   });
                   return { active: result.active, refreshed: result.refreshed };
@@ -571,10 +573,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   if (!participant || !encounter.data) return false;
                   const result = await mutations.run({
                     kind: "ability-state",
+                    participantKey: participant.participant_key,
                     request: {
                       expected_encounter_revision: encounter.data.revision,
                       expected_participant_revision: participant.revision,
-                      participant_key: participant.participant_key,
                       navigation: ability.navigation,
                       rule_ordinal: ability.rule_ordinal,
                       action,
@@ -586,8 +588,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   try {
                     const result = await mutations.run({
                       kind: "spell",
+                      participantKey: participant.participant_key,
                       request: {
-                        participant_key: participant.participant_key,
                         expected_revision: expectedRevision ?? participant.revision,
                         action,
                       },
@@ -600,8 +602,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 onHpAction={async (participant, action) => {
                   const result = await mutations.run({
                     kind: "hp",
+                    participantKey: participant.participant_key,
                     request: {
-                      participant_key: participant.participant_key,
                       expected_revision: participant.revision,
                       action,
                     },
@@ -618,9 +620,13 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 errorKind={mutations.errorKind}
                 onRetryConditions={() => void conditionDefinitions.refetch()}
                 error={mutations.errorMessage}
-                onAddCondition={async (request) => {
+                onAddCondition={async ({
+                  participant_key: participantKey,
+                  ...request
+                }) => {
                   const result = await mutations.run({
                     kind: "add-condition",
+                    participantKey,
                     request,
                   });
                   return result.active && result.refreshed;
@@ -666,15 +672,23 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                     throw new Error("Recovery result unavailable.");
                   return result.receipt;
                 }}
-                onUpdate={async (request) => {
-                  const result = await mutations.run({ kind: "participant", request });
+                onUpdate={async (participantKey, request) => {
+                  const result = await mutations.run({
+                    kind: "participant",
+                    participantKey,
+                    request,
+                  });
                   return result.active && result.refreshed;
                 }}
-                onUpdateCondition={async (participantKey, condition) => {
+                onUpdateCondition={async (
+                  participantKey,
+                  { condition_id: conditionId, ...request },
+                ) => {
                   const result = await mutations.run({
                     kind: "update-condition",
                     participantKey,
-                    request: condition,
+                    conditionId,
+                    request,
                   });
                   return result.active && result.refreshed;
                 }}
@@ -768,8 +782,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             if (!participant) return Promise.resolve();
             return turnReview.execute({
               kind: "manual-tracker",
+              participantKey: reminder.participant_key,
               request: {
-                participant_key: reminder.participant_key,
                 expected_encounter_revision: turnReview.data!.expected_revision,
                 expected_participant_revision: participant.revision,
                 action: { kind: "remove", tracker_key: reminder.tracker_key },
@@ -824,9 +838,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               if (!participant) throw new Error("Participant unavailable");
               await mutations.run({
                 kind: "participant",
-                request: participantUpdate(participant, {
-                  initiative: value === undefined ? undefined : BigInt(value),
-                }),
+                participantKey: key,
+                request: {
+                  expected_revision: participant.revision,
+                  initiative: value ?? null,
+                },
               });
             }}
             encounterKey={encounter.data.encounter.encounter_key}

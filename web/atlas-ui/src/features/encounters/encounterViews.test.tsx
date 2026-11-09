@@ -103,7 +103,8 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   deleteEncounter: apiMocks.deleteEncounter,
   getEncounter: apiMocks.getEncounter,
   getEncounterConditionDefinitions: apiMocks.getEncounterConditionDefinitions,
-  previewEncounterCondition: apiMocks.previewEncounterCondition,
+  previewEncounterConditionAdd: apiMocks.previewEncounterCondition,
+  previewEncounterConditionUpdate: apiMocks.previewEncounterCondition,
   getEncounterConditionConsequences: apiMocks.getEncounterConditionConsequences,
   encounterCastingReminders: apiMocks.encounterCastingReminders,
   getEncounters: apiMocks.getEncounters,
@@ -147,24 +148,24 @@ function setupPersistentReview(damageApplied = false) {
     {
       episode_id: "fire",
       damage_type: "fire",
-      selected_source_id: 7n,
+      selected_source_id: 7,
       sources: [
-        { condition_id: 7n, formula: "1d6", multiplier: "normal", recovery_dc: 15n },
+        { condition_id: 7, formula: "1d6", multiplier: "normal", recovery_dc: 15 },
       ],
     },
   ];
   const damageResult = {
     encounter_key: "encounter_ambush",
     request_id: "saved-damage",
-    total: 4n,
-    hardness_absorbed: 0n,
+    total: 4,
+    hardness_absorbed: 0,
     groups: [
       {
         episode_id: "fire",
         damage_type: "fire",
-        source_condition_id: 7n,
+        source_condition_id: 7,
         roll: null,
-        amount: 4n,
+        amount: 4,
         table_resolved: true,
       },
     ],
@@ -175,12 +176,12 @@ function setupPersistentReview(damageApplied = false) {
       recovery: null,
       damage: {
         ...damageResult,
-        total: request.groups[0]?.damage.amount ?? 0n,
+        total: request.groups[0]?.damage.amount ?? 0,
         groups: request.groups.length
           ? [
               {
                 ...damageResult.groups[0],
-                amount: request.groups[0].damage.amount ?? 0n,
+                amount: request.groups[0].damage.amount ?? 0,
               },
             ]
           : [],
@@ -206,8 +207,8 @@ function setupPersistentReview(damageApplied = false) {
           boundary_key: "original-turn",
           participant_key: "participant_a",
           participant_name: "Goblin",
-          round_duration_seconds: 6n,
-          round_number: 1n,
+          round_duration_seconds: 6,
+          round_number: 1,
           persistent_damage_groups: participant.persistent_damage_groups,
           reminders: state.recoveryResults.length
             ? []
@@ -216,7 +217,7 @@ function setupPersistentReview(damageApplied = false) {
                   kind: "persistent_damage",
                   participant_key: "participant_a",
                   participant_name: "Goblin",
-                  condition_id: 7n,
+                  condition_id: 7,
                   condition_name: "Persistent Damage",
                   note: null,
                 },
@@ -230,8 +231,8 @@ function setupPersistentReview(damageApplied = false) {
     damage_groups: state.recoveryResults.some((result) => result.success)
       ? []
       : participant.persistent_damage_groups,
-    round_duration_seconds: 6n,
-    round_number: 1n,
+    round_duration_seconds: 6,
+    round_number: 1,
     damage_applied: state.damageApplied,
     episodes: state.recoveryResults.length
       ? []
@@ -251,7 +252,7 @@ function setupPersistentReview(damageApplied = false) {
   }));
   apiMocks.applyEncounterPersistentDamage.mockImplementation(async () => {
     state.damageApplied = true;
-    serverEncounter = { ...serverEncounter, revision: serverEncounter.revision + 1n };
+    serverEncounter = { ...serverEncounter, revision: serverEncounter.revision + 1 };
     state.afterSave?.();
     return damageResult;
   });
@@ -261,7 +262,7 @@ function setupPersistentReview(damageApplied = false) {
       request_id: "saved-recovery",
       episode_id: "fire",
       damage_type: "fire",
-      dc: 15n,
+      dc: 15,
       roll: {
         formula: "1d20",
         total: 17,
@@ -276,7 +277,7 @@ function setupPersistentReview(damageApplied = false) {
     state.recoveryResults.push(result);
     serverEncounter = {
       ...serverEncounter,
-      revision: serverEncounter.revision + 1n,
+      revision: serverEncounter.revision + 1,
       participants: serverEncounter.participants.map((p) =>
         p.participant_key === "participant_a"
           ? { ...p, conditions: [], persistent_damage_groups: [] }
@@ -339,8 +340,8 @@ describe("encounter views", () => {
     apiMocks.getEncounterPersistentReview.mockResolvedValue({
       encounter_revision: serverEncounter.revision,
       damage_groups: [],
-      round_duration_seconds: 6n,
-      round_number: 1n,
+      round_duration_seconds: 6,
+      round_number: 1,
       damage_applied: false,
       episodes: [],
       damage_result: null,
@@ -395,17 +396,19 @@ describe("encounter views", () => {
       apiMocks.removeEncounterParticipantCondition,
     ])
       mutation.mockResolvedValue(receipt);
-    apiMocks.updateEncounterParticipant.mockImplementation((_ref, request) => {
-      serverEncounter = {
-        ...serverEncounter,
-        participants: serverEncounter.participants.map((p) =>
-          p.participant_key === request.participant_key
-            ? { ...p, ...request, revision: p.revision + 1n }
-            : p,
-        ),
-      };
-      return Promise.resolve(receipt);
-    });
+    apiMocks.updateEncounterParticipant.mockImplementation(
+      (_ref, participantKey, request) => {
+        serverEncounter = {
+          ...serverEncounter,
+          participants: serverEncounter.participants.map((p) =>
+            p.participant_key === participantKey
+              ? { ...p, ...request, revision: p.revision + 1 }
+              : p,
+          ),
+        };
+        return Promise.resolve(receipt);
+      },
+    );
     apiMocks.deleteEncounter.mockResolvedValue({
       ...receipt,
       slug: "ambush",
@@ -455,13 +458,10 @@ describe("encounter views", () => {
     ).toHaveAttribute("aria-pressed", "true");
     expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledExactlyOnceWith(
       "encounter_ambush",
+      "participant_a",
       expect.objectContaining({
-        participant_key: "participant_a",
-        expected_revision: 0n,
+        expected_revision: 0,
         display_name: "Goblin captain",
-        hp_edit: false,
-        max_hp_edit: false,
-        variant_edit: false,
       }),
     );
   });
@@ -514,8 +514,8 @@ describe("encounter views", () => {
       confusion: null,
       targeting: null,
       disruption: null,
-      expected_encounter_revision: 0n,
-      expected_participant_revision: 0n,
+      expected_encounter_revision: 0,
+      expected_participant_revision: 0,
     });
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -528,6 +528,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterSpellAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
           action: { kind: "cast", selection: spell.navigation },
         }),
@@ -629,10 +630,12 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(location.pathname).toBe("/encounters/new-ambush"));
-    expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
-      encounter_key: "encounter_ambush",
-      name: { expected: "Ambush", value: "Renamed Ambush" },
-    });
+    expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
+      "encounter_ambush",
+      {
+        name: { expected: "Ambush", value: "Renamed Ambush" },
+      },
+    );
   });
 
   it.each(["page", "modal"] as const)(
@@ -702,10 +705,12 @@ describe("encounter views", () => {
       expect(editor.getByLabelText("Name")).toBe(name);
       fireEvent.click(editor.getByRole("button", { name: "Save" }));
       await waitFor(() =>
-        expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
-          encounter_key: "encounter_ambush",
-          name: { expected: "Ambush", value: "My name" },
-        }),
+        expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
+          "encounter_ambush",
+          {
+            name: { expected: "Ambush", value: "My name" },
+          },
+        ),
       );
       if (surface === "page") {
         await waitFor(() =>
@@ -810,7 +815,6 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledExactlyOnceWith({
-        encounter_key: "encounter_ambush",
         name: { expected: "Ambush", value: "My name" },
         note: { expected: " New server note ", value: null },
       }),
@@ -877,8 +881,7 @@ describe("encounter views", () => {
 
     fireEvent.click(save);
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, {
-        encounter_key: "encounter_ambush",
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, "encounter_ambush", {
         name: { expected: "Other name", value: "My name" },
         description: { expected: "Road fight", value: "My description" },
       }),
@@ -893,8 +896,7 @@ describe("encounter views", () => {
     expect(apiMocks.updateEncounter).toHaveBeenCalledTimes(2);
     fireEvent.click(save);
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(3, {
-        encounter_key: "encounter_ambush",
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(3, "encounter_ambush", {
         name: { expected: "Newer name", value: "My name" },
         description: { expected: "Road fight", value: "My description" },
       }),
@@ -946,15 +948,17 @@ describe("encounter views", () => {
 
     fireEvent.click(save);
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, {
-        encounter_key: "encounter_ambush",
+      expect(apiMocks.updateEncounter).toHaveBeenNthCalledWith(2, "encounter_ambush", {
         name: { expected: "Other name", value: "My name" },
       }),
     );
   });
 
-  it("loads the participant condition catalog with a bigint encounter revision", async () => {
-    setEncounterDetail({ ...encounterDetailFixture(), revision: 9007199254740993n });
+  it("loads the participant condition catalog with the largest safe encounter revision", async () => {
+    setEncounterDetail({
+      ...encounterDetailFixture(),
+      revision: Number.MAX_SAFE_INTEGER,
+    });
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -995,8 +999,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Actions for Kyra" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Set turn to Kyra" }));
     await waitFor(() =>
-      expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith({
-        encounter_ref: "encounter_ambush",
+      expect(apiMocks.setEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
         participant_key: "participant_b",
       }),
     );
@@ -1146,7 +1149,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
         request_id: expect.any(String),
-        expected_revision: 0n,
+        expected_revision: 0,
       }),
     );
 
@@ -1167,7 +1170,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.advanceEncounterTurn).toHaveBeenCalledWith("encounter_ambush", {
         request_id: expect.any(String),
-        expected_revision: 0n,
+        expected_revision: 0,
       }),
     );
   });
@@ -1277,17 +1280,19 @@ describe("encounter views", () => {
   it("dims and restores a roster row without changing initiative or the current turn", async () => {
     const initial = encounterDetailFixture();
     apiMocks.getEncounter.mockResolvedValue(initial);
-    apiMocks.updateEncounterParticipant.mockImplementation(async (_ref, request) => {
-      apiMocks.getEncounter.mockResolvedValue({
-        ...initial,
-        participants: initial.participants.map((p) =>
-          p.participant_key === request.participant_key
-            ? { ...p, hidden: request.hidden, revision: p.revision + 1n }
-            : p,
-        ),
-      });
-      return { encounter_key: initial.encounter.encounter_key };
-    });
+    apiMocks.updateEncounterParticipant.mockImplementation(
+      async (_ref, participantKey, request) => {
+        apiMocks.getEncounter.mockResolvedValue({
+          ...initial,
+          participants: initial.participants.map((p) =>
+            p.participant_key === participantKey
+              ? { ...p, hidden: request.hidden, revision: p.revision + 1 }
+              : p,
+          ),
+        });
+        return { encounter_key: initial.encounter.encounter_key };
+      },
+    );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
@@ -1300,10 +1305,9 @@ describe("encounter views", () => {
     );
     expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
       "encounter_ambush",
+      "participant_a",
       expect.objectContaining({
-        participant_key: "participant_a",
         hidden: true,
-        initiative: 18n,
       }),
     );
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
@@ -1318,7 +1322,8 @@ describe("encounter views", () => {
     );
     expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
       "encounter_ambush",
-      expect.objectContaining({ hidden: false, initiative: 18n }),
+      "participant_a",
+      expect.objectContaining({ hidden: false }),
     );
   });
 
@@ -1406,12 +1411,9 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_b",
         expect.objectContaining({
-          participant_key: "participant_b",
-          initiative: 18n,
-          hp_edit: false,
-          variant_edit: false,
-          max_hp_edit: false,
+          initiative: 18,
         }),
       ),
     );
@@ -1438,7 +1440,7 @@ describe("encounter views", () => {
     const body = initial.participants[0].presentation!.body;
     if (body.kind !== "creature") throw new Error("Expected creature fixture");
     initial.participants[0].turn_resources = turnResourcesFixture(
-      2n,
+      2,
       body.value.runtime!.action_budget!.actions,
     );
     setEncounterDetail(initial);
@@ -1491,7 +1493,7 @@ describe("encounter views", () => {
     const body = initial.participants[1].presentation!.body;
     if (body.kind !== "creature") throw new Error("Expected creature fixture");
     initial.participants[1].turn_resources = turnResourcesFixture(
-      3n,
+      3,
       body.value.runtime!.action_budget!.actions,
       false,
     );
@@ -1531,8 +1533,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_b",
         expect.objectContaining({
-          participant_key: "participant_b",
           action: { kind: "set_values", current: { input: "20" } },
         }),
       ),
@@ -1571,12 +1573,10 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledExactlyOnceWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
           display_name: "Goblin Scout",
-          expected_revision: 0n,
-          hp_edit: false,
-          max_hp_edit: false,
-          variant_edit: false,
+          expected_revision: 0,
         }),
       ),
     );
@@ -1594,8 +1594,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           action: { kind: "set_values", maximum: { input: "30" } },
         }),
       ),
@@ -1608,8 +1608,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           action: { kind: "use_derived_maximum" },
         }),
       ),
@@ -1638,12 +1638,9 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           participant_variant: "elite",
-          variant_edit: true,
-          hp_edit: false,
-          max_hp_edit: false,
         }),
       ),
     );
@@ -1659,8 +1656,8 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           action: { kind: "set_values", current: { input: "8" } },
         }),
       ),
@@ -1668,7 +1665,7 @@ describe("encounter views", () => {
     unmount();
     setEncounterDetail(
       encounterDetailFixture("participant_a", {
-        current_hp: 8n,
+        current_hp: 8,
         hp_origin: "derived_edited",
       }),
     );
@@ -1698,7 +1695,7 @@ describe("encounter views", () => {
   it("returns focus to the encounter cog when a recovery review is canceled", async () => {
     apiMocks.previewEncounterRecovery.mockResolvedValue({
       encounter_key: "encounter",
-      encounter_revision: 0n,
+      encounter_revision: 0,
       participants: [],
       changes: [],
       can_apply: false,
@@ -1725,7 +1722,7 @@ describe("encounter views", () => {
         current_hp: p.current_hp,
         resulting_hp: p.current_hp,
         resulting_max_hp: p.max_hp,
-        healing: 5n,
+        healing: 5,
         changes: [],
         unavailable_reason: null,
       })),
@@ -1747,7 +1744,7 @@ describe("encounter views", () => {
     )[0];
     await waitFor(() => expect(amount).toHaveValue("5"));
     apiMocks.previewEncounterRecovery.mockImplementationOnce(async () => {
-      serverEncounter = { ...serverEncounter, revision: 9n };
+      serverEncounter = { ...serverEncounter, revision: 9 };
       throw new AtlasApiError(409, "Stale", {
         code: "encounter_turn_conflict",
         message: "Stale",
@@ -1772,7 +1769,7 @@ describe("encounter views", () => {
     );
     expect(apiMocks.previewEncounterRecovery).toHaveBeenLastCalledWith(
       "encounter_ambush",
-      expect.objectContaining({ expected_encounter_revision: 9n }),
+      expect.objectContaining({ expected_encounter_revision: 9 }),
       expect.any(AbortSignal),
     );
   });
@@ -1794,10 +1791,12 @@ describe("encounter views", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
-      expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith({
-        encounter_key: "encounter_ambush",
-        status: { expected: "draft", value: "complete" },
-      }),
+      expect(apiMocks.updateEncounter).toHaveBeenCalledExactlyOnceWith(
+        "encounter_ambush",
+        {
+          status: { expected: "draft", value: "complete" },
+        },
+      ),
     );
   });
 
@@ -1940,11 +1939,13 @@ describe("encounter views", () => {
       expect.objectContaining({
         artifact_generation: initial.artifact_generation,
         selection: {
-          record_key: claw.navigation.record_key,
-          embedded_path: claw.navigation.embedded_path,
+          address: {
+            record_key: claw.navigation.record_key,
+            embedded_path: claw.navigation.embedded_path,
+            source_fingerprint: claw.navigation.source_fingerprint,
+          },
           fields: [],
           passage: claw.navigation.passage,
-          source_fingerprint: claw.navigation.source_fingerprint,
         },
       }),
       expect.any(AbortSignal),
@@ -2002,7 +2003,9 @@ describe("encounter views", () => {
     parent.presentation = initial.participants[0].presentation!;
     apiMocks.getEncounterReference.mockImplementation(
       (_encounter, _participant, request) =>
-        Promise.resolve(request.selection.embedded_path.length ? selected : parent),
+        Promise.resolve(
+          request.selection.address.embedded_path.length ? selected : parent,
+        ),
     );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -2049,9 +2052,11 @@ describe("encounter views", () => {
         expect.any(String),
         "participant_a",
         expect.objectContaining({
-          condition_id: 7n,
+          condition_id: 7,
           selection: expect.objectContaining({
-            record_key: "conditionitems:TBSHQspnbcqxsmjL",
+            address: expect.objectContaining({
+              record_key: "conditionitems:TBSHQspnbcqxsmjL",
+            }),
           }),
         }),
         expect.any(AbortSignal),
@@ -2064,8 +2069,8 @@ describe("encounter views", () => {
   it("renders HP meter segments and threshold states", async () => {
     setEncounterDetail(
       encounterDetailFixture("participant_a", {
-        current_hp: 6n,
-        temporary_hp: 5n,
+        current_hp: 6,
+        temporary_hp: 5,
       }),
     );
     const { unmount } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
@@ -2105,8 +2110,8 @@ describe("encounter views", () => {
     unmount();
     setEncounterDetail(
       encounterDetailFixture("participant_a", {
-        current_hp: 3n,
-        temporary_hp: 0n,
+        current_hp: 3,
+        temporary_hp: 0,
       }),
     );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
@@ -2129,12 +2134,15 @@ describe("encounter views", () => {
     fireEvent.change(hp, { target: { value: "50 - 7" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() =>
-      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith("encounter_ambush", {
-        request_id: expect.any(String),
-        participant_key: "participant_a",
-        expected_revision: 0n,
-        action: { kind: "set_values", current: { input: "50 - 7" } },
-      }),
+      expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledWith(
+        "encounter_ambush",
+        "participant_a",
+        {
+          request_id: expect.any(String),
+          expected_revision: 0,
+          action: { kind: "set_values", current: { input: "50 - 7" } },
+        },
+      ),
     );
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Edit HP" })).not.toBeInTheDocument(),
@@ -2145,6 +2153,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "set_values", temporary: "4 + 2" } }),
       ),
     );
@@ -2164,6 +2173,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "heal", amount: "8 + 2" } }),
       ),
     );
@@ -2173,6 +2183,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "damage", amount: "8 + 2" } }),
       ),
     );
@@ -2182,6 +2193,7 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.applyEncounterHpAction).toHaveBeenLastCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({ action: { kind: "heal", amount: "3" } }),
       ),
     );
@@ -2245,12 +2257,14 @@ describe("encounter views", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
     await waitFor(() =>
-      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith({
-        encounter_ref: "encounter_ambush",
-        record_ref: "actors:goblin",
-        quantity: 2,
-        participant_variant: "elite",
-      }),
+      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledWith(
+        "encounter_ambush",
+        {
+          record_ref: "actors:goblin",
+          quantity: 2,
+          participant_variant: "elite",
+        },
+      ),
     );
     await waitFor(() =>
       expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
@@ -2263,11 +2277,13 @@ describe("encounter views", () => {
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await waitFor(() =>
-      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenLastCalledWith({
-        encounter_ref: "encounter_ambush",
-        record_ref: "actors:goblin",
-        quantity: 3,
-      }),
+      expect(apiMocks.addEncounterRecordParticipant).toHaveBeenLastCalledWith(
+        "encounter_ambush",
+        {
+          record_ref: "actors:goblin",
+          quantity: 3,
+        },
+      ),
     );
     await waitFor(() =>
       expect(within(dialog).getByRole("button", { name: "Done" })).toBeEnabled(),
@@ -2362,11 +2378,11 @@ describe("encounter views", () => {
       "encounter_ambush",
       expect.objectContaining({
         request_id: expect.any(String),
-        expected_encounter_revision: 0n,
+        expected_encounter_revision: 0,
         groups: [
           {
             episode_id: "fire",
-            damage: { kind: "table_result", amount: 4n },
+            damage: { kind: "table_result", amount: 4 },
           },
         ],
       }),
@@ -2386,7 +2402,7 @@ describe("encounter views", () => {
       expect.objectContaining({
         mode: "end_turn",
         episode_id: "fire",
-        expected_encounter_revision: 1n,
+        expected_encounter_revision: 1,
         boundary_key: "original-turn",
       }),
     );
@@ -2460,12 +2476,12 @@ describe("encounter views", () => {
     apiMocks.updateEncounterParticipantCondition.mockImplementationOnce(async () => {
       serverEncounter = {
         ...serverEncounter,
-        revision: 9n,
+        revision: 9,
         participants: serverEncounter.participants.map((p) => ({
           ...p,
           conditions: p.conditions.map((c) => ({
             ...c,
-            duration: c.duration ? { ...c.duration, amount: 1n } : undefined,
+            duration: c.duration ? { ...c.duration, amount: 1 } : undefined,
           })),
         })),
       };
@@ -2488,8 +2504,9 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
-          expected_encounter_revision: 0n,
+          expected_encounter_revision: 0,
           note: "My stale note",
         }),
       ),
@@ -2511,10 +2528,11 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenLastCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
-          expected_encounter_revision: 9n,
+          expected_encounter_revision: 9,
           note: "Reviewed note",
-          duration: expect.objectContaining({ amount: 1n }),
+          duration: expect.objectContaining({ amount: 1 }),
         }),
       ),
     );
@@ -2556,9 +2574,9 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledTimes(2),
     );
-    expect(apiMocks.addEncounterParticipantCondition.mock.calls[1][1]).toMatchObject({
+    expect(apiMocks.addEncounterParticipantCondition.mock.calls[1][2]).toMatchObject({
       condition_ref: "conditionitems:TBSHQspnbcqxsmjL",
-      value: 2n,
+      value: 2,
       duration: undefined,
     });
   }, 10_000);
@@ -2652,7 +2670,7 @@ describe("encounter views", () => {
     apiMocks.advanceEncounterTurn.mockImplementationOnce(async () => {
       serverEncounter = {
         ...serverEncounter,
-        revision: 8n,
+        revision: 8,
         current_turn_participant_key: "participant_b",
       };
       throw new AtlasApiError(409, "Stale turn", {
@@ -2677,7 +2695,7 @@ describe("encounter views", () => {
       expect(apiMocks.advanceEncounterTurn).toHaveBeenNthCalledWith(
         2,
         "encounter_ambush",
-        { expected_revision: 8n, request_id: expect.any(String) },
+        { expected_revision: 8, request_id: expect.any(String) },
       ),
     );
     expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
@@ -2689,24 +2707,24 @@ describe("encounter views", () => {
         kind: "duration_ended",
         participant_key: "participant_a",
         participant_name: "Goblin",
-        condition_id: 7n,
+        condition_id: 7,
         condition_name: "Frightened",
       },
       {
         kind: "duration_reminder",
         participant_key: "participant_a",
         participant_name: "Goblin",
-        condition_id: 8n,
+        condition_id: 8,
         condition_name: "Sickened",
-        duration: { amount: 5n, unit: "minutes", timing: null },
+        duration: { amount: 5, unit: "minutes", timing: null },
       },
       {
         kind: "timing_unavailable",
         participant_key: "participant_a",
         participant_name: "Goblin",
-        condition_id: 9n,
+        condition_id: 9,
         condition_name: "Prone",
-        duration: { amount: 2n, unit: "rounds", timing: null },
+        duration: { amount: 2, unit: "rounds", timing: null },
       },
     ];
     const initialTurnRevision = serverEncounter.revision;
@@ -2725,8 +2743,8 @@ describe("encounter views", () => {
             boundary_key: "outgoing",
             participant_key: "participant_a",
             participant_name: "Goblin",
-            round_duration_seconds: 6n,
-            round_number: 1n,
+            round_duration_seconds: 6,
+            round_number: 1,
             persistent_damage_groups: [],
             reminders,
           }
@@ -2787,12 +2805,12 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(apiMocks.addEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
+        "participant_a",
         expect.objectContaining({
-          participant_key: "participant_a",
           condition_ref: "conditionitems:fesd1n5eVhpCSS18",
-          value: 2n,
+          value: 2,
           duration: {
-            amount: 3n,
+            amount: 3,
             unit: "rounds",
             timing: { participant_key: "participant_a", event: "end" },
           },
@@ -2801,13 +2819,13 @@ describe("encounter views", () => {
       ),
     );
     expect(
-      apiMocks.addEncounterParticipantCondition.mock.calls[0][1],
+      apiMocks.addEncounterParticipantCondition.mock.calls[0][2],
     ).not.toHaveProperty("name");
   }, 10_000);
 
   it("edits and removes conditions for the current participant", async () => {
     apiMocks.updateEncounterParticipantCondition.mockImplementation(
-      async (_ref, participantKey, request) => {
+      async (_ref, participantKey, conditionId, request) => {
         serverEncounter = {
           ...serverEncounter,
           participants: serverEncounter.participants.map((participant) =>
@@ -2815,7 +2833,7 @@ describe("encounter views", () => {
               ? {
                   ...participant,
                   conditions: participant.conditions.map((condition) =>
-                    condition.condition_id === request.condition_id
+                    condition.condition_id === conditionId
                       ? { ...condition, ...request }
                       : condition,
                   ),
@@ -2842,15 +2860,15 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
-          condition_id: 7n,
           name: "Frightened",
-          value: 2n,
+          value: 2,
         }),
       ),
     );
     expect(
-      apiMocks.updateEncounterParticipantCondition.mock.calls[0][2],
+      apiMocks.updateEncounterParticipantCondition.mock.calls[0][3],
     ).not.toHaveProperty("condition_key");
 
     await waitFor(() =>
@@ -2875,11 +2893,11 @@ describe("encounter views", () => {
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
+        7,
         expect.objectContaining({
-          condition_id: 7n,
           name: "Frightened",
           duration: {
-            amount: 4n,
+            amount: 4,
             unit: "rounds",
             timing: { participant_key: "participant_a", event: "end" },
           },
@@ -2901,10 +2919,10 @@ describe("encounter views", () => {
       expect(apiMocks.removeEncounterParticipantCondition).toHaveBeenCalledWith(
         "encounter_ambush",
         "participant_a",
-        7n,
+        7,
         expect.objectContaining({
           request_id: expect.any(String),
-          expected_encounter_revision: expect.any(BigInt),
+          expected_encounter_revision: expect.any(Number),
           intent: "remove_effect",
         }),
       ),
@@ -2950,8 +2968,8 @@ describe("encounter views", () => {
 
   it("retains failed conflict drafts and requires an explicit new edit", async () => {
     serverEncounter = encounterDetailFixture("participant_a", {
-      current_hp: 9n,
-      revision: 1n,
+      current_hp: 9,
+      revision: 1,
     });
     apiMocks.getEncounter
       .mockResolvedValueOnce(encounterDetailFixture())
@@ -2987,7 +3005,7 @@ describe("encounter views", () => {
       .mockResolvedValueOnce(encounterDetailFixture())
       .mockRejectedValueOnce(new Error("Artifact unavailable"))
       .mockResolvedValue(
-        encounterDetailFixture("participant_a", { current_hp: 3n, revision: 1n }),
+        encounterDetailFixture("participant_a", { current_hp: 3, revision: 1 }),
       );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -3226,10 +3244,12 @@ describe("encounter views", () => {
     }
     fireEvent.click(within(dialog).getByRole("button", { name: "OK" }));
     await waitFor(() =>
-      expect(apiMocks.addEncounterManualParticipant).toHaveBeenCalledExactlyOnceWith({
-        encounter_ref: "encounter_ambush",
-        display_name: "Mira",
-      }),
+      expect(apiMocks.addEncounterManualParticipant).toHaveBeenCalledExactlyOnceWith(
+        "encounter_ambush",
+        {
+          display_name: "Mira",
+        },
+      ),
     );
   });
 
@@ -3238,7 +3258,7 @@ describe("encounter views", () => {
       .mockResolvedValueOnce(encounterDetailFixture())
       .mockRejectedValueOnce(new Error("Artifact unavailable"))
       .mockResolvedValue(
-        encounterDetailFixture("participant_a", { current_hp: 5n, revision: 1n }),
+        encounterDetailFixture("participant_a", { current_hp: 5, revision: 1 }),
       );
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -3251,6 +3271,7 @@ describe("encounter views", () => {
     expect(amount).toHaveValue("");
     expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledExactlyOnceWith(
       "encounter_ambush",
+      "participant_a",
       expect.objectContaining({ action: { kind: "heal", amount: "-5" } }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter refresh" }));
@@ -3311,14 +3332,14 @@ describe("encounter views", () => {
     expect(note).toHaveValue("My note");
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();
     const previewCalls = apiMocks.previewEncounterCondition.mock.calls.length;
-    const firstRequest = apiMocks.updateEncounterParticipantCondition.mock.calls[0][2];
+    const firstRequest = apiMocks.updateEncounterParticipantCondition.mock.calls[0][3];
     await clickConditionApply();
     await waitFor(() =>
       expect(apiMocks.updateEncounterParticipantCondition).toHaveBeenCalledTimes(2),
     );
     expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls);
     expect(
-      apiMocks.updateEncounterParticipantCondition.mock.calls[1][2].request_id,
+      apiMocks.updateEncounterParticipantCondition.mock.calls[1][3].request_id,
     ).toBe(firstRequest.request_id);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
@@ -3330,7 +3351,7 @@ describe("encounter views", () => {
     );
     expect(apiMocks.previewEncounterCondition).toHaveBeenCalledTimes(previewCalls);
     expect(
-      apiMocks.updateEncounterParticipantCondition.mock.calls[2][2].request_id,
+      apiMocks.updateEncounterParticipantCondition.mock.calls[2][3].request_id,
     ).not.toBe(firstRequest.request_id);
   });
   it("does not navigate an old successful Save over a newly selected editor", async () => {
@@ -3494,8 +3515,8 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         name: "Ambush",
         description: "Road fight",
         status: "draft",
-        round_duration_seconds: 6n,
-        round_number: 1n,
+        round_duration_seconds: 6,
+        round_number: 1,
         participant_count: 2,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
@@ -3505,8 +3526,8 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         slug: "old-fight",
         name: "Old Fight",
         status: "archived",
-        round_duration_seconds: 6n,
-        round_number: 1n,
+        round_duration_seconds: 6,
+        round_number: 1,
         participant_count: 1,
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
@@ -3517,7 +3538,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
 
 function conditionDefinitionsFixture() {
   return {
-    standard_persistent_recovery_dc: 15n,
+    standard_persistent_recovery_dc: 15,
     conditions: [
       conditionDefinitionFixture(
         "conditionitems:TBSHQspnbcqxsmjL",
@@ -3562,7 +3583,7 @@ function conditionDefinitionFixture(
     categories: [automationLevel === "automated" ? "stat_modifier" : "runtime_state"],
     supports_duration_instead_of_value: false,
     has_value: hasValue,
-    ...(hasValue ? { default_value: 1n } : {}),
+    ...(hasValue ? { default_value: 1 } : {}),
   };
 }
 
@@ -3575,7 +3596,7 @@ async function clickConditionApply(dialog?: HTMLElement) {
 }
 
 function turnResourcesFixture(
-  actions: bigint,
+  actions: number,
   forecast: RuntimeCountView,
   current = true,
 ): TurnResourcesView {
@@ -3584,15 +3605,15 @@ function turnResourcesFixture(
       ? { kind: "this_turn", count: forecast, changes: [] }
       : { kind: "next_turn", count: forecast },
     turn_key: "turn:test",
-    round_number: 1n,
+    round_number: 1,
     regular_total: actions,
     regular_remaining: actions,
-    extra_total: 0n,
-    extra_remaining: 0n,
+    extra_total: 0,
+    extra_remaining: 0,
     extra_uses: [],
-    reactions_total: 1n,
+    reactions_total: 1,
     can_grant_reaction: false,
-    reactions_remaining: 1n,
+    reactions_remaining: 1,
     start_results: [],
     pending_reason: null,
     forecast,
@@ -3626,7 +3647,7 @@ function encounterDetailFixture(
       budgets: [],
       opposition: [],
     },
-    revision: 0n,
+    revision: 0,
     artifact_generation: "test-generation",
     encounter: encounterIndexFixture().encounters[0],
     note: "Encounter note",
@@ -3640,32 +3661,32 @@ function encounterDetailFixture(
         variant_origin: "explicit",
         participant_kind: "creature",
         side: "enemy",
-        initiative: 18n,
-        max_hp: 12n,
-        current_hp: 10n,
-        temporary_hp: 5n,
+        initiative: 18,
+        max_hp: 12,
+        current_hp: 10,
+        temporary_hp: 5,
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
         presentation: participantPresentationFixture({
-          actions: 2n,
-          actionBase: 3n,
-          actionAdjustment: -1n,
-          speed: 15n,
-          speedBase: 25n,
-          speedAdjustment: -10n,
+          actions: 2,
+          actionBase: 3,
+          actionAdjustment: -1,
+          speed: 15,
+          speedBase: 25,
+          speedAdjustment: -10,
         }),
 
         conditions: [
           {
-            condition_id: 7n,
+            condition_id: 7,
             immunity_override: false,
             parameters: { kind: "none" },
             scope: { kind: "everyone" },
             extra_action: { kind: "unspecified" },
             condition_key: "conditionitems:TBSHQspnbcqxsmjL",
             name: "Frightened",
-            value: 1n,
+            value: 1,
             duration: {
-              amount: 2n,
+              amount: 2,
               unit: "rounds",
               timing: { participant_key: "participant_a", event: "end" },
             },
@@ -3683,9 +3704,9 @@ function encounterDetailFixture(
         participant_kind: "pc",
         status: "manual",
         side: "pc",
-        initiative: 15n,
-        max_hp: 24n,
-        current_hp: 24n,
+        initiative: 15,
+        max_hp: 24,
+        current_hp: 24,
 
         presentation: participantPresentationFixture({
           kind: "pc",
@@ -3694,8 +3715,8 @@ function encounterDetailFixture(
           recordKey: "participant_b",
           title: "Kyra",
           traits: [],
-          actions: 3n,
-          reactions: 1n,
+          actions: 3,
+          reactions: 1,
         }),
       }),
     ],
@@ -3710,25 +3731,25 @@ function participantFixture(
     knockout_options: [],
     effective_max_hp: {
       state: overrides.max_hp === undefined ? "missing" : "value",
-      value: overrides.max_hp === undefined ? null : Number(overrides.max_hp),
+      value: overrides.max_hp === undefined ? null : overrides.max_hp,
       adjustment: null,
     },
-    revision: 0n,
+    revision: 0,
     persistent_damage_groups: [],
     track_dying: false,
     mortality: "alive",
-    base_death_threshold: 4n,
+    base_death_threshold: 4,
     participant_key: "participant",
     hp_origin: "explicit",
     variant_origin: "explicit",
     participant_kind: "creature",
     participant_variant: "normal",
     status: "active",
-    position: 1n,
+    position: 1,
     display_name: "Participant",
     side: "enemy",
-    initiative_order: 1n,
-    temporary_hp: 0n,
+    initiative_order: 1,
+    temporary_hp: 0,
     defeated: false,
     hazard_disabled: false,
     cast_unavailable_reason: null,
@@ -3752,7 +3773,7 @@ function searchResultsFixture(): SearchResultsPage {
       number: 1,
       size: 25,
       count: 1,
-      total: 1n,
+      total: 1,
       has_more: false,
       next_page: null,
     },
@@ -3785,7 +3806,7 @@ function participantPresentationFixture({
   kindLabel = "Creature",
   includeActivities = kind === "creature",
   levelLabel = "1",
-  reactions = 1n,
+  reactions = 1,
   recordKey = "actors:goblin",
   speed,
   speedAdjustment,
@@ -3796,18 +3817,18 @@ function participantPresentationFixture({
     { kind: "trait", label: "Humanoid", value: "humanoid" },
   ],
 }: {
-  actionAdjustment?: bigint;
-  actionBase?: bigint;
-  actions?: bigint;
+  actionAdjustment?: number;
+  actionBase?: number;
+  actions?: number;
   kind?: string;
   kindLabel?: string;
   includeActivities?: boolean;
   levelLabel?: string;
-  reactions?: bigint;
+  reactions?: number;
   recordKey?: string;
-  speed?: bigint;
-  speedAdjustment?: bigint;
-  speedBase?: bigint;
+  speed?: number;
+  speedAdjustment?: number;
+  speedBase?: number;
   title?: string;
   traits?: Array<{ kind: string; label: string; value: string }>;
 } = {}) {
@@ -3815,10 +3836,10 @@ function participantPresentationFixture({
   actor.land_speed =
     speed === undefined
       ? { state: "not_applicable", value: null, adjustment: null }
-      : numberFact(Number(speed));
+      : numberFact(speed);
   if (speedBase !== undefined)
     actor.land_speed.adjustment = {
-      authored: Number(speedBase),
+      authored: speedBase,
       applied:
         speedAdjustment === undefined
           ? []
@@ -3833,7 +3854,7 @@ function participantPresentationFixture({
       suppressed: [],
       notes: [],
     };
-  const count = (label: string, value: bigint, base = value) => ({
+  const count = (label: string, value: number, base = value) => ({
     label,
     base_value: base,
     adjusted_value: value,

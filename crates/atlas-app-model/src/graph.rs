@@ -2,23 +2,25 @@ use crate::{
     RecordRelationshipView, RecordSummaryView, SearchCoverageView, SearchPageView, SearchResultRow,
 };
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphContextView {
     pub seed: RecordSummaryView,
     pub outgoing: GraphSectionView,
     pub backlinks: GraphSectionView,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphSectionView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub filter: Option<atlas_domain::QueryPredicate>,
     pub records: Vec<RecordSummaryView>,
     pub occurrences: Vec<RecordRelationshipView>,
     pub truncated: bool,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariantGroupView {
     pub seed: RecordSummaryView,
     pub base_name: String,
@@ -27,14 +29,16 @@ pub struct VariantGroupView {
     pub ambiguous: bool,
     pub truncated: bool,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariantEvidenceView {
     pub record_key: String,
     pub naming_convention: String,
     pub qualifier: String,
     pub compatibility: String,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchResultsView {
     pub sort: atlas_domain::ResultSort,
     pub search_profile: atlas_domain::SearchProfileId,
@@ -43,19 +47,22 @@ pub struct SearchResultsView {
     pub page: SearchPageView,
     pub coverage: SearchCoverageView,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimilarRecordsView {
     pub seed: RecordSummaryView,
     pub results: SearchResultsView,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordListView {
     pub records: Vec<RecordSummaryView>,
     pub page: SearchPageView,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphContextViewRequest {
     pub record_key: String,
     #[serde(rename = "embedded_path")]
@@ -66,7 +73,8 @@ pub struct GraphContextViewRequest {
 }
 
 /// Loading belongs to the client request lifecycle; errors and unavailable evidence are not empty.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RelatedCategoryView<T> {
     Content { content: T },
@@ -74,12 +82,14 @@ pub enum RelatedCategoryView<T> {
     Unavailable { reason: String },
     Error { error: crate::AppError },
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RelatedRecordsRequest {
     pub selection: crate::RecordNavigationView,
     pub artifact_generation: String,
 }
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RelatedRecordsView {
     pub show_versions: bool,
     pub selection: crate::RecordNavigationView,
@@ -88,7 +98,7 @@ pub struct RelatedRecordsView {
     pub references: RelatedCategoryView<GraphContextView>,
     pub remaster_relationships: RelatedCategoryView<crate::RemasterRelationshipsView>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source_remaster_context: Option<RelatedCategoryView<crate::RemasterSourceContextView>>,
     pub variants: RelatedCategoryView<VariantGroupView>,
 }

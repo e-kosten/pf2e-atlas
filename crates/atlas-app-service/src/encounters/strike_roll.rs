@@ -336,7 +336,9 @@ pub(super) fn resolve_strike(
         .ok_or_else(|| {
             AppServiceError::invalid_request("Participant is no longer in this encounter")
         })?;
-    if participant.record_key.as_deref() != Some(request.reference.selection.record_key.as_str()) {
+    if participant.record_key.as_deref()
+        != Some(request.reference.selection.address.record_key.as_str())
+    {
         return Err(AppServiceError::invalid_request(
             "Selected strike does not belong to this participant.",
         ));
@@ -353,6 +355,7 @@ pub(super) fn resolve_strike(
     if request
         .reference
         .selection
+        .address
         .source_fingerprint
         .as_deref()
         .is_some_and(|fingerprint| fingerprint != retrieval.source_fingerprint())
@@ -362,7 +365,7 @@ pub(super) fn resolve_strike(
         ));
     }
     let (source, selected) =
-        crate::records::read_record_detail(retrieval, request.reference.selection)?;
+        crate::records::read_record_detail(retrieval, request.reference.selection, None)?;
     let baseline = super::hydration::source_baseline(&source.source, retrieval, None)?
         .ok_or_else(|| AppServiceError::invalid_request("Actor statistics are unavailable."))?;
     let adjustment_applicable = super::hydration::adjustment_applicable(&source.source);

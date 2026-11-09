@@ -22,8 +22,8 @@ export function EncounterConditionConsequences({
 }: {
   encounterRef: string;
   row: PendingConditionConsequenceView;
-  encounterRevision: bigint;
-  level?: bigint;
+  encounterRevision: number;
+  level?: number;
   disabled: boolean;
   pending: boolean;
   onResolve: (
@@ -31,9 +31,7 @@ export function EncounterConditionConsequences({
   ) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false),
-    [input, setInput] = useState<number | null>(
-      level === undefined ? null : Number(level),
-    );
+    [input, setInput] = useState<number | null>(level === undefined ? null : level);
   const [settled, setSettled] = useState<number | null>(input),
     [applyLoss, setApplyLoss] = useState(true),
     [error, setError] = useState<string>();
@@ -45,7 +43,7 @@ export function EncounterConditionConsequences({
   const request = {
     consequence_key: row.consequence_key,
     expected_encounter_revision: encounterRevision,
-    level: BigInt(settled ?? 0),
+    level: settled ?? 0,
     apply_hp_loss: applyLoss,
   };
   const preview = useQuery({

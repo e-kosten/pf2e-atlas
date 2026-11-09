@@ -66,7 +66,6 @@ async fn apply_condition(fixture: &Fixture, participant_key: &str, name: &str) {
         Some(json!({
             "request_id":format!("{participant_key}-{name}"),
             "expected_encounter_revision":revision,
-            "participant_key":participant_key,
             "condition_ref":condition_ref,
             "event_intent":"apply",
             "decisions":{"keep_upright":false},
@@ -79,6 +78,24 @@ async fn apply_condition(fixture: &Fixture, participant_key: &str, name: &str) {
         })),
     )
     .await;
+}
+
+#[tokio::test]
+async fn oversized_authored_integer_reaches_http_as_an_exact_json_number() {
+    // The browser transport rejects this value before applying UI conversions.
+    let armor_class = 9_007_199_254_740_992;
+    let fixture = Fixture::with_actor_armor_class(armor_class);
+    let detail = response(
+        &fixture,
+        Method::GET,
+        &format!("/api/records/{ACTOR}"),
+        None,
+    )
+    .await;
+    assert_eq!(
+        detail["presentation"]["body"]["value"]["armor_class"]["value"].as_i64(),
+        Some(armor_class)
+    );
 }
 
 #[tokio::test]
@@ -109,7 +126,7 @@ async fn unknown_source_adjustment_uses_normal_for_detail_preview_and_add() {
         &fixture,
         Method::POST,
         "/api/encounters/ambush/participants/record",
-        Some(json!({"encounter_ref":"ambush","record_ref":ACTOR,"quantity":1})),
+        Some(json!({"record_ref":ACTOR,"quantity":1})),
     )
     .await;
     let encounter = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
@@ -162,7 +179,6 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         ),
         Some(json!({
             "request_id":"unknown-hp",
-            "participant_key":fixture.participant_key,
             "expected_revision":detail.participants[0].revision,
             "action":{"kind":"set_values","current":{"input":null},"maximum":{"input":null}}
         })),
@@ -172,8 +188,9 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         &fixture,
         Method::POST,
         "/api/encounters/ambush/participants/manual",
-        Some(json!({"encounter_ref":"ambush","display_name":"Zero hero","current_hp":0,"max_hp":20,"initiative":-1})),
-    ).await;
+        Some(json!({"display_name":"Zero hero","current_hp":0,"max_hp":20,"initiative":-1})),
+    )
+    .await;
     let detail = fixture.service.encounter("ambush").unwrap();
     let zero_key = detail
         .participants
@@ -191,7 +208,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         .unwrap();
     response(&fixture,Method::POST,&format!("/api/encounters/ambush/participants/{}/manual-trackers",fixture.participant_key),Some(json!({
         "request_id":"wire-tracker","expected_encounter_revision":current.revision,
-        "expected_participant_revision":participant.revision,"participant_key":"path-is-authoritative",
+        "expected_participant_revision":participant.revision,
         "action":{"kind":"add","name":"Breath ready","duration":{"amount":1,"unit":"minutes","remaining_rounds":null,"timing":{"participant_key":fixture.participant_key,"event":"end"}}}
     }))).await;
     let current = fixture.service.encounter("ambush").unwrap();
@@ -202,7 +219,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         .unwrap();
     response(&fixture, Method::POST, &format!("/api/encounters/ambush/participants/{}/manual-trackers", fixture.participant_key), Some(json!({
         "request_id":"wire-completion", "expected_encounter_revision":current.revision,
-        "expected_participant_revision":participant.revision, "participant_key":fixture.participant_key,
+        "expected_participant_revision":participant.revision,
         "action":{"kind":"add","name":"Countdown","duration":{"amount":1,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"start"}}}
     }))).await;
     let pending = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
@@ -286,11 +303,20 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         .iter()
         .find(|p| p.participant_key == fixture.participant_key)
         .unwrap();
-    response(&fixture, Method::POST, &format!("/api/encounters/ambush/participants/{}/manual-trackers", fixture.participant_key), Some(json!({
-        "request_id":"wire-remove-completion", "expected_encounter_revision":current.revision,
-        "expected_participant_revision":participant.revision, "participant_key":fixture.participant_key,
-        "action":{"kind":"remove", "tracker_key":"tracker_wire-completion"}
-    }))).await;
+    response(
+        &fixture,
+        Method::POST,
+        &format!(
+            "/api/encounters/ambush/participants/{}/manual-trackers",
+            fixture.participant_key
+        ),
+        Some(json!({
+            "request_id":"wire-remove-completion", "expected_encounter_revision":current.revision,
+            "expected_participant_revision":participant.revision,
+            "action":{"kind":"remove", "tracker_key":"tracker_wire-completion"}
+        })),
+    )
+    .await;
     let turn_review_removed = response(
         &fixture,
         Method::GET,
@@ -306,8 +332,11 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         &fixture,
         Method::POST,
         "/api/encounters/ambush/participants/record",
-        Some(json!({"encounter_ref":"ambush","record_ref":ACTOR,"quantity":1,"participant_variant":"elite","initiative":20})),
-    ).await;
+        Some(
+            json!({"record_ref":ACTOR,"quantity":1,"participant_variant":"elite","initiative":20}),
+        ),
+    )
+    .await;
     let detail = fixture.service.encounter("ambush").unwrap();
     let actor_key = detail
         .participants
@@ -323,7 +352,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         &fixture,
         Method::POST,
         &format!("/api/encounters/ambush/participants/{actor_key}/reference"),
-        Some(json!({"artifact_generation":generation,"selection":{"record_key":ACTOR,"embedded_path":[],"fields":[],"passage":null,"source_fingerprint":fixture.source_fingerprint}})),
+        Some(json!({"artifact_generation":generation,"selection":{"address":{"record_key":ACTOR,"embedded_path":[],"source_fingerprint":fixture.source_fingerprint},"fields":[],"passage":null}})),
     ).await;
     let armor = &record_detail["presentation"]["body"]["value"]["armor_class"];
     assert_eq!(armor["value"], 17);
@@ -334,7 +363,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         &fixture,
         Method::POST,
         "/api/rolls/table",
-        Some(json!({"artifact_generation":generation,"selection":{"record_key":TABLE,"embedded_path":[],"fields":[],"passage":null,"source_fingerprint":null}})),
+        Some(json!({"artifact_generation":generation,"selection":{"address":{"record_key":TABLE,"embedded_path":[],"source_fingerprint":null},"fields":[],"passage":null}})),
     ).await;
     assert!((1..=2).contains(&table["outcome"]["total"].as_i64().unwrap()));
     assert_eq!(table["matches"].as_array().unwrap().len(), 1);

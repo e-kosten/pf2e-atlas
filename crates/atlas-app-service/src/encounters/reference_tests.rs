@@ -43,25 +43,27 @@ fn addressed_condition_formula_includes_the_creatures_authored_condition_value()
         .unwrap()
         .encounter;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:inherentActor001".into(),
-            quantity: 1,
-            participant_variant: None,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "actors:inherentActor001".into(),
+                quantity: 1,
+                participant_variant: None,
+                initiative: None,
+            },
+        )
         .unwrap();
     let current = f.worker.encounter(&encounter.slug).unwrap();
     let participant_key = current.participants[0].participant_key.clone();
     f.worker
         .add_encounter_participant_condition(
             &encounter.slug,
+            &participant_key,
             AddEncounterParticipantConditionRequest {
                 request_id: "temporary-stupefied".into(),
                 event_intent: Default::default(),
                 decisions: Default::default(),
                 expected_encounter_revision: current.revision,
-                participant_key: participant_key.clone(),
                 condition_ref: Some("conditionitems:e1XGnhKNSQIm5IXg".into()),
                 name: None,
                 value: Some(2),
@@ -95,7 +97,8 @@ fn addressed_condition_formula_includes_the_creatures_authored_condition_value()
                     passage: None,
                     spell_rank: None,
                     source_fingerprint: None,
-                },
+                }
+                .into_selection(),
             },
         )
         .unwrap();
@@ -147,13 +150,15 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         .encounter;
     let current = f
         .worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 2,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 2,
+                initiative: None,
+            },
+        )
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let generation = current.artifact_generation.unwrap();
@@ -172,7 +177,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             fields: vec![],
             passage: None,
             source_fingerprint: None,
-        },
+        }
+        .into_selection(),
     };
     let selected_request = request("wwwwwwwwwwwwwwww");
     let selected_encounter = encounter.slug.clone();
@@ -222,12 +228,11 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     );
     assert!(origin.target.as_ref().unwrap().owners.is_empty());
     let mut update = super::tests::update(participant);
-    update.participant_variant = EncounterParticipantVariantView::Elite;
-    update.variant_edit = true;
+    update.participant_variant = Some(EncounterParticipantVariantView::Elite);
     {
-        let participant_key = update.participant_key.clone();
+        let participant_key = participant.participant_key.clone();
         f.worker
-            .update_encounter_participant(&encounter.slug, update)
+            .update_encounter_participant(&encounter.slug, &participant_key, update)
             .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
             .map(|detail| {
                 detail
@@ -241,6 +246,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     f.worker
         .add_encounter_participant_condition(
             &encounter.slug,
+            &participant.participant_key,
             AddEncounterParticipantConditionRequest {
                 request_id: format!(
                     "fixture-reference_tests-130-{}",
@@ -254,7 +260,6 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                 immunity_override: false,
                 parameters: Default::default(),
                 origin: None,
-                participant_key: participant.participant_key.clone(),
                 condition_ref: Some("conditionitems:TBSHQspnbcqxsmjL".into()),
                 name: None,
                 value: Some(1),
@@ -281,7 +286,10 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             .encounter_reference(&encounter.slug, &participant.participant_key, request(id))
             .unwrap();
         assert_eq!(f.worker.last_read_metrics().source_body_decodes, 1);
-        assert_eq!(selected.selected.owners, request(id).selection.owners);
+        assert_eq!(
+            selected.selected.owners,
+            request(id).selection.address.owners
+        );
         match selected.presentation.body {
             RecordBodyView::Activity(entry) => {
                 assert_eq!(entry.attack, activities[index].attack);
@@ -339,7 +347,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         }))
     );
     let mut foreign = request("eeeeeeeeeeeeeeee");
-    foreign.selection.record_key = "equipment:oooooooooooooooo".into();
+    foreign.selection.address.record_key = "equipment:oooooooooooooooo".into();
     assert!(
         f.worker
             .encounter_reference(&encounter.slug, &participant.participant_key, foreign)
@@ -381,7 +389,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                     fields: vec![],
                     passage: None,
                     source_fingerprint: None,
-                },
+                }
+                .into_selection(),
             },
         )
         .unwrap();
@@ -427,13 +436,15 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         .encounter;
     let current = a
         .worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .and_then(|receipt| a.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let generation_a = current.artifact_generation.unwrap();
@@ -452,7 +463,8 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
             fields: vec![],
             passage: None,
             source_fingerprint: None,
-        },
+        }
+        .into_selection(),
     };
     let selected_a = a
         .worker
@@ -535,12 +547,15 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         .worker
         .encounter_reference(&encounter.slug, &participant_key, request_b.clone())
         .unwrap();
-    assert_eq!(selected_b.selected.owners, request_b.selection.owners);
+    assert_eq!(
+        selected_b.selected.owners,
+        request_b.selection.address.owners
+    );
     assert_eq!(selected_b.presentation.identity.title, "Stable ability");
 
-    request_b.selection.owners[0].identity =
+    request_b.selection.address.owners[0].identity =
         atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 };
-    request_b.selection.source_fingerprint = Some("old-source-fingerprint".into());
+    request_b.selection.address.source_fingerprint = Some("old-source-fingerprint".into());
     let navigation_error = b
         .worker
         .encounter_reference(&encounter.slug, &participant_key, request_b)
@@ -593,13 +608,15 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         .unwrap()
         .encounter;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:contextActor0001".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:contextActor0001".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     let current = f.worker.encounter(&encounter.slug).unwrap();
     let participant = &current.participants[0];
@@ -614,7 +631,8 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             passage: None,
             spell_rank: None,
             source_fingerprint: None,
-        },
+        }
+        .into_selection(),
     };
     let selected = f
         .worker
@@ -676,10 +694,9 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         },
     });
     let mut update = super::tests::update(participant);
-    update.participant_variant = EncounterParticipantVariantView::Weak;
-    update.variant_edit = true;
+    update.participant_variant = Some(EncounterParticipantVariantView::Weak);
     f.worker
-        .update_encounter_participant(&encounter.slug, update)
+        .update_encounter_participant(&encounter.slug, &participant.participant_key, update)
         .unwrap();
     assert!(
         f.worker.roll_content(old).is_err(),
@@ -718,6 +735,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     f.worker
         .add_encounter_participant_condition(
             &encounter.slug,
+            &participant.participant_key,
             AddEncounterParticipantConditionRequest {
                 request_id: "context-stupefied".into(),
                 event_intent: Default::default(),
@@ -728,7 +746,6 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
                 immunity_override: false,
                 parameters: Default::default(),
                 origin: None,
-                participant_key: participant.participant_key.clone(),
                 condition_ref: Some("conditionitems:e1XGnhKNSQIm5IXg".into()),
                 name: None,
                 value: Some(2),
@@ -742,7 +759,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     let condition = &current.participants[0].conditions[0];
     let mut request = request;
     request.condition_id = Some(condition.condition_id);
-    request.selection.record_key = condition.condition_key.clone().unwrap();
+    request.selection.address.record_key = condition.condition_key.clone().unwrap();
     let selected = f
         .worker
         .encounter_reference(
@@ -776,13 +793,15 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
     assert!(generic.contains("5 + your stupefied value"));
     assert!(!generic.contains("DC 6"));
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: encounter.slug.clone(),
-            record_ref: "actors:contextUnknown01".into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:contextUnknown01".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .unwrap();
     let current = f.worker.encounter(&encounter.slug).unwrap();
     let fallback = current
@@ -806,7 +825,8 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
                     passage: None,
                     spell_rank: None,
                     source_fingerprint: None,
-                },
+                }
+                .into_selection(),
             },
         )
         .unwrap();

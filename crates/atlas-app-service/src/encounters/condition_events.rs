@@ -1,6 +1,6 @@
 //! Condition event preparation and durable commit. No source I/O follows a write.
 use super::conditions::{ConditionRule, condition_rule_for_key};
-use super::event_execution::{EncounterEvent, mutation, recover, snapshot};
+use super::event_execution::{EncounterEvent, mutation, receipt_request, recover, snapshot};
 use super::rules::events::{ConditionConsequence, ConditionConsequences, plan_condition_change};
 use super::rules::hp_events::HpEventInput;
 use super::{timing, workflow};
@@ -150,49 +150,67 @@ impl AtlasAppService {
     pub(super) fn commit_condition_add(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: AddEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let intent = serde_json::json!({"action":"add_condition","request":request});
+        let intent = serde_json::json!({"action":"add_condition","request":receipt_request(&request, "participant_key", participant_key)});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
-        let prepared = prepare_add(self, encounter_ref, request, intent)?;
+        let prepared = prepare_add(self, encounter_ref, participant_key, request, intent)?;
         commit(self, prepared)
     }
     pub fn preview_encounter_condition_add(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: AddEncounterParticipantConditionRequest,
     ) -> AppServiceResult<ConditionEventPreviewView> {
-        let intent = serde_json::json!({"action":"add_condition","request":request});
-        Ok(preview(prepare_add(self, encounter_ref, request, intent)?))
+        let intent = serde_json::json!({"action":"add_condition","request":receipt_request(&request, "participant_key", participant_key)});
+        Ok(preview(prepare_add(
+            self,
+            encounter_ref,
+            participant_key,
+            request,
+            intent,
+        )?))
     }
     pub(super) fn commit_condition_update(
         &self,
         encounter_ref: &str,
         participant_key: &str,
+        condition_id: i64,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":request});
+        let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":receipt_request(&request, "condition_id", condition_id)});
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
         commit(
             self,
-            prepare_update(self, encounter_ref, participant_key, request, intent)?,
+            prepare_update(
+                self,
+                encounter_ref,
+                participant_key,
+                condition_id,
+                request,
+                intent,
+            )?,
         )
     }
     pub fn preview_encounter_condition_update(
         &self,
         encounter_ref: &str,
         participant_key: &str,
+        condition_id: i64,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<ConditionEventPreviewView> {
-        let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":request});
+        let intent = serde_json::json!({"action":"update_condition","participant_key":participant_key,"request":receipt_request(&request, "condition_id", condition_id)});
         Ok(preview(prepare_update(
             self,
             encounter_ref,
             participant_key,
+            condition_id,
             request,
             intent,
         )?))
@@ -494,16 +512,17 @@ fn preview(prepared: Prepared) -> ConditionEventPreviewView {
 fn prepare_add(
     service: &AtlasAppService,
     encounter_ref: &str,
+    participant_key: &str,
     request: AddEncounterParticipantConditionRequest,
     intent: serde_json::Value,
 ) -> AppServiceResult<Prepared> {
     let snapshot = snapshot(service, encounter_ref, request.expected_encounter_revision)?;
     let subject = if request.condition_ref.is_none() {
-        custom_condition_subject(&snapshot, &request.participant_key)?
+        custom_condition_subject(&snapshot, participant_key)?
     } else {
         workflow::condition_subject_context(
             service,
-            &custom_condition_subject(&snapshot, &request.participant_key)?.participant,
+            &custom_condition_subject(&snapshot, participant_key)?.participant,
         )?
     };
     let (condition, reference_revision) =
@@ -527,7 +546,7 @@ fn prepare_add(
         request.parameters,
         condition.key.as_deref(),
         &snapshot,
-        &request.participant_key,
+        participant_key,
         None,
         &request.request_id,
     )?;
@@ -539,7 +558,7 @@ fn prepare_add(
         &snapshot,
     )?;
     let input = atlas_local_state::AddEncounterParticipantCondition {
-        participant_key: request.participant_key.clone(),
+        participant_key: participant_key.to_owned(),
         condition_key: condition.key,
         name: condition.name,
         value: request.value,
@@ -595,12 +614,12 @@ fn prepare_update(
     service: &AtlasAppService,
     encounter_ref: &str,
     participant_key: &str,
+    condition_id: i64,
     request: UpdateEncounterParticipantConditionRequest,
     intent: serde_json::Value,
 ) -> AppServiceResult<Prepared> {
     let snapshot = snapshot(service, encounter_ref, request.expected_encounter_revision)?;
-    let existing =
-        workflow::condition_in_snapshot(&snapshot, participant_key, request.condition_id)?;
+    let existing = workflow::condition_in_snapshot(&snapshot, participant_key, condition_id)?;
     let subject = if request.condition_ref.is_none() && existing.condition_key.is_none() {
         custom_condition_subject(&snapshot, participant_key)?
     } else {
@@ -680,7 +699,7 @@ fn prepare_update(
     let input = atlas_local_state::UpdateEncounterParticipantCondition {
         expected_encounter_revision: request.expected_encounter_revision,
         participant_key: participant_key.into(),
-        condition_id: request.condition_id,
+        condition_id,
         condition_key: condition.key,
         name: condition.name,
         value: request.value,
@@ -1145,13 +1164,15 @@ mod lifecycle_event_tests {
             .unwrap()
             .encounter;
         worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: encounter.encounter_key.clone(),
-                display_name: "PC".into(),
-                max_hp: Some(10),
-                current_hp: Some(10),
-                initiative: None,
-            })
+            .add_encounter_manual_participant(
+                &encounter.encounter_key,
+                AddEncounterManualParticipantRequest {
+                    display_name: "PC".into(),
+                    max_hp: Some(10),
+                    current_hp: Some(10),
+                    initiative: None,
+                },
+            )
             .unwrap();
         let detail = worker.encounter(&encounter.encounter_key).unwrap();
         let participant = detail.participants[0].participant_key.clone();
@@ -1170,12 +1191,12 @@ mod lifecycle_event_tests {
         worker
             .add_encounter_participant_condition(
                 key,
+                participant,
                 AddEncounterParticipantConditionRequest {
                     request_id: id.into(),
                     expected_encounter_revision: worker.encounter(key).unwrap().revision,
                     event_intent: intent,
                     decisions: Default::default(),
-                    participant_key: participant.into(),
                     condition_ref: Some(definition.condition_ref.into()),
                     name: None,
                     value,
@@ -1200,10 +1221,10 @@ mod lifecycle_event_tests {
         for value in [9_007_199_254_740_992, i64::MAX] {
             let result = worker.add_encounter_participant_condition(
                 &key,
+                &participant,
                 AddEncounterParticipantConditionRequest {
                     request_id: format!("unsafe-value-{value}"),
                     expected_encounter_revision: before.revision,
-                    participant_key: participant.clone(),
                     condition_ref: Some(definition.condition_ref.into()),
                     name: None,
                     value: Some(value),
@@ -1463,12 +1484,12 @@ mod lifecycle_event_tests {
         worker
             .add_encounter_participant_condition(
                 &key,
+                &participant,
                 AddEncounterParticipantConditionRequest {
                     request_id: "pc-attitude".into(),
                     expected_encounter_revision: worker.encounter(&key).unwrap().revision,
                     event_intent: ConditionEventIntentView::Apply,
                     decisions: Default::default(),
-                    participant_key: participant,
                     condition_ref: Some(definition.condition_ref.into()),
                     name: None,
                     value: None,
@@ -1549,12 +1570,12 @@ mod lifecycle_event_tests {
                 .update_encounter_participant_condition(
                     &key,
                     &participant,
+                    condition.condition_id,
                     UpdateEncounterParticipantConditionRequest {
                         request_id: "note-only-unknown".into(),
                         event_intent: ConditionEventIntentView::Apply,
                         decisions: Default::default(),
                         expected_encounter_revision: detail.revision,
-                        condition_id: condition.condition_id,
                         condition_ref: None,
                         name: definition.name.into(),
                         value: None,
@@ -1612,13 +1633,15 @@ mod lifecycle_event_tests {
     fn fascinated_subject_is_typed_scoped_and_independent_of_causal_origin() {
         let (worker, key, participant) = fixture();
         worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: key.clone(),
-                display_name: "Originator".into(),
-                max_hp: None,
-                current_hp: None,
-                initiative: None,
-            })
+            .add_encounter_manual_participant(
+                &key,
+                AddEncounterManualParticipantRequest {
+                    display_name: "Originator".into(),
+                    max_hp: None,
+                    current_hp: None,
+                    initiative: None,
+                },
+            )
             .unwrap();
         let origin = worker.encounter(&key).unwrap().participants[1]
             .participant_key
@@ -1630,7 +1653,6 @@ mod lifecycle_event_tests {
             expected_encounter_revision: worker.encounter(&key).unwrap().revision,
             event_intent: ConditionEventIntentView::Apply,
             decisions: Default::default(),
-            participant_key: participant.clone(),
             condition_ref: Some(definition.condition_ref.into()),
             name: None,
             value: None,
@@ -1647,6 +1669,7 @@ mod lifecycle_event_tests {
             worker
                 .add_encounter_participant_condition(
                     &key,
+                    &participant,
                     request(
                         "outside-subject",
                         ConditionParametersInputView::Fascinated {
@@ -1662,6 +1685,7 @@ mod lifecycle_event_tests {
             worker
                 .add_encounter_participant_condition(
                     &key,
+                    &participant,
                     request(
                         "empty-subject",
                         ConditionParametersInputView::Fascinated {
@@ -1676,6 +1700,7 @@ mod lifecycle_event_tests {
         worker
             .add_encounter_participant_condition(
                 &key,
+                &participant,
                 request("unknown-subject", Default::default()),
             )
             .unwrap();
@@ -1686,6 +1711,7 @@ mod lifecycle_event_tests {
         worker
             .add_encounter_participant_condition(
                 &key,
+                &participant,
                 request(
                     "object-subject",
                     ConditionParametersInputView::Fascinated {
@@ -1792,9 +1818,9 @@ mod lifecycle_event_tests {
             worker
                 .apply_encounter_hp_action(
                     &key,
+                    &participant,
                     ApplyEncounterHpActionRequest {
                         request_id: "unknown-cap-heal".into(),
-                        participant_key: participant.clone(),
                         expected_revision: detail.participants[0].revision,
                         action: EncounterHpAction::Heal { amount: "1".into() },
                         context: None,
@@ -1877,9 +1903,9 @@ mod lifecycle_event_tests {
         worker
             .apply_encounter_hp_action(
                 &key,
+                &participant,
                 ApplyEncounterHpActionRequest {
                     request_id: "damage".into(),
-                    participant_key: participant.clone(),
                     expected_revision: p.revision,
                     action: EncounterHpAction::Damage {
                         amount: "10".into(),

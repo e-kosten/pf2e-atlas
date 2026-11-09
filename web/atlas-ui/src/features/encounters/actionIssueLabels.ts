@@ -36,7 +36,7 @@ export function actionIssueQuestionLabel(
   reason: string,
   context: Context,
   participants: EncounterParticipantView[],
-  sourceId: bigint | null,
+  sourceId: number | null,
 ): string {
   const label =
     actionIssueContextLabel(context, participants) ??

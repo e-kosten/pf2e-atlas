@@ -7,7 +7,7 @@ export function RuntimeCountCalculation({ count }: { count: RuntimeCountView }) 
     ...count.adjustments.map((modifier) => ({
       key: modifier.source,
       label: modifier.label,
-      value: `${modifier.value > 0n ? "+" : ""}${modifier.value}`,
+      value: `${modifier.value > 0 ? "+" : ""}${modifier.value}`,
       note: modifier.reason,
     })),
     ...count.suppressed_adjustments.map((modifier) => ({

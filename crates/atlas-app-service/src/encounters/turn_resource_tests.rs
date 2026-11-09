@@ -14,13 +14,15 @@ fn fixture() -> (FixtureWorker, String, String, String) {
         .encounter_key;
     for (name, initiative) in [("A", 20), ("B", 10)] {
         f.worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: key.clone(),
-                display_name: name.into(),
-                max_hp: Some(20),
-                current_hp: Some(20),
-                initiative: Some(initiative),
-            })
+            .add_encounter_manual_participant(
+                &key,
+                AddEncounterManualParticipantRequest {
+                    display_name: name.into(),
+                    max_hp: Some(20),
+                    current_hp: Some(20),
+                    initiative: Some(initiative),
+                },
+            )
             .unwrap();
     }
     let detail = f.worker.encounter(&key).unwrap();
@@ -82,7 +84,6 @@ fn change(
     let request = UpdateTurnResourcesRequest {
         request_id: id.into(),
         expected_encounter_revision: detail.revision,
-        participant_key: p.into(),
         turn_key: participant
             .turn_resources
             .as_ref()
@@ -90,7 +91,7 @@ fn change(
         action,
     };
     f.worker
-        .update_turn_resources(key, request.clone())
+        .update_turn_resources(key, p, request.clone())
         .unwrap();
     request
 }
@@ -128,37 +129,43 @@ fn turn_preparation_cannot_retarget_a_reassigned_slug() {
     let a = create("Preparing source encounter");
     let b = create("Other encounter");
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: a.encounter_key.clone(),
-            record_ref: "Test Creature 1".into(),
-            quantity: 1,
-            initiative: Some(20),
-            participant_variant: None,
-        })
+        .add_encounter_record_participant(
+            &a.encounter_key,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: Some(20),
+                participant_variant: None,
+            },
+        )
         .unwrap();
     f.worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: b.encounter_key.clone(),
-            display_name: "Other PC".into(),
-            max_hp: Some(20),
-            current_hp: Some(20),
-            initiative: Some(10),
-        })
+        .add_encounter_manual_participant(
+            &b.encounter_key,
+            AddEncounterManualParticipantRequest {
+                display_name: "Other PC".into(),
+                max_hp: Some(20),
+                current_hp: Some(20),
+                initiative: Some(10),
+            },
+        )
         .unwrap();
     let rename = |encounter: &EncounterSummaryView, slug: &str| {
         f.worker
-            .update_encounter(UpdateEncounterRequest {
-                round_duration_seconds: None,
-                encounter_key: encounter.encounter_key.clone(),
-                slug: Some(FieldEdit {
-                    expected: encounter.slug.clone(),
-                    value: slug.into(),
-                }),
-                name: None,
-                description: None,
-                note: None,
-                status: None,
-            })
+            .update_encounter(
+                &encounter.encounter_key,
+                UpdateEncounterRequest {
+                    round_duration_seconds: None,
+                    slug: Some(FieldEdit {
+                        expected: encounter.slug.clone(),
+                        value: slug.into(),
+                    }),
+                    name: None,
+                    description: None,
+                    note: None,
+                    status: None,
+                },
+            )
             .unwrap();
     };
     f.worker
@@ -237,10 +244,12 @@ fn selection_does_not_invent_a_past_allocation_or_regain_resources() {
     let (f, key, a, _) = fixture();
     assert_eq!(resources(&f, &key, &a).regular_remaining, None);
     f.worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: key.clone(),
-            participant_key: a.clone(),
-        })
+        .set_encounter_turn(
+            &key,
+            SetEncounterTurnRequest {
+                participant_key: a.clone(),
+            },
+        )
         .unwrap();
     assert_eq!(resources(&f, &key, &a).regular_remaining, None);
 }
@@ -269,7 +278,7 @@ fn stunned_consumption_and_allocation_are_atomic_and_retries_never_refill_spent_
             resource: TurnResourceKind::Action,
         },
     );
-    f.worker.update_turn_resources(&key, spend).unwrap();
+    f.worker.update_turn_resources(&key, &a, spend).unwrap();
     f.worker.advance_encounter_turn(&key, advance).unwrap();
     assert_eq!(
         (
@@ -283,10 +292,10 @@ fn stunned_consumption_and_allocation_are_atomic_and_retries_never_refill_spent_
         f.worker
             .update_turn_resources(
                 &key,
+                &a,
                 UpdateTurnResourcesRequest {
                     request_id: "refill-disallowed".into(),
                     expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
-                    participant_key: a.clone(),
                     turn_key: resources(&f, &key, &a).turn_key,
                     action: TurnResourceAction::Regain
                 }
@@ -319,16 +328,19 @@ fn an_early_reaction_is_explicit_and_does_not_start_a_turn() {
     );
     assert_eq!(resources(&f, &key, &b).reactions_remaining, Some(0));
     // Retrying the original grant recovers its receipt without refilling stock.
-    f.worker.update_turn_resources(&key, grant).unwrap();
+    f.worker.update_turn_resources(&key, &b, grant).unwrap();
     assert_eq!(resources(&f, &key, &b).reactions_remaining, Some(0));
     let second_grant = UpdateTurnResourcesRequest {
         request_id: "another-early-b".into(),
         expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
-        participant_key: b.clone(),
         turn_key: resources(&f, &key, &b).turn_key,
         action: TurnResourceAction::GrantReaction,
     };
-    assert!(f.worker.update_turn_resources(&key, second_grant).is_err());
+    assert!(
+        f.worker
+            .update_turn_resources(&key, &b, second_grant)
+            .is_err()
+    );
 
     next(&f, &key, "b1");
     let started = resources(&f, &key, &b);
@@ -341,7 +353,7 @@ fn an_early_reaction_is_explicit_and_does_not_start_a_turn() {
         expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
         ..spent
     };
-    assert!(f.worker.update_turn_resources(&key, stale).is_err());
+    assert!(f.worker.update_turn_resources(&key, &b, stale).is_err());
     assert_eq!(resources(&f, &key, &b).reactions_remaining, Some(1));
 }
 
@@ -350,10 +362,12 @@ fn an_early_reaction_does_not_block_regaining_actions_after_manual_turn_selectio
     let (f, key, a, _) = fixture();
     change(&f, &key, &a, "early-a", TurnResourceAction::GrantReaction);
     f.worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: key.clone(),
-            participant_key: a.clone(),
-        })
+        .set_encounter_turn(
+            &key,
+            SetEncounterTurnRequest {
+                participant_key: a.clone(),
+            },
+        )
         .unwrap();
     assert_eq!(resources(&f, &key, &a).regular_remaining, None);
     change(&f, &key, &a, "regain-a", TurnResourceAction::Regain);
@@ -377,13 +391,12 @@ fn granting_an_early_reaction_does_not_consume_stunned_or_bypass_its_restriction
     let spend = UpdateTurnResourcesRequest {
         request_id: "stunned-early-b".into(),
         expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
-        participant_key: b.clone(),
         turn_key: granted.turn_key,
         action: TurnResourceAction::Spend {
             resource: TurnResourceKind::Reaction,
         },
     };
-    assert!(f.worker.update_turn_resources(&key, spend).is_err());
+    assert!(f.worker.update_turn_resources(&key, &b, spend).is_err());
     next(&f, &key, "b1");
     let started = resources(&f, &key, &b);
     assert_eq!(started.regular_remaining, Some(2));
@@ -530,7 +543,6 @@ fn stale_turn_identity_and_off_turn_action_corrections_do_not_change_resources()
     let off_turn = UpdateTurnResourcesRequest {
         request_id: "wrong-position".into(),
         expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
-        participant_key: a.clone(),
         turn_key: first.turn_key.clone(),
         action: TurnResourceAction::Correct {
             resource: TurnResourceKind::Action,
@@ -538,20 +550,19 @@ fn stale_turn_identity_and_off_turn_action_corrections_do_not_change_resources()
         },
     };
     let before = f.worker.encounter(&key).unwrap();
-    assert!(f.worker.update_turn_resources(&key, off_turn).is_err());
+    assert!(f.worker.update_turn_resources(&key, &a, off_turn).is_err());
     assert_eq!(f.worker.encounter(&key).unwrap(), before);
     next(&f, &key, "a2");
     let stale = UpdateTurnResourcesRequest {
         request_id: "old-turn".into(),
         expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
-        participant_key: a.clone(),
         turn_key: first.turn_key,
         action: TurnResourceAction::Spend {
             resource: TurnResourceKind::Reaction,
         },
     };
     let before = f.worker.encounter(&key).unwrap();
-    assert!(f.worker.update_turn_resources(&key, stale).is_err());
+    assert!(f.worker.update_turn_resources(&key, &a, stale).is_err());
     assert_eq!(f.worker.encounter(&key).unwrap(), before);
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(3));
     assert_eq!(resources(&f, &key, &a).reactions_remaining, Some(1));
@@ -610,7 +621,6 @@ fn new_mid_turn_stun_can_resolve_after_start_turn_stun_without_replaying_either_
 fn application(
     f: &FixtureWorker,
     key: &str,
-    p: &str,
     value: i64,
     intent: ConditionEventIntentView,
     id: &str,
@@ -620,7 +630,6 @@ fn application(
         expected_encounter_revision: f.worker.encounter(key).unwrap().revision,
         event_intent: intent,
         decisions: Default::default(),
-        participant_key: p.into(),
         condition_ref: Some(
             super::conditions::condition_catalog()
                 .conditions
@@ -648,7 +657,6 @@ fn consumed_stunned_application_rejects_a_new_request_for_the_same_origin() {
     let mut request = application(
         &f,
         &key,
-        &a,
         1,
         ConditionEventIntentView::Apply,
         "consume-origin",
@@ -662,13 +670,13 @@ fn consumed_stunned_application_rejects_a_new_request_for_the_same_origin() {
         artifact_generation: None,
     });
     f.worker
-        .add_encounter_participant_condition(&key, request.clone())
+        .add_encounter_participant_condition(&key, &a, request.clone())
         .unwrap();
     let after = f.worker.encounter(&key).unwrap();
     assert!(after.participants[0].conditions.is_empty());
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(2));
     f.worker
-        .add_encounter_participant_condition(&key, request.clone())
+        .add_encounter_participant_condition(&key, &a, request.clone())
         .unwrap();
     assert_eq!(f.worker.encounter(&key).unwrap(), after);
 
@@ -676,7 +684,7 @@ fn consumed_stunned_application_rejects_a_new_request_for_the_same_origin() {
     request.expected_encounter_revision = after.revision;
     assert!(
         f.worker
-            .add_encounter_participant_condition(&key, request)
+            .add_encounter_participant_condition(&key, &a, request)
             .is_err()
     );
     assert_eq!(f.worker.encounter(&key).unwrap(), after);
@@ -686,18 +694,11 @@ fn consumed_stunned_application_rejects_a_new_request_for_the_same_origin() {
 fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once() {
     let (f, key, a, _) = fixture();
     next(&f, &key, "a1");
-    let request = application(
-        &f,
-        &key,
-        &a,
-        2,
-        ConditionEventIntentView::Apply,
-        "stun-arrival",
-    );
+    let request = application(&f, &key, 2, ConditionEventIntentView::Apply, "stun-arrival");
     let before = f.worker.encounter(&key).unwrap();
     let preview = f
         .worker
-        .preview_encounter_condition_add(&key, request.clone())
+        .preview_encounter_condition_add(&key, &a, request.clone())
         .unwrap();
     assert!(
         preview
@@ -711,10 +712,10 @@ fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once()
     );
     assert_eq!(f.worker.encounter(&key).unwrap(), before);
     f.worker
-        .add_encounter_participant_condition(&key, request.clone())
+        .add_encounter_participant_condition(&key, &a, request.clone())
         .unwrap();
     f.worker
-        .add_encounter_participant_condition(&key, request)
+        .add_encounter_participant_condition(&key, &a, request)
         .unwrap();
     let d = f.worker.encounter(&key).unwrap();
     assert!(d.participants[0].conditions.is_empty());
@@ -755,16 +756,9 @@ fn arrival_uses_only_remaining_actions_and_keeps_the_unconsumed_source_faithfull
             resource: TurnResourceKind::Action,
         },
     );
-    let request = application(
-        &f,
-        &key,
-        &a,
-        2,
-        ConditionEventIntentView::Apply,
-        "part-stun",
-    );
+    let request = application(&f, &key, 2, ConditionEventIntentView::Apply, "part-stun");
     f.worker
-        .add_encounter_participant_condition(&key, request)
+        .add_encounter_participant_condition(&key, &a, request)
         .unwrap();
     let d = f.worker.encounter(&key).unwrap();
     let c = &d.participants[0].conditions[0];
@@ -785,26 +779,24 @@ fn off_turn_arrival_and_correction_do_not_consume_current_resources() {
     let request = application(
         &f,
         &key,
-        &a,
         2,
         ConditionEventIntentView::Correction,
         "stun-correction",
     );
     f.worker
-        .add_encounter_participant_condition(&key, request)
+        .add_encounter_participant_condition(&key, &a, request)
         .unwrap();
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(3));
     next(&f, &key, "b1");
     let request = application(
         &f,
         &key,
-        &a,
         3,
         ConditionEventIntentView::Apply,
         "off-turn-stun",
     );
     f.worker
-        .add_encounter_participant_condition(&key, request)
+        .add_encounter_participant_condition(&key, &a, request)
         .unwrap();
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(0));
     assert_eq!(resources(&f, &key, &b).regular_remaining, Some(3));
@@ -824,13 +816,12 @@ fn unknown_next_turn_slowed_does_not_block_known_current_stunned_loss() {
     let request = application(
         &f,
         &key,
-        &a,
         2,
         ConditionEventIntentView::Apply,
         "stun-with-unknown-slowed",
     );
     f.worker
-        .add_encounter_participant_condition(&key, request)
+        .add_encounter_participant_condition(&key, &a, request)
         .unwrap();
     let r = resources(&f, &key, &a);
     assert_eq!(r.regular_remaining, Some(1));
@@ -866,13 +857,12 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
     let request = application(
         &f,
         &key,
-        &a,
         1,
         ConditionEventIntentView::Correction,
         "original-stun",
     );
     f.worker
-        .add_encounter_participant_condition(&key, request)
+        .add_encounter_participant_condition(&key, &a, request)
         .unwrap();
     let condition_id = f.worker.encounter(&key).unwrap().participants[0].conditions[0].condition_id;
     let request = UpdateEncounterParticipantConditionRequest {
@@ -880,7 +870,6 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
         expected_encounter_revision: f.worker.encounter(&key).unwrap().revision,
         event_intent: ConditionEventIntentView::Apply,
         decisions: Default::default(),
-        condition_id,
         condition_ref: None,
         name: "Stunned".into(),
         value: Some(3),
@@ -895,7 +884,7 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
     };
     let preview = f
         .worker
-        .preview_encounter_condition_update(&key, &a, request.clone())
+        .preview_encounter_condition_update(&key, &a, condition_id, request.clone())
         .unwrap();
     assert!(
         preview
@@ -908,10 +897,10 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
             })
     );
     f.worker
-        .update_encounter_participant_condition(&key, &a, request.clone())
+        .update_encounter_participant_condition(&key, &a, condition_id, request.clone())
         .unwrap();
     f.worker
-        .update_encounter_participant_condition(&key, &a, request)
+        .update_encounter_participant_condition(&key, &a, condition_id, request)
         .unwrap();
     let d = f.worker.encounter(&key).unwrap();
     let c = &d.participants[0].conditions[0];
@@ -963,13 +952,15 @@ fn source_condition_fixture(items: serde_json::Value) -> (FixtureWorker, String,
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            initiative: Some(20),
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                initiative: Some(20),
+            },
+        )
         .unwrap();
     let participant = f.worker.encounter(&key).unwrap().participants[0]
         .participant_key
@@ -1104,13 +1095,15 @@ fn current_action_calculation_retains_regain_facts_until_turn_end() {
         "system":{"slug":"slowed","value":{"isValued":true,"value":1}}
     }]));
     f.worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "Other participant".into(),
-            max_hp: Some(20),
-            current_hp: Some(20),
-            initiative: Some(10),
-        })
+        .add_encounter_manual_participant(
+            &key,
+            AddEncounterManualParticipantRequest {
+                display_name: "Other participant".into(),
+                max_hp: Some(20),
+                current_hp: Some(20),
+                initiative: Some(10),
+            },
+        )
         .unwrap();
     add(&f, &p, "Stunned", Some(1));
     next(&f, &key, "calculation-start");

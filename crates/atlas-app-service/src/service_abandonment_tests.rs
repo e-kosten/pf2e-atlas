@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use super::*;
 use atlas_app_model::{
     DiscoverFilterCountsRequest, DiscoverFilterValuesRequest, FilterDiscoveryContext,
-    FilterVocabularyScope, RetrievalModeView,
+    FilterVocabularyScope,
 };
 use atlas_app_model::{SearchCriteria, SearchPageRequest, SearchResultsRequest};
 
@@ -91,7 +91,6 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
         list_ref: "absent-list".into(),
         filter: None,
         text: None,
-        mode: RetrievalModeView::Lexical,
     };
     let counts = service
         .discover_filter_counts(

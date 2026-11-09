@@ -39,7 +39,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   ...api,
 }));
 function response(request: EncounterReferenceRequest): RecordDetailView {
-  const detail = detailFixture(request.selection.record_key, "Current actor");
+  const detail = detailFixture(request.selection.address.record_key, "Current actor");
   return {
     ...detail,
     artifact_generation: request.artifact_generation,
@@ -54,8 +54,8 @@ function response(request: EncounterReferenceRequest): RecordDetailView {
           : [
               {
                 locator: {
-                  record: request.selection.record_key,
-                  embedded_path: request.selection.embedded_path,
+                  record: request.selection.address.record_key,
+                  embedded_path: request.selection.address.embedded_path ?? [],
                   field: "/system/description/value",
                 },
                 role: "description",
@@ -393,8 +393,10 @@ it("retries a failed encounter refresh through its owner and reopens an initial 
     expect.objectContaining({
       artifact_generation: "generation-b",
       selection: expect.objectContaining({
-        embedded_path: activityB.navigation.embedded_path,
-        source_fingerprint: "initial-conflict-snapshot-b",
+        address: expect.objectContaining({
+          embedded_path: activityB.navigation.embedded_path,
+          source_fingerprint: "initial-conflict-snapshot-b",
+        }),
       }),
     }),
   );

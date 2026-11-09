@@ -38,12 +38,14 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
         .unwrap();
     let receipt = f
         .worker
-        .reorder_saved_list_item(ReorderSavedListItemRequest {
-            list_ref: "reorder".into(),
-            record_ref: keys[2].into(),
-            target_record_ref: keys[0].into(),
-            placement: ReorderSavedListItemPlacementView::Before,
-        })
+        .reorder_saved_list_item(
+            "reorder",
+            ReorderSavedListItemRequest {
+                record_ref: keys[2].into(),
+                target_record_ref: keys[0].into(),
+                placement: ReorderSavedListItemPlacementView::Before,
+            },
+        )
         .unwrap();
     assert_eq!(receipt.outcome, SavedListItemMutationOutcomeView::Reordered);
     let view = f.worker.saved_list(&receipt.list_key).unwrap();
@@ -92,12 +94,14 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
     for (source, target) in [(keys[0], "actions:absent"), ("actions:absent", keys[0])] {
         let error = f
             .worker
-            .reorder_saved_list_item(ReorderSavedListItemRequest {
-                list_ref: "reorder".into(),
-                record_ref: source.into(),
-                target_record_ref: target.into(),
-                placement: ReorderSavedListItemPlacementView::After,
-            })
+            .reorder_saved_list_item(
+                "reorder",
+                ReorderSavedListItemRequest {
+                    record_ref: source.into(),
+                    target_record_ref: target.into(),
+                    placement: ReorderSavedListItemPlacementView::After,
+                },
+            )
             .unwrap_err();
         assert_eq!(error.into_app_error().code, AppErrorCode::InvalidRequest);
         assert_eq!(f.worker.saved_list("reorder").unwrap(), view);
@@ -580,13 +584,15 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
         .encounter;
     let d = f
         .worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: e.encounter_key,
-            record_ref: ACTOR.into(),
-            quantity: 1,
-            initiative: None,
-        })
+        .add_encounter_record_participant(
+            &e.encounter_key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: ACTOR.into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
         .unwrap();
     let activities = actor_body(d.participants[0].presentation.as_ref().unwrap())
@@ -697,23 +703,27 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
     assert_eq!(list.items[1030].snapshot.title, "Saved action 1030");
     let filtered = f
         .worker
-        .filter_saved_list(FilterSavedListRequest {
-            sort: None,
-            list_ref: "large-list".into(),
-            query: Some("\"Action 1029\"".into()),
-            filter: None,
-        })
+        .filter_saved_list(
+            "large-list",
+            FilterSavedListRequest {
+                sort: None,
+                query: Some("\"Action 1029\"".into()),
+                filter: None,
+            },
+        )
         .unwrap();
     assert_eq!(filtered.items.len(), 1);
     assert_eq!(filtered.items[0].record_key, "actions:0000000000001029");
     let exhaustive = f
         .worker
-        .filter_saved_list(FilterSavedListRequest {
-            sort: None,
-            list_ref: "large-list".into(),
-            query: Some("Action".into()),
-            filter: None,
-        })
+        .filter_saved_list(
+            "large-list",
+            FilterSavedListRequest {
+                sort: None,
+                query: Some("Action".into()),
+                filter: None,
+            },
+        )
         .unwrap();
     assert_eq!(exhaustive.items.len(), 1030);
     assert_eq!(
@@ -808,12 +818,14 @@ fn v1_replacement_is_rejected_and_v2_round_trips_without_reference() {
     );
     assert!(
         f.worker
-            .filter_saved_list(FilterSavedListRequest {
-                sort: None,
-                list_ref: "portable".into(),
-                query: Some("Snapshot".into()),
-                filter: None,
-            })
+            .filter_saved_list(
+                "portable",
+                FilterSavedListRequest {
+                    sort: None,
+                    query: Some("Snapshot".into()),
+                    filter: None,
+                }
+            )
             .is_err()
     );
     let exported = f.worker.export_saved_list("portable").unwrap();
@@ -871,7 +883,6 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
                     search_content: None,
                     filter: Some(disjunction),
                     text: None,
-                    mode: atlas_app_model::RetrievalModeView::Lexical,
                     search_profile: None,
                     expected_artifact_generation: None
                 },
@@ -1091,7 +1102,6 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
         expected_artifact_generation: None,
         filter: Some(predicate),
         text: Some("does not require an embedding".into()),
-        mode: RetrievalModeView::Hybrid,
     };
     let outcome = f
         .worker
@@ -1159,7 +1169,6 @@ fn explicit_option_counts_defer_text_without_inference_and_validate_literals_fir
         expected_artifact_generation: None,
         filter: None,
         text: Some("unavailable query model".into()),
-        mode: RetrievalModeView::Hybrid,
     };
     let mut request = DiscoverFilterCountsRequest {
         context,

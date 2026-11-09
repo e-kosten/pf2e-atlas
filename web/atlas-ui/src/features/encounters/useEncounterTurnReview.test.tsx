@@ -16,13 +16,13 @@ vi.mock("../../api/atlasApi", () => ({
 }));
 const review: import("../../generated/atlas").EncounterTurnReviewView = {
   encounter_key: "encounter",
-  expected_revision: 8n,
+  expected_revision: 8,
   current_participant_key: "incoming",
   next_participant_key: "next",
   reminders: [],
   incoming: null,
   outgoing: {
-    source_revision: 7n,
+    source_revision: 7,
     event: "end",
     participant_removed: false,
     damage_applied: false,
@@ -30,14 +30,14 @@ const review: import("../../generated/atlas").EncounterTurnReviewView = {
     boundary_key: "outgoing",
     participant_key: "actor",
     participant_name: "Actor",
-    round_number: 1n,
+    round_number: 1,
     persistent_damage_groups: [],
     reminders: [
       {
         kind: "persistent_damage" as const,
         participant_key: "actor",
         participant_name: "Actor",
-        condition_id: 1n,
+        condition_id: 1,
         condition_name: "Persistent Damage",
         note: null,
       },
@@ -47,7 +47,7 @@ const review: import("../../generated/atlas").EncounterTurnReviewView = {
   next_turn_unavailable_reason: null,
 };
 function setup(
-  onAdvance: (revision: bigint) => Promise<boolean>,
+  onAdvance: (revision: number) => Promise<boolean>,
   onFinish = vi.fn(),
   onPresent = vi.fn(),
 ) {
@@ -71,7 +71,7 @@ function setup(
       () =>
         useEncounterTurnReview({
           encounterRef: "encounter",
-          expectedRevision: 7n,
+          expectedRevision: 7,
           mutations,
           onAdvance,
           onFinish,
@@ -103,7 +103,7 @@ it("advances once before opening context; dismissing never advances again", asyn
     pending = result.current.begin();
     void result.current.begin();
   });
-  expect(advance).toHaveBeenCalledExactlyOnceWith(7n);
+  expect(advance).toHaveBeenCalledExactlyOnceWith(7);
   expect(result.current.open).toBe(false);
   await act(async () => {
     vi.mocked(getEncounterTurnReview).mockResolvedValue({
@@ -193,7 +193,7 @@ it("retains reminders through a revision refresh only for the same encounter", a
         onAdvance: vi.fn(),
       }),
     {
-      initialProps: { encounterRef: "encounter", expectedRevision: 7n },
+      initialProps: { encounterRef: "encounter", expectedRevision: 7 },
       wrapper: ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
       ),
@@ -201,9 +201,9 @@ it("retains reminders through a revision refresh only for the same encounter", a
   );
   await waitFor(() => expect(result.current.data).toEqual(review));
   vi.mocked(getEncounterTurnReview).mockImplementation(() => new Promise(() => {}));
-  rerender({ encounterRef: "encounter", expectedRevision: 8n });
+  rerender({ encounterRef: "encounter", expectedRevision: 8 });
   expect(result.current.data).toEqual(review);
-  rerender({ encounterRef: "different", expectedRevision: 8n });
+  rerender({ encounterRef: "different", expectedRevision: 8 });
   expect(result.current.data).toBeUndefined();
 });
 
@@ -236,7 +236,7 @@ it("still advances once if the initial reminder snapshot fails without opening o
     .mockRejectedValueOnce(new Error("Unavailable"))
     .mockResolvedValue({
       ...review,
-      outgoing: { ...review.outgoing!, source_revision: 6n },
+      outgoing: { ...review.outgoing!, source_revision: 6 },
     });
   const advance = vi.fn().mockResolvedValue(true);
   const { result } = setup(advance);
@@ -275,7 +275,7 @@ it.each([false, true])(
               rejectCaptured = reject;
             }),
         );
-      flushSync(() => rerender({ revision: 8n }));
+      flushSync(() => rerender({ revision: 8 }));
       return true;
     });
     const { result, rerender } = renderHook(
@@ -287,7 +287,7 @@ it.each([false, true])(
           onAdvance: advance,
         }),
       {
-        initialProps: { revision: 7n },
+        initialProps: { revision: 7 },
         wrapper: ({ children }: PropsWithChildren) => (
           <QueryClientProvider client={client}>{children}</QueryClientProvider>
         ),
@@ -337,8 +337,8 @@ it("clears an expired reminder without inserting a success banner before the ref
     removal = result.current.execute({
       kind: "remove-condition",
       participantKey: "actor",
-      conditionId: 1n,
-      expectedRevision: 8n,
+      conditionId: 1,
+      expectedRevision: 8,
     });
   });
   await waitFor(() => expect(finish).toBeTypeOf("function"));
@@ -382,7 +382,7 @@ it("keeps persistent dice results out of the generic modal footer", async () => 
       request: {
         resolution: "roll",
         participant_key: "actor",
-        expected_encounter_revision: 7n,
+        expected_encounter_revision: 7,
         boundary_key: "outgoing",
         mode: "end_turn",
         episode_id: "fire",
@@ -394,7 +394,7 @@ it("keeps persistent dice results out of the generic modal footer", async () => 
       request: {
         recoveries: [],
         participant_key: "actor",
-        expected_encounter_revision: 8n,
+        expected_encounter_revision: 8,
         boundary_key: "outgoing",
         artifact_generation: null,
         groups: [{ episode_id: "cold", damage: { kind: "roll" } }],
@@ -426,8 +426,8 @@ it("loads the new boundary's dependent models before revealing reminders and nev
       new Promise((resolve) => {
         resolvePersistent = () =>
           resolve({
-            encounter_revision: 8n,
-            round_number: 1n,
+            encounter_revision: 8,
+            round_number: 1,
             damage_groups: [],
             episodes: [],
             damage_applied: false,
@@ -439,7 +439,7 @@ it("loads the new boundary's dependent models before revealing reminders and nev
   vi.mocked(getEncounterConditionLifecycleActions).mockResolvedValue({
     encounter_key: "encounter",
     participant_key: "actor",
-    encounter_revision: 8n,
+    encounter_revision: 8,
     actions: [],
   });
   const advance = vi.fn().mockResolvedValue(true);
@@ -454,7 +454,7 @@ it("loads the new boundary's dependent models before revealing reminders and nev
         {
           episode_id: "fire",
           damage_type: "fire",
-          selected_source_id: 1n,
+          selected_source_id: 1,
           sources: [],
         },
       ],
@@ -463,9 +463,9 @@ it("loads the new boundary's dependent models before revealing reminders and nev
           kind: "condition_recovery",
           participant_key: "actor",
           participant_name: "Actor",
-          condition_ids: [2n],
+          condition_ids: [2],
           condition_name: "Frightened",
-          condition_value: 2n,
+          condition_value: 2,
         },
       ],
     },
@@ -516,7 +516,7 @@ it("opens a retryable dependent-read failure without turning it into a turn-adva
         {
           episode_id: "fire",
           damage_type: "fire",
-          selected_source_id: 1n,
+          selected_source_id: 1,
           sources: [],
         },
       ],
@@ -571,9 +571,9 @@ it("retry does not present a boundary that superseded the unseen turn", async ()
     ...review,
     outgoing: {
       ...review.outgoing!,
-      source_revision: 9n,
+      source_revision: 9,
       boundary_key: "later",
-      round_number: 2n,
+      round_number: 2,
     },
   });
   await act(async () => {
@@ -639,7 +639,7 @@ it("presents end then start with each boundary actor and no extra turn advance",
         boundary_key: "transition",
         participant_key: "incoming",
         participant_name: "Incoming",
-        round_number: 2n,
+        round_number: 2,
         persistent_damage_groups: [],
         reminders: [
           {
@@ -684,11 +684,11 @@ it("does not present a later incoming lap after an unseen advance read failed", 
     incoming: {
       ...review.outgoing!,
       event: "start",
-      source_revision: 12n,
+      source_revision: 12,
       boundary_key: "later-lap",
       participant_key: "incoming",
       participant_name: "Incoming",
-      round_number: 3n,
+      round_number: 3,
       persistent_damage_groups: [],
     },
   });
@@ -706,12 +706,12 @@ it("uses advance provenance when the observer still shows an older next actor", 
   const advance = vi.fn().mockImplementation(async () => {
     finishObserver({
       ...review,
-      expected_revision: 9n,
+      expected_revision: 9,
       outgoing: null,
       incoming: {
         ...review.outgoing!,
         event: "start",
-        source_revision: 8n,
+        source_revision: 8,
         boundary_key: "fresh-transition",
         participant_key: "dragon",
         participant_name: "Green Dragon",
@@ -722,7 +722,7 @@ it("uses advance provenance when the observer still shows an older next actor", 
   });
   vi.mocked(getEncounterTurnReview).mockResolvedValue({
     ...review,
-    expected_revision: 7n,
+    expected_revision: 7,
     next_participant_key: "old-next",
     outgoing: null,
   });
@@ -736,7 +736,7 @@ it("uses advance provenance when the observer still shows an older next actor", 
         onPresent,
       }),
     {
-      initialProps: { revision: 7n },
+      initialProps: { revision: 7 },
       wrapper: ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>
       ),
@@ -749,11 +749,11 @@ it("uses advance provenance when the observer still shows an older next actor", 
         finishObserver = resolve;
       }),
   );
-  rerender({ revision: 8n });
+  rerender({ revision: 8 });
   await waitFor(() => expect(finishObserver).toBeTypeOf("function"));
   expect(result.current.data?.next_participant_key).toBe("old-next");
   await act(() => result.current.begin());
-  expect(advance).toHaveBeenCalledExactlyOnceWith(8n);
+  expect(advance).toHaveBeenCalledExactlyOnceWith(8);
   expect(onPresent).toHaveBeenCalledExactlyOnceWith("dragon", "start");
   expect(result.current.open).toBe(true);
 });

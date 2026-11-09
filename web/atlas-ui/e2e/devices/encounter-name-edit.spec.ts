@@ -29,7 +29,6 @@ for (const width of [1440, 390, 320]) {
         (
           await page.request.post(`${path}/participants/record`, {
             data: {
-              encounter_ref: encounter.encounter_key,
               record_ref: record.record_key,
               quantity: 1,
               initiative: 17,

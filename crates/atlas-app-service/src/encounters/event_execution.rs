@@ -5,6 +5,17 @@ use atlas_local_state::{
     PreparedConditionEvent,
 };
 
+/// Preserve persisted intent equality when a request field moves to the route.
+pub(super) fn receipt_request(
+    request: &impl serde::Serialize,
+    target_field: &str,
+    target: impl Into<serde_json::Value>,
+) -> serde_json::Value {
+    let mut value = serde_json::json!(request);
+    value[target_field] = target.into();
+    value
+}
+
 pub(super) fn recover(
     service: &AtlasAppService,
     encounter_ref: &str,

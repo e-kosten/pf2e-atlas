@@ -61,7 +61,7 @@ export function ChoicePicker({
   children?: ReactNode;
   emptyMessage?: ReactNode;
   labelForValue?: (value: string) => string;
-  counts?: ReadonlyMap<string, bigint>;
+  counts?: ReadonlyMap<string, number>;
   valueEditing?: {
     triggerText: string;
     scalar?: boolean;
@@ -184,7 +184,7 @@ export function ChoicePicker({
           const action = optionAction?.(option);
           const state = stateOf(option.value);
           const count = counts?.get(option.value);
-          const dimmed = count === 0n && state === "neutral";
+          const dimmed = count === 0 && state === "neutral";
           const next: ChoiceState = valueEditing
             ? state === "include"
               ? "neutral"

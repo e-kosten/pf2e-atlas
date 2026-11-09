@@ -1,5 +1,5 @@
 //! HP event preparation, receipt recovery and explicit pending lifecycle decisions.
-use super::event_execution::{EncounterEvent, mutation, recover};
+use super::event_execution::{EncounterEvent, mutation, receipt_request, recover};
 use super::rules::hp_events::HpEventInput;
 use super::{rules, workflow};
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
@@ -9,10 +9,11 @@ impl AtlasAppService {
     pub(super) fn record_hp_amount(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: ApplyEncounterHpActionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         let request_id = request.request_id.clone();
-        let intent = serde_json::json!({"action":"hp_table_entry","request":request});
+        let intent = serde_json::json!({"action":"hp_table_entry","request":receipt_request(&request, "participant_key", participant_key)});
         if let Some(receipt) = recover(self, encounter_ref, &request_id, &intent)? {
             return Ok(mutation(receipt));
         }
@@ -26,7 +27,7 @@ impl AtlasAppService {
         let participant = snapshot
             .participants
             .iter()
-            .find(|participant| participant.participant_key == request.participant_key)
+            .find(|participant| participant.participant_key == participant_key)
             .ok_or_else(participant_not_found)?;
         if participant.revision != request.expected_revision {
             return Err(
@@ -83,7 +84,7 @@ impl AtlasAppService {
             intent: &intent,
             expected_revision: snapshot.encounter.revision,
             reference_revision: subject.reference_revision,
-            participant_revision: Some((&request.participant_key, request.expected_revision)),
+            participant_revision: Some((participant_key, request.expected_revision)),
         }
         .commit(self, changes)
         .map(mutation)
@@ -638,13 +639,15 @@ mod hp_lifecycle_tests {
             .unwrap()
             .encounter;
         worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: encounter.encounter_key.clone(),
-                display_name: "PC".into(),
-                max_hp: Some(10),
-                current_hp: Some(10),
-                initiative: None,
-            })
+            .add_encounter_manual_participant(
+                &encounter.encounter_key,
+                AddEncounterManualParticipantRequest {
+                    display_name: "PC".into(),
+                    max_hp: Some(10),
+                    current_hp: Some(10),
+                    initiative: None,
+                },
+            )
             .unwrap();
         let participant = worker
             .encounter(&encounter.encounter_key)
@@ -667,12 +670,12 @@ mod hp_lifecycle_tests {
         worker
             .add_encounter_participant_condition(
                 key,
+                participant,
                 AddEncounterParticipantConditionRequest {
                     request_id: id.into(),
                     expected_encounter_revision: worker.encounter(key).unwrap().revision,
                     event_intent: ConditionEventIntentView::Correction,
                     decisions: Default::default(),
-                    participant_key: participant.into(),
                     condition_ref: Some(definition.condition_ref.into()),
                     name: None,
                     value,
@@ -699,6 +702,7 @@ mod hp_lifecycle_tests {
         worker
             .apply_encounter_hp_action(
                 key,
+                participant,
                 ApplyEncounterHpActionRequest {
                     request_id: id.into(),
                     expected_revision: worker
@@ -709,7 +713,6 @@ mod hp_lifecycle_tests {
                         .find(|p| p.participant_key == participant)
                         .unwrap()
                         .revision,
-                    participant_key: participant.into(),
                     action: match input {
                         HpEventInput::ResolvedDamage { amount } => EncounterHpAction::Damage {
                             amount: amount.to_string(),
@@ -732,16 +735,17 @@ mod hp_lifecycle_tests {
         let request = ApplyEncounterHpActionRequest {
             request_id: "damage".into(),
             expected_revision: worker.encounter(&key).unwrap().participants[0].revision,
-            participant_key: participant.clone(),
             action: EncounterHpAction::Damage {
                 amount: "12".into(),
             },
             context: None,
         };
         worker
-            .apply_encounter_hp_action(&key, request.clone())
+            .apply_encounter_hp_action(&key, &participant, request.clone())
             .unwrap();
-        worker.apply_encounter_hp_action(&key, request).unwrap();
+        worker
+            .apply_encounter_hp_action(&key, &participant, request)
+            .unwrap();
         let detail = worker.encounter(&key).unwrap();
         assert_eq!(detail.participants[0].current_hp, Some(0));
         assert!(!detail.participants[0].defeated);
@@ -1560,9 +1564,9 @@ mod hp_lifecycle_tests {
             worker
                 .apply_encounter_hp_action(
                     &key,
+                    &participant,
                     ApplyEncounterHpActionRequest {
                         request_id: id.into(),
-                        participant_key: participant.clone(),
                         expected_revision: worker.encounter(&key).unwrap().participants[0].revision,
                         action,
                         context: None,

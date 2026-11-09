@@ -17,13 +17,15 @@ fn fixture() -> (FixtureWorker, String, String) {
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-            encounter_ref: key.clone(),
-            display_name: "PC".into(),
-            max_hp: Some(20),
-            current_hp: Some(5),
-            initiative: Some(10),
-        })
+        .add_encounter_manual_participant(
+            &key,
+            AddEncounterManualParticipantRequest {
+                display_name: "PC".into(),
+                max_hp: Some(20),
+                current_hp: Some(5),
+                initiative: Some(10),
+            },
+        )
         .unwrap();
     let participant = snapshot(&f, &key).participants[0].participant_key.clone();
     f.worker
@@ -376,13 +378,15 @@ fn typed_protections_preserve_missing_hardness_and_source_exceptions() {
 fn petrified_hardness_reduces_the_simultaneous_event_once() {
     let (f, key, _) = fixture();
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "actors:testCreature1000".into(),
-            quantity: 1,
-            initiative: Some(8),
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:testCreature1000".into(),
+                quantity: 1,
+                initiative: Some(8),
+            },
+        )
         .unwrap();
     let before = snapshot(&f, &key);
     let statue = before
@@ -523,13 +527,15 @@ fn source_petrified_fixture(
         .encounter
         .encounter_key;
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            encounter_ref: key.clone(),
-            record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
-            participant_variant: None,
-            initiative: Some(10),
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
+                quantity: 1,
+                participant_variant: None,
+                initiative: Some(10),
+            },
+        )
         .unwrap();
     let participant = snapshot(&f, &key).participants[0].participant_key.clone();
     f.worker
@@ -599,11 +605,11 @@ fn switch_source_petrified_off(f: &FixtureWorker, key: &str) {
     f.worker
         .update_encounter_ability_state(
             key,
+            &participant.participant_key,
             UpdateEncounterAbilityStateRequest {
                 request_id: "switch-petrified-off".into(),
                 expected_encounter_revision: detail.revision,
                 expected_participant_revision: participant.revision,
-                participant_key: participant.participant_key.clone(),
                 navigation: ability.navigation.clone(),
                 rule_ordinal: ability.rule_ordinal,
                 action: EncounterAbilityStateAction::SetOption {
@@ -619,18 +625,18 @@ fn damage_draft(
     preparation: &PreparedPersistentDamageView,
     episode_id: &str,
 ) -> PersistentDamageInput {
+    let entry = preparation.damage_draft.as_ref().unwrap();
+    assert_eq!(entry.episode_id, episode_id);
     let outcome = preparation
         .damage
         .groups
         .iter()
         .find(|group| group.episode_id == episode_id)
         .unwrap();
+    assert_eq!(entry.draft.source_condition_id, outcome.source_condition_id);
+    assert_eq!(Some(&entry.draft.roll), outcome.roll.as_ref());
     PersistentDamageInput::Prepared {
-        draft: PersistentDamageDraft {
-            context: preparation.draft_context.clone(),
-            source_condition_id: outcome.source_condition_id,
-            roll: outcome.roll.clone().unwrap(),
-        },
+        draft: entry.draft.clone(),
     }
 }
 
@@ -791,14 +797,9 @@ fn prepared_damage_expires_across_reference_generations_with_the_same_formula() 
             ),
         )
         .unwrap();
-    assert_eq!(
-        rolled.draft_context.artifact_generation,
-        apply.artifact_generation
-    );
-    assert_eq!(
-        rolled.draft_context.record_key,
-        before.participants[0].record_key
-    );
+    let draft_context = &rolled.damage_draft.as_ref().unwrap().draft.context;
+    assert_eq!(draft_context.artifact_generation, apply.artifact_generation);
+    assert_eq!(draft_context.record_key, before.participants[0].record_key);
 
     let workspace = atlas_runtime::initialize_workspace(f.worker.workspace_path()).unwrap();
     let write = workspace
@@ -813,10 +814,7 @@ fn prepared_damage_expires_across_reference_generations_with_the_same_formula() 
         .unwrap();
     write.commit().unwrap();
     apply.artifact_generation = f.worker.encounter(&key).unwrap().artifact_generation;
-    assert_ne!(
-        rolled.draft_context.artifact_generation,
-        apply.artifact_generation
-    );
+    assert_ne!(draft_context.artifact_generation, apply.artifact_generation);
     let stale = damage_draft(&rolled, &apply.groups[0].episode_id);
     let mut stale_preview = apply.groups[0].clone();
     stale_preview.damage = stale.clone();
@@ -981,10 +979,12 @@ fn recovery_clears_suppressed_sources_and_recovers_receipt_after_episode_is_gone
 
 fn outgoing_boundary(f: &FixtureWorker, key: &str, participant: &str) -> String {
     f.worker
-        .set_encounter_turn(SetEncounterTurnRequest {
-            encounter_ref: key.into(),
-            participant_key: participant.into(),
-        })
+        .set_encounter_turn(
+            key,
+            SetEncounterTurnRequest {
+                participant_key: participant.into(),
+            },
+        )
         .unwrap();
     f.worker
         .advance_encounter_turn(
@@ -1162,10 +1162,10 @@ fn partial_persistent_reminder_round_trips_without_joining_automation_then_can_b
     f.worker
         .add_encounter_participant_condition(
             &key,
+            &participant,
             AddEncounterParticipantConditionRequest {
                 request_id: "reminder-add".into(),
                 expected_encounter_revision: initial.revision,
-                participant_key: participant.clone(),
                 condition_ref: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
                 name: None,
                 value: None,
@@ -1212,10 +1212,10 @@ fn partial_persistent_reminder_round_trips_without_joining_automation_then_can_b
         .update_encounter_participant_condition(
             &key,
             &participant,
+            reminder.condition_id,
             UpdateEncounterParticipantConditionRequest {
                 request_id: "reminder-complete".into(),
                 expected_encounter_revision: detail.revision,
-                condition_id: reminder.condition_id,
                 condition_ref: reminder.condition_key.clone(),
                 name: reminder.name.clone(),
                 value: None,
@@ -1269,7 +1269,6 @@ fn persistent_edits_preserve_or_admit_episode_identity_without_browser_authority
     let edit = |id: &str, kind: &str, revision| UpdateEncounterParticipantConditionRequest {
         request_id: id.into(),
         expected_encounter_revision: revision,
-        condition_id: source.condition_id,
         condition_ref: source.condition_key.clone(),
         name: source.name.clone(),
         value: None,
@@ -1293,6 +1292,7 @@ fn persistent_edits_preserve_or_admit_episode_identity_without_browser_authority
         .update_encounter_participant_condition(
             &key,
             &participant,
+            source.condition_id,
             edit("note", "fire", saved.encounter.revision),
         )
         .unwrap();
@@ -1309,6 +1309,7 @@ fn persistent_edits_preserve_or_admit_episode_identity_without_browser_authority
         .update_encounter_participant_condition(
             &key,
             &participant,
+            source.condition_id,
             edit("new-type", "cold", after_note.encounter.revision),
         )
         .unwrap();
@@ -1454,7 +1455,6 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     let request = |id: &str, formula: &str| AddEncounterParticipantConditionRequest {
         request_id: id.into(),
         expected_encounter_revision: snapshot(&f, &key).encounter.revision,
-        participant_key: participant.clone(),
         condition_ref: Some("conditionitems:lDVqvLKA6eF3Df60".into()),
         name: None,
         value: None,
@@ -1477,20 +1477,20 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     let first = request("d12", "1d12");
     assert!(
         f.worker
-            .preview_encounter_condition_add(&key, first.clone())
+            .preview_encounter_condition_add(&key, &participant, first.clone())
             .unwrap()
             .persistent_precedence
             .is_none()
     );
     f.worker
-        .add_encounter_participant_condition(&key, first)
+        .add_encounter_participant_condition(&key, &participant, first)
         .unwrap();
     let d12 = f.worker.encounter(&key).unwrap().participants[0].conditions.iter().find(|c| matches!(&c.parameters, ConditionParametersView::PersistentDamage{formula,..} if formula == "1d12")).unwrap().condition_id;
     let mut second = request("2d6", "2d6");
     let before = snapshot(&f, &key);
     let choice = f
         .worker
-        .preview_encounter_condition_add(&key, second.clone())
+        .preview_encounter_condition_add(&key, &participant, second.clone())
         .unwrap()
         .persistent_precedence
         .unwrap();
@@ -1507,7 +1507,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     ]);
     assert!(
         f.worker
-            .add_encounter_participant_condition(&key, second.clone())
+            .add_encounter_participant_condition(&key, &participant, second.clone())
             .is_err()
     );
     assert_eq!(
@@ -1518,11 +1518,11 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         Some(vec![Choice::Existing { condition_id: d12 }, Choice::Edited]);
     let receipt = f
         .worker
-        .add_encounter_participant_condition(&key, second.clone())
+        .add_encounter_participant_condition(&key, &participant, second.clone())
         .unwrap();
     assert_eq!(
         f.worker
-            .add_encounter_participant_condition(&key, second)
+            .add_encounter_participant_condition(&key, &participant, second)
             .unwrap(),
         receipt
     );
@@ -1547,7 +1547,6 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     let edit = UpdateEncounterParticipantConditionRequest {
         request_id: "edit-choice".into(),
         expected_encounter_revision: detail.revision,
-        condition_id: d6,
         condition_ref: source.condition_key.clone(),
         name: source.name.clone(),
         value: source.value,
@@ -1569,7 +1568,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     };
     assert_eq!(
         f.worker
-            .preview_encounter_condition_update(&key, &participant, edit.clone())
+            .preview_encounter_condition_update(&key, &participant, d6, edit.clone())
             .unwrap()
             .persistent_precedence
             .unwrap()
@@ -1578,7 +1577,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         Choice::Edited
     );
     f.worker
-        .update_encounter_participant_condition(&key, &participant, edit)
+        .update_encounter_participant_condition(&key, &participant, d6, edit)
         .unwrap();
     let detail = f.worker.encounter(&key).unwrap();
     assert_eq!(
@@ -1616,10 +1615,10 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     lower.decisions.persistent_precedence =
         Some(vec![Choice::Existing { condition_id: d12 }, Choice::Edited]);
     f.worker
-        .add_encounter_participant_condition(&key, lower)
+        .add_encounter_participant_condition(&key, &participant, lower)
         .unwrap();
     f.worker
-        .add_encounter_participant_condition(&key, request("higher-d12", "2d12"))
+        .add_encounter_participant_condition(&key, &participant, request("higher-d12", "2d12"))
         .unwrap();
     let detail = f.worker.encounter(&key).unwrap();
     let higher_d12 = detail.participants[0]
@@ -1648,7 +1647,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     higher.decisions.persistent_precedence = Some(vec![Choice::Edited, Choice::Edited]);
     assert!(
         f.worker
-            .add_encounter_participant_condition(&key, higher.clone())
+            .add_encounter_participant_condition(&key, &participant, higher.clone())
             .is_err()
     );
     assert_eq!(snapshot(&f, &key).encounter.revision, revision);
@@ -1663,7 +1662,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         },
     ]);
     f.worker
-        .add_encounter_participant_condition(&key, higher)
+        .add_encounter_participant_condition(&key, &participant, higher)
         .unwrap();
     let assert_order = |expected: &[&str]| {
         let detail = f.worker.encounter(&key).unwrap();
@@ -1686,7 +1685,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     let strongest = request("uniquely-strongest", "6d12");
     let preview = f
         .worker
-        .preview_encounter_condition_add(&key, strongest.clone())
+        .preview_encounter_condition_add(&key, &participant, strongest.clone())
         .unwrap()
         .persistent_precedence
         .unwrap();
@@ -1699,7 +1698,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         ["6d12", "2d12", "4d6", "1d12", "2d6"]
     );
     f.worker
-        .add_encounter_participant_condition(&key, strongest)
+        .add_encounter_participant_condition(&key, &participant, strongest)
         .unwrap();
     for formula in ["6d12", "2d12", "4d6"] {
         let detail = f.worker.encounter(&key).unwrap();
@@ -1731,7 +1730,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
     let next = request("new-stronger-source", "2d8");
     let preview = f
         .worker
-        .preview_encounter_condition_add(&key, next.clone())
+        .preview_encounter_condition_add(&key, &participant, next.clone())
         .unwrap()
         .persistent_precedence
         .unwrap();
@@ -1744,7 +1743,7 @@ fn persistent_precedence_is_atomic_and_retains_both_ambiguous_fallback_pairs() {
         ["2d8", "1d12", "2d6"]
     );
     f.worker
-        .add_encounter_participant_condition(&key, next)
+        .add_encounter_participant_condition(&key, &participant, next)
         .unwrap();
     assert_order(&["2d8", "1d12", "2d6"]);
 }
@@ -1797,6 +1796,7 @@ fn prepared_recovery_keeps_damage_due_and_commits_all_changes_once() {
         .unwrap();
     assert!(!result.complete);
     assert_eq!(result.damage.total, 4);
+    assert!(result.damage_draft.is_none());
     assert!(result.recovery.as_ref().unwrap().success);
     assert_eq!(
         snapshot(&f, &key),
@@ -1865,13 +1865,15 @@ fn prepared_recovery_keeps_damage_due_and_commits_all_changes_once() {
 fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
     let (f, key, _) = fixture();
     f.worker
-        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
-            participant_variant: None,
-            encounter_ref: key.clone(),
-            record_ref: "actors:testCreature1000".into(),
-            quantity: 1,
-            initiative: Some(8),
-        })
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                record_ref: "actors:testCreature1000".into(),
+                quantity: 1,
+                initiative: Some(8),
+            },
+        )
         .unwrap();
     let actor = snapshot(&f, &key)
         .participants
@@ -1954,6 +1956,30 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
             damage: damage_draft(&result, episode),
         });
     }
+    let carried = PreparePersistentDamageRequest {
+        request_id: "preview-carried-rolls".into(),
+        expected_encounter_revision: before.encounter.revision,
+        participant_key: actor.participant_key.clone(),
+        boundary_key: None,
+        artifact_generation: generation.clone(),
+        groups: groups.clone(),
+        recovery: None,
+    };
+    let preview = f
+        .worker
+        .prepare_persistent_damage(&key, carried.clone())
+        .unwrap();
+    assert!(preview.complete);
+    assert_eq!(preview.damage.total, 12);
+    assert!(preview.damage_draft.is_none());
+    let mut wrong_episode = carried;
+    let (first, rest) = wrong_episode.groups.split_at_mut(1);
+    std::mem::swap(&mut first[0].damage, &mut rest[0].damage);
+    assert!(
+        f.worker
+            .prepare_persistent_damage(&key, wrong_episode)
+            .is_err()
+    );
     assert_eq!(snapshot(&f, &key), before);
     let review = f
         .worker
@@ -1971,6 +1997,15 @@ fn prepared_rolls_keep_shared_hardness_and_reject_changed_subjects() {
         recoveries: vec![],
         context: Default::default(),
     };
+    let mut wrong_episode = request.clone();
+    let (first, rest) = wrong_episode.groups.split_at_mut(1);
+    std::mem::swap(&mut first[0].damage, &mut rest[0].damage);
+    assert!(
+        f.worker
+            .apply_persistent_damage(&key, wrong_episode)
+            .is_err()
+    );
+    assert_eq!(snapshot(&f, &key), before);
     for change in [
         |draft: &mut PersistentDamageDraft| draft.context.participant_key = "another actor".into(),
         |draft: &mut PersistentDamageDraft| draft.context.round_number += 1,
@@ -2204,17 +2239,18 @@ fn source_and_saved_petrified_die_at_zero_with_or_without_dying_tracking() {
         for track in [false, true] {
             let (f, _artifact, key, participant) = source_petrified_fixture(Some(source_owned));
             if !source_owned {
-                f.worker.add_encounter_participant_condition(&key, serde_json::from_value(json!({
-                    "request_id":"saved-statue", "expected_encounter_revision":f.worker.encounter(&key).unwrap().revision,
-                    "participant_key":participant,"condition_ref":super::conditions::ConditionRule::Petrified.definition().record_key
+                f.worker.add_encounter_participant_condition(&key, &participant, serde_json::from_value(json!({
+                    "request_id":"saved-statue", "expected_encounter_revision":f.worker.encounter(&key).unwrap().revision,"condition_ref":super::conditions::ConditionRule::Petrified.definition().record_key
                 })).unwrap()).unwrap();
             }
             f.worker.set_encounter_life_settings(&key,&participant,serde_json::from_value(json!({
                 "request_id":"track-statue","expected_encounter_revision":f.worker.encounter(&key).unwrap().revision,"track_dying":track
             })).unwrap()).unwrap();
             let before = f.worker.encounter(&key).unwrap();
-            let request = serde_json::from_value(json!({"request_id":"destroy-statue","expected_revision":before.participants[0].revision,"participant_key":participant,"action":{"kind":"damage","amount":"60"},"context":{"lethality":"lethal","critical":false,"keep_current_initiative":true}})).unwrap();
-            f.worker.apply_encounter_hp_action(&key, request).unwrap();
+            let request = serde_json::from_value(json!({"request_id":"destroy-statue","expected_revision":before.participants[0].revision,"action":{"kind":"damage","amount":"60"},"context":{"lethality":"lethal","critical":false,"keep_current_initiative":true}})).unwrap();
+            f.worker
+                .apply_encounter_hp_action(&key, &participant, request)
+                .unwrap();
             let after = snapshot(&f, &key).participants.remove(0);
             assert_eq!(after.current_hp, Some(0));
             assert_eq!(after.mortality, atlas_local_state::MortalityState::Dead);
@@ -2263,8 +2299,12 @@ fn uncertain_petrified_does_not_silently_use_ordinary_mortality() {
     use serde_json::json;
     let (f, _artifact, key, participant) = source_petrified_fixture(None);
     let before = f.worker.encounter(&key).unwrap();
-    let request = serde_json::from_value(json!({"request_id":"unknown-statue","expected_revision":before.participants[0].revision,"participant_key":participant,"action":{"kind":"damage","amount":"60"}})).unwrap();
-    assert!(f.worker.apply_encounter_hp_action(&key, request).is_err());
+    let request = serde_json::from_value(json!({"request_id":"unknown-statue","expected_revision":before.participants[0].revision,"action":{"kind":"damage","amount":"60"}})).unwrap();
+    assert!(
+        f.worker
+            .apply_encounter_hp_action(&key, &participant, request)
+            .is_err()
+    );
     assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(60));
 }
 
@@ -2286,11 +2326,11 @@ fn source_condition_spend_matches_live_permissions_and_preserves_corrections() {
     f.worker
         .update_encounter_ability_state(
             &key,
+            &participant,
             UpdateEncounterAbilityStateRequest {
                 request_id: "review-petrify".into(),
                 expected_encounter_revision: detail.revision,
                 expected_participant_revision: actor.revision,
-                participant_key: participant.clone(),
                 navigation: ability.navigation.clone(),
                 rule_ordinal: ability.rule_ordinal,
                 action: EncounterAbilityStateAction::SetOption {
@@ -2314,10 +2354,10 @@ fn source_condition_spend_matches_live_permissions_and_preserves_corrections() {
         );
         let result = f.worker.update_turn_resources(
             &key,
+            &participant,
             UpdateTurnResourcesRequest {
                 request_id: format!("review-spend-{resource:?}"),
                 expected_encounter_revision: detail.revision,
-                participant_key: participant.clone(),
                 turn_key: before.turn_key.clone(),
                 action: TurnResourceAction::Spend { resource },
             },
@@ -2331,22 +2371,23 @@ fn source_condition_spend_matches_live_permissions_and_preserves_corrections() {
         let correction = UpdateTurnResourcesRequest {
             request_id: format!("correct-{resource:?}"),
             expected_encounter_revision: detail.revision,
-            participant_key: participant.clone(),
             turn_key: before.turn_key.clone(),
             action: TurnResourceAction::Correct {
                 resource,
                 remaining: 0,
             },
         };
-        f.worker.update_turn_resources(&key, correction).unwrap();
+        f.worker
+            .update_turn_resources(&key, &participant, correction)
+            .unwrap();
         let corrected = f.worker.encounter(&key).unwrap();
         f.worker
             .update_turn_resources(
                 &key,
+                &participant,
                 UpdateTurnResourcesRequest {
                     request_id: format!("restore-{resource:?}"),
                     expected_encounter_revision: corrected.revision,
-                    participant_key: participant.clone(),
                     turn_key: before.turn_key.clone(),
                     action: TurnResourceAction::Restore { resource },
                 },
@@ -2381,7 +2422,6 @@ fn source_spend_recovers_before_reference_loading_and_keeps_unavailable_source_m
     let request = UpdateTurnResourcesRequest {
         request_id: "source-spend".into(),
         expected_encounter_revision: detail.revision,
-        participant_key: participant,
         turn_key: detail.participants[0]
             .turn_resources
             .as_ref()
@@ -2394,7 +2434,7 @@ fn source_spend_recovers_before_reference_loading_and_keeps_unavailable_source_m
     };
     let result = f
         .worker
-        .update_turn_resources(&key, request.clone())
+        .update_turn_resources(&key, &participant, request.clone())
         .unwrap();
     let spent = snapshot(&f, &key);
     atlas_search::test_support::invalidate_reference(
@@ -2404,7 +2444,7 @@ fn source_spend_recovers_before_reference_loading_and_keeps_unavailable_source_m
     .unwrap();
     assert_eq!(
         f.worker
-            .update_turn_resources(&key, request.clone())
+            .update_turn_resources(&key, &participant, request.clone())
             .unwrap(),
         result
     );
@@ -2414,7 +2454,9 @@ fn source_spend_recovers_before_reference_loading_and_keeps_unavailable_source_m
         expected_encounter_revision: spent.encounter.revision,
         ..request
     };
-    f.worker.update_turn_resources(&key, manual).unwrap();
+    f.worker
+        .update_turn_resources(&key, &participant, manual)
+        .unwrap();
     let after = snapshot(&f, &key);
     assert_eq!(
         after.participants[0]

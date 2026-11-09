@@ -13,7 +13,6 @@ async function createList(page: Page, slug: string) {
   for (const record of [first, second]) {
     const added = await page.request.post(`/api/lists/${slug}/items`, {
       data: {
-        list_ref: slug,
         record_ref: record,
         ...(record === first ? { note: original } : {}),
       },
@@ -78,7 +77,9 @@ test("reorder in the same list view preserves an open note draft and both saves"
     const { region, draft } = await openNote(page, slug);
     await draft.fill("Edited after opening");
     const handle = page.locator(".list-member__drag-handle").first();
+    await expect(handle).toBeEnabled();
     await handle.focus();
+    await expect(handle).toBeFocused();
     await page.keyboard.press("Space", { delay: 20 });
     await expect(handle).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("ArrowDown");
@@ -188,8 +189,6 @@ test("same-note saves from two tabs require explicit conflict resolution", async
     const newerNote = "Saved while the conflict was open";
     const changed = await other.request.patch(notePath, {
       data: {
-        list_ref: slug,
-        record_key: first,
         note: { expected: savedText, value: newerNote },
       },
     });

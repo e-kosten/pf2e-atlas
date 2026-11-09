@@ -3,6 +3,7 @@ use std::{fmt, str::FromStr};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// An inventoried property namespace, independent of Foundry document identity.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DefinitionNamespace {
@@ -48,11 +49,18 @@ impl DefinitionNamespace {
 }
 
 /// Exact vocabulary/source-rule identity. Labels never determine this key.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, ts_rs::TS)]
-#[ts(type = "string")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DefinitionKey {
     namespace: DefinitionNamespace,
     identifier: String,
+}
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for DefinitionKey {}
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for DefinitionKey {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        <String as utoipa::PartialSchema>::schema()
+    }
 }
 
 impl DefinitionKey {

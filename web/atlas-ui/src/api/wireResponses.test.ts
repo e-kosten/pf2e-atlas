@@ -17,7 +17,6 @@ import {
 } from "./compatibility";
 import { totalPages } from "../features/search/pageMetrics";
 import type { RecordPresentationView } from "../generated/atlas";
-import { toBigInt } from "./wire";
 
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -44,14 +43,19 @@ const traitRequest = {
   ranking: null,
 };
 const actorKey = "actors:cccccccccccccccc";
+const detailRequest = {
+  record_key: actorKey,
+  embedded_path: [],
+  fields: [],
+  passage: null,
+  source_fingerprint: null,
+};
 const referenceRequest = {
   artifact_generation: "fixture-generation",
   selection: {
-    record_key: actorKey,
-    embedded_path: [],
+    address: { record_key: actorKey, embedded_path: [], source_fingerprint: null },
     fields: [],
     passage: null,
-    source_fingerprint: null,
   },
 };
 
@@ -61,17 +65,17 @@ function expectRuntimePresentation(presentation: RecordPresentationView) {
   const ac = body.value.armor_class;
   expect(ac.value).toBe(17);
   expect(ac.adjustment?.authored).toBe(16);
-  expect(ac.adjustment?.applied.map((modifier) => modifier.value)).toEqual([2n, -1n]);
+  expect(ac.adjustment?.applied.map((modifier) => modifier.value)).toEqual([2, -1]);
   const actions = body.value.runtime?.action_budget?.actions;
-  expect(actions?.base_value).toBe(3n);
-  expect(actions?.adjusted_value).toBe(2n);
-  expect(actions?.adjustments.map((modifier) => modifier.value)).toEqual([-1n]);
+  expect(actions?.base_value).toBe(3);
+  expect(actions?.adjusted_value).toBe(2);
+  expect(actions?.adjustments.map((modifier) => modifier.value)).toEqual([-1]);
 }
 
 it("decodes Rust/router trait totals for the real bigint paging consumer", async () => {
   respond(wire.trait_records);
   const result = await getTraitRecords(traitRequest);
-  expect(result.page.total).toBe(1n);
+  expect(result.page.total).toBe(1);
   expect(result.page.number).toBe(1);
   expect(result.page.size).toBe(25);
   expect(result.page.count).toBe(1);
@@ -88,21 +92,21 @@ it("decodes the actual encounter graph with present counts, pending nulls and om
   const pending = detail.participants.find(
     (p) => p.participant_key === "fixture-zero",
   )!;
-  expect(detail.revision).toBe(BigInt(wire.encounter.revision));
-  expect(current.turn_resources?.regular_total).toBe(2n);
-  expect(current.turn_resources?.round_number).toBe(1n);
-  expect(current.turn_resources?.forecast.base_value).toBe(3n);
+  expect(detail.revision).toBe(wire.encounter.revision);
+  expect(current.turn_resources?.regular_total).toBe(2);
+  expect(current.turn_resources?.round_number).toBe(1);
+  expect(current.turn_resources?.forecast.base_value).toBe(3);
   expect(current.turn_resources?.action_calculation.kind).toBe("this_turn");
   if (current.turn_resources?.action_calculation.kind === "this_turn")
     expect(current.turn_resources.action_calculation.count?.adjustments[0].value).toBe(
-      -1n,
+      -1,
     );
   expect(pending.turn_resources?.regular_total).toBeNull();
   expect(current).not.toHaveProperty("current_hp");
   expect(current).not.toHaveProperty("max_hp");
-  expect(pending.current_hp).toBe(0n);
-  expect(pending.max_hp).toBe(20n);
-  expect(current.conditions.map((c) => c.value)).toEqual([1n]);
+  expect(pending.current_hp).toBe(0);
+  expect(pending.max_hp).toBe(20);
+  expect(current.conditions.map((c) => c.value)).toEqual([1]);
   expect(pending.effective_max_hp.value).toBe(20);
 });
 
@@ -139,7 +143,7 @@ it.each([false, true])(
     respond(wire.record_detail);
     const detail = await getRecordDetail(
       actorKey,
-      selected ? referenceRequest.selection : undefined,
+      selected ? detailRequest : undefined,
     );
     expect(detail.record.record_key).toBe(actorKey);
     expectRuntimePresentation(detail.presentation);
@@ -154,7 +158,13 @@ it("converts nested table details using the shared serialized DTO and retains nu
   });
   const request = {
     artifact_generation: "fixture-generation",
-    selection: { ...referenceRequest.selection, record_key: "tables:dddddddddddddddd" },
+    selection: {
+      ...referenceRequest.selection,
+      address: {
+        ...referenceRequest.selection.address,
+        record_key: "tables:dddddddddddddddd",
+      },
+    },
   };
   const actual = await rollTable(request);
   expect(actual.outcome.total).toBe(11);
@@ -164,32 +174,32 @@ it("converts nested table details using the shared serialized DTO and retains nu
 it("preserves recovery null/zero and decodes flat DC without altering dice outcomes", async () => {
   respond(wire.recovery_preview);
   const preview = await previewEncounterRecovery("fixture-encounter", {
-    expected_encounter_revision: BigInt(wire.encounter.revision),
+    expected_encounter_revision: wire.encounter.revision,
     action: {
       kind: "rest_overnight",
       healing_mode: "natural",
       participants: [
-        { participant_key: "fixture-zero", healing: 0n },
-        { participant_key: "fixture-manual", healing: 0n },
+        { participant_key: "fixture-zero", healing: 0 },
+        { participant_key: "fixture-manual", healing: 0 },
       ],
     },
   });
   const manual = preview.participants.find(
     (p) => p.participant_key === "fixture-manual",
   )!;
-  expect(preview.encounter_revision).toBe(BigInt(wire.encounter.revision));
+  expect(preview.encounter_revision).toBe(wire.encounter.revision);
   expect(manual.current_hp).toBeNull();
   expect(manual.resulting_hp).toBeNull();
-  expect(manual.healing).toBe(0n);
+  expect(manual.healing).toBe(0);
   expect(
     preview.participants.find((p) => p.participant_key === "fixture-zero")?.current_hp,
-  ).toBe(0n);
+  ).toBe(0);
   expect(
     JSON.parse(fetchMock.mock.calls[0][1].body).action.participants[0].healing,
   ).toBe(0);
   respond(wire.flat_check_serialization_control);
-  const flat = await rollFlatCheck({ dc: 11n });
-  expect(flat.dc).toBe(11n);
+  const flat = await rollFlatCheck({ dc: 11 });
+  expect(flat.dc).toBe(11);
   expect(flat.outcome.total).toBe(11);
   expect(flat.success).toBe(true);
   expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -271,12 +281,4 @@ it.each([
     new Response(text, { headers: { [API_CONTRACT_HEADER]: API_CONTRACT } }),
   );
   await expect(getReadiness()).rejects.toBeInstanceOf(AtlasApiError);
-});
-
-it("retains both safe boundaries, zero and decimal-string helper behavior", () => {
-  expect(toBigInt(Number.MAX_SAFE_INTEGER)).toBe(9007199254740991n);
-  expect(toBigInt(Number.MIN_SAFE_INTEGER)).toBe(-9007199254740991n);
-  expect(toBigInt(0)).toBe(0n);
-  expect(toBigInt("-7")).toBe(-7n);
-  expect(() => toBigInt(0.1)).toThrow(AtlasApiError);
 });

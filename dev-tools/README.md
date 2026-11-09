@@ -4,6 +4,8 @@ Maintained private packages for contributor and release workflows:
 
 - [source-contracts](./source-contracts/README.md): Foundry declaration discovery,
   Rust source generation, corpus sampling and parser comparisons.
+- [OpenAPI](../web/atlas-ui/README.md): reproducible export of the Atlas HTTP
+  contract and generation of the browser client and models.
 - [release](./release/README.md): dependency notices, manifests, checksums and
   archive validation.
 

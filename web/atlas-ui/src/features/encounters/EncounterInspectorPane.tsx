@@ -1,3 +1,7 @@
+import type {
+  AddConditionDraft,
+  UpdateConditionDraft,
+} from "./useConditionEventPreview";
 import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import type { EncounterMutationCommand } from "./useEncounterMutations";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -26,18 +30,15 @@ import { ActorDefenses } from "../../shared/records/ActorReference";
 import { RecordRarity } from "../../shared/records/RecordRarity";
 import { TraitBadge } from "../../shared/records/TraitBadge";
 import type {
-  AddEncounterParticipantConditionRequest,
   EncounterHpAction,
   EncounterParticipantView,
   EncounterConditionDefinitionView,
-  UpdateEncounterParticipantConditionRequest,
-  UpdateEncounterParticipantRequest,
+  UpdateEncounterParticipantEdit,
 } from "../../generated/atlas";
 import {
   EncounterSpellControls,
   encounterCastingAnnotations,
 } from "./EncounterSpellControls";
-import { participantUpdate } from "./participantEdits";
 import { RecordPreviewDrawer } from "../../shared/records/RecordPreviewDrawer";
 import { recordClassification } from "../../shared/records/RecordPresentation";
 import { EncounterActorReading } from "./EncounterActorReading";
@@ -91,7 +92,7 @@ export function EncounterInspectorPane({
   onAbilityState?: AbilityStateHandler;
   onManualTracker?: ManualTrackerHandler;
   disabled: boolean;
-  encounterRevision: bigint;
+  encounterRevision: number;
   currentTurnKey?: string | null;
   encounterKey: string;
   artifactGeneration: string | null;
@@ -103,19 +104,20 @@ export function EncounterInspectorPane({
   error?: string;
   errorKind?: EncounterMutationCommand["kind"];
   spellError?: string;
-  onAddCondition: (
-    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
-  ) => Promise<boolean>;
+  onAddCondition: (condition: AddConditionDraft) => Promise<boolean>;
   onRemoveCondition: (
     participantKey: string,
-    conditionId: bigint,
-    expectedRevision: bigint,
+    conditionId: number,
+    expectedRevision: number,
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
+    condition: UpdateConditionDraft,
   ) => Promise<boolean>;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantEdit,
+  ) => Promise<boolean>;
   onLifeSettings: (
     participantKey: string,
     settings: Omit<
@@ -150,7 +152,7 @@ export function EncounterInspectorPane({
   onSpellAction: (
     participant: EncounterParticipantView,
     action: import("../../generated/atlas").EncounterSpellAction,
-    expectedRevision?: bigint,
+    expectedRevision?: number,
   ) => Promise<boolean>;
   onTurnResources?: (
     participant: EncounterParticipantView,
@@ -167,7 +169,7 @@ export function EncounterInspectorPane({
     value: string;
     label: string;
   }>;
-  standardRecoveryDc?: bigint;
+  standardRecoveryDc?: number;
   preview: ReturnType<typeof useRecordPreview>;
 }) {
   if (!participant) {
@@ -305,7 +307,7 @@ function EncounterParticipantSurface({
   onAbilityState?: AbilityStateHandler;
   onManualTracker?: ManualTrackerHandler;
   disabled: boolean;
-  encounterRevision: bigint;
+  encounterRevision: number;
   currentTurnKey?: string | null;
   encounterKey: string;
   artifactGeneration: string | null;
@@ -323,17 +325,18 @@ function EncounterParticipantSurface({
     value: string;
     label: string;
   }>;
-  standardRecoveryDc?: bigint;
-  onAddCondition: (
-    condition: Omit<AddEncounterParticipantConditionRequest, "request_id">,
-  ) => Promise<boolean>;
+  standardRecoveryDc?: number;
+  onAddCondition: (condition: AddConditionDraft) => Promise<boolean>;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onRemoveCondition: (
     participantKey: string,
-    conditionId: bigint,
-    expectedRevision: bigint,
+    conditionId: number,
+    expectedRevision: number,
   ) => Promise<boolean>;
-  onUpdate: (participant: UpdateEncounterParticipantRequest) => Promise<boolean>;
+  onUpdate: (
+    participantKey: string,
+    request: UpdateEncounterParticipantEdit,
+  ) => Promise<boolean>;
   onLifeSettings: (
     participantKey: string,
     settings: Omit<
@@ -360,7 +363,7 @@ function EncounterParticipantSurface({
   onSpellAction: (
     participant: EncounterParticipantView,
     action: import("../../generated/atlas").EncounterSpellAction,
-    expectedRevision?: bigint,
+    expectedRevision?: number,
   ) => Promise<boolean>;
   onTurnResources?: (
     participant: EncounterParticipantView,
@@ -372,7 +375,7 @@ function EncounterParticipantSurface({
   ) => Promise<boolean>;
   onUpdateCondition: (
     participantKey: string,
-    condition: Omit<UpdateEncounterParticipantConditionRequest, "request_id">,
+    condition: UpdateConditionDraft,
   ) => Promise<boolean>;
   participant: EncounterParticipantView;
   onResolveHpLifecycle: React.ComponentProps<typeof EncounterLifeStatus>["onResolve"];
@@ -384,8 +387,13 @@ function EncounterParticipantSurface({
 }) {
   const errorFor = (...kinds: EncounterMutationCommand["kind"][]) =>
     errorKind && kinds.includes(errorKind) ? error : undefined;
-  const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
-    onUpdate(participantUpdate(participant, changes));
+  const updateParticipant = (
+    changes: Omit<UpdateEncounterParticipantEdit, "expected_revision">,
+  ) =>
+    onUpdate(participant.participant_key, {
+      expected_revision: participant.revision,
+      ...changes,
+    });
   const presentation = participant.presentation;
   const body = presentation?.body;
   const actor =

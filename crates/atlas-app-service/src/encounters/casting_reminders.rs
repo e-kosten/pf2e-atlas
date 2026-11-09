@@ -274,13 +274,15 @@ mod tests {
             .encounter_key;
         fixture
             .worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: encounter.clone(),
-                display_name: "Caster".into(),
-                max_hp: Some(40),
-                current_hp: Some(40),
-                initiative: None,
-            })
+            .add_encounter_manual_participant(
+                &encounter,
+                AddEncounterManualParticipantRequest {
+                    display_name: "Caster".into(),
+                    max_hp: Some(40),
+                    current_hp: Some(40),
+                    initiative: None,
+                },
+            )
             .unwrap();
         fixture
             .worker

@@ -53,7 +53,7 @@ function page(request: SearchResultsRequest, count = 5): SearchResultsPage {
       number: 1,
       size: 5,
       count,
-      total: count ? 88n : 0n,
+      total: count ? 88 : 0,
       has_more: count > 0,
       next_page: count ? 2 : null,
     },

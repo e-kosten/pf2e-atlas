@@ -22,11 +22,11 @@ const participant: EncounterParticipantView = {
   persistent_damage_groups: [],
   track_dying: false,
   mortality: "alive",
-  base_death_threshold: 4n,
-  revision: 7n,
+  base_death_threshold: 4,
+  revision: 7,
   participant_key: "pc",
-  position: 1n,
-  initiative_order: 1n,
+  position: 1,
+  initiative_order: 1,
   display_name: "Mira",
   hp_origin: "explicit",
   variant_origin: "explicit",
@@ -34,10 +34,10 @@ const participant: EncounterParticipantView = {
   side: "pc",
   participant_variant: "normal",
   status: "active",
-  max_hp: 20n,
-  current_hp: 12n,
-  temporary_hp: 3n,
-  initiative: 14n,
+  max_hp: 20,
+  current_hp: 12,
+  temporary_hp: 3,
+  initiative: 14,
   defeated: false,
   hazard_disabled: false,
   cast_unavailable_reason: null,
@@ -70,21 +70,11 @@ it("saves participant metadata as one complete revision-checked write and cancel
   expect(onUpdate).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onUpdate).toHaveBeenCalledOnce());
-  expect(onUpdate).toHaveBeenCalledWith(
-    expect.objectContaining({
-      participant_key: "pc",
-      expected_revision: 7n,
-      display_name: "Mira Dawn",
-      initiative: 14n,
-      note: "North door",
-      current_hp: 12n,
-      max_hp: 20n,
-      temporary_hp: 3n,
-      hp_edit: false,
-      max_hp_edit: false,
-      variant_edit: false,
-    }),
-  );
+  expect(onUpdate).toHaveBeenCalledWith("pc", {
+    expected_revision: 7,
+    display_name: "Mira Dawn",
+    note: "North door",
+  });
   await waitFor(() => expect(dialog).not.toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
   fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
@@ -117,7 +107,7 @@ it("retains failed metadata drafts while refreshing untouched fields and expecte
   await waitFor(() => expect(onUpdate).toHaveBeenCalledOnce());
   rerender(
     <EncounterParticipantSettings
-      participant={{ ...participant, revision: 8n, initiative: 19n, current_hp: 5n }}
+      participant={{ ...participant, revision: 8, initiative: 19, current_hp: 5 }}
       disabled={false}
       pending={false}
       error="Participant changed"
@@ -133,14 +123,10 @@ it("retains failed metadata drafts while refreshing untouched fields and expecte
   expect(within(dialog).getByLabelText("Participant initiative")).toHaveValue("19");
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() =>
-    expect(onUpdate).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        expected_revision: 8n,
-        current_hp: 5n,
-        initiative: 19n,
-        display_name: "Retained name",
-      }),
-    ),
+    expect(onUpdate).toHaveBeenLastCalledWith("pc", {
+      expected_revision: 8,
+      display_name: "Retained name",
+    }),
   );
 });
 
@@ -185,7 +171,7 @@ it("retains the editor after a committed write until canonical read recovery com
   expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
   rerender(
     <EncounterParticipantSettings
-      participant={{ ...participant, display_name: "Saved name", revision: 8n }}
+      participant={{ ...participant, display_name: "Saved name", revision: 8 }}
       disabled={false}
       pending={false}
       onUpdate={onUpdate}
@@ -216,7 +202,7 @@ it("updates Track dying separately while retaining an unfinished metadata draft"
   rerender(
     <EncounterParticipantSettings
       {...props}
-      participant={{ ...participant, track_dying: true, revision: 8n }}
+      participant={{ ...participant, track_dying: true, revision: 8 }}
     />,
   );
   expect(name).toHaveValue("Unfinished name");
@@ -253,7 +239,7 @@ it("saves life facts separately and preserves an unfinished participant name", a
   await waitFor(() =>
     expect(onLifeSettings).toHaveBeenCalledWith({
       track_dying: true,
-      base_death_threshold: 5n,
+      base_death_threshold: 5,
     }),
   );
   expect(onUpdate).not.toHaveBeenCalled();
@@ -316,7 +302,7 @@ it("keeps drafts editable and the selected mortality stable through a pending li
   rerender(
     <EncounterParticipantSettings
       {...props}
-      participant={{ ...props.participant, mortality: "dead", revision: 8n }}
+      participant={{ ...props.participant, mortality: "dead", revision: 8 }}
     />,
   );
   await act(async () => finish(true));

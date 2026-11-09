@@ -18,7 +18,6 @@ it("disables casting at JSON numeric zero and keeps the count visible", () => {
   const detail = detailFixture("actors:caster");
   detail.presentation.body = { kind: "spell", value: spellFixture() };
   detail.selected.spell_rank = 3;
-  // Exercise the actual HTTP representation, not bigint-only test fixtures.
   const participant = JSON.parse(
     JSON.stringify({
       spellcasting: {
@@ -49,7 +48,7 @@ it("disables casting at JSON numeric zero and keeps the count visible", () => {
   const { rerender } = render(
     <App>
       <EncounterSpellControls
-        encounterRevision={1n}
+        encounterRevision={1}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -64,11 +63,11 @@ it("disables casting at JSON numeric zero and keeps the count visible", () => {
   );
   fireEvent.click(screen.getByRole("button", { name: "Cast" }));
   expect(onAction).not.toHaveBeenCalled();
-  participant.spellcasting!.resources[0].remaining = 4n;
+  participant.spellcasting!.resources[0].remaining = 4;
   rerender(
     <App>
       <EncounterSpellControls
-        encounterRevision={1n}
+        encounterRevision={1}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -125,9 +124,9 @@ it("keeps edits and Restore all local until Done, and Cancel discards them", asy
       {
         kind: "set_entry_resources",
         entry_id: "entry",
-        remaining: { rank3: 1n, rank4: 3n },
+        remaining: { rank3: 1, rank4: 3 },
       },
-      7n,
+      7,
     ),
   );
 });
@@ -154,7 +153,7 @@ it("preserves a draft and prevents overwrite when the participant revision chang
   fireEvent.change(screen.getByRole("spinbutton", { name: "Rank 3 slots remaining" }), {
     target: { value: "1" },
   });
-  rerender(view({ ...participant, revision: 8n }));
+  rerender(view({ ...participant, revision: 8 }));
   expect(
     screen.getByRole("spinbutton", { name: "Rank 3 slots remaining" }),
   ).toHaveValue("1");
@@ -165,17 +164,17 @@ it("preserves a draft and prevents overwrite when the participant revision chang
 
 function resourceParticipant() {
   return {
-    revision: 7n,
+    revision: 7,
     manual_trackers: [],
     knockout_options: [],
     effective_max_hp: { state: "value", value: 20, adjustment: null },
     persistent_damage_groups: [],
     track_dying: false,
     mortality: "alive",
-    base_death_threshold: 4n,
+    base_death_threshold: 4,
     participant_key: "caster",
-    position: 1n,
-    initiative_order: 1n,
+    position: 1,
+    initiative_order: 1,
     display_name: "Caster",
     hp_origin: "derived",
     variant_origin: "default_unadjusted",
@@ -184,7 +183,7 @@ function resourceParticipant() {
     participant_variant: "normal",
     record_key: "actors:caster",
     status: "active",
-    temporary_hp: 0n,
+    temporary_hp: 0,
     defeated: false,
     hazard_disabled: false,
     cast_unavailable_reason: null,
@@ -199,8 +198,8 @@ function resourceParticipant() {
           entry_id: "entry",
           label: "Rank 3 slots",
           scope: { kind: "rank", rank: 3 },
-          capacity: 4n,
-          remaining: 2n,
+          capacity: 4,
+          remaining: 2,
           can_undo: false,
         },
         {
@@ -208,8 +207,8 @@ function resourceParticipant() {
           entry_id: "entry",
           label: "Rank 4 slots",
           scope: { kind: "rank", rank: 4 },
-          capacity: 3n,
-          remaining: 3n,
+          capacity: 3,
+          remaining: 3,
           can_undo: false,
         },
       ],
@@ -242,9 +241,9 @@ it("restores a shared rank directly while preserving other pools", async () => {
       {
         kind: "set_entry_resources",
         entry_id: "entry",
-        remaining: { rank3: 3n, rank4: 3n },
+        remaining: { rank3: 3, rank4: 3 },
       },
-      7n,
+      7,
     ),
   );
   fireEvent.click(screen.getByRole("button", { name: "Restore all" }));
@@ -253,9 +252,9 @@ it("restores a shared rank directly while preserving other pools", async () => {
       {
         kind: "set_entry_resources",
         entry_id: "entry",
-        remaining: { rank3: 4n, rank4: 3n },
+        remaining: { rank3: 4, rank4: 3 },
       },
-      7n,
+      7,
     ),
   );
 });
@@ -278,7 +277,7 @@ it("casts directly once in the existing surface without a second resource action
   render(
     <App>
       <EncounterSpellControls
-        encounterRevision={1n}
+        encounterRevision={1}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -319,7 +318,7 @@ it("uses catalog identity only when the displayed reference lacks it", async () 
   const view = render(
     <App>
       <EncounterSpellControls
-        encounterRevision={1n}
+        encounterRevision={1}
         participant={participant}
         detail={detail}
         disabled={false}
@@ -339,7 +338,7 @@ it("uses catalog identity only when the displayed reference lacks it", async () 
   view.rerender(
     <App>
       <EncounterSpellControls
-        encounterRevision={1n}
+        encounterRevision={1}
         participant={participant}
         detail={stale}
         disabled={false}
@@ -388,7 +387,7 @@ it("retries unavailable reminders without disabling direct Cast and renders only
     <QueryClientProvider client={client}>
       <App>
         <EncounterSpellControls
-          encounterRevision={1n}
+          encounterRevision={1}
           encounterRef="encounter"
           participant={participant}
           detail={detail}
@@ -421,7 +420,7 @@ it("retains exact-spell reminders through use-count refresh and shows errors wit
       label: "Daily ability",
       navigation: detail.selected,
       rule_ordinal: null,
-      state: { kind: "uses", remaining: 2n, maximum: 3n, interval: "day" },
+      state: { kind: "uses", remaining: 2, maximum: 3, interval: "day" },
     },
   ];
   participant.spellcasting!.spells = [
@@ -475,11 +474,11 @@ it("retains exact-spell reminders through use-count refresh and shows errors wit
   rerender(
     view({
       ...participant,
-      revision: participant.revision + 1n,
+      revision: participant.revision + 1,
       ability_states: [
         {
           ...participant.ability_states[0],
-          state: { kind: "uses", remaining: 1n, maximum: 3n, interval: "day" },
+          state: { kind: "uses", remaining: 1, maximum: 3, interval: "day" },
         },
       ],
     }),
@@ -571,7 +570,7 @@ it("retires a stale casting DC after a source option changes even when replaceme
   rerender(
     view({
       ...participant,
-      revision: participant.revision + 1n,
+      revision: participant.revision + 1,
       ability_states: [
         {
           ...option,
@@ -597,7 +596,7 @@ it("refreshes condition reminders on the encounter revision without changing the
   detail.selected.spell_rank = 3;
   const participant = resourceParticipant();
   const grabbed: EncounterParticipantView["conditions"][number] = {
-    condition_id: 1n,
+    condition_id: 1,
     name: "Grabbed",
     scope: { kind: "everyone" },
     extra_action: { kind: "unspecified" },
@@ -608,7 +607,7 @@ it("refreshes condition reminders on the encounter revision without changing the
   };
   participant.conditions = [
     grabbed,
-    { ...grabbed, condition_id: 2n, name: "Stupefied", value: 1n },
+    { ...grabbed, condition_id: 2, name: "Stupefied", value: 1 },
   ];
   participant.spellcasting!.spells = [
     {
@@ -639,7 +638,7 @@ it("refreshes condition reminders on the encounter revision without changing the
         }),
     );
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const view = (current: typeof participant, revision: bigint) => (
+  const view = (current: typeof participant, revision: number) => (
     <QueryClientProvider client={client}>
       <App>
         <EncounterSpellControls
@@ -654,12 +653,12 @@ it("refreshes condition reminders on the encounter revision without changing the
       </App>
     </QueryClientProvider>
   );
-  const { rerender, unmount } = render(view(participant, 1n));
+  const { rerender, unmount } = render(view(participant, 1));
   const oldText = "Grabbed, Stupefied · DC 6 flat check or the spell is disrupted";
   await screen.findByText(oldText);
   const castButton = screen.getByRole("button", { name: "Cast" });
   // Removing a condition changes the encounter, while the participant revision stays 7.
-  rerender(view({ ...participant, conditions: [grabbed] }, 2n));
+  rerender(view({ ...participant, conditions: [grabbed] }, 2));
   expect(screen.queryByText(oldText)).toBeNull();
   await waitFor(() => expect(encounterCastingReminders).toHaveBeenCalledTimes(2));
   await act(async () =>
@@ -711,7 +710,7 @@ it.each(["participant", "selection", "generation"])(
       <QueryClientProvider client={client}>
         <App>
           <EncounterSpellControls
-            encounterRevision={1n}
+            encounterRevision={1}
             encounterRef="encounter"
             participant={current}
             detail={document}

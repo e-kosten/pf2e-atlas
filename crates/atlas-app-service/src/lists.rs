@@ -121,6 +121,7 @@ impl AtlasAppService {
 
     pub fn filter_saved_list(
         &self,
+        list_ref: &str,
         request: FilterSavedListRequest,
     ) -> AppServiceResult<SavedListDetailView> {
         let sort = crate::result_order::saved_list_sort(request.sort)?;
@@ -131,16 +132,10 @@ impl AtlasAppService {
             .map(str::trim)
             .filter(|query| !query.is_empty());
         if filter.is_none() && query.is_none() && !sort.is_record_order() {
-            return self.saved_list(&request.list_ref);
+            return self.saved_list(list_ref);
         }
         let has_match_scope = filter.is_some() || query.is_some();
-        self.saved_list_with_filter(
-            &request.list_ref,
-            filter.as_ref(),
-            query,
-            has_match_scope,
-            sort,
-        )
+        self.saved_list_with_filter(list_ref, filter.as_ref(), query, has_match_scope, sort)
     }
 
     pub fn create_saved_list(
@@ -188,9 +183,11 @@ impl AtlasAppService {
 
     pub fn update_saved_list_item_note(
         &self,
+        list_ref: &str,
+        record_key: &str,
         request: UpdateSavedListItemNoteRequest,
     ) -> AppServiceResult<SavedListItemNoteView> {
-        self.save_list_item_note(&request.list_ref, &request.record_key, |current| {
+        self.save_list_item_note(list_ref, record_key, |current| {
             let mut check = SavedEditCheck::default();
             let value = check.value("note", current, request.note);
             check.finish()?;
@@ -237,11 +234,12 @@ impl AtlasAppService {
 
     pub fn update_saved_list(
         &self,
+        list_ref: &str,
         request: UpdateSavedListRequest,
     ) -> AppServiceResult<SavedListUpdateView> {
-        self.save_list_metadata(&request.list_key, |current| {
-            if current.list_key != request.list_key {
-                return Err(saved_list_not_found(&request.list_key));
+        self.save_list_metadata(list_ref, |current| {
+            if current.list_key != list_ref {
+                return Err(saved_list_not_found(list_ref));
             }
             let mut check = SavedEditCheck::default();
             let slug = request
@@ -312,20 +310,21 @@ impl AtlasAppService {
 
     pub fn add_saved_list_item(
         &self,
+        list_ref: &str,
         request: AddSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
         if let Ok(key) = RecordKey::parse(&request.record_ref) {
             return self.with_write(move |session| {
                 let lists = session.local_state()?.saved_lists();
                 let list = lists
-                    .get(&request.list_ref)?
-                    .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
+                    .get(list_ref)?
+                    .ok_or_else(|| saved_list_not_found(list_ref))?;
                 let record = exact_add_record(session, &key, &request.record_ref)?;
                 add_resolved_list_record(&lists, list, record, request.note)
             });
         }
         let record_ref = request.record_ref.clone();
-        let list_ref = request.list_ref.clone();
+        let list_ref = list_ref.to_owned();
         let (record, list, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
@@ -446,6 +445,7 @@ impl AtlasAppService {
 
     pub fn remove_saved_list_item(
         &self,
+        list_ref: &str,
         request: RemoveSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
         let (record_key, record_name, revision, canonical_list) =
@@ -453,7 +453,7 @@ impl AtlasAppService {
                 (key, None, None, None)
             } else {
                 let record_ref = request.record_ref.clone();
-                let list_ref = request.list_ref.clone();
+                let list_ref = list_ref.to_owned();
                 self.with_workspace(
                     &crate::ReadExecutionContext::uncancellable(),
                     move |session| {
@@ -477,7 +477,7 @@ impl AtlasAppService {
                 session.require_reference_revision(revision)?;
             }
             let lists = session.local_state()?.saved_lists();
-            let list_ref = canonical_list.as_deref().unwrap_or(&request.list_ref);
+            let list_ref = canonical_list.as_deref().unwrap_or(list_ref);
             let list = lists
                 .get(list_ref)?
                 .ok_or_else(|| saved_list_not_found(list_ref))?;
@@ -498,13 +498,14 @@ impl AtlasAppService {
 
     pub fn reorder_saved_list_item(
         &self,
+        list_ref: &str,
         request: ReorderSavedListItemRequest,
     ) -> AppServiceResult<SavedListItemMutationView> {
         self.with_write(move |session| {
             let lists = session.local_state()?.saved_lists();
             let list = lists
-                .get(&request.list_ref)?
-                .ok_or_else(|| saved_list_not_found(&request.list_ref))?;
+                .get(list_ref)?
+                .ok_or_else(|| saved_list_not_found(list_ref))?;
             let placement = match request.placement {
                 ReorderSavedListItemPlacementView::Before => SavedListItemPlacement::Before,
                 ReorderSavedListItemPlacementView::After => SavedListItemPlacement::After,

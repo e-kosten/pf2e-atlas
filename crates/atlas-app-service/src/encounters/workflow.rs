@@ -4,7 +4,7 @@ use atlas_app_model::{
     CreateEncounterRequest, DeleteEncounterView, EncounterCreateView, EncounterDetailView,
     EncounterIndexView, EncounterMutationView, EncounterTurnReviewView, FieldEdit,
     ReorderEncounterParticipantRequest, SetEncounterTurnRequest,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantRequest,
+    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest,
 };
 use atlas_local_state::{
@@ -26,6 +26,23 @@ use super::projection::{
 };
 use super::timing::{turn_review, turn_update};
 use super::turns::next_turn_after_removed;
+
+pub(super) enum ParticipantEdit {
+    Metadata(UpdateEncounterParticipantEdit),
+    Hp(ParticipantHpEdit),
+}
+
+#[derive(Default)]
+pub(super) struct ParticipantHpEdit {
+    pub(super) current: Option<Option<i64>>,
+    pub(super) maximum: Option<MaximumHpEdit>,
+    pub(super) temporary: Option<i64>,
+}
+
+pub(super) enum MaximumHpEdit {
+    Set(Option<i64>),
+    Derive,
+}
 
 #[derive(Default)]
 struct EncounterMetadataEdit {
@@ -218,11 +235,12 @@ impl AtlasAppService {
 
     pub fn update_encounter(
         &self,
+        encounter_ref: &str,
         request: UpdateEncounterRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.save_encounter_metadata(&request.encounter_key, |current| {
-            if current.encounter_key != request.encounter_key {
-                return Err(encounter_not_found(&request.encounter_key));
+        self.save_encounter_metadata(encounter_ref, |current| {
+            if current.encounter_key != encounter_ref {
+                return Err(encounter_not_found(encounter_ref));
             }
             let mut check = SavedEditCheck::default();
             let slug = request
@@ -316,9 +334,10 @@ impl AtlasAppService {
 
     pub fn add_encounter_record_participant(
         &self,
+        encounter_ref: &str,
         request: AddEncounterRecordParticipantRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let encounter_ref = request.encounter_ref.clone();
+        let encounter_ref = encounter_ref.to_owned();
         let record_ref = request.record_ref.clone();
         let (receipt, record, baseline, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
@@ -383,11 +402,11 @@ impl AtlasAppService {
 
     pub fn add_encounter_manual_participant(
         &self,
+        encounter_ref: &str,
         request: AddEncounterManualParticipantRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
-            let receipt =
-                encounter_receipt(&session.local_state()?.encounters(), &request.encounter_ref)?;
+            let receipt = encounter_receipt(&session.local_state()?.encounters(), encounter_ref)?;
             session.local_state()?.encounters().add_participant(
                 &receipt.encounter_key,
                 AddEncounterParticipant {
@@ -416,7 +435,23 @@ impl AtlasAppService {
     pub fn update_encounter_participant(
         &self,
         encounter_ref: &str,
-        request: UpdateEncounterParticipantRequest,
+        participant_key: &str,
+        request: UpdateEncounterParticipantEdit,
+    ) -> AppServiceResult<EncounterMutationView> {
+        self.edit_encounter_participant(
+            encounter_ref,
+            participant_key,
+            request.expected_revision,
+            || Ok(ParticipantEdit::Metadata(request)),
+        )
+    }
+
+    pub(super) fn edit_encounter_participant(
+        &self,
+        encounter_ref: &str,
+        participant_key: &str,
+        expected_revision: i64,
+        prepare: impl FnOnce() -> AppServiceResult<ParticipantEdit>,
     ) -> AppServiceResult<EncounterMutationView> {
         let detail = self.with_state(|session| {
             session
@@ -429,52 +464,57 @@ impl AtlasAppService {
         let existing = detail
             .participants
             .iter()
-            .find(|participant| participant.participant_key == request.participant_key)
+            .find(|participant| participant.participant_key == participant_key)
             .cloned()
             .ok_or_else(|| {
                 AppServiceError::new(
                     AppErrorCode::EncounterParticipantNotFound,
                     format!(
                         "encounter participant `{}` was not found in encounter `{encounter_ref}`",
-                        request.participant_key
+                        participant_key
                     ),
                 )
             })?;
-        if request.expected_revision != existing.revision {
+        if expected_revision != existing.revision {
             return Err(
                 atlas_local_state::LocalStateError::StaleParticipantRevision {
-                    participant_key: request.participant_key,
-                    expected_revision: request.expected_revision,
+                    participant_key: participant_key.into(),
+                    expected_revision,
                     actual_revision: existing.revision,
                 }
                 .into(),
             );
         }
-        let new_variant = participant_variant(request.participant_variant);
-        let current_edited = request.hp_edit || request.current_hp != existing.current_hp;
-        let max_edited = request.max_hp_edit || request.max_hp != existing.max_hp;
-        let variant_changed = request.variant_edit || existing.participant_variant != new_variant;
-        let mut max_hp = request.max_hp;
-        if request.hazard_disabled
-            && existing.participant_kind != atlas_local_state::ParticipantKind::Hazard
-        {
+        let (metadata, hp) = match prepare()? {
+            ParticipantEdit::Metadata(edit) => (edit, ParticipantHpEdit::default()),
+            ParticipantEdit::Hp(edit) => (UpdateEncounterParticipantEdit::default(), edit),
+        };
+        let new_variant = metadata
+            .participant_variant
+            .map(participant_variant)
+            .unwrap_or(existing.participant_variant);
+        let variant_edited = metadata.participant_variant.is_some();
+        let current_edited = hp.current.is_some();
+        let defeated = metadata.defeated.unwrap_or(existing.defeated);
+        let hazard_disabled = metadata.hazard_disabled.unwrap_or(existing.hazard_disabled);
+        if hazard_disabled && existing.participant_kind != ParticipantKind::Hazard {
             return Err(AppServiceError::invalid_request(
                 "Only hazards can be disabled.",
             ));
         }
-        if request.defeated
-            && existing.participant_kind == atlas_local_state::ParticipantKind::Hazard
-        {
+        if defeated && existing.participant_kind == ParticipantKind::Hazard {
             return Err(AppServiceError::invalid_request(
                 "Hazards use Disabled instead of Defeated.",
             ));
         }
-        let mut current_hp = request.current_hp;
+        let mut max_hp = existing.max_hp;
+        let mut current_hp = hp.current.unwrap_or(existing.current_hp);
         let mut hp_origin = existing.hp_origin;
-        if max_edited && !request.use_derived_max {
+        if let Some(MaximumHpEdit::Set(value)) = hp.maximum {
+            max_hp = value;
             hp_origin = atlas_local_state::ParticipantHpOrigin::Explicit;
-        } else if request.use_derived_max
-            || (variant_changed && hp_origin != atlas_local_state::ParticipantHpOrigin::Explicit)
+        } else if matches!(hp.maximum, Some(MaximumHpEdit::Derive))
+            || (variant_edited && hp_origin != atlas_local_state::ParticipantHpOrigin::Explicit)
         {
             let saved = existing.clone();
             let encounter_key = detail.encounter.encounter_key.clone();
@@ -527,7 +567,7 @@ impl AtlasAppService {
             let mut adjusted = existing.clone();
             adjusted.max_hp = derived;
             adjusted.participant_variant = new_variant;
-            if variant_changed {
+            if variant_edited {
                 adjusted.variant_origin = atlas_local_state::ParticipantVariantOrigin::Explicit;
             }
             let new_capacity = capacity(&adjusted);
@@ -549,7 +589,7 @@ impl AtlasAppService {
                     _ => existing.current_hp,
                 }
             } else {
-                request.current_hp
+                current_hp
             };
             hp_origin = if derived.is_none() {
                 atlas_local_state::ParticipantHpOrigin::Unknown
@@ -577,13 +617,13 @@ impl AtlasAppService {
             if let Some(participant) = current
                 .participants
                 .iter()
-                .find(|participant| participant.participant_key == request.participant_key)
-                && participant.revision != request.expected_revision
+                .find(|participant| participant.participant_key == participant_key)
+                && participant.revision != expected_revision
             {
                 return Err(
                     atlas_local_state::LocalStateError::StaleParticipantRevision {
                         participant_key: participant.participant_key.clone(),
-                        expected_revision: request.expected_revision,
+                        expected_revision,
                         actual_revision: participant.revision,
                     }
                     .into(),
@@ -602,33 +642,30 @@ impl AtlasAppService {
                 .local_state()?
                 .encounters()
                 .update_participant(UpdateEncounterParticipant {
-                    expected_revision: request.expected_revision,
-                    participant_key: request.participant_key.clone(),
-                    display_name: request.display_name,
-                    side: participant_side(request.side),
+                    expected_revision,
+                    participant_key: participant_key.to_owned(),
+                    display_name: metadata.display_name.unwrap_or(existing.display_name),
+                    side: metadata.side.map(participant_side).unwrap_or(existing.side),
                     participant_variant: new_variant,
                     hp_origin,
-                    variant_origin: if variant_changed {
+                    variant_origin: if variant_edited {
                         atlas_local_state::ParticipantVariantOrigin::Explicit
                     } else {
                         existing.variant_origin
                     },
-                    initiative: request.initiative,
+                    initiative: metadata.initiative.unwrap_or(existing.initiative),
                     max_hp,
                     current_hp,
-                    temporary_hp: request.temporary_hp,
-                    defeated: request.defeated,
-                    hazard_disabled: request.hazard_disabled,
-                    hidden: request.hidden,
-                    note: request.note,
+                    temporary_hp: hp.temporary.unwrap_or(existing.temporary_hp),
+                    defeated,
+                    hazard_disabled,
+                    hidden: metadata.hidden.unwrap_or(existing.hidden),
+                    note: metadata.note.unwrap_or(existing.note),
                 })?
                 .ok_or_else(|| {
                     AppServiceError::new(
                         AppErrorCode::EncounterParticipantNotFound,
-                        format!(
-                            "encounter participant `{}` was not found",
-                            request.participant_key
-                        ),
+                        format!("encounter participant `{}` was not found", participant_key),
                     )
                 })?;
             super::hp_events::retire_stale_hp_decisions(
@@ -701,17 +738,19 @@ impl AtlasAppService {
     pub fn add_encounter_participant_condition(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: AddEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.commit_condition_add(encounter_ref, request)
+        self.commit_condition_add(encounter_ref, participant_key, request)
     }
     pub fn update_encounter_participant_condition(
         &self,
         encounter_ref: &str,
         participant_key: &str,
+        condition_id: i64,
         request: UpdateEncounterParticipantConditionRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        self.commit_condition_update(encounter_ref, participant_key, request)
+        self.commit_condition_update(encounter_ref, participant_key, condition_id, request)
     }
     pub fn remove_encounter_participant_condition(
         &self,
@@ -725,20 +764,21 @@ impl AtlasAppService {
 
     pub fn set_encounter_turn(
         &self,
+        encounter_ref: &str,
         request: SetEncounterTurnRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
             let store = session.local_state()?;
             let encounter = store
                 .encounters()
-                .advance_turn(&request.encounter_ref, |snapshot| {
+                .advance_turn(encounter_ref, |snapshot| {
                     atlas_local_state::EncounterTurnState {
                         participant_key: Some(request.participant_key),
                         round_number: snapshot.encounter.round_number,
                         mark_running: false,
                     }
                 })?
-                .ok_or_else(|| encounter_not_found(&request.encounter_ref))?;
+                .ok_or_else(|| encounter_not_found(encounter_ref))?;
             Ok(EncounterMutationView {
                 encounter_key: encounter.encounter_key,
             })
@@ -1293,13 +1333,15 @@ mod immunity_override_tests {
             .unwrap()
             .encounter;
         worker
-            .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
-                encounter_ref: encounter.encounter_key.clone(),
-                display_name: "Immune participant".into(),
-                max_hp: Some(10),
-                current_hp: Some(10),
-                initiative: None,
-            })
+            .add_encounter_manual_participant(
+                &encounter.encounter_key,
+                AddEncounterManualParticipantRequest {
+                    display_name: "Immune participant".into(),
+                    max_hp: Some(10),
+                    current_hp: Some(10),
+                    initiative: None,
+                },
+            )
             .unwrap();
         let snapshot = worker
             .with_state(|session| {

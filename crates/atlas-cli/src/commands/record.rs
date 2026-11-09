@@ -1,8 +1,8 @@
 use super::{filters::resolve_filter, product::report_app_error};
 use crate::client::{ClientOptions, connect};
 use atlas_app_model::{
-    EmbeddedReadingEntryView, EmbeddedReadingRequest, EmbeddedReadingSelection, RecordBodyView,
-    RecordDetailRequest, RecordDetailView,
+    EmbeddedReadingEntryView, EmbeddedReadingParent, EmbeddedReadingRequest,
+    EmbeddedReadingSelection, RecordBodyView, RecordDetailRequest, RecordDetailView,
 };
 use atlas_cli_support::write_json_response;
 use std::process::ExitCode;
@@ -181,7 +181,9 @@ fn render_selected_record(
         loop {
             let batch = service
                 .embedded_reading(EmbeddedReadingRequest {
-                    parent: record.selected.clone(),
+                    parent: EmbeddedReadingParent {
+                        record_key: record.selected.record_key.clone(),
+                    },
                     artifact_generation: record.artifact_generation.clone(),
                     selection: EmbeddedReadingSelection::Abilities {
                         group: None,

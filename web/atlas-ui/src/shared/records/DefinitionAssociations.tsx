@@ -44,7 +44,7 @@ export function DefinitionAssociations({
         query.error ||
         query.isFetching ||
         !query.data ||
-        query.data.page.total !== 0n ||
+        query.data.page.total !== 0 ||
         query.data.rows.length > 0,
     );
   if (!visible.length) return null;
@@ -97,7 +97,7 @@ function DefinitionAssociatedRecords({
         disabled={changed}
         summary={
           data
-            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "entry" : "entries"}`
+            ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1 ? "entry" : "entries"}`
             : undefined
         }
       >

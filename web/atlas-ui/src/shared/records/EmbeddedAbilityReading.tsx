@@ -14,7 +14,7 @@ import type {
 import { ActorActivity } from "./ActorReference";
 import { ContentFields } from "./RecordPresentation";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { activityAnchor, activityAddress } from "./embeddedNavigation";
+import { activityAnchor, immediateActivityAddress } from "./embeddedNavigation";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 
 export type EmbeddedReadingContext = {
@@ -99,7 +99,11 @@ function OwnedAbilityBatch({
   const landed = useRef(false);
   const landing = context.landing;
   const onLandingReady = context.onLandingReady;
-  const target = useMemo(() => (landing ? activityAddress(landing) : null), [landing]);
+  const landingAnchor = landing ? activityAnchor(landing) : null;
+  const target = useMemo(
+    () => (landing ? immediateActivityAddress(landing) : null),
+    [landing],
+  );
   const identity = JSON.stringify([
     context?.generation,
     context?.parent,
@@ -121,7 +125,7 @@ function OwnedAbilityBatch({
     queryFn: ({ pageParam, signal }) =>
       getEmbeddedReading(
         {
-          parent: context!.parent,
+          parent: { record_key: context!.parent.record_key },
           artifact_generation: context!.generation,
           selection: pageParam,
         },
@@ -158,20 +162,18 @@ function OwnedAbilityBatch({
     landed.current = false;
   }, [target, context?.generation, onLandingReady]);
   useEffect(() => {
-    if (!target || landed.current || !entries.length || !open) return;
+    if (!target || !landingAnchor || landed.current || !entries.length || !open) return;
     const element = Array.from(
       section.current?.querySelectorAll<HTMLElement>("[data-atlas-activity-anchor]") ??
         [],
-    ).find(
-      (candidate) => candidate.dataset.atlasActivityAnchor === activityAnchor(target),
-    );
+    ).find((candidate) => candidate.dataset.atlasActivityAnchor === landingAnchor);
     if (element) {
       landed.current = true;
       if (!onLandingReady) element.scrollIntoView?.({ block: "start" });
       element.focus({ preventScroll: true });
       onLandingReady?.(element);
     }
-  }, [target, entries.length, open, onLandingReady]);
+  }, [target, landingAnchor, entries.length, open, onLandingReady]);
   useEffect(() => {
     if (!open || !hasNextPage || loading || isError) return;
     // Scroll events are captured from the real reading host. Layout/visibility

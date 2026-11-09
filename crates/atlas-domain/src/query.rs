@@ -2,7 +2,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryFieldState {
     Value,
@@ -22,7 +23,8 @@ impl QueryFieldState {
         }
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryCompare {
     Eq,
@@ -32,7 +34,8 @@ pub enum QueryCompare {
     Gt,
     Gte,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuerySetMatch {
     Includes,
@@ -40,22 +43,37 @@ pub enum QuerySetMatch {
     IncludesAll,
     ExcludesAny,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum QueryLiteral {
     String(String),
     Boolean(bool),
-    Number(#[ts(type = "number")] Number),
+    Number(Number),
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for QueryLiteral {}
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for QueryLiteral {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::schema::Schema> {
+        utoipa::openapi::schema::OneOfBuilder::new()
+            .item(<String as utoipa::PartialSchema>::schema())
+            .item(<bool as utoipa::PartialSchema>::schema())
+            .item(<f64 as utoipa::PartialSchema>::schema())
+            .into()
+    }
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryPredicate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub clause_id: Option<String>,
     #[serde(flatten)]
+    #[cfg_attr(feature = "openapi", schema(no_recursion))]
     pub expression: QueryExpression,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum QueryExpression {
     Relationship {
@@ -113,7 +131,8 @@ impl QueryPredicate {
         Self::new(QueryExpression::BooleanConstant { value })
     }
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryFieldType {
     String,
@@ -122,7 +141,8 @@ pub enum QueryFieldType {
     Set,
     Collection,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryValueDiscovery {
     OpenValues,
@@ -131,14 +151,17 @@ pub enum QueryValueDiscovery {
     NumericStatistics,
     CollectionStates,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryFieldDefinition {
     pub id: String,
     pub path: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub scope: Option<String>,
     pub field_type: QueryFieldType,
     pub label: String,
     pub family_types: Vec<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub units: Option<String>,
     pub basis: String,
     pub choices: Vec<String>,
@@ -146,13 +169,15 @@ pub struct QueryFieldDefinition {
     pub examples: Vec<String>,
     pub value_discovery: QueryValueDiscovery,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryCapability {
     pub version: u32,
     pub fields: Vec<QueryFieldDefinition>,
     pub limits: QueryLimits,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryLimits {
     pub source_bytes: usize,
     pub relationship_leaves: usize,
@@ -171,12 +196,16 @@ impl Default for QueryLimits {
         }
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryError {
     pub code: String,
     pub message: String,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub field: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub clause_id: Option<String>,
+    #[cfg_attr(feature = "openapi", schema(required))]
     pub source_span: Option<(usize, usize)>,
 }
 impl std::fmt::Display for QueryError {
@@ -216,20 +245,5 @@ impl QueryTruth {
             Self::False => Self::True,
             Self::Unknown => Self::Unknown,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ts_rs::TS;
-    #[test]
-    fn query_ts_matches_flattened_serde_shape() {
-        let declaration = QueryPredicate::decl();
-        assert!(declaration.contains("\"kind\":"), "{declaration}");
-        assert!(declaration.contains("\"exists\""), "{declaration}");
-        assert!(declaration.contains("clause_id?:"), "{declaration}");
-        assert!(QueryExpression::decl().contains("scope_id"));
-        assert!(QueryLiteral::decl().contains("number"));
     }
 }

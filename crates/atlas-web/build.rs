@@ -18,6 +18,9 @@ fn build() -> Result<(), Box<dyn std::error::Error>> {
     }
     let contract = contract.identifier;
     println!("cargo:rustc-env=ATLAS_API_CONTRACT={contract}");
+    if std::env::var_os("CARGO_FEATURE_EMBEDDED_UI").is_none() {
+        return Ok(());
+    }
     let dist = Path::new("../../web/atlas-ui/dist");
     let index = dist.join("index.html");
 

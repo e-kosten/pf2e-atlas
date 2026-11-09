@@ -26,7 +26,7 @@ type Actions = {
   recovery?: ReactNode;
   onAction: (
     action: EncounterSpellAction,
-    expectedRevision?: bigint,
+    expectedRevision?: number,
   ) => Promise<boolean>;
 };
 
@@ -43,7 +43,7 @@ export function EncounterSpellControls({
 }: Actions & {
   detail: RecordDetailView;
   encounterRef?: string;
-  encounterRevision: bigint;
+  encounterRevision: number;
 }) {
   const { message } = App.useApp();
   const inFlight = useRef(false);
@@ -158,37 +158,34 @@ function SpellCastingReminders({
   selection,
 }: {
   encounterRef: string;
-  encounterRevision: bigint;
+  encounterRevision: number;
   generation: string;
   participant: EncounterParticipantView;
   selection: import("../../generated/atlas").RecordNavigationView;
 }) {
   // Resource-only refreshes can retain advice; changed conditions/options/status cannot.
-  const readingIdentity = JSON.stringify(
-    [
-      encounterRef,
-      participant.participant_key,
-      generation,
-      selection,
-      participant.conditions,
-      participant.ability_states?.flatMap(({ navigation, rule_ordinal, state }) =>
-        state.kind === "option"
-          ? [
-              {
-                navigation,
-                rule_ordinal,
-                active: state.active,
-                selection: state.selection,
-              },
-            ]
-          : [],
-      ),
-      participant.defeated,
-      participant.hazard_disabled,
-      participant.mortality,
-    ],
-    (_key, value) => (typeof value === "bigint" ? value.toString() : value),
-  );
+  const readingIdentity = JSON.stringify([
+    encounterRef,
+    participant.participant_key,
+    generation,
+    selection,
+    participant.conditions,
+    participant.ability_states?.flatMap(({ navigation, rule_ordinal, state }) =>
+      state.kind === "option"
+        ? [
+            {
+              navigation,
+              rule_ordinal,
+              active: state.active,
+              selection: state.selection,
+            },
+          ]
+        : [],
+    ),
+    participant.defeated,
+    participant.hazard_disabled,
+    participant.mortality,
+  ]);
   const preview = useQuery({
     meta: referenceQueryMeta,
     queryKey: [
@@ -197,9 +194,7 @@ function SpellCastingReminders({
       encounterRef,
       participant.participant_key,
       encounterRevision.toString(),
-      JSON.stringify(selection, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value,
-      ),
+      JSON.stringify(selection),
     ],
     queryFn: () =>
       encounterCastingReminders(encounterRef, {
@@ -235,7 +230,7 @@ function SpellCastingReminders({
 }
 
 type ResourceDraft = {
-  revision: bigint;
+  revision: number;
   resources: EncounterSpellResourceView[];
   remaining: Record<string, number | null>;
 };
@@ -260,19 +255,19 @@ export function EncounterSpellResources({
     !draft ||
     draft.resources.some((r) => {
       const n = draft.remaining[r.key];
-      return n === null || !Number.isInteger(n) || n < 0 || n > Number(r.capacity);
+      return n === null || !Number.isInteger(n) || n < 0 || n > r.capacity;
     });
   const cancel = () => {
     if (!pending) setDraft(null);
   };
   const done = async () => {
     if (!draft || invalid || changed || disabled) return;
-    if (draft.resources.every((r) => draft.remaining[r.key] === Number(r.remaining))) {
+    if (draft.resources.every((r) => draft.remaining[r.key] === r.remaining)) {
       setDraft(null);
       return;
     }
     const remaining = Object.fromEntries(
-      Object.entries(draft.remaining).map(([key, value]) => [key, BigInt(value!)]),
+      Object.entries(draft.remaining).map(([key, value]) => [key, value!]),
     );
     if (
       await onAction(
@@ -294,9 +289,7 @@ export function EncounterSpellResources({
             setDraft({
               revision: participant.revision,
               resources,
-              remaining: Object.fromEntries(
-                resources.map((r) => [r.key, Number(r.remaining)]),
-              ),
+              remaining: Object.fromEntries(resources.map((r) => [r.key, r.remaining])),
             })
           }
         />
@@ -318,7 +311,7 @@ export function EncounterSpellResources({
                     d && {
                       ...d,
                       remaining: Object.fromEntries(
-                        d.resources.map((r) => [r.key, Number(r.capacity)]),
+                        d.resources.map((r) => [r.key, r.capacity]),
                       ),
                     },
                 )
@@ -349,7 +342,7 @@ export function EncounterSpellResources({
               <InputNumber
                 aria-label={`${resource.label} remaining`}
                 min={0}
-                max={Number(resource.capacity)}
+                max={resource.capacity}
                 precision={0}
                 value={draft.remaining[resource.key]}
                 disabled={disabled || !!changed}
@@ -405,8 +398,8 @@ export function SharedResourceControl({
   onAction,
 }: Actions & { resource: EncounterSpellResourceView }) {
   const [updateError, setUpdateError] = useState<string>();
-  const remaining = Number(resource.remaining);
-  const capacity = Number(resource.capacity);
+  const remaining = resource.remaining;
+  const capacity = resource.capacity;
   const update = async (value: number) => {
     if (disabled || pending || value < 0 || value > capacity || value === remaining)
       return;
@@ -421,10 +414,7 @@ export function SharedResourceControl({
           kind: "set_entry_resources",
           entry_id: resource.entry_id,
           remaining: Object.fromEntries(
-            pools.map((r) => [
-              r.key,
-              r.key === resource.key ? BigInt(value) : r.remaining,
-            ]),
+            pools.map((r) => [r.key, r.key === resource.key ? value : r.remaining]),
           ),
         },
         participant.revision,

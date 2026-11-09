@@ -26,15 +26,15 @@ import {
   isArtifactGenerationChanged,
   retireReferenceQueries,
 } from "../queries/referenceQueries";
-import { recordDetailQueryOptions } from "./recordDetailQuery";
+import { recordDetailQueryOptions, recordSelection } from "./recordDetailQuery";
 
 type EncounterPreviewContext = {
   encounterRef: string;
   identity: string;
   generation: string | null;
   parentRecordKey: string | undefined;
-  revision?: bigint;
-  conditions?: { condition_id: bigint; condition_key?: string | null }[];
+  revision?: number;
+  conditions?: { condition_id: number; condition_key?: string | null }[];
   presentation: RecordPresentationView | undefined;
   reloadEncounter?: () => Promise<unknown>;
 };
@@ -66,7 +66,7 @@ type ReadingFrame = {
   generation?: string;
   selection?: RecordNavigationView;
   landing?: RecordNavigationView;
-  context?: { identity: string; generation: string | null; conditionId?: bigint };
+  context?: { identity: string; generation: string | null; conditionId?: number };
 };
 
 type ReadingBookmark = ReturnType<typeof previewBookmark> & { scroll: number };
@@ -167,9 +167,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       recordKey,
       requestedContext?.conditionId?.toString(),
       encounterContext?.revision?.toString(),
-      JSON.stringify(encounterContext?.presentation, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value,
-      ),
+      JSON.stringify(encounterContext?.presentation),
       selection,
     ],
     enabled: Boolean(requestedContext && !contextualError && !reloadState && selection),
@@ -180,14 +178,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         {
           artifact_generation: requestedContext!.generation!,
           condition_id: requestedContext!.conditionId,
-          selection: {
-            record_key: recordKey!,
-            spell_rank: selection!.spell_rank,
-            embedded_path: selection!.embedded_path,
-            fields: selection!.field ? [selection!.field] : [],
-            passage: selection!.passage,
-            source_fingerprint: selection!.source_fingerprint,
-          },
+          selection: recordSelection({ ...selection!, record_key: recordKey! }),
         },
         signal,
       ),
@@ -199,14 +190,11 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   // addressed content while Rust prepares fresh context; identity/generation and
   // exact navigation still prevent borrowing content across sources.
   const retainedContextual = useRetainedRecord(
-    JSON.stringify(
-      [
-        encounterContext?.encounterRef,
-        requestedContext,
-        recordReadingIdentity(recordKey, selection),
-      ],
-      (_key, value) => (typeof value === "bigint" ? value.toString() : value),
-    ),
+    JSON.stringify([
+      encounterContext?.encounterRef,
+      requestedContext,
+      recordReadingIdentity(recordKey, selection),
+    ]),
     contextual.data,
     contextual.error,
   );

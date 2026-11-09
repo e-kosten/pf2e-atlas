@@ -112,7 +112,7 @@ it.each([false, true, null])(
   "retains hazard rules and conditions without treating the generic creature budget as a hazard allotment (complex=%s)",
   (complex) => {
     const actor = actorFixture();
-    const count = (label: string, value: bigint) => ({
+    const count = (label: string, value: number) => ({
       label,
       base_value: value,
       adjusted_value: value,
@@ -125,8 +125,8 @@ it.each([false, true, null])(
       contextual_armor_class: [],
       unapplied_effects: [],
       action_budget: {
-        actions: count("Actions", 3n),
-        reactions: count("Reactions", 1n),
+        actions: count("Actions", 3),
+        reactions: count("Reactions", 1),
         can_act: { available: true },
         can_react: { available: true },
         quickened_sources: [],

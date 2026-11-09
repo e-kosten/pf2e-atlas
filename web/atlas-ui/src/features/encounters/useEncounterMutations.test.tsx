@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { AtlasApiError } from "../../api/atlasApi";
-import type { UpdateEncounterParticipantRequest } from "../../generated/atlas";
+import type { UpdateEncounterParticipantEdit } from "../../generated/atlas";
 import { useEncounterMutations } from "./useEncounterMutations";
 
 const api = vi.hoisted(() => ({
@@ -21,20 +21,9 @@ vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
   ...api,
 }));
-const request: UpdateEncounterParticipantRequest = {
-  participant_key: "pc",
-  expected_revision: 3n,
+const request: UpdateEncounterParticipantEdit = {
+  expected_revision: 3,
   display_name: "PC",
-  side: "pc",
-  participant_variant: "normal",
-  temporary_hp: 0n,
-  defeated: false,
-  hazard_disabled: false,
-  hidden: false,
-  hp_edit: false,
-  max_hp_edit: false,
-  variant_edit: false,
-  use_derived_max: false,
 };
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -74,13 +63,14 @@ it("guards same-tick duplicates and remains pending until canonical receipt refr
   const { result, client } = mount();
   let saving!: ReturnType<typeof result.current.run>;
   await act(async () => {
-    saving = result.current.run({ kind: "participant", request });
-    await expect(result.current.run({ kind: "participant", request })).rejects.toThrow(
-      "Wait",
-    );
+    saving = result.current.run({ kind: "participant", participantKey: "pc", request });
+    await expect(
+      result.current.run({ kind: "participant", participantKey: "pc", request }),
+    ).rejects.toThrow("Wait");
   });
   expect(api.updateEncounterParticipant).toHaveBeenCalledExactlyOnceWith(
     "encounter-key",
+    "pc",
     request,
   );
   await waitFor(() => expect(result.current.pending).toBe(true));
@@ -103,15 +93,15 @@ it("reports committed refresh failure and retries only its read", async () => {
   const { result } = mount();
   await act(async () => {
     await expect(
-      result.current.run({ kind: "participant", request }),
+      result.current.run({ kind: "participant", participantKey: "pc", request }),
     ).resolves.toMatchObject({ refreshed: false });
   });
   expect(result.current.error).toBeNull();
   expect(result.current.refreshMessage).toMatch(/^Saved/);
   expect(result.current.refreshError?.message).toBe("Artifact unavailable");
-  await expect(result.current.run({ kind: "participant", request })).rejects.toThrow(
-    "Wait",
-  );
+  await expect(
+    result.current.run({ kind: "participant", participantKey: "pc", request }),
+  ).rejects.toThrow("Wait");
   await act(async () => {
     await result.current.retryRefresh();
   });
@@ -131,9 +121,9 @@ it.each([false, true])(
     if (readFailure) api.getEncounter.mockRejectedValue(new Error("Read unavailable"));
     const { result } = mount();
     await act(async () => {
-      await expect(result.current.run({ kind: "participant", request })).rejects.toBe(
-        conflict,
-      );
+      await expect(
+        result.current.run({ kind: "participant", participantKey: "pc", request }),
+      ).rejects.toBe(conflict);
     });
     expect(result.current.errorMessage).toMatch(/Encounter changed/);
     expect(api.getEncounter).toHaveBeenCalledExactlyOnceWith("encounter-key");
@@ -157,7 +147,6 @@ it("does not treat an unrelated metadata 409 as a participant conflict", async (
       result.current.run({
         kind: "metadata",
         request: {
-          encounter_key: "encounter-key",
           slug: { expected: "old-slug", value: "new-slug" },
         },
       }),
@@ -202,9 +191,9 @@ it.each([false, true])(
       await expect(
         result.current.run({
           kind: "spell",
+          participantKey: "pc",
           request: {
-            participant_key: "pc",
-            expected_revision: 3n,
+            expected_revision: 3,
             action: { kind: "set_expended", selection, expended: false },
           },
         }),
@@ -230,9 +219,9 @@ it.each(["cast"] as const)(
       await expect(
         result.current.run({
           kind: "spell",
+          participantKey: "pc",
           request: {
-            participant_key: "pc",
-            expected_revision: 3n,
+            expected_revision: 3,
             action: {
               kind,
               selection: {
@@ -262,7 +251,7 @@ it("retains a guarded HP resolution identity after an uncertain response and rep
   api.resolveEncounterHpLifecycle.mockRejectedValue(new Error("Connection lost"));
   const { result } = mount();
   const request = {
-    expected_encounter_revision: 4n,
+    expected_encounter_revision: 4,
     consequence_key: "hp-event",
     resolution: "apply" as const,
     context: {
@@ -310,36 +299,36 @@ it("keeps an uncertain raw HP intent id and gives a later deliberate click a fre
     .mockResolvedValue({ encounter_key: "encounter-key" });
   const { result } = mount();
   const request = {
-    participant_key: "actor",
-    expected_revision: 3n,
+    expected_revision: 3,
     action: { kind: "damage" as const, amount: "2d6" },
   };
   await act(async () => {
-    await expect(result.current.run({ kind: "hp", request })).rejects.toThrow(
-      "Connection lost",
-    );
+    await expect(
+      result.current.run({ kind: "hp", participantKey: "actor", request }),
+    ).rejects.toThrow("Connection lost");
   });
   await act(async () => {
-    await result.current.run({ kind: "hp", request });
+    await result.current.run({ kind: "hp", participantKey: "actor", request });
   });
   await act(async () => {
     await result.current.run({
       kind: "hp",
-      request: { ...request, expected_revision: 4n },
+      participantKey: "actor",
+      request: { ...request, expected_revision: 4 },
     });
   });
   const calls = api.applyEncounterHpAction.mock.calls;
   expect(calls).toHaveLength(3);
-  for (const [encounter, sent] of calls) {
+  for (const [encounter, participant, sent] of calls) {
     expect(encounter).toBe("encounter-key");
+    expect(participant).toBe("actor");
     expect(sent.request_id).toEqual(expect.stringMatching(/\S+/));
     expect(sent).toMatchObject({
-      participant_key: "actor",
       action: { kind: "damage", amount: "2d6" },
     });
   }
-  expect(calls[0][1].request_id).toBe(calls[1][1].request_id);
-  expect(calls[2][1].request_id).not.toBe(calls[1][1].request_id);
+  expect(calls[0][2].request_id).toBe(calls[1][2].request_id);
+  expect(calls[2][2].request_id).not.toBe(calls[1][2].request_id);
 });
 
 it("never resubmits a committed party addition when its refresh fails", async () => {

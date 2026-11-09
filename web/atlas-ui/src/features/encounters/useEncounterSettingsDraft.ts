@@ -4,7 +4,6 @@ import type {
   EncounterDetailView,
   EncounterStatusView,
   EncounterSummaryView,
-  FieldEdit,
   UpdateEncounterRequest,
 } from "../../generated/atlas";
 import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
@@ -15,7 +14,7 @@ type SavedSettings = {
   description: string | null;
   note: string | null;
   status: EncounterStatusView;
-  round_duration_seconds: bigint;
+  round_duration_seconds: number;
 };
 
 export type EncounterSettingsValues = Omit<
@@ -66,7 +65,7 @@ function formValues(saved: SavedSettings): EncounterSettingsValues {
     ...saved,
     description: saved.description ?? "",
     note: saved.note ?? "",
-    round_duration_seconds: Number(saved.round_duration_seconds),
+    round_duration_seconds: saved.round_duration_seconds,
   };
 }
 
@@ -135,7 +134,7 @@ export function useEncounterSettingsDraft({
     function edit<K extends Setting>(
       field: K,
       encode: (value: EncounterSettingsValues[K]) => SavedSettings[K],
-    ): FieldEdit<SavedSettings[K]> | undefined {
+    ) {
       if (!form.isFieldTouched(field) || original[field] === values[field]) {
         return undefined;
       }
@@ -146,10 +145,9 @@ export function useEncounterSettingsDraft({
     const description = edit("description", (value) => value || null);
     const note = edit("note", (value) => value || null);
     const status = edit("status", (value) => value);
-    const roundDuration = edit("round_duration_seconds", BigInt);
+    const roundDuration = edit("round_duration_seconds", (value) => value);
     try {
       await onSave({
-        encounter_key: encounter.encounter_key,
         ...(name && { name }),
         ...(description && { description }),
         ...(note && { note }),

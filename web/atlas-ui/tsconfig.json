@@ -18,6 +18,6 @@
     "noEmit": true,
     "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "../../crates/atlas-app-model/bindings/**/*.ts"],
+  "include": ["src"],
   "references": []
 }

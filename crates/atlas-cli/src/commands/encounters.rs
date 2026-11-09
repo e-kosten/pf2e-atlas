@@ -268,8 +268,8 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             initiative,
         } => {
             let view = view!(service.add_encounter_record_participant(
+                &encounter,
                 AddEncounterRecordParticipantRequest {
-                    encounter_ref: encounter,
                     record_ref: record,
                     quantity,
                     participant_variant: adjustment.map(|value| match value {

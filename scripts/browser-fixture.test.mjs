@@ -27,9 +27,6 @@ test("browser artifacts reject stale source, corrupt contents and incompatible h
     );
     mkdirSync(resolve(root, "web/atlas-ui/src"), { recursive: true });
     mkdirSync(resolve(root, "crates/atlas-web"), { recursive: true });
-    mkdirSync(resolve(root, "crates/atlas-app-model/bindings"), {
-      recursive: true,
-    });
     copyFileSync(
       new URL("../web/atlas-ui/apiContract.ts", import.meta.url),
       resolve(root, "web/atlas-ui/apiContract.ts"),
@@ -38,12 +35,11 @@ test("browser artifacts reject stale source, corrupt contents and incompatible h
       resolve(root, "crates/atlas-web/api-contract.json"),
       JSON.stringify({
         protocol_revision: 1,
-        bindings: "crates/atlas-app-model/bindings",
       }),
     );
     writeFileSync(
-      resolve(root, "crates/atlas-app-model/bindings/Test.ts"),
-      "export type Test = string;\n",
+      resolve(root, "crates/atlas-web/openapi.json"),
+      '{"openapi":"3.1.0","paths":{}}\n',
     );
     writeFileSync(
       resolve(root, "web/atlas-ui/src/current.ts"),

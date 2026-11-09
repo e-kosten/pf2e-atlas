@@ -61,7 +61,7 @@ export function EncounterConditionEditor({
   actionsContainer?: HTMLElement | null;
   definitions: EncounterConditionDefinitionView[];
   damageTypes?: Array<{ value: string; label: string }>;
-  standardRecoveryDc?: bigint;
+  standardRecoveryDc?: number;
   participants: EncounterParticipantView[];
   participantKey: string;
   participantKind?: EncounterParticipantView["participant_kind"];
@@ -69,7 +69,7 @@ export function EncounterConditionEditor({
   pending: boolean;
   error?: string;
   recovery?: ReactNode;
-  revision: bigint;
+  revision: number;
   onPreview: (
     input: ConditionEventInput,
   ) => Promise<import("../../generated/atlas").ConditionEventPreviewView>;
@@ -144,11 +144,9 @@ export function EncounterConditionEditor({
         condition.value === undefined && condition.duration !== undefined
           ? "duration"
           : "value",
-      value: condition.value === undefined ? undefined : Number(condition.value),
+      value: condition.value === undefined ? undefined : condition.value,
       durationAmount:
-        condition.duration === undefined
-          ? undefined
-          : Number(condition.duration.amount),
+        condition.duration === undefined ? undefined : condition.duration.amount,
       durationUnit: condition.duration?.unit ?? "none",
       durationEvent: condition.duration?.timing?.event,
       durationParticipant: condition.duration?.timing?.participant_key,
@@ -164,7 +162,7 @@ export function EncounterConditionEditor({
           : undefined,
       immunityOverride: condition.immunity_override,
       sickenedRecoveryDc:
-        sickened?.recovery_dc === undefined ? undefined : Number(sickened.recovery_dc),
+        sickened?.recovery_dc === undefined ? undefined : sickened.recovery_dc,
       wakingRule: unconscious?.waking ?? "normal",
       conditionSubject: conditionSubjectKey,
       conditionSubjectDescription:
@@ -173,21 +171,19 @@ export function EncounterConditionEditor({
           : undefined,
       frightenedRecovery: frightened?.recovery.kind ?? "end_turn",
       frightenedMinimum:
-        frightened?.recovery.kind === "end_turn"
-          ? Number(frightened.recovery.minimum)
-          : 0,
-      brokenThreshold: broken?.threshold == null ? undefined : Number(broken.threshold),
+        frightened?.recovery.kind === "end_turn" ? frightened.recovery.minimum : 0,
+      brokenThreshold: broken?.threshold == null ? undefined : broken.threshold,
       persistentFormula: persistent?.formula ?? undefined,
       persistentDamageType: persistent?.damage_type ?? undefined,
       persistentMultiplier: persistent?.multiplier ?? "normal",
       persistentRecoveryDc:
         persistent?.recovery.kind === "specified"
-          ? Number(persistent.recovery.dc)
+          ? persistent.recovery.dc
           : persistent?.recovery.kind === "source_dependent"
             ? undefined
             : standardRecoveryDc == null
               ? undefined
-              : Number(standardRecoveryDc),
+              : standardRecoveryDc,
       extraActionKeys:
         condition.extra_action.kind === "restricted"
           ? [
@@ -323,12 +319,10 @@ export function EncounterConditionEditor({
         disabled={disabled || preparing}
         initialValues={{
           durationUnit: condition?.duration?.unit ?? "none",
-          durationAmount: condition?.duration
-            ? Number(condition.duration.amount)
-            : undefined,
+          durationAmount: condition?.duration ? condition.duration.amount : undefined,
           durationEvent: condition?.duration?.timing?.event,
           durationParticipant: condition?.duration?.timing?.participant_key,
-          value: condition?.value === undefined ? undefined : Number(condition.value),
+          value: condition?.value === undefined ? undefined : condition.value,
           conditionRef: condition?.condition_key,
           stunMode:
             condition?.value === undefined && condition?.duration !== undefined
@@ -346,9 +340,7 @@ export function EncounterConditionEditor({
               : undefined,
           immunityOverride: condition?.immunity_override,
           sickenedRecoveryDc:
-            sickened?.recovery_dc === undefined
-              ? undefined
-              : Number(sickened.recovery_dc),
+            sickened?.recovery_dc === undefined ? undefined : sickened.recovery_dc,
           wakingRule: unconscious?.waking ?? "normal",
           conditionSubject: conditionSubjectKey,
           conditionSubjectDescription:
@@ -357,22 +349,19 @@ export function EncounterConditionEditor({
               : undefined,
           frightenedRecovery: frightened?.recovery.kind ?? "end_turn",
           frightenedMinimum:
-            frightened?.recovery.kind === "end_turn"
-              ? Number(frightened.recovery.minimum)
-              : 0,
-          brokenThreshold:
-            broken?.threshold == null ? undefined : Number(broken.threshold),
+            frightened?.recovery.kind === "end_turn" ? frightened.recovery.minimum : 0,
+          brokenThreshold: broken?.threshold == null ? undefined : broken.threshold,
           persistentFormula: persistent?.formula ?? undefined,
           persistentDamageType: persistent?.damage_type ?? undefined,
           persistentMultiplier: persistent?.multiplier ?? "normal",
           persistentRecoveryDc:
             persistent?.recovery.kind === "specified"
-              ? Number(persistent.recovery.dc)
+              ? persistent.recovery.dc
               : persistent?.recovery.kind === "source_dependent"
                 ? undefined
                 : standardRecoveryDc == null
                   ? undefined
-                  : Number(standardRecoveryDc),
+                  : standardRecoveryDc,
           extraActionKeys:
             condition?.extra_action.kind === "restricted"
               ? [
@@ -454,7 +443,7 @@ export function EncounterConditionEditor({
                   persistentDamageType: undefined,
                   persistentMultiplier: "normal",
                   persistentRecoveryDc:
-                    standardRecoveryDc == null ? undefined : Number(standardRecoveryDc),
+                    standardRecoveryDc == null ? undefined : standardRecoveryDc,
                   sickenedRecoveryDc: undefined,
                   wakingRule: "normal",
                   conditionSubject: "__unknown",
@@ -472,7 +461,7 @@ export function EncounterConditionEditor({
                     name: "value",
                     value:
                       selected?.has_value && !timedStunned
-                        ? Number(selected.default_value ?? 1n)
+                        ? (selected.default_value ?? 1)
                         : undefined,
                     errors: [],
                   },

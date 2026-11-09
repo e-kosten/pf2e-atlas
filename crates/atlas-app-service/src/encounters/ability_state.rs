@@ -10,9 +10,10 @@ impl AtlasAppService {
     pub fn update_encounter_ability_state(
         &self,
         encounter_ref: &str,
+        participant_key: &str,
         request: UpdateEncounterAbilityStateRequest,
     ) -> AppServiceResult<EncounterMutationView> {
-        let intent = serde_json::json!({"action":"ability_state", "request":request});
+        let intent = serde_json::json!({"action":"ability_state", "request":event_execution::receipt_request(&request, "participant_key", participant_key)});
         if let Some(receipt) =
             event_execution::recover(self, encounter_ref, &request.request_id, &intent)?
         {
@@ -23,7 +24,7 @@ impl AtlasAppService {
         let participant = snapshot
             .participants
             .iter()
-            .find(|participant| participant.participant_key == request.participant_key)
+            .find(|participant| participant.participant_key == participant_key)
             .ok_or_else(|| {
                 AppServiceError::invalid_request("Participant is no longer in this encounter.")
             })?;
@@ -179,10 +180,7 @@ impl AtlasAppService {
             intent: &intent,
             expected_revision: request.expected_encounter_revision,
             reference_revision: subject.reference_revision,
-            participant_revision: Some((
-                &request.participant_key,
-                request.expected_participant_revision,
-            )),
+            participant_revision: Some((participant_key, request.expected_participant_revision)),
         }
         .commit(self, changes)
         .map(event_execution::mutation)
