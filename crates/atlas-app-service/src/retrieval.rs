@@ -123,6 +123,7 @@ pub(crate) fn variant_group_view(
                         compatibility: e.compatibility,
                     })
                     .collect(),
+                verified: g.verified.then_some(true),
                 ambiguous: g.ambiguous,
                 truncated: g.truncated,
             },

@@ -175,3 +175,25 @@ ATLAS_STORAGE_PROBE_SOURCE=/absolute/path/to/development/workspace.sqlite \
 These local debug timings are diagnostic, not release performance guarantees.
 Exact-distance KNN ties may return different witnesses after packing; comparison
 checks the distance sequence rather than arbitrary tied IDs.
+
+## Equipment family review during a source upgrade
+
+The equipment family catalog is
+[maintained with retrieval](../../crates/atlas-search/src/variants/equipment_families.json).
+Its source notes explain the member selection for maintainers. The order of
+members records the progression unless the family is marked for level ordering.
+Keep stable Foundry keys and review the expected names, item types, physical
+categories, and any ammunition references against the new source pin. Review
+new potential siblings and exclusions before adjusting verified membership.
+Explore falls back to possible variants if a reviewed member no longer matches.
+
+For a baseline comparison, run this on the private development workspace for
+each candidate source revision. Use the source pin appropriate to the candidate
+and compare the JSON lines by record key.
+
+```sh
+db=.atlas/workspace.sqlite
+sqlite3 -readonly "$db" "SELECT key FROM records WHERE pack_id='equipment-srd' ORDER BY key" |
+  cargo run --locked --quiet -p atlas-search --example equipment_variant_audit -- \
+    "$db" "$(sqlite3 -readonly "$db" 'PRAGMA user_version')"
+```

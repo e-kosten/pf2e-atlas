@@ -1,0 +1,1529 @@
+{
+  "families": {
+    "jolt-coil": {
+      "name": "Jolt Coil",
+      "source_note": "Treasure Vault (Remastered). Three spellheart grades, including the level-3 base item.",
+      "members": [
+        {
+          "key": "equipment-srd:0gxqSZhYdOeJhPrp",
+          "name": "Jolt Coil",
+          "item_type": "equipment",
+          "attributes": [
+            "Base item"
+          ]
+        },
+        {
+          "key": "equipment-srd:auEm7vmpG9V8xpAJ",
+          "name": "Jolt Coil (Greater)",
+          "item_type": "equipment",
+          "attributes": [
+            "Greater"
+          ]
+        },
+        {
+          "key": "equipment-srd:TucjFO5NQHvUUc7a",
+          "name": "Jolt Coil (Major)",
+          "item_type": "equipment",
+          "attributes": [
+            "Major"
+          ]
+        }
+      ]
+    },
+    "elixir-of-life": {
+      "name": "Elixir of Life",
+      "source_note": "GM Core. Elixir grades run from Minor to True.",
+      "members": [
+        {
+          "key": "equipment-srd:hDLbR56Id2OtU318",
+          "name": "Elixir of Life (Minor)",
+          "item_type": "consumable",
+          "category": "elixir",
+          "attributes": [
+            "Minor"
+          ]
+        },
+        {
+          "key": "equipment-srd:TZUskLT7yvP7N2co",
+          "name": "Elixir of Life (Lesser)",
+          "item_type": "consumable",
+          "category": "elixir",
+          "attributes": [
+            "Lesser"
+          ]
+        },
+        {
+          "key": "equipment-srd:c21stU5rhN4F2fZl",
+          "name": "Elixir of Life (Moderate)",
+          "item_type": "consumable",
+          "category": "elixir",
+          "attributes": [
+            "Moderate"
+          ]
+        },
+        {
+          "key": "equipment-srd:mYozcVg9fQY6zO7C",
+          "name": "Elixir of Life (Greater)",
+          "item_type": "consumable",
+          "category": "elixir",
+          "attributes": [
+            "Greater"
+          ]
+        },
+        {
+          "key": "equipment-srd:AmxSqEoFhRLMYd1W",
+          "name": "Elixir of Life (Major)",
+          "item_type": "consumable",
+          "category": "elixir",
+          "attributes": [
+            "Major"
+          ]
+        },
+        {
+          "key": "equipment-srd:qK964kZz1ALcysOa",
+          "name": "Elixir of Life (True)",
+          "item_type": "consumable",
+          "category": "elixir",
+          "attributes": [
+            "True"
+          ]
+        }
+      ]
+    },
+    "armor-potency": {
+      "name": "Armor Potency",
+      "source_note": "GM Core. The +1 through +3 fundamental armor runes.",
+      "members": [
+        {
+          "key": "equipment-srd:Ro3g2JpJXrKXVyEr",
+          "name": "Armor Potency (+1)",
+          "item_type": "equipment",
+          "attributes": [
+            "+1"
+          ]
+        },
+        {
+          "key": "equipment-srd:4Hb8tvvWFtykbZhG",
+          "name": "Armor Potency (+2)",
+          "item_type": "equipment",
+          "attributes": [
+            "+2"
+          ]
+        },
+        {
+          "key": "equipment-srd:6ELjUFY0sEJ7nZlZ",
+          "name": "Armor Potency (+3)",
+          "item_type": "equipment",
+          "attributes": [
+            "+3"
+          ]
+        }
+      ]
+    },
+    "spacious-pouch": {
+      "name": "Spacious Pouch",
+      "source_note": "GM Core. Four capacities identified by Type I through IV.",
+      "members": [
+        {
+          "key": "equipment-srd:jaEEvuQ32GjAa8jy",
+          "name": "Spacious Pouch (Type I)",
+          "item_type": "backpack",
+          "attributes": [
+            "Type I"
+          ]
+        },
+        {
+          "key": "equipment-srd:JBMBaN9dZLytfFLQ",
+          "name": "Spacious Pouch (Type II)",
+          "item_type": "backpack",
+          "attributes": [
+            "Type II"
+          ]
+        },
+        {
+          "key": "equipment-srd:jkb2WNby4mjcYqq9",
+          "name": "Spacious Pouch (Type III)",
+          "item_type": "backpack",
+          "attributes": [
+            "Type III"
+          ]
+        },
+        {
+          "key": "equipment-srd:34DA4rFy7bduRAld",
+          "name": "Spacious Pouch (Type IV)",
+          "item_type": "backpack",
+          "attributes": [
+            "Type IV"
+          ]
+        }
+      ]
+    },
+    "magic-wand": {
+      "name": "Magic Wand",
+      "source_note": "GM Core. Generic spell wands from first through ninth rank.",
+      "members": [
+        {
+          "key": "equipment-srd:UJWiN0K3jqVjxvKk",
+          "name": "Magic Wand (1st-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "1st-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:vJZ49cgi8szuQXAD",
+          "name": "Magic Wand (2nd-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "2nd-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:wrDmWkGxmwzYtfiA",
+          "name": "Magic Wand (3rd-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "3rd-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:Sn7v9SsbEDMUIwrO",
+          "name": "Magic Wand (4th-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "4th-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:5BF7zMnrPYzyigCs",
+          "name": "Magic Wand (5th-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "5th-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:kiXh4SUWKr166ZeM",
+          "name": "Magic Wand (6th-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "6th-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:nmXPj9zuMRQBNT60",
+          "name": "Magic Wand (7th-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "7th-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:Qs8RgNH6thRPv2jt",
+          "name": "Magic Wand (8th-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "8th-Rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:Fgv722039TVM5JTc",
+          "name": "Magic Wand (9th-Rank Spell)",
+          "item_type": "consumable",
+          "category": "wand",
+          "attributes": [
+            "9th-Rank Spell"
+          ]
+        }
+      ]
+    },
+    "cantrip-deck": {
+      "name": "Cantrip Deck",
+      "source_note": "Player Core. Five cards of one cantrip or the full set of 25.",
+      "members": [
+        {
+          "key": "equipment-srd:tLa4bewBhyqzi6Ow",
+          "name": "Cantrip Deck (5-pack)",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "5-pack"
+          ]
+        },
+        {
+          "key": "equipment-srd:xTdrhiLqFYUllrpK",
+          "name": "Cantrip Deck (Full Pack)",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "Full Pack"
+          ]
+        }
+      ]
+    },
+    "elven-chain": {
+      "name": "Elven Chain",
+      "source_note": "GM Core. Standard-grade and high-grade options.",
+      "members": [
+        {
+          "key": "equipment-srd:peAvz7u35GEfTXxp",
+          "name": "Elven Chain (Standard-Grade)",
+          "item_type": "armor",
+          "category": "light",
+          "attributes": [
+            "Standard-Grade"
+          ]
+        },
+        {
+          "key": "equipment-srd:PuqdH7DmNsN79HyE",
+          "name": "Elven Chain (High-Grade)",
+          "item_type": "armor",
+          "category": "light",
+          "attributes": [
+            "High-Grade"
+          ]
+        }
+      ]
+    },
+    "potion-of-fire-resistance": {
+      "name": "Potion of Fire Resistance",
+      "source_note": "Core Rulebook and GM Core. The Moderate entry fills the middle grade of the same resistance progression.",
+      "members": [
+        {
+          "key": "equipment-srd:bDnk4TSzvD5BQmE5",
+          "name": "Potion of Fire Resistance (Lesser)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Lesser"
+          ]
+        },
+        {
+          "key": "equipment-srd:m99u0zXVbyPdK8Mf",
+          "name": "Potion of Fire Resistance (Moderate)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Moderate"
+          ]
+        },
+        {
+          "key": "equipment-srd:1OJxRnPs0viJVrZq",
+          "name": "Potion of Fire Resistance (Greater)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Greater"
+          ]
+        }
+      ]
+    },
+    "scroll": {
+      "name": "Scroll",
+      "source_note": "GM Core. Generic scrolls across ten ranks; rank is part of the item name.",
+      "members": [
+        {
+          "key": "equipment-srd:RjuupS9xyXDLgyIr",
+          "name": "Scroll of 1st-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "1st-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:Y7UD64foDbDMV9sx",
+          "name": "Scroll of 2nd-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "2nd-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:ZmefGBXGJF3CFDbn",
+          "name": "Scroll of 3rd-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "3rd-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:QSQZJ5BC3DeHv153",
+          "name": "Scroll of 4th-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "4th-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:tjLvRWklAylFhBHQ",
+          "name": "Scroll of 5th-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "5th-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:4sGIy77COooxhQuC",
+          "name": "Scroll of 6th-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "6th-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:fomEZZ4MxVVK3uVu",
+          "name": "Scroll of 7th-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "7th-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:iPki3yuoucnj7bIt",
+          "name": "Scroll of 8th-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "8th-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:cFHomF3tty8Wi1e5",
+          "name": "Scroll of 9th-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "9th-rank Spell"
+          ]
+        },
+        {
+          "key": "equipment-srd:o1XIHJ4MJyroAHfF",
+          "name": "Scroll of 10th-rank Spell",
+          "item_type": "consumable",
+          "category": "scroll",
+          "attributes": [
+            "10th-rank Spell"
+          ]
+        }
+      ]
+    },
+    "wondrous-figurine": {
+      "name": "Wondrous Figurine",
+      "source_note": "Core Rulebook and adventure paths. Creature-transforming figurines, including Stuffed Fox with comma punctuation.",
+      "members": [
+        {
+          "key": "equipment-srd:BANLXq8FhwqsDu0v",
+          "name": "Wondrous Figurine (Onyx Dog)",
+          "item_type": "equipment",
+          "attributes": [
+            "Onyx Dog"
+          ]
+        },
+        {
+          "key": "equipment-srd:6rhind8MDhtJHlwq",
+          "name": "Wondrous Figurine (Candy Constrictor)",
+          "item_type": "equipment",
+          "attributes": [
+            "Candy Constrictor"
+          ]
+        },
+        {
+          "key": "equipment-srd:v935rvhKtJm7PSNF",
+          "name": "Wondrous Figurine, Stuffed Fox",
+          "item_type": "equipment",
+          "attributes": [
+            "Stuffed Fox"
+          ]
+        },
+        {
+          "key": "equipment-srd:RjJw7iHantxqeJu1",
+          "name": "Wondrous Figurine (Jade Serpent)",
+          "item_type": "equipment",
+          "attributes": [
+            "Jade Serpent"
+          ]
+        },
+        {
+          "key": "equipment-srd:YO2X0EE3txascuuP",
+          "name": "Wondrous Figurine (Rubber Bear)",
+          "item_type": "equipment",
+          "attributes": [
+            "Rubber Bear"
+          ]
+        },
+        {
+          "key": "equipment-srd:04V1qwob0JGPEx3k",
+          "name": "Wondrous Figurine (Bismuth Leopards)",
+          "item_type": "equipment",
+          "attributes": [
+            "Bismuth Leopards"
+          ]
+        },
+        {
+          "key": "equipment-srd:YXTrUT7Z7emAn2gb",
+          "name": "Wondrous Figurine (Ruby Hippopotamus)",
+          "item_type": "equipment",
+          "attributes": [
+            "Ruby Hippopotamus"
+          ]
+        },
+        {
+          "key": "equipment-srd:RTxne78VqPqTz2VN",
+          "name": "Wondrous Figurine (Golden Lions)",
+          "item_type": "equipment",
+          "attributes": [
+            "Golden Lions"
+          ]
+        },
+        {
+          "key": "equipment-srd:TXPQfQriNJqMYcfp",
+          "name": "Wondrous Figurine (Marble Elephant)",
+          "item_type": "equipment",
+          "attributes": [
+            "Marble Elephant"
+          ]
+        },
+        {
+          "key": "equipment-srd:RnpzfRWsOW6zmAgN",
+          "name": "Wondrous Figurine (Obsidian Steed)",
+          "item_type": "equipment",
+          "attributes": [
+            "Obsidian Steed"
+          ]
+        }
+      ],
+      "order_by_level": true
+    },
+    "marvelous-miniature": {
+      "name": "Marvelous Miniature",
+      "source_note": "GM Core and adventure material. Includes the Swift Sparrow with comma punctuation.",
+      "members": [
+        {
+          "key": "equipment-srd:24hmJWXhSmfVebEE",
+          "name": "Marvelous Miniature (Campfire)",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "Campfire"
+          ]
+        },
+        {
+          "key": "equipment-srd:3cWko20JPnjeoofV",
+          "name": "Marvelous Miniature (Ladder)",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "Ladder"
+          ]
+        },
+        {
+          "key": "equipment-srd:AB9MZTjKQMTBXyi4",
+          "name": "Marvelous Miniature, Swift Sparrow",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "Swift Sparrow"
+          ]
+        },
+        {
+          "key": "equipment-srd:Dn2KQgIeWNijaUzL",
+          "name": "Marvelous Miniature (Chest)",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "Chest"
+          ]
+        },
+        {
+          "key": "equipment-srd:TknN7T2RDy9cUtKU",
+          "name": "Marvelous Miniature (Horse)",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "Horse"
+          ]
+        },
+        {
+          "key": "equipment-srd:WzsKbMMewXbf1nws",
+          "name": "Marvelous Miniature (Boat)",
+          "item_type": "consumable",
+          "category": "other",
+          "attributes": [
+            "Boat"
+          ]
+        }
+      ],
+      "order_by_level": true
+    },
+    "armorskin-robes": {
+      "name": "Armorskin Robes",
+      "source_note": "Rage of Elements. Air, fire and water robes share the construction and elemental sheath activation.",
+      "members": [
+        {
+          "key": "equipment-srd:HHqBGkHQDpQu0bMK",
+          "name": "Armorskin Robes of Air",
+          "item_type": "armor",
+          "category": "unarmored",
+          "attributes": [
+            "Air"
+          ]
+        },
+        {
+          "key": "equipment-srd:wxiwAGxbEt2Qzo7m",
+          "name": "Armorskin Robes of Fire",
+          "item_type": "armor",
+          "category": "unarmored",
+          "attributes": [
+            "Fire"
+          ]
+        },
+        {
+          "key": "equipment-srd:XPXoUbp3VwdAa5VH",
+          "name": "Armorskin Robes of Water",
+          "item_type": "armor",
+          "category": "unarmored",
+          "attributes": [
+            "Water"
+          ]
+        }
+      ],
+      "order_by_level": true
+    },
+    "energy-breath-potion": {
+      "name": "Energy Breath Potion",
+      "source_note": "GM Core. Five damage types with three grades each.",
+      "members": [
+        {
+          "key": "equipment-srd:vPcDIowg3LAqZYAE",
+          "name": "Energy Breath Potion (Acid, Lesser)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Acid",
+            "Lesser"
+          ]
+        },
+        {
+          "key": "equipment-srd:xRrMmFzpa0WU9uV4",
+          "name": "Energy Breath Potion (Cold, Lesser)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Cold",
+            "Lesser"
+          ]
+        },
+        {
+          "key": "equipment-srd:xpVHMxLcwgXzL39e",
+          "name": "Energy Breath Potion (Electricity, Lesser)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Electricity",
+            "Lesser"
+          ]
+        },
+        {
+          "key": "equipment-srd:3fSc2e5xRjJ7w4g3",
+          "name": "Energy Breath Potion (Fire, Lesser)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Fire",
+            "Lesser"
+          ]
+        },
+        {
+          "key": "equipment-srd:zAn1SNGYW93kmzdn",
+          "name": "Energy Breath Potion (Sonic, Lesser)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Sonic",
+            "Lesser"
+          ]
+        },
+        {
+          "key": "equipment-srd:2VC7FLItVrFWNe4L",
+          "name": "Energy Breath Potion (Acid, Moderate)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Acid",
+            "Moderate"
+          ]
+        },
+        {
+          "key": "equipment-srd:WwWssHoEhyh7Yrrw",
+          "name": "Energy Breath Potion (Cold, Moderate)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Cold",
+            "Moderate"
+          ]
+        },
+        {
+          "key": "equipment-srd:zQnidYCmLCBPfdii",
+          "name": "Energy Breath Potion (Electricity, Moderate)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Electricity",
+            "Moderate"
+          ]
+        },
+        {
+          "key": "equipment-srd:NqNwLeqto2isVWNL",
+          "name": "Energy Breath Potion (Fire, Moderate)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Fire",
+            "Moderate"
+          ]
+        },
+        {
+          "key": "equipment-srd:jjfxEYViPr4FDeMH",
+          "name": "Energy Breath Potion (Sonic, Moderate)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Sonic",
+            "Moderate"
+          ]
+        },
+        {
+          "key": "equipment-srd:2JXUER4xY8s36HUv",
+          "name": "Energy Breath Potion (Acid, Greater)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Acid",
+            "Greater"
+          ]
+        },
+        {
+          "key": "equipment-srd:OiQDcUMrlrYXDgEf",
+          "name": "Energy Breath Potion (Cold, Greater)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Cold",
+            "Greater"
+          ]
+        },
+        {
+          "key": "equipment-srd:ltILKAEnrZ8vKwY0",
+          "name": "Energy Breath Potion (Electricity, Greater)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Electricity",
+            "Greater"
+          ]
+        },
+        {
+          "key": "equipment-srd:KZbAqbt7qxJPPkii",
+          "name": "Energy Breath Potion (Fire, Greater)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Fire",
+            "Greater"
+          ]
+        },
+        {
+          "key": "equipment-srd:4vb8fplhdtLDBxxh",
+          "name": "Energy Breath Potion (Sonic, Greater)",
+          "item_type": "consumable",
+          "category": "potion",
+          "attributes": [
+            "Sonic",
+            "Greater"
+          ]
+        }
+      ]
+    },
+    "puzzle-box": {
+      "name": "Puzzle Box",
+      "source_note": "Equipment entries share the puzzle rules, with three difficulties and a hollow construction option at each.",
+      "members": [
+        {
+          "key": "equipment-srd:ZRaZSTEOpTC1ObdE",
+          "name": "Puzzle Box (Simple)",
+          "item_type": "equipment",
+          "attributes": [
+            "Simple",
+            "standard construction"
+          ]
+        },
+        {
+          "key": "equipment-srd:2qJyAnnVIMFIdeTD",
+          "name": "Puzzle Box (Simple) (Hollow)",
+          "item_type": "equipment",
+          "attributes": [
+            "Simple",
+            "Hollow"
+          ]
+        },
+        {
+          "key": "equipment-srd:6lmTRwT1dNzgWcUd",
+          "name": "Puzzle Box (Complex)",
+          "item_type": "equipment",
+          "attributes": [
+            "Complex",
+            "standard construction"
+          ]
+        },
+        {
+          "key": "equipment-srd:9wBwuCi6jo4sfaLb",
+          "name": "Puzzle Box (Complex) (Hollow)",
+          "item_type": "equipment",
+          "attributes": [
+            "Complex",
+            "Hollow"
+          ]
+        },
+        {
+          "key": "equipment-srd:naxISKMwhLQ5F9yS",
+          "name": "Puzzle Box (Challenging)",
+          "item_type": "equipment",
+          "attributes": [
+            "Challenging",
+            "standard construction"
+          ]
+        },
+        {
+          "key": "equipment-srd:1uwONfUHwHjRJp6o",
+          "name": "Puzzle Box (Challenging) (Hollow)",
+          "item_type": "equipment",
+          "attributes": [
+            "Challenging",
+            "Hollow"
+          ]
+        }
+      ]
+    },
+    "rounds": {
+      "name": "Rounds",
+      "source_note": "Each ammo baseItem is referenced by the listed weapons’ authored ammo.baseType. These are compatibility options.",
+      "members": [
+        {
+          "key": "equipment-srd:lHyguikeoZlFlYdx",
+          "name": "Rounds (Arquebus)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-arquebus",
+            "weapons": [
+              {
+                "key": "equipment-srd:ChTaE7jhvCjcS6jI",
+                "name": "Arquebus"
+              },
+              {
+                "key": "equipment-srd:HKcfpawD4CesJtFy",
+                "name": "Hex Blaster"
+              },
+              {
+                "key": "equipment-srd:O5da0gpQqR9MwGLF",
+                "name": "Mindlance"
+              },
+              {
+                "key": "equipment-srd:DePdZBHfTorg74Ah",
+                "name": "Reaper's Grasp"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:VeeH30MvHyTX4QAT",
+          "name": "Rounds (Axe Musket)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-axe-musket",
+            "weapons": [
+              {
+                "key": "equipment-srd:oUaeLZLK7WfolqBb",
+                "name": "Axe Musket"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:KODdKPhwSQ9t4LKx",
+          "name": "Rounds (Black Powder Knuckle Dusters)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-black-powder-knuckle-dusters",
+            "weapons": [
+              {
+                "key": "equipment-srd:8eGV6fXbmt2v74uB",
+                "name": "Black Powder Knuckle Dusters"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:dSZz8B96D20IWKZ5",
+          "name": "Rounds (Blunderbuss)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-blunderbuss",
+            "weapons": [
+              {
+                "key": "equipment-srd:4kyf3ScoJ4TvhPG3",
+                "name": "Arboreal's Revenge"
+              },
+              {
+                "key": "equipment-srd:NS2j5bYEoHeESlyN",
+                "name": "Black King"
+              },
+              {
+                "key": "equipment-srd:csXSDzgZASX4RWr4",
+                "name": "Blunderbuss"
+              },
+              {
+                "key": "equipment-srd:9jn87Bnp2kGnDFPQ",
+                "name": "Breath Blaster"
+              },
+              {
+                "key": "equipment-srd:4UHTZGZosYcP28lD",
+                "name": "Breath Blaster (Greater)"
+              },
+              {
+                "key": "equipment-srd:WnzQy5naKy9Gj4pY",
+                "name": "Breath Blaster (Major)"
+              },
+              {
+                "key": "equipment-srd:lkENLG26X4ah6Eun",
+                "name": "Leydroth Spellbreaker"
+              },
+              {
+                "key": "equipment-srd:enBDzoapUkvk4WVu",
+                "name": "Thundercrasher"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:oGKa9TWCrFC2LkBU",
+          "name": "Rounds (Cane Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-cane-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:UnTUQ9w8yswupr9m",
+                "name": "Cane Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:58fs0VsG71A9gyEk",
+          "name": "Rounds (Clan Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-clan-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:BtncTx8EfxTsHqQI",
+                "name": "Clan Pistol"
+              },
+              {
+                "key": "equipment-srd:5SVttGODx1TkyhTU",
+                "name": "Immolation Clan Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:oX2Ra68qKcixAxbm",
+          "name": "Rounds (Coat Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-coat-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:LLYD2GEhzhdxoCAx",
+                "name": "Coat Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:FCoziiYnBoRJFVaM",
+          "name": "Rounds (Dagger Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-dagger-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:BPQRgrJwr5GuT00g",
+                "name": "Dagger Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:XnU7QmGlvBHzxkiJ",
+          "name": "Rounds (Dawnsilver Tree)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-mithral-tree",
+            "weapons": [
+              {
+                "key": "equipment-srd:qRqGIxcadjjxcij3",
+                "name": "Dawnsilver Tree"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:P5RvQfgQNCgxpdPU",
+          "name": "Rounds (Double-Barreled Musket)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-double-barreled-musket",
+            "weapons": [
+              {
+                "key": "equipment-srd:rePjr9KceepKIDuB",
+                "name": "Double-Barreled Musket"
+              },
+              {
+                "key": "equipment-srd:ChLxhFpo4WSAKgLh",
+                "name": "Petrification Cannon"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:h7jTMfYGQau1PBBz",
+          "name": "Rounds (Double-Barreled Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-double-barreled-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:MvzR9nTnvKTeNjvQ",
+                "name": "Double-Barreled Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:154C222Y7M96nvrL",
+          "name": "Rounds (Dragon Mouth Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-dragon-mouth-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:4gWvfeDGTSAf9LAQ",
+                "name": "Dragon Mouth Pistol"
+              },
+              {
+                "key": "equipment-srd:4cOXKB8NcL6JzGeI",
+                "name": "Howler Pistol"
+              },
+              {
+                "key": "equipment-srd:sfKzk4bzplyT4zax",
+                "name": "Sunken Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:FKPuzveKRNJhA1mi",
+          "name": "Rounds (Dueling Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-dueling-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:JYtqvOyF11GUsQTB",
+                "name": "Coldstar Pistols"
+              },
+              {
+                "key": "equipment-srd:ogv5nwwrc3sU8DnP",
+                "name": "Dueling Pistol"
+              },
+              {
+                "key": "equipment-srd:q1mt1F9q1XmJWAKY",
+                "name": "Pact-Bound Pistol"
+              },
+              {
+                "key": "equipment-srd:GKBCShgNVVhDiNCb",
+                "name": "Redeemer's Pistol"
+              },
+              {
+                "key": "equipment-srd:EtIXWXnfYdV5AGzy",
+                "name": "Tiger's Claw"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:HUgVrYvdy9SkqRZ9",
+          "name": "Rounds (Dwarven Scattergun)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-dwarven-scattergun",
+            "weapons": [
+              {
+                "key": "equipment-srd:mKEhLq7Ha4lvupMP",
+                "name": "Animate Dreamer"
+              },
+              {
+                "key": "equipment-srd:jcIabnkJgjwzK6Og",
+                "name": "Dwarven Scattergun"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:zxnBe0wgTAEXXzUU",
+          "name": "Rounds (Explosive Dogslicer)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-explosive-dogslicer",
+            "weapons": [
+              {
+                "key": "equipment-srd:cFHUt5tTA7jVPtRh",
+                "name": "Explosive Dogslicer"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:2ayp6yyQDr3iliBp",
+          "name": "Rounds (Fire Lance)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-fire-lance",
+            "weapons": [
+              {
+                "key": "equipment-srd:WUA40bb01pSWv88I",
+                "name": "Fire Lance"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:RQlZFVXv4LOxGyyn",
+          "name": "Rounds (Flingflenser)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-flingflenser",
+            "weapons": [
+              {
+                "key": "equipment-srd:EPhsyiO4jYl0jWoC",
+                "name": "Flingflenser"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:Fy63rwYVBq0hXh0T",
+          "name": "Rounds (Flintlock Musket)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-flintlock-musket",
+            "weapons": [
+              {
+                "key": "equipment-srd:K5PVPhK5EVM2Fxgg",
+                "name": "Duchy Defender"
+              },
+              {
+                "key": "equipment-srd:hqMtsTwmOShdAdQW",
+                "name": "Flintlock Musket"
+              },
+              {
+                "key": "equipment-srd:mfYwthsSMkDS8djw",
+                "name": "Musket Staff of Force"
+              },
+              {
+                "key": "equipment-srd:lsTTJ9GlHOu5o3bt",
+                "name": "Musket Staff of Void"
+              },
+              {
+                "key": "equipment-srd:PsBTAUV7ExEsKpVx",
+                "name": "Screaming Pinion"
+              },
+              {
+                "key": "equipment-srd:mf5eeIdKjfSZ0K3p",
+                "name": "Solar Shellflower"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:3QGZS6l7NrX4auyR",
+          "name": "Rounds (Flintlock Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-flintlock-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:N3nNqO5Nw2DIFhrv",
+                "name": "Flintlock Pistol"
+              },
+              {
+                "key": "equipment-srd:IuL8O6sR8st1mevo",
+                "name": "Mountebank's Passage"
+              },
+              {
+                "key": "equipment-srd:3VgBCJFhEvvbF4gI",
+                "name": "Pistol Wand"
+              },
+              {
+                "key": "equipment-srd:3SjF539wVL6NK9qq",
+                "name": "Pistol of Wonder"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:V9QG93vXuh8d4sJQ",
+          "name": "Rounds (Gnome Amalgam Musket)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-gnome-amalgam-musket",
+            "weapons": [
+              {
+                "key": "equipment-srd:caWhNJ2ahCzZjr55",
+                "name": "Gnome Amalgam Musket"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:ckxYpfX3jTcZZOAz",
+          "name": "Rounds (Gun Sword)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-gun-sword",
+            "weapons": [
+              {
+                "key": "equipment-srd:6RkxhrJqBpFQlRBD",
+                "name": "Blade of Fallen Stars"
+              },
+              {
+                "key": "equipment-srd:ja4phrX3anThH7hx",
+                "name": "Fulmination Fang"
+              },
+              {
+                "key": "equipment-srd:10J0WjnfgRvriLXc",
+                "name": "Gun Sword"
+              },
+              {
+                "key": "equipment-srd:39bdYkGlqjFR0AOL",
+                "name": "Obsidian Edge"
+              },
+              {
+                "key": "equipment-srd:XVxnCBQEW5idfAPw",
+                "name": "Obsidian Edge (Greater)"
+              },
+              {
+                "key": "equipment-srd:KRQDhu2XVmOlaVRu",
+                "name": "Obsidian Edge (Major)"
+              },
+              {
+                "key": "equipment-srd:8W8NvYlRM2lQPJf0",
+                "name": "Obsidian Edge (True)"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:GyzinRH2ZSHANAFc",
+          "name": "Rounds (Hammer Gun)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-hammer-gun",
+            "weapons": [
+              {
+                "key": "equipment-srd:zHJEzmoybIfX1LaV",
+                "name": "Hammer Gun"
+              },
+              {
+                "key": "equipment-srd:VOYQpn4yISYo5Ttq",
+                "name": "Scarlet Queen"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:CmWkSgFyb6HB9KVK",
+          "name": "Rounds (Hand Cannon)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-hand-cannon",
+            "weapons": [
+              {
+                "key": "equipment-srd:GG7XnMngd9MnxhHb",
+                "name": "Big Boom Gun"
+              },
+              {
+                "key": "equipment-srd:IePXTa0jDjDqXxYl",
+                "name": "Gray Prince"
+              },
+              {
+                "key": "equipment-srd:4LJEpZ2HkCu9BvHI",
+                "name": "Hand Cannon"
+              },
+              {
+                "key": "equipment-srd:O7pgJB6M5UqUZ9Qq",
+                "name": "Hyldarf's Fang"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:BZCzkDWQP3TU1Bbp",
+          "name": "Rounds (Harmona Gun)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-harmona-gun",
+            "weapons": [
+              {
+                "key": "equipment-srd:NhKIUGMcxVusTJ6y",
+                "name": "Harmona Gun"
+              },
+              {
+                "key": "equipment-srd:PVdl7StKFu6QPTVl",
+                "name": "Screech Shooter"
+              },
+              {
+                "key": "equipment-srd:1lZNaqqGOrza9BsG",
+                "name": "Screech Shooter (Greater)"
+              },
+              {
+                "key": "equipment-srd:v9smWWOsWFwhCZoB",
+                "name": "Screech Shooter (Major)"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:eCRZcG7ZxFRP8bpx",
+          "name": "Rounds (Jezail)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-jezail",
+            "weapons": [
+              {
+                "key": "equipment-srd:Pu16joZ15pPJS4Bn",
+                "name": "Alicorn Trigger"
+              },
+              {
+                "key": "equipment-srd:7irlzyZA50KqTwce",
+                "name": "Boastful Hunter"
+              },
+              {
+                "key": "equipment-srd:dYydONniFSGwAdL1",
+                "name": "Iris of the Sky"
+              },
+              {
+                "key": "equipment-srd:NEZfXSasFdLdQFBi",
+                "name": "Jezail"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:V2CfXehNhCcxApbg",
+          "name": "Rounds (Mace Multipistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-mace-multipistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:m3QMdlNxFyDFrkQX",
+                "name": "Mace Multipistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:20h1dSg7IVJ5NxNa",
+          "name": "Rounds (Pepperbox)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-pepperbox",
+            "weapons": [
+              {
+                "key": "equipment-srd:8LEKZdpipKp3jYfx",
+                "name": "Liar's Gun"
+              },
+              {
+                "key": "equipment-srd:tk4cfktEnMrp4K6m",
+                "name": "Pepperbox"
+              },
+              {
+                "key": "equipment-srd:f1UCVpGYLHa089SE",
+                "name": "Spark Dancer"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:sfMHQsOv3W8jFFop",
+          "name": "Rounds (Piercing Wind)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-piercing-wind",
+            "weapons": [
+              {
+                "key": "equipment-srd:BdNRM9VTxs5BYq0C",
+                "name": "Jax"
+              },
+              {
+                "key": "equipment-srd:4lO2uNA70HqTuSAD",
+                "name": "Piercing Wind"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:oQr0x30JoLrWxQdA",
+          "name": "Rounds (Rapier Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-rapier-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:ASjNBiQfQfWppPJc",
+                "name": "Nightmare's Lament"
+              },
+              {
+                "key": "equipment-srd:LDHGjtQHRM8bA8ZZ",
+                "name": "Rapier Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:xwHTZGzD8HQrVSal",
+          "name": "Rounds (Shield Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-shield-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:HaquLIE0SFc85vWY",
+                "name": "Shield Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:lLR2wkdzr0iJ6o5y",
+          "name": "Rounds (Shobhad Longrifle)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-shobhad-longrifle",
+            "weapons": [
+              {
+                "key": "equipment-srd:DHKCkxAGveLE3Jnf",
+                "name": "Shobhad Longrifle"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:L2df9pyWLFNgjfNh",
+          "name": "Rounds (Slide Pistol)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-slide-pistol",
+            "weapons": [
+              {
+                "key": "equipment-srd:gO5dOlPBk57bg2x5",
+                "name": "Slide Pistol"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:useyu9PIrr7QXUUh",
+          "name": "Rounds (Spike Launcher)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-spike-launcher",
+            "weapons": [
+              {
+                "key": "equipment-srd:3qn56dTO5TYJHjbF",
+                "name": "Spike Launcher"
+              }
+            ]
+          }
+        },
+        {
+          "key": "equipment-srd:11b6MN3UQ8XKqAer",
+          "name": "Rounds (Three-peaked Tree)",
+          "item_type": "ammo",
+          "fit": {
+            "ammo_type": "rounds-three-peaked-tree",
+            "weapons": [
+              {
+                "key": "equipment-srd:6mgB6Wv8X65pFMRL",
+                "name": "Three-peaked Tree"
+              }
+            ]
+          }
+        }
+      ],
+      "order_by_level": true
+    },
+    "disguise-kit": {
+      "name": "Disguise Kit",
+      "source_note": "Player Core. Base and Elite are kits; separate cosmetics replenish the corresponding kit.",
+      "members": [
+        {
+          "key": "equipment-srd:Jvp0x2Sc82WVpExT",
+          "name": "Disguise Kit",
+          "item_type": "equipment",
+          "attributes": [
+            "Base item"
+          ]
+        },
+        {
+          "key": "equipment-srd:YhkomhtKBK3i9C7Q",
+          "name": "Disguise Kit (Elite)",
+          "item_type": "equipment",
+          "attributes": [
+            "Elite"
+          ]
+        }
+      ]
+    }
+  },
+  "exclusions": [
+    {
+      "members": [
+        "equipment-srd:Jvp0x2Sc82WVpExT",
+        "equipment-srd:YhkomhtKBK3i9C7Q"
+      ],
+      "others": [
+        "equipment-srd:IRqbsE8MgGLTfHLz",
+        "equipment-srd:FWMGkUotwUJuht7i"
+      ]
+    }
+  ]
+}

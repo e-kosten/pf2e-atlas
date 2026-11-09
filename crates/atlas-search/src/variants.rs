@@ -1,3 +1,5 @@
+mod verified;
+
 use atlas_domain::{RecordKey, SourceRecordSummary};
 pub struct VariantGroupRequest<'a> {
     pub record_key: &'a RecordKey,
@@ -17,6 +19,7 @@ pub struct VariantGroupResult {
     pub evidence: Vec<VariantSuggestionEvidence>,
     pub ambiguous: bool,
     pub truncated: bool,
+    pub verified: bool,
 }
 /// Absence is only asserted after a complete compatibility check.
 #[derive(Debug, Clone)]
@@ -82,6 +85,9 @@ impl AtlasRetrievalService {
         let Some(seed) = self.index.read_summary(request.record_key)? else {
             return Ok(VariantGroupOutcome::Missing);
         };
+        if let Some(group) = verified::verified_group(self, &seed)? {
+            return Ok(VariantGroupOutcome::Content(Box::new(group)));
+        }
         let Some(name) = seed.name.as_value() else {
             return Ok(VariantGroupOutcome::Unavailable {
                 reason: "The seed name is unavailable for variant verification".into(),
@@ -129,6 +135,9 @@ impl AtlasRetrievalService {
         let mut evidence = Vec::new();
         let mut ambiguous = false;
         for record in self.summaries(&keys)? {
+            if verified::excluded(&seed.key, &record.key)? {
+                continue;
+            }
             let Some(name) = record.name.as_value() else {
                 insufficient_evidence = true;
                 continue;
@@ -197,6 +206,7 @@ impl AtlasRetrievalService {
             evidence,
             ambiguous,
             truncated,
+            verified: false,
         })))
     }
 }

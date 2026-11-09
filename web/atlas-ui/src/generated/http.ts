@@ -4701,6 +4701,7 @@ export type RelatedCategoryViewVariantGroupView = {
   seed: RecordSummaryView;
   truncated: boolean;
   variants: RecordSummaryView[];
+  verified?: boolean;
 };
   kind: 'content';
 } | {

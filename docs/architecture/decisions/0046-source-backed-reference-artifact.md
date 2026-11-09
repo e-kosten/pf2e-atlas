@@ -115,9 +115,13 @@ comprehensive derived-data validity. Ordinary search does not decode unrelated
 remaster provenance. Source-backed republication preserves saved domains and
 stable identities; opaque old strings do not supply invented evidence.
 
-Suggested variants are a bounded
-same-pack/family derived view with transparent naming evidence, not identity,
-aliases or result suppression. RollTables are product records; Macros are
+Possible variants use a bounded same-pack/family lookup with naming evidence.
+Atlas also ships reviewed equipment families keyed by existing Foundry records.
+Retrieval checks all reviewed members and required compatibility facts against
+one reference snapshot before returning verified membership. An incomplete set
+falls back to the bounded lookup with reviewed exclusions. These views preserve
+record identity, aliases and independent search results. RollTables are product
+records; Macros are
 developer-only on all product paths, including exact-key access.
 
 Precision FTS indexes identity, verified aliases, typed vocabulary, owned names
