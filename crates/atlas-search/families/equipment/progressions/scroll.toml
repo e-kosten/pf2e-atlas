@@ -1,0 +1,17 @@
+name = "Scroll"
+source_note = "GM Core. Generic scrolls across ten ranks; rank is part of the item name."
+item_type = "consumable"
+category = "scroll"
+
+members = [
+    { key = "equipment-srd:RjuupS9xyXDLgyIr", name = "Scroll of 1st-rank Spell", attributes = ["1st-rank Spell"] },
+    { key = "equipment-srd:Y7UD64foDbDMV9sx", name = "Scroll of 2nd-rank Spell", attributes = ["2nd-rank Spell"] },
+    { key = "equipment-srd:ZmefGBXGJF3CFDbn", name = "Scroll of 3rd-rank Spell", attributes = ["3rd-rank Spell"] },
+    { key = "equipment-srd:QSQZJ5BC3DeHv153", name = "Scroll of 4th-rank Spell", attributes = ["4th-rank Spell"] },
+    { key = "equipment-srd:tjLvRWklAylFhBHQ", name = "Scroll of 5th-rank Spell", attributes = ["5th-rank Spell"] },
+    { key = "equipment-srd:4sGIy77COooxhQuC", name = "Scroll of 6th-rank Spell", attributes = ["6th-rank Spell"] },
+    { key = "equipment-srd:fomEZZ4MxVVK3uVu", name = "Scroll of 7th-rank Spell", attributes = ["7th-rank Spell"] },
+    { key = "equipment-srd:iPki3yuoucnj7bIt", name = "Scroll of 8th-rank Spell", attributes = ["8th-rank Spell"] },
+    { key = "equipment-srd:cFHomF3tty8Wi1e5", name = "Scroll of 9th-rank Spell", attributes = ["9th-rank Spell"] },
+    { key = "equipment-srd:o1XIHJ4MJyroAHfF", name = "Scroll of 10th-rank Spell", attributes = ["10th-rank Spell"] },
+]

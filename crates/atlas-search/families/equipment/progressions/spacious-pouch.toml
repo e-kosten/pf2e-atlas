@@ -1,0 +1,10 @@
+name = "Spacious Pouch"
+source_note = "GM Core. Four capacities identified by Type I through IV."
+item_type = "backpack"
+
+members = [
+    { key = "equipment-srd:jaEEvuQ32GjAa8jy", name = "Spacious Pouch (Type I)", attributes = ["Type I"] },
+    { key = "equipment-srd:JBMBaN9dZLytfFLQ", name = "Spacious Pouch (Type II)", attributes = ["Type II"] },
+    { key = "equipment-srd:jkb2WNby4mjcYqq9", name = "Spacious Pouch (Type III)", attributes = ["Type III"] },
+    { key = "equipment-srd:34DA4rFy7bduRAld", name = "Spacious Pouch (Type IV)", attributes = ["Type IV"] },
+]

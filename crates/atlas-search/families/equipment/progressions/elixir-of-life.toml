@@ -1,0 +1,13 @@
+name = "Elixir of Life"
+source_note = "GM Core. Elixir grades run from Minor to True."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:hDLbR56Id2OtU318", name = "Elixir of Life (Minor)", attributes = ["Minor"] },
+    { key = "equipment-srd:TZUskLT7yvP7N2co", name = "Elixir of Life (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:c21stU5rhN4F2fZl", name = "Elixir of Life (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:mYozcVg9fQY6zO7C", name = "Elixir of Life (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:AmxSqEoFhRLMYd1W", name = "Elixir of Life (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:qK964kZz1ALcysOa", name = "Elixir of Life (True)", attributes = ["True"] },
+]

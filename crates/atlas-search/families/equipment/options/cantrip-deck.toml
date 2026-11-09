@@ -1,0 +1,9 @@
+name = "Cantrip Deck"
+source_note = "Player Core. Five cards of one cantrip or the full set of 25."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:tLa4bewBhyqzi6Ow", name = "Cantrip Deck (5-pack)", attributes = ["5-pack"] },
+    { key = "equipment-srd:xTdrhiLqFYUllrpK", name = "Cantrip Deck (Full Pack)", attributes = ["Full Pack"] },
+]

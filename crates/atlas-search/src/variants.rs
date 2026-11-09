@@ -1,3 +1,4 @@
+mod catalog;
 mod verified;
 
 use atlas_domain::{RecordKey, SourceRecordSummary};

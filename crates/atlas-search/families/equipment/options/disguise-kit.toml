@@ -1,0 +1,8 @@
+name = "Disguise Kit"
+source_note = "Player Core. Base and Elite are kits; separate cosmetics replenish the corresponding kit."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Jvp0x2Sc82WVpExT", name = "Disguise Kit", attributes = ["Base item"] },
+    { key = "equipment-srd:YhkomhtKBK3i9C7Q", name = "Disguise Kit (Elite)", attributes = ["Elite"] },
+]

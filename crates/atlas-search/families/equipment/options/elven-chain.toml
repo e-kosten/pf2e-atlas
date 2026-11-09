@@ -1,0 +1,9 @@
+name = "Elven Chain"
+source_note = "GM Core. Standard-grade and high-grade options."
+item_type = "armor"
+category = "light"
+
+members = [
+    { key = "equipment-srd:peAvz7u35GEfTXxp", name = "Elven Chain (Standard-Grade)", attributes = ["Standard-Grade"] },
+    { key = "equipment-srd:PuqdH7DmNsN79HyE", name = "Elven Chain (High-Grade)", attributes = ["High-Grade"] },
+]

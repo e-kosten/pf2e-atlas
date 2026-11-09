@@ -1,0 +1,357 @@
+name = "Rounds"
+source_note = "Each ammo baseItem is referenced by the listed weapons’ authored ammo.baseType. These are compatibility options."
+order_by_level = true
+item_type = "ammo"
+
+[[members]]
+key = "equipment-srd:lHyguikeoZlFlYdx"
+name = "Rounds (Arquebus)"
+[members.fit]
+ammo_type = "rounds-arquebus"
+weapons = [
+    { key = "equipment-srd:ChTaE7jhvCjcS6jI", name = "Arquebus" },
+    { key = "equipment-srd:HKcfpawD4CesJtFy", name = "Hex Blaster" },
+    { key = "equipment-srd:O5da0gpQqR9MwGLF", name = "Mindlance" },
+    { key = "equipment-srd:DePdZBHfTorg74Ah", name = "Reaper's Grasp" },
+]
+
+[[members]]
+key = "equipment-srd:VeeH30MvHyTX4QAT"
+name = "Rounds (Axe Musket)"
+[members.fit]
+ammo_type = "rounds-axe-musket"
+weapons = [
+    { key = "equipment-srd:oUaeLZLK7WfolqBb", name = "Axe Musket" },
+]
+
+[[members]]
+key = "equipment-srd:KODdKPhwSQ9t4LKx"
+name = "Rounds (Black Powder Knuckle Dusters)"
+[members.fit]
+ammo_type = "rounds-black-powder-knuckle-dusters"
+weapons = [
+    { key = "equipment-srd:8eGV6fXbmt2v74uB", name = "Black Powder Knuckle Dusters" },
+]
+
+[[members]]
+key = "equipment-srd:dSZz8B96D20IWKZ5"
+name = "Rounds (Blunderbuss)"
+[members.fit]
+ammo_type = "rounds-blunderbuss"
+weapons = [
+    { key = "equipment-srd:4kyf3ScoJ4TvhPG3", name = "Arboreal's Revenge" },
+    { key = "equipment-srd:NS2j5bYEoHeESlyN", name = "Black King" },
+    { key = "equipment-srd:csXSDzgZASX4RWr4", name = "Blunderbuss" },
+    { key = "equipment-srd:9jn87Bnp2kGnDFPQ", name = "Breath Blaster" },
+    { key = "equipment-srd:4UHTZGZosYcP28lD", name = "Breath Blaster (Greater)" },
+    { key = "equipment-srd:WnzQy5naKy9Gj4pY", name = "Breath Blaster (Major)" },
+    { key = "equipment-srd:lkENLG26X4ah6Eun", name = "Leydroth Spellbreaker" },
+    { key = "equipment-srd:enBDzoapUkvk4WVu", name = "Thundercrasher" },
+]
+
+[[members]]
+key = "equipment-srd:oGKa9TWCrFC2LkBU"
+name = "Rounds (Cane Pistol)"
+[members.fit]
+ammo_type = "rounds-cane-pistol"
+weapons = [
+    { key = "equipment-srd:UnTUQ9w8yswupr9m", name = "Cane Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:58fs0VsG71A9gyEk"
+name = "Rounds (Clan Pistol)"
+[members.fit]
+ammo_type = "rounds-clan-pistol"
+weapons = [
+    { key = "equipment-srd:BtncTx8EfxTsHqQI", name = "Clan Pistol" },
+    { key = "equipment-srd:5SVttGODx1TkyhTU", name = "Immolation Clan Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:oX2Ra68qKcixAxbm"
+name = "Rounds (Coat Pistol)"
+[members.fit]
+ammo_type = "rounds-coat-pistol"
+weapons = [
+    { key = "equipment-srd:LLYD2GEhzhdxoCAx", name = "Coat Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:FCoziiYnBoRJFVaM"
+name = "Rounds (Dagger Pistol)"
+[members.fit]
+ammo_type = "rounds-dagger-pistol"
+weapons = [
+    { key = "equipment-srd:BPQRgrJwr5GuT00g", name = "Dagger Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:XnU7QmGlvBHzxkiJ"
+name = "Rounds (Dawnsilver Tree)"
+[members.fit]
+ammo_type = "rounds-mithral-tree"
+weapons = [
+    { key = "equipment-srd:qRqGIxcadjjxcij3", name = "Dawnsilver Tree" },
+]
+
+[[members]]
+key = "equipment-srd:P5RvQfgQNCgxpdPU"
+name = "Rounds (Double-Barreled Musket)"
+[members.fit]
+ammo_type = "rounds-double-barreled-musket"
+weapons = [
+    { key = "equipment-srd:rePjr9KceepKIDuB", name = "Double-Barreled Musket" },
+    { key = "equipment-srd:ChLxhFpo4WSAKgLh", name = "Petrification Cannon" },
+]
+
+[[members]]
+key = "equipment-srd:h7jTMfYGQau1PBBz"
+name = "Rounds (Double-Barreled Pistol)"
+[members.fit]
+ammo_type = "rounds-double-barreled-pistol"
+weapons = [
+    { key = "equipment-srd:MvzR9nTnvKTeNjvQ", name = "Double-Barreled Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:154C222Y7M96nvrL"
+name = "Rounds (Dragon Mouth Pistol)"
+[members.fit]
+ammo_type = "rounds-dragon-mouth-pistol"
+weapons = [
+    { key = "equipment-srd:4gWvfeDGTSAf9LAQ", name = "Dragon Mouth Pistol" },
+    { key = "equipment-srd:4cOXKB8NcL6JzGeI", name = "Howler Pistol" },
+    { key = "equipment-srd:sfKzk4bzplyT4zax", name = "Sunken Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:FKPuzveKRNJhA1mi"
+name = "Rounds (Dueling Pistol)"
+[members.fit]
+ammo_type = "rounds-dueling-pistol"
+weapons = [
+    { key = "equipment-srd:JYtqvOyF11GUsQTB", name = "Coldstar Pistols" },
+    { key = "equipment-srd:ogv5nwwrc3sU8DnP", name = "Dueling Pistol" },
+    { key = "equipment-srd:q1mt1F9q1XmJWAKY", name = "Pact-Bound Pistol" },
+    { key = "equipment-srd:GKBCShgNVVhDiNCb", name = "Redeemer's Pistol" },
+    { key = "equipment-srd:EtIXWXnfYdV5AGzy", name = "Tiger's Claw" },
+]
+
+[[members]]
+key = "equipment-srd:HUgVrYvdy9SkqRZ9"
+name = "Rounds (Dwarven Scattergun)"
+[members.fit]
+ammo_type = "rounds-dwarven-scattergun"
+weapons = [
+    { key = "equipment-srd:mKEhLq7Ha4lvupMP", name = "Animate Dreamer" },
+    { key = "equipment-srd:jcIabnkJgjwzK6Og", name = "Dwarven Scattergun" },
+]
+
+[[members]]
+key = "equipment-srd:zxnBe0wgTAEXXzUU"
+name = "Rounds (Explosive Dogslicer)"
+[members.fit]
+ammo_type = "rounds-explosive-dogslicer"
+weapons = [
+    { key = "equipment-srd:cFHUt5tTA7jVPtRh", name = "Explosive Dogslicer" },
+]
+
+[[members]]
+key = "equipment-srd:2ayp6yyQDr3iliBp"
+name = "Rounds (Fire Lance)"
+[members.fit]
+ammo_type = "rounds-fire-lance"
+weapons = [
+    { key = "equipment-srd:WUA40bb01pSWv88I", name = "Fire Lance" },
+]
+
+[[members]]
+key = "equipment-srd:RQlZFVXv4LOxGyyn"
+name = "Rounds (Flingflenser)"
+[members.fit]
+ammo_type = "rounds-flingflenser"
+weapons = [
+    { key = "equipment-srd:EPhsyiO4jYl0jWoC", name = "Flingflenser" },
+]
+
+[[members]]
+key = "equipment-srd:Fy63rwYVBq0hXh0T"
+name = "Rounds (Flintlock Musket)"
+[members.fit]
+ammo_type = "rounds-flintlock-musket"
+weapons = [
+    { key = "equipment-srd:K5PVPhK5EVM2Fxgg", name = "Duchy Defender" },
+    { key = "equipment-srd:hqMtsTwmOShdAdQW", name = "Flintlock Musket" },
+    { key = "equipment-srd:mfYwthsSMkDS8djw", name = "Musket Staff of Force" },
+    { key = "equipment-srd:lsTTJ9GlHOu5o3bt", name = "Musket Staff of Void" },
+    { key = "equipment-srd:PsBTAUV7ExEsKpVx", name = "Screaming Pinion" },
+    { key = "equipment-srd:mf5eeIdKjfSZ0K3p", name = "Solar Shellflower" },
+]
+
+[[members]]
+key = "equipment-srd:3QGZS6l7NrX4auyR"
+name = "Rounds (Flintlock Pistol)"
+[members.fit]
+ammo_type = "rounds-flintlock-pistol"
+weapons = [
+    { key = "equipment-srd:N3nNqO5Nw2DIFhrv", name = "Flintlock Pistol" },
+    { key = "equipment-srd:IuL8O6sR8st1mevo", name = "Mountebank's Passage" },
+    { key = "equipment-srd:3VgBCJFhEvvbF4gI", name = "Pistol Wand" },
+    { key = "equipment-srd:3SjF539wVL6NK9qq", name = "Pistol of Wonder" },
+]
+
+[[members]]
+key = "equipment-srd:V9QG93vXuh8d4sJQ"
+name = "Rounds (Gnome Amalgam Musket)"
+[members.fit]
+ammo_type = "rounds-gnome-amalgam-musket"
+weapons = [
+    { key = "equipment-srd:caWhNJ2ahCzZjr55", name = "Gnome Amalgam Musket" },
+]
+
+[[members]]
+key = "equipment-srd:ckxYpfX3jTcZZOAz"
+name = "Rounds (Gun Sword)"
+[members.fit]
+ammo_type = "rounds-gun-sword"
+weapons = [
+    { key = "equipment-srd:6RkxhrJqBpFQlRBD", name = "Blade of Fallen Stars" },
+    { key = "equipment-srd:ja4phrX3anThH7hx", name = "Fulmination Fang" },
+    { key = "equipment-srd:10J0WjnfgRvriLXc", name = "Gun Sword" },
+    { key = "equipment-srd:39bdYkGlqjFR0AOL", name = "Obsidian Edge" },
+    { key = "equipment-srd:XVxnCBQEW5idfAPw", name = "Obsidian Edge (Greater)" },
+    { key = "equipment-srd:KRQDhu2XVmOlaVRu", name = "Obsidian Edge (Major)" },
+    { key = "equipment-srd:8W8NvYlRM2lQPJf0", name = "Obsidian Edge (True)" },
+]
+
+[[members]]
+key = "equipment-srd:GyzinRH2ZSHANAFc"
+name = "Rounds (Hammer Gun)"
+[members.fit]
+ammo_type = "rounds-hammer-gun"
+weapons = [
+    { key = "equipment-srd:zHJEzmoybIfX1LaV", name = "Hammer Gun" },
+    { key = "equipment-srd:VOYQpn4yISYo5Ttq", name = "Scarlet Queen" },
+]
+
+[[members]]
+key = "equipment-srd:CmWkSgFyb6HB9KVK"
+name = "Rounds (Hand Cannon)"
+[members.fit]
+ammo_type = "rounds-hand-cannon"
+weapons = [
+    { key = "equipment-srd:GG7XnMngd9MnxhHb", name = "Big Boom Gun" },
+    { key = "equipment-srd:IePXTa0jDjDqXxYl", name = "Gray Prince" },
+    { key = "equipment-srd:4LJEpZ2HkCu9BvHI", name = "Hand Cannon" },
+    { key = "equipment-srd:O7pgJB6M5UqUZ9Qq", name = "Hyldarf's Fang" },
+]
+
+[[members]]
+key = "equipment-srd:BZCzkDWQP3TU1Bbp"
+name = "Rounds (Harmona Gun)"
+[members.fit]
+ammo_type = "rounds-harmona-gun"
+weapons = [
+    { key = "equipment-srd:NhKIUGMcxVusTJ6y", name = "Harmona Gun" },
+    { key = "equipment-srd:PVdl7StKFu6QPTVl", name = "Screech Shooter" },
+    { key = "equipment-srd:1lZNaqqGOrza9BsG", name = "Screech Shooter (Greater)" },
+    { key = "equipment-srd:v9smWWOsWFwhCZoB", name = "Screech Shooter (Major)" },
+]
+
+[[members]]
+key = "equipment-srd:eCRZcG7ZxFRP8bpx"
+name = "Rounds (Jezail)"
+[members.fit]
+ammo_type = "rounds-jezail"
+weapons = [
+    { key = "equipment-srd:Pu16joZ15pPJS4Bn", name = "Alicorn Trigger" },
+    { key = "equipment-srd:7irlzyZA50KqTwce", name = "Boastful Hunter" },
+    { key = "equipment-srd:dYydONniFSGwAdL1", name = "Iris of the Sky" },
+    { key = "equipment-srd:NEZfXSasFdLdQFBi", name = "Jezail" },
+]
+
+[[members]]
+key = "equipment-srd:V2CfXehNhCcxApbg"
+name = "Rounds (Mace Multipistol)"
+[members.fit]
+ammo_type = "rounds-mace-multipistol"
+weapons = [
+    { key = "equipment-srd:m3QMdlNxFyDFrkQX", name = "Mace Multipistol" },
+]
+
+[[members]]
+key = "equipment-srd:20h1dSg7IVJ5NxNa"
+name = "Rounds (Pepperbox)"
+[members.fit]
+ammo_type = "rounds-pepperbox"
+weapons = [
+    { key = "equipment-srd:8LEKZdpipKp3jYfx", name = "Liar's Gun" },
+    { key = "equipment-srd:tk4cfktEnMrp4K6m", name = "Pepperbox" },
+    { key = "equipment-srd:f1UCVpGYLHa089SE", name = "Spark Dancer" },
+]
+
+[[members]]
+key = "equipment-srd:sfMHQsOv3W8jFFop"
+name = "Rounds (Piercing Wind)"
+[members.fit]
+ammo_type = "rounds-piercing-wind"
+weapons = [
+    { key = "equipment-srd:BdNRM9VTxs5BYq0C", name = "Jax" },
+    { key = "equipment-srd:4lO2uNA70HqTuSAD", name = "Piercing Wind" },
+]
+
+[[members]]
+key = "equipment-srd:oQr0x30JoLrWxQdA"
+name = "Rounds (Rapier Pistol)"
+[members.fit]
+ammo_type = "rounds-rapier-pistol"
+weapons = [
+    { key = "equipment-srd:ASjNBiQfQfWppPJc", name = "Nightmare's Lament" },
+    { key = "equipment-srd:LDHGjtQHRM8bA8ZZ", name = "Rapier Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:xwHTZGzD8HQrVSal"
+name = "Rounds (Shield Pistol)"
+[members.fit]
+ammo_type = "rounds-shield-pistol"
+weapons = [
+    { key = "equipment-srd:HaquLIE0SFc85vWY", name = "Shield Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:lLR2wkdzr0iJ6o5y"
+name = "Rounds (Shobhad Longrifle)"
+[members.fit]
+ammo_type = "rounds-shobhad-longrifle"
+weapons = [
+    { key = "equipment-srd:DHKCkxAGveLE3Jnf", name = "Shobhad Longrifle" },
+]
+
+[[members]]
+key = "equipment-srd:L2df9pyWLFNgjfNh"
+name = "Rounds (Slide Pistol)"
+[members.fit]
+ammo_type = "rounds-slide-pistol"
+weapons = [
+    { key = "equipment-srd:gO5dOlPBk57bg2x5", name = "Slide Pistol" },
+]
+
+[[members]]
+key = "equipment-srd:useyu9PIrr7QXUUh"
+name = "Rounds (Spike Launcher)"
+[members.fit]
+ammo_type = "rounds-spike-launcher"
+weapons = [
+    { key = "equipment-srd:3qn56dTO5TYJHjbF", name = "Spike Launcher" },
+]
+
+[[members]]
+key = "equipment-srd:11b6MN3UQ8XKqAer"
+name = "Rounds (Three-peaked Tree)"
+[members.fit]
+ammo_type = "rounds-three-peaked-tree"
+weapons = [
+    { key = "equipment-srd:6mgB6Wv8X65pFMRL", name = "Three-peaked Tree" },
+]

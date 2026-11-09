@@ -1,0 +1,22 @@
+name = "Energy Breath Potion"
+source_note = "GM Core. Five damage types with three grades each."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:vPcDIowg3LAqZYAE", name = "Energy Breath Potion (Acid, Lesser)", attributes = ["Acid", "Lesser"] },
+    { key = "equipment-srd:xRrMmFzpa0WU9uV4", name = "Energy Breath Potion (Cold, Lesser)", attributes = ["Cold", "Lesser"] },
+    { key = "equipment-srd:xpVHMxLcwgXzL39e", name = "Energy Breath Potion (Electricity, Lesser)", attributes = ["Electricity", "Lesser"] },
+    { key = "equipment-srd:3fSc2e5xRjJ7w4g3", name = "Energy Breath Potion (Fire, Lesser)", attributes = ["Fire", "Lesser"] },
+    { key = "equipment-srd:zAn1SNGYW93kmzdn", name = "Energy Breath Potion (Sonic, Lesser)", attributes = ["Sonic", "Lesser"] },
+    { key = "equipment-srd:2VC7FLItVrFWNe4L", name = "Energy Breath Potion (Acid, Moderate)", attributes = ["Acid", "Moderate"] },
+    { key = "equipment-srd:WwWssHoEhyh7Yrrw", name = "Energy Breath Potion (Cold, Moderate)", attributes = ["Cold", "Moderate"] },
+    { key = "equipment-srd:zQnidYCmLCBPfdii", name = "Energy Breath Potion (Electricity, Moderate)", attributes = ["Electricity", "Moderate"] },
+    { key = "equipment-srd:NqNwLeqto2isVWNL", name = "Energy Breath Potion (Fire, Moderate)", attributes = ["Fire", "Moderate"] },
+    { key = "equipment-srd:jjfxEYViPr4FDeMH", name = "Energy Breath Potion (Sonic, Moderate)", attributes = ["Sonic", "Moderate"] },
+    { key = "equipment-srd:2JXUER4xY8s36HUv", name = "Energy Breath Potion (Acid, Greater)", attributes = ["Acid", "Greater"] },
+    { key = "equipment-srd:OiQDcUMrlrYXDgEf", name = "Energy Breath Potion (Cold, Greater)", attributes = ["Cold", "Greater"] },
+    { key = "equipment-srd:ltILKAEnrZ8vKwY0", name = "Energy Breath Potion (Electricity, Greater)", attributes = ["Electricity", "Greater"] },
+    { key = "equipment-srd:KZbAqbt7qxJPPkii", name = "Energy Breath Potion (Fire, Greater)", attributes = ["Fire", "Greater"] },
+    { key = "equipment-srd:4vb8fplhdtLDBxxh", name = "Energy Breath Potion (Sonic, Greater)", attributes = ["Sonic", "Greater"] },
+]

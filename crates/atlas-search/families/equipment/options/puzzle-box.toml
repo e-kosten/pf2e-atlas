@@ -1,0 +1,12 @@
+name = "Puzzle Box"
+source_note = "Equipment entries share the puzzle rules, with three difficulties and a hollow construction option at each."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ZRaZSTEOpTC1ObdE", name = "Puzzle Box (Simple)", attributes = ["Simple", "standard construction"] },
+    { key = "equipment-srd:2qJyAnnVIMFIdeTD", name = "Puzzle Box (Simple) (Hollow)", attributes = ["Simple", "Hollow"] },
+    { key = "equipment-srd:6lmTRwT1dNzgWcUd", name = "Puzzle Box (Complex)", attributes = ["Complex", "standard construction"] },
+    { key = "equipment-srd:9wBwuCi6jo4sfaLb", name = "Puzzle Box (Complex) (Hollow)", attributes = ["Complex", "Hollow"] },
+    { key = "equipment-srd:naxISKMwhLQ5F9yS", name = "Puzzle Box (Challenging)", attributes = ["Challenging", "standard construction"] },
+    { key = "equipment-srd:1uwONfUHwHjRJp6o", name = "Puzzle Box (Challenging) (Hollow)", attributes = ["Challenging", "Hollow"] },
+]

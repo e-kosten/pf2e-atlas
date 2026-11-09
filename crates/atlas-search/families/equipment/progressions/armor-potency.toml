@@ -1,0 +1,9 @@
+name = "Armor Potency"
+source_note = "GM Core. The +1 through +3 fundamental armor runes."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Ro3g2JpJXrKXVyEr", name = "Armor Potency (+1)", attributes = ["+1"] },
+    { key = "equipment-srd:4Hb8tvvWFtykbZhG", name = "Armor Potency (+2)", attributes = ["+2"] },
+    { key = "equipment-srd:6ELjUFY0sEJ7nZlZ", name = "Armor Potency (+3)", attributes = ["+3"] },
+]
