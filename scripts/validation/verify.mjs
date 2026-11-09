@@ -1,12 +1,23 @@
 import { readiness, requireReadiness } from "../development/preflight.mjs";
 import { runChecks } from "./run-check.mjs";
-import { validationPlan, flatChecks } from "./plan.mjs";
+import {
+  developer,
+  developerBuildAndTest,
+  flatChecks,
+  validationPlan,
+} from "./plan.mjs";
 import { inspectEvidence } from "./status.mjs";
 
 const [mode, ...args] = process.argv.slice(2);
 try {
-  if (!["--rust", "--selected"].includes(mode))
-    throw new Error("A Rust gate or selected surfaces are required");
+  if (
+    !["--rust", "--selected", "--developer", "--developer-build-test"].includes(
+      mode,
+    )
+  )
+    throw new Error(
+      "A Rust gate, developer gate, or selected surfaces are required",
+    );
   const selected =
     mode === "--selected"
       ? new Set((args.shift() ?? "").split(" ").filter(Boolean))
@@ -44,11 +55,16 @@ try {
       "Usage: scripts/verify.sh [--verbose] [--plan | --status] [--serial]\nRun or inspect the full Rust fmt, clippy, nextest, doctest, and build gate.",
     );
   else {
-    const full = mode === "--rust" || args.includes("--full");
-    const plan = validationPlan(selected, {
-      full,
-      parallel: !args.includes("--serial"),
-    });
+    const full = mode !== "--selected" || args.includes("--full");
+    const plan =
+      mode === "--developer"
+        ? developer
+        : mode === "--developer-build-test"
+          ? developerBuildAndTest
+          : validationPlan(selected, {
+              full,
+              parallel: !args.includes("--serial"),
+            });
     if (args.includes("--plan") || args.includes("--status")) {
       for (const task of plan) {
         if (task.parallel)

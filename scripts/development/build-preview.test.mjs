@@ -14,6 +14,25 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { buildProfile, selectedProfile } from "./build-profile.mjs";
+
+test("build and shared refresh accept either profile spelling and reject extra options", () => {
+  for (const profile of ["dev", "release"]) {
+    assert.equal(selectedProfile([], profile), profile);
+    assert.equal(selectedProfile(["--profile", profile]), profile);
+    assert.equal(selectedProfile([`--profile=${profile}`]), profile);
+  }
+  for (const args of [["--profile"], ["--profile=release", "--profile=dev"]])
+    assert.throws(
+      () => selectedProfile(args),
+      /Expected --profile dev or release/,
+    );
+  for (const args of [["--profile=other"], ["--profile="]])
+    assert.throws(
+      () => buildProfile(".", selectedProfile(args)),
+      /Expected --profile dev or release/,
+    );
+});
 
 const scripts = dirname(fileURLToPath(import.meta.url));
 const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;

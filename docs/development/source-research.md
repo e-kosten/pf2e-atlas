@@ -15,12 +15,16 @@ reported, never overwritten. Cold acquisition requires Git and network access;
 warm check/offline use does not fetch.
 
 A separate `vendor/pf2e` checkout may be used for developer diagnostics or passed
-explicitly with `--source`. Atlas never pulls or checks out supplied directories.
-Existing workspaces retain their saved source selection. To move one to the
-managed repo-mode source without touching the old checkout or saved state:
+explicitly with `--source`. Atlas treats supplied source directories as inputs.
+Normal setup advances an existing managed source in the same cache to the current
+pin. To switch a private repo-mode workspace from a custom source, run setup
+using this checkout's compiled pin. Setup updates the workspace's source
+selection and reference data while preserving saved app data.
 
 ```bash
-atlas setup --path-mode repo --source .cache/pf2e/4cbdaa37d6c33e9519561bae2c59a23e0288cbce
+pin="$(node -p 'require("./dev-tools/source-contracts/source-pin.json").commit')"
+cargo run --locked -p atlas-cli --no-default-features -- setup \
+  --path-mode repo --source ".cache/pf2e/$pin"
 ```
 
 PF2e system sources must declare the supported version for product builds.

@@ -36,25 +36,25 @@ dev-status *args:
 dev-web *args:
     sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} web --checkout {{ quote(invocation_directory()) }} "$@"
 
-[doc('Build a candidate; default dev, --profile release for optimized maintenance; reuse verified UI')]
+[doc('Build a candidate with [--profile dev|release]; default dev; reuse verified UI')]
 [group('development')]
 [positional-arguments]
 dev-build *args:
     node {{ quote(justfile_directory() / "scripts/development/build-preview.mjs") }} {{ quote(invocation_directory()) }} "$@"
 
-[doc('Upgrade and publish a controlled seed; requires matching release build, or explicit --profile dev')]
+[doc('Upgrade and publish a controlled seed with [--profile dev|release]; requires matching build; default release')]
 [group('development')]
 [positional-arguments]
 dev-shared-refresh *args:
     node {{ quote(justfile_directory() / "scripts/development/shared-refresh.mjs") }} "$@"
 
-[doc('Build and start a managed candidate preview, preserving one task URL and database')]
+[doc('Build and start a managed preview; put --profile dev|release before server options')]
 [group('development')]
 [positional-arguments]
 dev-preview *args:
     sh {{ quote(justfile_directory() / "scripts/development/preview.sh") }} start {{ quote(invocation_directory()) }} "$@"
 
-[doc('Build first, then refresh the managed preview at its existing URL')]
+[doc('Build and refresh at the existing URL; put --profile dev|release before server options')]
 [group('development')]
 [positional-arguments]
 dev-refresh *args:
@@ -182,4 +182,4 @@ release-check-tools:
 [doc('Build and retain atlas-dev once for all linked worktrees')]
 [group('development')]
 dev-tool-build:
-    sh {{ quote(justfile_directory() / "scripts/development/build-tool.sh") }}
+    cd {{ quote(justfile_directory()) }} && node scripts/development/build-tool.mjs

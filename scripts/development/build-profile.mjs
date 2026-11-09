@@ -4,9 +4,10 @@ import { pathToFileURL } from "node:url";
 
 export function selectedProfile(args, defaultProfile = "dev") {
   if (!args.length) return defaultProfile;
-  if (args.length !== 2 || args[0] !== "--profile")
-    throw new Error("Expected --profile dev or release.");
-  return args[1];
+  if (args.length === 2 && args[0] === "--profile") return args[1];
+  if (args.length === 1 && args[0].startsWith("--profile="))
+    return args[0].slice("--profile=".length);
+  throw new Error("Expected --profile dev or release.");
 }
 
 export function buildProfile(root, profile) {

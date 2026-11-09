@@ -81,9 +81,7 @@ const rust = [
   cargo("workspace doctests", "test", "--workspace", "--doc", "--locked"),
   cargo("workspace build", "build", "--workspace", "--locked"),
 ];
-const developer = [
-  fmt,
-  ...clippy(["-p", "atlas-dev", "-p", "atlas-cli-support"]),
+export const developerBuildAndTest = [
   cargo(
     "developer tests",
     "test",
@@ -94,6 +92,11 @@ const developer = [
     "--locked",
   ),
   cargo("developer build", "build", "-p", "atlas-dev", "--locked"),
+];
+export const developer = [
+  fmt,
+  ...clippy(["-p", "atlas-dev", "-p", "atlas-cli-support"]),
+  ...developerBuildAndTest,
 ];
 
 export function validationPlan(
