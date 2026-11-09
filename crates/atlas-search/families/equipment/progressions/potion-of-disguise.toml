@@ -1,0 +1,10 @@
+name = "Potion of Disguise"
+source_note = "Player Core 2. The disguise effect gains more size options and stronger transformations at higher grades."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:QNub2kTE7LpdMPII", name = "Potion of Disguise (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:25Rr05SIfTj0GA31", name = "Potion of Disguise (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:ThX0ntpTqonGqguT", name = "Potion of Disguise (Greater)", attributes = ["Greater"] },
+]

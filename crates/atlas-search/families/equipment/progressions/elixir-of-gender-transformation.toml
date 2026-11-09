@@ -1,0 +1,10 @@
+name = "Elixir of Gender Transformation"
+source_note = "Player Core 2. The three grades achieve the same physical changes on progressively shorter courses."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:GfegrEtbEs9L6NOg", name = "Elixir of Gender Transformation (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:0KXqdhz2MYV0LBm2", name = "Elixir of Gender Transformation (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:rDM6rxWVzKtFQOKg", name = "Elixir of Gender Transformation (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Cooling Elixir"
+source_note = "Player Core 2. The three grades protect against progressively more severe heat."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:Ekk7o1gPu8RotixD", name = "Cooling Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:EEJiqzU89Ofk7dr6", name = "Cooling Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:XMuLrJYL6fxv4YNA", name = "Cooling Elixir (Greater)", attributes = ["Greater"] },
+]

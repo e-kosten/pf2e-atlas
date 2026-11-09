@@ -1,0 +1,11 @@
+name = "Drakeheart Mutagen"
+source_note = "Player Core 2. The same defensive transformation scales AC, Perception, and duration."
+item_type = "consumable"
+category = "mutagen"
+
+members = [
+    { key = "equipment-srd:GS4YvQieBS11JNYR", name = "Drakeheart Mutagen (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:xY2MogTwH9Fd8UPG", name = "Drakeheart Mutagen (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:WuzLBK78DgIt8SsN", name = "Drakeheart Mutagen (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:M4ZOHOlne43ArjOC", name = "Drakeheart Mutagen (Major)", attributes = ["Major"] },
+]
