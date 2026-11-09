@@ -144,6 +144,9 @@
   margin-block: var(--space-control) var(--space-group);
   overflow-x: auto;
 }
+.prepared-content > .prepared-content__table-scroll:first-child {
+  margin-block-start: 0;
+}
 .prepared-content__table-scroll:focus-visible {
   outline: 2px solid var(--link);
   outline-offset: 2px;
