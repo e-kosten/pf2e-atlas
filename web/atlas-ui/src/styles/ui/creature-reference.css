@@ -3,32 +3,24 @@
 .reference-reader--creature .reference-reader__scroll > .detail-panel {
   --creature-outline-width: 10rem;
   width: 100%;
-  max-width: calc(80rem + 2 * var(--space-section));
   margin-inline: auto;
 }
 .record-view__pane--creature {
   justify-self: center;
   --record-identity-gap: var(--space-group);
-}
-.reference-reader--creature
-  .detail-panel:has(.creature-reference:not(.creature-reference--caster)) {
-  max-width: 70rem;
-}
-.record-view__pane--creature:has(.creature-reference:not(.creature-reference--caster)) {
   max-width: calc(var(--document-measure) + 2 * var(--record-page-inset) + 2px);
+}
+.reference-reader--creature .reference-reader__scroll > .detail-panel {
+  max-width: 70rem;
 }
 /* Fit the full reading measure, outline, and both page insets before widening. */
 @media (min-width: 68rem) {
   .record-view:has(
-    > .record-view__pane--creature
-      .creature-reference:not(.creature-reference--caster)
-      .creature-reference__outline
+    > .record-view__pane--creature .creature-reference .creature-reference__outline
   ) {
     container: creature-sheet / inline-size;
   }
-  .record-view__pane--creature:has(
-    .creature-reference:not(.creature-reference--caster) .creature-reference__outline
-  ) {
+  .record-view__pane--creature:has(.creature-reference .creature-reference__outline) {
     max-width: calc(
       var(--document-measure) + var(--creature-outline-width) + var(--space-section) +
         2 * var(--record-page-inset) + 2px
@@ -56,7 +48,6 @@
   min-width: 0;
 }
 .creature-reference__body {
-  container: creature-body / inline-size;
   min-width: 0;
 }
 .creature-reference__outline a {
@@ -231,27 +222,5 @@
     > .creature-reference__outline
     ul {
     display: grid;
-  }
-}
-@container creature-body (min-width: 58rem) {
-  .creature-reference:not(.creature-reference--encounter)
-    .actor-reference__rule-grid--caster {
-    grid-template-columns: minmax(0, 1fr) 20rem;
-    gap: var(--space-section);
-    align-items: start;
-  }
-  .creature-reference:not(.creature-reference--encounter)
-    .actor-reference__rule-grid--caster
-    > .actor-reference__casting {
-    grid-column: 2;
-    grid-row: 1;
-    border-inline-start: 1px solid var(--line);
-    padding-inline-start: var(--space-group);
-  }
-  .creature-reference:not(.creature-reference--encounter)
-    .actor-reference__rule-grid--caster
-    > .actor-reference__actions {
-    grid-column: 1;
-    grid-row: 1;
   }
 }

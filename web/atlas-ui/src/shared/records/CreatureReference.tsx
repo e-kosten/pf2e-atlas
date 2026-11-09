@@ -130,7 +130,7 @@ export function CreatureReference({
   return (
     <div
       ref={container}
-      className={`creature-reference${activities.some((a) => ["casting_entry", "spell"].includes(a.kind)) ? " creature-reference--caster" : ""}${encounter ? " creature-reference--encounter" : ""}${encounter && !hasRules && !prose ? " creature-reference--runtime-only" : ""}`}
+      className={`creature-reference${encounter ? " creature-reference--encounter" : ""}${encounter && !hasRules && !prose ? " creature-reference--runtime-only" : ""}`}
     >
       <div className="creature-reference__layout">
         {(encounter ? sections.length > 1 : sections.length > 0) && (

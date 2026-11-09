@@ -1242,9 +1242,7 @@ export function ActorActivities({
       )}
       {renderGroup("strike", "Strikes")}
       {(hasCasting || hasPrimary) && (
-        <div
-          className={`actor-reference__rule-grid${hasCasting && hasPrimary ? " actor-reference__rule-grid--caster" : ""}`}
-        >
+        <div className="actor-reference__rule-grid">
           {hasPrimary && (
             <div className="actor-reference__actions">
               {renderGroup("ability", "Special abilities", "primary")}
