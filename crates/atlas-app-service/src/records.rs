@@ -448,19 +448,31 @@ fn validate_selection(
     validate_field_bounds(&request.fields)?;
     let key = RecordKey::parse(&request.address.record_key)
         .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
-    if request
-        .address
-        .owners
-        .iter()
-        .any(|o| matches!(o.identity, OwnedContentIdentity::SnapshotLocal { .. }))
-        && request.address.source_fingerprint.as_deref() != Some(r.source_fingerprint())
-    {
+    if !address_fingerprint_matches(
+        &request.address.owners,
+        request.address.source_fingerprint.as_deref(),
+        r.source_fingerprint(),
+    ) {
         return Err(AppServiceError::invalid_request(
             "snapshot-local navigation belongs to a different artifact; reopen the search result or parent record",
         ));
     }
     Ok(key)
 }
+pub(crate) fn address_requires_fingerprint(owners: &[atlas_domain::OwnedContentLocator]) -> bool {
+    owners
+        .iter()
+        .any(|owner| matches!(owner.identity, OwnedContentIdentity::SnapshotLocal { .. }))
+}
+
+pub(crate) fn address_fingerprint_matches(
+    owners: &[atlas_domain::OwnedContentLocator],
+    supplied: Option<&str>,
+    current: &str,
+) -> bool {
+    !address_requires_fingerprint(owners) || supplied == Some(current)
+}
+
 pub(crate) fn validate_address_bounds(
     owners: &[atlas_domain::OwnedContentLocator],
 ) -> AppServiceResult<()> {
