@@ -37,6 +37,7 @@ export function ActionCost({
             : label
               ? "Unavailable"
               : "Action cost unavailable";
+  const hasCostText = cost !== null && !isEmptyFactValue(cost.label);
   const content = (
     <span className="action-cost" title={cost?.label || undefined}>
       {cost?.glyph && (
@@ -46,8 +47,12 @@ export function ActionCost({
           data-atlas-action-glyph={cost.glyph}
         />
       )}
-      <span className={cost?.glyph ? "sr-only" : undefined}>
-        {cost && !isEmptyFactValue(cost.label) ? cost.label : fallback}
+      <span
+        className={
+          cost?.glyph ? "sr-only" : hasCostText ? "action-cost__text" : undefined
+        }
+      >
+        {hasCostText ? cost.label : fallback}
       </span>
     </span>
   );
