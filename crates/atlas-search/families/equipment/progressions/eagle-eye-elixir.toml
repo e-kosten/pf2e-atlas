@@ -1,0 +1,11 @@
+name = "Eagle Eye Elixir"
+source_note = "GM Core. Four grades share the perception and hidden-feature bonuses, with an added search benefit at Major."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:7Y2yOr4ltpP2tyuL", name = "Eagle Eye Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:lPcnDlBGz5QwCMYw", name = "Eagle Eye Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:xWCdsGSwLLTeX6tQ", name = "Eagle Eye Elixir (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kicNrnZz1KjJYRVI", name = "Eagle Eye Elixir (Major)", attributes = ["Major"] },
+]

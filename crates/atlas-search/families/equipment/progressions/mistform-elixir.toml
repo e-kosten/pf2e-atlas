@@ -1,0 +1,10 @@
+name = "Mistform Elixir"
+source_note = "GM Core. The same concealment effect lasts longer at each higher grade."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:GyO89RBVjAKFxsFm", name = "Mistform Elixir (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:Ax8XcBd0rRd1Z7hN", name = "Mistform Elixir (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:04giYigfDL5geu5f", name = "Mistform Elixir (Greater)", attributes = ["Greater"] },
+]

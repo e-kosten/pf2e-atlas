@@ -1,0 +1,10 @@
+name = "Potion of Acid Resistance"
+source_note = "GM Core. The three acid-specific potions share a one-hour duration and increase acid resistance."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:u1gZaIZHnEfZDc1o", name = "Potion of Acid Resistance (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:yG6Za8FaG3hpXUGh", name = "Potion of Acid Resistance (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:vDgDrbSoGuiUIz2R", name = "Potion of Acid Resistance (Greater)", attributes = ["Greater"] },
+]
