@@ -32,3 +32,5 @@ pub use operations::{ExactRecordRead, StateRead, WorkspaceRead, WorkspaceWrite};
 
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
+
+pub use atlas_storage::{StorageError, Workspace};

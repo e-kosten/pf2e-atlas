@@ -47,4 +47,6 @@ pub(crate) struct WebArgs {
     pub(crate) port: Option<u16>,
     #[arg(long, help = "Open the local web URL in the default browser")]
     pub(crate) open: bool,
+    #[arg(long, hide = true)]
+    pub(crate) managed_worker: Option<String>,
 }

@@ -68,6 +68,26 @@ names a missing or unreachable component or a missing field. See the
 [frontend contribution workflow](../../../web/atlas-ui/README.md) for regeneration
 and freshness commands.
 
+## Managed local service
+
+The web-enabled CLI launches or attaches to one backend per canonical workspace.
+Each foreground launcher holds a mutually authenticated loopback control
+connection. Browser tabs use the embedded same-origin HTTP application and carry
+no lifecycle credentials. An owner-only discovery file publishes the ready
+endpoint and instance credential. A workspace file lock prevents duplicate
+backends, and control connection loss handles launcher crashes. The backend
+drains accepted work within a bounded interval after the last owner leaves.
+A required workspace format upgrade acquires the same service lock before
+changing a supported predecessor. Ordinary startup checks without upgrading.
+
+Once the workspace is ready, the backend warms the active profile through the
+same retained inference session used by search. Compatible web-enabled CLI
+semantic and hybrid requests can borrow that service through the existing search
+route. The CLI still performs direct search when discovery or compatibility
+fails before dispatch. CLI-only builds use direct execution. Browser Host and
+Origin checks and native instance authentication are independent of the
+generated API compatibility fingerprint.
+
 ## Browser/backend compatibility
 
 The web transport owns a compatibility check independent of workspace readiness.

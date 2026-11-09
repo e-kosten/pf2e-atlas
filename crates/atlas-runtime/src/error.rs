@@ -13,6 +13,15 @@ impl RuntimeError {
             error.to_string(),
         )
     }
+    pub(crate) fn workspace_upgrade_required(version: u32) -> Self {
+        Self::new(
+            RuntimeErrorKind::WorkspaceIncompatible,
+            format!(
+                "workspace schema {version} requires an upgrade. Run `atlas setup` to upgrade it"
+            ),
+        )
+    }
+
     pub fn kind(&self) -> &RuntimeErrorKind {
         &self.kind
     }
@@ -132,6 +141,14 @@ impl From<atlas_storage::StorageError> for RuntimeError {
             error if error.is_contention() => RuntimeErrorKind::WorkspaceBusy,
             error if error.is_access_failure() => RuntimeErrorKind::WorkspaceAccess,
             atlas_storage::StorageError::Maintenance(_) => RuntimeErrorKind::WorkspaceMaintenance,
+            atlas_storage::StorageError::Schema { expected, actual } if actual > expected => {
+                return Self::new(
+                    RuntimeErrorKind::WorkspaceIncompatible,
+                    format!(
+                        "workspace schema {actual} is newer than this Atlas release supports ({expected}). Use a compatible Atlas version"
+                    ),
+                );
+            }
             atlas_storage::StorageError::Schema { .. }
             | atlas_storage::StorageError::Unsupported(_) => {
                 RuntimeErrorKind::WorkspaceIncompatible

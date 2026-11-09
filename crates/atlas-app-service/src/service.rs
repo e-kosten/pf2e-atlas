@@ -40,23 +40,7 @@ impl AtlasAppService {
     pub fn start(options: AtlasAppServiceOptions) -> AppServiceResult<Self> {
         let runtime_options = runtime_options(&options);
         let runtime = Arc::new(AtlasRuntime::resolve(runtime_options)?);
-        if matches!(
-            options.retrieval_mode,
-            AppServiceRetrievalMode::OnDemandSavedWorkspace
-        ) {
-            runtime.admit_workspace_if_present()?;
-        } else if let Err(error) = runtime.upgrade_workspace_if_present() {
-            match error.kind() {
-                atlas_runtime::RuntimeErrorKind::Search(
-                    atlas_search::SearchErrorKind::ArtifactContractViolation,
-                ) => {
-                    // Reference incompatibility can leave saved operations usable.
-                    // Recheck storage admission in case the failed upgrade left maintenance pending.
-                    runtime.read_state()?;
-                }
-                _ => return Err(error.into()),
-            }
-        }
+        runtime.check_workspace_if_present()?;
         let retrieval = match options.retrieval_mode {
             AppServiceRetrievalMode::FullPool => {
                 RetrievalBackend::Pooled(RetrievalExecutor::start(Arc::clone(&runtime))?)
@@ -70,6 +54,10 @@ impl AtlasAppService {
             }
         };
         Ok(Self { retrieval, runtime })
+    }
+
+    pub fn warm_default_search_profile(&self) -> Result<(), atlas_search::SearchError> {
+        self.runtime.warm_default_search_profile()
     }
 
     pub fn readiness(&self) -> AppReadinessView {

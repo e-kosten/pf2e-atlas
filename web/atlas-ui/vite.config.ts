@@ -4,6 +4,8 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import { defineConfig } from "vite";
 import { atlasApiContract } from "./apiContract.ts";
 
+const apiProxy = process.env.ATLAS_API_PROXY ?? "http://127.0.0.1:4727";
+
 export default defineConfig({
   plugins: [
     atlasApiContract(),
@@ -38,8 +40,15 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: process.env.ATLAS_API_PROXY ?? "http://127.0.0.1:4727",
+        target: apiProxy,
         changeOrigin: true,
+        configure(proxy) {
+          proxy.on("proxyReq", (forwarded, incoming) => {
+            if (incoming.headers.origin === `http://${incoming.headers.host}`) {
+              forwarded.setHeader("Origin", new URL(apiProxy).origin);
+            }
+          });
+        },
       },
     },
   },

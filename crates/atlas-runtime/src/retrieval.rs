@@ -50,6 +50,21 @@ impl AtlasRuntime {
             })
             .collect()
     }
+    /// Warm the active profile without retaining a database snapshot during model load.
+    pub fn warm_default_search_profile(&self) -> Result<(), SearchError> {
+        let profile = {
+            let index = self.open_index()?;
+            index
+                .require_vectors()
+                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
+            self.resolve_default_search_profile(index.context())?
+        };
+        self.inference
+            .preload(&profile)
+            .map_err(SearchError::query_embedding)?;
+        Ok(())
+    }
+
     /// Resolve profile metadata under a short snapshot, then infer with no
     /// admitted database session. The consuming operation checks the profile again.
     pub fn prepare_query(

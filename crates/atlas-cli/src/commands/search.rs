@@ -26,12 +26,27 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         return Ok(ExitCode::SUCCESS);
     }
     let mode: RetrievalModeView = o.retrieval.into();
+    let use_embeddings = o.query.is_some() && mode != RetrievalModeView::Lexical;
+    #[cfg(feature = "web")]
+    let runtime = use_embeddings
+        .then(|| {
+            atlas_runtime::AtlasRuntime::resolve(atlas_runtime::AtlasRuntimeOptions {
+                default_search_profile: o.search_profile.clone(),
+                path_mode: crate::cli::runtime_path_mode(o.path_mode),
+                overrides: atlas_runtime::AtlasPathOverrides {
+                    index_path: o.index.clone(),
+                    embedding_cache_root: o.embedding_cache_path.clone(),
+                    source_root: None,
+                },
+            })
+        })
+        .and_then(Result::ok);
     let service = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: o.embedding_cache_path,
-        retrieval_mode: if o.query.is_some() && mode != RetrievalModeView::Lexical {
+        retrieval_mode: if use_embeddings {
             atlas_app_service::AppServiceRetrievalMode::OnDemandEmbeddings
         } else {
             atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference
@@ -53,24 +68,34 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         },
         None => SearchCriteria::ListRecords { filter },
     };
-    let result = match app_result(
+    let request = SearchResultsRequest {
+        connection_scope: None,
+        sort,
+        ranking: Some(o.ranking),
+        search_profile: o.search_profile,
+        criteria,
+        page: SearchPageRequest {
+            number: o.page,
+            size: o.limit,
+        },
+        expected_artifact_generation: None,
+    };
+    #[cfg(feature = "web")]
+    let hosted = runtime
+        .as_ref()
+        .and_then(|runtime| super::web::managed::search(runtime, &request));
+    let direct = || {
+        tracing::info!(target: "atlas_cli", "using direct Atlas search");
         service.search_page(
-            SearchResultsRequest {
-                connection_scope: None,
-                sort,
-                ranking: Some(o.ranking),
-                search_profile: o.search_profile,
-                criteria,
-                page: SearchPageRequest {
-                    number: o.page,
-                    size: o.limit,
-                },
-                expected_artifact_generation: None,
-            },
+            request,
             &atlas_app_service::ReadExecutionContext::uncancellable(),
-        ),
-        o.json,
-    )? {
+        )
+    };
+    #[cfg(feature = "web")]
+    let searched = hosted.unwrap_or_else(direct);
+    #[cfg(not(feature = "web"))]
+    let searched = direct();
+    let result = match app_result(searched, o.json)? {
         std::ops::ControlFlow::Continue(value) => value,
         std::ops::ControlFlow::Break(exit) => return Ok(exit),
     };

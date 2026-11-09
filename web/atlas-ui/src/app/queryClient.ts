@@ -57,5 +57,17 @@ export function createAtlasQueryClient() {
       },
     },
   });
+  // Other Atlas windows and the CLI can change saved data between visits.
+  for (const key of [
+    "saved-lists",
+    "saved-list",
+    "saved-list-item-note",
+    "parties",
+    "encounters",
+    "encounter",
+    "encounter-route",
+  ]) {
+    client.setQueryDefaults([key], { refetchOnWindowFocus: "always" });
+  }
   return client;
 }

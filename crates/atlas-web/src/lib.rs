@@ -10,6 +10,9 @@ mod router;
 mod schema_directions;
 mod service;
 
+/// The generated wire contract expected by a native Atlas client.
+pub const API_CONTRACT: &str = compatibility::CONTRACT;
+
 pub use router::{openapi, router};
 
 #[cfg(test)]

@@ -52,18 +52,20 @@ impl Workspace {
     /// This does not create a database or silently initialize an unknown file.
     pub fn at(path: impl AsRef<Path>) -> StorageResult<Self> {
         let path = path.as_ref();
-        let path = if path.exists() {
-            path.canonicalize()?
-        } else {
-            let parent = path
-                .parent()
-                .filter(|p| !p.as_os_str().is_empty())
-                .unwrap_or(Path::new("."));
-            std::fs::create_dir_all(parent)?;
-            let name = path.file_name().ok_or_else(|| {
-                StorageError::Unsupported("workspace path has no filename".into())
-            })?;
-            parent.canonicalize()?.join(name)
+        let path = match std::fs::symlink_metadata(path) {
+            Ok(_) => path.canonicalize()?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let parent = path
+                    .parent()
+                    .filter(|p| !p.as_os_str().is_empty())
+                    .unwrap_or(Path::new("."));
+                std::fs::create_dir_all(parent)?;
+                let name = path.file_name().ok_or_else(|| {
+                    StorageError::Unsupported("workspace path has no filename".into())
+                })?;
+                parent.canonicalize()?.join(name)
+            }
+            Err(error) => return Err(error.into()),
         };
         Ok(Self { path })
     }
@@ -149,6 +151,16 @@ impl Workspace {
         let result = action(&session)?;
         session.commit()?;
         Ok(result)
+    }
+
+    /// Keep a managed service alive without holding ordinary workspace admission.
+    pub fn service_guard(&self) -> StorageResult<std::fs::File> {
+        acquire(&self.path, ".service.lock", true)
+    }
+
+    /// Serialize mutating setup and cleanup without holding database admission.
+    pub fn setup_guard(&self) -> StorageResult<std::fs::File> {
+        acquire(&self.path, ".setup.lock", true)
     }
 
     /// Serializes source/config/model publishers without holding a SQLite lock.

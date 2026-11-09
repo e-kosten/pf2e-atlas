@@ -32,9 +32,11 @@ flowchart TD
 ## Pinned reference acquisition
 
 Runtime acquires the exact PF2e commit emitted by model generation from the
-canonical source pin (ADR0052). Default source caches are keyed by commit and
-published only after a detached checkout is complete and clean; setup never pulls
-upstream HEAD. Explicit or persisted user source directories are inspected without
+canonical source pin (ADR0052). Managed setup downloads the upstream commit
+archive over HTTPS. Its expected tree digest is generated from the pinned Git
+tree and packaged with Atlas. Setup bounds extraction, verifies the inventory and
+bytes, and publishes a commit-keyed cache atomically. Existing matching Git
+checkout caches are verified by content without invoking Git. Explicit or persisted user source directories are inspected without
 mutation. Ingest rejects incompatible PF2e system manifest versions before product
 preparation; developer admission reports remain usable for unsupported sources.
 
@@ -391,9 +393,13 @@ After assets are prepared, it reads the admitted reference context and chooses a
 source build or compatible metadata-only upgrade. It does not backfill projections
 just before replacing them through source ingest. Force bypasses the freshness
 comparison, retains compatible vector reuse and still consumes one captured set.
-Check mode stays read-only; source-free startup keeps its metadata-upgrade path.
+Check mode stays read-only. Ordinary startup authenticates existing workspaces and leaves format and projection upgrades to explicit setup.
 Records-only operation needs no query embeddings. English is the fresh indexing
 default. The embedding crate owns checksum/cache readiness without loading models.
+A workspace-scoped setup lock covers configuration through completion and
+excludes setup cleanup for the same workspace. Managed service ownership excludes
+a required format upgrade until its foreground launchers exit. Data-only setup
+uses ordinary publication admission and can coexist with the service.
 Fresh semantic setup selects BGE Base. Cache packages use model-ID/revision
 directories; missing or corrupt files are repaired through verified temporary
 download and rename. Old package revisions remain untouched.

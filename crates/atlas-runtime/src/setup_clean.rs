@@ -11,21 +11,33 @@ pub(crate) fn clean_setup(
     paths: &ResolvedAtlasPaths,
     options: RuntimeSetupCleanOptions,
 ) -> RuntimeSetupCleanReport {
+    let guard = if options.check {
+        Ok(None)
+    } else {
+        atlas_storage::Workspace::at(&paths.index_path)
+            .and_then(|workspace| workspace.setup_guard())
+            .map(Some)
+    };
+    let clean = |kind, path: &Path| match &guard {
+        Ok(_) => clean_directory_target(kind, path, options.check, &paths.index_path),
+        Err(error) => SetupCleanTarget::with_reason(
+            kind,
+            SetupCleanTargetStatus::Failed,
+            path.display().to_string(),
+            match error {
+                atlas_storage::StorageError::Busy => "setup already running".into(),
+                error => error.to_string(),
+            },
+        ),
+    };
     let mut targets = Vec::new();
     if options.source {
-        targets.push(clean_directory_target(
-            SetupCleanTargetKind::Source,
-            &paths.source_root,
-            options.check,
-            &paths.index_path,
-        ));
+        targets.push(clean(SetupCleanTargetKind::Source, &paths.source_root));
     }
     if options.embedding_cache {
-        targets.push(clean_directory_target(
+        targets.push(clean(
             SetupCleanTargetKind::EmbeddingCache,
             &paths.embedding_cache_root,
-            options.check,
-            &paths.index_path,
         ));
     }
 

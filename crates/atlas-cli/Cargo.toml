@@ -19,7 +19,7 @@ path = "src/main.rs"
 
 [features]
 default = ["web"]
-web = ["dep:atlas-web", "dep:axum", "dep:tokio"]
+web = ["dep:atlas-web", "dep:axum", "dep:tokio", "dep:ureq", "dep:hmac-sha256"]
 
 [dependencies]
 atlas-cli-support.workspace = true
@@ -39,6 +39,7 @@ clap.workspace = true
 clap_complete.workspace = true
 inquire.workspace = true
 html2text.workspace = true
+hmac-sha256 = { version = "1.1.14", optional = true }
 scraper.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -46,6 +47,7 @@ sha2.workspace = true
 rand.workspace = true
 tokio = { workspace = true, optional = true }
 tracing.workspace = true
+ureq = { workspace = true, optional = true }
 tempfile = "3.23.0"
 
 [dev-dependencies]

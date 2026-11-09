@@ -2,11 +2,11 @@ use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::process::Command;
 
-use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
 use tokio::net::TcpListener;
 use tokio::runtime::Builder;
 
 pub(crate) mod args;
+pub(crate) mod managed;
 
 use args::{DEFAULT_WEB_PORT, WebArgs};
 
@@ -16,40 +16,9 @@ pub(crate) fn run_web(args: WebArgs) -> Result<std::process::ExitCode, String> {
         .build()
         .map_err(|error| format!("failed to start async runtime: {error}"))?;
 
-    runtime.block_on(run_web_async(args))
-}
-
-async fn run_web_async(args: WebArgs) -> Result<std::process::ExitCode, String> {
-    let listener = bind_local_listener(args.port).await?;
-    let address = listener
-        .local_addr()
-        .map_err(|error| format!("failed to read web bind address: {error}"))?;
-    let service = AtlasAppService::start(AtlasAppServiceOptions {
-        default_search_profile: args.search_profile,
-        path_mode: crate::cli::runtime_path_mode(args.path_mode),
-        source_root: args.source,
-        embedding_cache_root: args.embedding_cache_path,
-        index_path: args.index,
-        retrieval_mode: AppServiceRetrievalMode::FullPool,
-    })
-    .map_err(|error| {
-        let app_error = error.into_app_error();
-        format!(
-            "atlas web startup failed: {}. Run `atlas setup` to prepare the full semantic-search runtime if setup is incomplete.",
-            app_error.message
-        )
-    })?;
-    let url = format!("http://{address}");
-
-    println!("Atlas web service listening at {url}");
-    if args.open {
-        open_browser(&url);
-    }
-
-    axum::serve(listener, atlas_web::router(service))
-        .await
-        .map_err(|error| format!("atlas web server stopped with an error: {error}"))?;
-
+    let result = runtime.block_on(managed::run(args));
+    runtime.shutdown_timeout(std::time::Duration::from_secs(1));
+    result?;
     Ok(std::process::ExitCode::SUCCESS)
 }
 

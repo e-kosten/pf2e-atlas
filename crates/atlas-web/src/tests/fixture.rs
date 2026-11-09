@@ -181,6 +181,7 @@ impl Fixture {
         } else {
             publish_input(&path, &data).unwrap();
         }
+        atlas_runtime::initialize_workspace(&path).unwrap();
         let service = AtlasAppService::start(AtlasAppServiceOptions {
             default_search_profile: Some(SearchProfileId::new("bge-base")),
             path_mode: atlas_runtime::AtlasPathMode::Global,

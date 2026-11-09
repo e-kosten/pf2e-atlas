@@ -79,6 +79,10 @@ impl AtlasRuntime {
         self.native_neighbor_reuse.stats()
     }
 
+    pub fn workspace_location(&self) -> Result<atlas_storage::Workspace, RuntimeError> {
+        Ok(atlas_storage::Workspace::at(self.index_path())?)
+    }
+
     pub fn source_root(&self) -> &Path {
         &self.paths.source_root
     }
@@ -91,6 +95,32 @@ impl AtlasRuntime {
         &self.paths.index_path
     }
 
+    /// Authenticate an existing workspace without changing its format or projections.
+    pub fn check_workspace_if_present(&self) -> Result<(), RuntimeError> {
+        if let Some(workspace) = self.check_workspace_history_if_present(false)? {
+            workspace.read(crate::WORKSPACE_SCHEMA_VERSION)?;
+        }
+        Ok(())
+    }
+
+    fn check_workspace_history_if_present(
+        &self,
+        allow_empty: bool,
+    ) -> Result<Option<atlas_storage::Workspace>, RuntimeError> {
+        crate::workspace::register_extensions()?;
+        let workspace = match atlas_storage::Workspace::existing(self.index_path()) {
+            Ok(workspace) => workspace,
+            Err(atlas_storage::StorageError::Missing(_)) => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        let version = workspace.check_migration_history(crate::workspace::RELEASE_HISTORY)?;
+        if version < crate::WORKSPACE_SCHEMA_VERSION && !(version == 0 && allow_empty) {
+            return Err(RuntimeError::workspace_upgrade_required(version));
+        }
+        Ok(Some(workspace))
+    }
+
+    #[cfg(test)]
     /// Apply executable-owned schema and projection upgrades before serving
     /// requests. An absent workspace remains a setup concern.
     pub fn upgrade_workspace_if_present(&self) -> Result<bool, RuntimeError> {
@@ -103,6 +133,7 @@ impl AtlasRuntime {
         )?)
     }
 
+    #[cfg(test)]
     /// Admit and upgrade saved workspace schema without reference projection work.
     pub fn admit_workspace_if_present(
         &self,
@@ -133,6 +164,8 @@ impl AtlasRuntime {
         options: &RuntimeSetupOptions,
         manifest: Option<&Path>,
     ) -> Result<atlas_index::RequestedReferenceConfig, String> {
+        self.check_workspace_history_if_present(true)
+            .map_err(|error| error.to_string())?;
         let configuration =
             crate::source_configuration::resolve_configuration(&self.paths, options, manifest)?;
         if configuration.source_root == self.paths.managed_source_root {
@@ -144,6 +177,17 @@ impl AtlasRuntime {
         )
         .map_err(|e| e.to_string())?;
         Ok(configuration)
+    }
+
+    /// Attribution for a source previously verified by runtime's managed-source admission.
+    pub fn verified_source_revision(
+        &self,
+        configuration: &atlas_index::RequestedReferenceConfig,
+    ) -> atlas_ingest::SourceRevision<'static> {
+        crate::source_acquisition::revision(
+            configuration.source_root == self.paths.managed_source_root,
+            configuration.manifest_path.is_some(),
+        )
     }
 
     /// Rebuild generated reference data in an existing configured workspace.
@@ -177,6 +221,7 @@ impl AtlasRuntime {
                 rebuild_source_error(error, &source_root, manifest_path.as_deref())
             })?;
         }
+        let revision = self.verified_source_revision(&config);
         let search_profiles = config
             .search_profiles
             .into_iter()
@@ -202,6 +247,7 @@ impl AtlasRuntime {
                 reuse_passage_layouts: false,
                 embedding_batch_size: 32,
             },
+            revision,
         )
         .map_err(|error| {
             use atlas_ingest::IngestError;
