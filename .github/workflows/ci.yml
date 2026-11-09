@@ -374,6 +374,9 @@ jobs:
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
+      - name: Prepare repository Rust toolchain
+        # Resolve the rust-toolchain.toml pin before the runner's read-only probes.
+        run: rustc --version
       - uses: actions/setup-node@v7
         with:
           node-version: 26
