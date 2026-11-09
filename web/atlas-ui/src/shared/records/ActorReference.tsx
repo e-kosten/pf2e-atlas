@@ -780,7 +780,7 @@ export function ActorActivity({
                   activity.title
                 )}{" "}
                 {!activationControls && activity.action_cost.state === "value" && (
-                  <ActionCost fact={activity.action_cost} />
+                  <ActionCost fact={activity.action_cost} omitPassive />
                 )}
               </h4>
             )}
@@ -810,7 +810,7 @@ export function ActorActivity({
             {inline && activationControls && (
               <div className="actor-activity__activation">
                 {activity.action_cost.state === "value" && (
-                  <ActionCost fact={activity.action_cost} />
+                  <ActionCost fact={activity.action_cost} omitPassive />
                 )}
                 {activationControls}
               </div>
@@ -895,7 +895,7 @@ export function ActorActivity({
             />
           )}
         {!hideCost && (!inline || activity.action_cost.state !== "value") && (
-          <ActionCost fact={activity.action_cost} label="Activation" />
+          <ActionCost fact={activity.action_cost} label="Activation" omitPassive />
         )}
         {rollControls ?? (
           <>

@@ -707,7 +707,7 @@ export function RecordPresentation({
                 >
                   {link.title}
                 </Button>
-                <ActionCost fact={link.action_cost} />
+                <ActionCost fact={link.action_cost} omitPassive />
                 {link.usage && !isEmptyFactValue(link.usage) && (
                   <span className="muted"> {link.usage}</span>
                 )}

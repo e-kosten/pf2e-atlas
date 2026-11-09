@@ -20,11 +20,6 @@
   margin-inline: 8px;
 }
 
-.action-cost__text {
-  color: var(--muted);
-  font-weight: 400;
-}
-
 .action-cost__glyph,
 .prepared-content [data-atlas-action-glyph] {
   font-size: 0;
