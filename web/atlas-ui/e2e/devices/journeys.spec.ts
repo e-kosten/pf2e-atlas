@@ -2918,6 +2918,7 @@ test("reference feedback: edition context is visible above rules and counterpart
 test("reference feedback: link picker retains direction, scope and preview when editing", async ({
   page,
 }, info) => {
+  const narrow = page.viewportSize()!.width < 992;
   await page.goto("/search");
   await activate(page.getByRole("button", { name: "Links", exact: true }), info);
   const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
@@ -2925,7 +2926,7 @@ test("reference feedback: link picker retains direction, scope and preview when 
   await activate(candidate, info);
   await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
   const results = picker.getByRole("button", { name: "Results", exact: true });
-  if (await results.isVisible()) await activate(results, info);
+  if (narrow) await activate(results, info);
   await activate(picker.getByText("Linked from", { exact: true }), info);
   await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeDisabled();
   const help = picker.getByRole("button", { name: "About link scope", exact: true });
@@ -2967,7 +2968,7 @@ test("reference feedback: link picker retains direction, scope and preview when 
   ).toBeVisible();
   await expect(picker.locator(".reference-picker__footer a")).toHaveCount(0);
   await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
-  if (await results.isVisible()) await activate(results, info);
+  if (narrow) await activate(results, info);
   await expect(
     picker.getByRole("radio", { name: "Linked from", exact: true }),
   ).toBeChecked();
@@ -2987,7 +2988,7 @@ test("reference feedback: link picker retains direction, scope and preview when 
       .first(),
   ).toBeVisible();
   const editResults = edit.getByRole("button", { name: "Results", exact: true });
-  if (await editResults.isVisible()) await activate(editResults, info);
+  if (narrow) await activate(editResults, info);
   await expect(
     edit.getByRole("radio", { name: "Linked from", exact: true }),
   ).toBeChecked();
