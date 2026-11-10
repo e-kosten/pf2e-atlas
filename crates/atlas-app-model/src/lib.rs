@@ -112,6 +112,7 @@ pub use remaster::{
     RemasterExplanationLinkView, RemasterInlinePartView, RemasterRelationshipView,
     RemasterRelationshipsView, RemasterSourceContextView,
 };
+mod equipment_family;
 mod graph;
 mod list;
 mod party;
@@ -165,6 +166,7 @@ pub use encounter::{
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest,
 };
+pub use equipment_family::{EquipmentFamilyGroupingView, EquipmentFamilyView};
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
     DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,

@@ -126,7 +126,12 @@ keeps combinations that vary several axes separately. An exact general record ca
 scope to a subset of axis values. Retrieval checks that record against the same
 snapshot and derives both directions from the scope. An absent or stale general
 record leaves any verified concrete slices available. CLI and audit consumers
-continue to use the flat variant outcome. These views preserve
+continue to use the flat variant outcome. The equipment family page addresses
+the same catalog by family ID and verifies its member set without an item seed.
+It projects reviewed members, axis groupings, and verified scoped overviews
+without creating reference records or persisting a second catalog. Versions
+offers the family address when the selected record's reviewed role verifies.
+These views preserve
 record identity, aliases and independent search results. RollTables are product
 records; Macros are
 developer-only on all product paths, including exact-key access.

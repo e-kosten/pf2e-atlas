@@ -41,6 +41,7 @@ pub enum AppErrorCode {
     InvalidRequest,
     InvalidRecordKey,
     RecordNotFound,
+    EquipmentFamilyNotFound,
     RecordResolutionMiss,
     RecordResolutionAmbiguous,
     SavedListNotFound,

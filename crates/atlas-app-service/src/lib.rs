@@ -12,6 +12,7 @@ mod definitions;
 mod discovery;
 mod embedded_reading;
 mod encounters;
+mod equipment_family;
 mod error;
 mod executor;
 mod filter;

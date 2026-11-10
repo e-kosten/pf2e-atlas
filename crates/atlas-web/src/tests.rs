@@ -875,6 +875,75 @@ async fn description_filter_keeps_own_prose_through_the_search_route() {
 }
 
 #[tokio::test]
+async fn equipment_family_route_distinguishes_unknown_from_unverified() {
+    let fixture = Fixture::new();
+    for id in ["no-such-family", "Wondrous-Figurine"] {
+        let (status, body) = fixture
+            .json(Method::GET, &format!("/api/families/equipment/{id}"), None)
+            .await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+        assert_eq!(body["code"], "equipment_family_not_found");
+    }
+    let (status, body) = fixture
+        .json(
+            Method::GET,
+            "/api/families/equipment/wondrous-figurine",
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        body,
+        json!({"kind":"unavailable","name":"Wondrous Figurine"})
+    );
+}
+
+#[tokio::test]
+async fn equipment_family_route_and_versions_link_share_exact_reviewed_membership() {
+    let fixture = Fixture::with_jolt_coil();
+    let key = "equipment-srd:0gxqSZhYdOeJhPrp";
+    let (status, family) = fixture
+        .json(Method::GET, "/api/families/equipment/jolt-coil", None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{family}");
+    assert_eq!(family["kind"], "content");
+    assert_eq!(family["name"], "Jolt Coil");
+    assert_eq!(family["groupings"], json!([]));
+    assert_eq!(family["overviews"], json!([]));
+    let keys: Vec<_> = family["members"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|choice| choice["record"]["record_key"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            key,
+            "equipment-srd:auEm7vmpG9V8xpAJ",
+            "equipment-srd:TucjFO5NQHvUUc7a"
+        ]
+    );
+    assert_eq!(family["members"][0]["record"]["edition"], "remaster");
+
+    for (record, expected) in [(key, Some("jolt-coil")), (ACTION, None)] {
+        let (_, detail) = fixture
+            .json(Method::GET, &format!("/api/records/{record}"), None)
+            .await;
+        let (status, related) = fixture.json(Method::POST, "/api/related", Some(json!({
+            "selection": detail["selected"], "artifact_generation": detail["artifact_generation"]
+        }))).await;
+        assert_eq!(status, StatusCode::OK, "{related}");
+        assert_eq!(related["equipment_family_id"].as_str(), expected);
+        if expected.is_some() {
+            assert_eq!(related["show_versions"], true);
+        } else {
+            assert!(related.get("equipment_family_id").is_none());
+        }
+    }
+}
+
+#[tokio::test]
 async fn record_and_filter_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture

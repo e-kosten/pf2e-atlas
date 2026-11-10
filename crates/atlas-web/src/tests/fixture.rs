@@ -73,22 +73,43 @@ impl Fixture {
         Self::with_actor_adjustment(remaster, None)
     }
     pub fn with_actor_adjustment(remaster: bool, adjustment: Option<&str>) -> Self {
-        Self::with_reference_data(remaster, adjustment, None, 16)
+        Self::with_reference_data(remaster, adjustment, None, 16, Vec::new())
     }
     pub fn with_glossary() -> Self {
-        Self::with_reference_data(false, None, Some(true), 16)
+        Self::with_reference_data(false, None, Some(true), 16, Vec::new())
     }
     pub fn with_legacy_glossary() -> Self {
-        Self::with_reference_data(false, None, Some(false), 16)
+        Self::with_reference_data(false, None, Some(false), 16, Vec::new())
     }
     pub fn with_actor_armor_class(armor_class: i64) -> Self {
-        Self::with_reference_data(false, None, None, armor_class)
+        Self::with_reference_data(false, None, None, armor_class, Vec::new())
+    }
+    pub fn with_jolt_coil() -> Self {
+        let records = [
+            ("0gxqSZhYdOeJhPrp", "Jolt Coil", 3),
+            ("auEm7vmpG9V8xpAJ", "Jolt Coil (Greater)", 8),
+            ("TucjFO5NQHvUUc7a", "Jolt Coil (Major)", 12),
+        ]
+        .into_iter()
+        .map(|(id, name, level)| {
+            record(
+                "equipment-srd",
+                "Item",
+                json!({
+                    "_id": id, "type": "equipment", "name": name,
+                    "system": {"level": {"value": level}, "publication": {"remaster": true}}
+                }),
+            )
+        })
+        .collect();
+        Self::with_reference_data(false, None, None, 16, records)
     }
     fn with_reference_data(
         remaster: bool,
         adjustment: Option<&str>,
         coverage: Option<bool>,
         armor_class: i64,
+        extra_records: Vec<atlas_index::SourceArtifactRecordInput>,
     ) -> Self {
         let glossary = coverage == Some(true);
         let directory = tempfile::tempdir().unwrap();
@@ -130,6 +151,7 @@ impl Fixture {
                 json!({"_id":"TBSHQspnbcqxsmjL","type":"condition","name":"Frightened","system":{"slug":"frightened","value":{"isValued":true,"value":1}}}),
             ),
         ];
+        records.extend(extra_records);
         if glossary {
             records[0] = record(
                 "actions",

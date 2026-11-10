@@ -3,10 +3,11 @@ use atlas_domain::{RecordKey, SourceRecordSummary, normalize_record_name};
 use atlas_record::source_record::{ItemSourceView, SourceFieldView, SourceNodeView};
 use std::sync::LazyLock;
 
-use super::catalog::{Catalog, Family, Fit, GeneralRecord, Member};
+use super::catalog::{Catalog, Family, Fit, GeneralRecord, Member, valid_family_id};
 use super::{
-    Compatibility, VariantFamilyContext, VariantGroupResult, VariantSuggestionEvidence, axes,
-    compatibility,
+    Compatibility, EquipmentFamily, EquipmentFamilyGrouping, EquipmentFamilyOutcome,
+    VariantAxisSlice, VariantFamilyChoice, VariantFamilyContext, VariantGroupResult,
+    VariantSuggestionEvidence, axes, compatibility,
 };
 
 static CATALOG: LazyLock<Result<Catalog, serde_json::Error>> = LazyLock::new(|| {
@@ -36,32 +37,110 @@ enum FamilySeed<'a> {
     General(&'a GeneralRecord),
 }
 
+#[derive(Default)]
+pub(super) struct VerifiedSelection {
+    pub(super) group: Option<VariantGroupResult>,
+    pub(super) context: Option<VariantFamilyContext>,
+    pub(super) family_id: Option<String>,
+}
+
 pub(super) fn verified_group(
     retrieval: &AtlasRetrievalService,
     seed: &SourceRecordSummary,
     include_family: bool,
-) -> Result<(Option<VariantGroupResult>, Option<VariantFamilyContext>), SearchError> {
-    let Some((family, selection)) = catalog()?.families.values().find_map(|family| {
+) -> Result<VerifiedSelection, SearchError> {
+    let Some((id, family, selection)) = catalog()?.families.iter().find_map(|(id, family)| {
         if let Some(member) = family.members.iter().find(|member| member.key == seed.key) {
-            return Some((family, FamilySeed::Concrete(member)));
+            return Some((id, family, FamilySeed::Concrete(member)));
         }
         if include_family {
             return family
                 .general_records
                 .iter()
                 .find(|general| general.key == seed.key)
-                .map(|general| (family, FamilySeed::General(general)));
+                .map(|general| (id, family, FamilySeed::General(general)));
         }
         None
     }) else {
-        return Ok((None, None));
+        return Ok(VerifiedSelection::default());
     };
 
     if let FamilySeed::General(general) = selection
         && !record_matches(retrieval, family, seed, &general.name, None)?
     {
-        return Ok((None, None));
+        return Ok(VerifiedSelection::default());
     }
+    let Some(reviewed) = reviewed_members(retrieval, family)? else {
+        return Ok(VerifiedSelection::default());
+    };
+    let family_id = include_family.then(|| id.clone());
+    if let FamilySeed::General(general) = selection {
+        let members = reviewed
+            .into_iter()
+            .filter(|(member, _)| general.covers(member))
+            .map(|(member, summary)| member_choice(family, member, summary))
+            .collect();
+        return Ok(VerifiedSelection {
+            group: None,
+            context: Some(VariantFamilyContext::General {
+                heading: axes::general_heading(family, general),
+                members,
+            }),
+            family_id,
+        });
+    }
+    let context = if include_family
+        && !family.axes.is_empty()
+        && let FamilySeed::Concrete(concrete_seed) = selection
+    {
+        let general = match family
+            .general_records
+            .iter()
+            .find(|entry| entry.covers(concrete_seed))
+        {
+            Some(entry) => read_general(retrieval, family, entry)?,
+            None => None,
+        };
+        Some(axes::concrete_context(
+            family,
+            concrete_seed,
+            reviewed.iter().map(|(member, _)| *member),
+            general,
+        ))
+    } else {
+        None
+    };
+    let (variants, evidence) = reviewed
+        .into_iter()
+        .map(|(member, summary)| {
+            let evidence = VariantSuggestionEvidence {
+                record: member.key.clone(),
+                naming_convention: "reviewed_membership".into(),
+                qualifier: member.display_label(family),
+                compatibility: "reviewed equipment family".into(),
+            };
+            (summary, evidence)
+        })
+        .unzip();
+    Ok(VerifiedSelection {
+        group: Some(VariantGroupResult {
+            seed: seed.clone(),
+            base_name: family.name.clone(),
+            variants,
+            evidence,
+            ambiguous: false,
+            truncated: false,
+            verified: true,
+        }),
+        context,
+        family_id,
+    })
+}
+
+fn reviewed_members<'a>(
+    retrieval: &AtlasRetrievalService,
+    family: &'a Family,
+) -> Result<Option<Vec<(&'a Member, SourceRecordSummary)>>, SearchError> {
     let keys = family
         .members
         .iter()
@@ -69,7 +148,7 @@ pub(super) fn verified_group(
         .collect::<Vec<_>>();
     let batch = retrieval.index.read_summaries(&keys)?;
     if !batch.missing.is_empty() {
-        return Ok((None, None));
+        return Ok(None);
     }
     let mut reviewed = Vec::with_capacity(keys.len());
     for (member, summary) in family.members.iter().zip(batch.records) {
@@ -80,20 +159,14 @@ pub(super) fn verified_group(
             &member.name,
             member.fit.as_ref(),
         )? {
-            return Ok((None, None));
+            return Ok(None);
         }
-        let evidence = VariantSuggestionEvidence {
-            record: member.key.clone(),
-            naming_convention: "reviewed_membership".into(),
-            qualifier: member.display_label(family),
-            compatibility: "reviewed equipment family".into(),
-        };
-        reviewed.push((member, summary, evidence));
+        reviewed.push((member, summary));
     }
 
     // A declared progression follows its authored order. Named options sort by level.
     if family.order_by_level {
-        reviewed.sort_by(|(_, a, _), (_, b, _)| {
+        reviewed.sort_by(|(_, a), (_, b)| {
             let level = |record: &SourceRecordSummary| {
                 record
                     .level
@@ -113,63 +186,77 @@ pub(super) fn verified_group(
                 .then_with(|| a.key.cmp(&b.key))
         });
     }
-    if let FamilySeed::General(general) = selection {
-        let members = reviewed
-            .into_iter()
-            .filter_map(|(member, summary, evidence)| {
-                general
-                    .covers(member)
-                    .then_some(super::VariantFamilyChoice {
-                        summary,
-                        qualifier: evidence.qualifier,
-                    })
-            })
-            .collect();
-        return Ok((
-            None,
-            Some(VariantFamilyContext::General {
-                heading: axes::general_heading(family, general),
-                members,
-            }),
-        ));
+    Ok(Some(reviewed))
+}
+
+fn member_choice(
+    family: &Family,
+    member: &Member,
+    summary: SourceRecordSummary,
+) -> VariantFamilyChoice {
+    VariantFamilyChoice {
+        summary,
+        qualifier: member.display_label(family),
     }
-    let context = if include_family
-        && !family.axes.is_empty()
-        && let FamilySeed::Concrete(concrete_seed) = selection
-    {
-        let general = match family
-            .general_records
-            .iter()
-            .find(|entry| entry.covers(concrete_seed))
-        {
-            Some(entry) => read_general(retrieval, family, entry)?,
-            None => None,
-        };
-        Some(axes::concrete_context(
-            family,
-            concrete_seed,
-            reviewed.iter().map(|(member, _, _)| *member),
-            general,
-        ))
-    } else {
-        None
+}
+
+pub(super) fn equipment_family(
+    retrieval: &AtlasRetrievalService,
+    id: &str,
+) -> Result<EquipmentFamilyOutcome, SearchError> {
+    if !valid_family_id(id) {
+        return Ok(EquipmentFamilyOutcome::Missing);
+    }
+    let Some(family) = catalog()?.families.get(id) else {
+        return Ok(EquipmentFamilyOutcome::Missing);
     };
-    let (variants, evidence) = reviewed
-        .into_iter()
-        .map(|(_, summary, evidence)| (summary, evidence))
-        .unzip();
-    Ok((
-        Some(VariantGroupResult {
-            seed: seed.clone(),
-            base_name: family.name.clone(),
-            variants,
-            evidence,
-            ambiguous: false,
-            truncated: false,
-            verified: true,
-        }),
-        context,
-    ))
+    let Some(reviewed) = reviewed_members(retrieval, family)? else {
+        return Ok(EquipmentFamilyOutcome::Unavailable {
+            name: family.name.clone(),
+        });
+    };
+    let groupings = family
+        .axes
+        .iter()
+        .map(|axis| EquipmentFamilyGrouping {
+            id: axis.id.clone(),
+            label: axis.label.clone(),
+            groups: axis
+                .options
+                .iter()
+                .filter_map(|option| {
+                    let members: Vec<_> = reviewed
+                        .iter()
+                        .filter(|(member, _)| member.coordinates[&axis.id] == option.id)
+                        .map(|(member, _)| member.key.clone())
+                        .collect();
+                    (!members.is_empty()).then(|| VariantAxisSlice {
+                        heading: option.label.clone(),
+                        members,
+                    })
+                })
+                .collect(),
+        })
+        .collect();
+    let mut overviews = Vec::new();
+    for entry in &family.general_records {
+        if let Some(summary) = read_general(retrieval, family, entry)? {
+            let qualifier = axes::labels(family, &entry.scope);
+            overviews.push(VariantFamilyChoice {
+                summary: *summary,
+                qualifier,
+            });
+        }
+    }
+    Ok(EquipmentFamilyOutcome::Content(EquipmentFamily {
+        name: family.name.clone(),
+        members: reviewed
+            .into_iter()
+            .map(|(member, summary)| member_choice(family, member, summary))
+            .collect(),
+        groupings,
+        overviews,
+    }))
 }
 
 fn read_general(
@@ -425,7 +512,34 @@ mod tests {
         };
         for name in [Some(moderate.name.as_str()), Some("Renamed potion"), None] {
             let (retrieval, _artifact) = build(name, false);
+            let EquipmentFamilyOutcome::Content(page) =
+                retrieval.equipment_family("potion-of-resistance").unwrap()
+            else {
+                panic!("expected verified family page");
+            };
+            assert_eq!(page.members.len(), 15);
+            assert_eq!(page.groupings[0].id, "damage-type");
+            assert_eq!(
+                page.groupings[0].groups[1].members,
+                [
+                    key("mRs24OwmGPjoIDvO"),
+                    cold.clone(),
+                    key("VZmUrseCZs9xMaxt"),
+                ]
+            );
+            assert_eq!(page.groupings[1].id, "grade");
+            assert_eq!(page.groupings[1].groups[1].members.len(), 5);
+            let valid_overview = name == Some(moderate.name.as_str());
+            assert_eq!(page.overviews.len(), usize::from(valid_overview));
+            if let Some(overview) = page.overviews.first() {
+                assert_eq!(overview.summary.key, moderate.key);
+                assert_eq!(overview.qualifier, "Moderate");
+            }
             let explored = explore(&retrieval, &cold);
+            assert_eq!(
+                explored.equipment_family_id.as_deref(),
+                Some("potion-of-resistance")
+            );
             let VariantGroupOutcome::Content(flat) = explored.variants else {
                 panic!("expected flat variants")
             };
@@ -457,7 +571,11 @@ mod tests {
             assert_eq!(other_combinations.len(), 8);
             assert_eq!(other_combinations[0], key("u1gZaIZHnEfZDc1o"));
             let reverse = explore(&retrieval, &moderate.key);
-            if name == Some(moderate.name.as_str()) {
+            assert_eq!(
+                reverse.equipment_family_id.as_deref(),
+                valid_overview.then_some("potion-of-resistance")
+            );
+            if valid_overview {
                 assert_eq!(general.unwrap().key, moderate.key);
                 assert!(matches!(reverse.variants, VariantGroupOutcome::Empty));
                 let Some(VariantFamilyContext::General { heading, members }) = reverse.family
@@ -477,6 +595,11 @@ mod tests {
         let (retrieval, _artifact) = build(Some(&moderate.name), true);
         let explored = explore(&retrieval, &cold);
         assert!(explored.family.is_none());
+        assert!(explored.equipment_family_id.is_none());
+        assert!(matches!(
+            retrieval.equipment_family("potion-of-resistance").unwrap(),
+            EquipmentFamilyOutcome::Unavailable { .. }
+        ));
         assert!(
             matches!(explored.variants, VariantGroupOutcome::Content(group) if !group.verified)
         );
@@ -528,6 +651,30 @@ mod tests {
         let mut ordered = family.members.iter().collect::<Vec<_>>();
         ordered.sort_by_key(|member| (fixture_level(member).unwrap_or(i32::MAX), &member.name));
         let keys = ordered.iter().map(|member| &member.key).collect::<Vec<_>>();
+        let EquipmentFamilyOutcome::Content(page) =
+            complete.equipment_family("wondrous-figurine").unwrap()
+        else {
+            panic!("expected verified family page");
+        };
+        assert!(page.groupings.is_empty());
+        assert_eq!(
+            page.members
+                .iter()
+                .map(|member| &member.summary.key)
+                .collect::<Vec<_>>(),
+            keys
+        );
+        let explored = complete
+            .variant_exploration(VariantGroupRequest {
+                record_key: keys[0],
+            })
+            .unwrap();
+        assert_eq!(
+            explored.equipment_family_id.as_deref(),
+            Some("wondrous-figurine")
+        );
+        assert!(explored.family.is_none());
+
         for member in &family.members {
             let VariantGroupOutcome::Content(group) = variants(&complete, &member.key) else {
                 panic!("expected reviewed siblings for {}", member.name);

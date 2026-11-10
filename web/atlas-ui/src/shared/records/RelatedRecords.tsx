@@ -8,7 +8,12 @@ import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
-import { recordDestination, searchDestination } from "../../app/destinations";
+import { AtlasLink } from "../../app/AtlasLink";
+import {
+  equipmentFamilyDestination,
+  recordDestination,
+  searchDestination,
+} from "../../app/destinations";
 import { Button, Collapse, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { useEffect, useState } from "react";
@@ -492,6 +497,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
   const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
   const family = related.data?.family_context;
+  const familyId = related.data?.equipment_family_id;
   const verified = variants?.kind === "content" && variants.content.verified;
   const variantLabels = new Map(
     verified && variants.kind === "content"
@@ -517,6 +523,9 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           onReload={onReload}
           reloadLabel={reloadLabel}
         />
+      )}
+      {familyId && (
+        <AtlasLink {...equipmentFamilyDestination(familyId)}>View family</AtlasLink>
       )}
       {!family && variants?.kind === "error" ? (
         <ErrorNotice

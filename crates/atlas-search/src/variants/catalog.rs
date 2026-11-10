@@ -4,6 +4,16 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+pub(super) fn valid_family_id(id: &str) -> bool {
+    id.len() <= 128
+        && id.split('-').all(|part| {
+            !part.is_empty()
+                && part
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+        })
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Catalog {
