@@ -1,0 +1,9 @@
+name = "Grudgestone"
+source_note = "Treasure Vault (Remastered). The cold black talisman improves the damage bonus against the creature that triggered it."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:SH0WmAdjIaNN3OiN", name = "Grudgestone", attributes = ["Base item"] },
+    { key = "equipment-srd:rEev4xrQyMvjz7W7", name = "Grudgestone (Greater)", attributes = ["Greater"] },
+]

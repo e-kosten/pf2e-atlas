@@ -1,0 +1,9 @@
+name = "Reflecting Shard"
+source_note = "Treasure Vault (Remastered). The reflecting talisman can respond to spells of any rank at the greater grade and improves its counteract rank."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:cRtDr8WhXhxkGrmx", name = "Reflecting Shard", attributes = ["Base item"] },
+    { key = "equipment-srd:MpyuCFBQwbOQhhm0", name = "Reflecting Shard (Greater)", attributes = ["Greater"] },
+]

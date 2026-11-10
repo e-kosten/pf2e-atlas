@@ -1,0 +1,9 @@
+name = "Resonating Fork"
+source_note = "Treasure Vault (Remastered). The fork spellheart improves attack and DC statistics and effect durations and adds higher-rank sonic spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:TVpEf9gMFUuwfGoU", name = "Resonating Fork", attributes = ["Base item"] },
+    { key = "equipment-srd:WvrPq0UGEX3wJg4a", name = "Resonating Fork (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Shbg6XeBx94DXbcd", name = "Resonating Fork (Major)", attributes = ["Major"] },
+]

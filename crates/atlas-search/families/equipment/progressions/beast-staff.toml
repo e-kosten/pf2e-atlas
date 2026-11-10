@@ -1,0 +1,11 @@
+name = "Beast Staff"
+source_note = "Treasure Vault (Remastered). The beast staff improves its runes and attack benefits and adds higher-rank animal transformations."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:HoxkzrS7jhqmWpla", name = "Beast Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:zzLGE9zmSu3yMEOq", name = "Beast Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:PeRLqNTbzaiITNuO", name = "Beast Staff (Major)", attributes = ["Major"] },
+]

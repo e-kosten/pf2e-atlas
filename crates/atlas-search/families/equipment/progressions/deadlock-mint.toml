@@ -1,0 +1,9 @@
+name = "Deadlock Mint"
+source_note = "Treasure Vault (Remastered). The repelling mint increases its push distance and can affect heavier objects and larger creatures."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:KuTwNrDpuYVAPu7c", name = "Deadlock Mint", attributes = ["Base item"] },
+    { key = "equipment-srd:Vk5VzPB2fj3Ym1Ia", name = "Deadlock Mint (Greater)", attributes = ["Greater"] },
+]

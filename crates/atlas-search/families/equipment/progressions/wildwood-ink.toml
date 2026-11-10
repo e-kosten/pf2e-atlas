@@ -1,0 +1,9 @@
+name = "Wildwood Ink"
+source_note = "Treasure Vault (Remastered). The ink tattoo increases its bonuses and the duration of its activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:uOaFBqnCYWCgyCl6", name = "Wildwood Ink", attributes = ["Base item"] },
+    { key = "equipment-srd:76FyZmtpHi6OXQ0B", name = "Wildwood Ink (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Lwvg9GECyIPsG8Xa", name = "Wildwood Ink (Major)", attributes = ["Major"] },
+]

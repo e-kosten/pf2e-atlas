@@ -1,0 +1,10 @@
+name = "Midnight Milk"
+source_note = "Seven Dooms for Sandpoint. The drug variants are increasingly refined forms of the same dreaming and possession mechanism with escalating save DCs and effects."
+item_type = "consumable"
+category = "drug"
+
+members = [
+    { key = "equipment-srd:thqCdyIkkPUl2N3Y", name = "Midnight Milk (Experimental)", attributes = ["Experimental"] },
+    { key = "equipment-srd:EX8Ta6J56SNrYbqJ", name = "Midnight Milk (Refined)", attributes = ["Refined"] },
+    { key = "equipment-srd:L5cDsqIYsDsW7BKA", name = "Midnight Milk (Pure)", attributes = ["Pure"] },
+]

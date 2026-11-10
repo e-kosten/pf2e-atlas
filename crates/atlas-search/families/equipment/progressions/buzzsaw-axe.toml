@@ -1,0 +1,11 @@
+name = "Buzzsaw Axe"
+source_note = "Secrets of Magic. The whirling battle axe improves its runes, numerical bonus, and Reflex DC for its thrown activation."
+item_type = "weapon"
+category = "martial"
+group = "axe"
+
+members = [
+    { key = "equipment-srd:aBfyzL0WBFMBAbuI", name = "Buzzsaw Axe", attributes = ["Base item"] },
+    { key = "equipment-srd:mXlVJIxv6EpzwTJs", name = "Buzzsaw Axe (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:D2CnWGQ84bSjh5bz", name = "Buzzsaw Axe (Major)", attributes = ["Major"] },
+]

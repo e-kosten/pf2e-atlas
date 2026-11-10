@@ -1,0 +1,12 @@
+name = "Wand of Thundering Echoes"
+source_note = "Lost Omens The Grand Bazaar. The same wand changes the rank of its spell and retains its thundering echo effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ogTmuTUt52b7x5Yu", name = "Wand of Thundering Echoes (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:l68lJrjtjjkV7NiJ", name = "Wand of Thundering Echoes (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:sFIKeflh6Jaac9FI", name = "Wand of Thundering Echoes (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:UBWWeT6u5uHD5vT9", name = "Wand of Thundering Echoes (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:VcZ5VVYMvnQQXzX9", name = "Wand of Thundering Echoes (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:Z7xfDpdf1qwkJR94", name = "Wand of Thundering Echoes (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+]

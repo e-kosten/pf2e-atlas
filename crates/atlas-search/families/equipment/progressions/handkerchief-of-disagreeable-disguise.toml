@@ -1,0 +1,8 @@
+name = "Handkerchief of Disagreeable Disguise"
+source_note = "Treasure Vault (Remastered). The disguise handkerchief improves activation, casting rank, and Will DC while retaining its listed price."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:aGkmq9k4QIEpLFs7", name = "Handkerchief of Disagreeable Disguise", attributes = ["Base item"] },
+    { key = "equipment-srd:KR35T5By2iaLKEwH", name = "Handkerchief of Disagreeable Disguise (Greater)", attributes = ["Greater"] },
+]

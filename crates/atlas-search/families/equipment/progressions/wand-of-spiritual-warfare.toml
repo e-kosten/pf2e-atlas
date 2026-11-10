@@ -1,0 +1,10 @@
+name = "Wand of Spiritual Warfare"
+source_note = "Lost Omens The Grand Bazaar. The spiritual warfare wand applies its same two spell effects at increasing ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Hqu2CmkLIE5Ov41i", name = "Wand of Spiritual Warfare (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:anZ6U7zFEAfiv3gh", name = "Wand of Spiritual Warfare (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:bjjp7rXqikby6NU5", name = "Wand of Spiritual Warfare (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:dR6d7wAWP9KtpWLA", name = "Wand of Spiritual Warfare (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+]

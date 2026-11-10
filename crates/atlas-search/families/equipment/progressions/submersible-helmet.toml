@@ -1,0 +1,8 @@
+name = "Submersible Helmet"
+source_note = "Treasure Vault (Remastered). The diving helmet improves its granted bonus at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:bdbBRucjvg0eYazY", name = "Submersible Helmet", attributes = ["Base item"] },
+    { key = "equipment-srd:mp20ggzn4790lalQ", name = "Submersible Helmet (Greater)", attributes = ["Greater"] },
+]

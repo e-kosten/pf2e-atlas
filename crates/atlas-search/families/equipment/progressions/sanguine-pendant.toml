@@ -1,0 +1,8 @@
+name = "Sanguine Pendant"
+source_note = "Player Core 2. The bloodline pendant improves its bonus to both bloodline skills."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:xyTF5YznEskKIXpp", name = "Sanguine Pendant", attributes = ["Base item"] },
+    { key = "equipment-srd:6fnjxb9sjrKm0N2r", name = "Sanguine Pendant (Greater)", attributes = ["Greater"] },
+]

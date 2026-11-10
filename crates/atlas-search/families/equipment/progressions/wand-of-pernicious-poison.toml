@@ -1,0 +1,9 @@
+name = "Wand of Pernicious Poison"
+source_note = "Treasure Vault (Remastered). The chitin wand retains its poison delivery mechanism with stronger casting and a different venom at sixth rank."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:kBCdBFb9IWlwy81B", name = "Wand of Pernicious Poison (1st-Rank)", attributes = ["1st-Rank"] },
+    { key = "equipment-srd:QC4TXwjteVhwRSNO", name = "Wand of Pernicious Poison (6th-Rank)", attributes = ["6th-Rank"] },
+]

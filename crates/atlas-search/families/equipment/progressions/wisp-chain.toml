@@ -1,0 +1,11 @@
+name = "Wisp Chain"
+source_note = "Rage of Elements. The wind-linked chain shirt improves its runes, slashing damage, and Fortitude DCs at each grade."
+item_type = "armor"
+category = "light"
+
+members = [
+    { key = "equipment-srd:bosOCvsQb8tG8fuD", name = "Wisp Chain", attributes = ["Base item"] },
+    { key = "equipment-srd:M7H8LNnmUA17oqsW", name = "Wisp Chain (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:BTHxd53T6xttQ0d9", name = "Wisp Chain (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:4Zxm46hCidf2GmvV", name = "Wisp Chain (True)", attributes = ["True"] },
+]

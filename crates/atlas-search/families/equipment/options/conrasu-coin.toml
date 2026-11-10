@@ -1,0 +1,9 @@
+name = "Conrasu Coin"
+source_note = "Dark Archive (Remastered). The spontaneously formed wooden coins use separate aeon motifs and activations."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:SHQv4yntEoU4uYRJ", name = "Conrasu Coin (Arbiter)", attributes = ["Arbiter"] },
+    { key = "equipment-srd:FgZCLBhOOhhXDdvI", name = "Conrasu Coin (Bythos)", attributes = ["Bythos"] },
+]

@@ -1,0 +1,11 @@
+name = "Accursed Staff"
+source_note = "Treasure Vault (Remastered). The curse staff adds higher-rank curses and related spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:tRmoj42jniQOdjYS", name = "Accursed Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:eIGcGgQDBihvJsEo", name = "Accursed Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:jHCPejseO01ki3lO", name = "Accursed Staff (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,8 @@
+name = "Sash of Prowess"
+source_note = "Player Core 2. The monk's sash improves its Acrobatics and Athletics bonuses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Rr7dAVnfpnnQPAWh", name = "Sash of Prowess", attributes = ["Base item"] },
+    { key = "equipment-srd:uj09q6x8wPAZcMs9", name = "Sash of Prowess (Greater)", attributes = ["Greater"] },
+]

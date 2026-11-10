@@ -1,0 +1,8 @@
+name = "Preserving"
+source_note = "Treasure Vault (Remastered). The container rune prevents spoilage indefinitely and adds a spell activation at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Gh1FVqiP7uaSwCYz", name = "Preserving", attributes = ["Base item"] },
+    { key = "equipment-srd:qJW6SU0hvLrxVbnV", name = "Preserving (Greater)", attributes = ["Greater"] },
+]

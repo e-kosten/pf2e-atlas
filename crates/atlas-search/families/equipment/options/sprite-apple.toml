@@ -1,0 +1,11 @@
+name = "Sprite Apple"
+source_note = "Treasure Vault (Remastered). The candy-coated apples share a light effect and grant a distinct benefit for each color."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:Lbe9L9ZDBJgjDIhT", name = "Sprite Apple (Golden)", attributes = ["Golden"] },
+    { key = "equipment-srd:3AjyXlvLUx4c2RCi", name = "Sprite Apple (Pink)", attributes = ["Pink"] },
+    { key = "equipment-srd:IOurUQgkm7oKnyrt", name = "Sprite Apple (Chartreuse)", attributes = ["Chartreuse"] },
+    { key = "equipment-srd:EeqvTTUpqHobTs6u", name = "Sprite Apple (Teal)", attributes = ["Teal"] },
+]

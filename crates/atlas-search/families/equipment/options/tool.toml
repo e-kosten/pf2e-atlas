@@ -1,0 +1,8 @@
+name = "Tool"
+source_note = "Player Core. Long and short are explicit size options for ordinary tools, with different improvised damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:wrpI5z7iWB8XvflQ", name = "Tool (Long)", attributes = ["Long"] },
+    { key = "equipment-srd:Zr4PwTEuBLE30kkn", name = "Tool (Short)", attributes = ["Short"] },
+]

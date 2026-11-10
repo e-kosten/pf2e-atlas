@@ -1,0 +1,8 @@
+name = "Religious Symbol"
+source_note = "Player Core. The exact wooden and silver records are material choices for the same religious symbol."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:upzjwQ96cZG0Xlmx", name = "Religious Symbol (Silver)", attributes = ["Silver"] },
+    { key = "equipment-srd:plplsXJsqrdqNQVI", name = "Religious Symbol (Wooden)", attributes = ["Wooden"] },
+]

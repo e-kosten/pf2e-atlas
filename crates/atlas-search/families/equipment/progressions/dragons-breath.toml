@@ -1,0 +1,15 @@
+name = "Dragon's Breath"
+source_note = "Lost Omens The Grand Bazaar. These spell-holding items share the same breath-triggered casting mechanism across ranks and are distinct from the Core Rulebook consumable potions."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:bCwSeD0Ub3f4BfjO", name = "Dragon's Breath (1st Level Spell)", attributes = ["1st Level Spell"] },
+    { key = "equipment-srd:FZ9ELiYCNBlyAz6X", name = "Dragon's Breath (2nd Level Spell)", attributes = ["2nd Level Spell"] },
+    { key = "equipment-srd:5YZmX9AdhQxXaOzX", name = "Dragon's Breath (3rd Level Spell)", attributes = ["3rd Level Spell"] },
+    { key = "equipment-srd:Gw9z5RUNPOjLUdRm", name = "Dragon's Breath (4th Level Spell)", attributes = ["4th Level Spell"] },
+    { key = "equipment-srd:kvfdd4YiO3Lyywuv", name = "Dragon's Breath (5th Level Spell)", attributes = ["5th Level Spell"] },
+    { key = "equipment-srd:SNxXDIoD0XE9WVQ7", name = "Dragon's Breath (6th Level Spell)", attributes = ["6th Level Spell"] },
+    { key = "equipment-srd:bgCBFy3yybTYo4Ec", name = "Dragon's Breath (7th Level Spell)", attributes = ["7th Level Spell"] },
+    { key = "equipment-srd:He5idiYCqLJJU83h", name = "Dragon's Breath (8th Level Spell)", attributes = ["8th Level Spell"] },
+    { key = "equipment-srd:cFJUxi5kCcBV6lz1", name = "Dragon's Breath (9th Level Spell)", attributes = ["9th Level Spell"] },
+]

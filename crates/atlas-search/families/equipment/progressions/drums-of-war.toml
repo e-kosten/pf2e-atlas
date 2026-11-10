@@ -1,0 +1,9 @@
+name = "Drums of War"
+source_note = "Treasure Vault (Remastered). The drums add higher-rank spells and gain an improved bonus at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:dsxATkJ2RwvYF3vm", name = "Drums of War", attributes = ["Base item"] },
+    { key = "equipment-srd:cHP1s9Ntki9B1HgM", name = "Drums of War (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:nXq9pxB3RVnGb0rB", name = "Drums of War (Major)", attributes = ["Major"] },
+]

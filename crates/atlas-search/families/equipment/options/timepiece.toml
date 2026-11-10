@@ -1,0 +1,8 @@
+name = "Timepiece"
+source_note = "Guns & Gears. Desktop and grand are concrete clock sizes, with the grand clock adding hourly chimes."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:KKhw57JFYEUO4TnK", name = "Timepiece (Desktop Clock)", attributes = ["Desktop Clock"] },
+    { key = "equipment-srd:zVXDnx8i0KLf6fkF", name = "Timepiece (Grand Clock)", attributes = ["Grand Clock"] },
+]

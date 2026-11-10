@@ -1,0 +1,9 @@
+name = "Reef Heart"
+source_note = "Treasure Vault (Remastered). The living coral armor improves its resilient rune and casts higher-rank Coral Eruption."
+item_type = "armor"
+category = "medium"
+
+members = [
+    { key = "equipment-srd:uuBhzN6xrplrwKyI", name = "Reef Heart", attributes = ["Base item"] },
+    { key = "equipment-srd:RODC2TYO4cUg6fXu", name = "Reef Heart (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Tooth and Claw Tattoo"
+source_note = "Treasure Vault (Remastered). The same transformation tattoo casts its spell at successively higher ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LM5zag6Ogv1fF5zz", name = "Tooth and Claw Tattoo", attributes = ["Base item"] },
+    { key = "equipment-srd:Ck2nuiQXkoURspvy", name = "Tooth and Claw Tattoo (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:NYehHw93LSgGG9vD", name = "Tooth and Claw Tattoo (Major)", attributes = ["Major"] },
+]

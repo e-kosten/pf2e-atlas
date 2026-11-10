@@ -1,0 +1,9 @@
+name = "Lightweave Scarf"
+source_note = "Treasure Vault (Remastered). The scarf spellheart increases spell DC and rank and adds further effects at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:dFYEGk1nUlHqQ5qy", name = "Lightweave Scarf", attributes = ["Base item"] },
+    { key = "equipment-srd:hEnITJ2bJVPrqfGG", name = "Lightweave Scarf (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Uk342C6qpSkdjHBb", name = "Lightweave Scarf (Major)", attributes = ["Major"] },
+]

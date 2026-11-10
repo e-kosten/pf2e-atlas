@@ -1,0 +1,10 @@
+name = "Soulcutter"
+source_note = "Spore War. The Heroic form of Silisifex's same curve blade gains intelligence and extends its authored abilities."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:wtyyxv0ffoMAGV8I", name = "Soulcutter", attributes = ["Base item"] },
+    { key = "equipment-srd:xczDHCiBANMuC87u", name = "Soulcutter (Heroic)", attributes = ["Heroic"] },
+]

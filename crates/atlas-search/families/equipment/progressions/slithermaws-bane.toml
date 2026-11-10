@@ -1,0 +1,9 @@
+name = "Slithermaw's Bane"
+source_note = "The Secret of Deathstalk Tower and A Voice in the Blight. The Heroic form of Kyloss's armor gains intelligence and improves the same environmental protection."
+item_type = "armor"
+category = "light"
+
+members = [
+    { key = "equipment-srd:9DuwR6Z1P5PuQwS3", name = "Slithermaw's Bane", attributes = ["Base item"] },
+    { key = "equipment-srd:2IRTceMDqmHfEwcf", name = "Slithermaw's Bane (Heroic)", attributes = ["Heroic"] },
+]

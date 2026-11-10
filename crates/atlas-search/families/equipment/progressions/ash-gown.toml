@@ -1,0 +1,8 @@
+name = "Ash Gown"
+source_note = "Rage of Elements. The smoke-spun formal wear improves protection, its bonus, and the timing and damage of its fiery activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:lxIwa8sbAsfyREYE", name = "Ash Gown", attributes = ["Base item"] },
+    { key = "equipment-srd:KwkZfSgS1z3XM0nl", name = "Ash Gown (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Repair Toolkit"
+source_note = "Player Core. The superb repair toolkit adds a bonus to the same repair check."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:vLGDUFrg4yGzpTQX", name = "Repair Toolkit", attributes = ["Base item"] },
+    { key = "equipment-srd:aDsdYMPpVc8hOnM5", name = "Repair Toolkit (Superb)", attributes = ["Superb"] },
+]

@@ -1,0 +1,21 @@
+name = "Spirit-Singer"
+source_note = "Guns & Gears. The ordinary and incredible versions differ in performance and haunt detection. Each is available stationary or handheld with distinct usage and Bulk."
+item_type = "equipment"
+
+axes = [
+    { id = "quality", label = "Qualities", options = [
+        { id = "standard", label = "Standard" },
+        { id = "incredible", label = "Incredible" },
+    ] },
+    { id = "form", label = "Forms", options = [
+        { id = "stationary", label = "Stationary" },
+        { id = "handheld", label = "Handheld" },
+    ] },
+]
+
+members = [
+    { key = "equipment-srd:qwHO8kRNKPqCM80x", name = "Spirit-Singer", coordinates = { quality = "standard", form = "stationary" } },
+    { key = "equipment-srd:POETsrh8lz9VnBEG", name = "Spirit-Singer (Handheld)", coordinates = { quality = "standard", form = "handheld" } },
+    { key = "equipment-srd:aU3vBG9EinYgYlWb", name = "Spirit-Singer (Incredible)", coordinates = { quality = "incredible", form = "stationary" } },
+    { key = "equipment-srd:MHvmgUSQlMAevvoF", name = "Spirit-Singer (Incredible Handheld)", coordinates = { quality = "incredible", form = "handheld" } },
+]

@@ -1,0 +1,8 @@
+name = "Medusa's Scream"
+source_note = "Player Core 2. The medusa-headed shield increases Hardness, Hit Points, Broken Threshold, and the DC of Petrifying Gaze."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:nzQKwdUxzmmwWtzT", name = "Medusa's Scream", attributes = ["Base item"] },
+    { key = "equipment-srd:TyW1XOWYMM2xHGaI", name = "Medusa's Scream (Greater)", attributes = ["Greater"] },
+]

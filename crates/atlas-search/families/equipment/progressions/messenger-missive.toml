@@ -1,0 +1,9 @@
+name = "Messenger Missive"
+source_note = "Treasure Vault (Remastered). The multiple missive extends the same delivery mechanism to up to four destinations."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:NK0wjH9m32sjaeQe", name = "Messenger Missive", attributes = ["Base item"] },
+    { key = "equipment-srd:Kc4d504GnbS0NcoS", name = "Messenger Missive (Multiple)", attributes = ["Multiple"] },
+]

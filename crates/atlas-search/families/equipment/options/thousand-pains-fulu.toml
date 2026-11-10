@@ -1,0 +1,13 @@
+name = "Thousand-Pains Fulu"
+source_note = "Treasure Vault (Remastered). The six talismans share the same fundamental activation with distinct damage types and effects."
+item_type = "consumable"
+category = "fulu"
+
+members = [
+    { key = "equipment-srd:aH5MLDdkZ7aJA7hP", name = "Thousand-Pains Fulu (Stone)", attributes = ["Stone"] },
+    { key = "equipment-srd:TXkHGUqvqIko7W9m", name = "Thousand-Pains Fulu (Blade)", attributes = ["Blade"] },
+    { key = "equipment-srd:7PhPuAFP4mQz9jDr", name = "Thousand-Pains Fulu (Needle)", attributes = ["Needle"] },
+    { key = "equipment-srd:Pb0WOuCR34FYGmuy", name = "Thousand-Pains Fulu (Icicle)", attributes = ["Icicle"] },
+    { key = "equipment-srd:vuJi1kahoCAHHTSX", name = "Thousand-Pains Fulu (Burl)", attributes = ["Burl"] },
+    { key = "equipment-srd:Im9LfiRTfAJxPvzS", name = "Thousand-Pains Fulu (Void)", attributes = ["Void"] },
+]

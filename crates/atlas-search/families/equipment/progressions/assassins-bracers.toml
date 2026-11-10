@@ -1,0 +1,9 @@
+name = "Assassin's Bracers"
+source_note = "Prey for Death. The branded bracers improve their armor and saving throw bonuses and the penalty imposed by their ability."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LWMlDUCdDGo1wJnF", name = "Assassin's Bracers (Type I)", attributes = ["Type I"] },
+    { key = "equipment-srd:dtiYqfBG2BcLHX92", name = "Assassin's Bracers (Type II)", attributes = ["Type II"] },
+    { key = "equipment-srd:9pUwExXYzndCJFYj", name = "Assassin's Bracers (Type III)", attributes = ["Type III"] },
+]

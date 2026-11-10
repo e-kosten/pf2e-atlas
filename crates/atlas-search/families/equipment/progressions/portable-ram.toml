@@ -1,0 +1,8 @@
+name = "Portable Ram"
+source_note = "Lost Omens The Grand Bazaar. The reinforced ram improves the same portable breaching tool's bonus."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Vr2h3E86Vaf5DJpZ", name = "Portable Ram", attributes = ["Base item"] },
+    { key = "equipment-srd:p8kyiYyXDapAUyfE", name = "Portable Ram (Reinforced)", attributes = ["Reinforced"] },
+]

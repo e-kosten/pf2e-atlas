@@ -1,0 +1,11 @@
+name = "Guardian Staff"
+source_note = "Treasure Vault (Remastered). The same protective staff adds higher-rank life-linking and defensive spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:UQ0h9IVtHla8gWT7", name = "Guardian Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:jIX2T21YvEsRaaqp", name = "Guardian Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:REvrniIEqBykkWyI", name = "Guardian Staff (Major)", attributes = ["Major"] },
+]

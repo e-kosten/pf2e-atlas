@@ -1,0 +1,9 @@
+name = "Swallow-Spike"
+source_note = "Treasure Vault (Remastered). The swallow-triggered spike improves its attack modifier and damage dice."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:BKjwg0TEGioiYpz1", name = "Swallow-Spike", attributes = ["Base item"] },
+    { key = "equipment-srd:ciykvIC4SFFxIfUw", name = "Swallow-Spike (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:RRFyASbHcdclympe", name = "Swallow-Spike (Major)", attributes = ["Major"] },
+]

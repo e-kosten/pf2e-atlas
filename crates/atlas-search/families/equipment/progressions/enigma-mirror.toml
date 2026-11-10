@@ -1,0 +1,9 @@
+name = "Enigma Mirror"
+source_note = "Treasure Vault (Remastered). The mirror increases its DC and adds Mirror's Misfortune and Mirror Malefactors."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Jx7cxxTqOENzlGaj", name = "Enigma Mirror", attributes = ["Base item"] },
+    { key = "equipment-srd:trKFKb5BKa0kxuTJ", name = "Enigma Mirror (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Zo3uztXAa7kEUQmC", name = "Enigma Mirror (Major)", attributes = ["Major"] },
+]

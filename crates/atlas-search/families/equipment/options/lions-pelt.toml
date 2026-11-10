@@ -1,0 +1,9 @@
+name = "Lion's Pelt"
+source_note = "Lost Omens Shining Kingdoms. The chain and leather armor share the same uniform identity and Contact Ally activation on distinct light armor bases."
+item_type = "armor"
+category = "light"
+
+members = [
+    { key = "equipment-srd:kPHVVkNSEi1QeEIO", name = "Lion's Pelt (Chain)", attributes = ["Chain"] },
+    { key = "equipment-srd:dXCdg96HwVGT1URT", name = "Lion's Pelt (Leather)", attributes = ["Leather"] },
+]

@@ -1,0 +1,9 @@
+name = "Saurian Spike"
+source_note = "Treasure Vault (Remastered). The spike spellheart improves its attack modifier and fear effect's area and DC and adds higher-rank spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:nx5Y4GybdZqf9rIf", name = "Saurian Spike", attributes = ["Base item"] },
+    { key = "equipment-srd:u7NB1e1rUqYoQ0nz", name = "Saurian Spike (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:0Tu55QMhTXAijFvl", name = "Saurian Spike (Major)", attributes = ["Major"] },
+]

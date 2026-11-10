@@ -1,0 +1,8 @@
+name = "Anima Robe"
+source_note = "Spore War. The Heroic form of Iyalirrin's same robe gains intelligence and extends its authored abilities."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:OKJYb2UuJ1aAKlJ3", name = "Anima Robe", attributes = ["Base item"] },
+    { key = "equipment-srd:jVBXBsulk4ZlvRs4", name = "Anima Robe (Heroic)", attributes = ["Heroic"] },
+]

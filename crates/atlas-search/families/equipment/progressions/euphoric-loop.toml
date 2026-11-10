@@ -1,0 +1,9 @@
+name = "Euphoric Loop"
+source_note = "Treasure Vault (Remastered). The catalyst extends its effect to every target of the spell at the greater grade."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:DqgkcKJL6ASqwuio", name = "Euphoric Loop", attributes = ["Base item"] },
+    { key = "equipment-srd:vRO9Orlts0jP7nCx", name = "Euphoric Loop (Greater)", attributes = ["Greater"] },
+]

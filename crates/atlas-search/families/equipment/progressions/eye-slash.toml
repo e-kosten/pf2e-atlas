@@ -1,0 +1,10 @@
+name = "Eye Slash"
+source_note = "Treasure Vault (Remastered). The tattoo adds a sight-based Perception bonus that improves through the true grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:FYv6k2zkd0MJ93la", name = "Eye Slash", attributes = ["Base item"] },
+    { key = "equipment-srd:IAJcB9cGEKl6HyGE", name = "Eye Slash (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ySZgsSBBVf3uv8Nx", name = "Eye Slash (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:GyDASe4CV3q3H6kh", name = "Eye Slash (True)", attributes = ["True"] },
+]

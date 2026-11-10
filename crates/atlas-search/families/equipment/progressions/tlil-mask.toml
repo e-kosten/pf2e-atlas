@@ -1,0 +1,8 @@
+name = "Tlil Mask"
+source_note = "Treasure Vault (Remastered). The same mask extends the duration of its effect to ten minutes at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:0LfgYMONUws8lzOv", name = "Tlil Mask", attributes = ["Base item"] },
+    { key = "equipment-srd:FPDe2DQv8HbkN4tz", name = "Tlil Mask (Greater)", attributes = ["Greater"] },
+]

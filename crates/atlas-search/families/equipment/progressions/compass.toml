@@ -1,0 +1,8 @@
+name = "Compass"
+source_note = "Player Core. The lensatic compass improves checks for the same navigation purpose."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:wob6DB1FFdWs0mbp", name = "Compass", attributes = ["Base item"] },
+    { key = "equipment-srd:xVhd8NF9KQ6VWfMu", name = "Compass (Lensatic)", attributes = ["Lensatic"] },
+]

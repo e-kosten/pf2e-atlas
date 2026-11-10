@@ -1,0 +1,8 @@
+name = "Fortune's Coin"
+source_note = "Treasure Vault (Remastered). The platinum form improves the same seraph-and-fiend coin's level limit."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:2cWs7heYDt9jCSJ4", name = "Fortune's Coin", attributes = ["Base item"] },
+    { key = "equipment-srd:X0pjLMXjW8RGr8pg", name = "Fortune's Coin (Platinum)", attributes = ["Platinum"] },
+]

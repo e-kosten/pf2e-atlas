@@ -1,0 +1,8 @@
+name = "Sanguine Klar"
+source_note = "Treasure Vault (Remastered). The klar improves its runes, defensive statistics, and activation DC."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:kFe3JyiO27YBboJy", name = "Sanguine Klar", attributes = ["Base item"] },
+    { key = "equipment-srd:vkPNIDJPt2RHpS6T", name = "Sanguine Klar (Greater)", attributes = ["Greater"] },
+]

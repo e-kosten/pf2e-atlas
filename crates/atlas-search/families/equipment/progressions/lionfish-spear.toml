@@ -1,0 +1,10 @@
+name = "Lionfish Spear"
+source_note = "Rage of Elements. The striped spear improves its runes, adds poison damage, and improves its activation frequency and DC."
+item_type = "weapon"
+category = "simple"
+group = "spear"
+
+members = [
+    { key = "equipment-srd:ZbZMaY8B8dinYhHK", name = "Lionfish Spear", attributes = ["Base item"] },
+    { key = "equipment-srd:R4nk2W7rTvMDqyUR", name = "Lionfish Spear (Greater)", attributes = ["Greater"] },
+]

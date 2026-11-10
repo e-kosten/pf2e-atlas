@@ -1,0 +1,8 @@
+name = "Thieves' Toolkit"
+source_note = "Player Core. The standard and infiltrator toolkits share the same pick-lock and disable-device use. Infiltrator adds an item bonus."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:zvLyCVD8g2PdHJAc", name = "Thieves' Toolkit", attributes = ["Base item"] },
+    { key = "equipment-srd:6nrCxNQFycUVFOV2", name = "Thieves' Toolkit (Infiltrator)", attributes = ["Infiltrator"] },
+]

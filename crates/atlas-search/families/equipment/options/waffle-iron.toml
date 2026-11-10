@@ -1,0 +1,10 @@
+name = "Waffle Iron"
+source_note = "Lost Omens The Grand Bazaar. The four irons differ in plate design and material. Foundry retains the mithral labels while the prose calls the material dawnsilver."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:aV7cXniPdT6tEI2l", name = "Waffle Iron", attributes = ["Base item"] },
+    { key = "equipment-srd:STF54Mk8rE7uSMbv", name = "Waffle Iron (Imprint)", attributes = ["Imprint"] },
+    { key = "equipment-srd:ADruUHNWh2AuxJFb", name = "Waffle Iron (Mithral)", attributes = ["Mithral"] },
+    { key = "equipment-srd:TPQjZzF9yioMr9Bu", name = "Waffle Iron (High-grade Mithral)", attributes = ["High-grade Mithral"] },
+]

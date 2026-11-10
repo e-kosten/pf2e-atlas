@@ -1,0 +1,8 @@
+name = "Menacing"
+source_note = "Treasure Vault (Remastered). The rune improves its bonus and gains a third-rank Fear activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:liGtU10aUlVeI6IC", name = "Menacing", attributes = ["Base item"] },
+    { key = "equipment-srd:kkFVSqaefWrVs50t", name = "Menacing (Greater)", attributes = ["Greater"] },
+]

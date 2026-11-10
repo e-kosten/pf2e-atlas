@@ -1,0 +1,8 @@
+name = "Anglerfish Lantern"
+source_note = "Rage of Elements. The submersible lantern extends the same lure and adds the Dive activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:pD9H7z7NB3o5dvPN", name = "Anglerfish Lantern", attributes = ["Base item"] },
+    { key = "equipment-srd:TA3QxxYcaGy2MYCk", name = "Anglerfish Lantern (Submersible)", attributes = ["Submersible"] },
+]

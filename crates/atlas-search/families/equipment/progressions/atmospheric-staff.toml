@@ -1,0 +1,12 @@
+name = "Atmospheric Staff"
+source_note = "Rage of Elements. The obsidian-topped staff adds higher-rank air and gravity spells beginning at the concrete unqualified grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:HarOsJI1p5oHt2Vd", name = "Atmospheric Staff (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:CPZC4rAHGkQqPLJ9", name = "Atmospheric Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:SKKVjloic8hQbYo7", name = "Atmospheric Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:YMz8ZKeOmSU9VuKp", name = "Atmospheric Staff (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,11 @@
+name = "Silver Orb"
+source_note = "Wake the Dead #1. The silver filings cloud shares one mechanism across Lesser, Powder, and Greater, with increasing damage and DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:CcQDscF79qs9HfJg", name = "Silver Orb (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:kG26J0AfQAVe9FYs", name = "Silver Orb (Powder)", attributes = ["Powder"] },
+    { key = "equipment-srd:YBXcse5TSHyv9rvX", name = "Silver Orb (Greater)", attributes = ["Greater"] },
+]

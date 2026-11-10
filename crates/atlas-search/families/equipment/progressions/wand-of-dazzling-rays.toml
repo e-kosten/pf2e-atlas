@@ -1,0 +1,14 @@
+name = "Wand of Dazzling Rays"
+source_note = "Treasure Vault (Remastered). The same dazzling effect is available at successively higher spell ranks."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:m3XmIRwYoGGxZQgu", name = "Wand of Dazzling Rays (3rd-rank)", attributes = ["3rd-rank"] },
+    { key = "equipment-srd:cH5uD83e3hC9MEvZ", name = "Wand of Dazzling Rays (4th-rank)", attributes = ["4th-rank"] },
+    { key = "equipment-srd:CXjHjdGVlOoXeYpr", name = "Wand of Dazzling Rays (5th-rank)", attributes = ["5th-rank"] },
+    { key = "equipment-srd:OzChAzd0UR37bEOR", name = "Wand of Dazzling Rays (6th-rank)", attributes = ["6th-rank"] },
+    { key = "equipment-srd:YPBMrIvJOZ6zSZVm", name = "Wand of Dazzling Rays (7th-rank)", attributes = ["7th-rank"] },
+    { key = "equipment-srd:8QValKGj7oZKnqw1", name = "Wand of Dazzling Rays (8th-rank)", attributes = ["8th-rank"] },
+    { key = "equipment-srd:gv5IRHrmGoSu7Dzv", name = "Wand of Dazzling Rays (9th-rank)", attributes = ["9th-rank"] },
+]

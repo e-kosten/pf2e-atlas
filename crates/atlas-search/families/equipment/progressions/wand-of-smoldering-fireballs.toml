@@ -1,0 +1,11 @@
+name = "Wand of Smoldering Fireballs"
+source_note = "Player Core 2. The fireball wand increases both spell rank and persistent fire damage."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:c2Oa9UbhjwAsZaPp", name = "Wand of Smoldering Fireballs (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:zToq18jKonWIp48U", name = "Wand of Smoldering Fireballs (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:YR8IAV94fPo0kfBz", name = "Wand of Smoldering Fireballs (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:tBwMPimZ6A93XpHf", name = "Wand of Smoldering Fireballs (9th-Rank Spell)", attributes = ["9th-Rank Spell"] },
+]

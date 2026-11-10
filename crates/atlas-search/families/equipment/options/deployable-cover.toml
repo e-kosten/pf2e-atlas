@@ -1,0 +1,8 @@
+name = "Deployable Cover"
+source_note = "Guns & Gears. Ballistic Cover is an explicitly named alternate form of the same deployable tripod with additional protection against projectiles."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:NocVi59Vtbi3kvsJ", name = "Deployable Cover", attributes = ["Base item"] },
+    { key = "equipment-srd:ozOVlLALtDChFJwc", name = "Deployable Cover (Ballistic Cover)", attributes = ["Ballistic Cover"] },
+]

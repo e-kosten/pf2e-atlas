@@ -1,0 +1,11 @@
+name = "Silversoul Bomb"
+source_note = "Season of Ghosts. The ancestral-emotion bomb improves its bonus, damage, and Fortitude DC and strengthens its blinding effect."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:oE3fHS3CUs15bZ4r", name = "Silversoul Bomb", attributes = ["Base item"] },
+    { key = "equipment-srd:mfc9IT94CPnKKBG8", name = "Silversoul Bomb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:R7I0KwKM3PNZn0zJ", name = "Silversoul Bomb (Major)", attributes = ["Major"] },
+]

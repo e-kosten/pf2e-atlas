@@ -1,0 +1,8 @@
+name = "Rattling Bolt"
+source_note = "Wake the Dead #1. The rattling ammunition increases the Fortitude DC of its effect."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:1B0672tSm46YQXSh", name = "Rattling Bolt", attributes = ["Base item"] },
+    { key = "equipment-srd:8qT6Jxy97jfdXfGi", name = "Rattling Bolt (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Lyrakien Staff"
+source_note = "Treasure Vault (Remastered). The lyrakien staff improves its bonus and adds higher-rank travel and communication spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:fcRTJBvy1RqXr3ow", name = "Lyrakien Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:uepeQsiOEIqTyNsx", name = "Lyrakien Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:uX8urrzOQM5wdoTD", name = "Lyrakien Staff (Major)", attributes = ["Major"] },
+]

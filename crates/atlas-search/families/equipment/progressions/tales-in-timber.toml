@@ -1,0 +1,10 @@
+name = "Tales in Timber"
+source_note = "Rage of Elements. The story-covered wooden breastplate improves its runes and spell rank and increases its bonus at the major grade."
+item_type = "armor"
+category = "medium"
+
+members = [
+    { key = "equipment-srd:gg6XF2dWafE0pcHu", name = "Tales in Timber", attributes = ["Base item"] },
+    { key = "equipment-srd:4XYnZij3BqhFuayG", name = "Tales in Timber (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:o9y5aRGsbH5x77Mn", name = "Tales in Timber (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,10 @@
+name = "Faith Tattoo"
+source_note = "Treasure Vault (Remastered). The tattoo casts progressively higher-rank spells with stronger DCs."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:rT93xVoebhCm9uVA", name = "Faith Tattoo", attributes = ["Base item"] },
+    { key = "equipment-srd:ywsDnHaJSD9oHvh7", name = "Faith Tattoo (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:hLVRI4JS5vsyfPoV", name = "Faith Tattoo (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:yqAVU3Y9w4O19e24", name = "Faith Tattoo (True)", attributes = ["True"] },
+]

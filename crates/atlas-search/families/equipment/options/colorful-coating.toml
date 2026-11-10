@@ -1,0 +1,14 @@
+name = "Colorful Coating"
+source_note = "Treasure Vault (Remastered). Seven colors of the same surface coating produce distinct terrain or material effects."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:aJrMyopbSzvXn5Zl", name = "Colorful Coating (Blue)", attributes = ["Blue"] },
+    { key = "equipment-srd:EbqQbozqVGEVxEG9", name = "Colorful Coating (Green)", attributes = ["Green"] },
+    { key = "equipment-srd:MMloq9cUKNJYCDLW", name = "Colorful Coating (Indigo)", attributes = ["Indigo"] },
+    { key = "equipment-srd:A4mt1d9CK9lpLiqa", name = "Colorful Coating (Orange)", attributes = ["Orange"] },
+    { key = "equipment-srd:1AFWnVcoYvLcKtL9", name = "Colorful Coating (Red)", attributes = ["Red"] },
+    { key = "equipment-srd:KPKmM9qSdQ5X587J", name = "Colorful Coating (Yellow)", attributes = ["Yellow"] },
+    { key = "equipment-srd:eyWT7VKdba72hKMw", name = "Colorful Coating (Violet)", attributes = ["Violet"] },
+]

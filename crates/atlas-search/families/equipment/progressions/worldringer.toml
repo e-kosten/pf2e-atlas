@@ -1,0 +1,10 @@
+name = "Worldringer"
+source_note = "Lost Omens Tian Xia Character Guide. The traveler's khakkhara improves its runes and increases the spell rank and DC of its activation."
+item_type = "weapon"
+category = "martial"
+group = "club"
+
+members = [
+    { key = "equipment-srd:7L10GdJdL1hYcJZm", name = "Worldringer", attributes = ["Base item"] },
+    { key = "equipment-srd:NvukdOaemuC6kMLL", name = "Worldringer (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Warding Statuette"
+source_note = "Treasure Vault (Remastered). The statuette improves spell statistics and adds higher-rank casting and Spiritual Guardian."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:SW6JVF5SP59W8B0Q", name = "Warding Statuette", attributes = ["Base item"] },
+    { key = "equipment-srd:ap9Bn8MLUJa8AtGj", name = "Warding Statuette (Greater)", attributes = ["Greater"] },
+]

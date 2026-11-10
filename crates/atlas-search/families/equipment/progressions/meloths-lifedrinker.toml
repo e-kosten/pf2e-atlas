@@ -1,0 +1,10 @@
+name = "Meloth's Lifedrinker"
+source_note = "The Dead God's Hand. The level 7 record explicitly awakens and empowers the same intelligent longsword during the campaign."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:HeJ7yOm1iybL2TjV", name = "Meloth's Lifedrinker", attributes = ["Base item"] },
+    { key = "equipment-srd:raRbJELCqrzoiTzL", name = "Meloth's Lifedrinker (Level 7)", attributes = ["Level 7"] },
+]

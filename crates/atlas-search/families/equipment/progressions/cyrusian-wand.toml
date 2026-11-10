@@ -1,0 +1,15 @@
+name = "Cyrusian Wand"
+source_note = "Lord of the Trinity Star. The same spell-holding wand follows the indicated spell rank from first through ninth."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:qEPyzpoZOygWRn09", name = "Cyrusian Wand (1st-Rank Spell)", attributes = ["1st-Rank Spell"] },
+    { key = "equipment-srd:ZWroGcapvICFAQZt", name = "Cyrusian Wand (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:paMCEopsN26PQLXb", name = "Cyrusian Wand (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:goPuyEiD7614ZEet", name = "Cyrusian Wand (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:EGvqYHkEw3k7wGL8", name = "Cyrusian Wand (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:jieJqVjtvIEo9IcC", name = "Cyrusian Wand (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:DLqIHv0gvwKx8B0O", name = "Cyrusian Wand (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:ZblyK929eFFcIZqB", name = "Cyrusian Wand (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+    { key = "equipment-srd:jfMBFb7xTo5OK8v8", name = "Cyrusian Wand (9th-Rank Spell)", attributes = ["9th-Rank Spell"] },
+]

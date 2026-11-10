@@ -1,0 +1,9 @@
+name = "Exploration Lens"
+source_note = "Hurricane's Howl. Each lens fits the same bull's-eye lantern and modifies its light to support a different exploration activity."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:tIZ3Wi2JInY9abu8", name = "Exploration Lens (Detecting)", attributes = ["Detecting"] },
+    { key = "equipment-srd:RpsT84dZxLWHcoFk", name = "Exploration Lens (Investigating)", attributes = ["Investigating"] },
+    { key = "equipment-srd:NAQ7HcM826y9fsBH", name = "Exploration Lens (Searching)", attributes = ["Searching"] },
+]

@@ -1,0 +1,9 @@
+name = "Burial Oil"
+source_note = "Treasure Vault (Remastered). The anti-undead oil grants the greater disrupting effect with a Fortitude DC of 30."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:M1rX9EahXV9pa0Ui", name = "Burial Oil", attributes = ["Base item"] },
+    { key = "equipment-srd:UOt1kd4ccF9sX9bt", name = "Burial Oil (Greater)", attributes = ["Greater"] },
+]

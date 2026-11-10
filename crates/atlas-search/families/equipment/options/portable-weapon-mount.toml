@@ -1,0 +1,8 @@
+name = "Portable Weapon Mount"
+source_note = "Guns & Gears. The portable weapon mounts support the same use in two concrete forms, with the tripod adding cover."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:5wanv9n8UnUQ852q", name = "Portable Weapon Mount (Monopod)", attributes = ["Monopod"] },
+    { key = "equipment-srd:RKPAHGFV3mq3a3dt", name = "Portable Weapon Mount (Shielded Tripod)", attributes = ["Shielded Tripod"] },
+]

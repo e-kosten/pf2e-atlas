@@ -1,0 +1,10 @@
+name = "Broadleaf Shield"
+source_note = "Rage of Elements. The sunlight-repairing leaf shield gains higher Hardness across its grades."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:dMaWOT9su0Aw5NCc", name = "Broadleaf Shield", attributes = ["Base item"] },
+    { key = "equipment-srd:6bC6RAZddiv8Io6w", name = "Broadleaf Shield (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:yPeNtJVMJmJupcM2", name = "Broadleaf Shield (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:wkmn8UQ0nUeVtz5J", name = "Broadleaf Shield (True)", attributes = ["True"] },
+]

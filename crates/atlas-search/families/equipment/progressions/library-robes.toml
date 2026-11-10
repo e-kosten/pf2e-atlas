@@ -1,0 +1,11 @@
+name = "Library Robes"
+source_note = "Treasure Vault (Remastered). The spell-storing scroll robes improve their armor runes and raise the maximum stored spell rank."
+item_type = "armor"
+category = "unarmored"
+
+members = [
+    { key = "equipment-srd:SS1lwhzx0hne1Ljh", name = "Library Robes", attributes = ["Base item"] },
+    { key = "equipment-srd:HoL83ca2TqEnnErs", name = "Library Robes (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:RtJvTDFNPhJSPmWP", name = "Library Robes (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:TBmDARyj67joVe4m", name = "Library Robes (True)", attributes = ["True"] },
+]

@@ -1,0 +1,10 @@
+name = "Shatterstone"
+source_note = "Treasure Vault (Remastered). The bomb improves its attack bonus, damage, splash, and Fortitude DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:sBtfUPTLuyRPYI7g", name = "Shatterstone", attributes = ["Base item"] },
+    { key = "equipment-srd:CJesyj3lklJVujh0", name = "Shatterstone (Greater)", attributes = ["Greater"] },
+]

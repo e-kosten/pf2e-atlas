@@ -1,0 +1,9 @@
+name = "Reverberating Stone"
+source_note = "Treasure Vault (Remastered). The stone improves the cone size, sonic damage, and Fortitude DC of its effect."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:fTpJc3XoC2gzhuSN", name = "Reverberating Stone", attributes = ["Base item"] },
+    { key = "equipment-srd:FJw54ZPLuJpChJbe", name = "Reverberating Stone (Greater)", attributes = ["Greater"] },
+]

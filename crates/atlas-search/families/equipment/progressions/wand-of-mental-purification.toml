@@ -1,0 +1,16 @@
+name = "Wand of Mental Purification"
+source_note = "Treasure Vault (Remastered). The ivory wand casts progressively higher ranks of Soothe with its additional mental purification effect."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:xTcQPSZlZ231gPWk", name = "Wand of Mental Purification (1st-rank)", attributes = ["1st-rank"] },
+    { key = "equipment-srd:Yq3l3eB70BsbQFj6", name = "Wand of Mental Purification (2nd-rank)", attributes = ["2nd-rank"] },
+    { key = "equipment-srd:25WDsZPxt4tjgovE", name = "Wand of Mental Purification (3rd-rank)", attributes = ["3rd-rank"] },
+    { key = "equipment-srd:ntpPBKRcihHyER5V", name = "Wand of Mental Purification (4th-rank)", attributes = ["4th-rank"] },
+    { key = "equipment-srd:xVQkxZJYx2tonOqO", name = "Wand of Mental Purification (5th-rank)", attributes = ["5th-rank"] },
+    { key = "equipment-srd:tI2bx8U4Ibwq25ya", name = "Wand of Mental Purification (6th-rank)", attributes = ["6th-rank"] },
+    { key = "equipment-srd:vVJy2xHuzOgm7e6Y", name = "Wand of Mental Purification (7th-rank)", attributes = ["7th-rank"] },
+    { key = "equipment-srd:KY9gDuSeB1tgT3cp", name = "Wand of Mental Purification (8th-rank)", attributes = ["8th-rank"] },
+    { key = "equipment-srd:YBWZ1Qexhe6PuiuO", name = "Wand of Mental Purification (9th-rank)", attributes = ["9th-rank"] },
+]

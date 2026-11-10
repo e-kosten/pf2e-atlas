@@ -1,0 +1,9 @@
+name = "Purifying Spoon"
+source_note = "Rage of Elements. The teaspoon, tablespoon, and ladle use the same purification at different vessel sizes and capacities."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ZDoB4t7P2OBMRwvh", name = "Purifying Spoon (Tablespoon)", attributes = ["Tablespoon"] },
+    { key = "equipment-srd:nbRNjXYEx6T0G8AW", name = "Purifying Spoon (Teaspoon)", attributes = ["Teaspoon"] },
+    { key = "equipment-srd:J3KhiuihoyDjshWr", name = "Purifying Spoon (Ladle)", attributes = ["Ladle"] },
+]

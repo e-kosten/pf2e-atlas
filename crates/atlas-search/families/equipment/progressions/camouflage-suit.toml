@@ -1,0 +1,8 @@
+name = "Camouflage Suit"
+source_note = "Guns & Gears. The superb suit retains the lightweight camouflage mesh and improves its bonus."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:UXsHBUyx4b0dIPDf", name = "Camouflage Suit", attributes = ["Base item"] },
+    { key = "equipment-srd:Z8RZfkIrsifYeWg4", name = "Camouflage Suit (Superb)", attributes = ["Superb"] },
+]

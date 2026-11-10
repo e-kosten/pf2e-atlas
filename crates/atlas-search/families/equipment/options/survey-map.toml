@@ -1,0 +1,8 @@
+name = "Survey Map"
+source_note = "Player Core. The atlas explicitly collects survey maps of the same quality, with its own usage and price."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:UhcRWtnjU2WLSClx", name = "Survey Map", attributes = ["Base item"] },
+    { key = "equipment-srd:1M4SSDuTv2SwBltC", name = "Survey Map (Atlas)", attributes = ["Atlas"] },
+]

@@ -1,0 +1,10 @@
+name = "Rooting"
+source_note = "Rage of Elements. The surface-rooted rune raises the Escape DC of its critical-hit immobilization through the true grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:yGgsoSA8EaaEsYZn", name = "Rooting", attributes = ["Base item"] },
+    { key = "equipment-srd:T5KifnxLN3vWuUJa", name = "Rooting (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:h4n9PdQrOkCrJ9sY", name = "Rooting (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:aXqCFjLSSjC3a1Mq", name = "Rooting (True)", attributes = ["True"] },
+]

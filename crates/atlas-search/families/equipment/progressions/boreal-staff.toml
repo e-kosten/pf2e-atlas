@@ -1,0 +1,11 @@
+name = "Boreal Staff"
+source_note = "Treasure Vault (Remastered). The frost staff improves its runes and spell list and bypasses cold resistance at the major grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:tU4PKaoo1XuPkKg1", name = "Boreal Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:PAZQrWMLfYTpDoal", name = "Boreal Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:rYBX6v9JqpxAiQvn", name = "Boreal Staff (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Dust of Corpse Animation"
+source_note = "Player Core 2. The bone dust animates a higher maximum level of undead at the greater grade."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:2koNKqbQV05myfuL", name = "Dust of Corpse Animation", attributes = ["Base item"] },
+    { key = "equipment-srd:yPFHTY1GH3rdWwds", name = "Dust of Corpse Animation (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Splintering Spear"
+source_note = "Rage of Elements. The duskwood spear improves material grade, weapon runes, splinter damage, and Reflex DC."
+item_type = "weapon"
+category = "simple"
+group = "spear"
+
+members = [
+    { key = "equipment-srd:CH2t4lYE6IbE3F3Q", name = "Splintering Spear", attributes = ["Base item"] },
+    { key = "equipment-srd:K07yZnXG1DQwFjX7", name = "Splintering Spear (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:iQM5xKCkfpfdPrzL", name = "Splintering Spear (Major)", attributes = ["Major"] },
+]

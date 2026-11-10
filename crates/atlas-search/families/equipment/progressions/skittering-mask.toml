@@ -1,0 +1,8 @@
+name = "Skittering Mask"
+source_note = "Treasure Vault (Remastered). The mask increases the distance it moves an unconscious wearer and can repeat the movement at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:599vQVSFAKMzvVEt", name = "Skittering Mask", attributes = ["Base item"] },
+    { key = "equipment-srd:y8T7k0kkqxNbMAAD", name = "Skittering Mask (Greater)", attributes = ["Greater"] },
+]

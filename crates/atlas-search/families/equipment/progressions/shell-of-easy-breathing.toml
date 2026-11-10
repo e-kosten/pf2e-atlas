@@ -1,0 +1,8 @@
+name = "Shell of Easy Breathing"
+source_note = "Rage of Elements. The carved shell extends its breathing benefit to eight hours at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LYT2X05grQJxx5qe", name = "Shell of Easy Breathing", attributes = ["Base item"] },
+    { key = "equipment-srd:QVmITUIiWDWMEPgg", name = "Shell of Easy Breathing (Greater)", attributes = ["Greater"] },
+]

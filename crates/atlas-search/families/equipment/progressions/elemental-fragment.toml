@@ -1,0 +1,10 @@
+name = "Elemental Fragment"
+source_note = "Rage of Elements. The planar fragment casts a higher spell rank for either use at each grade."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:BiFzQ1MlxK7F7jkE", name = "Elemental Fragment", attributes = ["Base item"] },
+    { key = "equipment-srd:1iIb8vL2WQHOqN46", name = "Elemental Fragment (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:2iWD3YHmsQ9uicIF", name = "Elemental Fragment (Major)", attributes = ["Major"] },
+]

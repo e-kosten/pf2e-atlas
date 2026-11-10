@@ -1,0 +1,8 @@
+name = "Prognostic Veil"
+source_note = "Player Core 2. The divinatory veil improves Religion and extends its activation to attack rolls."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:7wuDdrF6HKPXyxqj", name = "Prognostic Veil", attributes = ["Base item"] },
+    { key = "equipment-srd:2FlazfdJE2XPRba8", name = "Prognostic Veil (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Journeybread"
+source_note = "Treasure Vault (Remastered). Power journeybread retains the ordinary bread's effects and adds Athletics benefits."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:pBq1cHXnic8dGxx8", name = "Journeybread", attributes = ["Base item"] },
+    { key = "equipment-srd:7Sm8NhvQcwi84Nsh", name = "Journeybread (Power)", attributes = ["Power"] },
+]

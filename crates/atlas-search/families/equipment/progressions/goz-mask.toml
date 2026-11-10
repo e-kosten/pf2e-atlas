@@ -1,0 +1,9 @@
+name = "Goz Mask"
+source_note = "Treasure Vault (Remastered). The mask extends its duration and gains darkvision and broader environmental protections at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:GLr0U1yY4hSHBApa", name = "Goz Mask", attributes = ["Base item"] },
+    { key = "equipment-srd:xH51QHrc9073UzH7", name = "Goz Mask (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:qixSKcFT1OA4mIkp", name = "Goz Mask (Major)", attributes = ["Major"] },
+]

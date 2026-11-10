@@ -1,0 +1,11 @@
+name = "Staff of Metal"
+source_note = "Rage of Elements. The two-color iron staff adds higher-rank metal and magnetism spells at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:iNC3uS24FSc40AQ4", name = "Staff of Metal", attributes = ["Base item"] },
+    { key = "equipment-srd:qvl1OmV5F60ZOdcC", name = "Staff of Metal (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:8FKxOiKAoQqPiqPA", name = "Staff of Metal (Major)", attributes = ["Major"] },
+]

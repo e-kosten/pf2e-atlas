@@ -1,0 +1,10 @@
+name = "Transmuting Ingot"
+source_note = "Battlecry! The miniature ingots temporarily grant one of three different material effects to a weapon."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:nQP4DaV2DihDZRmv", name = "Transmuting Ingot (Cold Iron)", attributes = ["Cold Iron"] },
+    { key = "equipment-srd:UpTnJeRbeviJNAFA", name = "Transmuting Ingot (Silver)", attributes = ["Silver"] },
+    { key = "equipment-srd:LLz0OwCi13ZUQwhc", name = "Transmuting Ingot (Adamantine)", attributes = ["Adamantine"] },
+]

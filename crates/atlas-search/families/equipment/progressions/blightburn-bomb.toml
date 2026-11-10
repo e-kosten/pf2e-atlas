@@ -1,0 +1,10 @@
+name = "Blightburn Bomb"
+source_note = "Treasure Vault (Remastered). The bomb increases its attack bonus, direct and persistent damage, splash damage, and Fortitude DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:kIExO59KkiXZUmto", name = "Blightburn Bomb", attributes = ["Base item"] },
+    { key = "equipment-srd:ZrXw7hAH8dQOGAYL", name = "Blightburn Bomb (Greater)", attributes = ["Greater"] },
+]

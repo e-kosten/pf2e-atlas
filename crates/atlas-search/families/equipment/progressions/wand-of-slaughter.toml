@@ -1,0 +1,10 @@
+name = "Wand of Slaughter"
+source_note = "Player Core 2. The slaughter wand increases its spell rank and associated void damage."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:CjfBdn0fOIarWzBc", name = "Wand of Slaughter (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:LnXYSaLxWMyAT3Ef", name = "Wand of Slaughter (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+    { key = "equipment-srd:mMZWdoHvP2yYJzrR", name = "Wand of Slaughter (9th-Rank Spell)", attributes = ["9th-Rank Spell"] },
+]

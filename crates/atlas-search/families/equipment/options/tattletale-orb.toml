@@ -1,0 +1,11 @@
+name = "Tattletale Orb"
+source_note = "Treasure Vault (Remastered). The five material variants imitate different crystal balls and share a distinct cursed scrying mechanic."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:OMoKdkWjmT59LCJo", name = "Tattletale Orb (Clear Quartz)", attributes = ["Clear Quartz"] },
+    { key = "equipment-srd:dgwgVWUvXGurnsQD", name = "Tattletale Orb (Selenite)", attributes = ["Selenite"] },
+    { key = "equipment-srd:RFFUd06PQH4csvpr", name = "Tattletale Orb (Moonstone)", attributes = ["Moonstone"] },
+    { key = "equipment-srd:skQIdQ0RKXGCHJGM", name = "Tattletale Orb (Peridot)", attributes = ["Peridot"] },
+    { key = "equipment-srd:4j5tJ27qfBN7Xd6d", name = "Tattletale Orb (Obsidian)", attributes = ["Obsidian"] },
+]

@@ -1,0 +1,10 @@
+name = "Dragonprism Staff"
+source_note = "Treasure Vault (Remastered). The dragon staff adds higher-rank dragon forms, summons, and Incarnate Draconic Legion."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:tEI1WOo4ZRJ5cI0K", name = "Dragonprism Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:inyiBwK0zNootR6G", name = "Dragonprism Staff (Greater)", attributes = ["Greater"] },
+]

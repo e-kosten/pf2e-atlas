@@ -1,3 +1,43 @@
 [[exclusions]]
 members = ["equipment-srd:Jvp0x2Sc82WVpExT", "equipment-srd:YhkomhtKBK3i9C7Q"]
 others = ["equipment-srd:IRqbsE8MgGLTfHLz", "equipment-srd:FWMGkUotwUJuht7i"]
+
+[[exclusions]]
+members = ["equipment-srd:C9lcnBy4pS3MIyoU", "equipment-srd:uTPqImeDq7bEsFak"]
+others = ["equipment-srd:M1fRjN7E3P55zvmc"]
+
+[[exclusions]]
+members = ["equipment-srd:HWQEGY2X0QXj2zfN"]
+others = ["equipment-srd:stlTN5eb1qRJMHgB"]
+
+[[exclusions]]
+members = ["equipment-srd:iYiA6CMR1N2E2Ny2"]
+others = ["equipment-srd:ksNUlyRHFUSK9xmz"]
+
+[[exclusions]]
+members = ["equipment-srd:Ejmv9IHGp9Ad9dgu"]
+others = ["equipment-srd:TxMFNfkoccirCitP"]
+
+[[exclusions]]
+members = ["equipment-srd:6XX3tYxkyQXCMAbd"]
+others = ["equipment-srd:QHc7AnKoMpcqsI2d"]
+
+[[exclusions]]
+members = ["equipment-srd:H5N2CacR3pNtanKB", "equipment-srd:T99WI1hocCXE7RI0"]
+others = ["equipment-srd:ZPFDfWPmWLPUJeW1"]
+
+[[exclusions]]
+members = ["equipment-srd:PIzBQehx975vMsvZ"]
+others = ["equipment-srd:uM0OlCC1Sh6OLdNn"]
+
+[[exclusions]]
+members = ["equipment-srd:zvLyCVD8g2PdHJAc", "equipment-srd:6nrCxNQFycUVFOV2"]
+others = ["equipment-srd:Sw7MBLASN3xK4Y44", "equipment-srd:BznmPaRjI4Orb0IH"]
+
+[[exclusions]]
+members = ["equipment-srd:3yLu12TCwN8utY0u"]
+others = ["equipment-srd:QJb8S927Yj81EgHH"]
+
+[[exclusions]]
+members = ["equipment-srd:PQ74afm5YWessacn", "equipment-srd:IUZT7A6QZteLyHZI", "equipment-srd:6xDxnI4Z9syXq8Ec", "equipment-srd:R4yGXp42qXaWEhLQ", "equipment-srd:7ER2xl3PKcvaVqNI", "equipment-srd:5LfD4O0zakN0fw7b"]
+others = ["equipment-srd:3TQ9oSETsOHcHRBF", "equipment-srd:byIihT9MMpTFvyYT"]

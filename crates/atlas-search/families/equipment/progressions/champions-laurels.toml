@@ -1,0 +1,10 @@
+name = "Champion's Laurels"
+source_note = "The Acropolis Pyre. The laurels increase both the bonus and minimum audience for the same triggered skill check."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:0WIzDXaihyzPERdn", name = "Champion's Laurels (Amateur)", attributes = ["Amateur"] },
+    { key = "equipment-srd:5w7BqWBjsmPVpGyB", name = "Champion's Laurels (Professional)", attributes = ["Professional"] },
+    { key = "equipment-srd:H7MTPfM3PsK6H26n", name = "Champion's Laurels (Renowned)", attributes = ["Renowned"] },
+]

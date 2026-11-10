@@ -1,0 +1,11 @@
+name = "Lock"
+source_note = "Player Core. The successive lock qualities require increasingly difficult and numerous checks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:PBlxTrEyr3qXFBqq", name = "Lock (Poor)", attributes = ["Poor"] },
+    { key = "equipment-srd:JZXCTwoIWoGKjMX6", name = "Lock (Simple)", attributes = ["Simple"] },
+    { key = "equipment-srd:q2TYVAMaK6UfenbV", name = "Lock (Average)", attributes = ["Average"] },
+    { key = "equipment-srd:byKAxLyN7AXySmw7", name = "Lock (Good)", attributes = ["Good"] },
+    { key = "equipment-srd:8xWA0demi2yQsl3C", name = "Lock (Superior)", attributes = ["Superior"] },
+]

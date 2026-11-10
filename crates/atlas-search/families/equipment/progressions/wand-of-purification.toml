@@ -1,0 +1,14 @@
+name = "Wand of Purification"
+source_note = "Lost Omens Tian Xia Character Guide. The same purifying wand uses progressively higher listed spell ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:TIP4RFdWohqqpiBV", name = "Wand of Purification (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:OvGfkoGfqFMEhknO", name = "Wand of Purification (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:IaUKTq5fnWafnwO8", name = "Wand of Purification (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:9QstkAexbb6QOwht", name = "Wand of Purification (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:ZFx0WqzlNnIxeIII", name = "Wand of Purification (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:4UsokByXD6h54H0F", name = "Wand of Purification (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:LC7a0ur3o2CJDVPq", name = "Wand of Purification (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+    { key = "equipment-srd:TBoEmxOSYSrRweBC", name = "Wand of Purification (9th-Rank Spell)", attributes = ["9th-Rank Spell"] },
+]

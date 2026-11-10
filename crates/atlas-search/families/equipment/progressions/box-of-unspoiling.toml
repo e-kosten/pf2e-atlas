@@ -1,0 +1,10 @@
+name = "Box of Unspoiling"
+source_note = "Hoof, Cinder, and Storm. The preserving storage box increases its Bulk capacity from Type I through Type IV."
+item_type = "backpack"
+
+members = [
+    { key = "equipment-srd:ildZ7xmEjj5vdrT0", name = "Box of Unspoiling (Type I)", attributes = ["Type I"] },
+    { key = "equipment-srd:GZzVx6uDu60Uiwx7", name = "Box of Unspoiling (Type II)", attributes = ["Type II"] },
+    { key = "equipment-srd:HcJF7ZA8QfnK8eDw", name = "Box of Unspoiling (Type III)", attributes = ["Type III"] },
+    { key = "equipment-srd:QtF4zZrg9pTqmA1g", name = "Box of Unspoiling (Type IV)", attributes = ["Type IV"] },
+]

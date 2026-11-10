@@ -1,0 +1,9 @@
+name = "Wind-Up Widget"
+source_note = "Lost Omens Cheliax, Infernal Inheritance. The three wind-up tools have separate clockwork functions for spying, locating locks, and digging."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:c7egD3WaqYG6OGN5", name = "Wind-Up Widget (Wind-Up Spy)", attributes = ["Wind-Up Spy"] },
+    { key = "equipment-srd:ShFwtGOtmEvyXwlZ", name = "Wind-Up Widget (Thieves' Friend)", attributes = ["Thieves' Friend"] },
+    { key = "equipment-srd:bAafH4oR9Lsp7qjk", name = "Wind-Up Widget (Hand-Powered Digger)", attributes = ["Hand-Powered Digger"] },
+]

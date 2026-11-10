@@ -1,0 +1,8 @@
+name = "Climbing Kit"
+source_note = "Player Core. The extreme climbing kit adds an Athletics bonus to the same climbing equipment."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:9UJbMaglf35GVzaZ", name = "Climbing Kit", attributes = ["Base item"] },
+    { key = "equipment-srd:TWv2EeDJaCjtmGUN", name = "Climbing Kit (Extreme)", attributes = ["Extreme"] },
+]

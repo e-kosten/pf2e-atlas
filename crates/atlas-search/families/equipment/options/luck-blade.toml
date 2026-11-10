@@ -1,0 +1,10 @@
+name = "Luck Blade"
+source_note = "Core Rulebook. The same luck-themed shortsword has a form crafted with a single Wish."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:pIYlenaADKnxdp11", name = "Luck Blade", attributes = ["Base item"] },
+    { key = "equipment-srd:C3vAFRWoeGbMQTAH", name = "Luck Blade (Wishing)", attributes = ["Wishing"] },
+]

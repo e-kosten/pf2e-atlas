@@ -1,0 +1,14 @@
+name = "Wand of Continuation"
+source_note = "GM Core. The duration-extending wand has separate concrete records for successive spell ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:a60NH7OztaEaGlU8", name = "Wand of Continuation (1st-Rank Spell)", attributes = ["1st-Rank Spell"] },
+    { key = "equipment-srd:5V9bgqgQY1CHLd40", name = "Wand of Continuation (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:R88HWv9rw1VNMRer", name = "Wand of Continuation (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:bCsdAkffuk29ssUg", name = "Wand of Continuation (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:tDEi3zLVpxwA74qz", name = "Wand of Continuation (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:35rLqxDWgiDIkL8e", name = "Wand of Continuation (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:H1XGrl6Z0bzXN2oi", name = "Wand of Continuation (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:KMqHzKfpPq5H8GOo", name = "Wand of Continuation (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+]

@@ -1,0 +1,8 @@
+name = "Surprise Doll"
+source_note = "NPC Core and The Grand Bazaar. The NPC Core surprise dolls both conceal an item, with an improved compartment on the exquisite version. The Grand Bazaar record describes a standalone average doll."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:H5N2CacR3pNtanKB", name = "Doll (Surprise)", attributes = ["Surprise"] },
+    { key = "equipment-srd:T99WI1hocCXE7RI0", name = "Doll (Exquisite surprise)", attributes = ["Exquisite surprise"] },
+]

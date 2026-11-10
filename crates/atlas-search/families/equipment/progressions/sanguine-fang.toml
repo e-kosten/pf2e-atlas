@@ -1,0 +1,9 @@
+name = "Sanguine Fang"
+source_note = "Treasure Vault (Remastered). The fang spellheart improves its spell DC and combat benefits and adds higher-rank blood spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:j392AMbPfkcRbCw6", name = "Sanguine Fang", attributes = ["Base item"] },
+    { key = "equipment-srd:fdntl5OOhtYIPSBi", name = "Sanguine Fang (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:0AxBSojJ2XhcqMvJ", name = "Sanguine Fang (Major)", attributes = ["Major"] },
+]

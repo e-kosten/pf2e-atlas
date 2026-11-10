@@ -1,0 +1,13 @@
+name = "Taljjae's Mask"
+source_note = "Lost Omens Monsters of Myth. Each of Taljjae's masks is a concrete persona with distinct powers."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:dPg0hrkIaCdMKQoK", name = "Taljjae's Mask (The Beast)", attributes = ["The Beast"] },
+    { key = "equipment-srd:JSbBiTCtFctuJFhS", name = "Taljjae's Mask (The General)", attributes = ["The General"] },
+    { key = "equipment-srd:ma4BlTSjaMHrQmoz", name = "Taljjae's Mask (The Grandmother)", attributes = ["The Grandmother"] },
+    { key = "equipment-srd:d8w28UjKHALM2GNu", name = "Taljjae's Mask (The Hermit)", attributes = ["The Hermit"] },
+    { key = "equipment-srd:2LO9eMNpQiku5UDn", name = "Taljjae's Mask (The Hero)", attributes = ["The Hero"] },
+    { key = "equipment-srd:4jzASWzF2riszO3U", name = "Taljjae's Mask (The Nobleman)", attributes = ["The Nobleman"] },
+    { key = "equipment-srd:nbBtszla32wRC1bp", name = "Taljjae's Mask (The Wanderer)", attributes = ["The Wanderer"] },
+]

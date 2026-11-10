@@ -1,0 +1,9 @@
+name = "Seventh Prism"
+source_note = "Treasure Vault (Remastered). The pentagonal prism increases the area and DC of the same concealment effect."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:zAfSy6fshSGUtYF6", name = "Seventh Prism (Triangular)", attributes = ["Triangular"] },
+    { key = "equipment-srd:B3zoAu9NpUEHGe22", name = "Seventh Prism (Pentagonal)", attributes = ["Pentagonal"] },
+]

@@ -1,0 +1,15 @@
+name = "Wand of Rolling Flames"
+source_note = "Treasure Vault (Remastered). The same obsidian wand casts stronger Floating Flame and increases its added fire damage."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:U4FSOEH2Z6NDpN39", name = "Wand of Rolling Flames (2nd-Rank)", attributes = ["2nd-Rank"] },
+    { key = "equipment-srd:Qquz4V1hKndtXSvw", name = "Wand of Rolling Flames (3rd-Rank)", attributes = ["3rd-Rank"] },
+    { key = "equipment-srd:Deyo6pk3OXthFx9Q", name = "Wand of Rolling Flames (4th-Rank)", attributes = ["4th-Rank"] },
+    { key = "equipment-srd:kRemZF5AgTzHRHM6", name = "Wand of Rolling Flames (5th-Rank)", attributes = ["5th-Rank"] },
+    { key = "equipment-srd:z5NBeuQezm3ABup2", name = "Wand of Rolling Flames (6th-Rank)", attributes = ["6th-Rank"] },
+    { key = "equipment-srd:kSsjGICDkNRuD7fV", name = "Wand of Rolling Flames (7th-Rank)", attributes = ["7th-Rank"] },
+    { key = "equipment-srd:SmMfd6rYUJ8vDGzM", name = "Wand of Rolling Flames (8th-Rank)", attributes = ["8th-Rank"] },
+    { key = "equipment-srd:MBMiRXM0xC4aS6Xj", name = "Wand of Rolling Flames (9th-Rank)", attributes = ["9th-Rank"] },
+]

@@ -1,0 +1,10 @@
+name = "Ring of Wizardry"
+source_note = "Core Rulebook. The arcane ring improves its granted spell slots from Type I through Type IV."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:faKyy6ETkDgrUnvf", name = "Ring of Wizardry (Type I)", attributes = ["Type I"] },
+    { key = "equipment-srd:2tSDgHfSkkaX4CA4", name = "Ring of Wizardry (Type II)", attributes = ["Type II"] },
+    { key = "equipment-srd:otCgznS0L14Z46rf", name = "Ring of Wizardry (Type III)", attributes = ["Type III"] },
+    { key = "equipment-srd:8jPsriZqWY1hAgob", name = "Ring of Wizardry (Type IV)", attributes = ["Type IV"] },
+]

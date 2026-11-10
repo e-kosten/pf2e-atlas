@@ -1,0 +1,8 @@
+name = "Guise of the Smirking Devil"
+source_note = "Player Core 2. The silver-grinned mask improves Intimidation and gives Hideous Wail a higher-rank spell and area effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:tr2eOlJMmBKBZtI9", name = "Guise of the Smirking Devil", attributes = ["Base item"] },
+    { key = "equipment-srd:b2shhButUcNimET9", name = "Guise of the Smirking Devil (Greater)", attributes = ["Greater"] },
+]

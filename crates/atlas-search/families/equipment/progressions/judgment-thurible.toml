@@ -1,0 +1,9 @@
+name = "Judgment Thurible"
+source_note = "Treasure Vault (Remastered). The spellheart improves its damage rune and spell DC and adds higher-rank spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:yjC2nrfqnKmFerHs", name = "Judgment Thurible", attributes = ["Base item"] },
+    { key = "equipment-srd:tajXzwAgjUBZLD6b", name = "Judgment Thurible (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:4PtxcrCPnBhhYmg4", name = "Judgment Thurible (Major)", attributes = ["Major"] },
+]

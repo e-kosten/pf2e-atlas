@@ -1,0 +1,9 @@
+name = "Feed"
+source_note = "Lost Omens Travel Guide, Animal Caretaking Gear Prices table. The two exact entries are the standard and unique one-week feed options."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:g190hQLpwU0jrSNa", name = "Feed (Standard)", attributes = ["Standard"] },
+    { key = "equipment-srd:nb83vPkRwm47cu3z", name = "Feed (Unique)", attributes = ["Unique"] },
+]

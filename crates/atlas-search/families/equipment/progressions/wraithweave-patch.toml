@@ -1,0 +1,9 @@
+name = "Wraithweave Patch"
+source_note = "The Ghouls Hunger. All three patches let incorporeal creatures carry gear, with progressively larger capacity."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:NjyKPRuq9siQe7gu", name = "Wraithweave Patch (Type I)", attributes = ["Type I"] },
+    { key = "equipment-srd:1oOalZRwSxcHewaJ", name = "Wraithweave Patch (Type II)", attributes = ["Type II"] },
+    { key = "equipment-srd:tFgzn2ATau3UJ8Fd", name = "Wraithweave Patch (Type III)", attributes = ["Type III"] },
+]

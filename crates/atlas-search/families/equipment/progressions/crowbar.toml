@@ -1,0 +1,8 @@
+name = "Crowbar"
+source_note = "Player Core. The levered crowbar improves Force Open checks for objects that can be pried open."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:44F1mfJei4GY8f2X", name = "Crowbar", attributes = ["Base item"] },
+    { key = "equipment-srd:4kz3vhkKPUuXBpxk", name = "Crowbar (Levered)", attributes = ["Levered"] },
+]

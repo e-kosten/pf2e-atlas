@@ -1,0 +1,8 @@
+name = "Linguist's Dictionary"
+source_note = "Treasure Vault (Remastered). The dictionary supports three languages at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:JHq8r0fGo1rWF8NS", name = "Linguist's Dictionary", attributes = ["Base item"] },
+    { key = "equipment-srd:wjrYnQcqimzFdswE", name = "Linguist's Dictionary (Greater)", attributes = ["Greater"] },
+]

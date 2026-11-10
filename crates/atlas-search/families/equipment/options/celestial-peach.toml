@@ -1,0 +1,9 @@
+name = "Celestial Peach"
+source_note = "Lost Omens Legends. The two celestial fruits have distinct restorative functions, one for rejuvenation and one for reviving the dead."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:KsoofB7FCppaBTdK", name = "Celestial Peach (Rejuvenation)", attributes = ["Rejuvenation"] },
+    { key = "equipment-srd:ktAjhlI9NxpFJMdp", name = "Celestial Peach (Life)", attributes = ["Life"] },
+]

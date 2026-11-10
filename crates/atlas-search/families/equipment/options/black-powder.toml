@@ -1,0 +1,10 @@
+name = "Black Powder"
+source_note = "Guns & Gears. Dose, horn, and keg are retail and storage forms of the same black powder. The two larger forms also have their own detonation rules."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:AOOQJfSkTPiSzfB9", name = "Black Powder (Dose)", attributes = ["Dose"] },
+    { key = "equipment-srd:sHBk2pY0I6dCW2Mw", name = "Black Powder (Horn)", attributes = ["Horn"] },
+    { key = "equipment-srd:3bZcqRUWQcPe2y8M", name = "Black Powder (Keg)", attributes = ["Keg"] },
+]

@@ -1,0 +1,15 @@
+name = "Wand of Legerdemain"
+source_note = "Treasure Vault (Remastered). The tasseled wand's spell-and-subterfuge activation is available across successive ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:z2QXO8vl0VsXaI1E", name = "Wand of Legerdemain (1st-rank)", attributes = ["1st-rank"] },
+    { key = "equipment-srd:zaJ4HSNa6kMozYvM", name = "Wand of Legerdemain (2nd-rank)", attributes = ["2nd-rank"] },
+    { key = "equipment-srd:XPqKEI246hsr9R6P", name = "Wand of Legerdemain (3rd-rank)", attributes = ["3rd-rank"] },
+    { key = "equipment-srd:4hsPZ6rBpLKOlDjm", name = "Wand of Legerdemain (4th-rank)", attributes = ["4th-rank"] },
+    { key = "equipment-srd:pdsepgrBRgdZ4DWm", name = "Wand of Legerdemain (5th-rank)", attributes = ["5th-rank"] },
+    { key = "equipment-srd:dn53uqBi6MXg2gIM", name = "Wand of Legerdemain (6th-rank)", attributes = ["6th-rank"] },
+    { key = "equipment-srd:AYIel6a1nARjqygh", name = "Wand of Legerdemain (7th-rank)", attributes = ["7th-rank"] },
+    { key = "equipment-srd:34D6lFZ2gpZiyUU6", name = "Wand of Legerdemain (8th-rank)", attributes = ["8th-rank"] },
+    { key = "equipment-srd:qoNaajuoAnKRrFyb", name = "Wand of Legerdemain (9th-rank)", attributes = ["9th-rank"] },
+]

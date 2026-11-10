@@ -1,0 +1,9 @@
+name = "Alchemist Goggles"
+source_note = "Player Core 2. The brass goggles improve their alchemical Crafting and bomb attack benefits."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:7JVgLiNTAs4clEW8", name = "Alchemist Goggles", attributes = ["Base item"] },
+    { key = "equipment-srd:8XZqdeZStFAM4XnH", name = "Alchemist Goggles (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:bnmfBLXOBd3ah6GK", name = "Alchemist Goggles (Major)", attributes = ["Major"] },
+]

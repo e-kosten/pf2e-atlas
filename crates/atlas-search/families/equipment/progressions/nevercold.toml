@@ -1,0 +1,10 @@
+name = "Nevercold"
+source_note = "Treasure Vault (Remastered). Compressed and refined forms increase the same cold protection and eligible spell ranks."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:dEU38O24zT6JCfEZ", name = "Nevercold", attributes = ["Base item"] },
+    { key = "equipment-srd:smPuKlJLRyoYaDpR", name = "Nevercold (Compressed)", attributes = ["Compressed"] },
+    { key = "equipment-srd:aMXCMLI3spk0d7tq", name = "Nevercold (Refined)", attributes = ["Refined"] },
+]

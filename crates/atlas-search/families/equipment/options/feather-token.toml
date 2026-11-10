@@ -1,0 +1,15 @@
+name = "Feather Token"
+source_note = "Core Rulebook and Special: Fumbus! The eight hand-activated feather tokens transform into distinct objects or creatures. The ammunition counterparts use a separate activation and item type."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:cwurQLvQaqjK70UI", name = "Feather Token (Holly Bush)", attributes = ["Holly Bush"] },
+    { key = "equipment-srd:fFq8nsGvSUgzVeND", name = "Feather Token (Bird)", attributes = ["Bird"] },
+    { key = "equipment-srd:vQ2XU6y1MBVDtQgr", name = "Feather Token (Puddle)", attributes = ["Puddle"] },
+    { key = "equipment-srd:3Fmbw9wJkqZBV9De", name = "Feather Token (Fan)", attributes = ["Fan"] },
+    { key = "equipment-srd:cgWT0BUa6b6V7zDg", name = "Feather Token (Balloon)", attributes = ["Balloon"] },
+    { key = "equipment-srd:4owFeOy4zxy8rv7W", name = "Feather Token (Tree)", attributes = ["Tree"] },
+    { key = "equipment-srd:VvljzRwthKMgqUR3", name = "Feather Token (Anchor)", attributes = ["Anchor"] },
+    { key = "equipment-srd:XAuWVlZYGgCguzwz", name = "Feather Token (Whip)", attributes = ["Whip"] },
+]

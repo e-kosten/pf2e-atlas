@@ -1,0 +1,9 @@
+name = "False Death Vial"
+source_note = "Treasure Vault (Remastered). The feigned-death talisman extends teleportation range and carries the wearer's held and worn equipment."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:RtU28UqJuqJQMJym", name = "False Death Vial", attributes = ["Base item"] },
+    { key = "equipment-srd:FZxrYMcH0uH617EQ", name = "False Death Vial (Greater)", attributes = ["Greater"] },
+]

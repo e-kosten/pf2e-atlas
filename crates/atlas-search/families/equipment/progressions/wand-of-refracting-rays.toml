@@ -1,0 +1,9 @@
+name = "Wand of Refracting Rays"
+source_note = "Treasure Vault (Remastered). The hexagonal crystal wand applies the same refraction effect at fourth and seventh rank."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:cMErkgi3GjwT0bTz", name = "Wand of Refracting Rays (4th-Rank)", attributes = ["4th-Rank"] },
+    { key = "equipment-srd:cIYjYb9e5ieQmHo7", name = "Wand of Refracting Rays (7th-Rank)", attributes = ["7th-Rank"] },
+]

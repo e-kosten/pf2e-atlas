@@ -1,0 +1,15 @@
+name = "Bewitching Bloom"
+source_note = "Treasure Vault (Remastered). Nine flower tattoos share the dormant bud and blooming mechanic with different benefits by flower."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:CF2BYEQnAmSwmPPE", name = "Bewitching Bloom (Lilac)", attributes = ["Lilac"] },
+    { key = "equipment-srd:duiTS3Y9JJUsJByq", name = "Bewitching Bloom (Cherry Blossom)", attributes = ["Cherry Blossom"] },
+    { key = "equipment-srd:BZImrMVyqeZ0RfF8", name = "Bewitching Bloom (Red Rose)", attributes = ["Red Rose"] },
+    { key = "equipment-srd:LhpRuLfxuR3t819V", name = "Bewitching Bloom (White Poppy)", attributes = ["White Poppy"] },
+    { key = "equipment-srd:LDtIZ822rqBD88U2", name = "Bewitching Bloom (Magnolia)", attributes = ["Magnolia"] },
+    { key = "equipment-srd:ErqxXatIYbv2WcsE", name = "Bewitching Bloom (Bellflower)", attributes = ["Bellflower"] },
+    { key = "equipment-srd:3Ucc6E5V6bzdgFLE", name = "Bewitching Bloom (Lotus)", attributes = ["Lotus"] },
+    { key = "equipment-srd:2Xpjq6eYMqvBL6eg", name = "Bewitching Bloom (Purple Iris)", attributes = ["Purple Iris"] },
+    { key = "equipment-srd:EcdwnJMuYRqQ9uh7", name = "Bewitching Bloom (Amaranth)", attributes = ["Amaranth"] },
+]

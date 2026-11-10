@@ -1,0 +1,11 @@
+name = "Crystal Ball"
+source_note = "GM Core. Each material produces a concrete scrying orb, with its own DC and additional spell benefit."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:RM3SR1omNZfppZGl", name = "Crystal Ball (Clear Quartz)", attributes = ["Clear Quartz"] },
+    { key = "equipment-srd:VDMYyVQUWJAjVyru", name = "Crystal Ball (Selenite)", attributes = ["Selenite"] },
+    { key = "equipment-srd:S0IshWO7Vx29PKaq", name = "Crystal Ball (Moonstone)", attributes = ["Moonstone"] },
+    { key = "equipment-srd:ByRyBRjNBcK5rwQ9", name = "Crystal Ball (Peridot)", attributes = ["Peridot"] },
+    { key = "equipment-srd:WKdI4LbwgcNHhMdp", name = "Crystal Ball (Obsidian)", attributes = ["Obsidian"] },
+]

@@ -1,0 +1,8 @@
+name = "Fishing Tackle"
+source_note = "Player Core. Professional tackle adds a bonus while serving the same fishing function."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:3tOyV4VZEZhwnAMO", name = "Fishing Tackle", attributes = ["Base item"] },
+    { key = "equipment-srd:ksorBjuXO0Bvdmhl", name = "Fishing Tackle (Professional)", attributes = ["Professional"] },
+]

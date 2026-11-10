@@ -1,0 +1,10 @@
+name = "Trueshape Bomb"
+source_note = "Treasure Vault (Remastered). The bomb improves attack, direct and persistent damage, splash damage, and Fortitude DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:PNs3SqMhJ3rTxpSI", name = "Trueshape Bomb", attributes = ["Base item"] },
+    { key = "equipment-srd:wtRDteH3D3ME4FU9", name = "Trueshape Bomb (Greater)", attributes = ["Greater"] },
+]

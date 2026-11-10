@@ -1,0 +1,11 @@
+name = "Wand of Hawthorn"
+source_note = "Treasure Vault (Remastered). The thorny wand increases its spell rank and piercing damage."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:CKmIgVzlcN7g1YT4", name = "Wand of Hawthorn (2nd-rank)", attributes = ["2nd-rank"] },
+    { key = "equipment-srd:ooaErd0DHZYju9rF", name = "Wand of Hawthorn (4th-rank)", attributes = ["4th-rank"] },
+    { key = "equipment-srd:uo6fVL0r0S1vM61n", name = "Wand of Hawthorn (6th-rank)", attributes = ["6th-rank"] },
+    { key = "equipment-srd:rZKiSwhCT5xkBVLy", name = "Wand of Hawthorn (8th-rank)", attributes = ["8th-rank"] },
+]

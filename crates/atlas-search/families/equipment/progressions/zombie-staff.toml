@@ -1,0 +1,11 @@
+name = "Zombie Staff"
+source_note = "Treasure Vault (Remastered). The zombie staff adds higher-rank spells to animate and control undead."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:JtCO2nielwAg1x9m", name = "Zombie Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:5B8sBxQ7IeKVI6TO", name = "Zombie Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kJzp8I0rAmcucHuw", name = "Zombie Staff (Major)", attributes = ["Major"] },
+]

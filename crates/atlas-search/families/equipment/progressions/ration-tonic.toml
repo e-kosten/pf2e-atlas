@@ -1,0 +1,9 @@
+name = "Ration Tonic"
+source_note = "Player Core 2. The nourishing vial sustains the drinker for a week at the greater grade."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:3Wb0N7iqmTn6e2Xc", name = "Ration Tonic", attributes = ["Base item"] },
+    { key = "equipment-srd:EkC2W5A5fohoIKSd", name = "Ration Tonic (Greater)", attributes = ["Greater"] },
+]

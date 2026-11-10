@@ -1,0 +1,11 @@
+name = "Heartening Missive"
+source_note = "Treasure Vault (Remastered). The four animal motifs apply different morale effects to the letter's recipient."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:U9LhV1IBLbRug7uz", name = "Heartening Missive (Butterfly)", attributes = ["Butterfly"] },
+    { key = "equipment-srd:6iqRv3TGKt6DyIBs", name = "Heartening Missive (Bull)", attributes = ["Bull"] },
+    { key = "equipment-srd:MMInXBlOscwZVXsm", name = "Heartening Missive (Rabbit)", attributes = ["Rabbit"] },
+    { key = "equipment-srd:SRaVakPZeb81ZLfL", name = "Heartening Missive (Turtle)", attributes = ["Turtle"] },
+]

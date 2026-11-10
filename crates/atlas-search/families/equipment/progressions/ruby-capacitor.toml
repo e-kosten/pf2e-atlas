@@ -1,0 +1,10 @@
+name = "Ruby Capacitor"
+source_note = "Treasure Vault (Remastered). The ruby stores progressively more charges."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:kksRfBsWEPYt8jpN", name = "Ruby Capacitor", attributes = ["Base item"] },
+    { key = "equipment-srd:P3EL4ntkd5InC3YB", name = "Ruby Capacitor (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:PFr49j091jjb8363", name = "Ruby Capacitor (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,8 @@
+name = "Lantern"
+source_note = "Player Core. The bull's-eye and hooded lamps are ordinary lantern forms with distinct light patterns and shutters."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:QrNvP9SgnK9DrerA", name = "Lantern (Bull's Eye)", attributes = ["Bull's Eye"] },
+    { key = "equipment-srd:dIRZ0LL7G31fJNYz", name = "Lantern (Hooded)", attributes = ["Hooded"] },
+]

@@ -1,0 +1,8 @@
+name = "Rhinoceros Mask"
+source_note = "Treasure Vault (Remastered). The horned mask's momentum can bypass up to 10 Hardness at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:UNOHV2dnRphyNJFw", name = "Rhinoceros Mask", attributes = ["Base item"] },
+    { key = "equipment-srd:RRZGHR81cUOvu6Tx", name = "Rhinoceros Mask (Greater)", attributes = ["Greater"] },
+]

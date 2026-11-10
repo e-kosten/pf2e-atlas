@@ -1,0 +1,21 @@
+name = "Musical Instrument"
+source_note = "Player Core. Handheld and heavy instruments have distinct uses and Bulk. Each has a virtuoso equivalent with a Performance bonus."
+item_type = "equipment"
+
+axes = [
+    { id = "quality", label = "Qualities", options = [
+        { id = "standard", label = "Standard" },
+        { id = "virtuoso", label = "Virtuoso" },
+    ] },
+    { id = "form", label = "Forms", options = [
+        { id = "handheld", label = "Handheld" },
+        { id = "heavy", label = "Heavy" },
+    ] },
+]
+
+members = [
+    { key = "equipment-srd:MPv5Yx4w7scZGj2Y", name = "Musical Instrument (Handheld)", coordinates = { quality = "standard", form = "handheld" } },
+    { key = "equipment-srd:csfJtggwGCF28U2j", name = "Musical Instrument (Heavy)", coordinates = { quality = "standard", form = "heavy" } },
+    { key = "equipment-srd:3ld14dsn2RLu9owg", name = "Musical Instrument (Virtuoso handheld)", coordinates = { quality = "virtuoso", form = "handheld" } },
+    { key = "equipment-srd:yw1kPxsdCoDUzOaE", name = "Musical Instrument (Virtuoso heavy)", coordinates = { quality = "virtuoso", form = "heavy" } },
+]

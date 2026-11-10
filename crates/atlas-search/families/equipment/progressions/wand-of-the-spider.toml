@@ -1,0 +1,9 @@
+name = "Wand of the Spider"
+source_note = "Player Core 2. The spider wand improves spell rank and its poison effects."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:tf69NMnUoUAYrWtj", name = "Wand of the Spider (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:9YtYO8u5UOg4q64Y", name = "Wand of the Spider (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+]

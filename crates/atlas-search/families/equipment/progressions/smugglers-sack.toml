@@ -1,0 +1,11 @@
+name = "Smuggler's Sack"
+source_note = "Lost Omens Firebrands. The extradimensional sacks increase hidden Bulk capacity and detection DC from Type I through V."
+item_type = "backpack"
+
+members = [
+    { key = "equipment-srd:6z7VUJanx7nPwhk6", name = "Smuggler's Sack (Type I)", attributes = ["Type I"] },
+    { key = "equipment-srd:eZ2kfpjboRrFWK9R", name = "Smuggler's Sack (Type II)", attributes = ["Type II"] },
+    { key = "equipment-srd:fPOidyARnS0McvHx", name = "Smuggler's Sack (Type III)", attributes = ["Type III"] },
+    { key = "equipment-srd:jEnDLdcuOgXDf0I6", name = "Smuggler's Sack (Type IV)", attributes = ["Type IV"] },
+    { key = "equipment-srd:JL0j0AtJZYEaKeOa", name = "Smuggler's Sack (Type V)", attributes = ["Type V"] },
+]
