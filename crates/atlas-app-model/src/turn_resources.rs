@@ -5,9 +5,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TurnResourcesView {
     pub action_calculation: TurnActionCalculationView,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
-    pub inherent_conditions: Option<InherentActionConditionsView>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub turn_key: Option<String>,
     #[cfg_attr(feature = "openapi", schema(required))]
@@ -46,30 +43,6 @@ pub enum TurnActionCalculationView {
     NextTurn {
         count: crate::RuntimeCountView,
     },
-}
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InherentActionConditionsView {
-    pub entries: Vec<InherentActionConditionView>,
-    #[cfg_attr(feature = "openapi", schema(required))]
-    pub unavailable_reason: Option<String>,
-}
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InherentActionConditionView {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
-    pub unavailable_reason: Option<String>,
-    pub name: String,
-    pub has_value: bool,
-    #[cfg_attr(feature = "openapi", schema(required))]
-    pub value: Option<i64>,
-    pub condition_ref: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "openapi", schema(nullable = false))]
-    pub editable_rule_ordinal: Option<usize>,
-    pub source_name: String,
-    pub source: crate::RecordNavigationView,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

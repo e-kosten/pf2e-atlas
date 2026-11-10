@@ -4,8 +4,6 @@ import type { HazardPresentationView } from "../../generated/atlas";
 import {
   ActorActivities,
   hasActorActivities,
-  hasRuntimeDetails,
-  ActorSecondaryFacts,
   type CastingAnnotations,
 } from "./ActorReference";
 import {
@@ -51,7 +49,6 @@ export function HazardReference({
     content.reset ||
     content.other ||
     reading?.landing;
-  const hasRuntime = hasRuntimeDetails(hazard.actor, true);
   const detection = referenceRows([
     hazard.complex.state !== "value"
       ? renderReferenceFact({
@@ -104,14 +101,7 @@ export function HazardReference({
             </div>
           ) : null
         }
-        runtime={
-          encounter && (hasRuntime || encounterContent?.conditions) ? (
-            <>
-              <ActorSecondaryFacts actor={hazard.actor} runtimeOnly />
-              {encounterContent?.conditions}
-            </>
-          ) : null
-        }
+        runtime={encounter ? encounterContent?.conditions : null}
       >
         {hasRules ? (
           <>

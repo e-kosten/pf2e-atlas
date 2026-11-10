@@ -123,7 +123,6 @@ it.each([false, true, null])(
     actor.runtime = {
       senses: [],
       contextual_armor_class: [],
-      unapplied_effects: [],
       action_budget: {
         actions: count("Actions", 3),
         reactions: count("Reactions", 1),

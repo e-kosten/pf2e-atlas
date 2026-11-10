@@ -24,7 +24,6 @@ import {
   AtlasApiError,
   getEncounter,
   getEncounterConditionLifecycleActions,
-  getEncounterReference,
   updateEncounterParticipant,
   addEncounterManualParticipant,
   updateEncounter,
@@ -354,69 +353,36 @@ describe("source-backed API transport", () => {
       sources: [{ condition_id: 9, recovery_dc: 12 }],
     });
   });
-  it.each(["creature", "hazard"] as const)(
-    "preserves exact condition diagnostic identity through %s encounter and reference transport",
-    async (kind) => {
-      const notes = [
+  it("decodes guidance on saved and inherent condition rows", async () => {
+    respond({
+      revision: 8,
+      encounter: { round_duration_seconds: 6, round_number: 1 },
+      participants: [
         {
-          source: "condition",
-          label: "Enfeebled",
-          reason: "Manual attack adjustment",
-          condition_id: 9,
-        },
-        { source: "rule", label: "Other effect", reason: "Manual adjustment" },
-      ];
-      const actor = { runtime: { unapplied_effects: notes } };
-      const presentation = {
-        body: { kind, value: kind === "creature" ? actor : { actor } },
-      };
-      respond({
-        revision: 8,
-        encounter: { round_duration_seconds: 6, round_number: 1 },
-        participants: [{ ...participantJson, presentation }],
-      });
-      const encounter = await getEncounter("test");
-      const expected = [
-        {
-          ...notes[0],
-          condition_id: 9,
-        },
-        notes[1],
-      ];
-      const body = encounter.participants[0].presentation?.body;
-      expect(
-        body &&
-          (body.kind === "creature"
-            ? body.value.runtime
-            : body.kind === "hazard"
-              ? body.value.actor.runtime
-              : null
-          )?.unapplied_effects,
-      ).toEqual(expected);
-      respond({ presentation });
-      const reference = await getEncounterReference("test", "ghoul", {
-        artifact_generation: "generation-test",
-        selection: {
-          address: {
-            record_key: "actors:ghoul",
-            embedded_path: [],
-            source_fingerprint: null,
+          ...participantJson,
+          participant_kind: "hazard",
+          conditions: [
+            { condition_id: 9, name: "Prone", guidance: ["Move by Crawling."] },
+          ],
+          inherent_conditions: {
+            entries: [{ name: "Fleeing", guidance: ["Can't Delay or Ready."] }],
+            unavailable_reason: null,
           },
-          fields: [],
-          passage: null,
         },
-      });
-      const referenceBody = reference.presentation.body;
-      expect(
-        (referenceBody.kind === "creature"
-          ? referenceBody.value.runtime
-          : referenceBody.kind === "hazard"
-            ? referenceBody.value.actor.runtime
-            : null
-        )?.unapplied_effects,
-      ).toEqual(expected);
-    },
-  );
+      ],
+    });
+    const {
+      participants: [participant],
+    } = await getEncounter("test");
+    expect(participant.conditions[0]).toMatchObject({
+      condition_id: 9,
+      guidance: ["Move by Crawling."],
+    });
+    expect(participant.inherent_conditions?.entries[0].guidance).toEqual([
+      "Can't Delay or Ready.",
+    ]);
+  });
+
   it("decodes tracker and non-round condition progress from the real router fixture", async () => {
     const fixture = await import("./__fixtures__/wire-conversion.json");
     respond(fixture.encounter);

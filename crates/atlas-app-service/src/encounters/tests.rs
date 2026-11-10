@@ -1157,7 +1157,7 @@ fn composed_strike_keeps_suppressed_only_explanation_without_inventing_an_applie
             modifier_type: super::mechanics::ModifierType::Status,
             value: -1,
         });
-    let composed = crate::presentation::compose_participant(authored, &workspace);
+    let composed = crate::presentation::compose_participant(authored, &workspace, false);
     let RecordBodyView::Creature(actor) = composed.body else {
         panic!("creature")
     };
@@ -1231,14 +1231,49 @@ fn encounter_projection_keeps_semantic_statistics_and_authored_context() {
     );
     assert_eq!(a.land_speed.value, Some(25.into()));
     assert!(a.runtime.as_ref().unwrap().action_budget.is_some());
-    assert!(
-        a.runtime
-            .as_ref()
-            .unwrap()
-            .unapplied_effects
-            .iter()
-            .any(|n| n.label == "Identifying spells")
-    );
+    let arcana = a
+        .skills
+        .value
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|skill| skill.key == "arcana")
+        .unwrap();
+    let alternate = &arcana.conditional.value.as_ref().unwrap()[0];
+    assert_eq!(arcana.modifier.value, Some(7.into()));
+    assert_eq!(alternate.modifier.value, Some(11.into()));
+    assert_eq!(alternate.label.value.as_deref(), Some("Identifying spells"));
+    let athletics = a
+        .skills
+        .value
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|skill| skill.key == "athletics")
+        .unwrap();
+    assert!(athletics.conditional.value.is_none());
+    let authored = d.participants[0].presentation.clone().unwrap();
+    let block = worker_arithmetic_baseline(&f.worker);
+    let unresolved = crate::presentation::compose_participant(authored, &block, true);
+    let RecordBodyView::Creature(unresolved) = unresolved.body else {
+        panic!("expected creature presentation");
+    };
+    let alternate = &unresolved
+        .skills
+        .value
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|skill| skill.key == "arcana")
+        .unwrap()
+        .conditional
+        .value
+        .as_ref()
+        .unwrap()[0]
+        .modifier;
+    assert_eq!(alternate.state, atlas_domain::QueryFieldState::Missing);
+    assert_eq!(alternate.value, None);
+    assert_eq!(alternate.adjustment.as_ref().unwrap().authored, 11.into());
     assert!(
         a.activities
             .value
@@ -1246,6 +1281,87 @@ fn encounter_projection_keeps_semantic_statistics_and_authored_context() {
             .unwrap()
             .iter()
             .any(|v| v.title == "Breath Weapon")
+    );
+}
+
+#[test]
+fn alternate_skill_value_includes_weak_and_condition_adjustments() {
+    let f = encounter_fixture_worker();
+    let key = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Alternate skills".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter
+        .encounter_key;
+    f.worker
+        .add_encounter_record_participant(
+            &key,
+            AddEncounterRecordParticipantRequest {
+                participant_variant: Some(EncounterParticipantVariantView::Weak),
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: None,
+            },
+        )
+        .unwrap();
+    let detail = f.worker.encounter(&key).unwrap();
+    let participant = &detail.participants[0];
+    f.worker
+        .add_encounter_participant_condition(
+            &key,
+            &participant.participant_key,
+            AddEncounterParticipantConditionRequest {
+                condition_ref: Some(
+                    super::conditions::ConditionRule::Frightened
+                        .definition()
+                        .record_key
+                        .into(),
+                ),
+                value: Some(1),
+                expected_reference_revision: None,
+                request_id: crate::test_support::next_request_id(),
+                expected_encounter_revision: detail.revision,
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
+                name: None,
+                source_participant_key: None,
+                duration: None,
+                note: None,
+            },
+        )
+        .unwrap();
+    let adjusted = f.worker.encounter(&key).unwrap();
+    let skills = actor(&adjusted.participants[0])
+        .skills
+        .value
+        .as_ref()
+        .unwrap();
+    let arcana = skills.iter().find(|skill| skill.key == "arcana").unwrap();
+    let alternate = &arcana.conditional.value.as_ref().unwrap()[0].modifier;
+    assert_eq!(arcana.modifier.value, Some(4.into()));
+    assert_eq!(alternate.value, Some(8.into()));
+    assert_eq!(
+        arcana.conditional.value.as_ref().unwrap()[1].modifier.value,
+        Some(3.into())
+    );
+    let calculation = alternate.adjustment.as_ref().unwrap();
+    assert_eq!(calculation.authored, 11.into());
+    assert_eq!(
+        calculation
+            .applied
+            .iter()
+            .map(|modifier| modifier.value)
+            .collect::<Vec<_>>(),
+        [-2, -1]
     );
 }
 
@@ -1468,15 +1584,18 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
             .unwrap(),
         "(1d6+4)+2"
     );
-    assert!(
-        block
-            .runtime
-            .as_ref()
-            .unwrap()
-            .unapplied_effects
-            .iter()
-            .any(|n| n.label == "Identifying spells")
-    );
+    let arcana = block
+        .skills
+        .value
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|skill| skill.key == "arcana")
+        .unwrap();
+    let alternate = &arcana.conditional.value.as_ref().unwrap()[0];
+    assert_eq!(arcana.modifier.value, Some(9.into()));
+    assert_eq!(alternate.modifier.value, Some(13.into()));
+    assert_eq!(alternate.label.value.as_deref(), Some("Identifying spells"));
     let change = hp_edit(
         &p,
         EncounterHpAction::SetValues {
@@ -2099,7 +2218,6 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
         .unwrap();
     let p = &d.participants[0];
     assert_eq!((p.max_hp, p.current_hp), (Some(40), Some(40)));
-    let block = actor(p);
     assert_eq!(
         hazard(p).hardness.value.clone().unwrap(),
         serde_json::Number::from(8)
@@ -2108,15 +2226,8 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
         hazard(p).stealth.value.clone().unwrap(),
         serde_json::Number::from(12)
     );
-    assert!(
-        !block
-            .runtime
-            .as_ref()
-            .unwrap()
-            .unapplied_effects
-            .iter()
-            .any(|n| n.source == "npc-adjustment")
-    );
+    assert!(p.turn_resources.is_none());
+    assert!(p.inherent_conditions.as_ref().unwrap().entries.is_empty());
     let mut change = update(p);
     change.participant_variant = Some(EncounterParticipantVariantView::Elite);
     let p = {
@@ -2141,7 +2252,7 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
 }
 
 #[test]
-fn authored_lore_variants_and_nondamaging_casting_entries_remain_context() {
+fn lore_and_nondamaging_casting_entries_keep_authored_mechanics() {
     let block = authored_arithmetic_baseline(
         serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{"_id":"bbbbbbbbbbbbbbbb","type":"lore","name":"Sailing Lore","system":{"mod":{"value":14},"variants":{"storm":{"label":"Storm navigation","options":"Only while navigating a storm"}}}},{"_id":"cccccccccccccccc","type":"spellcastingEntry","name":"Arcane Spells","system":{"description":{"value":"<p>Cast authored spells</p>"}}}]}),
     );
@@ -2151,12 +2262,6 @@ fn authored_lore_variants_and_nondamaging_casting_entries_remain_context() {
         .find(|v| v.label == "Sailing Lore")
         .unwrap();
     assert_eq!(lore.base_value, serde_json::Number::from(14));
-    assert!(
-        block
-            .unapplied_effects
-            .iter()
-            .any(|n| n.label == "Storm navigation" && n.reason == "Only while navigating a storm")
-    );
     let casting = block
         .activities
         .iter()
@@ -2328,7 +2433,7 @@ fn corpus_npc_adjustment_defaults_preserve_typed_ghoul_hp() {
 }
 
 #[test]
-fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
+fn custom_condition_note_stays_on_its_exact_row_once() {
     let f = encounter_fixture_worker();
     let e = f
         .worker
@@ -2398,44 +2503,12 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
     }
     let detail = f.worker.encounter(&e.encounter_key).unwrap();
     let participant = &detail.participants[0];
-    let notes = &actor(participant)
-        .runtime
-        .as_ref()
-        .unwrap()
-        .unapplied_effects;
     let expected = [None, None, None, None, Some("Custom source context")];
     assert_eq!(participant.conditions.len(), expected.len());
-    for (condition, reason) in participant.conditions.iter().zip(expected) {
-        let matching = notes
-            .iter()
-            .filter(|note| note.condition_id == Some(condition.condition_id))
-            .collect::<Vec<_>>();
-        if let Some(reason) = reason {
-            assert_eq!(matching.len(), 1);
-            assert_eq!(
-                (matching[0].label.as_str(), matching[0].reason.as_str()),
-                (condition.name.as_str(), reason)
-            );
-        } else {
-            assert!(matching.is_empty());
-        }
+    for (condition, note) in participant.conditions.iter().zip(expected) {
+        assert_eq!(condition.note.as_deref(), note);
+        assert!(condition.guidance.is_empty());
     }
-    assert_eq!(
-        notes
-            .iter()
-            .filter(|note| note.condition_id.is_some())
-            .count(),
-        1
-    );
-    assert!(
-        notes
-            .iter()
-            .any(|note| note.label == "Identifying spells" && note.condition_id.is_none())
-    );
-    assert!(!notes.iter().any(|note| {
-        note.reason
-            .contains("Attack ability, spellcasting, restricted actions")
-    }));
 }
 
 #[test]
@@ -2497,24 +2570,12 @@ fn manual_participants_keep_exact_condition_notes_without_authored_statistics() 
         .unwrap();
     let detail = f.worker.encounter(&e.encounter_key).unwrap();
     let participant = &detail.participants[0];
-    let notes = &actor(participant)
-        .runtime
-        .as_ref()
-        .unwrap()
-        .unapplied_effects;
-    assert_eq!(notes.len(), 1);
-    assert_eq!(
-        (
-            notes[0].condition_id,
-            notes[0].label.as_str(),
-            notes[0].reason.as_str()
-        ),
-        (
-            Some(participant.conditions[0].condition_id),
-            "Custom condition",
-            "Custom source context"
-        )
-    );
+    let [condition] = participant.conditions.as_slice() else {
+        panic!("expected one saved condition");
+    };
+    assert_eq!(condition.name, "Custom condition");
+    assert_eq!(condition.note.as_deref(), Some("Custom source context"));
+    assert!(condition.guidance.is_empty());
 }
 
 #[test]

@@ -12,17 +12,6 @@ pub(in crate::encounters) fn project_conditions(
     participant: &EncounterParticipant,
     additional: &[super::causes::ScopedConditionCause<'_>],
 ) -> StatBlockView {
-    let mut block = block;
-    for condition in &participant.conditions {
-        if condition_rule_for_key(condition.condition_key.as_deref()).is_none()
-            && let Some(note) = condition.note.as_deref()
-        {
-            block.unapplied_effects.push(condition_note(
-                super::causes::ConditionSource::Saved(condition),
-                note,
-            ));
-        }
-    }
     let opponents: std::collections::BTreeSet<_> = participant
         .conditions
         .iter()
@@ -61,9 +50,7 @@ fn project_for_opponent(
     additional: &[super::causes::ScopedConditionCause<'_>],
 ) -> StatBlockView {
     let sources = block.source_conditions.clone();
-    if let Some(note) = stupefied_hint(participant, opponent, &sources) {
-        block.unapplied_effects.push(note);
-    }
+    block.casting_guidance = stupefied_hint(participant, opponent, &sources);
     let mut movement_restriction = None;
     let conditions = super::causes::resolve_causes(participant, opponent, additional, &sources);
     let deafened = conditions.known_presence(ConditionRule::Deafened).ok();
@@ -98,7 +85,7 @@ fn project_for_opponent(
             )
         }) && cause.value.is_none_or(|value| value < 0)
         {
-            block.unapplied_effects.push(condition_note(
+            block.condition_guidance.push(condition_note(
                 c,
                 if c.saved().is_some() {
                     "Enter the condition value to calculate its penalties."
@@ -245,7 +232,7 @@ fn project_for_opponent(
             }
         }
         if let Some(reason) = condition_effect_hint(rule, applied) {
-            block.unapplied_effects.push(condition_note(c, &reason));
+            block.condition_guidance.push(condition_note(c, &reason));
         }
     }
     if let Some((condition, adjustment)) = movement_restriction {
@@ -587,11 +574,9 @@ fn project_uncertain_sources(
 fn condition_note(
     condition: super::causes::ConditionSource<'_>,
     reason: &str,
-) -> UnappliedEffectView {
-    UnappliedEffectView {
-        condition_id: condition.condition_id(),
-        source: condition.explanation_key(),
-        label: condition.name().to_owned(),
+) -> ConditionGuidance {
+    ConditionGuidance {
+        source: condition.key(),
         reason: reason.into(),
     }
 }
@@ -600,20 +585,61 @@ fn stupefied_hint(
     participant: &EncounterParticipant,
     opponent: Option<&str>,
     sources: &super::source_conditions::SourceConditions,
-) -> Option<UnappliedEffectView> {
+) -> Option<ConditionGuidance> {
+    use super::causes::ConditionSource;
+
     let requirement =
         super::action_context::stupefied_casting_hint(participant, opponent, sources)?;
-    Some(UnappliedEffectView {
-        condition_id: None,
-        source: "condition:stupefied".into(),
-        label: "Stupefied".into(),
-        reason: match requirement {
-            Ok(dc) => format!("Spellcasting requires a DC {dc} flat check."),
-            Err(()) => {
-                "Enter the Stupefied value to determine the spellcasting flat-check DC.".into()
+    let conditions = super::causes::condition_causes(participant, opponent, sources);
+    let active = conditions
+        .active
+        .iter()
+        .filter(|cause| cause.rule == ConditionRule::Stupefied);
+    let (cause, reason) = match requirement {
+        Ok(dc) => (
+            active.max_by_key(|cause| cause.value)?,
+            format!("Spellcasting requires a DC {dc} flat check."),
+        ),
+        Err(()) => {
+            if let Some(cause) = active
+                .clone()
+                .chain(conditions.uncertain.iter().filter(|cause| {
+                    cause.rule == ConditionRule::Stupefied
+                        && matches!(
+                            cause.source,
+                            ConditionSource::Authored(source, ..)
+                                if source.override_identity.is_some()
+                        )
+                }))
+                .find(|cause| cause.value.is_none_or(|value| value < 0))
+            {
+                let can_edit = match cause.source {
+                    ConditionSource::Saved(condition) => {
+                        condition_rule_for_key(condition.condition_key.as_deref())
+                            == Some(ConditionRule::Stupefied)
+                    }
+                    ConditionSource::Authored(source, ..) => source.override_identity.is_some(),
+                };
+                let reason = if can_edit {
+                    "Enter the Stupefied value to determine the spellcasting flat-check DC."
+                } else {
+                    "The Stupefied value is unavailable. Check the source before casting."
+                };
+                (cause, reason.to_owned())
+            } else {
+                let cause = conditions
+                    .uncertain
+                    .iter()
+                    .find(|cause| cause.rule == ConditionRule::Stupefied)
+                    .or_else(|| active.max_by_key(|cause| cause.value))?;
+                (
+                    cause,
+                    "Check whether Stupefied applies before casting.".into(),
+                )
             }
-        },
-    })
+        }
+    };
+    Some(condition_note(cause.source, &reason))
 }
 
 /// Resolve display subjects only where the encounter roster is available. Numerical
@@ -623,11 +649,11 @@ pub(in crate::encounters) fn resolve_condition_subject_hints(
     participant: &EncounterParticipant,
     roster: &[EncounterParticipant],
 ) {
-    for note in &mut block.unapplied_effects {
+    for note in &mut block.condition_guidance {
         let Some(condition) = participant
             .conditions
             .iter()
-            .find(|condition| Some(condition.condition_id) == note.condition_id)
+            .find(|condition| Some(condition.condition_id) == note.source.saved_id())
         else {
             continue;
         };
@@ -685,6 +711,19 @@ fn condition_effect_hint(rule: ConditionRule, applied: bool) -> Option<String> {
 
         _ => None,
     }.map(str::to_owned)
+}
+
+impl StatValueView {
+    pub(crate) fn with_alternate_base(&self, base: &Number) -> Option<Self> {
+        let value = self
+            .modifiers
+            .iter()
+            .try_fold(base.clone(), |value, modifier| add(&value, modifier.value))?;
+        let mut alternate = self.clone();
+        alternate.base_value = base.clone();
+        alternate.adjusted_value = value;
+        Some(alternate)
+    }
 }
 
 pub(in crate::encounters) fn add(n: &Number, delta: i64) -> Option<Number> {
@@ -747,7 +786,7 @@ pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant)
         speeds: vec![],
         action_budget: Some(super::capabilities::action_budget(p, &Default::default())),
         activities: vec![],
-        unapplied_effects: super::causes::condition_causes(
+        condition_guidance: super::causes::condition_causes(
             p,
             None,
             crate::encounters::rules::source_conditions::SourceConditions::empty(),
@@ -766,25 +805,12 @@ pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant)
             condition_effect_hint(cause.rule, false)
                 .map(|reason| condition_note(cause.source, &reason))
         })
-        .chain(stupefied_hint(
+        .collect(),
+        casting_guidance: stupefied_hint(
             p,
             None,
             super::source_conditions::SourceConditions::empty(),
-        ))
-        .chain(
-            p.conditions
-                .iter()
-                .filter(|condition| scope_applies(&condition.scope, None))
-                .filter(|condition| {
-                    condition_rule_for_key(condition.condition_key.as_deref()).is_none()
-                })
-                .filter_map(|condition| {
-                    condition.note.as_deref().map(|note| {
-                        condition_note(super::causes::ConditionSource::Saved(condition), note)
-                    })
-                }),
-        )
-        .collect(),
+        ),
     }
 }
 
@@ -968,8 +994,6 @@ fn prepare_participant(
                 }
             }
         }
-    } else if adjustment_applicable {
-        block.unapplied_effects.push(UnappliedEffectView{condition_id:None,source:"npc-adjustment".into(),label:"Source adjustment unavailable".into(),reason:"Missing or invalid adjustment does not establish Normal; choose an explicit variant to apply an adjustment.".into()});
     }
     block.adjusted_level =
         effective_participant_level(participant, baseline.level.as_ref(), adjustment_applicable);

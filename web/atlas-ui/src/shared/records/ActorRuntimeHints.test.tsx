@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { ActorActivities, ActorSecondaryFacts } from "./ActorReference";
+import { ActorActivities, ActorSkills } from "./ActorReference";
 import { actorFixture, activityFixture, knownFact } from "../../test/fixtures";
 import type { ActorRuntimeView, RuntimeCountView } from "../../generated/atlas";
 
@@ -15,7 +15,6 @@ function runtime(): ActorRuntimeView {
   return {
     senses: [],
     contextual_armor_class: [],
-    unapplied_effects: [],
     action_budget: {
       quickened_sources: [],
       notes: [],
@@ -39,19 +38,12 @@ it("places the effective casting hint beside spellcasting without a duplicate ru
   const actor = actorFixture();
   actor.runtime = runtime();
   actor.runtime.action_budget = null;
-  actor.runtime.unapplied_effects = [
-    {
-      source: "condition:stupefied",
-      label: "Stupefied",
-      reason: "Spellcasting requires a DC 10 flat check.",
-    },
-  ];
+  actor.runtime.casting_hint = "Spellcasting requires a DC 10 flat check.";
   actor.activities = knownFact([
     { ...activityFixture("Arcane spells"), kind: "casting_entry" },
   ]);
   render(
     <>
-      <ActorSecondaryFacts actor={actor} />
       <ActorActivities actor={actor} encounter onReference={vi.fn()} />
     </>,
   );
@@ -61,7 +53,27 @@ it("places the effective casting hint beside spellcasting without a duplicate ru
   expect(
     within(section).getByText("Spellcasting requires a DC 10 flat check."),
   ).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Runtime" })).toBeNull();
   expect(screen.getAllByText(/Spellcasting requires a DC 10 flat check/)).toHaveLength(
     1,
   );
+});
+
+it("keeps Lore variant labels with the Lore modifier", () => {
+  const actor = actorFixture();
+  actor.activities = knownFact([
+    {
+      ...activityFixture("Sailing Lore"),
+      kind: "lore",
+      lore_modifier: { state: "value", value: 14, adjustment: null },
+      notes: [
+        { source: "Sailing Lore", label: "Storm navigation", reason: "terrain:storm" },
+      ],
+    },
+  ]);
+  render(<ActorSkills actor={actor} encounter />);
+  expect(screen.getByText("Sailing Lore").parentElement).toHaveTextContent(
+    "+14 · Storm navigation",
+  );
+  expect(screen.queryByText("terrain:storm")).toBeNull();
 });

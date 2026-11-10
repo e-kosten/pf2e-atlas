@@ -24,7 +24,7 @@ type ParticipantValues = {
   name: string;
   initiative: string;
   side: EncounterParticipantView["side"];
-  adjustment: EncounterParticipantView["participant_variant"];
+  adjustment?: EncounterParticipantView["participant_variant"];
   note: string;
 };
 
@@ -60,6 +60,15 @@ export function EncounterParticipantSettings({
   const [open, setOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
   const [savingLifeSettings, setSavingLifeSettings] = useState(false);
+  const adjustmentUnknown =
+    participant.participant_kind === "creature" &&
+    participant.status === "active" &&
+    participant.variant_origin === "inherited_unknown";
+  const openSettings = () => {
+    settingsTrigger.current?.focus({ preventScroll: true });
+    setCommitted(false);
+    setOpen(true);
+  };
   return (
     <>
       <Dropdown
@@ -75,12 +84,10 @@ export function EncounterParticipantSettings({
               : []),
           ],
           onClick: ({ key }) => {
-            settingsTrigger.current?.focus({ preventScroll: true });
-            if (key === "reset") onReset?.();
-            else {
-              setCommitted(false);
-              setOpen(true);
-            }
+            if (key === "reset") {
+              settingsTrigger.current?.focus({ preventScroll: true });
+              onReset?.();
+            } else openSettings();
           },
         }}
       >
@@ -92,6 +99,11 @@ export function EncounterParticipantSettings({
           disabled={disabled}
         />
       </Dropdown>
+      {adjustmentUnknown && (
+        <Button type="link" size="small" onClick={openSettings} disabled={disabled}>
+          Choose an adjustment
+        </Button>
+      )}
       <EncounterModal
         title="Participant settings"
         open={open && !(committed && !disabled)}
@@ -120,6 +132,7 @@ export function EncounterParticipantSettings({
         <ParticipantSettingsForm
           formId={formId}
           participant={participant}
+          adjustmentUnknown={adjustmentUnknown}
           disabled={disabled && !savingLifeSettings}
           pending={pending && !savingLifeSettings}
           error={error}
@@ -154,6 +167,7 @@ export function EncounterParticipantSettings({
 
 function ParticipantSettingsForm({
   participant,
+  adjustmentUnknown,
   disabled,
   pending,
   error,
@@ -163,6 +177,7 @@ function ParticipantSettingsForm({
   onSave,
 }: {
   participant: EncounterParticipantView;
+  adjustmentUnknown: boolean;
   disabled: boolean;
   pending: boolean;
   error?: string;
@@ -178,14 +193,14 @@ function ParticipantSettingsForm({
       name: participant.display_name,
       initiative: participant.initiative?.toString() ?? "",
       side: participant.side,
-      adjustment: participant.participant_variant,
+      adjustment: adjustmentUnknown ? undefined : participant.participant_variant,
       note: participant.note ?? "",
     };
     for (const field of Object.keys(values) as Array<keyof ParticipantValues>) {
       if (!form.isFieldTouched(field))
         form.setFields([{ name: field, value: values[field], touched: false }]);
     }
-  }, [form, participant]);
+  }, [adjustmentUnknown, form, participant]);
   return (
     <>
       {recovery}
@@ -214,9 +229,10 @@ function ParticipantSettingsForm({
                 initiative: initiative ?? null,
               }),
               ...(form.isFieldTouched("side") && { side: values.side }),
-              ...(form.isFieldTouched("adjustment") && {
-                participant_variant: values.adjustment,
-              }),
+              ...(form.isFieldTouched("adjustment") &&
+                values.adjustment && {
+                  participant_variant: values.adjustment,
+                }),
               ...(form.isFieldTouched("note") && { note: values.note || null }),
             });
           } catch {
@@ -263,6 +279,7 @@ function ParticipantSettingsForm({
           <Form.Item name="adjustment" label="Adjustment">
             <Select
               aria-label="Adjustment"
+              placeholder="Choose an adjustment"
               options={[
                 { value: "normal", label: "Normal" },
                 { value: "elite", label: "Elite" },

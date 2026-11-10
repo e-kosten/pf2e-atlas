@@ -920,9 +920,11 @@ same durable receipt, independently of subsequent presentation refresh. The
 three-field HP editor sends SetValues with only supplied raw inputs; an explicit
 null inside a current/maximum wrapper clears availability. All fields parse before
 one guarded replacement, preserving omitted values/provenance and same-value
-maximum edit intent. Condition-specific manual notes use canonical rule identity
-and exact condition IDs; noncondition diagnostics omit that ID. The browser can
-place these notes on their cards without hiding unrelated runtime context.
+maximum edit intent. The participant read model attaches condition guidance by
+saved condition ID or exact authored source identity. Inherent condition rows
+belong to the participant, so hazards can show them without turn resources.
+The effective Stupefied flat check appears with spellcasting when available and
+with its condition otherwise.
 
 Local-state initialization and migrations commit schema and metadata together.
 List metadata/tags, quantity additions and removal with replacement turn each

@@ -638,6 +638,7 @@ fn has_reference_details(item: ItemSourceView<'_>) -> bool {
 pub(crate) fn compose_participant(
     mut presentation: RecordPresentationView,
     block: &crate::encounters::mechanics::StatBlockView,
+    adjustment_unknown: bool,
 ) -> RecordPresentationView {
     let (a, hazard) = match &mut presentation.body {
         RecordBodyView::Creature(a) => (a.as_mut(), None),
@@ -723,8 +724,34 @@ pub(crate) fn compose_participant(
     for v in a.abilities.value.iter_mut().flatten() {
         overlay(&mut v.modifier, &format!("ability.{}", v.key));
     }
-    for v in a.skills.value.iter_mut().flatten() {
-        overlay(&mut v.modifier, &format!("skill.{}", v.key));
+    for skill in a.skills.value.iter_mut().flatten() {
+        use crate::encounters::mechanics::StatisticTarget;
+
+        let target = StatisticTarget::Skill(skill.key.clone());
+        overlay(&mut skill.modifier, &target.key());
+        let ordinary = block.values.iter().find(|stat| stat.target == target);
+        for alternate in skill.conditional.value.iter_mut().flatten() {
+            let Some(authored) = alternate.modifier.value.as_ref() else {
+                continue;
+            };
+            alternate.modifier = if let Some(stat) = ordinary
+                .filter(|_| !adjustment_unknown && !block.unresolved_stats.contains(&target))
+                .and_then(|stat| stat.with_alternate_base(authored))
+            {
+                number_with_modifiers(&stat)
+            } else {
+                NumberFactView {
+                    state: QueryFieldState::Missing,
+                    value: None,
+                    adjustment: Some(NumberAdjustmentView {
+                        authored: authored.clone(),
+                        applied: vec![],
+                        suppressed: vec![],
+                        notes: vec![],
+                    }),
+                }
+            };
+        }
     }
     for v in &block.speeds {
         let fact = if v.movement_type == "land" {
@@ -824,11 +851,26 @@ pub(crate) fn compose_participant(
             };
         }
     }
+    let has_casting = a.activities.value.as_ref().is_some_and(|activities| {
+        activities.iter().any(|activity| {
+            matches!(
+                activity.kind,
+                ActorActivityKindView::Spell | ActorActivityKindView::CastingEntry
+            )
+        })
+    }) || !matches!(
+        a.ritual_difficulty_class.state,
+        QueryFieldState::Missing | QueryFieldState::NotApplicable
+    );
     a.runtime = Some(ActorRuntimeView {
         action_budget: block.action_budget.clone(),
         senses: block.senses.clone(),
         contextual_armor_class: block.contextual_armor_class.clone(),
-        unapplied_effects: block.unapplied_effects.clone(),
+        casting_hint: block
+            .casting_guidance
+            .as_ref()
+            .filter(|_| has_casting)
+            .map(|hint| hint.reason.clone()),
     });
     if let RecordBodyView::Hazard(hazard) = &mut presentation.body
         && !hazard.show_saves
@@ -916,7 +958,7 @@ pub(crate) fn manual_presentation(
                 action_budget: block.action_budget.clone(),
                 senses: block.senses.clone(),
                 contextual_armor_class: block.contextual_armor_class.clone(),
-                unapplied_effects: block.unapplied_effects.clone(),
+                casting_hint: None,
             }),
         })),
     }

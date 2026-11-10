@@ -299,7 +299,7 @@ it.each([false, true])(
 );
 
 it.each([false, true])(
-  "keeps hazard condition explanations inline without generic creature budgets (hasBudget=%s)",
+  "keeps hazard reference free of generic turn controls (hasBudget=%s)",
   async (hasBudget) => {
     const actor = actorFixture();
     const count = (label: string, value: number) => ({
@@ -329,13 +329,6 @@ it.each([false, true])(
             ],
           }
         : null,
-      unapplied_effects: [
-        {
-          source: "frightened",
-          label: "Frightened 1",
-          reason: "The hazard condition penalty has no supported projection.",
-        },
-      ],
     };
     const detail = detailFixture("hazards:nightmare", "Waking Nightmare");
     detail.presentation.body = {
@@ -358,8 +351,7 @@ it.each([false, true])(
         onReference={vi.fn()}
       />,
     );
-    expect(screen.getByText(/hazard condition penalty/)).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Runtime details" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Runtime" })).toBeNull();
     for (const label of ["Actions", "Reactions", "Can act", "Can react"])
       expect(screen.queryByText(label)).toBeNull();
     expect(screen.queryByText(/supplied action budget/)).toBeNull();
@@ -373,7 +365,6 @@ it.each([false, true])(
       senses: [],
       contextual_armor_class: [],
       action_budget: null,
-      unapplied_effects: [],
     };
     rerender(
       <RecordPresentation
@@ -382,8 +373,7 @@ it.each([false, true])(
         onReference={vi.fn()}
       />,
     );
-    expect(screen.queryByText(/hazard condition penalty/)).toBeNull();
-    expect(screen.queryByRole("button", { name: "Runtime details" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Runtime" })).toBeNull();
   },
 );
 
@@ -496,7 +486,6 @@ it("keeps sense summaries concise and explains contextual Perception beside its 
     ],
     contextual_armor_class: [],
     action_budget: null,
-    unapplied_effects: [],
   };
   const detail = detailFixture("actors:bat", "Giant Bat");
   detail.presentation.body = { kind: "creature", value: actor };

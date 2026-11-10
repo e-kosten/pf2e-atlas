@@ -8,6 +8,13 @@ use atlas_search::test_support::{open_source_fixture, record};
 use serde_json::json;
 
 fn fixture(items: serde_json::Value) -> (FixtureWorker, String, String) {
+    fixture_for_actor("npc", items)
+}
+
+fn fixture_for_actor(
+    actor_type: &'static str,
+    items: serde_json::Value,
+) -> (FixtureWorker, String, String) {
     let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
         1,
         16,
@@ -18,7 +25,7 @@ fn fixture(items: serde_json::Value) -> (FixtureWorker, String, String) {
                 "actors",
                 "Actor",
                 json!({
-                    "_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Effective sources",
+                    "_id":"aaaaaaaaaaaaaaaa","type":actor_type,"name":"Effective sources",
                     "system":{"traits":{"value":[]},"details":{"level":{"value":5}},
                         "attributes":{"adjustment":null,"hp":{"max":60},"ac":{"value":20},"immunities":[],"weaknesses":[],"resistances":[]},
                         "perception":{"mod":10},"abilities":{"con":{"mod":2}}}, "items":items
@@ -555,32 +562,22 @@ fn manual_source_counter_controls_casting_and_preserves_independent_conditions()
         }]}
     }]));
     let row = |participant: &EncounterParticipantView| {
-        let conditions = participant
-            .turn_resources
-            .as_ref()
-            .unwrap()
-            .inherent_conditions
-            .as_ref()
-            .unwrap();
+        let conditions = participant.inherent_conditions.as_ref().unwrap();
         assert_eq!(conditions.entries.len(), 1);
         assert_eq!(conditions.entries[0].source_name, "Brain Blisters");
         assert_eq!(conditions.entries[0].editable_rule_ordinal, Some(0));
         conditions.entries[0].clone()
     };
     let check = |participant: &EncounterParticipantView, expected: Option<&str>| {
-        let RecordBodyView::Creature(actor) = &participant.presentation.as_ref().unwrap().body
-        else {
-            panic!("expected creature presentation");
-        };
-        let reason = actor
-            .runtime
-            .as_ref()
-            .unwrap()
-            .unapplied_effects
-            .iter()
-            .find(|hint| hint.label == "Stupefied")
-            .map(|hint| hint.reason.as_str());
-        assert_eq!(reason, expected);
+        let inherent = row(participant);
+        let mut guidance = inherent.guidance.iter();
+        let all = guidance
+            .by_ref()
+            .chain(participant.conditions.iter().flat_map(|row| &row.guidance));
+        let casting_guidance = all
+            .filter(|reason| reason.contains("casting") || reason.contains("Spellcasting"))
+            .collect::<Vec<_>>();
+        assert_eq!(casting_guidance, expected.into_iter().collect::<Vec<_>>());
     };
     let unknown = "Enter the Stupefied value to determine the spellcasting flat-check DC.";
     let mut expected = (None, Some(unknown));
@@ -642,4 +639,38 @@ fn manual_source_counter_controls_casting_and_preserves_independent_conditions()
     let reset = f.worker.encounter(&key).unwrap();
     assert_eq!(row(&reset.participants[0]).value, None);
     check(&reset.participants[0], Some(unknown));
+}
+
+#[test]
+fn hazard_casting_guidance_follows_the_effective_inherent_condition_source() {
+    let (f, key, _) = fixture_for_actor(
+        "hazard",
+        json!([
+            {"_id":"bbbbbbbbbbbbbbbb","type":"condition","name":"Lesser haze",
+                "system":{"slug":"stupefied","value":{"isValued":true,"value":1}}},
+            {"_id":"cccccccccccccccc","type":"condition","name":"Greater haze",
+                "system":{"slug":"stupefied","value":{"isValued":true,"value":2}}}
+        ]),
+    );
+    let view = f.worker.encounter(&key).unwrap();
+    let hazard = &view.participants[0];
+    assert!(hazard.turn_resources.is_none());
+    let entries = &hazard.inherent_conditions.as_ref().unwrap().entries;
+    assert_eq!(entries.len(), 2);
+    assert!(
+        entries
+            .iter()
+            .find(|row| row.source_name == "Lesser haze")
+            .unwrap()
+            .guidance
+            .is_empty()
+    );
+    assert_eq!(
+        entries
+            .iter()
+            .find(|row| row.source_name == "Greater haze")
+            .unwrap()
+            .guidance,
+        ["Spellcasting requires a DC 7 flat check."]
+    );
 }

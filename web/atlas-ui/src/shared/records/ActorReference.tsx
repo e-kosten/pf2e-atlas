@@ -4,9 +4,8 @@ import { recordDestination } from "../../app/destinations";
 import { InlineContext, InlineIconButton } from "../ui/actions/InlineAction";
 import { ValueExplanation } from "../ui/ValueExplanation";
 import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
-import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
-import { Alert, Button, Collapse, Popover, Typography } from "antd";
+import { Alert, Button, Popover, Typography } from "antd";
 import { Info } from "lucide-react";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
@@ -436,9 +435,11 @@ export function ActorLanguages({ actor }: { actor: ActorPresentationView }) {
 export function ActorSkills({
   actor,
   headingLevel = 3,
+  encounter = false,
 }: {
   actor: ActorPresentationView;
   headingLevel?: 3 | 4;
+  encounter?: boolean;
 }) {
   const Heading = headingLevel === 4 ? "h4" : "h3";
   const lore = (actor.activities.value ?? []).filter(
@@ -486,7 +487,11 @@ export function ActorSkills({
                     </ReferenceHelpLink>
                   }
                 >
-                  <NumberFact fact={skill.modifier} signed />
+                  <NumberFact
+                    fact={skill.modifier}
+                    label={sentenceCase(skill.label)}
+                    signed
+                  />
                   {skill.note.state !== "missing" && hasReadingFact(skill.note)
                     ? ` · ${factText(skill.note)}`
                     : ""}
@@ -508,7 +513,11 @@ export function ActorSkills({
                     return (
                       <span key={index}>
                         {" · "}
-                        <NumberFact fact={conditional.modifier} signed />{" "}
+                        <NumberFact
+                          fact={conditional.modifier}
+                          label={`${sentenceCase(skill.label)} (${label})`}
+                          signed
+                        />{" "}
                         <InlineContext
                           actions={
                             qualification ? (
@@ -536,165 +545,16 @@ export function ActorSkills({
             {lore.map((activity) => (
               <FactRow key={JSON.stringify(activity.navigation)} label={activity.title}>
                 <NumberFact fact={activity.lore_modifier} signed />
+                {encounter &&
+                  activity.notes.map((note, index) => (
+                    <span key={index}> · {note.label}</span>
+                  ))}
               </FactRow>
             ))}
           </div>
         </section>
       )}
     </div>
-  );
-}
-function castingHint(actor: ActorPresentationView) {
-  if (
-    !actor.activities.value?.some(
-      (activity) => activity.kind === "spell" || activity.kind === "casting_entry",
-    )
-  )
-    return undefined;
-  return actor.runtime?.unapplied_effects.find(
-    (effect) => effect.source === "condition:stupefied",
-  );
-}
-export function hasRuntimeDetails(
-  actor: ActorPresentationView,
-  omitBudgetNotes = false,
-) {
-  return (
-    (!omitBudgetNotes && (actor.runtime?.action_budget?.notes.length ?? 0) > 0) ||
-    (actor.runtime?.unapplied_effects.some(
-      (effect) => effect.condition_id === undefined && effect !== castingHint(actor),
-    ) ??
-      false)
-  );
-}
-function ActorRuntime({
-  actor,
-  detailsOnly = false,
-  omitBudgetNotes = false,
-}: {
-  actor: ActorPresentationView;
-  detailsOnly?: boolean;
-  omitBudgetNotes?: boolean;
-}) {
-  return (
-    <>
-      {actor.runtime &&
-        (detailsOnly
-          ? hasRuntimeDetails(actor, omitBudgetNotes)
-          : actor.runtime.action_budget !== null ||
-            actor.runtime.unapplied_effects.length > 0) && (
-          <div className="actor-reference__runtime">
-            <h3>Runtime</h3>
-            {actor.runtime.action_budget && (
-              <>
-                {!detailsOnly && (
-                  <RuntimeCount count={actor.runtime.action_budget.actions} />
-                )}
-                {!detailsOnly && (
-                  <RuntimeCount count={actor.runtime.action_budget.reactions} />
-                )}
-                {!omitBudgetNotes &&
-                  actor.runtime.action_budget.notes.map((note, index) => (
-                    <p key={index}>
-                      {note.label}: {note.reason}
-                    </p>
-                  ))}
-              </>
-            )}
-            {!detailsOnly &&
-              actor.runtime.action_budget &&
-              !actor.runtime.action_budget.can_act.available &&
-              actor.runtime.action_budget.can_act.source !== "participant_status" && (
-                <FactRow label="Can act">
-                  {statusReasonLabel("No", actor.runtime.action_budget.can_act.reason)}
-                </FactRow>
-              )}
-            {!detailsOnly &&
-              actor.runtime.action_budget &&
-              !actor.runtime.action_budget.can_react.available &&
-              actor.runtime.action_budget.can_react.source !== "participant_status" && (
-                <FactRow label="Can react">
-                  {statusReasonLabel(
-                    "No",
-                    actor.runtime.action_budget.can_react.reason,
-                  )}
-                </FactRow>
-              )}
-            {actor.runtime.unapplied_effects
-              .filter(
-                (effect) =>
-                  (!detailsOnly || effect.condition_id === undefined) &&
-                  effect !== castingHint(actor),
-              )
-              .map((effect, index) => (
-                <p key={index}>
-                  {effect.label}: {effect.reason}
-                </p>
-              ))}
-          </div>
-        )}
-    </>
-  );
-}
-export function ActorSecondaryFacts({
-  actor,
-  runtimeOnly = false,
-  hazard = false,
-}: {
-  runtimeOnly?: boolean;
-  actor: ActorPresentationView;
-  hazard?: boolean;
-}) {
-  if (runtimeOnly) return <ActorRuntime actor={actor} detailsOnly omitBudgetNotes />;
-  if (
-    !hasRuntimeDetails(actor) &&
-    (hazard ||
-      (![
-        actor.perception_details,
-        actor.languages,
-        actor.language_details,
-        actor.abilities,
-        actor.skills,
-      ].some((fact) => hasReadingFact(fact as FactView<unknown>)) &&
-        !(actor.activities.value ?? []).some((activity) => activity.kind === "lore")))
-  )
-    return null;
-  if (hazard)
-    return (
-      <Collapse
-        size="small"
-        ghost
-        items={[
-          {
-            key: "runtime",
-            label: "Runtime details",
-            children: <ActorRuntime actor={actor} detailsOnly />,
-          },
-        ]}
-      />
-    );
-  return (
-    <section className="actor-reference__secondary">
-      {!hazard && (
-        <>
-          <FactLine label="Perception details" fact={actor.perception_details} />
-          <FactLine
-            label="Languages"
-            fact={actor.languages}
-            renderValue={(value) =>
-              actor.languages.state === "value" && actor.languages.value?.length ? (
-                <ReferenceValues values={actor.languages.value} />
-              ) : (
-                value
-              )
-            }
-          />
-          <FactLine label="Communication" fact={actor.language_details} />
-          <ActorSkills actor={actor} />
-        </>
-      )}
-      <ActorRuntime actor={actor} detailsOnly />
-    </section>
   );
 }
 export type CastingAnnotations = {
@@ -1260,7 +1120,7 @@ export function ActorActivities({
               tabIndex={-1}
             >
               <CastingRoster
-                hint={castingHint(actor)?.reason}
+                hint={actor.runtime?.casting_hint}
                 ritualDifficultyClass={actor.ritual_difficulty_class}
                 annotations={castingAnnotations}
                 activities={actor.activities.value ?? []}

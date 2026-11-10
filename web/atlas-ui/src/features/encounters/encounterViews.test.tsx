@@ -1646,6 +1646,41 @@ describe("encounter views", () => {
     );
   });
 
+  it("lets the GM explicitly choose Normal when the source adjustment is unknown", async () => {
+    serverEncounter.participants[0].variant_origin = "inherited_unknown";
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Choose an adjustment" }),
+    );
+    let dialog = await screen.findByRole("dialog", { name: "Participant settings" });
+    fireEvent.change(within(dialog).getByLabelText("Participant name"), {
+      target: { value: "Goblin Scout" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledWith(
+        "encounter_ambush",
+        "participant_a",
+        { expected_revision: 0, display_name: "Goblin Scout" },
+      ),
+    );
+    await waitFor(() => expect(dialog).not.toBeVisible());
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose an adjustment" }));
+    dialog = await screen.findByRole("dialog", { name: "Participant settings" });
+    await selectOption(conditionCombobox("Adjustment"), "Normal");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
+        "encounter_ambush",
+        "participant_a",
+        expect.objectContaining({ participant_variant: "normal" }),
+      ),
+    );
+  });
+
   it("reloads saved current HP without reapplying edit intent", async () => {
     const { unmount } = render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
@@ -3934,7 +3969,6 @@ function participantPresentationFixture({
         can_react: { available: true },
         notes: [],
       },
-      unapplied_effects: [],
     };
   actor.activities = knownFact(
     includeActivities

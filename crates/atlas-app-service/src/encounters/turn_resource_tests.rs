@@ -983,7 +983,12 @@ fn inherent_slowed_and_temporary_slowed_share_one_allocation_without_saving_dupl
         let initial = resources(&f, &key, &p);
         assert_eq!(initial.forecast.adjusted_value, Some(2));
         assert_eq!(
-            initial.inherent_conditions.as_ref().unwrap().entries[0].value,
+            f.worker.encounter(&key).unwrap().participants[0]
+                .inherent_conditions
+                .as_ref()
+                .unwrap()
+                .entries[0]
+                .value,
             Some(1)
         );
         assert!(
@@ -1083,7 +1088,12 @@ fn inherent_slowed_and_turn_start_stunned_overlap_without_an_additional_action_l
             stunned_after
         );
         assert_eq!(
-            current.inherent_conditions.unwrap().entries[0].value,
+            detail.participants[0]
+                .inherent_conditions
+                .as_ref()
+                .unwrap()
+                .entries[0]
+                .value,
             Some(1)
         );
     }

@@ -174,7 +174,10 @@ pub(crate) fn read_encounter_reference(
         adjustment_applicable,
         &relationship_causes,
     );
-    let mut current = crate::presentation::compose_participant(root, &block);
+    let adjustment_unknown = adjustment_applicable
+        && participant.variant_origin
+            == atlas_local_state::ParticipantVariantOrigin::InheritedUnknown;
+    let mut current = crate::presentation::compose_participant(root, &block, adjustment_unknown);
     crate::presentation::reference_help::annotate(&mut current, r)?;
     compose_selected(&mut selected, current, &block)?;
     let source = records

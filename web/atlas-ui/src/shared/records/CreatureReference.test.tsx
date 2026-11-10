@@ -289,7 +289,6 @@ it("keeps runtime sense availability and Perception beside the supplied help", (
     ],
     contextual_armor_class: [],
     action_budget: null,
-    unapplied_effects: [],
   };
   render(
     <ReferenceHelpProvider onHelp={vi.fn()}>

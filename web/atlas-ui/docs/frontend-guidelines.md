@@ -2145,9 +2145,11 @@ owner-return captions and Explore; actual
 reading-history Back and Original record provenance remain independent. Direct
 record pages retain owner context and Explore. Drawers use their native
 header and close control, with the document title shown once.
-Creature Lore rows use the authored title and signed modifier once. Actor spell
-lists display known authored casting rank, preserving an unavailable casting
-rank explicitly; base rank and authored heightening remain in the opened detail.
+Creature Lore rows use the authored title and signed modifier once. In encounters,
+keep variant labels on the Lore row, contextual skill totals beside their skill,
+and condition guidance on the condition row. Actor spell lists display known
+authored casting rank and identify an unavailable casting rank explicitly. The
+opened detail shows base rank and authored heightening.
 The browser does not calculate selected-rank spell effects.
 Casting-advice retention includes saved conditions and source option identity/state.
 Changing Incurable Curse from Stupefied to Clumsy immediately retires the previous

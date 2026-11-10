@@ -370,54 +370,20 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
     source_fingerprint: "source-fingerprint",
   };
   const current = encounterParticipant({
-    turn_resources: {
-      action_calculation: {
-        kind: "next_turn",
-        count: {
-          label: "Actions",
-          base_value: 3,
-          adjusted_value: 2,
-          segments: [],
-          adjustments: [],
-          suppressed_adjustments: [],
+    participant_kind: "hazard",
+    inherent_conditions: {
+      entries: [
+        {
+          name: "Slowed",
+          has_value: true,
+          value: 1,
+          condition_ref: "conditionitems:xYTAsEpcJE1Ccni3",
+          source_name: "Slow",
+          source,
+          guidance: ["Test condition guidance."],
         },
-      },
-      turn_key: null,
-      round_number: null,
-      regular_total: null,
-      regular_remaining: null,
-      extra_total: null,
-      extra_remaining: null,
-      extra_uses: [],
-      reactions_total: null,
-      can_grant_reaction: true,
-      reactions_remaining: null,
-      start_results: [],
-      pending_reason: null,
-      can_edit_actions: false,
-      can_spend_actions: { available: false },
-      can_spend_reactions: { available: true },
-      forecast: {
-        label: "Actions",
-        base_value: 3,
-        adjusted_value: 2,
-        segments: [],
-        adjustments: [],
-        suppressed_adjustments: [],
-      },
-      inherent_conditions: {
-        entries: [
-          {
-            name: "Slowed",
-            has_value: true,
-            value: 1,
-            condition_ref: "conditionitems:xYTAsEpcJE1Ccni3",
-            source_name: "Slow",
-            source,
-          },
-        ],
-        unavailable_reason: null,
-      },
+      ],
+      unavailable_reason: null,
     },
   });
   const onReference = vi.fn(),
@@ -442,6 +408,7 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
   );
   expect(screen.queryByText("No conditions")).toBeNull();
   expect(screen.getByText(/^Inherent/)).toBeVisible();
+  expect(screen.getByText("Test condition guidance.")).toBeVisible();
   expect(
     screen.queryByRole("button", { name: /Edit Slowed|Remove Slowed/ }),
   ).toBeNull();

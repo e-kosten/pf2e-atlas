@@ -19,7 +19,7 @@ pub(super) use source_facts::{authored_stat_baseline, source_applicability};
 pub(super) mod source_ability_state;
 pub(super) mod source_conditions;
 
-pub(in crate::encounters) mod causes;
+pub(crate) mod causes;
 
 pub(super) mod action_context;
 

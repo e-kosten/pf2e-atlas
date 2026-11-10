@@ -157,57 +157,6 @@ pub(super) fn view(
                 count: budget.actions.clone(),
             }
         },
-        inherent_conditions: participant.record_key.as_ref().map(|key| {
-            let active = sources.active_entries(participant);
-            let unresolved = sources.unresolved_entries(participant);
-            InherentActionConditionsView {
-                unavailable_reason: sources.unavailable_reason.clone(),
-                entries: active
-                    .iter()
-                    .chain(&unresolved)
-                    .copied()
-                    .chain(sources.entries.iter().filter(|condition| {
-                        condition.override_identity.is_some()
-                            && !active.contains(condition)
-                            && !unresolved.contains(condition)
-                    }))
-                    .map(|condition| InherentActionConditionView {
-                        unavailable_reason: condition.activation_unavailable.clone().or_else(
-                            || {
-                                if condition.override_identity.is_some() {
-                                    None
-                                } else if unresolved.contains(&condition) {
-                                    Some("Activation needs context; check the source rule.".into())
-                                } else if condition.rule.definition().has_value
-                                    && condition.value.is_none()
-                                {
-                                    Some("Source condition value is unavailable.".into())
-                                } else {
-                                    None
-                                }
-                            },
-                        ),
-                        name: condition.rule.definition().name.into(),
-                        has_value: condition.rule.definition().has_value,
-                        value: condition.manual_value(participant).or(condition.value),
-                        editable_rule_ordinal: condition
-                            .override_identity
-                            .as_ref()
-                            .and(condition.grant_ordinal),
-                        condition_ref: condition.rule.definition().record_key.into(),
-                        source_name: condition.source_label.clone(),
-                        source: RecordNavigationView {
-                            record_key: key.clone(),
-                            owners: vec![condition.owner.clone()],
-                            field: None,
-                            passage: None,
-                            spell_rank: None,
-                            source_fingerprint: sources.source_fingerprint.clone(),
-                        },
-                    })
-                    .collect(),
-            }
-        }),
         turn_key: saved.map(|r| r.turn_key.clone()),
         round_number: saved.map(|r| r.round_number),
         regular_total: ready.map(|r| r.regular_total),

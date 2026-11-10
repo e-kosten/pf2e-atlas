@@ -13,9 +13,7 @@ import {
   hasActorDefenses,
   hasActorActivities,
   hasCastingActivities,
-  hasRuntimeDetails,
   ActorSkills,
-  ActorSecondaryFacts,
   ActorAwareness,
   ActorMovement,
   ActorLanguages,
@@ -90,7 +88,6 @@ export function CreatureReference({
     hasReadingFact(actor.size) ||
     Boolean(encounterContent?.durability) ||
     hasActorDefenses(actor, { hideHitPoints: encounter });
-  const hasRuntimeDetailsInEssentials = hasRuntimeDetails(actor, true);
   const conditions = encounter && encounterContent?.conditions;
   const sections = [
     ...(!encounter && prose ? [["description", "Description"]] : []),
@@ -173,36 +170,28 @@ export function CreatureReference({
           )}
           <ActorEncounterLayout
             durability={
-              hasDefenses || hasRuntimeDetailsInEssentials ? (
+              hasDefenses ? (
                 <div className="creature-reference__essentials">
-                  {hasDefenses && (
-                    <section
-                      className={
-                        !encounter ? "creature-reference__source-defenses" : undefined
-                      }
-                      id={id("defenses")}
-                      tabIndex={-1}
-                    >
-                      <FactLine label="Size" fact={actor.size} />
-                      {encounterContent?.durability ?? (
-                        <ActorDefenses actor={actor} hideHitPoints={encounter} />
-                      )}
-                    </section>
-                  )}
-                  {hasRuntimeDetailsInEssentials && (
-                    <ActorSecondaryFacts actor={actor} runtimeOnly />
-                  )}
+                  <section
+                    className={
+                      !encounter ? "creature-reference__source-defenses" : undefined
+                    }
+                    id={id("defenses")}
+                    tabIndex={-1}
+                  >
+                    <FactLine label="Size" fact={actor.size} />
+                    {encounterContent?.durability ?? (
+                      <ActorDefenses actor={actor} hideHitPoints={encounter} />
+                    )}
+                  </section>
                 </div>
               ) : null
             }
             runtime={
               conditions ? (
-                <>
-                  {!hasStatistics && <ActorSecondaryFacts actor={actor} />}
-                  <section id={id("conditions")} tabIndex={-1}>
-                    {conditions}
-                  </section>
-                </>
+                <section id={id("conditions")} tabIndex={-1}>
+                  {conditions}
+                </section>
               ) : null
             }
           >
@@ -217,7 +206,11 @@ export function CreatureReference({
                     <h3>Statistics</h3>
                     <div className="creature-reference__fact-groups">
                       <ActorAwareness actor={actor} encounter={encounter} />
-                      <ActorSkills actor={actor} headingLevel={4} />
+                      <ActorSkills
+                        actor={actor}
+                        headingLevel={4}
+                        encounter={encounter}
+                      />
                       <ActorMovement actor={actor} />
                       <ActorLanguages actor={actor} />
                     </div>
