@@ -989,9 +989,9 @@ test("manual trackers persist minute countdowns and restart after elapsing", asy
     );
     const settings = page.getByRole("dialog", { name: "Settings", exact: true });
     await expect(
-      settings.getByRole("spinbutton", { name: "Seconds per round" }),
+      settings.getByRole("spinbutton", { name: "Round duration" }),
     ).toHaveValue("6");
-    await settings.getByRole("spinbutton", { name: "Seconds per round" }).fill("30");
+    await settings.getByRole("spinbutton", { name: "Round duration" }).fill("30");
     await activate(settings.getByRole("button", { name: "Save", exact: true }), info);
     await expect(settings).not.toBeVisible();
     await expect(page.getByText("2 rounds remaining", { exact: true })).toBeVisible();

@@ -38,7 +38,7 @@ const labels = {
   description: "Description",
   note: "Note",
   status: "Status",
-  round_duration_seconds: "Seconds per round",
+  round_duration_seconds: "Round duration",
 } satisfies Record<Setting, string>;
 
 const fields = Object.keys(labels) as Setting[];
@@ -203,6 +203,13 @@ export function useEncounterSettingsDraft({
 
   return {
     submit,
+    hasChanges: () => {
+      const original = formValues(baseline.current);
+      return fields.some(
+        (field) =>
+          form.isFieldTouched(field) && form.getFieldValue(field) !== original[field],
+      );
+    },
     conflict,
     reviewFields,
     retryConflict: () => {

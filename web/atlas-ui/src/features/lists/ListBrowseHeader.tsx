@@ -1,10 +1,6 @@
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import {
-  isPrimaryActivation,
-  navigateDestination,
-  destinationHref,
-} from "../../app/navigation";
-import { listsDestination, listEditDestination } from "../../app/destinations";
+import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
+import { listsDestination } from "../../app/destinations";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { Button, Typography } from "antd";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
@@ -19,6 +15,7 @@ export function ListBrowseHeader({
   list,
   loading,
   onAddRecords,
+  onEdit,
   onRetry,
 }: {
   error?: Error | null;
@@ -26,6 +23,7 @@ export function ListBrowseHeader({
   list: SavedListSummaryView | undefined;
   loading: boolean;
   onAddRecords: () => void;
+  onEdit: () => void;
   onRetry: () => void;
 }) {
   const errorNotice = error ? (
@@ -67,16 +65,10 @@ export function ListBrowseHeader({
                 Add records
               </Button>
               <Button
-                href={destinationHref(listEditDestination({ slug: list.slug }))}
                 icon={<Pencil size={16} />}
                 onClick={(event) => {
-                  if (!isPrimaryActivation(event)) return;
-                  event.preventDefault();
-                  navigateDestination(
-                    listEditDestination({
-                      slug: list.slug,
-                    }),
-                  );
+                  event.currentTarget.focus({ preventScroll: true });
+                  onEdit();
                 }}
               >
                 Edit list

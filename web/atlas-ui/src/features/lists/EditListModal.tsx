@@ -1,0 +1,419 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, Form, Input, Select, Space } from "antd";
+import { Trash2 } from "lucide-react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
+import type {
+  SavedListDetailView,
+  SavedListIndexView,
+  SavedListSummaryView,
+  UpdateSavedListRequest,
+} from "../../generated/atlas";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { SavedEditConflictReview } from "../../shared/feedback/SavedEditConflictReview";
+import { savedEditConflictFields } from "../../shared/feedback/savedEditConflict";
+import { normalizeOptionalText, normalizeTags, savedListTagOptions } from "./listUtils";
+import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
+import { formatDate } from "../../shared/ui/formatDate";
+import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
+import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
+
+type EditListModalProps = {
+  listRef: string;
+  open: boolean;
+  onClose: (slug?: string) => void;
+  onDeleted: () => void;
+  afterClose?: () => void;
+};
+
+type EditListFormValues = {
+  name: string;
+  description: string;
+  tags: string[];
+};
+
+type Edits = Pick<UpdateSavedListRequest, "name" | "description" | "tags">;
+type Field = keyof Edits;
+const fields = ["name", "description", "tags"] as const;
+const labels: Record<Field, string> = {
+  name: "Name",
+  description: "Description",
+  tags: "Tags",
+};
+
+type Review = {
+  fields: Field[];
+} & (
+  { status: "loading" | "failed" } | { status: "ready"; saved: SavedListSummaryView }
+);
+
+function listQuery(listRef: string) {
+  return {
+    queryKey: ["saved-list", listRef],
+    queryFn: () => getSavedList(listRef),
+  };
+}
+
+function sameTags(left: string[], right: string[]) {
+  const normalized = normalizeTags(right);
+  return (
+    left.length === normalized.length && left.every((tag, i) => tag === normalized[i])
+  );
+}
+
+export function EditListModal(props: EditListModalProps) {
+  return <ListEditor key={props.listRef} {...props} />;
+}
+
+function ListEditor({
+  listRef,
+  open,
+  onClose,
+  onDeleted,
+  afterClose,
+}: EditListModalProps) {
+  const [resolved, setResolved] = useState<{
+    detail: SavedListDetailView;
+    updatedAt: number;
+  }>();
+  const list = useQuery({
+    ...listQuery(resolved?.detail.list.list_key ?? listRef),
+    initialData: resolved?.detail,
+    initialDataUpdatedAt: resolved?.updatedAt,
+    refetchOnMount: resolved ? undefined : "always",
+  });
+  if (!resolved && list.isFetchedAfterMount && list.isSuccess) {
+    setResolved({ detail: list.data, updatedAt: list.dataUpdatedAt });
+  }
+  const saved = resolved ? list.data?.list : undefined;
+  const loading = list.isLoading || (!resolved && list.isFetching);
+  const listKey = saved?.list_key ?? listRef;
+  const readError = list.error;
+  const retry = () => void list.refetch();
+  const formId = useId();
+  const [form] = Form.useForm<EditListFormValues>();
+  const client = useQueryClient();
+  const lists = useSavedLists();
+  const [edits, setEdits] = useState<Edits>({});
+  const [review, setReview] = useState<Review>();
+  const shown = useRef(saved);
+  const saving = useRef(false);
+  const nameDirty = !!edits.name;
+  const descriptionDirty = !!edits.description;
+  const tagsDirty = !!edits.tags;
+  useLayoutEffect(() => {
+    if (!saved) return;
+    const previous = shown.current ?? saved;
+    shown.current = {
+      ...saved,
+      name: nameDirty ? previous.name : saved.name,
+      description: descriptionDirty ? previous.description : saved.description,
+      tags: tagsDirty ? previous.tags : saved.tags,
+    };
+    form.setFieldsValue({
+      ...(!nameDirty && { name: saved.name }),
+      ...(!descriptionDirty && { description: saved.description ?? "" }),
+      ...(!tagsDirty && { tags: saved.tags }),
+    });
+  }, [descriptionDirty, form, nameDirty, saved, tagsDirty]);
+  const tagOptions = useMemo(
+    () =>
+      savedListTagOptions(lists.data?.lists ?? []).map((tag) => ({
+        label: tag,
+        value: tag,
+      })),
+    [lists.data?.lists],
+  );
+
+  async function refreshReview(conflicts: Field[]) {
+    const loading: Review = { fields: conflicts, status: "loading" };
+    setReview(loading);
+    const query = listQuery(listKey);
+    try {
+      await client.cancelQueries({ queryKey: query.queryKey, exact: true });
+      const detail = await client.fetchQuery({ ...query, staleTime: 0, retry: false });
+      setReview((current) =>
+        current === loading
+          ? { fields: conflicts, status: "ready", saved: detail.list }
+          : current,
+      );
+    } catch {
+      setReview((current) =>
+        current === loading ? { fields: conflicts, status: "failed" } : current,
+      );
+    }
+  }
+
+  const update = useMutation({
+    mutationFn: (request: UpdateSavedListRequest) => updateSavedList(listKey, request),
+    retry: false,
+    onSettled: () => {
+      saving.current = false;
+    },
+    onSuccess: (view) => {
+      // Show the confirmed settings even if a background read of the origin fails.
+      client.setQueryData<SavedListIndexView>(
+        ["saved-lists"],
+        (current) =>
+          current && {
+            ...current,
+            lists: current.lists.map((list) =>
+              list.list_key === view.list.list_key ? view.list : list,
+            ),
+          },
+      );
+      client.setQueriesData<SavedListDetailView>(
+        { queryKey: ["saved-list"] },
+        (current) =>
+          current?.list.list_key === view.list.list_key
+            ? { ...current, list: view.list }
+            : current,
+      );
+      return invalidateSavedListQueries(client, [
+        listRef,
+        view.list.list_key,
+        view.list.slug,
+      ]);
+    },
+  });
+  const deleteListMutation = useMutation({
+    mutationFn: () => deleteSavedList(listKey),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["saved-lists"] }),
+  });
+
+  function changeValues(changes: Partial<EditListFormValues>) {
+    // Capture what the form showed even if a newer query response is now available.
+    const baseline = shown.current;
+    if (!baseline) return;
+    setEdits((previous) => {
+      const next = { ...previous };
+      if (changes.name !== undefined) {
+        const expected = previous.name?.expected ?? baseline.name;
+        next.name =
+          changes.name === expected ? undefined : { expected, value: changes.name };
+      }
+      if (changes.description !== undefined) {
+        const expected = previous.description
+          ? previous.description.expected
+          : (baseline.description ?? null);
+        const value = normalizeOptionalText(changes.description) ?? null;
+        const original = normalizeOptionalText(expected ?? undefined) ?? null;
+        next.description = value === original ? undefined : { expected, value };
+      }
+      if (changes.tags !== undefined) {
+        const expected = previous.tags?.expected ?? baseline.tags;
+        const value = normalizeTags(changes.tags);
+        next.tags = sameTags(value, expected) ? undefined : { expected, value };
+      }
+      return next;
+    });
+  }
+
+  function resolveField(field: Field, useSaved: boolean, fresh: SavedListSummaryView) {
+    setEdits((previous) => {
+      const next = { ...previous };
+      if (field === "name") {
+        const edit = previous.name;
+        next.name =
+          useSaved || !edit || edit.value === fresh.name
+            ? undefined
+            : { ...edit, expected: fresh.name };
+      } else if (field === "description") {
+        const edit = previous.description;
+        const expected = fresh.description ?? null;
+        next.description =
+          useSaved || !edit || edit.value === expected
+            ? undefined
+            : { ...edit, expected };
+      } else {
+        const edit = previous.tags;
+        next.tags =
+          useSaved || !edit || sameTags(edit.value, fresh.tags)
+            ? undefined
+            : { ...edit, expected: fresh.tags };
+      }
+      return next;
+    });
+    setReview((current) => {
+      if (!current) return current;
+      const remaining = current.fields.filter((candidate) => candidate !== field);
+      return remaining.length ? { ...current, fields: remaining } : undefined;
+    });
+    update.reset();
+    form.getFieldInstance(field)?.focus({ preventScroll: true });
+  }
+
+  const pending = update.isPending || deleteListMutation.isPending;
+  const disabled = pending || !!readError;
+  const close = (slug = saved?.slug) => {
+    setEdits({});
+    setReview(undefined);
+    update.reset();
+    if (saved) form.resetFields();
+    onClose(slug);
+  };
+  return (
+    <AtlasModal
+      title="Edit list"
+      open={open}
+      onCancel={() => close()}
+      afterClose={afterClose}
+      confirmDiscard={{
+        when: () => nameDirty || descriptionDirty || tagsDirty,
+        onDiscard: () => close(),
+      }}
+      confirmLoading={pending}
+      closable={!pending}
+      keyboard={!pending}
+      mask={{ closable: !pending }}
+      cancelButtonProps={{ disabled: pending }}
+      footer={(_, { CancelBtn }) => (
+        <Space wrap>
+          <CancelBtn />
+          {saved && (
+            <Button
+              htmlType="submit"
+              form={formId}
+              loading={update.isPending}
+              disabled={disabled || !!review}
+              type="primary"
+            >
+              Save
+            </Button>
+          )}
+        </Space>
+      )}
+    >
+      {saved ? (
+        <>
+          <Form
+            form={form}
+            name={formId}
+            id={formId}
+            layout="vertical"
+            disabled={disabled}
+            onValuesChange={changeValues}
+            onFinish={() => {
+              if (review || disabled || saving.current) return;
+              saving.current = true;
+              update.mutate(
+                {
+                  ...(edits.name && { name: edits.name }),
+                  ...(edits.description && { description: edits.description }),
+                  ...(edits.tags && { tags: edits.tags }),
+                },
+                {
+                  onSuccess: (view) => close(view.list.slug),
+                  onError: (error) => {
+                    const conflict = savedEditConflictFields(error);
+                    const affected = fields.filter((field) =>
+                      conflict?.includes(field),
+                    );
+                    if (affected.length) void refreshReview(affected);
+                  },
+                },
+              );
+            }}
+          >
+            <Form.Item
+              label="Name"
+              name="name"
+              validateFirst
+              rules={[
+                { required: true, whitespace: true, message: "Name is required." },
+              ]}
+            >
+              <Input />
+            </Form.Item>
+            <Form.Item label="Description" name="description">
+              <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+            </Form.Item>
+            <Form.Item label="Tags" name="tags">
+              <Select
+                mode="tags"
+                showSearch={{ optionFilterProp: "label" }}
+                options={tagOptions}
+                tokenSeparators={[","]}
+              />
+            </Form.Item>
+            {review && (
+              <SavedEditConflictReview
+                fields={
+                  review.status === "ready"
+                    ? review.fields.map((field) => {
+                        const fresh = review.saved;
+                        const edit = edits[field];
+                        const value = edit ? edit.value : saved[field];
+                        return {
+                          field,
+                          label: labels[field],
+                          saved: displaySetting(fresh[field]),
+                          draft: displaySetting(value),
+                          onUseSaved: () => resolveField(field, true, fresh),
+                          onKeepMine: () => resolveField(field, false, fresh),
+                        };
+                      })
+                    : []
+                }
+                loading={review.status === "loading"}
+                refreshFailed={review.status === "failed"}
+                onRetry={() => void refreshReview(review.fields)}
+              />
+            )}
+          </Form>
+          <dl className="list-settings__meta">
+            <div>
+              <dt>Created</dt>
+              <dd>{formatDate(saved.created_at)}</dd>
+            </div>
+            <div>
+              <dt>Updated</dt>
+              <dd>{formatDate(saved.updated_at)}</dd>
+            </div>
+          </dl>
+          <div className="list-settings__danger">
+            <DangerActionButton
+              confirmTitle={`Delete ${saved.name}?`}
+              confirmContent="This permanently deletes the list and its saved membership."
+              confirmOkText="Delete list"
+              icon={<Trash2 size={16} />}
+              disabled={disabled}
+              loading={deleteListMutation.isPending}
+              onConfirm={() =>
+                deleteListMutation.mutateAsync(undefined, { onSuccess: onDeleted })
+              }
+            >
+              Delete List
+            </DangerActionButton>
+          </div>
+          {!review && update.error && (
+            <ErrorNotice
+              error={update.error}
+              title="List changes could not be confirmed"
+            />
+          )}
+        </>
+      ) : loading ? (
+        <LoadingStatus label="Loading list…" />
+      ) : !readError ? (
+        <p>List not found</p>
+      ) : null}
+      {!review && readError && (
+        <ErrorNotice
+          error={readError}
+          title="List unavailable"
+          action={
+            <Button loading={list.isFetching} onClick={retry}>
+              Retry list
+            </Button>
+          }
+        />
+      )}
+    </AtlasModal>
+  );
+}
+
+function displaySetting(value: string | string[] | null | undefined): string {
+  return (Array.isArray(value) ? value.join(", ") : value) || "None";
+}

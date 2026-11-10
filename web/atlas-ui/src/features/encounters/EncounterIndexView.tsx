@@ -1,15 +1,7 @@
 import { AtlasLink } from "../../app/AtlasLink";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import {
-  navigateDestination,
-  destinationHref,
-  isPrimaryActivation,
-} from "../../app/navigation";
-import {
-  encounterDestination,
-  encounterEditDestination,
-  encountersDestination,
-} from "../../app/destinations";
+import { navigateDestination } from "../../app/navigation";
+import { encounterDestination, encountersDestination } from "../../app/destinations";
 import { useRouterState } from "@tanstack/react-router";
 import { atlasRouter } from "../../app/router";
 import { encounterIndexSearch } from "../../app/routeSearch";
@@ -18,17 +10,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tooltip, Button, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
 import type { EncounterSummaryView } from "../../generated/atlas";
 import { formatDate } from "../../shared/ui/formatDate";
-import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
+import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { IndexTable, stopIndexRowAction } from "../../shared/ui/tables/IndexTable";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { PartyManager } from "../parties/PartyManager";
 import { encounterStatusLabels } from "./encounterStatus";
 import { CreateEncounterModal } from "./EncounterModals";
+import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
+import { useEncounterQuery } from "./useEncounterQuery";
+import { useEncounterMutations } from "./useEncounterMutations";
+import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 type EncounterIndexViewProps = {
   route: Record<string, never>;
 };
@@ -37,6 +33,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   const queryClient = useQueryClient();
   const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editing, setEditing] = useState<{ key: string; open: boolean }>();
+  const editOpener = useRef<HTMLElement>(null);
+  const newEncounter = useRef<HTMLButtonElement>(null);
+  const closeEditor = () =>
+    setEditing((current) => current && { ...current, open: false });
   const search = useRouterState({
     router: atlasRouter,
     select: (state) => state.location.search,
@@ -70,6 +71,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             Parties
           </Button>
           <Button
+            ref={newEncounter}
             icon={<Plus size={16} />}
             onClick={() => setCreateOpen(true)}
             type="primary"
@@ -82,6 +84,23 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       overlays={
         <>
           {partiesOpen && <PartyManager onClose={() => setPartiesOpen(false)} />}
+          {editing && (
+            <EncounterIndexEditor
+              key={editing.key}
+              encounterKey={editing.key}
+              open={editing.open}
+              onClose={closeEditor}
+              afterClose={() => {
+                setEditing(undefined);
+                restoreOverlayFocus(
+                  editOpener.current?.isConnected
+                    ? editOpener.current
+                    : newEncounter.current,
+                  undefined,
+                );
+              }}
+            />
+          )}
           <CreateEncounterModal
             open={createOpen}
             onCancel={() => setCreateOpen(false)}
@@ -140,12 +159,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       )}
       <IndexTable
         columns={encounterColumns(
-          (encounter) =>
-            navigateDestination(
-              encounterEditDestination({
-                slug: encounter.slug,
-              }),
-            ),
+          (encounter, opener) => {
+            opener.focus({ preventScroll: true });
+            editOpener.current = opener;
+            setEditing({ key: encounter.encounter_key, open: true });
+          },
           (encounter) => deleteMutation.mutateAsync(encounter),
           deleteMutation.isPending,
         )}
@@ -173,8 +191,33 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
     </EntityIndexPage>
   );
 }
+function EncounterIndexEditor({
+  encounterKey,
+  open,
+  onClose,
+  afterClose,
+}: {
+  encounterKey: string;
+  open: boolean;
+  onClose: () => void;
+  afterClose: () => void;
+}) {
+  const encounter = useEncounterQuery(encounterKey);
+  const mutations = useEncounterMutations(encounterKey, encounterKey);
+  return (
+    <EncounterSettingsEditor
+      encounter={encounter}
+      mutations={mutations}
+      open={open}
+      onClose={onClose}
+      onDeleted={onClose}
+      afterClose={afterClose}
+    />
+  );
+}
+
 function encounterColumns(
-  onEdit: (encounter: EncounterSummaryView) => void,
+  onEdit: (encounter: EncounterSummaryView, opener: HTMLElement) => void,
   onDelete: (encounter: EncounterSummaryView) => Promise<unknown>,
   deleting: boolean,
 ): ColumnsType<EncounterSummaryView> {
@@ -209,20 +252,13 @@ function encounterColumns(
       width: 112,
       render: (_value, encounter) => (
         <span className="encounter-row-actions">
-          <PaneIconLink
-            href={destinationHref(
-              encounterEditDestination({
-                slug: encounter.slug,
-              }),
-            )}
+          <PaneIconButton
             label={`Edit ${encounter.name}`}
             size="small"
             icon={<Edit2 size={14} />}
             onClick={(event) => {
               stopIndexRowAction(event);
-              if (!isPrimaryActivation(event)) return;
-              event.preventDefault();
-              onEdit(encounter);
+              onEdit(encounter, event.currentTarget);
             }}
           />
           <Tooltip title={`Delete ${encounter.name}`} trigger={["hover", "focus"]}>

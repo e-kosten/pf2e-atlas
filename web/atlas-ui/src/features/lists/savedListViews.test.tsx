@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AtlasApiError } from "../../api/apiError";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { RouterTestContext } from "../../test/router";
@@ -36,10 +37,22 @@ import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { useSavedListFilterDiscovery } from "./useSavedListFilters";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ListDetailView } from "./ListDetailView";
-import { ListEditView } from "./ListEditView";
+import { EditListModal } from "./EditListModal";
 import { ListIndexView } from "./ListIndexView";
 import { savedListTagOptions } from "./listUtils";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
+
+function ListSettingsFixture({ route }: { route: { slug: string } }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <EditListModal
+      listRef={route.slug}
+      open={open}
+      onClose={() => setOpen(false)}
+      onDeleted={() => setOpen(false)}
+    />
+  );
+}
 
 const apiMocks = vi.hoisted(() => ({
   searchPage: vi.fn(),
@@ -209,15 +222,22 @@ describe("list views", () => {
     await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
   });
 
-  it("routes from the saved-list index to edit a list", async () => {
+  it("edits a saved list in place from its index", async () => {
     render(<ListIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
 
-    const editLink = await screen.findByRole("link", { name: "Edit Research" });
-    fireEvent.click(editLink);
-
-    await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
+    const opener = await screen.findByRole("button", { name: "Edit Research" });
+    const locationBeforeEdit = window.location.href;
+    fireEvent.click(opener);
+    const dialog = within(await screen.findByRole("dialog", { name: "Edit list" }));
+    expect(await dialog.findByLabelText("Name")).toHaveValue("Research");
+    fireEvent.click(dialog.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Edit list" })).toBeNull(),
+    );
+    expect(window.location.href).toBe(locationBeforeEdit);
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   it.each(["arc-one", "constructor"])(
@@ -416,19 +436,27 @@ describe("list views", () => {
         fail = reject;
       }),
     );
-    render(<ListEditView route={{ slug: "research" }} />, {
+    render(<ListSettingsFixture route={{ slug: "research" }} />, {
       wrapper: queryClientWrapper(),
     });
     const name = await screen.findByRole("textbox", { name: "Name" });
     fireEvent.change(name, { target: { value: "Unsaved metadata" } });
     fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const confirmation = await screen.findByRole("dialog", {
+      name: "Delete Research?",
+    });
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(confirmation).not.toBeVisible());
     expect(apiMocks.deleteSavedList).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Delete List" }));
     fireEvent.click(await screen.findByRole("button", { name: "Delete list" }));
     await waitFor(() => expect(apiMocks.deleteSavedList).toHaveBeenCalledOnce());
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(
+      within(await screen.findByRole("dialog", { name: "Delete Research?" })).getByRole(
+        "button",
+        { name: "Cancel" },
+      ),
+    ).toBeDisabled();
     expect(name).toHaveValue("Unsaved metadata");
     await act(async () => fail(new Error("Delete rejected")));
     expect(
@@ -437,7 +465,9 @@ describe("list views", () => {
     expect(name).toHaveValue("Unsaved metadata");
     fireEvent.click(screen.getByRole("button", { name: "Delete list" }));
     await waitFor(() => expect(apiMocks.deleteSavedList).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(window.location.pathname).toBe("/lists"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Edit list" })).toBeNull(),
+    );
   });
 
   it("keeps a readable primary index column when long titles and twenty tags compete for table width", async () => {
@@ -511,8 +541,13 @@ describe("list views", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Active")).not.toBeInTheDocument();
     expect(screen.queryByText("research")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("link", { name: "Edit list" }));
-    await waitFor(() => expect(window.location.pathname).toBe("/lists/research/edit"));
+    const beforeEdit = window.location.href;
+    fireEvent.click(screen.getByRole("button", { name: "Edit list" }));
+    const editor = await screen.findByRole("dialog", { name: "Edit list" });
+    await within(editor).findByLabelText("Name");
+    fireEvent.click(within(editor).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(editor).not.toBeVisible());
+    expect(window.location.href).toBe(beforeEdit);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Test Action 1" }));
     expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
@@ -1206,8 +1241,9 @@ describe("list views", () => {
   it.each(["Renamed Research!", "🌙"])(
     "edits list metadata to %s while preserving its URL",
     async (name) => {
+      const beforeEdit = window.location.href;
       render(
-        <ListEditView
+        <ListSettingsFixture
           route={{
             slug: "research",
           }}
@@ -1235,7 +1271,10 @@ describe("list views", () => {
           },
         }),
       );
-      await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Edit list" })).toBeNull(),
+      );
+      expect(window.location.href).toBe(beforeEdit);
     },
   );
 
@@ -1326,7 +1365,7 @@ describe("list views", () => {
       list: { ...old.list, list_key: "list_other", name: "Replacement list" },
     };
     apiMocks.getSavedList.mockResolvedValue(replacement);
-    render(<ListEditView route={{ slug: "research" }} />, {
+    render(<ListSettingsFixture route={{ slug: "research" }} />, {
       wrapper: queryClientWrapper(client),
     });
     expect(screen.queryByDisplayValue("Research")).not.toBeInTheDocument();
@@ -1339,7 +1378,7 @@ describe("list views", () => {
 
   it("keeps a dirty setting's original value through refresh and reviews a conflict by key", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<ListEditView route={{ slug: "research" }} />, {
+    render(<ListSettingsFixture route={{ slug: "research" }} />, {
       wrapper: queryClientWrapper(client),
     });
     expect(await screen.findByDisplayValue("Research")).toBeVisible();
@@ -1402,7 +1441,7 @@ describe("list views", () => {
         ...request,
         name: { expected: "Saved name", value: "My name" },
       });
-      expect(window.location.pathname).toBe("/lists/renamed");
+      expect(screen.queryByRole("dialog", { name: "Edit list" })).toBeNull();
     });
   });
 
@@ -1459,9 +1498,9 @@ describe("list views", () => {
     },
   );
 
-  it("deletes lists from the edit page and returns to the list index", async () => {
+  it("deletes a list only after confirming in the editor", async () => {
     render(
-      <ListEditView
+      <ListSettingsFixture
         route={{
           slug: "research",
         }}
@@ -1477,7 +1516,9 @@ describe("list views", () => {
     await waitFor(() =>
       expect(apiMocks.deleteSavedList).toHaveBeenCalledWith("list_research"),
     );
-    await waitFor(() => expect(window.location.pathname).toBe("/lists"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Edit list" })).toBeNull(),
+    );
   });
 
   it("returns to the saved-lists index using a native parent link without a duplicate switcher", async () => {
@@ -1621,7 +1662,7 @@ describe("list views", () => {
         <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
       </QueryClientProvider>
     );
-    const { rerender } = render(<ListEditView route={{ slug: "research" }} />, {
+    const { rerender } = render(<ListSettingsFixture route={{ slug: "research" }} />, {
       wrapper,
     });
     const name = await screen.findByLabelText("Name");
@@ -1658,12 +1699,12 @@ describe("list views", () => {
         name: "Other list",
       },
     });
-    rerender(<ListEditView route={{ slug: "other" }} />);
+    rerender(<ListSettingsFixture route={{ slug: "other" }} />);
     expect(await screen.findByLabelText("Name")).toHaveValue("Other list");
   });
   it("retries an initial list failure without discarding later edits", async () => {
     apiMocks.getSavedList.mockRejectedValueOnce(new Error("List unavailable"));
-    render(<ListEditView route={{ slug: "research" }} />, {
+    render(<ListSettingsFixture route={{ slug: "research" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.click(await screen.findByRole("button", { name: "Retry list" }));

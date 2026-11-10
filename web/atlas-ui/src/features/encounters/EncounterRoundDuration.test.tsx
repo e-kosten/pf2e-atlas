@@ -27,10 +27,8 @@ it("saves an explicitly changed round duration in seconds", async () => {
       onRefreshConflict={vi.fn()}
     />,
   );
-  expect(screen.getByRole("spinbutton", { name: "Seconds per round" })).toHaveValue(
-    "6",
-  );
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Seconds per round" }), {
+  expect(screen.getByRole("spinbutton", { name: "Round duration" })).toHaveValue("6");
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Round duration" }), {
     target: { value: "30" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -53,9 +51,7 @@ it("keeps the current duration visible and omits it from unrelated edits", async
       onRefreshConflict={vi.fn()}
     />,
   );
-  expect(screen.getByRole("spinbutton", { name: "Seconds per round" })).toHaveValue(
-    "30",
-  );
+  expect(screen.getByRole("spinbutton", { name: "Round duration" })).toHaveValue("30");
   fireEvent.change(screen.getByRole("textbox", { name: "Name" }), {
     target: { value: "Renamed" },
   });

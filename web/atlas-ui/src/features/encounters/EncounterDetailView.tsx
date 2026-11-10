@@ -15,7 +15,7 @@ import { useEncounterStrike } from "./useEncounterStrike";
 import { useEncounterMutations } from "./useEncounterMutations";
 import { useEncounterQuery } from "./useEncounterQuery";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
-import { EditEncounterModal } from "./EncounterModals";
+import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
 import { EncounterTurnReview } from "./EncounterTurnReview";
 import { useEncounterTurnReview } from "./useEncounterTurnReview";
 import { EncounterRosterPane } from "./EncounterRosterPane";
@@ -28,16 +28,17 @@ import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 type EncounterDetailViewProps = {
   route: { slug: string };
+  onCloseDirectEditor?: (slug: string) => void;
 };
 const ENCOUNTER_WIDTH_SPECS = {
   filter: { defaultWidth: 360, minWidth: 300 },
   results: { defaultWidth: 620, minWidth: 420 },
   detail: { defaultWidth: 360, minWidth: 320 },
 };
-export function EncounterDetailView({ route }: EncounterDetailViewProps) {
-  return <EncounterDetail key={route.slug} route={route} />;
+export function EncounterDetailView(props: EncounterDetailViewProps) {
+  return <EncounterDetail key={props.route.slug} {...props} />;
 }
-function EncounterDetail({ route }: EncounterDetailViewProps) {
+function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProps) {
   const client = useQueryClient();
   const screens = Grid.useBreakpoint();
   const narrow = screens.md === false;
@@ -74,7 +75,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
-  const [editEncounterOpen, setEditEncounterOpen] = useState(false);
+  const [editEncounterOpen, setEditEncounterOpen] = useState(!!onCloseDirectEditor);
+  const closeEditor = (slug?: string) => {
+    setEditEncounterOpen(false);
+    onCloseDirectEditor?.(slug ?? encounter.data?.encounter.slug ?? route.slug);
+  };
   const [recoveryMode, setRecoveryMode] = useState<
     "reset_encounter" | "rest_overnight" | { participantKey: string } | null
   >(null);
@@ -256,7 +261,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     : undefined;
   const recovery =
     mutations.refreshError &&
-    !(editEncounterOpen && mutations.metadataRefreshFailed) ? (
+    !(editEncounterOpen && mutations.errorKind === "metadata") ? (
       <ErrorNotice
         error={mutations.refreshError}
         outcome={mutations.refreshOutcome}
@@ -323,7 +328,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               />
             </Dropdown>
           </section>
-          {encounter.error && !mutations.refreshError && (
+          {encounter.error && !mutations.refreshError && !editEncounterOpen && (
             <ErrorNotice
               error={encounter.error}
               title={
@@ -805,26 +810,14 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             onClose={closeRecovery}
           />
         )}
-        {encounterSummary && (
-          <EditEncounterModal
-            encounter={encounterSummary}
+        {(editEncounterOpen || encounterSummary) && (
+          <EncounterSettingsEditor
+            encounter={encounter}
+            mutations={mutations}
             disabled={disabled}
-            pending={mutations.pending}
-            error={
-              mutations.errorKind === "metadata" ? mutations.errorMessage : undefined
-            }
-            encounterNote={encounter.data?.note}
-            onRefreshConflict={mutations.refreshMetadataConflict}
             open={editEncounterOpen}
-            onCancel={() => setEditEncounterOpen(false)}
-            onDelete={async () => {
-              const result = await mutations.run({ kind: "delete" });
-              if (result.active) navigateDestination(encountersDestination());
-            }}
-            onSave={async (request) => {
-              await mutations.run({ kind: "metadata", request });
-              setEditEncounterOpen(false);
-            }}
+            onClose={closeEditor}
+            onDeleted={() => navigateDestination(encountersDestination())}
           />
         )}
         {initiativeOpen && encounter.data && (

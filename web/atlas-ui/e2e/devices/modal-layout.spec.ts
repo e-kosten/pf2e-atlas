@@ -172,8 +172,10 @@ test("confirmations focus Cancel and hold their anchor through errors and viewpo
     })
   ).json();
   try {
-    await page.goto(`/lists/${slug}/edit`);
-    const trigger = page.getByRole("button", { name: "Delete List", exact: true });
+    await page.goto(`/lists/${slug}`);
+    await activate(page.getByRole("button", { name: "Edit list", exact: true }), info);
+    const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
+    const trigger = editor.getByRole("button", { name: "Delete List", exact: true });
     await activate(trigger, info);
     const dialog = page.getByRole("dialog", {
       name: "Delete Modal confirmation?",
@@ -214,6 +216,80 @@ test("confirmations focus Cancel and hold their anchor through errors and viewpo
     await activate(cancel, info);
     await expect(trigger).toBeFocused();
   } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
+test("settings saves stay in the originating index and direct edit links close to details", async ({
+  page,
+}, info) => {
+  const suffix = `${info.project.name}-${Date.now()}`;
+  const encounterName = `Bridge watch ${suffix}`;
+  const listSlug = `session-prep-${suffix}`;
+  const createdEncounter = await page.request.post("/api/encounters", {
+    data: { name: encounterName },
+  });
+  expect(createdEncounter.ok()).toBeTruthy();
+  const { encounter } = await createdEncounter.json();
+  const createdList = await page.request.post("/api/lists", {
+    data: { slug: listSlug, name: `Session prep ${suffix}` },
+  });
+  expect(createdList.ok()).toBeTruthy();
+  const { list } = await createdList.json();
+  const encounterEditor = page.getByRole("dialog", { name: "Settings", exact: true });
+  const listEditor = page.getByRole("dialog", { name: "Edit list", exact: true });
+  try {
+    await page.goto("/encounters");
+    const encounterTrigger = page.getByRole("button", {
+      name: `Edit ${encounterName}`,
+    });
+    await activate(encounterTrigger, info);
+    const duration = encounterEditor.getByRole("spinbutton", {
+      name: "Round duration",
+    });
+    await expect(duration).toHaveAccessibleDescription("In seconds");
+    await duration.fill("8");
+    await activate(
+      encounterEditor.getByRole("button", { name: "Save", exact: true }),
+      info,
+    );
+    await expect(encounterEditor).toBeHidden();
+    await expect(encounterTrigger).toBeFocused();
+    await expect(page).toHaveURL(/\/encounters$/);
+    await page.goto(`/encounters/${encounter.slug}/edit`);
+    await expect(duration).toHaveValue("8");
+    await activate(
+      encounterEditor.getByRole("button", { name: "Cancel", exact: true }),
+      info,
+    );
+    await expect(page).toHaveURL(new RegExp(`/encounters/${encounter.slug}$`));
+    await page.goBack();
+    await expect(page).toHaveURL(/\/encounters$/);
+
+    await page.goto("/lists?q=Session");
+    const listTrigger = page.getByRole("button", {
+      name: `Edit ${list.name}`,
+      exact: true,
+    });
+    await activate(listTrigger, info);
+    const description = listEditor.getByRole("textbox", { name: "Description" });
+    await expect(description).toBeVisible();
+    await description.fill("Saved from the filtered index");
+    await activate(listEditor.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(listEditor).toBeHidden();
+    await expect(listTrigger).toBeFocused();
+    await expect(page).toHaveURL(/\/lists\?q=Session$/);
+    await page.goto(`/lists/${listSlug}/edit`);
+    await expect(description).toHaveValue("Saved from the filtered index");
+    await activate(
+      listEditor.getByRole("button", { name: "Cancel", exact: true }),
+      info,
+    );
+    await expect(page).toHaveURL(new RegExp(`/lists/${listSlug}$`));
+    await page.goBack();
+    await expect(page).toHaveURL(/\/lists\?q=Session$/);
+  } finally {
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
     await page.request.delete(`/api/lists/${list.list_key}`);
   }
 });

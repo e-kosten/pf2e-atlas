@@ -3,7 +3,7 @@ import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { Alert, Grid } from "antd";
 import type { ListPageInput } from "../../app/destinations";
 import { navigateDestination, destinationHref } from "../../app/navigation";
-import { listDestination } from "../../app/destinations";
+import { listDestination, listsDestination } from "../../app/destinations";
 import { atlasRouter } from "../../app/router";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { usePreparedReferenceSelection } from "../../shared/records/usePreparedReferenceSelection";
@@ -12,6 +12,7 @@ import {
   hasReferenceSelectionStatus,
 } from "../../shared/records/ReferenceSelectionStatus";
 import { ListEntryNoteEditor, useListEntryNote } from "./ListEntryNote";
+import { EditListModal } from "./EditListModal";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
   keepPreviousData,
@@ -52,11 +53,13 @@ import {
 } from "./useSavedListFilters";
 type ListDetailViewProps = {
   route: ListPageInput;
+  onCloseDirectEditor?: (slug: string) => void;
 };
-export function ListDetailView({ route }: ListDetailViewProps) {
+export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<{ key: string; open: boolean }>();
   const [resolvedListKey, setResolvedListKey] = useState<string>();
   const listRef = resolvedListKey ?? route.slug;
   const [filters, setFilters] = useState<SearchFormState>(() =>
@@ -316,9 +319,24 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           list={listView?.list}
           loading={listLoading}
           onAddRecords={() => setAddOpen(true)}
+          onEdit={() => {
+            if (listIdentity) setEditing({ key: listIdentity.list_key, open: true });
+          }}
         />
         {listView?.reference_error && (
           <Alert type="warning" title="Reference details could not be checked" />
+        )}
+        {(editing || onCloseDirectEditor) && (
+          <EditListModal
+            listRef={editing?.key ?? route.slug}
+            open={editing?.open ?? true}
+            onClose={(slug) => {
+              if (onCloseDirectEditor) onCloseDirectEditor(slug ?? route.slug);
+              else setEditing((current) => current && { ...current, open: false });
+            }}
+            afterClose={() => setEditing(undefined)}
+            onDeleted={() => navigateDestination(listsDestination())}
+          />
         )}
         <ListRecordPicker
           key={route.slug}
