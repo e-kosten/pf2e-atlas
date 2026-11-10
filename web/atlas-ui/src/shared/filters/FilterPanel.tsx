@@ -1,3 +1,4 @@
+import { FilterDisclosure } from "./FilterDisclosure";
 import { FilterFieldSelect } from "./FilterFieldSelect";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
@@ -78,6 +79,7 @@ import {
 import {
   chipLinkClauses,
   clearAllFilters,
+  countAppliedFilterConditions,
   hasAdvancedFilterConditions,
   type CommonCondition,
   type FilterPanelState,
@@ -144,11 +146,13 @@ export function FilterControls({
   similarSearch,
   additionalFilters,
   children,
+  pane,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
   includeLinks?: boolean;
   layout?: "panel" | "toolbar";
+  pane?: { narrow: boolean; summary: ReactNode };
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
   similarSearch?: SimilarSearchCriterion;
@@ -368,6 +372,8 @@ export function FilterControls({
     ) : null;
   const searchEntry = includeSearch && (
     <SearchEntry
+      label={pane ? "Search this list" : undefined}
+      placeholder={pane ? "Search this list…" : undefined}
       inputRef={searchInputRef}
       query={search.query}
       similar={similarSearch}
@@ -383,14 +389,43 @@ export function FilterControls({
       }
     />
   );
+  const commonFields = fields
+    .filter((field) => editor?.common_field_ids.includes(field.definition.id))
+    .map((field) => field.definition);
   const advancedApplied =
-    editor &&
-    hasAdvancedFilterConditions(
-      search.filter,
-      fields
-        .filter((field) => editor.common_field_ids.includes(field.definition.id))
-        .map((field) => field.definition),
-    );
+    editor && hasAdvancedFilterConditions(search.filter, commonFields);
+  const canClear = Boolean(
+    search.filter ||
+    search.filterError ||
+    prepared.error ||
+    prepared.query?.rules.length,
+  );
+  function clear() {
+    prepared.clear();
+    setDraftRevision((revision) => revision + 1);
+    setSearch(clearAllFilters(search));
+    advancedTrigger.current?.focus();
+  }
+  const feedback = (
+    <>
+      {!advanced && prepared.error && inlineError}
+      {workspace.filterDiscoveryError && (
+        <ErrorNotice
+          error={workspace.filterDiscoveryError}
+          title="Filter information could not be loaded"
+          description={workspace.filterDiscoveryError}
+          action={
+            pane &&
+            workspace.refreshFilterInformation && (
+              <Button onClick={() => void workspace.refreshFilterInformation?.()}>
+                Retry filters
+              </Button>
+            )
+          }
+        />
+      )}
+    </>
+  );
   const criteria = (
     <>
       <div className="filter-controls__tools">
@@ -413,6 +448,7 @@ export function FilterControls({
                 key={id + ":" + draftRevision}
                 field={field}
                 layout={commonLayout}
+                compactPane={!!pane}
                 selectionContainer={
                   commonLayout === "toolbar" ? selectionContainer : undefined
                 }
@@ -493,20 +529,12 @@ export function FilterControls({
               Advanced
             </Button>
           </Tooltip>
-          {(search.filter ||
-            search.filterError ||
-            prepared.error ||
-            (prepared.query?.rules.length ?? 0) > 0) && (
+          {!pane && canClear && (
             <Tooltip title="Clear filters" trigger={["hover", "focus"]}>
               <Button
                 icon={<ClearOutlined aria-hidden="true" />}
                 aria-label="Clear filters"
-                onClick={() => {
-                  prepared.clear();
-                  setDraftRevision((revision) => revision + 1);
-                  setSearch(clearAllFilters(search));
-                  advancedTrigger.current?.focus();
-                }}
+                onClick={clear}
               />
             </Tooltip>
           )}
@@ -547,17 +575,40 @@ export function FilterControls({
   );
   return (
     <LinkEditingContext value={linkEditing}>
-      <aside className={layout === "panel" ? "filter-panel" : "filter-toolbar"}>
+      <aside
+        className={
+          pane
+            ? "pane-filter-controls"
+            : layout === "panel"
+              ? "filter-panel"
+              : "filter-toolbar"
+        }
+      >
         {children}
-        <div className="filter-controls__chrome">
-          {includeSearch && (
-            <PrimaryToolbar className="filter-controls__search-row">
-              {searchEntry}
-              {searchRowEnd}
-            </PrimaryToolbar>
-          )}
-          <div className="filter-controls__criteria">{criteria}</div>
-        </div>
+        {pane ? (
+          <FilterDisclosure
+            narrow={pane.narrow}
+            searchEntry={searchEntry}
+            summary={pane.summary}
+            count={countAppliedFilterConditions(search.filter, commonFields)}
+            childOverlayOpen={advanced || Boolean(picker?.open)}
+            clear={clear}
+            canClear={canClear}
+          >
+            {criteria}
+            {feedback}
+          </FilterDisclosure>
+        ) : (
+          <div className="filter-controls__chrome">
+            {includeSearch && (
+              <PrimaryToolbar className="filter-controls__search-row">
+                {searchEntry}
+                {searchRowEnd}
+              </PrimaryToolbar>
+            )}
+            <div className="filter-controls__criteria">{criteria}</div>
+          </div>
+        )}
         <Drawer
           title="Advanced filters"
           rootClassName="advanced-filter-drawer-root"
@@ -590,14 +641,7 @@ export function FilterControls({
             {inlineError}
           </AdvancedFilterSurface>
         </Drawer>
-        {!advanced && prepared.error && inlineError}
-        {workspace.filterDiscoveryError && (
-          <ErrorNotice
-            error={workspace.filterDiscoveryError}
-            title="Filter information could not be loaded"
-            description={workspace.filterDiscoveryError}
-          />
-        )}
+        {!pane && feedback}
       </aside>
       {Picker && picker && !picker.advanced && (
         <LinkPicker {...picker} key={picker.key} />
@@ -615,11 +659,13 @@ function CommonFilter({
   workspace,
   onAdvanced,
   layout,
+  compactPane,
   selectionContainer,
 }: {
   field: FilterEditorFieldView;
   selectionContainer?: HTMLElement | null;
   layout: "panel" | "toolbar";
+  compactPane: boolean;
   condition: CommonCondition;
   range: [string, string] | null;
   onRangeChange: (range: [string, string]) => void;
@@ -639,7 +685,7 @@ function CommonFilter({
       {layout === "panel" && (
         <div className="common-filter-heading">
           <Typography.Text strong>{field.label}</Typography.Text>
-          {condition.status === "editable" && (
+          {!compactPane && condition.status === "editable" && (
             <Button
               type="text"
               size="small"
@@ -664,6 +710,7 @@ function CommonFilter({
             field={field}
             range={range ?? ["", ""]}
             onChange={onRangeChange}
+            compact={compactPane}
           />
         ) : (
           <Popover
@@ -703,6 +750,7 @@ function CommonFilter({
         <CommonChoicePicker
           selectionContainer={selectionContainer}
           field={field}
+          buttonText={compactPane ? (condition.clause ? "Change…" : "Any") : undefined}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
           countContext={workspace.filterDiscoveryContext}

@@ -1,19 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { ListBrowseHeader } from "./ListBrowseHeader";
 import { ListItemsPane } from "./ListItemsPane";
 
-vi.mock("../../shared/filters/FilterPanel", () => ({
-  FilterControls: () => <div>List filters</div>,
-}));
-
 const infoProps: ComponentProps<typeof ListBrowseHeader> = {
-  filterState: {
-    search: DEFAULT_SEARCH_STATE,
-    setSearch: vi.fn(),
-    filterEditor: undefined,
-  },
   list: undefined,
   loading: false,
   onAddRecords: vi.fn(),
@@ -37,7 +27,7 @@ describe("saved list local failure states", () => {
     expect(retry).toHaveBeenCalledOnce();
   });
 
-  it("keeps a previously loaded list and its filters next to a refresh failure", () => {
+  it("keeps a previously loaded list and its actions next to a refresh failure", () => {
     render(
       <ListBrowseHeader
         {...infoProps}
@@ -54,11 +44,11 @@ describe("saved list local failure states", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Research" })).toBeInTheDocument();
-    expect(screen.getByText("List filters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add records" })).toBeVisible();
     expect(screen.getByRole("alert")).toHaveTextContent("Unable to refresh this list");
   });
 
-  it("shows separate description and tag metadata without a combined disclosure", async () => {
+  it("keeps the full description and tags in the list's About disclosure", async () => {
     render(
       <ListBrowseHeader
         {...infoProps}
@@ -75,13 +65,16 @@ describe("saved list local failure states", () => {
       />,
     );
     expect(screen.getByRole("heading", { name: "Long list" })).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Description and tags" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("List tags")).toHaveTextContent("Campaign tag 19");
+    expect(screen.queryByLabelText("List tags")).not.toBeInTheDocument();
+    const about = screen.getByRole("button", { name: "About this list" });
+    fireEvent.click(about);
+    expect(await screen.findByLabelText("List tags")).toHaveTextContent(
+      "Campaign tag 19",
+    );
+    expect(about).toHaveAttribute("aria-expanded", "true");
     expect(
       screen.getByText("Detailed preparation notes. ".repeat(30).trim()),
-    ).toBeVisible();
+    ).toBeInTheDocument();
   });
 
   it("keeps a removal failure in the items pane without borrowing detail or query retry", () => {

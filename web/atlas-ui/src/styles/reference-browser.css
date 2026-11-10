@@ -340,3 +340,27 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.reference-results__controls {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-width: 0;
+  background: var(--panel);
+}
+
+.reference-results__controls[data-narrow] {
+  position: static;
+}
+
+.reference-reader-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.reference-reader-column > .reference-reader {
+  height: auto;
+  flex: 1;
+}

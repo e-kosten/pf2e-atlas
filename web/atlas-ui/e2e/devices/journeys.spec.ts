@@ -461,7 +461,7 @@ test("focused titles and list text filters follow their primary page", async ({
       page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
     ).toBeVisible();
     await page.goto(`/lists/${slug}`);
-    const input = page.getByRole("searchbox", { name: "Search records" });
+    const input = page.getByRole("searchbox", { name: "Search this list" });
     await expect(page.locator(".list-member__drag-handle")).toHaveCount(2);
     await expect(page.getByRole("combobox", { name: "Search model" })).toHaveCount(0);
     await input.fill("zzzz-no-saved-entry");
@@ -868,7 +868,10 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(editor).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
+    const about = page.getByRole("button", { name: "About this list" });
+    await activate(about, info);
     await expect(page.getByText(description, { exact: true })).toBeVisible();
+    await activate(about, info);
     await activate(
       page.getByRole("button", { name: "Add records", exact: true }),
       info,

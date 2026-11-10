@@ -25,6 +25,7 @@ export type ChoiceOption = { value: string; label: string };
 /** Shared include/exclude interaction; callers own vocabulary and filter semantics. */
 export function ChoicePicker({
   label,
+  buttonText = label,
   id,
   choices,
   selected,
@@ -47,6 +48,7 @@ export function ChoicePicker({
   selectionContainer,
 }: {
   label: string;
+  buttonText?: string;
   id: string;
   choices: ChoiceOption[];
   selected: string[];
@@ -457,7 +459,7 @@ export function ChoicePicker({
       icon={<DownOutlined aria-hidden="true" />}
       iconPlacement="end"
     >
-      {label}
+      {buttonText}
     </Button>
   );
   const selections =

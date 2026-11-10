@@ -1,3 +1,4 @@
+import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { EncounterRecoveryModal } from "./EncounterRecoveryModal";
@@ -309,45 +310,45 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
         className={`encounter-detail-view${participantOpen ? " encounter-detail-view--participant" : ""}`}
       >
         <div>
-          <section className="encounter-detail-header">
-            <div>
-              <h2>{encounterSummary?.name ?? "Encounter"}</h2>
-            </div>
-            <Dropdown
-              trigger={["click"]}
-              menu={{
-                items: [
-                  { key: "edit", label: "Edit encounter" },
-                  { type: "divider" },
-                  { key: "rest", label: "Rest overnight" },
-                  { key: "reset", label: "Reset encounter" },
-                ],
-                onClick: ({ key }) => {
-                  settingsTrigger.current?.focus({ preventScroll: true });
-                  recoveryTrigger.current = settingsTrigger.current;
-                  if (key === "edit") {
-                    if (encounterKey) {
-                      mutations.clearSettingsError();
-                      editing.begin(encounterKey, settingsTrigger.current);
-                    }
-                  } else
-                    setRecoveryMode(
-                      key === "rest" ? "rest_overnight" : "reset_encounter",
-                    );
-                },
-              }}
-            >
-              <Button
-                type="text"
-                ref={settingsTrigger}
-                aria-label="Encounter settings"
-                aria-busy={preparingSettings}
-                loading={preparingSettings ? { delay: 200 } : false}
-                disabled={disabled}
-                icon={<Settings size={18} />}
-              />
-            </Dropdown>
-          </section>
+          <WorkspaceContextBar
+            title={encounterSummary?.name ?? "Encounter"}
+            actions={
+              <Dropdown
+                trigger={["click"]}
+                menu={{
+                  items: [
+                    { key: "edit", label: "Edit encounter" },
+                    { type: "divider" },
+                    { key: "rest", label: "Rest overnight" },
+                    { key: "reset", label: "Reset encounter" },
+                  ],
+                  onClick: ({ key }) => {
+                    settingsTrigger.current?.focus({ preventScroll: true });
+                    recoveryTrigger.current = settingsTrigger.current;
+                    if (key === "edit") {
+                      if (encounterKey) {
+                        mutations.clearSettingsError();
+                        editing.begin(encounterKey, settingsTrigger.current);
+                      }
+                    } else
+                      setRecoveryMode(
+                        key === "rest" ? "rest_overnight" : "reset_encounter",
+                      );
+                  },
+                }}
+              >
+                <Button
+                  type="text"
+                  ref={settingsTrigger}
+                  aria-label="Encounter settings"
+                  aria-busy={preparingSettings}
+                  loading={preparingSettings ? { delay: 200 } : false}
+                  disabled={disabled}
+                  icon={<Settings size={18} />}
+                />
+              </Dropdown>
+            }
+          />
           <SettingsOpeningError
             error={editing.error}
             title="Encounter settings could not load"

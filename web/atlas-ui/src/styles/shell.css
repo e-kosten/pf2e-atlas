@@ -331,3 +331,32 @@
   background: var(--panel);
   box-shadow: var(--shadow);
 }
+
+.workspace-context-bar,
+.workspace-context-bar__identity,
+.workspace-context-bar__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  min-width: 0;
+}
+
+.workspace-context-bar {
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--context-bar-bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.workspace-context-bar__identity {
+  flex: 1 1 14rem;
+}
+
+.workspace-context-bar h2 {
+  font-size: 20px;
+  margin: 0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}

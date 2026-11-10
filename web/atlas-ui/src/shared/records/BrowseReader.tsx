@@ -14,6 +14,7 @@ import { BrowsePaneHeader } from "./BrowsePaneHeader";
 export function BrowseReader({
   children,
   resultsHeader,
+  renderResultsPaneHeader,
   resultsLabel,
   resultsIdentity,
   resultsLoading,
@@ -30,6 +31,7 @@ export function BrowseReader({
 }: {
   children: ReactNode;
   resultsHeader?: ReactNode;
+  renderResultsPaneHeader?: (actions: ReactNode) => ReactNode;
   resultsLabel: string;
   resultsIdentity: unknown;
   resultsLoading: boolean;
@@ -44,6 +46,7 @@ export function BrowseReader({
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
 }) {
+  const paneHeader = Boolean(renderResultsPaneHeader);
   const narrow = !Grid.useBreakpoint().lg;
   const [closedRequest, setClosedRequest] = useState<ReferenceReading["request"]>();
   const localPositions = useBrowsePositions();
@@ -151,13 +154,14 @@ export function BrowseReader({
           rememberOpener(event.target);
       }}
     >
-      {narrow &&
+      {!renderResultsPaneHeader &&
+        narrow &&
         (resultsHeader || clearSelectionAction()) &&
         toolbar(clearSelectionAction())}
       <div
         className="reference-results__scroll"
         ref={listRef}
-        aria-busy={resultsLoading}
+        aria-busy={paneHeader ? undefined : resultsLoading}
         onScroll={(event) => {
           if (
             layoutActive.current &&
@@ -167,7 +171,19 @@ export function BrowseReader({
             saved.saveList(event.currentTarget.scrollTop);
         }}
       >
-        {children}
+        {renderResultsPaneHeader ? (
+          <>
+            <div
+              className="reference-results__controls"
+              data-narrow={narrow || undefined}
+            >
+              {renderResultsPaneHeader(narrow ? clearSelectionAction() : null)}
+            </div>
+            <div aria-busy={resultsLoading}>{children}</div>
+          </>
+        ) : (
+          children
+        )}
       </div>
     </section>
   );
@@ -183,22 +199,59 @@ export function BrowseReader({
       onResults={narrow ? closeReader : undefined}
       active={!narrow || readerOpen}
       selectionActions={clearSelectionAction()}
+      selectionActionsInIdentity={paneHeader && !narrow}
       renderLayout={
-        narrow
+        narrow && !paneHeader
           ? undefined
-          : (actions, content) => (
+          : (actions, content, hasReaderActions) => (
               <>
-                {toolbar(actions)}
+                {!paneHeader && toolbar(actions)}
                 <Splitter
                   styles={{
-                    root: { flex: 1, minHeight: 0, overflow: "clip" },
+                    root: {
+                      flex: 1,
+                      minHeight: 0,
+                      overflow: "clip",
+                      display: narrow ? "block" : undefined,
+                    },
                     panel: { overflow: "clip" },
                   }}
                 >
-                  <Splitter.Panel defaultSize="35%" min="25%" max="55%">
+                  <Splitter.Panel
+                    defaultSize="35%"
+                    min="25%"
+                    max="55%"
+                    resizable={!narrow}
+                    style={
+                      narrow
+                        ? { height: "100%", display: readerOpen ? "none" : "block" }
+                        : undefined
+                    }
+                  >
                     {results}
                   </Splitter.Panel>
-                  <Splitter.Panel min="40%">{content}</Splitter.Panel>
+                  <Splitter.Panel
+                    min="40%"
+                    resizable={!narrow}
+                    style={
+                      narrow
+                        ? { height: "100%", display: readerOpen ? "block" : "none" }
+                        : undefined
+                    }
+                  >
+                    {paneHeader ? (
+                      <div className="reference-reader-column">
+                        {hasReaderActions && (
+                          <BrowsePaneHeader className="reference-reader__header">
+                            {actions}
+                          </BrowsePaneHeader>
+                        )}
+                        {content}
+                      </div>
+                    ) : (
+                      content
+                    )}
+                  </Splitter.Panel>
                 </Splitter>
               </>
             )
@@ -210,7 +263,7 @@ export function BrowseReader({
       className="reference-browser"
       data-reading={narrow && readerOpen ? "true" : undefined}
     >
-      {narrow ? (
+      {narrow && !paneHeader ? (
         <>
           <div className="reference-browser__pane" hidden={readerOpen}>
             {results}

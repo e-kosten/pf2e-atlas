@@ -2,6 +2,7 @@ import {
   ArrowDownOutlined,
   ArrowUpOutlined,
   CloseOutlined,
+  DownOutlined,
   CheckOutlined,
   CopyOutlined,
   PlusOutlined,
@@ -46,11 +47,13 @@ export function ResultSortControl({
   setSearch,
   surface = "search",
   disabled = false,
+  compact = false,
 }: {
   search: SearchFormState;
   setSearch: (next: SearchFormState) => void;
   surface?: "search" | "saved_list";
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const sort = effectiveResultSort(search, surface);
   const [open, setOpen] = useState(false);
@@ -295,19 +298,21 @@ export function ResultSortControl({
         <Button
           ref={trigger}
           size="small"
+          type={compact ? "text" : "default"}
           disabled={disabled}
           className="result-sort__trigger"
           aria-label={`Sort: ${summary}`}
           aria-expanded={open && !disabled}
           title={`Sort: ${summary}`}
         >
-          <span>Sort:</span>
+          {!compact && <span>Sort:</span>}
           <span className="result-sort__summary">
             {sort.kind === "attributes" ? ruleLabel(sort.rules[0]) : summary}
           </span>
           {sort.kind === "attributes" && sort.rules.length > 1 && (
             <span>+{sort.rules.length - 1}</span>
           )}
+          {compact && <DownOutlined aria-hidden="true" />}
         </Button>
       </Popover>
     </div>

@@ -52,44 +52,39 @@
   flex-shrink: 0;
   background: var(--panel);
 }
-.list-browse-header__identity {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 24px;
-}
-.list-browse-header__identity h2 {
-  margin: 0;
-  font-size: 20px;
-  overflow-wrap: anywhere;
-}
-.list-browse-header__parent {
-  padding: 16px 24px 0;
-}
 .list-browse-header__parent-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-control);
   font-size: 13px;
 }
-.list-browse-header__identity h2 {
-  flex: 1 1 320px;
-  min-width: 0;
-}
-.list-browse-header__actions {
-  width: auto;
-}
-.list-browse-header__metadata {
-  padding: 0 24px 12px;
-  width: 100%;
-  max-width: calc(100ch + 48px);
+
+.list-about {
+  display: grid;
+  gap: var(--space-group);
+  width: min(42ch, calc(100vw - 48px));
+  max-height: min(55dvh, 24rem);
+  overflow: auto;
   overflow-wrap: anywhere;
 }
-.list-browse-header__description-text {
+
+.list-about p {
+  margin: 0;
   white-space: pre-wrap;
-  margin: 0 0 8px;
 }
+
+.list-about__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+
+.list-about__tags > * {
+  margin: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+
 .list-tag-summary {
   contain: inline-size;
   display: flex;
@@ -193,15 +188,6 @@
     max-height: 48dvh;
     overflow: auto;
   }
-  .list-browse-header__identity {
-    padding: 12px;
-  }
-  .list-browse-header__parent {
-    padding: 12px 12px 0;
-  }
-  .list-browse-header__metadata {
-    padding: 0 12px 12px;
-  }
 }
 
 @media (max-width: 575px) {
@@ -236,4 +222,37 @@
 .list-entry-note__text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.list-results-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-control);
+  min-width: 0;
+}
+
+.list-results-count,
+.list-results-summary > .reference-selection-status {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.list-results-count {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 575px) {
+  .list-browse-header .workspace-context-bar {
+    padding: var(--space-control) 12px;
+  }
+
+  .list-browse-header .workspace-context-bar__actions {
+    gap: var(--space-micro);
+  }
+
+  .list-context-secondary {
+    padding-inline: var(--space-control);
+  }
 }
