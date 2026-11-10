@@ -119,7 +119,14 @@ Possible variants use a bounded same-pack/family lookup with naming evidence.
 Atlas also ships reviewed equipment families keyed by existing Foundry records.
 Retrieval checks all reviewed members and required compatibility facts against
 one reference snapshot before returning verified membership. An incomplete set
-falls back to the bounded lookup with reviewed exclusions. These views preserve
+falls back to the bounded lookup with reviewed exclusions. A family can define
+ordered axes with explicit coordinates for concrete members. Each concrete key
+belongs to one family. Explore groups siblings by varying one axis at a time and
+keeps combinations that vary several axes separately. An exact general record can
+scope to a subset of axis values. Retrieval checks that record against the same
+snapshot and derives both directions from the scope. An absent or stale general
+record leaves any verified concrete slices available. CLI and audit consumers
+continue to use the flat variant outcome. These views preserve
 record identity, aliases and independent search results. RollTables are product
 records; Macros are
 developer-only on all product paths, including exact-key access.

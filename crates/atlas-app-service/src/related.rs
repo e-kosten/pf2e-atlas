@@ -1,9 +1,13 @@
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     AppErrorCode, RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView,
+    VariantAxisSliceView, VariantFamilyChoiceView, VariantFamilyView,
 };
 use atlas_domain::RecordKey;
-use atlas_search::{GetRecordRequest, GetRecordsRequest, GraphContextRequest};
+use atlas_search::{
+    GetRecordRequest, GetRecordsRequest, GraphContextRequest, VariantFamilyContext,
+    VariantGroupRequest,
+};
 
 const RELATED_OCCURRENCE_LIMIT: usize = 100;
 
@@ -108,19 +112,32 @@ impl AtlasAppService {
             );
             let (remaster_relationships, source_remaster_context) =
                 crate::remaster::reading_context(&selection, r);
-            let variants = if selection.owners.is_empty() {
-                category(crate::retrieval::variant_group_view(r, &key))
-            } else {
-                RelatedCategoryView::Unavailable {
-                    reason: "Variant verification applies to root records".into(),
+            let (variants, family_context) = if selection.owners.is_empty() {
+                match r.variant_exploration(VariantGroupRequest { record_key: &key }) {
+                    Ok(exploration) => (
+                        category(crate::retrieval::project_variant_outcome(
+                            r,
+                            exploration.variants,
+                        )),
+                        exploration.family.map(|context| family_view(r, context)),
+                    ),
+                    Err(error) => (category(Err(error.into())), None),
                 }
+            } else {
+                (
+                    RelatedCategoryView::Unavailable {
+                        reason: "Variant verification applies to root records".into(),
+                    },
+                    None,
+                )
             };
-            let show_versions = show_versions(
-                &selection,
-                &remaster_relationships,
-                source_remaster_context.as_ref(),
-                &variants,
-            );
+            let show_versions = family_context.is_some()
+                || show_versions(
+                    &selection,
+                    &remaster_relationships,
+                    source_remaster_context.as_ref(),
+                    &variants,
+                );
             Ok(RelatedRecordsView {
                 show_versions,
                 selection,
@@ -130,8 +147,44 @@ impl AtlasAppService {
                 remaster_relationships,
                 source_remaster_context,
                 variants,
+                family_context,
             })
         })
+    }
+}
+
+fn family_view(
+    r: &atlas_search::AtlasRetrievalService,
+    context: VariantFamilyContext,
+) -> VariantFamilyView {
+    let keys = |keys: Vec<RecordKey>| keys.iter().map(ToString::to_string).collect();
+    let summary = |record| crate::projection::localized_summary_view(record, r);
+    match context {
+        VariantFamilyContext::Concrete {
+            slices,
+            other_combinations,
+            general,
+        } => VariantFamilyView::Concrete {
+            slices: slices
+                .into_iter()
+                .map(|slice| VariantAxisSliceView {
+                    heading: slice.heading,
+                    members: keys(slice.members),
+                })
+                .collect(),
+            other_combinations: keys(other_combinations),
+            general: general.as_deref().map(|record| Box::new(summary(record))),
+        },
+        VariantFamilyContext::General { heading, members } => VariantFamilyView::General {
+            heading,
+            members: members
+                .into_iter()
+                .map(|member| VariantFamilyChoiceView {
+                    record: crate::projection::localized_summary_view(&member.summary, r),
+                    qualifier: member.qualifier,
+                })
+                .collect(),
+        },
     }
 }
 

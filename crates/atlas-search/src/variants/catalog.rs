@@ -21,6 +21,10 @@ pub(super) struct Family {
     pub(super) group: Option<String>,
     pub(super) members: Vec<Member>,
     #[serde(default)]
+    pub(super) axes: Vec<Axis>,
+    #[serde(default)]
+    pub(super) general_records: Vec<GeneralRecord>,
+    #[serde(default)]
     pub(super) order_by_level: bool,
 }
 
@@ -32,6 +36,39 @@ pub(super) struct Member {
     #[serde(default)]
     pub(super) attributes: Vec<String>,
     pub(super) fit: Option<Fit>,
+    #[serde(default)]
+    pub(super) coordinates: BTreeMap<String, String>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct Axis {
+    pub(super) id: String,
+    pub(super) label: String,
+    pub(super) options: Vec<AxisOption>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct AxisOption {
+    pub(super) id: String,
+    pub(super) label: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct GeneralRecord {
+    pub(super) key: RecordKey,
+    pub(super) name: String,
+    pub(super) scope: BTreeMap<String, String>,
+}
+
+impl GeneralRecord {
+    pub(super) fn covers(&self, member: &Member) -> bool {
+        self.scope
+            .iter()
+            .all(|(axis, value)| member.coordinates.get(axis) == Some(value))
+    }
 }
 
 #[derive(Deserialize, Serialize)]

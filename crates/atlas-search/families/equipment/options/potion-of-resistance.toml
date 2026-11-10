@@ -1,0 +1,43 @@
+name = "Potion of Resistance"
+source_note = "GM Core describes five damage-specific potions at each grade. The Core Rulebook fire potion supplies the Moderate fire record. The three generic grade records describe their corresponding damage-specific choices."
+item_type = "consumable"
+category = "potion"
+
+axes = [
+    { id = "damage-type", label = "Damage types", options = [
+        { id = "acid", label = "Acid" },
+        { id = "cold", label = "Cold" },
+        { id = "electricity", label = "Electricity" },
+        { id = "fire", label = "Fire" },
+        { id = "sonic", label = "Sonic" },
+    ] },
+    { id = "grade", label = "Grades", options = [
+        { id = "lesser", label = "Lesser" },
+        { id = "moderate", label = "Moderate" },
+        { id = "greater", label = "Greater" },
+    ] },
+]
+
+members = [
+    { key = "equipment-srd:u1gZaIZHnEfZDc1o", name = "Potion of Acid Resistance (Lesser)", coordinates = { damage-type = "acid", grade = "lesser" } },
+    { key = "equipment-srd:mRs24OwmGPjoIDvO", name = "Potion of Cold Resistance (Lesser)", coordinates = { damage-type = "cold", grade = "lesser" } },
+    { key = "equipment-srd:cAyxcRSSnfscGyMa", name = "Potion of Electricity Resistance (Lesser)", coordinates = { damage-type = "electricity", grade = "lesser" } },
+    { key = "equipment-srd:bDnk4TSzvD5BQmE5", name = "Potion of Fire Resistance (Lesser)", coordinates = { damage-type = "fire", grade = "lesser" } },
+    { key = "equipment-srd:eSHX07MqMT4SM1zY", name = "Potion of Sonic Resistance (Lesser)", coordinates = { damage-type = "sonic", grade = "lesser" } },
+    { key = "equipment-srd:yG6Za8FaG3hpXUGh", name = "Potion of Acid Resistance (Moderate)", coordinates = { damage-type = "acid", grade = "moderate" } },
+    { key = "equipment-srd:evdDpgFpiFZt9UyA", name = "Potion of Cold Resistance (Moderate)", coordinates = { damage-type = "cold", grade = "moderate" } },
+    { key = "equipment-srd:MHoghQhxbvZRyyaB", name = "Potion of Electricity Resistance (Moderate)", coordinates = { damage-type = "electricity", grade = "moderate" } },
+    { key = "equipment-srd:m99u0zXVbyPdK8Mf", name = "Potion of Fire Resistance (Moderate)", coordinates = { damage-type = "fire", grade = "moderate" } },
+    { key = "equipment-srd:kbjspHV7kwKKULmd", name = "Potion of Sonic Resistance (Moderate)", coordinates = { damage-type = "sonic", grade = "moderate" } },
+    { key = "equipment-srd:vDgDrbSoGuiUIz2R", name = "Potion of Acid Resistance (Greater)", coordinates = { damage-type = "acid", grade = "greater" } },
+    { key = "equipment-srd:VZmUrseCZs9xMaxt", name = "Potion of Cold Resistance (Greater)", coordinates = { damage-type = "cold", grade = "greater" } },
+    { key = "equipment-srd:F8vrGctUqYIEkKOz", name = "Potion of Electricity Resistance (Greater)", coordinates = { damage-type = "electricity", grade = "greater" } },
+    { key = "equipment-srd:1OJxRnPs0viJVrZq", name = "Potion of Fire Resistance (Greater)", coordinates = { damage-type = "fire", grade = "greater" } },
+    { key = "equipment-srd:GcllrP56XWEsYQ4j", name = "Potion of Sonic Resistance (Greater)", coordinates = { damage-type = "sonic", grade = "greater" } },
+]
+
+general_records = [
+    { key = "equipment-srd:V2TUEoiDwJ125qzN", name = "Potion of Resistance (Lesser)", scope = { grade = "lesser" } },
+    { key = "equipment-srd:dzfmP3WsA15puenS", name = "Potion of Resistance (Moderate)", scope = { grade = "moderate" } },
+    { key = "equipment-srd:ywYt2SyZaV95KcZH", name = "Potion of Resistance (Greater)", scope = { grade = "greater" } },
+]

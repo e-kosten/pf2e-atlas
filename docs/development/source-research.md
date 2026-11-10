@@ -190,12 +190,25 @@ has its exact Foundry key, expected name, and display attributes or weapon
 compatibility evidence. File order defines the progression unless
 `order_by_level = true`. Exclusions are declared alongside the family files.
 
+For families with several independent dimensions, declare ordered `axes` and
+their options. Give each concrete member one `coordinates` value per axis.
+Use option labels for display and keep the keys and names from the exact
+Foundry records. Leave absent combinations out of `members`. For a source
+record that describes a subset of those items, add a `general_records` entry
+with its exact key, expected name, and a `scope` that fixes some of the axes.
+Each scope must cover at least one concrete member, and scopes within the
+family must cover disjoint sets. See [Potion of Resistance](../../crates/atlas-search/families/equipment/options/potion-of-resistance.toml)
+for grade-specific general records and [Alloy Orb](../../crates/atlas-search/families/equipment/options/alloy-orb.toml)
+for a family with a missing combination.
+
 Cargo checks the authoring files and bundles them with Atlas. When changing the
 source pin, compare names, compatibility fields, and any weapon ammunition
 references against the new source. Review new candidates and exclusions before
 editing membership. The source note records why the members belong together
 for future maintainers. Explore falls back to possible variants when a reviewed
-set no longer matches the active reference data.
+set no longer matches the active reference data. If a general record no longer
+matches, Explore omits its links in both directions and still shows any verified
+concrete slices.
 
 For a baseline comparison, run the [equipment family audit](developer-commands.md#review-equipment-families)
 on a private workspace for each candidate source revision. Compare audit records

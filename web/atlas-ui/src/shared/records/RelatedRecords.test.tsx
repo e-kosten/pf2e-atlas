@@ -650,6 +650,34 @@ it("shows verified equipment variants with their attributes and omits the curren
   expect(screen.getByRole("button", { name: "Compare" })).toBeVisible();
 });
 
+it("renders a scoped general description as the Versions view with exact specific links", async () => {
+  const specific = summaryFixture(
+    "equipment-srd:evdDpgFpiFZt9UyA",
+    "Potion of Cold Resistance (Moderate)",
+  );
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    show_versions: true,
+    family_context: {
+      kind: "general",
+      heading: "Damage types",
+      members: [{ record: specific, qualifier: "Cold, Moderate" }],
+    },
+  });
+
+  const onReference = renderRelated();
+  openRelated();
+  await selectTab("Versions");
+
+  expect(await screen.findByRole("heading", { name: "Damage types" })).toBeVisible();
+  expect(screen.queryByText("No other editions or variants found.")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Possible variants" })).toBeNull();
+  const link = screen.getByRole("link", { name: /^Potion of Cold Resistance/ });
+  expect(link.getAttribute("href")).toContain("evdDpgFpiFZt9UyA");
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith(specific.record_key, link);
+});
+
 it("retires preview rows after a generation conflict and retains a local recovery action", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   renderRelated(detailFixture("actors:seed", "Viewed creature"), client);

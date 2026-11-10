@@ -1,0 +1,24 @@
+name = "Alloy Orb"
+source_note = "GM Core. Material grade determines the maximum weapon level, and Exquisite orbs offer a different material selection. The source has no Exquisite Low-Grade record."
+item_type = "consumable"
+category = "other"
+
+axes = [
+    { id = "material-grade", label = "Material grades", options = [
+        { id = "low", label = "Low-Grade" },
+        { id = "standard", label = "Standard-Grade" },
+        { id = "high", label = "High-Grade" },
+    ] },
+    { id = "material-selection", label = "Material options", options = [
+        { id = "ordinary", label = "Ordinary" },
+        { id = "exquisite", label = "Exquisite" },
+    ] },
+]
+
+members = [
+    { key = "equipment-srd:X345VfEx9DZwO47G", name = "Alloy Orb (Low-Grade)", coordinates = { material-grade = "low", material-selection = "ordinary" } },
+    { key = "equipment-srd:OOli8iQmLZoMOoG0", name = "Alloy Orb (Standard-Grade)", coordinates = { material-grade = "standard", material-selection = "ordinary" } },
+    { key = "equipment-srd:tTrJnXJYt15arH6G", name = "Alloy Orb (Exquisite Standard-Grade)", coordinates = { material-grade = "standard", material-selection = "exquisite" } },
+    { key = "equipment-srd:s0DffbZbYlav3mu1", name = "Alloy Orb (High-Grade)", coordinates = { material-grade = "high", material-selection = "ordinary" } },
+    { key = "equipment-srd:ECjche2BfpWHZ3vU", name = "Alloy Orb (Exquisite High-Grade)", coordinates = { material-grade = "high", material-selection = "exquisite" } },
+]

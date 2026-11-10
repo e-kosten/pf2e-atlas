@@ -4719,8 +4719,30 @@ export interface RelatedRecordsRequest {
   selection: RecordNavigationViewInputSchema;
 }
 
+export interface VariantAxisSliceView {
+  heading: string;
+  members: string[];
+}
+
+export interface VariantFamilyChoiceView {
+  qualifier: string;
+  record: RecordSummaryView;
+}
+
+export type VariantFamilyView = {
+  general?: RecordSummaryView;
+  kind: 'concrete';
+  other_combinations: string[];
+  slices: VariantAxisSliceView[];
+} | {
+  heading: string;
+  kind: 'general';
+  members: VariantFamilyChoiceView[];
+};
+
 export interface RelatedRecordsView {
   artifact_generation: string;
+  family_context?: VariantFamilyView;
   references: RelatedCategoryViewGraphContextView;
   remaster_relationships: RelatedCategoryViewRemasterRelationshipsView;
   seed: RecordSummaryView;
