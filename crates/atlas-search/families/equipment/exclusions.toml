@@ -1,43 +1,135 @@
-[[exclusions]]
-members = ["equipment-srd:Jvp0x2Sc82WVpExT", "equipment-srd:YhkomhtKBK3i9C7Q"]
-others = ["equipment-srd:IRqbsE8MgGLTfHLz", "equipment-srd:FWMGkUotwUJuht7i"]
+# Each entry blocks Possible variants suggestions across its two lists
+# in both directions. Records on the same side can still be variants.
 
 [[exclusions]]
-members = ["equipment-srd:C9lcnBy4pS3MIyoU", "equipment-srd:uTPqImeDq7bEsFak"]
-others = ["equipment-srd:M1fRjN7E3P55zvmc"]
+source_note = "Player Core describes the cosmetics as refills for the standard and elite disguise kits."
+
+members = [
+    "equipment-srd:Jvp0x2Sc82WVpExT", # Disguise Kit
+    "equipment-srd:YhkomhtKBK3i9C7Q", # Disguise Kit (Elite)
+]
+
+others = [
+    "equipment-srd:IRqbsE8MgGLTfHLz", # Disguise Kit (Elite Cosmetics)
+    "equipment-srd:FWMGkUotwUJuht7i", # Disguise Kit (Replacement Cosmetics)
+]
 
 [[exclusions]]
-members = ["equipment-srd:HWQEGY2X0QXj2zfN"]
-others = ["equipment-srd:stlTN5eb1qRJMHgB"]
+source_note = "The Rival Academies spotlights create a movable burst. The Legacy of the Lost God spotlight uses a fixed line beam."
+
+members = [
+    "equipment-srd:C9lcnBy4pS3MIyoU", # Inspiring Spotlight (Portable)
+    "equipment-srd:uTPqImeDq7bEsFak", # Inspiring Spotlight (Mounted)
+]
+
+others = [
+    "equipment-srd:M1fRjN7E3P55zvmc", # Inspiring Spotlight
+]
 
 [[exclusions]]
-members = ["equipment-srd:iYiA6CMR1N2E2Ny2"]
-others = ["equipment-srd:ksNUlyRHFUSK9xmz"]
+source_note = "GM Core's intelligent sturdy shield and Hellbreakers' reinforcing steel shield have distinct protection mechanics."
+
+members = [
+    "equipment-srd:HWQEGY2X0QXj2zfN", # Martyr's Shield
+]
+
+others = [
+    "equipment-srd:stlTN5eb1qRJMHgB", # Martyr's Shield (Hellbreakers)
+]
 
 [[exclusions]]
-members = ["equipment-srd:Ejmv9IHGp9Ad9dgu"]
-others = ["equipment-srd:TxMFNfkoccirCitP"]
+source_note = "Pathfinder Society Guide and Guns & Gears give separate rules for mundane earplugs. The publication suffix identifies the printing."
+
+members = [
+    "equipment-srd:iYiA6CMR1N2E2Ny2", # Earplugs (PFS Guide)
+]
+
+others = [
+    "equipment-srd:ksNUlyRHFUSK9xmz", # Earplugs
+]
 
 [[exclusions]]
-members = ["equipment-srd:6XX3tYxkyQXCMAbd"]
-others = ["equipment-srd:QHc7AnKoMpcqsI2d"]
+source_note = "Pathfinder Society Guide describes Concealable Picks as replacement parts for the complete Concealable Thieves' Tools kit."
+
+members = [
+    "equipment-srd:Ejmv9IHGp9Ad9dgu", # Thieves' Tools (Concealable)
+]
+
+others = [
+    "equipment-srd:TxMFNfkoccirCitP", # Thieves' Tools (Concealable Picks)
+]
 
 [[exclusions]]
-members = ["equipment-srd:H5N2CacR3pNtanKB", "equipment-srd:T99WI1hocCXE7RI0"]
-others = ["equipment-srd:ZPFDfWPmWLPUJeW1"]
+source_note = "Knights of Lastwall's bonded weapon rune and The Grand Bazaar's general item retrieval rune have different targeting, range, and ownership rules."
+
+members = [
+    "equipment-srd:6XX3tYxkyQXCMAbd", # Called (Lastwall)
+]
+
+others = [
+    "equipment-srd:QHc7AnKoMpcqsI2d", # Called
+]
 
 [[exclusions]]
-members = ["equipment-srd:PIzBQehx975vMsvZ"]
-others = ["equipment-srd:uM0OlCC1Sh6OLdNn"]
+source_note = "NPC Core's surprise dolls conceal an item in a compartment. The Grand Bazaar entry describes an ordinary doll with no compartment rules."
+
+members = [
+    "equipment-srd:H5N2CacR3pNtanKB", # Doll (Surprise)
+    "equipment-srd:T99WI1hocCXE7RI0", # Doll (Exquisite surprise)
+]
+
+others = [
+    "equipment-srd:ZPFDfWPmWLPUJeW1", # Doll
+]
 
 [[exclusions]]
-members = ["equipment-srd:zvLyCVD8g2PdHJAc", "equipment-srd:6nrCxNQFycUVFOV2"]
-others = ["equipment-srd:Sw7MBLASN3xK4Y44", "equipment-srd:BznmPaRjI4Orb0IH"]
+source_note = "The Grand Bazaar and The Show Must Go On describe the same level-0 throwing knife design. The Extinction Curse suffix identifies the publication."
+
+members = [
+    "equipment-srd:PIzBQehx975vMsvZ", # Throwing Knife
+]
+
+others = [
+    "equipment-srd:uM0OlCC1Sh6OLdNn", # Throwing Knife (Extinction Curse)
+]
 
 [[exclusions]]
-members = ["equipment-srd:3yLu12TCwN8utY0u"]
-others = ["equipment-srd:QJb8S927Yj81EgHH"]
+source_note = "Player Core describes the picks as replacement parts for the complete toolkits. Each pair forms its own verified family."
+
+members = [
+    "equipment-srd:zvLyCVD8g2PdHJAc", # Thieves' Toolkit
+    "equipment-srd:6nrCxNQFycUVFOV2", # Thieves' Toolkit (Infiltrator)
+]
+
+others = [
+    "equipment-srd:Sw7MBLASN3xK4Y44", # Thieves' Toolkit (Replacement Picks)
+    "equipment-srd:BznmPaRjI4Orb0IH", # Thieves' Toolkit (Infiltrator Picks)
+]
 
 [[exclusions]]
-members = ["equipment-srd:PQ74afm5YWessacn", "equipment-srd:IUZT7A6QZteLyHZI", "equipment-srd:6xDxnI4Z9syXq8Ec", "equipment-srd:R4yGXp42qXaWEhLQ", "equipment-srd:7ER2xl3PKcvaVqNI", "equipment-srd:5LfD4O0zakN0fw7b"]
-others = ["equipment-srd:3TQ9oSETsOHcHRBF", "equipment-srd:byIihT9MMpTFvyYT"]
+source_note = "Player Core describes the extra ink and paper as supplies to refill the writing set."
+
+members = [
+    "equipment-srd:3yLu12TCwN8utY0u", # Writing Set (Extra Ink and Paper)
+]
+
+others = [
+    "equipment-srd:QJb8S927Yj81EgHH", # Writing Set
+]
+
+[[exclusions]]
+source_note = "Treasure Vault's legacy baldrics grant Restoration. The remastered line uses Sound Body for the equivalent Healthful options."
+
+members = [
+    "equipment-srd:PQ74afm5YWessacn", # Bravery Baldric (Fleet)
+    "equipment-srd:IUZT7A6QZteLyHZI", # Bravery Baldric (Healthful)
+    "equipment-srd:6xDxnI4Z9syXq8Ec", # Bravery Baldric (Haste)
+    "equipment-srd:R4yGXp42qXaWEhLQ", # Bravery Baldric (Flight)
+    "equipment-srd:7ER2xl3PKcvaVqNI", # Bravery Baldric (Greater Healthful)
+    "equipment-srd:5LfD4O0zakN0fw7b", # Bravery Baldric (Stone)
+]
+
+others = [
+    "equipment-srd:3TQ9oSETsOHcHRBF", # Bravery Baldric (Restoration)
+    "equipment-srd:byIihT9MMpTFvyYT", # Bravery Baldric (Restoration, Greater)
+]

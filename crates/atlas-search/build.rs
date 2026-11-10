@@ -201,7 +201,13 @@ fn validate_exclusions(
     members: &BTreeMap<RecordKey, &str>,
 ) -> io::Result<()> {
     let mut pairs = BTreeSet::new();
-    for exclusion in exclusions {
+    for (index, exclusion) in exclusions.iter().enumerate() {
+        if exclusion.source_note.trim().is_empty() {
+            return Err(invalid(
+                path,
+                format!("exclusion {} requires a nonempty source_note", index + 1),
+            ));
+        }
         if exclusion.members.is_empty() || exclusion.others.is_empty() {
             return Err(invalid(
                 path,

@@ -99,6 +99,7 @@ pub(super) struct Weapon {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Exclusion {
+    pub(super) source_note: String,
     pub(super) members: Vec<RecordKey>,
     pub(super) others: Vec<RecordKey>,
 }

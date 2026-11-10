@@ -193,8 +193,12 @@ compatibility evidence. If the source establishes that a consumable belongs to
 the family and Foundry assigns it a different category, declare that exact
 member's expected `category` and explain the relationship in the source note.
 This only affects verification of the declared member. File order defines the
-progression unless `order_by_level = true`. Exclusions are declared alongside
-the family files.
+progression unless `order_by_level = true`.
+
+In [exclusions.toml](../../crates/atlas-search/families/equipment/exclusions.toml),
+each entry blocks Possible variants suggestions across its two lists in both
+directions. Put the exact Foundry name beside each key as a comment and give
+every entry a `source_note` that explains why the records should stay separate.
 
 For families with several independent dimensions, declare ordered `axes` and
 their options. Give each concrete member one `coordinates` value per axis.
