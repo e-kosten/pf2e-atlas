@@ -6874,6 +6874,21 @@
         ],
         "type": "object"
       },
+      "EquipmentFamilyReferenceView": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "EquipmentFamilyView": {
         "oneOf": [
           {
@@ -13704,6 +13719,9 @@
             "$ref": "#/components/schemas/EncounterParticipantVariantView",
             "description": "Default adjustment for adding this root creature to an encounter."
           },
+          "equipment_family": {
+            "$ref": "#/components/schemas/EquipmentFamilyReferenceView"
+          },
           "presentation": {
             "$ref": "#/components/schemas/RecordPresentationView"
           },
@@ -14816,9 +14834,6 @@
       "RelatedRecordsView": {
         "properties": {
           "artifact_generation": {
-            "type": "string"
-          },
-          "equipment_family_id": {
             "type": "string"
           },
           "family_context": {

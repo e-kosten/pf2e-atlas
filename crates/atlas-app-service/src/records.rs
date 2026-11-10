@@ -368,7 +368,24 @@ impl<'a> LoadedRecordDetail<'a> {
             limit: 1024,
         })?;
         let grants_truncated = relationships.truncated;
+        let equipment_family = if request.address.owners.is_empty() {
+            match r.verified_equipment_family_reference(detail) {
+                Ok(family) => {
+                    family.map(|reference| atlas_app_model::EquipmentFamilyReferenceView {
+                        id: reference.id,
+                        name: reference.name,
+                    })
+                }
+                Err(error) => {
+                    eprintln!("equipment family verification failed for {key}: {error}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let mut view = RecordDetailView {
+            equipment_family,
             remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
             source_remaster_context: None,
             encounter_adjustment: (request.address.owners.is_empty()

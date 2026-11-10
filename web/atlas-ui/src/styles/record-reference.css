@@ -189,7 +189,8 @@
   line-height: 1.2;
   text-wrap: pretty;
 }
-.record-reference__header p:where(:not(.record-reference__source)) {
+.record-reference__header
+  p:where(:not(.record-reference__source, .record-reference__family)) {
   margin: 6px 0 0;
 }
 .record-reference__kind {
@@ -217,6 +218,7 @@
   gap: var(--space-control);
   margin-top: var(--space-control);
 }
+.record-reference__family,
 .record-reference__source {
   margin: var(--space-control) 0 0;
   font-size: 0.9rem;

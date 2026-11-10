@@ -166,7 +166,9 @@ pub use encounter::{
     UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
     UpdateEncounterRequest,
 };
-pub use equipment_family::{EquipmentFamilyGroupingView, EquipmentFamilyView};
+pub use equipment_family::{
+    EquipmentFamilyGroupingView, EquipmentFamilyReferenceView, EquipmentFamilyView,
+};
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};
 pub use filter::{
     DiscoverFilterCountsRequest, DiscoverFilterEditorRequest, DiscoverFilterValuesRequest,

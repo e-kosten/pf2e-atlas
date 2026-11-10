@@ -112,7 +112,7 @@ impl AtlasAppService {
             );
             let (remaster_relationships, source_remaster_context) =
                 crate::remaster::reading_context(&selection, r);
-            let (variants, family_context, equipment_family_id) = if selection.owners.is_empty() {
+            let (variants, family_context) = if selection.owners.is_empty() {
                 match r.variant_exploration(VariantGroupRequest { record_key: &key }) {
                     Ok(exploration) => (
                         category(crate::retrieval::project_variant_outcome(
@@ -120,9 +120,8 @@ impl AtlasAppService {
                             exploration.variants,
                         )),
                         exploration.family.map(|context| family_view(r, context)),
-                        exploration.equipment_family_id,
                     ),
-                    Err(error) => (category(Err(error.into())), None, None),
+                    Err(error) => (category(Err(error.into())), None),
                 }
             } else {
                 (
@@ -130,11 +129,9 @@ impl AtlasAppService {
                         reason: "Variant verification applies to root records".into(),
                     },
                     None,
-                    None,
                 )
             };
-            let show_versions = equipment_family_id.is_some()
-                || family_context.is_some()
+            let show_versions = family_context.is_some()
                 || show_versions(
                     &selection,
                     &remaster_relationships,
@@ -151,7 +148,6 @@ impl AtlasAppService {
                 source_remaster_context,
                 variants,
                 family_context,
-                equipment_family_id,
             })
         })
     }

@@ -899,7 +899,7 @@ async fn equipment_family_route_distinguishes_unknown_from_unverified() {
 }
 
 #[tokio::test]
-async fn equipment_family_route_and_versions_link_share_exact_reviewed_membership() {
+async fn equipment_family_route_and_record_header_share_exact_reviewed_membership() {
     let fixture = Fixture::with_jolt_coil();
     let key = "equipment-srd:0gxqSZhYdOeJhPrp";
     let (status, family) = fixture
@@ -927,19 +927,48 @@ async fn equipment_family_route_and_versions_link_share_exact_reviewed_membershi
     assert_eq!(family["members"][0]["record"]["edition"], "remaster");
 
     for (record, expected) in [(key, Some("jolt-coil")), (ACTION, None)] {
-        let (_, detail) = fixture
+        let (status, detail) = fixture
             .json(Method::GET, &format!("/api/records/{record}"), None)
             .await;
+        assert_eq!(status, StatusCode::OK, "{detail}");
+        if let Some(id) = expected {
+            assert_eq!(
+                detail["equipment_family"],
+                json!({"id":id,"name":"Jolt Coil"})
+            );
+        } else {
+            assert!(detail.get("equipment_family").is_none());
+        }
         let (status, related) = fixture.json(Method::POST, "/api/related", Some(json!({
             "selection": detail["selected"], "artifact_generation": detail["artifact_generation"]
         }))).await;
         assert_eq!(status, StatusCode::OK, "{related}");
-        assert_eq!(related["equipment_family_id"].as_str(), expected);
+        assert!(related.get("equipment_family_id").is_none());
         if expected.is_some() {
             assert_eq!(related["show_versions"], true);
-        } else {
-            assert!(related.get("equipment_family_id").is_none());
         }
+    }
+}
+
+#[tokio::test]
+async fn family_header_identifies_root_field_but_not_owned_item() {
+    let fixture = Fixture::with_jolt_coil();
+    let key = "equipment-srd:0gxqSZhYdOeJhPrp";
+    for (owners, expected) in [
+        (json!([]), Some("jolt-coil")),
+        (
+            json!([{"collection":"/system/subitems","identity":{"Stable":"familychild00001"}}]),
+            None,
+        ),
+    ] {
+        let source_fingerprint =
+            (!owners.as_array().unwrap().is_empty()).then_some(&fixture.source_fingerprint);
+        let (status, detail) = fixture.json(Method::POST, "/api/records/detail", Some(json!({
+            "record_key":key, "embedded_path":owners, "source_fingerprint":source_fingerprint,
+            "fields":["/system/description/value"]
+        }))).await;
+        assert_eq!(status, StatusCode::OK, "{detail}");
+        assert_eq!(detail["equipment_family"]["id"].as_str(), expected);
     }
 }
 

@@ -114,6 +114,7 @@ export function RecordDetailPane({
               ? (exploreAction) => (
                   <RecordPresentationIdentity
                     presentation={detail?.presentation}
+                    equipmentFamily={detail?.equipment_family}
                     root={detail?.record}
                     selection={detail?.selected}
                     relationships={detail?.relationships}

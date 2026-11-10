@@ -1,13 +1,15 @@
-use crate::{AtlasRetrievalService, SearchError};
+use crate::{AtlasRetrievalService, SearchError, SourceRecordDetail};
 use atlas_domain::{RecordKey, SourceRecordSummary, normalize_record_name};
-use atlas_record::source_record::{ItemSourceView, SourceFieldView, SourceNodeView};
+use atlas_record::source_record::{
+    ItemSourceView, SourceBackedRecord, SourceFieldView, SourceNodeView,
+};
 use std::sync::LazyLock;
 
 use super::catalog::{Catalog, Family, Fit, GeneralRecord, Member, valid_family_id};
 use super::{
     Compatibility, EquipmentFamily, EquipmentFamilyGrouping, EquipmentFamilyOutcome,
-    VariantAxisSlice, VariantFamilyChoice, VariantFamilyContext, VariantGroupResult,
-    VariantSuggestionEvidence, axes, compatibility,
+    EquipmentFamilyReference, VariantAxisSlice, VariantFamilyChoice, VariantFamilyContext,
+    VariantGroupResult, VariantSuggestionEvidence, axes, compatibility,
 };
 
 static CATALOG: LazyLock<Result<Catalog, serde_json::Error>> = LazyLock::new(|| {
@@ -32,6 +34,7 @@ pub(super) fn excluded(a: &RecordKey, b: &RecordKey) -> Result<bool, SearchError
     }))
 }
 
+#[derive(Clone, Copy)]
 enum FamilySeed<'a> {
     Concrete(&'a Member),
     General(&'a GeneralRecord),
@@ -41,7 +44,6 @@ enum FamilySeed<'a> {
 pub(super) struct VerifiedSelection {
     pub(super) group: Option<VariantGroupResult>,
     pub(super) context: Option<VariantFamilyContext>,
-    pub(super) family_id: Option<String>,
 }
 
 pub(super) fn verified_group(
@@ -49,31 +51,17 @@ pub(super) fn verified_group(
     seed: &SourceRecordSummary,
     include_family: bool,
 ) -> Result<VerifiedSelection, SearchError> {
-    let Some((id, family, selection)) = catalog()?.families.iter().find_map(|(id, family)| {
-        if let Some(member) = family.members.iter().find(|member| member.key == seed.key) {
-            return Some((id, family, FamilySeed::Concrete(member)));
-        }
-        if include_family {
-            return family
-                .general_records
-                .iter()
-                .find(|general| general.key == seed.key)
-                .map(|general| (id, family, FamilySeed::General(general)));
-        }
-        None
-    }) else {
+    let Some(selected) = catalog_selection(&seed.key, include_family)? else {
         return Ok(VerifiedSelection::default());
     };
-
-    if let FamilySeed::General(general) = selection
-        && !record_matches(retrieval, family, seed, &general.name, None)?
-    {
+    let family = selected.family;
+    let selection = selected.role;
+    if !overview_matches(retrieval, &selected, seed, None)? {
         return Ok(VerifiedSelection::default());
     }
-    let Some(reviewed) = reviewed_members(retrieval, family)? else {
+    let Some(reviewed) = reviewed_members(retrieval, family, None)? else {
         return Ok(VerifiedSelection::default());
     };
-    let family_id = include_family.then(|| id.clone());
     if let FamilySeed::General(general) = selection {
         let members = reviewed
             .into_iter()
@@ -86,7 +74,6 @@ pub(super) fn verified_group(
                 heading: axes::general_heading(family, general),
                 members,
             }),
-            family_id,
         });
     }
     let context = if include_family
@@ -133,31 +120,110 @@ pub(super) fn verified_group(
             verified: true,
         }),
         context,
-        family_id,
     })
+}
+
+struct CatalogSelection {
+    id: &'static str,
+    family: &'static Family,
+    role: FamilySeed<'static>,
+}
+
+fn catalog_selection(
+    key: &RecordKey,
+    include_general: bool,
+) -> Result<Option<CatalogSelection>, SearchError> {
+    if key.pack().as_str() != "equipment-srd" {
+        return Ok(None);
+    }
+    Ok(catalog()?.families.iter().find_map(|(id, family)| {
+        let role = if let Some(member) = family.members.iter().find(|member| &member.key == key) {
+            FamilySeed::Concrete(member)
+        } else if include_general {
+            FamilySeed::General(
+                family
+                    .general_records
+                    .iter()
+                    .find(|general| &general.key == key)?,
+            )
+        } else {
+            return None;
+        };
+        Some(CatalogSelection { id, family, role })
+    }))
+}
+
+fn overview_matches(
+    retrieval: &AtlasRetrievalService,
+    selected: &CatalogSelection,
+    seed: &SourceRecordSummary,
+    source: Option<&SourceBackedRecord>,
+) -> Result<bool, SearchError> {
+    match selected.role {
+        FamilySeed::General(general) => record_matches(
+            retrieval,
+            selected.family,
+            seed,
+            &general.name,
+            None,
+            source,
+        ),
+        FamilySeed::Concrete(_) => Ok(true),
+    }
+}
+
+pub(super) fn family_reference(
+    retrieval: &AtlasRetrievalService,
+    seed: &SourceRecordDetail,
+) -> Result<Option<EquipmentFamilyReference>, SearchError> {
+    let Some(selected) = catalog_selection(&seed.summary.key, true)? else {
+        return Ok(None);
+    };
+    if !overview_matches(retrieval, &selected, &seed.summary, Some(&seed.source))?
+        || reviewed_members(retrieval, selected.family, Some(seed))?.is_none()
+    {
+        return Ok(None);
+    }
+    Ok(Some(EquipmentFamilyReference {
+        id: selected.id.to_owned(),
+        name: selected.family.name.clone(),
+    }))
 }
 
 fn reviewed_members<'a>(
     retrieval: &AtlasRetrievalService,
     family: &'a Family,
+    loaded: Option<&SourceRecordDetail>,
 ) -> Result<Option<Vec<(&'a Member, SourceRecordSummary)>>, SearchError> {
+    let loaded_for = |member: &Member| loaded.filter(|detail| detail.summary.key == member.key);
     let keys = family
         .members
         .iter()
+        .filter(|member| loaded_for(member).is_none())
         .map(|member| member.key.clone())
         .collect::<Vec<_>>();
     let batch = retrieval.index.read_summaries(&keys)?;
     if !batch.missing.is_empty() {
         return Ok(None);
     }
-    let mut reviewed = Vec::with_capacity(keys.len());
-    for (member, summary) in family.members.iter().zip(batch.records) {
+    let mut reviewed = Vec::with_capacity(family.members.len());
+    let mut summaries = batch.records.into_iter();
+    for member in &family.members {
+        let loaded = loaded_for(member);
+        let summary = if let Some(detail) = loaded {
+            detail.summary.clone()
+        } else if let Some(summary) = summaries.next() {
+            summary
+        } else {
+            return Ok(None);
+        };
         if !record_matches(
             retrieval,
             family,
             &summary,
             &member.name,
             member.fit.as_ref(),
+            loaded.map(|detail| &detail.source),
         )? {
             return Ok(None);
         }
@@ -210,7 +276,7 @@ pub(super) fn equipment_family(
     let Some(family) = catalog()?.families.get(id) else {
         return Ok(EquipmentFamilyOutcome::Missing);
     };
-    let Some(reviewed) = reviewed_members(retrieval, family)? else {
+    let Some(reviewed) = reviewed_members(retrieval, family, None)? else {
         return Ok(EquipmentFamilyOutcome::Unavailable {
             name: family.name.clone(),
         });
@@ -267,7 +333,10 @@ fn read_general(
     let Some(summary) = retrieval.index.read_summary(&entry.key)? else {
         return Ok(None);
     };
-    Ok(record_matches(retrieval, family, &summary, &entry.name, None)?.then(|| Box::new(summary)))
+    Ok(
+        record_matches(retrieval, family, &summary, &entry.name, None, None)?
+            .then(|| Box::new(summary)),
+    )
 }
 
 fn token_matches(value: impl serde::Serialize, expected: Option<&str>) -> bool {
@@ -291,6 +360,7 @@ fn record_matches(
     summary: &SourceRecordSummary,
     expected_name: &str,
     fit: Option<&Fit>,
+    source: Option<&SourceBackedRecord>,
 ) -> Result<bool, SearchError> {
     if summary.document_kind != "Item"
         || summary.source_type.as_value() != Some(&family.item_type)
@@ -301,8 +371,15 @@ fn record_matches(
     if family.category.is_none() && fit.is_none() {
         return Ok(true);
     }
-    let Some(record) = retrieval.index.read_source_record(&summary.key)? else {
-        return Ok(false);
+    let fetched;
+    let record = if let Some(source) = source {
+        source
+    } else {
+        fetched = retrieval.index.read_source_record(&summary.key)?;
+        let Some(record) = &fetched else {
+            return Ok(false);
+        };
+        record
     };
     if let Some(fit) = fit {
         let Some(SourceNodeView::Item(item @ ItemSourceView::AmmoSource(_))) = record.node_at(&[])
@@ -316,7 +393,7 @@ fn record_matches(
             && fit.matches(retrieval)?);
     }
     let category = family.category.as_deref();
-    Ok(match compatibility(&record) {
+    Ok(match compatibility(record) {
         Some(Compatibility::Weapon(value, group)) => {
             token_matches(value, category) && token_matches(group, family.group.as_deref())
         }
@@ -423,6 +500,21 @@ mod tests {
     fn variants(retrieval: &AtlasRetrievalService, key: &RecordKey) -> VariantGroupOutcome {
         retrieval
             .variant_group(VariantGroupRequest { record_key: key })
+            .unwrap()
+    }
+
+    fn reference(
+        retrieval: &AtlasRetrievalService,
+        key: &RecordKey,
+    ) -> Option<EquipmentFamilyReference> {
+        let detail = retrieval
+            .get_record(crate::GetRecordRequest {
+                record_key: key,
+                selected_content: &[],
+            })
+            .unwrap()?;
+        retrieval
+            .verified_equipment_family_reference(&detail)
             .unwrap()
     }
 
@@ -537,8 +629,10 @@ mod tests {
             }
             let explored = explore(&retrieval, &cold);
             assert_eq!(
-                explored.equipment_family_id.as_deref(),
-                Some("potion-of-resistance")
+                reference(&retrieval, &cold)
+                    .map(|value| value.name)
+                    .as_deref(),
+                Some("Potion of Resistance")
             );
             let VariantGroupOutcome::Content(flat) = explored.variants else {
                 panic!("expected flat variants")
@@ -572,7 +666,9 @@ mod tests {
             assert_eq!(other_combinations[0], key("u1gZaIZHnEfZDc1o"));
             let reverse = explore(&retrieval, &moderate.key);
             assert_eq!(
-                reverse.equipment_family_id.as_deref(),
+                reference(&retrieval, &moderate.key)
+                    .map(|value| value.id)
+                    .as_deref(),
                 valid_overview.then_some("potion-of-resistance")
             );
             if valid_overview {
@@ -595,7 +691,8 @@ mod tests {
         let (retrieval, _artifact) = build(Some(&moderate.name), true);
         let explored = explore(&retrieval, &cold);
         assert!(explored.family.is_none());
-        assert!(explored.equipment_family_id.is_none());
+        assert!(reference(&retrieval, &cold).is_none());
+        assert!(reference(&retrieval, &moderate.key).is_none());
         assert!(matches!(
             retrieval.equipment_family("potion-of-resistance").unwrap(),
             EquipmentFamilyOutcome::Unavailable { .. }
@@ -604,6 +701,45 @@ mod tests {
             matches!(explored.variants, VariantGroupOutcome::Content(group) if !group.verified)
         );
         assert!(explore(&retrieval, &moderate.key).family.is_none());
+    }
+
+    #[test]
+    fn family_reference_reuses_loaded_source_and_skips_catalog_misses() {
+        let family = &catalog().unwrap().families["alloy-orb"];
+        let seed = &family.members[0];
+        let other_key = RecordKey::parse("equipment-srd:xxxxxxxxxxxxxxxx").unwrap();
+        let mut records: Vec<_> = family
+            .members
+            .iter()
+            .map(|member| fixture(family, member, &member.name, Some(3)))
+            .collect();
+        records.push(test_support::record("equipment-srd", "Item", json!({
+            "_id": other_key.id().as_str(), "type": "equipment", "name": "Unrelated item", "system": {}
+        })));
+        let (retrieval, _artifact) = test_support::open_source_fixture(records, false).unwrap();
+        for (key, expected_id, summary_batches, body_decodes) in [
+            (&seed.key, Some("alloy-orb"), 1, 4),
+            (&other_key, None, 0, 0),
+        ] {
+            let detail = retrieval
+                .get_record(crate::GetRecordRequest {
+                    record_key: key,
+                    selected_content: &[],
+                })
+                .unwrap()
+                .unwrap();
+            retrieval.reset_read_metrics();
+            let found = retrieval
+                .verified_equipment_family_reference(&detail)
+                .unwrap();
+            assert_eq!(found.as_ref().map(|value| value.id.as_str()), expected_id);
+            let reads = retrieval.read_metrics();
+            assert_eq!(reads.summary_batches, summary_batches);
+            assert_eq!(reads.source_body_decodes, body_decodes);
+            if expected_id.is_none() {
+                assert_eq!(reads.sql_statements, 0);
+            }
+        }
     }
 
     #[test]
@@ -664,16 +800,12 @@ mod tests {
                 .collect::<Vec<_>>(),
             keys
         );
-        let explored = complete
-            .variant_exploration(VariantGroupRequest {
-                record_key: keys[0],
-            })
-            .unwrap();
         assert_eq!(
-            explored.equipment_family_id.as_deref(),
+            reference(&complete, keys[0])
+                .map(|value| value.id)
+                .as_deref(),
             Some("wondrous-figurine")
         );
-        assert!(explored.family.is_none());
 
         for member in &family.members {
             let VariantGroupOutcome::Content(group) = variants(&complete, &member.key) else {

@@ -129,8 +129,9 @@ record leaves any verified concrete slices available. CLI and audit consumers
 continue to use the flat variant outcome. The equipment family page addresses
 the same catalog by family ID and verifies its member set without an item seed.
 It projects reviewed members, axis groupings, and verified scoped overviews
-without creating reference records or persisting a second catalog. Versions
-offers the family address when the selected record's reviewed role verifies.
+without creating reference records or persisting a second catalog. Record detail
+exposes the family address in the shared header when the exact root record's
+reviewed role verifies.
 These views preserve
 record identity, aliases and independent search results. RollTables are product
 records; Macros are

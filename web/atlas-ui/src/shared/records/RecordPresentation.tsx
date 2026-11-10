@@ -5,7 +5,8 @@ import {
   navigatePath,
   destinationHref,
 } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
+import { AtlasLink } from "../../app/AtlasLink";
+import { equipmentFamilyDestination, recordDestination } from "../../app/destinations";
 import { ReferenceProfiles } from "./ReferenceProfiles";
 import { RecordGrants } from "./RecordGrants";
 import { JournalContents } from "./JournalContents";
@@ -27,6 +28,7 @@ import type {
   RecordSummaryView,
   ReferenceHelpView,
   ActionCostView,
+  EquipmentFamilyReferenceView,
   FactView,
 } from "../../generated/atlas";
 import { SpellEffectPreview } from "./SpellEffectPreview";
@@ -156,6 +158,8 @@ export function recordClassification(presentation: RecordPresentationView) {
 type IdentityActions = ReactNode | ((secondaryActions: ReactNode) => ReactNode);
 export function RecordIdentity({
   identity,
+  equipmentFamily,
+  onEquipmentFamilyNavigate,
   classification,
   rankControl,
   actionCost,
@@ -173,6 +177,8 @@ export function RecordIdentity({
   badgeExplanations,
 }: {
   identity?: RecordSummaryView;
+  equipmentFamily?: EquipmentFamilyReferenceView;
+  onEquipmentFamilyNavigate?: () => void;
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
   headingId?: string;
@@ -226,11 +232,26 @@ export function RecordIdentity({
         )
       }
       attribution={
-        identity?.publication?.trim() && (
-          <p className="muted record-reference__source">
-            Source: <span>{identity.publication}</span>
-          </p>
-        )
+        <>
+          {equipmentFamily && (
+            <p className="record-reference__family">
+              Family <span aria-hidden="true">·</span>{" "}
+              <AtlasLink
+                {...equipmentFamilyDestination(equipmentFamily.id)}
+                onClick={(event) => {
+                  if (isPrimaryActivation(event)) onEquipmentFamilyNavigate?.();
+                }}
+              >
+                {equipmentFamily.name}
+              </AtlasLink>
+            </p>
+          )}
+          {identity?.publication?.trim() && (
+            <p className="muted record-reference__source">
+              Source: <span>{identity.publication}</span>
+            </p>
+          )}
+        </>
       }
       navigation={
         showOwnerReturn &&
@@ -279,6 +300,8 @@ export function RecordIdentity({
 }
 export function RecordPresentationIdentity({
   presentation,
+  equipmentFamily,
+  onEquipmentFamilyNavigate,
   root,
   selection,
   relationships = [],
@@ -292,6 +315,8 @@ export function RecordPresentationIdentity({
   actions,
 }: {
   presentation?: RecordPresentationView;
+  equipmentFamily?: EquipmentFamilyReferenceView;
+  onEquipmentFamilyNavigate?: () => void;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
   relationships?: RecordRelationshipView[];
@@ -347,6 +372,8 @@ export function RecordPresentationIdentity({
       actions={actions}
       showOwnerReturn={showOwnerReturn}
       identity={presentation?.identity}
+      equipmentFamily={equipmentFamily}
+      onEquipmentFamilyNavigate={onEquipmentFamilyNavigate}
       badgeExplanations={
         identityChanges?.length
           ? identityChanges.map((change) => (
