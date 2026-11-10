@@ -1,0 +1,9 @@
+name = "Obsidian Goggles"
+source_note = "GM Core. The dark-lensed goggles improve sight-based Perception and provide sustained darkvision, with greater darkvision at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:K7VHhUamFz3kTnm5", name = "Obsidian Goggles", attributes = ["Base item"] },
+    { key = "equipment-srd:Tej30MsQo8Ek9aA6", name = "Obsidian Goggles (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:rXXNw6dwVn96giDi", name = "Obsidian Goggles (Major)", attributes = ["Major"] },
+]

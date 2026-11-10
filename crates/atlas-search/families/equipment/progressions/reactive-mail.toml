@@ -1,0 +1,10 @@
+name = "Reactive Mail"
+source_note = "Battlecry! The chain mail improves its fundamental runes and the damage and DC of its piercing response."
+item_type = "armor"
+category = "medium"
+
+members = [
+    { key = "equipment-srd:ip041iF27ZY52G6s", name = "Reactive Mail", attributes = ["Base item"] },
+    { key = "equipment-srd:Y5ru5YAL5LDMscx6", name = "Reactive Mail (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ZXvCmnud6spsJ2FX", name = "Reactive Mail (Major)", attributes = ["Major"] },
+]

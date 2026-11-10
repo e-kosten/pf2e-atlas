@@ -1,0 +1,10 @@
+name = "Storm Flash"
+source_note = "GM Core. The storm-drawing rapier improves its runes, spell rank, and activation DC."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:Za5Mnae009cDCwuN", name = "Storm Flash", attributes = ["Base item"] },
+    { key = "equipment-srd:i9mxfSIBTTOwsSlx", name = "Storm Flash (Greater)", attributes = ["Greater"] },
+]

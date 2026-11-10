@@ -1,0 +1,10 @@
+name = "Spirit Bulb"
+source_note = "GM Core. The bulb increases the spell rank for both ways of using its plant magic."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:AeL8qd4hqaNN5MxP", name = "Spirit Bulb", attributes = ["Base item"] },
+    { key = "equipment-srd:w492F18MtpqNu2X7", name = "Spirit Bulb (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:p7kWhbRrUCbMzd7A", name = "Spirit Bulb (Major)", attributes = ["Major"] },
+]

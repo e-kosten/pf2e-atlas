@@ -1,0 +1,10 @@
+name = "Lockpicker's Oil"
+source_note = "Impossible Magic. The yellow oil gives a progressively higher status bonus to Pick the Lock."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:xTGARos1ETjnbR2H", name = "Lockpicker's Oil", attributes = ["Base item"] },
+    { key = "equipment-srd:cVvQF7YlNbLlqJ3T", name = "Lockpicker's Oil (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:znxeqERU9FN58lfR", name = "Lockpicker's Oil (Major)", attributes = ["Major"] },
+]

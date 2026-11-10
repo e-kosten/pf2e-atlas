@@ -1,0 +1,11 @@
+name = "Staff of Fire"
+source_note = "GM Core. The blackened staff retains its ability to ignite flames while adding higher-rank fire spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:opfpl1JmKgrfds9P", name = "Staff of Fire", attributes = ["Base item"] },
+    { key = "equipment-srd:KcjaeMgrsBGgwUWL", name = "Staff of Fire (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:qx4Cq99vng6GhzEh", name = "Staff of Fire (Major)", attributes = ["Major"] },
+]

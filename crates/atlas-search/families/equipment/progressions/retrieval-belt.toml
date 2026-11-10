@@ -1,0 +1,9 @@
+name = "Retrieval Belt"
+source_note = "GM Core. The same extradimensional belt holds one, three, or ten items depending on grade."
+item_type = "backpack"
+
+members = [
+    { key = "equipment-srd:ngz7dYysC1NkBBRK", name = "Retrieval Belt", attributes = ["Base item"] },
+    { key = "equipment-srd:8jNsUCsNe6PyenNZ", name = "Retrieval Belt (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:V1XhLQPWjdQz759K", name = "Retrieval Belt (Major)", attributes = ["Major"] },
+]

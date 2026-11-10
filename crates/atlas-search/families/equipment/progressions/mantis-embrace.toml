@@ -1,0 +1,8 @@
+name = "Mantis Embrace"
+source_note = "Prey for Death. The chitin-patterned gloves improve the Grapple and Shove bonus and activation damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:wJTx2kNgMQJWGvyx", name = "Mantis Embrace", attributes = ["Base item"] },
+    { key = "equipment-srd:oHjCgL1SoVheJwAo", name = "Mantis Embrace (Greater)", attributes = ["Greater"] },
+]

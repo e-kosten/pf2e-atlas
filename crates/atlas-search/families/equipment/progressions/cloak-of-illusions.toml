@@ -1,0 +1,8 @@
+name = "Cloak of Illusions"
+source_note = "GM Core. The color-changing cloak improves its bonus and spell rank."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:0HvjITehMdaFYUkb", name = "Cloak of Illusions", attributes = ["Base item"] },
+    { key = "equipment-srd:I0XiBnHFCXi64XiD", name = "Cloak of Illusions (Greater)", attributes = ["Greater"] },
+]

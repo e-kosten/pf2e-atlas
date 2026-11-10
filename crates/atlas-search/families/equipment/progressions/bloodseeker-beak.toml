@@ -1,0 +1,9 @@
+name = "Bloodseeker Beak"
+source_note = "GM Core. The proboscis talisman increases the dice used for its triggered bleed damage."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:k6D64EAjcKMf8NZB", name = "Bloodseeker Beak", attributes = ["Base item"] },
+    { key = "equipment-srd:oTRUHPASPD4USU4o", name = "Bloodseeker Beak (Greater)", attributes = ["Greater"] },
+]

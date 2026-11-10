@@ -1,0 +1,10 @@
+name = "Searing Blade"
+source_note = "GM Core. The flaming longsword improves its runes and spell rank and gains Radiate Flames."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:G3a60Ug3YNCMyMVR", name = "Searing Blade", attributes = ["Base item"] },
+    { key = "equipment-srd:pvxRcuBexbFawjCg", name = "Searing Blade (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Staff of Control"
+source_note = "GM Core. The gemstone Request staff adds higher-rank spells for influencing targets at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:wUFQ8cqkwn2xTCma", name = "Staff of Control", attributes = ["Base item"] },
+    { key = "equipment-srd:d5dnhOf5RHFFnsiB", name = "Staff of Control (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ndF4yxyM5ci1DcrO", name = "Staff of Control (Major)", attributes = ["Major"] },
+]

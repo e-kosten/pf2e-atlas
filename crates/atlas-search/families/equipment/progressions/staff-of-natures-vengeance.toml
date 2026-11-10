@@ -1,0 +1,11 @@
+name = "Staff of Nature's Vengeance"
+source_note = "Advanced Player's Guide. The same shillelagh staff adds higher-rank spells at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:aPbDAb6cJKPvCHk2", name = "Staff of Nature's Vengeance", attributes = ["Base item"] },
+    { key = "equipment-srd:gca5Pgt9Pg8G23VA", name = "Staff of Nature's Vengeance (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:hnx3dOQrYLBtsu3V", name = "Staff of Nature's Vengeance (Major)", attributes = ["Major"] },
+]

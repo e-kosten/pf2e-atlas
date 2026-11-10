@@ -1,0 +1,8 @@
+name = "Charlatan's Gloves"
+source_note = "GM Core. The hooked silk gloves improve Thievery and add an interaction with the charlatan's cape."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LKdgj4UVmOvUwkZu", name = "Charlatan's Gloves", attributes = ["Base item"] },
+    { key = "equipment-srd:t8RXms7xq8atF9W7", name = "Charlatan's Gloves (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Smoke Fan"
+source_note = "Guns & Gears. The smoke cloud expands and can mix colors at the greater grade."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:T6jPmGyInYATYOzr", name = "Smoke Fan", attributes = ["Base item"] },
+    { key = "equipment-srd:k1S8AdYhi5JGRLh1", name = "Smoke Fan (Greater)", attributes = ["Greater"] },
+]

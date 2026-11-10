@@ -1,0 +1,9 @@
+name = "Knave's Standard"
+source_note = "Battlecry! The dip-dyed banner increases the bonus damage on critical Strikes against off-guard targets."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:itn5hOuobNvNaHw1", name = "Knave's Standard", attributes = ["Base item"] },
+    { key = "equipment-srd:EMll5weE2BlIic2a", name = "Knave's Standard (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:1BOmEKzD9ADuAn55", name = "Knave's Standard (Major)", attributes = ["Major"] },
+]

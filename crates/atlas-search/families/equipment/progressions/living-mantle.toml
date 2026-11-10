@@ -1,0 +1,8 @@
+name = "Living Mantle"
+source_note = "GM Core. The moss cloak improves Nature and protects against more extreme weather."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:hvlEFx25ogf1K1C2", name = "Living Mantle", attributes = ["Base item"] },
+    { key = "equipment-srd:IdI7rfCk7WjGbJHN", name = "Living Mantle (Greater)", attributes = ["Greater"] },
+]

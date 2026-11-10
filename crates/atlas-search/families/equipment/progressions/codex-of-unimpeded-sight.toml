@@ -1,0 +1,8 @@
+name = "Codex of Unimpeded Sight"
+source_note = "Impossible Magic. The prediction tome shortens the Reveal Truth cooldown and adds a bonus to the associated checks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:qO1swPrA14AnuyBD", name = "Codex of Unimpeded Sight", attributes = ["Base item"] },
+    { key = "equipment-srd:nQIIO6LIot0ISQXH", name = "Codex of Unimpeded Sight (Greater)", attributes = ["Greater"] },
+]

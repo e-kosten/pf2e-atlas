@@ -1,0 +1,9 @@
+name = "Deathbane Crescent"
+source_note = "Impossible Magic. The bone spellheart improves its DC and anti-undead effects and gains additional spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:3w97KyfZlni8UZAt", name = "Deathbane Crescent", attributes = ["Base item"] },
+    { key = "equipment-srd:x3CwKJRvualWEtYd", name = "Deathbane Crescent (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:s1XvmIDgzCS9buol", name = "Deathbane Crescent (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Lion's Armor"
+source_note = "GM Core. The lion-headed half plate improves its runes and Intimidation bonus and shortens its activation cooldown."
+item_type = "armor"
+category = "heavy"
+
+members = [
+    { key = "equipment-srd:EBuQjgVZaQpjQUjc", name = "Lion's Armor", attributes = ["Base item"] },
+    { key = "equipment-srd:dmEmxoEVzOeEkscr", name = "Lion's Armor (Greater)", attributes = ["Greater"] },
+]

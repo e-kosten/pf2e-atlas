@@ -1,0 +1,8 @@
+name = "Phylactery of Faithfulness"
+source_note = "Core Rulebook. The worn scripture box improves its bonus and shortens its activation cooldown."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:pPl2b7fqfB6dyQwf", name = "Phylactery of Faithfulness", attributes = ["Base item"] },
+    { key = "equipment-srd:hrG2w4IfF1QZhSzw", name = "Phylactery of Faithfulness (Greater)", attributes = ["Greater"] },
+]

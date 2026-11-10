@@ -1,0 +1,8 @@
+name = "All-Seeing Eye"
+source_note = "Impossible Magic. The two-irised spellheart improves its resistance, vision benefit, and activated spell effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:183Vw2yy4sRqYRe3", name = "All-Seeing Eye", attributes = ["Base item"] },
+    { key = "equipment-srd:oMVgH2B0z5jrmg4Q", name = "All-Seeing Eye (Greater)", attributes = ["Greater"] },
+]

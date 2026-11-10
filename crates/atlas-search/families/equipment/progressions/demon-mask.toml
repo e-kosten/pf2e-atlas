@@ -1,0 +1,8 @@
+name = "Demon Mask"
+source_note = "GM Core. The leering mask improves Intimidation and casts higher-rank Fear at a higher DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:2gYZiUw9yjtb0yJY", name = "Demon Mask", attributes = ["Base item"] },
+    { key = "equipment-srd:shKPtYN0YUOe07K2", name = "Demon Mask (Greater)", attributes = ["Greater"] },
+]

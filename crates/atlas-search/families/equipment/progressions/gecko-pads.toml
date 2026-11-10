@@ -1,0 +1,9 @@
+name = "Gecko Pads"
+source_note = "Guns & Gears. The clockwork grip pads extend the duration of their climbing benefit to one hour."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:L5AaEekLZ7Xt80FZ", name = "Gecko Pads", attributes = ["Base item"] },
+    { key = "equipment-srd:rEx0S0p3cIzybhvV", name = "Gecko Pads (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Staff of Elemental Power"
+source_note = "GM Core. The elemental identification staff adds higher-rank elemental spells at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:0Vw44XmzVS4knsa8", name = "Staff of Elemental Power", attributes = ["Base item"] },
+    { key = "equipment-srd:nvSZioRW4J1sMtO7", name = "Staff of Elemental Power (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:9UfuJHNdyBBNfCsO", name = "Staff of Elemental Power (Major)", attributes = ["Major"] },
+]

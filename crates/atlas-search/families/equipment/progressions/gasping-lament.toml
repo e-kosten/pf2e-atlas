@@ -1,0 +1,8 @@
+name = "Gasping Lament"
+source_note = "Pathfinder #205: Singer, Stalker, Skinsaw Man. The same worn coda improves its item bonus and adds sixth- and seventh-rank spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:eCJ8mXA9VQH2P8x7", name = "Gasping Lament", attributes = ["Base item"] },
+    { key = "equipment-srd:Lo3IDdKzBVsLtuHG", name = "Gasping Lament (Greater)", attributes = ["Greater"] },
+]

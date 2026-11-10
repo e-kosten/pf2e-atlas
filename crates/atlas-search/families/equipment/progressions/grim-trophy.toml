@@ -1,0 +1,9 @@
+name = "Grim Trophy"
+source_note = "GM Core. The gruesome talisman expands its Intimidation activation to three targets."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:eEIWjTvZyKsKhYaz", name = "Grim Trophy", attributes = ["Base item"] },
+    { key = "equipment-srd:lbr6acClmnMmB7QZ", name = "Grim Trophy (Greater)", attributes = ["Greater"] },
+]

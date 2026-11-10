@@ -1,0 +1,10 @@
+name = "Striking"
+source_note = "GM Core and War of Immortals. The weapon runes grant two through five damage dice. Foundry's fundamental rune table explicitly orders Mythic after Major."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:DxCuJKynlnMQZHgp", name = "Striking", attributes = ["Base item"] },
+    { key = "equipment-srd:KCQRFvUgbyclvOGi", name = "Striking (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:woxl2FrrgAcJDu0t", name = "Striking (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:OIvT5kbtYWcRc1k2", name = "Mythic Striking", attributes = ["Mythic"] },
+]

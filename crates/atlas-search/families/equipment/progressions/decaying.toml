@@ -1,0 +1,8 @@
+name = "Decaying"
+source_note = "GM Core. The void weapon rune improves its critical damage and bypasses void resistance and immunity at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:fyiW23MFe8p06KL5", name = "Decaying", attributes = ["Base item"] },
+    { key = "equipment-srd:HGsA5gXtaAA65n9e", name = "Decaying (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Black Ash"
+source_note = "Pathfinder #210: Whispers in the Dirt. The same fungal ash catalyst adds progressively more persistent poison damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:mcFc9HoKTwWyJiSH", name = "Black Ash", attributes = ["Base item"] },
+    { key = "equipment-srd:iXXseeKrvAD95H1i", name = "Black Ash (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:zrCRbt6DUo6i2K7t", name = "Black Ash (Major)", attributes = ["Major"] },
+]

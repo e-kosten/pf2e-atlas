@@ -1,0 +1,8 @@
+name = "Extending"
+source_note = "GM Core. The weapon rune's Extend activation increases its maximum reach."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:bJORQsO9E1JCJh6i", name = "Extending", attributes = ["Base item"] },
+    { key = "equipment-srd:WHwprq9Xym2DOr2x", name = "Extending (Greater)", attributes = ["Greater"] },
+]

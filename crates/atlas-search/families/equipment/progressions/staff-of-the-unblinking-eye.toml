@@ -1,0 +1,11 @@
+name = "Staff of the Unblinking Eye"
+source_note = "GM Core. The stone-eye initiative staff adds higher-rank perception and scrying spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:uhsVSBF4f3D5oym0", name = "Staff of the Unblinking Eye", attributes = ["Base item"] },
+    { key = "equipment-srd:jUL4ZdztH8VODBuv", name = "Staff of the Unblinking Eye (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:APjEozp9ibSFV7zM", name = "Staff of the Unblinking Eye (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Stormshard"
+source_note = "Pathfinder #208: Hoof, Cinder, and Storm. The shard's void damage, save DC, and selectable maximum emanation radius increase."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:E89arDdt5UWiAGMY", name = "Stormshard", attributes = ["Base item"] },
+    { key = "equipment-srd:0gocfTNAWRHddgua", name = "Stormshard (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:NrzzXDhoWZdJvhVG", name = "Stormshard (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Shatterpoint Ammunition"
+source_note = "Impossible Magic. The humming ammunition increases its destructive impact and persistent sonic damage."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:QMJryxEtM9mWijDy", name = "Shatterpoint Ammunition", attributes = ["Base item"] },
+    { key = "equipment-srd:aExm45aCAqzF1Tj2", name = "Shatterpoint Ammunition (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:yoSK6PAtgv0DDkAP", name = "Shatterpoint Ammunition (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,8 @@
+name = "Dawnfire Beacon"
+source_note = "Battlecry! The light-giving banner gains a saving throw bonus against unholy effects at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:GhIBjLO1h90L7BCp", name = "Dawnfire Beacon", attributes = ["Base item"] },
+    { key = "equipment-srd:a0qkmzbhgq6o1eSU", name = "Dawnfire Beacon (Major)", attributes = ["Major"] },
+]

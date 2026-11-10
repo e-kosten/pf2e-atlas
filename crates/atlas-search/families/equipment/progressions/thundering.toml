@@ -1,0 +1,8 @@
+name = "Thundering"
+source_note = "GM Core. The sonic weapon rune raises its critical DC, can deafen permanently, and bypasses sonic resistance at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:dTxbaa7HSiJbIuNN", name = "Thundering", attributes = ["Base item"] },
+    { key = "equipment-srd:Lb7F2BR9X9TF1vjX", name = "Thundering (Greater)", attributes = ["Greater"] },
+]

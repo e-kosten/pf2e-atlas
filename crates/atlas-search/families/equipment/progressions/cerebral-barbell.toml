@@ -1,0 +1,9 @@
+name = "Cerebral Barbell"
+source_note = "Impossible Magic. The metallic spellheart improves spell attack and DC statistics and strengthens its force effects."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Hfvlk4v3bhumZamu", name = "Cerebral Barbell", attributes = ["Base item"] },
+    { key = "equipment-srd:45w6peqIyNJQIyhR", name = "Cerebral Barbell (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:HB4SeNTvRkuJnbUF", name = "Cerebral Barbell (Major)", attributes = ["Major"] },
+]

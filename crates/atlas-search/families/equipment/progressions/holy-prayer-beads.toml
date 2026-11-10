@@ -1,0 +1,8 @@
+name = "Holy Prayer Beads"
+source_note = "Core Rulebook. The attuned prayer beads improve their healing and expand the list of spells they can cast."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:KrmSuQIyu6OEi5ew", name = "Holy Prayer Beads", attributes = ["Base item"] },
+    { key = "equipment-srd:OHs7L8CJMdp2UV0P", name = "Holy Prayer Beads (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Crown of Witchcraft"
+source_note = "GM Core. The witch's crown increases its bonuses while keeping the same core function."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:4v8FIJSPaJUbccLz", name = "Crown of Witchcraft", attributes = ["Base item"] },
+    { key = "equipment-srd:4v850xbHgUdlvamn", name = "Crown of Witchcraft (Greater)", attributes = ["Greater"] },
+]

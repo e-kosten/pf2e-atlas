@@ -1,0 +1,8 @@
+name = "Tracker's Goggles"
+source_note = "GM Core. The forest-green goggles improve Survival and shorten the delay before retrying a failed Track check."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ZEqAx8jEc6zhX3V1", name = "Tracker's Goggles", attributes = ["Base item"] },
+    { key = "equipment-srd:OYeYYJ4i66VtGY3O", name = "Tracker's Goggles (Greater)", attributes = ["Greater"] },
+]

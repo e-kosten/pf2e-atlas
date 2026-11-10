@@ -1,0 +1,8 @@
+name = "Timepiece Standard"
+source_note = "Battlecry! The turning-gear banner increases the temporary Hit Points granted by Delay or Ready."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:E8enukNHPfK86DGc", name = "Timepiece Standard", attributes = ["Base item"] },
+    { key = "equipment-srd:LLJy5YpLULtzyXWu", name = "Timepiece Standard (Major)", attributes = ["Major"] },
+]

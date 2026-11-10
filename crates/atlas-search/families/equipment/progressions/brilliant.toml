@@ -1,0 +1,8 @@
+name = "Brilliant"
+source_note = "GM Core. The radiant weapon rune improves its critical-effect statistics and bypasses resistances to its additional damage types."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LbdnZFlyLFdAE617", name = "Brilliant", attributes = ["Base item"] },
+    { key = "equipment-srd:n8MonEa4ZBdvEovc", name = "Brilliant (Greater)", attributes = ["Greater"] },
+]

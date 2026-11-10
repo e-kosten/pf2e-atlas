@@ -1,0 +1,8 @@
+name = "Humbug Pocket"
+source_note = "GM Core. The silk-lined pocket improves its bonus and can produce multiple related forgeries."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:FXdESP5mmP01tL2v", name = "Humbug Pocket", attributes = ["Base item"] },
+    { key = "equipment-srd:AynKTlER5ZbfF62f", name = "Humbug Pocket (Greater)", attributes = ["Greater"] },
+]

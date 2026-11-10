@@ -1,0 +1,8 @@
+name = "Backfire Mantle"
+source_note = "Impossible Magic. The red protective cloak improves both its bonus and resistance against allied splash damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Uc88bGfysDAeaAD8", name = "Backfire Mantle", attributes = ["Base item"] },
+    { key = "equipment-srd:LD2cFdr3IntL71oP", name = "Backfire Mantle (Greater)", attributes = ["Greater"] },
+]

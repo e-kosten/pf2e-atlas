@@ -1,0 +1,9 @@
+name = "Codebreaker's Parchment"
+source_note = "Impossible Magic. The scrambled parchment increases its deciphering DC and the required proficiency at each grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:pkD8SLooxP55tibr", name = "Codebreaker's Parchment", attributes = ["Base item"] },
+    { key = "equipment-srd:PMCk6NCDvJs1MBcg", name = "Codebreaker's Parchment (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:UlvlWbC7iipuENa1", name = "Codebreaker's Parchment (Major)", attributes = ["Major"] },
+]

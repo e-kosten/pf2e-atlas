@@ -1,0 +1,9 @@
+name = "Shrinking Potion"
+source_note = "GM Core. The fungal potion removes its onset, extends its duration, and uses a higher-rank shrink effect."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:FqbDpztscJfM4XMe", name = "Shrinking Potion", attributes = ["Base item"] },
+    { key = "equipment-srd:5xsfj30uXMKINxnk", name = "Shrinking Potion (Greater)", attributes = ["Greater"] },
+]

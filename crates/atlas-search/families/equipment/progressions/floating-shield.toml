@@ -1,0 +1,8 @@
+name = "Floating Shield"
+source_note = "GM Core. The wing-carved buckler can use Float at will at the greater grade."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:ydNocKN6afzIyVh6", name = "Floating Shield", attributes = ["Base item"] },
+    { key = "equipment-srd:uAs0hUUgROrndceD", name = "Floating Shield (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Choker of Elocution"
+source_note = "GM Core. The platinum choker imparts three languages at the greater grade and improves its Society bonus."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:TacKaUs8cIddqiCU", name = "Choker of Elocution", attributes = ["Base item"] },
+    { key = "equipment-srd:br4eClrcGeLTL6Ba", name = "Choker of Elocution (Greater)", attributes = ["Greater"] },
+]

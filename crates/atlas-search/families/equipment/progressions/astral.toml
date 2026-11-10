@@ -1,0 +1,8 @@
+name = "Astral"
+source_note = "GM Core. The spirit-damaging rune improves its Will DC and bypasses spirit resistance at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:6llILJtsTPgtYXgx", name = "Astral", attributes = ["Base item"] },
+    { key = "equipment-srd:hebf5k3cd7LO6luX", name = "Astral (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Spider Gun"
+source_note = "Guns & Gears. The spinneret firearm improves its runes and raises the damage and Escape thresholds for its webbing."
+item_type = "weapon"
+category = "martial"
+group = "firearm"
+
+members = [
+    { key = "equipment-srd:70H54rIRjO9fJkdt", name = "Spider Gun", attributes = ["Base item"] },
+    { key = "equipment-srd:ET88qMrIBXBCWI5J", name = "Spider Gun (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:LGbyZ4z6SLRC1cuB", name = "Spider Gun (Major)", attributes = ["Major"] },
+]

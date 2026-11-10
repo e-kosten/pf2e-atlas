@@ -1,0 +1,8 @@
+name = "Chromatic Robe"
+source_note = "Pathfinder #220: Crypt of Runes. The robe improves its elemental resistances and the Align Energy activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ONjmHKPfUOmQt9bC", name = "Chromatic Robe", attributes = ["Base item"] },
+    { key = "equipment-srd:MoL5LLA4Cuxz27h7", name = "Chromatic Robe (Greater)", attributes = ["Greater"] },
+]

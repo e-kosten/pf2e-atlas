@@ -1,0 +1,9 @@
+name = "Devilwing Badge"
+source_note = "Hellbreakers. The spellheart improves attack and DC statistics, resistance and damage, and adds higher-rank casting."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:hQ442kcLpkHPZ7Nk", name = "Devilwing Badge", attributes = ["Base item"] },
+    { key = "equipment-srd:G6njXf4pRdYsE7E7", name = "Devilwing Badge (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:B1SiT510ndPAP7xz", name = "Devilwing Badge (Major)", attributes = ["Major"] },
+]

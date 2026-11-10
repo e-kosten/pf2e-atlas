@@ -1,0 +1,9 @@
+name = "Emerald Grasshopper"
+source_note = "GM Core. The jeweled talisman improves Leap distance and applies the benefit to additional Leaps that turn."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:3uhaf2YL9hmix3pe", name = "Emerald Grasshopper", attributes = ["Base item"] },
+    { key = "equipment-srd:VeqgYabyGPd7kuSg", name = "Emerald Grasshopper (Greater)", attributes = ["Greater"] },
+]

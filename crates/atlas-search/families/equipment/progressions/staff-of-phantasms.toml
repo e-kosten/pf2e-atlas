@@ -1,0 +1,11 @@
+name = "Staff of Phantasms"
+source_note = "GM Core. The desire-revealing staff adds higher-rank illusion spells at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:HVgolLqbXUeRHXVN", name = "Staff of Phantasms", attributes = ["Base item"] },
+    { key = "equipment-srd:Svq02kCaFadVPOSq", name = "Staff of Phantasms (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:7RBY90RmMtZjvnGW", name = "Staff of Phantasms (Major)", attributes = ["Major"] },
+]

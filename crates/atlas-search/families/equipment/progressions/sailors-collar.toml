@@ -1,0 +1,8 @@
+name = "Sailor's Collar"
+source_note = "Battlecry! The nautical collar improves its bonus and adds underwater breathing and a swim Speed."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:1AFLQuqBFqGjIfZ2", name = "Sailor's Collar", attributes = ["Base item"] },
+    { key = "equipment-srd:IOj7cNqBU6nG08tB", name = "Sailor's Collar (Greater)", attributes = ["Greater"] },
+]

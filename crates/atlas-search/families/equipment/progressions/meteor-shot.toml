@@ -1,0 +1,9 @@
+name = "Meteor Shot"
+source_note = "Guns & Gears. The craggy round increases fiery damage, emanation size, and Reflex DC at each grade."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:2Rnw5hTlMd0YSozb", name = "Meteor Shot", attributes = ["Base item"] },
+    { key = "equipment-srd:ENrhapQe2Gw8HdwR", name = "Meteor Shot (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:mPta1oQq0IWp5uE3", name = "Meteor Shot (Major)", attributes = ["Major"] },
+]

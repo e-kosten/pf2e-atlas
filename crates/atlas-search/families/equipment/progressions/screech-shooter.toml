@@ -1,0 +1,11 @@
+name = "Screech Shooter"
+source_note = "Guns & Gears. The larynx-built firearm improves its runes and increases the frightening sound's area and Will DC."
+item_type = "weapon"
+category = "martial"
+group = "firearm"
+
+members = [
+    { key = "equipment-srd:PVdl7StKFu6QPTVl", name = "Screech Shooter", attributes = ["Base item"] },
+    { key = "equipment-srd:1lZNaqqGOrza9BsG", name = "Screech Shooter (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:v9smWWOsWFwhCZoB", name = "Screech Shooter (Major)", attributes = ["Major"] },
+]

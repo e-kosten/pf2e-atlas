@@ -1,0 +1,8 @@
+name = "Ring of Sigils"
+source_note = "GM Core. The silver ring increases the range for tracking its marks and supplies extra information about a marked living creature."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:yzc8Sll1YMWq8PpR", name = "Ring of Sigils", attributes = ["Base item"] },
+    { key = "equipment-srd:Ld6K4snDzKbNXy2g", name = "Ring of Sigils (Greater)", attributes = ["Greater"] },
+]

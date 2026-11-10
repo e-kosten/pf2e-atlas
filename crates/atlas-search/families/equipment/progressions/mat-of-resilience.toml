@@ -1,0 +1,8 @@
+name = "Mat of Resilience"
+source_note = "Pathfinder #209: Destroyer's Doom. The unfurled floating mat covers a larger square or line at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Bh0coFwyMiKf8H78", name = "Mat of Resilience", attributes = ["Base item"] },
+    { key = "equipment-srd:nlbNhDcFrU8KIuGT", name = "Mat of Resilience (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Darkvision Scope"
+source_note = "Guns & Gears. The clouded-crystal scope improves its bonus and grants greater darkvision at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:krKFJmE139HBqa9K", name = "Darkvision Scope", attributes = ["Base item"] },
+    { key = "equipment-srd:iPgSLZ44804wrXQC", name = "Darkvision Scope (Greater)", attributes = ["Greater"] },
+]

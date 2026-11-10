@@ -1,0 +1,8 @@
+name = "Arboreal Boots"
+source_note = "GM Core. The woodland boots improve their Acrobatics bonus and allow hands-free climbing on plants or fungi."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:amJW9azNUSJLmWGP", name = "Arboreal Boots", attributes = ["Base item"] },
+    { key = "equipment-srd:rRAx62TLPTZSiaLD", name = "Arboreal Boots (Greater)", attributes = ["Greater"] },
+]

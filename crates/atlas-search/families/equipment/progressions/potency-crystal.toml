@@ -1,0 +1,10 @@
+name = "Potency Crystal"
+source_note = "GM Core. The phosphorescent crystal supplies progressively stronger temporary weapon runes for the triggering attack."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:ZCsksGf6NPUKz2Uw", name = "Potency Crystal", attributes = ["Base item"] },
+    { key = "equipment-srd:aSRUX4WGfalK4A5J", name = "Potency Crystal (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:9a7nJAErs4dfetFJ", name = "Potency Crystal (Major)", attributes = ["Major"] },
+]

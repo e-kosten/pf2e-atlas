@@ -1,0 +1,8 @@
+name = "Shacklebreaker"
+source_note = "Hellbreakers. The charm bracelet improves its Thievery bonus and the bonus for freeing someone from manacles."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:DdxmBp8ULtLESATE", name = "Shacklebreaker", attributes = ["Base item"] },
+    { key = "equipment-srd:0BpLj6rmLsC8LMbd", name = "Shacklebreaker (Greater)", attributes = ["Greater"] },
+]

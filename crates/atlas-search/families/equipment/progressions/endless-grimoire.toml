@@ -1,0 +1,10 @@
+name = "Endless Grimoire"
+source_note = "Impossible Magic. The limitless spellbook improves its bonus and the rank of the additional spell it can prepare."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:XrM3Cza8vM6Jzv98", name = "Endless Grimoire", attributes = ["Base item"] },
+    { key = "equipment-srd:XeiuCRFzxHA7mm0X", name = "Endless Grimoire (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:WT9Yh0UNBHBlLNsJ", name = "Endless Grimoire (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:oJBJW19ulUBMEPEY", name = "Endless Grimoire (True)", attributes = ["True"] },
+]

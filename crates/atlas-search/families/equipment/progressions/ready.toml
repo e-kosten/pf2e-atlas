@@ -1,0 +1,8 @@
+name = "Ready"
+source_note = "GM Core. The armor rune allows donning armor of any weight as a single action at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:QNPwzwKervKpk6YO", name = "Ready", attributes = ["Base item"] },
+    { key = "equipment-srd:fumxKes1z2hLN2U7", name = "Ready (Greater)", attributes = ["Greater"] },
+]

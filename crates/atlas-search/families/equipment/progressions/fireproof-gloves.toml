@@ -1,0 +1,8 @@
+name = "Fireproof Gloves"
+source_note = "Battlecry! The heat-handling gloves improve their protection and activated fire damage and DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:vQxQStEySU3IcjE7", name = "Fireproof Gloves", attributes = ["Base item"] },
+    { key = "equipment-srd:JmXZMyfriNPlcUpk", name = "Fireproof Gloves (Greater)", attributes = ["Greater"] },
+]

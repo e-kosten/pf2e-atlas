@@ -1,0 +1,8 @@
+name = "Frost"
+source_note = "GM Core. The cold weapon rune raises its critical slowing DC and bypasses cold resistance at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:M5M1WJ5KzbYfRGsY", name = "Frost", attributes = ["Base item"] },
+    { key = "equipment-srd:Sexud7FdxIrg50vU", name = "Frost (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Dancing Scarf"
+source_note = "GM Core. The jingling scarf improves its dance Performance bonus and adds movement to its activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Epc1e1Q9M9bcwOR0", name = "Dancing Scarf", attributes = ["Base item"] },
+    { key = "equipment-srd:QJ1PhbtbLzwhRlY0", name = "Dancing Scarf (Greater)", attributes = ["Greater"] },
+]

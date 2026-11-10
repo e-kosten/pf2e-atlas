@@ -1,0 +1,9 @@
+name = "Symbol of Conflict"
+source_note = "GM Core. The attuned necklace improves its bonus and spell statistics, and the major grade adds summons based on sanctification."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:BHjJpNILf85M2LJE", name = "Symbol of Conflict", attributes = ["Base item"] },
+    { key = "equipment-srd:Wtm4JdxeTLQi3zQI", name = "Symbol of Conflict (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:C7FeT7eVuwRnLhJy", name = "Symbol of Conflict (Major)", attributes = ["Major"] },
+]

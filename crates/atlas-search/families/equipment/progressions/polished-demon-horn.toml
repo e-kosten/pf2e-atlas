@@ -1,0 +1,9 @@
+name = "Polished Demon Horn"
+source_note = "Gatewalkers. The spellheart improves spell DC, unholy resistance and damage, and adds spells at higher grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:rtfpj9WJHMnMtfuG", name = "Polished Demon Horn", attributes = ["Base item"] },
+    { key = "equipment-srd:62oxvKUCReo7Iah7", name = "Polished Demon Horn (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:eRlOMigJjx5jAEKw", name = "Polished Demon Horn (Major)", attributes = ["Major"] },
+]

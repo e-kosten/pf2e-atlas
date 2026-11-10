@@ -1,0 +1,8 @@
+name = "Medic's Armband"
+source_note = "Battlecry! The combat medic armband adds a Medicine bonus and improves its activation's penalty."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ihIRWisdnhFUsm0I", name = "Medic's Armband", attributes = ["Base item"] },
+    { key = "equipment-srd:IwDKK7t6yz0Q8I62", name = "Medic's Armband (Greater)", attributes = ["Greater"] },
+]

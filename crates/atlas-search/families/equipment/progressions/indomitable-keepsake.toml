@@ -1,0 +1,10 @@
+name = "Indomitable Keepsake"
+source_note = "Guns & Gears. The sentimental talisman reduces progressively more damage from firearm critical hits."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:ibxFkN7NGB1pybWx", name = "Indomitable Keepsake", attributes = ["Base item"] },
+    { key = "equipment-srd:nrY1yxGbl5MFUyea", name = "Indomitable Keepsake (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:SBpUiOJiap2cZk2Z", name = "Indomitable Keepsake (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,8 @@
+name = "Marvelous Medicines"
+source_note = "GM Core. The healer's toolkit improves Medicine and its counteract statistics when treating disease or poison."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:aZ8HzjZCOJCV7ZWh", name = "Marvelous Medicines", attributes = ["Base item"] },
+    { key = "equipment-srd:wYpWQCD2IYqDtqpc", name = "Marvelous Medicines (Greater)", attributes = ["Greater"] },
+]

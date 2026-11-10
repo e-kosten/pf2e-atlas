@@ -1,0 +1,8 @@
+name = "Whispering Wire"
+source_note = "Hellbreakers. The coiled wire's Words on the Wind activation casts its spell at a higher rank."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:VeLs0UGkFu3Ga8Cd", name = "Whispering Wire", attributes = ["Base item"] },
+    { key = "equipment-srd:lJBKINXBmSq7njTi", name = "Whispering Wire (Greater)", attributes = ["Greater"] },
+]

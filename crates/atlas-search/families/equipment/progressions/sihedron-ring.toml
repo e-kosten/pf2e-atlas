@@ -1,0 +1,8 @@
+name = "Sihedron Ring"
+source_note = "Pathfinder #219: Lord of the Trinity Star. The runelord ring improves its warding bonus and save DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:gXxplAToptbrUS3D", name = "Sihedron Ring", attributes = ["Base item"] },
+    { key = "equipment-srd:RnSXwckGSwOnHz7F", name = "Sihedron Ring (Greater)", attributes = ["Greater"] },
+]

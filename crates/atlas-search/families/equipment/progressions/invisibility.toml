@@ -1,0 +1,8 @@
+name = "Invisibility"
+source_note = "GM Core. The armor rune increases uses of its Go Invisible activation from one to three per day."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:VDudQ4x2ozosAbTb", name = "Invisibility", attributes = ["Base item"] },
+    { key = "equipment-srd:bxz885LMjLCkpDq3", name = "Invisibility (Greater)", attributes = ["Greater"] },
+]

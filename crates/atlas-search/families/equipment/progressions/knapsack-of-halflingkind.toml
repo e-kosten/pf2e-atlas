@@ -1,0 +1,8 @@
+name = "Knapsack of Halflingkind"
+source_note = "Core Rulebook. The compartmented knapsack adds healing capacity and a compartment that produces lucky sling ammunition."
+item_type = "backpack"
+
+members = [
+    { key = "equipment-srd:rdF2RKgFK0vOlaeV", name = "Knapsack of Halflingkind", attributes = ["Base item"] },
+    { key = "equipment-srd:9cK0QVSjNd8tQtiQ", name = "Knapsack of Halflingkind (Greater)", attributes = ["Greater"] },
+]

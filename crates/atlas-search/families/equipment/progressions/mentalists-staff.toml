@@ -1,0 +1,11 @@
+name = "Mentalist's Staff"
+source_note = "GM Core. The brain-patterned mental magic staff adds higher-rank mental spells at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:xwiZBOjispKVZzGA", name = "Mentalist's Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:0RCC0fOg1Lp7f79I", name = "Mentalist's Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:DTIBj6Yhy73G5P6j", name = "Mentalist's Staff (Major)", attributes = ["Major"] },
+]

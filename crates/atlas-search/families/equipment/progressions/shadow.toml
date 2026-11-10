@@ -1,0 +1,9 @@
+name = "Shadow"
+source_note = "GM Core. The hazy black armor rune grants progressively higher Stealth bonuses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:kEy7Uc1VisizGgtf", name = "Shadow", attributes = ["Base item"] },
+    { key = "equipment-srd:bSm0Hki8N2L50OZw", name = "Shadow (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:2FjdEflsVldnuebM", name = "Shadow (Major)", attributes = ["Major"] },
+]

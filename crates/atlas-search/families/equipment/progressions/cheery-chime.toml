@@ -1,0 +1,9 @@
+name = "Cheery Chime"
+source_note = "Impossible Magic. The wind chime spellheart improves the saving throw bonus against emotion, mental damage, and casting DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:WiuMwJV4LHejvcsp", name = "Cheery Chime", attributes = ["Base item"] },
+    { key = "equipment-srd:alz5KwsKdNGJFrXS", name = "Cheery Chime (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:IJKAx5lvmT8tdOAA", name = "Cheery Chime (Major)", attributes = ["Major"] },
+]

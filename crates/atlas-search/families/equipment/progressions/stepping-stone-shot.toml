@@ -1,0 +1,8 @@
+name = "Stepping Stone Shot"
+source_note = "Guns & Gears. The same round creates a longer and longer-lasting line of walkable discs at the greater grade."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:uNdRC0j1hY3F4pP1", name = "Stepping Stone Shot", attributes = ["Base item"] },
+    { key = "equipment-srd:H2Xcd1nzesEeY96V", name = "Stepping Stone Shot (Greater)", attributes = ["Greater"] },
+]

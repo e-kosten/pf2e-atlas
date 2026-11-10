@@ -1,0 +1,9 @@
+name = "Victory Plate"
+source_note = "Advanced Player's Guide. Both descriptions identify full plate with the same victory-recording tabard. The greater armor improves runes, resistance, and recall frequency."
+item_type = "armor"
+category = "heavy"
+
+members = [
+    { key = "equipment-srd:nVlKU2et4EeReayr", name = "Victory Plate", attributes = ["Base item"] },
+    { key = "equipment-srd:ed2F0L3R6UNSFUmS", name = "Victory Plate (Greater)", attributes = ["Greater"] },
+]

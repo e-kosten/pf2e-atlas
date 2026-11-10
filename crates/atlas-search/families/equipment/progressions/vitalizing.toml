@@ -1,0 +1,8 @@
+name = "Vitalizing"
+source_note = "GM Core. The anti-undead rune improves persistent vitality damage and extends and expands its critical debuffs."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LwQb7ryTC8FlOXgX", name = "Vitalizing", attributes = ["Base item"] },
+    { key = "equipment-srd:oVrVzML63VFvVfKk", name = "Vitalizing (Greater)", attributes = ["Greater"] },
+]

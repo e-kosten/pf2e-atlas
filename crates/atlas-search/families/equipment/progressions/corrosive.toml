@@ -1,0 +1,8 @@
+name = "Corrosive"
+source_note = "GM Core. The acid weapon rune doubles armor damage on critical hits and bypasses acid resistance at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Wm0X7Pfd1bfocPSv", name = "Corrosive", attributes = ["Base item"] },
+    { key = "equipment-srd:vQUIUAFOTOWj3ohh", name = "Corrosive (Greater)", attributes = ["Greater"] },
+]

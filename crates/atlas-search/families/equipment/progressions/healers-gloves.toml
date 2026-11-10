@@ -1,0 +1,8 @@
+name = "Healer's Gloves"
+source_note = "GM Core. The clean white gloves improve Medicine and restore more Hit Points with Healer's Touch."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:o1zKhvYUUc1hE2AE", name = "Healer's Gloves", attributes = ["Base item"] },
+    { key = "equipment-srd:0GOHTXBxs6H6ARBz", name = "Healer's Gloves (Greater)", attributes = ["Greater"] },
+]

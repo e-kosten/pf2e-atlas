@@ -1,0 +1,8 @@
+name = "Hexwise Banner"
+source_note = "Battlecry! The multicolored banner increases its aura's resistance to spell damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:VGsfKBMHnz1gDPdg", name = "Hexwise Banner", attributes = ["Base item"] },
+    { key = "equipment-srd:DIabdidLZbSbq767", name = "Hexwise Banner (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,8 @@
+name = "Ring of the Ram"
+source_note = "Core Rulebook. The iron ram ring improves force damage and DC and adds a way to disperse the force with three actions."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:s97FDCHi2UcfzKGn", name = "Ring of the Ram", attributes = ["Base item"] },
+    { key = "equipment-srd:oSltacqbeotmzLNJ", name = "Ring of the Ram (Greater)", attributes = ["Greater"] },
+]

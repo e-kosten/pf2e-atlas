@@ -1,0 +1,8 @@
+name = "Magnetite Scope"
+source_note = "Guns & Gears. The field-projecting scope improves Sense Direction and doubles its scatter radius increase."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:xe6I5BIYHE7SXSax", name = "Magnetite Scope", attributes = ["Base item"] },
+    { key = "equipment-srd:YBmrRRh0jJTOZoUe", name = "Magnetite Scope (Greater)", attributes = ["Greater"] },
+]

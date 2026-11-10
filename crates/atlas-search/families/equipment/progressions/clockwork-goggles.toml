@@ -1,0 +1,10 @@
+name = "Clockwork Goggles"
+source_note = "Guns & Gears. The same rotating lenses add darkvision and then See the Unseen. The major record retains its distinct source remaster flag."
+item_type = "consumable"
+category = "gadget"
+
+members = [
+    { key = "equipment-srd:jVJwCB5ztkXHD5ML", name = "Clockwork Goggles", attributes = ["Base item"] },
+    { key = "equipment-srd:6Frd3SmMZZ49DnUZ", name = "Clockwork Goggles (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:MywpJQc2lVjWvAGA", name = "Clockwork Goggles (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,8 @@
+name = "Daredevil Boots"
+source_note = "GM Core. The stunt boots improve their bonuses and gain the Unfettered Movement activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:mmdnWrQsh7vDspLK", name = "Daredevil Boots", attributes = ["Base item"] },
+    { key = "equipment-srd:kjFFmqci69k2zMXF", name = "Daredevil Boots (Greater)", attributes = ["Greater"] },
+]

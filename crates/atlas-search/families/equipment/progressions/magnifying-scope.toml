@@ -1,0 +1,9 @@
+name = "Magnifying Scope"
+source_note = "Guns & Gears. The lens assembly improves visual Seek and increases its weapon's range increment at higher grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:uTELMvkoRORmr5pm", name = "Magnifying Scope", attributes = ["Base item"] },
+    { key = "equipment-srd:BR2vQLRif2Pgq5eN", name = "Magnifying Scope (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:7uxALss5g34y49HF", name = "Magnifying Scope (Major)", attributes = ["Major"] },
+]

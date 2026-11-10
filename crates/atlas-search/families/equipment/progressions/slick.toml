@@ -1,0 +1,9 @@
+name = "Slick"
+source_note = "GM Core. The slippery armor rune improves Acrobatics for escaping and squeezing across its grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:uQOaRpfkUFVYD0Gx", name = "Slick", attributes = ["Base item"] },
+    { key = "equipment-srd:LiJMupjynmkM5Mld", name = "Slick (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:9imz3VgBXCg13RfT", name = "Slick (Major)", attributes = ["Major"] },
+]

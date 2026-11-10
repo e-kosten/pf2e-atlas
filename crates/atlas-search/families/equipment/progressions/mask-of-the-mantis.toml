@@ -1,0 +1,9 @@
+name = "Mask of the Mantis"
+source_note = "Prey for Death. The Red Mantis headwear improves its bonuses and casting, and gains Locate Target at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Ku14uJEbwXi0XqD9", name = "Mask of the Mantis", attributes = ["Base item"] },
+    { key = "equipment-srd:lAQTAOWxU3J2onBv", name = "Mask of the Mantis (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:7NLu6Vgj9clgdleR", name = "Mask of the Mantis (Major)", attributes = ["Major"] },
+]

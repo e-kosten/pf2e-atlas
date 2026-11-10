@@ -1,0 +1,9 @@
+name = "Stalk Goggles"
+source_note = "Gatewalkers. The eyestalk goggles improve sight-based Perception and add better vision."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:iKKZdkn8KQJSuRjY", name = "Stalk Goggles", attributes = ["Base item"] },
+    { key = "equipment-srd:U7UVGM93EaNc6lzY", name = "Stalk Goggles (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:cbbPoYOil7DZO4mk", name = "Stalk Goggles (Major)", attributes = ["Major"] },
+]

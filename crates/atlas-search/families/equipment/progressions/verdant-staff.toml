@@ -1,0 +1,10 @@
+name = "Verdant Staff"
+source_note = "GM Core. The oak branch used to identify plants and fungi adds higher-rank plant spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:sQFQlglhORQsxBKS", name = "Verdant Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:ylRk8NvpK2kA8bjw", name = "Verdant Staff (Greater)", attributes = ["Greater"] },
+]

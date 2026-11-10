@@ -1,0 +1,9 @@
+name = "Potion of Stable Form"
+source_note = "Impossible Magic. The moly potion improves its hostile-transmutation counteract statistics and defensive bonus."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:cEfqMV1lFaT7s0QC", name = "Potion of Stable Form", attributes = ["Base item"] },
+    { key = "equipment-srd:KOWn72lufGfszQXr", name = "Potion of Stable Form (Greater)", attributes = ["Greater"] },
+]

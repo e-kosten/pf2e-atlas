@@ -1,0 +1,8 @@
+name = "Lucky Draw Bandolier"
+source_note = "Guns & Gears. Both exact records use the same Harrow-suit ammunition mechanic. Greater can activate hourly. The source records retain their distinct remaster flags and ammunition tables."
+item_type = "backpack"
+
+members = [
+    { key = "equipment-srd:yUPUxRqyYdZaPhkF", name = "Lucky Draw Bandolier", attributes = ["Base item"] },
+    { key = "equipment-srd:iAfqKpHyJ6beLGjB", name = "Lucky Draw Bandolier (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Sihedron Medallion"
+source_note = "Pathfinder #219: Lord of the Trinity Star. The runelord token grants progressively stronger saving throw and activation benefits."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:TkSY6tUfnsgd8xC7", name = "Sihedron Medallion", attributes = ["Base item"] },
+    { key = "equipment-srd:UfzRhqqph3CtTaKT", name = "Sihedron Medallion (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:SBaAJjHhZfZTqbz5", name = "Sihedron Medallion (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Energy Shield Tunic"
+source_note = "Impossible Magic. The color-shifting explorer's clothing increases its selected energy resistance at the greater grade."
+item_type = "armor"
+category = "unarmored"
+
+members = [
+    { key = "equipment-srd:cIHNyUEYmUs9V7kV", name = "Energy Shield Tunic", attributes = ["Base item"] },
+    { key = "equipment-srd:p2ai0q9DTgZcsqdM", name = "Energy Shield Tunic (Greater)", attributes = ["Greater"] },
+]
