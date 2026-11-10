@@ -58,3 +58,9 @@ Use the same `HOME` when you invoke the bundled CLI to test service sharing or
 standalone commands. See the
 [desktop service boundary](../docs/architecture/decisions/0029-local-web-app-boundary.md#macos-desktop-host)
 for ownership and transport details.
+
+From a macOS desktop session, run `node desktop/smoke-macos.mjs` against the
+built debug bundle. The smoke test creates a fresh temporary workspace and uses
+one local fixture record. It clicks the setup action, waits for Search to
+render in the native window, and opens the fixture record in that window.
+It runs offline and skips embedding generation.

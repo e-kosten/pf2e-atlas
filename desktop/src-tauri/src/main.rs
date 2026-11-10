@@ -1,6 +1,8 @@
 #![deny(unsafe_code)]
 
 mod process;
+#[cfg(debug_assertions)]
+mod smoke;
 
 use std::{
     path::{Path, PathBuf},
@@ -570,6 +572,8 @@ fn main() {
                 }
             }
             show_bootstrap(app.handle())?;
+            #[cfg(debug_assertions)]
+            smoke::start(app.handle())?;
             Ok(())
         })
         .build(tauri::generate_context!());
