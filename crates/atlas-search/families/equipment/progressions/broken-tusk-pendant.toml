@@ -1,0 +1,8 @@
+name = "Broken Tusk Pendant"
+source_note = "Broken Tusk Moon. Both ivory pendants assist against animals. Greater strengthens the bonuses and adds an effect when an animal misses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:c9GaJKCxxqXKZokZ", name = "Broken Tusk Pendant", attributes = ["Base item"] },
+    { key = "equipment-srd:hEIqSfSNBWwEkldc", name = "Broken Tusk Pendant (Greater)", attributes = ["Greater"] },
+]

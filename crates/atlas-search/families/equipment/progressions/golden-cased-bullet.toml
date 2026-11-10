@@ -1,0 +1,9 @@
+name = "Golden-Cased Bullet"
+source_note = "Cradle of Quartz. Each grade curves its shot to ignore successively stronger cover, culminating in ignoring greater cover."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:LlmRVR4qv6H2AGPT", name = "Golden-Cased Bullet (Standard)", attributes = ["Standard"] },
+    { key = "equipment-srd:5ucWbzvEQhd2eSJk", name = "Golden-Cased Bullet (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:bKc5f8dAOjv1kwQ2", name = "Golden-Cased Bullet (Major)", attributes = ["Major"] },
+]

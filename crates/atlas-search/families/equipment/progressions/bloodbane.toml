@@ -1,0 +1,8 @@
+name = "Bloodbane"
+source_note = "Fires of the Haunted City. Both clan dagger forms leave ragged wounds, with Greater increasing ancestral-enemy bleed damage and the Fortitude DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:C9wOlvuVCjVbz1YQ", name = "Bloodbane", attributes = ["Base item"] },
+    { key = "equipment-srd:zEys8FeMMAwTqwgW", name = "Bloodbane (Greater)", attributes = ["Greater"] },
+]

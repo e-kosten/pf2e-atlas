@@ -1,0 +1,9 @@
+name = "Heartmoss"
+source_note = "Severed at the Root. The spellheart improves its mental resistance and other armor and weapon benefits and gains stronger healing spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:t21l7ssk3fntP1xU", name = "Heartmoss", attributes = ["Base item"] },
+    { key = "equipment-srd:W2rxVEIVJoBWO7j6", name = "Heartmoss (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:OQXIw3Htf0Rb14dK", name = "Heartmoss (Major)", attributes = ["Major"] },
+]

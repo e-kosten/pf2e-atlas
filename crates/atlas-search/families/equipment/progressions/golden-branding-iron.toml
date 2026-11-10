@@ -1,0 +1,10 @@
+name = "Golden Branding Iron"
+source_note = "Cradle of Quartz. Each talisman brands a target with a ranged Strike and higher grades extend the duration of the mark."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:8wlCeramJW5cLw6e", name = "Golden Branding Iron", attributes = ["Base item"] },
+    { key = "equipment-srd:tNs0FKSthYCM7ivx", name = "Golden Branding Iron (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kVng8qcoHLBORFIc", name = "Golden Branding Iron (Major)", attributes = ["Major"] },
+]

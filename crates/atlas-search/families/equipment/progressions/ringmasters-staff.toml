@@ -1,0 +1,10 @@
+name = "Ringmaster's Staff"
+source_note = "Legacy of the Lost God. Both carry the ringmaster theme and Greater expands the staff spell list to fifth rank."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:tpKD2TZEzAToow1O", name = "Ringmaster's Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:wWBi79jkzYGWD6uC", name = "Ringmaster's Staff (Greater)", attributes = ["Greater"] },
+]

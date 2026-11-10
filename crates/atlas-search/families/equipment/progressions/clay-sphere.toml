@@ -1,0 +1,9 @@
+name = "Clay Sphere"
+source_note = "Severed at the Root. The same malleable sphere improves spell attack, DC and other effects and adds new transformations by grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:WuSXfv87YBSzqJ66", name = "Clay Sphere", attributes = ["Base item"] },
+    { key = "equipment-srd:OksiiEBiiGatAM9e", name = "Clay Sphere (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:BdLtvg3zUKypgYdS", name = "Clay Sphere (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Hero's Plate"
+source_note = "Severed at the Root. Both full plates protect against mental damage and fear and have Personal Legend. Greater raises those benefits and the spell rank."
+item_type = "armor"
+category = "heavy"
+
+members = [
+    { key = "equipment-srd:qiRJhMvDnuorQZ62", name = "Hero's Plate", attributes = ["Base item"] },
+    { key = "equipment-srd:ziESwPW9EostyeQn", name = "Hero's Plate (Greater)", attributes = ["Greater"] },
+]

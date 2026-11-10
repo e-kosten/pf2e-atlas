@@ -1,0 +1,11 @@
+name = "Soulheart"
+source_note = "Bastion of Blasphemies. The level-5 soulheart and Greater and Major share its core use. Pure and Angelic add the Restore and Defy Charge options as distinct authored forms."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:8WxFFZm6OcBCCARR", name = "Soulheart", attributes = ["Base item"] },
+    { key = "equipment-srd:5nNs3OFkRXH8yU1D", name = "Soulheart (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:05h3LWflr74iJiVg", name = "Soulheart (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:klQlruwrLO0xvPjl", name = "Soulheart (Pure)", attributes = ["Pure"] },
+    { key = "equipment-srd:Y10KCgi8mOL2iAkS", name = "Soulheart (Angelic)", attributes = ["Angelic"] },
+]
