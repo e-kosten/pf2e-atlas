@@ -160,8 +160,15 @@ test("same-note saves from two tabs require explicit conflict resolution", async
     await expect(reopen).toBeFocused();
     await expect(left.draft).toHaveValue(draftText);
     await reopen.press("Enter");
-    await retry.press("Enter");
-    await expect(review.getByText("Latest saved note")).toBeVisible();
+    if (keyboard) {
+      await expect(
+        review.getByText("Review note conflict", { exact: true }),
+      ).toBeFocused();
+      await retry.press("Enter");
+    } else {
+      await retry.tap();
+    }
+    await expect(review.getByText("Latest saved note", { exact: true })).toBeVisible();
     await expect(review.getByText("Your version", { exact: true })).toBeVisible();
     await expect(review.getByText("Other tab saved")).toBeVisible();
     await expect(left.draft).toHaveValue(draftText);
