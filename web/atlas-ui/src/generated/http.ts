@@ -590,18 +590,11 @@ export interface EncounterSenseView {
   sense_type: ReferenceValueView;
 }
 
-export interface UnappliedEffectView {
-  condition_id?: number;
-  label: string;
-  reason: string;
-  source: string;
-}
-
 export interface ActorRuntimeView {
   action_budget: ActionBudgetView | null;
+  casting_hint?: string;
   contextual_armor_class: EncounterContextualArmorClassView[];
   senses: EncounterSenseView[];
-  unapplied_effects: UnappliedEffectView[];
 }
 
 export interface ActorSavesView {
@@ -2787,6 +2780,7 @@ export interface EncounterParticipantConditionView {
   created_at: string;
   duration?: ConditionDurationView;
   extra_action: ConditionExtraActionView;
+  guidance?: string[];
   immunity_override: boolean;
   name: string;
   note?: string;
@@ -2796,6 +2790,26 @@ export interface EncounterParticipantConditionView {
   source_participant_key?: string;
   updated_at: string;
   value?: number;
+}
+
+export interface InherentConditionView {
+  condition_ref: string;
+  /** @minimum 0 */
+  editable_rule_ordinal?: number;
+  guidance?: string[];
+  has_value: boolean;
+  name: string;
+  source: RecordNavigationView;
+  source_name: string;
+  unavailable_reason?: string;
+  /** @nullable */
+  value: number | null;
+}
+
+export interface InherentConditionsView {
+  entries: InherentConditionView[];
+  /** @nullable */
+  unavailable_reason: string | null;
 }
 
 export interface HpEventContextView {
@@ -3482,25 +3496,6 @@ export type TurnActionCalculationView = {
   kind: 'next_turn';
 };
 
-export interface InherentActionConditionView {
-  condition_ref: string;
-  /** @minimum 0 */
-  editable_rule_ordinal?: number;
-  has_value: boolean;
-  name: string;
-  source: RecordNavigationView;
-  source_name: string;
-  unavailable_reason?: string;
-  /** @nullable */
-  value: number | null;
-}
-
-export interface InherentActionConditionsView {
-  entries: InherentActionConditionView[];
-  /** @nullable */
-  unavailable_reason: string | null;
-}
-
 export interface TurnResourceResultView {
   condition_name: string;
   condition_ref: string;
@@ -3519,7 +3514,6 @@ export interface TurnResourcesView {
   extra_total: number | null;
   extra_uses: ConditionExtraActionView[];
   forecast: RuntimeCountView;
-  inherent_conditions?: InherentActionConditionsView;
   /** @nullable */
   pending_reason: string | null;
   /** @nullable */
@@ -3550,6 +3544,7 @@ export interface EncounterParticipantView {
   hazard_disabled: boolean;
   hidden: boolean;
   hp_origin: string;
+  inherent_conditions?: InherentConditionsView;
   initiative?: number;
   initiative_order: number;
   knockout_options: KnockoutOptionView[];

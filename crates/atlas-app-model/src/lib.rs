@@ -24,9 +24,8 @@ pub use encounter_ability_state::{
 mod turn_resources;
 pub use dice::{FlatCheckRollView, RollFlatCheckRequest};
 pub use turn_resources::{
-    InherentActionConditionView, InherentActionConditionsView, TurnActionCalculationView,
-    TurnResourceAction, TurnResourceKind, TurnResourceResultView, TurnResourcesView,
-    UpdateTurnResourcesRequest,
+    TurnActionCalculationView, TurnResourceAction, TurnResourceKind, TurnResourceResultView,
+    TurnResourcesView, UpdateTurnResourcesRequest,
 };
 mod encounter_action;
 pub use encounter_action::{EncounterStrikeActionContextView, EncounterTargetingRequirementsView};
@@ -160,11 +159,11 @@ pub use encounter::{
     EncounterSpellAction, EncounterSpellRankView, EncounterSpellResourceScope,
     EncounterSpellResourceView, EncounterSpellView, EncounterSpellcastingView, EncounterStatusView,
     EncounterSummaryView, EncounterTurnBoundaryView, EncounterTurnReminderView,
-    EncounterTurnReviewView, ReorderEncounterParticipantRequest, RuntimeAdjustmentView,
-    RuntimeCapabilityView, RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView,
-    SetEncounterTurnRequest, StatModifierTypeView, StatModifierView, UnappliedEffectView,
-    UpdateEncounterParticipantConditionRequest, UpdateEncounterParticipantEdit,
-    UpdateEncounterRequest,
+    EncounterTurnReviewView, InherentConditionView, InherentConditionsView,
+    ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
+    RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
+    StatModifierTypeView, StatModifierView, UpdateEncounterParticipantConditionRequest,
+    UpdateEncounterParticipantEdit, UpdateEncounterRequest,
 };
 pub use equipment_family::{EquipmentFamilyGroupingView, EquipmentFamilyView};
 pub use error::{AppError, AppErrorCode, AppRecoverableAction};

@@ -405,6 +405,9 @@
               }
             ]
           },
+          "casting_hint": {
+            "type": "string"
+          },
           "contextual_armor_class": {
             "items": {
               "$ref": "#/components/schemas/EncounterContextualArmorClassView"
@@ -416,19 +419,12 @@
               "$ref": "#/components/schemas/EncounterSenseView"
             },
             "type": "array"
-          },
-          "unapplied_effects": {
-            "items": {
-              "$ref": "#/components/schemas/UnappliedEffectView"
-            },
-            "type": "array"
           }
         },
         "required": [
           "senses",
           "contextual_armor_class",
-          "action_budget",
-          "unapplied_effects"
+          "action_budget"
         ],
         "type": "object"
       },
@@ -5414,6 +5410,12 @@
           "extra_action": {
             "$ref": "#/components/schemas/ConditionExtraActionView"
           },
+          "guidance": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "immunity_override": {
             "type": "boolean"
           },
@@ -5535,6 +5537,9 @@
           },
           "hp_origin": {
             "type": "string"
+          },
+          "inherent_conditions": {
+            "$ref": "#/components/schemas/InherentConditionsView"
           },
           "initiative": {
             "format": "int64",
@@ -10047,7 +10052,7 @@
         ],
         "type": "string"
       },
-      "InherentActionConditionView": {
+      "InherentConditionView": {
         "properties": {
           "condition_ref": {
             "type": "string"
@@ -10055,6 +10060,12 @@
           "editable_rule_ordinal": {
             "minimum": 0,
             "type": "integer"
+          },
+          "guidance": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "has_value": {
             "type": "boolean"
@@ -10089,11 +10100,11 @@
         ],
         "type": "object"
       },
-      "InherentActionConditionsView": {
+      "InherentConditionsView": {
         "properties": {
           "entries": {
             "items": {
-              "$ref": "#/components/schemas/InherentActionConditionView"
+              "$ref": "#/components/schemas/InherentConditionView"
             },
             "type": "array"
           },
@@ -19037,9 +19048,6 @@
           "forecast": {
             "$ref": "#/components/schemas/RuntimeCountView"
           },
-          "inherent_conditions": {
-            "$ref": "#/components/schemas/InherentActionConditionsView"
-          },
           "pending_reason": {
             "type": [
               "string",
@@ -19112,29 +19120,6 @@
           "can_edit_actions",
           "can_spend_actions",
           "can_spend_reactions"
-        ],
-        "type": "object"
-      },
-      "UnappliedEffectView": {
-        "properties": {
-          "condition_id": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "label": {
-            "type": "string"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "source",
-          "label",
-          "reason"
         ],
         "type": "object"
       },

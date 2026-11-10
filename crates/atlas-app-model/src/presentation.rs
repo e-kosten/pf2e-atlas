@@ -1,7 +1,7 @@
 //! Transient semantic facts for reference and encounter renderers.
 use crate::{
     ActionBudgetView, PreparedContentFieldView, RecordNavigationView, RecordSummaryView,
-    RuntimeEffectNoteView, StatModifierView, UnappliedEffectView,
+    RuntimeEffectNoteView, StatModifierView,
 };
 use serde::{Deserialize, Serialize};
 
@@ -264,7 +264,9 @@ pub struct ActorRuntimeView {
     pub contextual_armor_class: Vec<EncounterContextualArmorClassView>,
     #[cfg_attr(feature = "openapi", schema(required))]
     pub action_budget: Option<ActionBudgetView>,
-    pub unapplied_effects: Vec<UnappliedEffectView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub casting_hint: Option<String>,
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

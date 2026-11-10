@@ -6,7 +6,7 @@ use atlas_local_state::{EncounterParticipant, EncounterParticipantCondition};
 
 /// Authored causes never pretend to be editable saved condition rows.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::encounters) enum ConditionSourceKey {
+pub(crate) enum ConditionSourceKey {
     Saved(i64),
     Authored {
         participant_key: String,

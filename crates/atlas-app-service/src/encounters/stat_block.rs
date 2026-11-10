@@ -17,7 +17,14 @@ pub(crate) struct StatBlockView {
     pub speeds: Vec<MovementSpeedView>,
     pub action_budget: Option<ActionBudgetView>,
     pub activities: Vec<MechanicActivityView>,
-    pub unapplied_effects: Vec<UnappliedEffectView>,
+    pub(crate) condition_guidance: Vec<ConditionGuidance>,
+    pub(crate) casting_guidance: Option<ConditionGuidance>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ConditionGuidance {
+    pub source: super::rules::causes::ConditionSourceKey,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]

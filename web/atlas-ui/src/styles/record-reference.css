@@ -466,16 +466,9 @@
   .actor-reference__mechanics:not(:has(> .actor-casting)) {
     grid-template-columns: minmax(0, 1fr);
   }
-  .actor-reference__runtime {
-    grid-column: 1 / -1;
-  }
 }
 
 .record-reference--encounter {
-  gap: 12px;
-}
-.actor-reference__secondary {
-  display: grid;
   gap: 12px;
 }
 .actor-reference__skills {

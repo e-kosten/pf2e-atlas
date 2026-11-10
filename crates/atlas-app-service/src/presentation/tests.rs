@@ -1041,9 +1041,10 @@ fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
             speeds: vec![],
             action_budget: None,
             activities: vec![],
-            unapplied_effects: vec![],
+            condition_guidance: vec![],
+            casting_guidance: None,
         };
-        let composed = compose_participant(detail.presentation.clone(), &block);
+        let composed = compose_participant(detail.presentation.clone(), &block, false);
         let RecordBodyView::Hazard(hazard) = composed.body else {
             panic!("hazard")
         };
@@ -1135,10 +1136,11 @@ fn hazard_readouts_follow_effective_and_unresolved_participant_statistics() {
         speeds: vec![],
         action_budget: None,
         activities: vec![],
-        unapplied_effects: vec![],
+        condition_guidance: vec![],
+        casting_guidance: None,
     };
     let RecordBodyView::Hazard(effective) =
-        compose_participant(detail.presentation.clone(), &block).body
+        compose_participant(detail.presentation.clone(), &block, false).body
     else {
         panic!("hazard")
     };
@@ -1149,7 +1151,8 @@ fn hazard_readouts_follow_effective_and_unresolved_participant_statistics() {
         StatisticTarget::HazardStealth,
         StatisticTarget::HitPointMaximum,
     ];
-    let RecordBodyView::Hazard(unresolved) = compose_participant(detail.presentation, &block).body
+    let RecordBodyView::Hazard(unresolved) =
+        compose_participant(detail.presentation, &block, false).body
     else {
         panic!("hazard")
     };

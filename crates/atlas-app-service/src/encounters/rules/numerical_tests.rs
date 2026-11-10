@@ -553,22 +553,22 @@ fn maintained_grant_hints_describe_effects_without_saving_duplicate_conditions()
     );
     assert!(
         projected
-            .unapplied_effects
+            .condition_guidance
             .iter()
-            .any(|note| note.condition_id == Some(1)
+            .any(|note| note.source.saved_id() == Some(1)
                 && note.reason
                     == "Off-Guard and Immobilized. Manipulate actions require a DC 5 flat check.")
     );
-    assert!(
+    assert_eq!(
         projected
-            .unapplied_effects
-            .iter()
-            .any(|note| note.label == "Stupefied"
-                && note.reason == "Spellcasting requires a DC 8 flat check.")
+            .casting_guidance
+            .as_ref()
+            .map(|hint| hint.reason.as_str()),
+        Some("Spellcasting requires a DC 8 flat check.")
     );
     assert!(
         !projected
-            .unapplied_effects
+            .condition_guidance
             .iter()
             .any(|note| note.reason == "AC or movement statistics are unavailable.")
     );
@@ -591,26 +591,28 @@ fn manual_hints_resolve_suppression_and_scope_without_removing_sources() {
     actor.conditions[2].scope = ConditionScope::SelectedParticipants {
         participant_keys: vec!["other".into()],
     };
-    let hints = super::participant_runtime_block(&actor).unapplied_effects;
-    assert!(hints.iter().any(|hint| hint.condition_id == Some(2)));
-    assert!(!hints.iter().any(|hint| hint.condition_id == Some(1)));
-    assert!(!hints.iter().any(|hint| hint.label == "Stupefied"));
+    let block = super::participant_runtime_block(&actor);
+    let hints = block.condition_guidance;
+    assert!(hints.iter().any(|hint| hint.source.saved_id() == Some(2)));
+    assert!(!hints.iter().any(|hint| hint.source.saved_id() == Some(1)));
+    assert!(block.casting_guidance.is_none());
     assert_eq!(actor.conditions.len(), 3);
     actor.conditions.remove(1);
-    let hints = super::participant_runtime_block(&actor).unapplied_effects;
+    let block = super::participant_runtime_block(&actor);
+    let hints = block.condition_guidance;
     assert!(
-        hints
-            .iter()
-            .any(|hint| hint.condition_id == Some(1) && hint.reason.contains("DC 5 flat check"))
+        hints.iter().any(
+            |hint| hint.source.saved_id() == Some(1) && hint.reason.contains("DC 5 flat check")
+        )
     );
-    assert!(!hints.iter().any(|hint| hint.label == "Stupefied"));
+    assert!(block.casting_guidance.is_none());
     actor.conditions[1].scope = ConditionScope::Everyone;
-    assert!(
+    assert_eq!(
         super::participant_runtime_block(&actor)
-            .unapplied_effects
-            .iter()
-            .any(|hint| hint.label == "Stupefied"
-                && hint.reason == "Spellcasting requires a DC 8 flat check.")
+            .casting_guidance
+            .unwrap()
+            .reason,
+        "Spellcasting requires a DC 8 flat check."
     );
 }
 
@@ -623,13 +625,9 @@ fn stupefied_casting_hint_uses_one_effective_dc_for_manual_and_source_backed_act
         condition(2, ConditionRule::Stupefied, Some(5)),
     ];
     let assert_hint = |block: super::super::stat_block::StatBlockView| {
-        let hints = block
-            .unapplied_effects
-            .iter()
-            .filter(|hint| hint.label == "Stupefied")
-            .collect::<Vec<_>>();
-        assert_eq!(hints.len(), 1);
-        assert_eq!(hints[0].reason, "Spellcasting requires a DC 10 flat check.");
+        let hint = block.casting_guidance.unwrap();
+        assert_eq!(hint.reason, "Spellcasting requires a DC 10 flat check.");
+        assert_eq!(hint.source.saved_id(), Some(2));
     };
     assert_hint(super::participant_runtime_block(&actor));
     assert_hint(super::project_participant(
@@ -639,16 +637,19 @@ fn stupefied_casting_hint_uses_one_effective_dc_for_manual_and_source_backed_act
         &[],
     ));
     actor.conditions[1].value = None;
-    let hints = super::participant_runtime_block(&actor).unapplied_effects;
-    assert!(
-        hints.iter().any(|hint| hint.label == "Stupefied"
-            && hint.reason.starts_with("Enter the Stupefied value"))
-    );
-    assert!(
-        !hints
-            .iter()
-            .any(|hint| hint.reason == "Spellcasting requires a DC 8 flat check.")
-    );
+    let hint = super::participant_runtime_block(&actor)
+        .casting_guidance
+        .unwrap();
+    assert!(hint.reason.starts_with("Enter the Stupefied value"));
+    assert_eq!(hint.source.saved_id(), Some(2));
+}
+
+#[test]
+fn unavailable_condition_source_does_not_invent_stupefied() {
+    let mut baseline = source_baseline();
+    baseline.source_conditions = super::source_conditions::SourceConditions::unavailable();
+    let block = super::project_participant(&participant(), &baseline, true, &[]);
+    assert!(block.casting_guidance.is_none());
 }
 
 #[test]
@@ -749,12 +750,12 @@ fn missing_statistics_do_not_add_bookkeeping_notices_but_keep_table_reminders() 
         super::participant_runtime_block(&actor),
         super::project_participant(&actor, &source_baseline(), true, &[]),
     ] {
-        assert_eq!(block.unapplied_effects.len(), 1);
+        assert_eq!(block.condition_guidance.len(), 1);
         assert_eq!(
-            block.unapplied_effects[0].reason,
+            block.condition_guidance[0].reason,
             "Can't use exploration activities while traveling."
         );
-        assert_eq!(block.unapplied_effects[0].condition_id, Some(7));
+        assert_eq!(block.condition_guidance[0].source.saved_id(), Some(7));
     }
 }
 
@@ -839,10 +840,10 @@ fn behavioral_conditions_keep_row_hints_without_statistics() {
         condition(1, ConditionRule::Fascinated, None),
         condition(2, ConditionRule::Fleeing, None),
     ];
-    let notes = super::participant_runtime_block(&actor).unapplied_effects;
-    assert!(notes.iter().any(|note| note.condition_id == Some(1)
+    let notes = super::participant_runtime_block(&actor).condition_guidance;
+    assert!(notes.iter().any(|note| note.source.saved_id() == Some(1)
         && note.reason == "Concentrate actions must relate to the subject of fascination."));
-    assert!(notes.iter().any(|note| note.condition_id == Some(2)
+    assert!(notes.iter().any(|note| note.source.saved_id() == Some(2)
         && note.reason == "Spend your actions escaping the feared subject. Can't Delay or Ready."));
 }
 
@@ -857,9 +858,9 @@ fn fascination_hint_resolves_current_named_subject_and_other_description() {
         let mut block = super::participant_runtime_block(actor);
         super::resolve_condition_subject_hints(&mut block, actor, roster);
         block
-            .unapplied_effects
+            .condition_guidance
             .into_iter()
-            .find(|note| note.condition_id == Some(1))
+            .find(|note| note.source.saved_id() == Some(1))
             .unwrap()
             .reason
     };
@@ -944,6 +945,7 @@ fn uncertain_source_penalty_marks_only_affected_values_and_retains_known_calcula
     let presentation = crate::presentation::actor::compose_participant(
         crate::presentation::actor::manual_presentation(&p, &projected),
         &projected,
+        false,
     );
     let atlas_app_model::RecordBodyView::Creature(actor) = presentation.body else {
         panic!("creature");
@@ -1232,9 +1234,9 @@ fn fleeing_hint_uses_feared_subject_instead_of_causal_source() {
     resolve_condition_subject_hints(&mut block, &p, &[]);
     assert_eq!(
         block
-            .unapplied_effects
+            .condition_guidance
             .iter()
-            .find(|n| n.condition_id == Some(1))
+            .find(|n| n.source.saved_id() == Some(1))
             .unwrap()
             .reason,
         "Spend your actions escaping the burning doorway. Can't Delay or Ready."

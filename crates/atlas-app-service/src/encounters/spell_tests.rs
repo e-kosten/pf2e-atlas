@@ -666,18 +666,18 @@ fn confusion_guidance_stays_with_its_condition_without_hiding_casting_checks() {
     else {
         panic!("expected creature presentation");
     };
-    let note = actor
-        .runtime
-        .as_ref()
-        .unwrap()
-        .unapplied_effects
+    let condition = snapshot.participants[0]
+        .conditions
         .iter()
-        .find(|note| note.condition_id == Some(confused))
+        .find(|row| row.condition_id == confused)
         .unwrap();
-    assert_eq!(note.label, "Confused");
     assert_eq!(
-        note.reason,
-        "Randomly attacks with Strikes or offensive cantrips."
+        condition.guidance,
+        ["Randomly attacks with Strikes or offensive cantrips."]
+    );
+    assert_eq!(
+        actor.runtime.as_ref().unwrap().casting_hint.as_deref(),
+        Some("Spellcasting requires a DC 7 flat check.")
     );
 }
 

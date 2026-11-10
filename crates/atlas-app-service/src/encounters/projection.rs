@@ -4,7 +4,7 @@ use atlas_app_model::{
     AppErrorCode, EncounterDetailView, EncounterParticipantConditionView,
     EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
     EncounterParticipantVariantView, EncounterParticipantView, EncounterStatusView,
-    EncounterSummaryView,
+    EncounterSummaryView, InherentConditionView, InherentConditionsView,
 };
 use atlas_local_state::{
     Encounter, EncounterParticipant, EncounterParticipantCondition, EncounterStatus,
@@ -190,14 +190,34 @@ fn participant_view(
     let presentation = stat_block
         .as_ref()
         .and_then(|block| {
-            presented
-                .map(|r| crate::presentation::compose_participant(r.presentation.clone(), block))
+            presented.map(|r| {
+                let adjustment_unknown = record_detail
+                    .is_some_and(|record| record.adjustment_applicable)
+                    && participant.variant_origin
+                        == atlas_local_state::ParticipantVariantOrigin::InheritedUnknown;
+                crate::presentation::compose_participant(
+                    r.presentation.clone(),
+                    block,
+                    adjustment_unknown,
+                )
+            })
         })
         .or_else(|| {
             stat_block
                 .as_ref()
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
+    let has_casting_hint = presentation.as_ref().is_some_and(|presentation| {
+        let actor = match &presentation.body {
+            atlas_app_model::RecordBodyView::Creature(actor) => actor.as_ref(),
+            atlas_app_model::RecordBodyView::Hazard(hazard) => &hazard.actor,
+            _ => return false,
+        };
+        actor
+            .runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.casting_hint.is_some())
+    });
     let unknown = super::rules::source_conditions::SourceConditions::unavailable();
     let sources = condition_sources
         .get(&participant.participant_key)
@@ -281,6 +301,8 @@ fn participant_view(
     } else {
         vec![]
     };
+    let inherent_conditions =
+        inherent_condition_view(&participant, sources, stat_block.as_ref(), has_casting_hint);
     EncounterParticipantView {
         manual_trackers: super::manual_trackers::views(&participant, participants, round_seconds),
         ability_states: Some(super::ability_state::views(
@@ -354,10 +376,18 @@ fn participant_view(
         hidden: participant.hidden,
         note: participant.note,
         note_hint: note_hint.filter(|value| !value.is_empty()),
+        inherent_conditions,
         conditions: participant
             .conditions
             .into_iter()
-            .map(|c| condition_view(c, round_seconds))
+            .map(|c| {
+                let guidance = condition_guidance(
+                    stat_block.as_ref(),
+                    &super::rules::causes::ConditionSourceKey::Saved(c.condition_id),
+                    has_casting_hint,
+                );
+                condition_view(c, round_seconds, guidance)
+            })
             .collect(),
         presentation,
         record,
@@ -418,11 +448,101 @@ pub(super) fn participant_variant_view(
     }
 }
 
+fn condition_guidance(
+    block: Option<&super::stat_block::StatBlockView>,
+    source: &super::rules::causes::ConditionSourceKey,
+    has_casting_hint: bool,
+) -> Vec<String> {
+    let Some(block) = block else {
+        return Vec::new();
+    };
+    let mut reasons = Vec::new();
+    for guidance in block
+        .condition_guidance
+        .iter()
+        .chain(block.casting_guidance.iter().filter(|_| !has_casting_hint))
+        .filter(|guidance| guidance.source == *source)
+    {
+        if !reasons.contains(&guidance.reason) {
+            reasons.push(guidance.reason.clone());
+        }
+    }
+    reasons
+}
+
+fn inherent_condition_view(
+    participant: &EncounterParticipant,
+    sources: &super::rules::source_conditions::SourceConditions,
+    block: Option<&super::stat_block::StatBlockView>,
+    has_casting_hint: bool,
+) -> Option<InherentConditionsView> {
+    participant.record_key.as_ref().map(|key| {
+        let active = sources.active_entries(participant);
+        let unresolved = sources.unresolved_entries(participant);
+        InherentConditionsView {
+            unavailable_reason: sources.unavailable_reason.clone(),
+            entries: active
+                .iter()
+                .chain(&unresolved)
+                .copied()
+                .chain(sources.entries.iter().filter(|condition| {
+                    condition.override_identity.is_some()
+                        && !active.contains(condition)
+                        && !unresolved.contains(condition)
+                }))
+                .map(|condition| InherentConditionView {
+                    unavailable_reason: condition.activation_unavailable.clone().or_else(|| {
+                        if condition.override_identity.is_some() {
+                            None
+                        } else if unresolved.contains(&condition) {
+                            Some("Activation needs context; check the source rule.".into())
+                        } else if condition.rule.definition().has_value && condition.value.is_none()
+                        {
+                            Some("Source condition value is unavailable.".into())
+                        } else {
+                            None
+                        }
+                    }),
+                    guidance: condition_guidance(
+                        block,
+                        &super::rules::causes::ConditionSource::Authored(
+                            condition,
+                            sources.source_fingerprint.as_deref(),
+                            &participant.participant_key,
+                        )
+                        .key(),
+                        has_casting_hint,
+                    ),
+                    name: condition.rule.definition().name.into(),
+                    has_value: condition.rule.definition().has_value,
+                    value: condition.manual_value(participant).or(condition.value),
+                    editable_rule_ordinal: condition
+                        .override_identity
+                        .as_ref()
+                        .and(condition.grant_ordinal),
+                    condition_ref: condition.rule.definition().record_key.into(),
+                    source_name: condition.source_label.clone(),
+                    source: atlas_app_model::RecordNavigationView {
+                        record_key: key.clone(),
+                        owners: vec![condition.owner.clone()],
+                        field: None,
+                        passage: None,
+                        spell_rank: None,
+                        source_fingerprint: sources.source_fingerprint.clone(),
+                    },
+                })
+                .collect(),
+        }
+    })
+}
+
 fn condition_view(
     condition: EncounterParticipantCondition,
     round_seconds: i64,
+    guidance: Vec<String>,
 ) -> EncounterParticipantConditionView {
     EncounterParticipantConditionView {
+        guidance,
         condition_id: condition.condition_id,
         condition_key: condition.condition_key,
         name: condition.name,

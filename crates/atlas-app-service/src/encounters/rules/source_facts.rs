@@ -155,7 +155,8 @@ pub(in crate::encounters) fn authored_stat_baseline(
         speeds: vec![],
         action_budget: None,
         activities: vec![],
-        unapplied_effects: vec![],
+        condition_guidance: vec![],
+        casting_guidance: None,
     };
     let mut push = |target: StatisticTarget,
                     label: String,
@@ -252,18 +253,6 @@ pub(in crate::encounters) fn authored_stat_baseline(
             value.and_then(|value| (&value.base).into()).value(),
         )
     });
-    actor.visit_skills(|key, skill| {
-        if let Some(skill) = skill.value() {
-            if let Some(note) = SourceFieldView::from(&skill.note).value() {block.unapplied_effects.push(atlas_app_model::UnappliedEffectView {condition_id: None, source: format!("skill.{key}"), label: key.into(), reason: note.clone()});}
-            if let Some(special) = SourceFieldView::from(&skill.special).value() {
-                for conditional in special {
-                    if let (Some(label), Some(modifier)) = (SourceFieldView::from(&conditional.label).value(), SourceFieldView::from(&conditional.base).value()) {
-                        block.unapplied_effects.push(atlas_app_model::UnappliedEffectView {condition_id: None, source: format!("skill.{key}"), label: label.clone(), reason: format!("Conditional modifier {modifier}; apply only when its authored predicate matches.")});
-                    }
-                }
-            }
-        }
-    });
     if let Some(speed) = actor.land_speed().value() {
         block.speeds.push(speed_fact("land", speed));
     }
@@ -307,14 +296,6 @@ pub(in crate::encounters) fn authored_stat_baseline(
         activity_index += 1;
         if let Some(number) = item.lore_modifier().value() {
             block.values.push(StatValueView { notes: vec![],target: StatisticTarget::Skill(format!("lore.{index}")), label: node.name().value().cloned().unwrap_or_default(), ability: Some(Ability::Intelligence), base_value: number.clone(), adjusted_value: number.clone(), modifiers: vec![], suppressed_modifiers: vec![]});
-        }
-        if let Some(variants)=item.lore_variants().value() {
-            for (_,variant) in &variants.entries {
-                if let Some(label)=SourceFieldView::from(&variant.label).value()
-                    && let Some(reason)=SourceFieldView::from(&variant.options).value() {
-                        block.unapplied_effects.push(atlas_app_model::UnappliedEffectView {condition_id:None,source:node.name().value().cloned().unwrap_or_default(),label:label.clone(),reason:reason.clone()});
-                    }
-            }
         }
         let kind = match item { ItemSourceView::MeleeSource(_) => MechanicActivityKindView::Strike, ItemSourceView::SpellSource(_) => MechanicActivityKindView::Spell, ItemSourceView::SpellcastingEntrySource(_) => MechanicActivityKindView::CastingEntry, _ => MechanicActivityKindView::Other };
         let owners = vec![owner.clone()];

@@ -64,7 +64,7 @@ impl SourceConditions {
     pub fn unavailable() -> Self {
         Self {
             immunities: Default::default(),
-            unavailable_reason: Some("This creature's source conditions are unavailable.".into()),
+            unavailable_reason: Some("Source conditions are unavailable.".into()),
             ..Default::default()
         }
     }

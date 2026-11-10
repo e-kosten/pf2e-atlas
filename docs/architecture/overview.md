@@ -166,10 +166,12 @@ Hazard Detection DC and Broken Threshold are bounded readouts derived from the
 same displayed Stealth and maximum HP used by the reader. Encounter composition
 refreshes them after participant overlays; current HP does not determine BT.
 Zero maximum HP has no BT, while unavailable or invalid inputs stay explicit.
-Conditional skill summaries retain the authored label and supplied modifier;
-checked predicate text is available through Condition details (CLI full detail),
-without evaluating applicability. Physical base types retain exact authored
-identifiers with separate readable labels. Their links open a fresh Search with
+Conditional skill summaries retain the authored label and supplied modifier.
+Encounter skill rows project the applicable adjustments onto both ordinary and
+alternate totals and keep the original numbers in the calculation details.
+Checked qualification text is available through Condition details (CLI full
+detail). The GM decides when a circumstance applies. Physical base types retain
+exact authored identifiers with separate readable labels. Their links open a fresh Search with
 the shared `physical.base_type` equality predicate, preserving the selected search
 profile. The same field applies to root and immediate embedded equipment.
 Consumable reading includes meaningful intrinsic durability and After final use

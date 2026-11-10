@@ -147,14 +147,6 @@ export function EncounterConditionControls({
     queryFn: () => getEncounterConditionConsequences(encounterRef),
     enabled: !!onResolveDrained,
   });
-  const body = current.presentation?.body;
-  const actor =
-    body?.kind === "creature"
-      ? body.value
-      : body?.kind === "hazard"
-        ? body.value.actor
-        : undefined;
-  const manualNotes = actor?.runtime?.unapplied_effects ?? [];
   const selected =
     editor !== null && editor !== "add"
       ? current.conditions.find((c) => c.condition_id === editor.conditionId)
@@ -328,13 +320,11 @@ export function EncounterConditionControls({
           {condition.note}
         </span>
       )}
-      {manualNotes
-        .filter((note) => note.condition_id === condition.condition_id)
-        .map((note, index) => (
-          <p className="encounter-condition-manual-note" key={index}>
-            {note.reason}
-          </p>
-        ))}
+      {condition.guidance?.map((reason) => (
+        <p className="encounter-condition-manual-note" key={reason}>
+          {reason}
+        </p>
+      ))}
     </>
   );
   const renderCondition = (
@@ -518,7 +508,7 @@ export function EncounterConditionControls({
       group.sources.map((source) => source.condition_id),
     ),
   );
-  const inherent = current.turn_resources?.inherent_conditions;
+  const inherent = current.inherent_conditions;
   const inherentConditions = inherent?.entries ?? [];
   return (
     <section className="encounter-conditions">
@@ -654,6 +644,11 @@ export function EncounterConditionControls({
                     {condition.source_name || condition.name}
                   </Button>
                 </span>
+                {condition.guidance?.map((reason) => (
+                  <p className="encounter-condition-manual-note" key={reason}>
+                    {reason}
+                  </p>
+                ))}
               </div>
             );
           })}

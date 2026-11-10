@@ -141,6 +141,34 @@ async fn unknown_source_adjustment_uses_normal_for_detail_preview_and_add() {
 }
 
 #[tokio::test]
+async fn encounter_condition_guidance_serializes_on_its_row() {
+    let fixture = Fixture::new();
+    apply_condition(&fixture, &fixture.participant_key, "Prone").await;
+    let encounter = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
+    let participant = encounter["participants"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|participant| participant["participant_key"] == fixture.participant_key)
+        .unwrap();
+    let condition = participant["conditions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|condition| condition["name"] == "Prone")
+        .unwrap();
+    assert_eq!(
+        condition["guidance"],
+        json!(["Move by Crawling or Stand to end Prone."])
+    );
+    assert!(
+        participant["presentation"]["body"]["value"]["runtime"]
+            .get("unapplied_effects")
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
     let fixture = Fixture::new();
     let generation = fixture.service.readiness().artifact_generation.unwrap();
