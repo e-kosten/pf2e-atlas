@@ -66,7 +66,7 @@ describe("saved list local failure states", () => {
     );
     expect(screen.getByRole("heading", { name: "Long list" })).toBeVisible();
     expect(screen.queryByLabelText("List tags")).not.toBeInTheDocument();
-    const about = screen.getByRole("button", { name: "About this list" });
+    const about = screen.getByRole("button", { name: "About" });
     fireEvent.click(about);
     expect(await screen.findByLabelText("List tags")).toHaveTextContent(
       "Campaign tag 19",

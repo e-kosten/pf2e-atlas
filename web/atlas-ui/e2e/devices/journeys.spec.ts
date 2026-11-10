@@ -868,7 +868,7 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(editor).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
-    const about = page.getByRole("button", { name: "About this list" });
+    const about = page.getByRole("button", { name: "About" });
     await activate(about, info);
     await expect(page.getByText(description, { exact: true })).toBeVisible();
     await activate(about, info);

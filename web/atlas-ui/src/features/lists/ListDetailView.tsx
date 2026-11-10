@@ -1,3 +1,4 @@
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import type { ReorderPlacement } from "../../generated/atlas";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
@@ -362,6 +363,17 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
         {narrow && entryNote.detached && <ListEntryNoteEditor state={entryNote} />}
         <BrowseReader
           reading={addressableReading}
+          recordActions={(record) =>
+            record.record_key === route.selectedRecordKey &&
+            record.kind === "creature" ? (
+              <AddToRecordButton
+                key={record.record_key}
+                recordKey={record.record_key}
+                record={record}
+                encounterOnly
+              />
+            ) : null
+          }
           onClearSelection={() => {
             entryNote.finish();
             selection.cancel();

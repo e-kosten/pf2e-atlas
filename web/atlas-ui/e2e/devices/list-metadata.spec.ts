@@ -50,7 +50,7 @@ test(
 
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`/lists/${list.slug}`);
-      const trigger = page.getByRole("button", { name: "About this list" });
+      const trigger = page.getByRole("button", { name: "About" });
       await activate(trigger, info);
       const content = page.getByLabel("List tags", { exact: true });
       const popup = page.getByRole("tooltip").filter({ has: content });
@@ -94,12 +94,21 @@ test("saved-list controls stay local and retain search while clearing structured
       `/lists/${slug}/records/${sentinel}?q=Atlas&filter=${creatureFilter}`,
     );
     const results = page.getByRole("region", { name: "Saved records" });
+    await expect(
+      page
+        .getByRole("region", { name: "Record preview" })
+        .getByRole("button", { name: "Add to encounter", exact: true }),
+    ).toBeVisible();
+
     const search = results.getByRole("searchbox", { name: "Search this list" });
     const back = page.getByRole("button", { name: "Results", exact: true });
     if (await page.evaluate(() => innerWidth < 992)) {
       await activate(back, info);
     }
     await expect(search).toHaveValue("Atlas");
+    await expect(results.getByRole("button", { name: "Add to encounter" })).toHaveCount(
+      0,
+    );
     const filters = results.getByRole("button", { name: "Filters (1)", exact: true });
     const count = results.getByText("1 of 2 records", { exact: true });
     const panel = page.getByRole("dialog", { name: "Filter saved records" });
@@ -135,11 +144,11 @@ test("saved-list controls stay local and retain search while clearing structured
         )
         .toBe(true);
     }
-    await activate(drawer.getByRole("button", { name: "Close", exact: true }), info);
-    await expect(drawer).toBeHidden();
-
-    const links = panel.getByRole("button", { name: /^Links/ });
-    await activate(links, info);
+    const condition = drawer.getByRole("combobox", { name: "Add condition" });
+    await activate(condition, info);
+    await condition.fill("Record links");
+    await condition.press("Enter");
+    await activate(drawer.getByRole("button", { name: "Edit link" }), info);
     const linkPicker = page.getByRole("dialog", { name: "Add link condition" });
     await expect(linkPicker).toBeVisible();
     await activate(
@@ -147,8 +156,13 @@ test("saved-list controls stay local and retain search while clearing structured
       info,
     );
     await expect(linkPicker).toBeHidden();
+    await activate(drawer.getByRole("button", { name: "Close", exact: true }), info);
+    await expect(drawer).toBeHidden();
+
     await expect(panel).toBeVisible();
-    await links.press("Escape");
+    await expect(panel.getByRole("button", { name: /^Links/ })).toHaveCount(0);
+    await expect(panel.getByLabel("Selected kind").getByText("Creature")).toBeVisible();
+    await advanced.press("Escape");
     await expect(panel).toBeHidden();
 
     await activate(filters, info);

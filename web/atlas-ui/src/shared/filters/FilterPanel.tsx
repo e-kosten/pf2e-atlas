@@ -361,6 +361,7 @@ export function FilterControls({
         }
         onChange={prepared.change}
         workspace={countWorkspace}
+        allowRecordLinks={!!pane}
       />
     ) : null;
   const commonLayout = layout === "panel" ? "panel" : "toolbar";
@@ -393,7 +394,9 @@ export function FilterControls({
     .filter((field) => editor?.common_field_ids.includes(field.definition.id))
     .map((field) => field.definition);
   const advancedApplied =
-    editor && hasAdvancedFilterConditions(search.filter, commonFields);
+    editor &&
+    (hasAdvancedFilterConditions(search.filter, commonFields) ||
+      (pane && countLinkConditions(search.filter) > 0));
   const canClear = Boolean(
     search.filter ||
     search.filterError ||
@@ -482,7 +485,7 @@ export function FilterControls({
             ) : null;
           })}
         </div>
-        {includeLinks && (
+        {includeLinks && !pane && (
           <Button
             ref={linksTrigger}
             onClick={() => {
@@ -549,27 +552,29 @@ export function FilterControls({
           className="filter-controls__common-selections"
           ref={setSelectionContainer}
         />
-        <LinkFilterControls
-          filter={search.filter}
-          title={linkTitle}
-          limit={editor?.limits.relationship_leaves}
-          onEdit={(leaf, opener) =>
-            openPicker(
-              leaf.relationship,
-              leaf.clause_id!,
-              (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
-              { opener },
-            )
-          }
-          onRemove={(leaf) => {
-            const trigger = linksTrigger.current ?? advancedTrigger.current;
-            restoreOverlayFocus(
-              trigger,
-              trigger?.ownerDocument.activeElement as HTMLElement | null,
-            );
-            latestEditor.current.editLink(leaf, null);
-          }}
-        />
+        {!pane && (
+          <LinkFilterControls
+            filter={search.filter}
+            title={linkTitle}
+            limit={editor?.limits.relationship_leaves}
+            onEdit={(leaf, opener) =>
+              openPicker(
+                leaf.relationship,
+                leaf.clause_id!,
+                (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
+                { opener },
+              )
+            }
+            onRemove={(leaf) => {
+              const trigger = linksTrigger.current ?? advancedTrigger.current;
+              restoreOverlayFocus(
+                trigger,
+                trigger?.ownerDocument.activeElement as HTMLElement | null,
+              );
+              latestEditor.current.editLink(leaf, null);
+            }}
+          />
+        )}
       </div>
     </>
   );
@@ -750,7 +755,7 @@ function CommonFilter({
         <CommonChoicePicker
           selectionContainer={selectionContainer}
           field={field}
-          buttonText={compactPane ? (condition.clause ? "Change…" : "Any") : undefined}
+          inlineSelections={compactPane}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
           countContext={workspace.filterDiscoveryContext}
@@ -920,6 +925,7 @@ type BuilderContext = {
   scope: string | null;
   narrowFields: boolean;
   relatedTarget: boolean;
+  allowRecordLinks: boolean;
   workspace: FilterPanelState;
   addCondition: (path: number[], fieldId: string) => void;
   pendingConditionRef: RefObject<string | null>;
@@ -933,6 +939,7 @@ function StructuredBuilder({
   scope = null,
   useApplicability = false,
   relatedTarget = false,
+  allowRecordLinks = false,
   workspace,
 }: {
   editor: FilterEditorView;
@@ -941,6 +948,7 @@ function StructuredBuilder({
   scope?: string | null;
   useApplicability?: boolean;
   relatedTarget?: boolean;
+  allowRecordLinks?: boolean;
   workspace: FilterPanelState;
 }) {
   const pendingConditionRef = useRef<string | null>(null);
@@ -1019,6 +1027,7 @@ function StructuredBuilder({
             scope,
             narrowFields: useApplicability && isPositiveConjunction(query, visible),
             relatedTarget,
+            allowRecordLinks,
             workspace,
             pendingConditionRef,
             addCondition: (path, fieldId) => {
@@ -1227,7 +1236,11 @@ function filterFieldGroups(
     scope,
     narrowFields,
     relatedTarget,
-  }: Pick<BuilderContext, "editor" | "scope" | "narrowFields" | "relatedTarget">,
+    allowRecordLinks,
+  }: Pick<
+    BuilderContext,
+    "editor" | "scope" | "narrowFields" | "relatedTarget" | "allowRecordLinks"
+  >,
   addingCondition: boolean,
   currentField?: string,
 ): {
@@ -1299,7 +1312,7 @@ function filterFieldGroups(
                 searchText:
                   "Related entries contains abilities spells equipment links to linked from",
               },
-              ...(currentField === LINK_CONDITION
+              ...(allowRecordLinks || currentField === LINK_CONDITION
                 ? [
                     {
                       value: LINK_CONDITION,
@@ -1329,13 +1342,13 @@ function filterFieldGroups(
   ];
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
-  const { editor, scope, narrowFields, relatedTarget } =
+  const { editor, scope, narrowFields, relatedTarget, allowRecordLinks } =
     props.context as BuilderContext;
   const editing = useContext(RuleEditContext);
   const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
   const addingCondition = !props.value || props.value === "~";
   const groups = filterFieldGroups(
-    { editor, scope, narrowFields, relatedTarget },
+    { editor, scope, narrowFields, relatedTarget, allowRecordLinks },
     addingCondition,
     props.value,
   );
@@ -1640,7 +1653,12 @@ function BuilderValueEditor(props: ValueEditorProps) {
     return (
       <div className="filter-rule-value">
         <Button
-          disabled={props.disabled}
+          disabled={
+            props.disabled ||
+            (!editing.rule.value?.selection &&
+              countOtherLinkRules(query, editing.rule.id) >=
+                editor.limits.relationship_leaves)
+          }
           onClick={(event) =>
             links?.open(
               editing.rule,

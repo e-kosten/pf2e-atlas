@@ -5,7 +5,7 @@ import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
 import { Button, Popover, Tag, Typography } from "antd";
 import { useRef, useState } from "react";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
-import { ArrowLeft, Pencil, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { SavedListSummaryView } from "../../generated/atlas";
 export function ListBrowseHeader({
   error,
@@ -53,13 +53,9 @@ export function ListBrowseHeader({
           list && (
             <>
               {(list.description || list.tags.length > 0) && <ListAbout list={list} />}
-              <Button type="primary" icon={<Plus size={16} />} onClick={onAddRecords}>
-                Add records
-              </Button>
               <Button
                 type="text"
                 className="list-context-secondary"
-                icon={<Pencil size={16} />}
                 aria-busy={editPreparing}
                 loading={editPreparing ? { delay: 200 } : false}
                 onClick={(event) => {
@@ -68,6 +64,9 @@ export function ListBrowseHeader({
                 }}
               >
                 Edit list
+              </Button>
+              <Button type="primary" onClick={onAddRecords}>
+                Add records
               </Button>
             </>
           )
@@ -100,13 +99,13 @@ function ListAbout({ list }: { list: SavedListSummaryView }) {
         if (visible && document.activeElement === trigger.current)
           panel.current?.focus({ preventScroll: true });
       }}
-      title="About this list"
+      title="About"
       content={
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape closes the focused disclosure.
         <div
           className="list-about"
           role="dialog"
-          aria-label="About this list"
+          aria-label="About"
           tabIndex={-1}
           ref={panel}
           onKeyDown={handleEscape}
@@ -129,7 +128,7 @@ function ListAbout({ list }: { list: SavedListSummaryView }) {
         aria-expanded={open}
         onKeyDown={handleEscape}
       >
-        About this list
+        About
       </Button>
     </Popover>
   );

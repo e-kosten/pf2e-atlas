@@ -1,5 +1,4 @@
 import type { ReorderPlacement } from "../../generated/atlas";
-import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Tooltip, Button, Empty, Spin, theme } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
@@ -104,15 +103,6 @@ export function ListItemsPane({
           </div>
         )}
         <div className="list-member__actions">
-          {!overlay &&
-            item.status !== "unresolved" &&
-            item.record?.kind === "creature" && (
-              <AddToRecordButton
-                record={item.record}
-                recordKey={item.record_key}
-                encounterOnly
-              />
-            )}
           <Tooltip title="Remove" trigger={["hover", "focus"]}>
             <DangerActionButton
               className="list-member__remove"

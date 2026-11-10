@@ -320,11 +320,13 @@ to reuse a layout or copy the browsing interaction into another feature.
 Saved-list and encounter detail use `WorkspaceContextBar` for their title,
 surface, divider and spacing. Each feature supplies its own actions. Saved
 lists keep the labelled Saved lists parent link and Add records in this bar,
-with description and full tags available under About this list. The list pane
+with description and full tags available under About. The list pane
 owns two compact rows above its scrolling items: search and Filters, then the
 result count and current sort. The Filters disclosure uses the shared filter
 editor, shows the committed structured-condition count and clears criteria while
-keeping the text query and order. The index owns
+keeping the text query and order. Selected choices appear inside their fields,
+and record links are created and edited in Advanced. Add to encounter belongs
+with the selected creature’s record actions. The index owns
 list-name and local include/exclude tag filters and preserves its position on return. Reuse
 `ChoicePicker` for the interaction without manufacturing backend filter metadata.
 On narrow screens, show results or the reader and preserve the initiating row's focus and position on return.

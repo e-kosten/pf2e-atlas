@@ -34,7 +34,7 @@ type DiscoveryProps = {
   countQueryKey?: readonly unknown[];
   countLimit?: number;
   selectionContainer?: HTMLElement | null;
-  buttonText?: string;
+  inlineSelections?: boolean;
 };
 
 type ChoiceEdit =
@@ -91,7 +91,7 @@ function FilterChoicePicker({
   countQueryKey,
   countLimit = 0,
   selectionContainer,
-  buttonText,
+  inlineSelections,
 }: DiscoveryProps & { label?: string; edit: ChoiceEdit }) {
   const selected =
     edit.kind === "condition"
@@ -328,7 +328,7 @@ function FilterChoicePicker({
   return (
     <ReferenceHelpProvider onHelp={preview.openHelp} onReference={preview.open}>
       <ChoicePicker
-        buttonText={buttonText}
+        inlineSelections={inlineSelections}
         reading={
           preview.destination
             ? {

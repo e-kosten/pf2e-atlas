@@ -606,6 +606,11 @@
   font-size: inherit;
   white-space: normal;
 }
+.common-choice-operand__chip
+  > :is(.applied-filter-chip__include, .applied-filter-chip__exclude) {
+  margin-inline-end: var(--space-micro);
+}
+
 .common-choice-operand__chip-label {
   min-width: 0;
   white-space: normal;
@@ -773,12 +778,7 @@
 
 .pane-filter-panel .filter-controls__tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-control);
-}
-
-.pane-filter-panel .filter-controls__tools > .common-filters {
-  grid-column: 1 / -1;
 }
 
 .pane-filter-panel .common-filter {
