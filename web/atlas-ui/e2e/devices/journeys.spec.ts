@@ -859,12 +859,16 @@ test("list tags, editing and explicit Add survive constrained space", async ({
   let releaseAdd: (() => void) | undefined;
   try {
     await page.goto(`/lists/${list.slug}`);
-    await activate(page.getByRole("link", { name: "Edit list", exact: true }), info);
-    await page
+    await activate(page.getByRole("button", { name: "Edit list", exact: true }), info);
+    const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
+    const description = "A retained description draft with a useful purpose.";
+    await editor
       .getByRole("textbox", { name: "Description", exact: true })
-      .fill("A retained description draft with a useful purpose.");
-    await activate(page.getByRole("button", { name: "Save", exact: true }), info);
+      .fill(description);
+    await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(editor).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
+    await expect(page.getByText(description, { exact: true })).toBeVisible();
     await activate(
       page.getByRole("button", { name: "Add records", exact: true }),
       info,
