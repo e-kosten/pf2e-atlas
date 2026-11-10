@@ -1,0 +1,8 @@
+name = "Trudd's Strength"
+source_note = "Lost Omens Shining Kingdoms. The hammer-and-shield filigree improves its skill and activation bonuses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:I8XecIUYhwagAnXv", name = "Trudd's Strength", attributes = ["Base item"] },
+    { key = "equipment-srd:wvo5Qaj5qn7jFHaA", name = "Trudd's Strength (Greater)", attributes = ["Greater"] },
+]

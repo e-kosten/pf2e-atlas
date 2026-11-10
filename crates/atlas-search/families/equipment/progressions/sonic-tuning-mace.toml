@@ -1,0 +1,10 @@
+name = "Sonic Tuning Mace"
+source_note = "Impossible Magic. The twin-tipped mace improves its runes and the spell rank and DC of Cacophony."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:B0R1MtLnQvBwnOne", name = "Sonic Tuning Mace", attributes = ["Base item"] },
+    { key = "equipment-srd:ak3DfubhIWT3UiCf", name = "Sonic Tuning Mace (Greater)", attributes = ["Greater"] },
+]

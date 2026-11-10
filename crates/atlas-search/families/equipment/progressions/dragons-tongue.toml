@@ -1,0 +1,11 @@
+name = "Dragon's Tongue"
+source_note = "Lost Omens Draconic Codex. The longspear uses progressively older dragon organs and improves its runes, breath damage, and Reflex DC."
+item_type = "weapon"
+category = "simple"
+group = "spear"
+
+members = [
+    { key = "equipment-srd:QwRTK0x9L04xKyU5", name = "Dragon's Tongue", attributes = ["Base item"] },
+    { key = "equipment-srd:sq33MLggeM8D7Zz3", name = "Dragon's Tongue (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:fukrqsWzFeRbiLbi", name = "Dragon's Tongue (Major)", attributes = ["Major"] },
+]

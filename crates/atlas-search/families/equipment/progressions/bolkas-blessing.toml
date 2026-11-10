@@ -1,0 +1,8 @@
+name = "Bolka's Blessing"
+source_note = "Lost Omens Shining Kingdoms. The Bolka filigree improves its social bonuses and its Gift of healing effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:fqnjZzwBi9GH4CXO", name = "Bolka's Blessing", attributes = ["Base item"] },
+    { key = "equipment-srd:mcBXIHJGVQrbDLxi", name = "Bolka's Blessing (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Alluring Scarf"
+source_note = "Lost Omens The Grand Bazaar. The hue-shifting scarf increases the radius and Will DC of its effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:GM9Ky5LEkPHZqme0", name = "Alluring Scarf", attributes = ["Base item"] },
+    { key = "equipment-srd:LKNsUuhm1CcUIWMh", name = "Alluring Scarf (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:oRQFgqcl8L5ix8h1", name = "Alluring Scarf (Major)", attributes = ["Major"] },
+]

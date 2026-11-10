@@ -1,0 +1,11 @@
+name = "Fey Staff"
+source_note = "Impossible Magic. The vine-twined fey staff adds higher-rank spells including summons and transformations."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:edAiZ7A9ojZpP7Xe", name = "Fey Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:MoxAqfNzUvEmIy5e", name = "Fey Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:XxaNwktHoAXVk694", name = "Fey Staff (Major)", attributes = ["Major"] },
+]

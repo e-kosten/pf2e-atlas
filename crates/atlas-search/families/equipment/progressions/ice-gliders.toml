@@ -1,0 +1,8 @@
+name = "Ice Gliders"
+source_note = "Impossible Magic. The embroidered boots increase the emanation of their ice effect at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:c8hgn34pOwUjMTnk", name = "Ice Gliders", attributes = ["Base item"] },
+    { key = "equipment-srd:9v8O16eyTMiSGVmr", name = "Ice Gliders (Greater)", attributes = ["Greater"] },
+]

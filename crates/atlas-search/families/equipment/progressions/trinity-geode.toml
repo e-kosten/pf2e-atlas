@@ -1,0 +1,9 @@
+name = "Trinity Geode"
+source_note = "Impossible Magic. The three-lobed earth spellheart improves its casting and numeric benefits and adds higher-rank spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:lN3Fn9AuNcKbXucJ", name = "Trinity Geode", attributes = ["Base item"] },
+    { key = "equipment-srd:5W86t6I92rRNSmwR", name = "Trinity Geode (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:2sr23ZSpplB1oBHd", name = "Trinity Geode (Major)", attributes = ["Major"] },
+]

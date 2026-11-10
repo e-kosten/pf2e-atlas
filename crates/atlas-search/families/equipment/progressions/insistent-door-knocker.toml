@@ -1,0 +1,9 @@
+name = "Insistent Door Knocker"
+source_note = "Lost Omens Character Guide. The iron knocker improves the lockpicking bonus and extends the thickness of the door it can affect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:I95zlGUDCply1Ydm", name = "Insistent Door Knocker", attributes = ["Base item"] },
+    { key = "equipment-srd:a5dEzZPuxsmTvlWS", name = "Insistent Door Knocker (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:3BTIKYHck3JIAPiH", name = "Insistent Door Knocker (Major)", attributes = ["Major"] },
+]

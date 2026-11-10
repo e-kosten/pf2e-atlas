@@ -1,0 +1,8 @@
+name = "Ashen"
+source_note = "Lost Omens Highhelm. The weapon rune increases persistent fire damage and the Will DC, and lengthens its effect on critical failure."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:yMEDmJWDPv2i78WO", name = "Ashen", attributes = ["Base item"] },
+    { key = "equipment-srd:lo5QOMA9VAUwUVl7", name = "Ashen (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Arctic Vigor"
+source_note = "Lost Omens The Grand Bazaar. The polar-bear tattoo adds protection against incredible cold at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:nowjVXddPXr6fMnR", name = "Arctic Vigor", attributes = ["Base item"] },
+    { key = "equipment-srd:nSG5bwiZBEjj53Ya", name = "Arctic Vigor (Greater)", attributes = ["Greater"] },
+]

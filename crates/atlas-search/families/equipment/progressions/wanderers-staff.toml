@@ -1,0 +1,10 @@
+name = "Wanderer’s Staff"
+source_note = "Impossible Magic. The terrain-mapping staff adds third- and fourth-rank travel and survival spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:ThHsWkYUy77eQXJi", name = "Wanderer’s Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:OPoF3jdcwSmKtAo2", name = "Wanderer’s Staff (Greater)", attributes = ["Greater"] },
+]

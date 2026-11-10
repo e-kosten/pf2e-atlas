@@ -1,0 +1,10 @@
+name = "Toadskin Salve"
+source_note = "Lost Omens The Grand Bazaar. The toxic mucus salve improves its persistent poison and numeric benefits and extends duration at the major grade."
+item_type = "consumable"
+category = "poison"
+
+members = [
+    { key = "equipment-srd:ANQz5rzp5kKe7ul6", name = "Toadskin Salve", attributes = ["Base item"] },
+    { key = "equipment-srd:RuGGAFaTHMCC6chN", name = "Toadskin Salve (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:dlaDnZFsy4JCYmEO", name = "Toadskin Salve (Major)", attributes = ["Major"] },
+]

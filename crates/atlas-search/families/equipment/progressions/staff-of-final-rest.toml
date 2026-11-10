@@ -1,0 +1,11 @@
+name = "Staff of Final Rest"
+source_note = "Lost Omens The Grand Bazaar. The marble Lastwall staff improves its bonus and adds higher-rank spells for healing and confronting undead."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:HMjn8Ln1Wp1Ld2S3", name = "Staff of Final Rest", attributes = ["Base item"] },
+    { key = "equipment-srd:xec2kwqFjxHjFwLa", name = "Staff of Final Rest (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:SSZojuAMC9Npvfm3", name = "Staff of Final Rest (Major)", attributes = ["Major"] },
+]

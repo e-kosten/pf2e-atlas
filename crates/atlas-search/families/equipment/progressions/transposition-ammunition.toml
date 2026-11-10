@@ -1,0 +1,8 @@
+name = "Transposition Ammunition"
+source_note = "Lost Omens The Grand Bazaar. The shifting ammunition's teleportation carries up to two willing adjacent creatures at the greater grade."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:YCFiwaS94TyfYtOe", name = "Transposition Ammunition", attributes = ["Base item"] },
+    { key = "equipment-srd:9CNxvAalHBPdSUFl", name = "Transposition Ammunition (Greater)", attributes = ["Greater"] },
+]

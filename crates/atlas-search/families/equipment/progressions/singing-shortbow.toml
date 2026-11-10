@@ -1,0 +1,10 @@
+name = "Singing Shortbow"
+source_note = "Impossible Magic. The musical bow improves its runes and increases both healing and sonic damage and the associated DC."
+item_type = "weapon"
+category = "martial"
+group = "bow"
+
+members = [
+    { key = "equipment-srd:tVcI2ypPhfhchwMp", name = "Singing Shortbow", attributes = ["Base item"] },
+    { key = "equipment-srd:ul4LuDff24Kz9n7e", name = "Singing Shortbow (Greater)", attributes = ["Greater"] },
+]

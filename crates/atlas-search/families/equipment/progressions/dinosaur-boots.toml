@@ -1,0 +1,8 @@
+name = "Dinosaur Boots"
+source_note = "Lost Omens The Grand Bazaar. The scaled boots add a Huge size option and stronger damage to their greater transformation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:rqwmqnCZ0xz7vF1b", name = "Dinosaur Boots", attributes = ["Base item"] },
+    { key = "equipment-srd:6epYSje4gOgYPvK0", name = "Dinosaur Boots (Greater)", attributes = ["Greater"] },
+]

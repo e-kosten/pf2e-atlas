@@ -1,0 +1,8 @@
+name = "Silver Tongue"
+source_note = "Impossible Magic. The tongue-shaped spellheart improves its bonuses and DC and adds a higher-rank spell."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:HKnsPxrmgSPdHXAQ", name = "Silver Tongue", attributes = ["Base item"] },
+    { key = "equipment-srd:JeDblE7P3ITCsjcV", name = "Silver Tongue (Greater)", attributes = ["Greater"] },
+]

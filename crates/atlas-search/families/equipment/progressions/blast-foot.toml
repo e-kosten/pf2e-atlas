@@ -1,0 +1,8 @@
+name = "Blast Foot"
+source_note = "Lost Omens The Grand Bazaar. The engraved prosthesis shortens its cooldown and increases the cone, damage, and Reflex DC of its blast."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:U0R8AHRhK0Wu9r2i", name = "Blast Foot", attributes = ["Base item"] },
+    { key = "equipment-srd:yo6kdcUhqv5YyMM5", name = "Blast Foot (Greater)", attributes = ["Greater"] },
+]

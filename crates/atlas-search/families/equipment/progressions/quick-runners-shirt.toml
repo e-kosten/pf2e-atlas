@@ -1,0 +1,8 @@
+name = "Quick Runner's Shirt"
+source_note = "Lost Omens The Grand Bazaar. The winged-feet shirt increases uses of its movement activation from one to three per hour."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:OFo1349Pems2mboB", name = "Quick Runner's Shirt", attributes = ["Base item"] },
+    { key = "equipment-srd:hwszIqJguVfoc3ZD", name = "Quick Runner's Shirt (Greater)", attributes = ["Greater"] },
+]

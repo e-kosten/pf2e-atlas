@@ -1,0 +1,8 @@
+name = "Energy-Absorbing"
+source_note = "Kingmaker. The armor rune improves selected energy resistance and increases the damage of its energy effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:mfhcGeS0L7pPZnex", name = "Energy-Absorbing", attributes = ["Base item"] },
+    { key = "equipment-srd:Oj3TuNNUT3ayL3Ea", name = "Energy-Absorbing (Greater)", attributes = ["Greater"] },
+]

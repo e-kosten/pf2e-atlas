@@ -1,0 +1,8 @@
+name = "Spectacles of Understanding"
+source_note = "Lost Omens Pathfinder Society Guide. The wood-framed spectacles improve their bonus and sustain the activation until folded or no longer invested."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:x4l3JjePzROLDSK6", name = "Spectacles of Understanding", attributes = ["Base item"] },
+    { key = "equipment-srd:ZKFmyG9fIoQWIrql", name = "Spectacles of Understanding (Greater)", attributes = ["Greater"] },
+]

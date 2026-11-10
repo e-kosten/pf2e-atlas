@@ -1,0 +1,10 @@
+name = "Stanching"
+source_note = "Lost Omens The Grand Bazaar. The armor rune lowers the flat-check DC to end persistent bleed through the true grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:NJtIwMIzjdRqupAM", name = "Stanching", attributes = ["Base item"] },
+    { key = "equipment-srd:ioLWDzXp2dG7ZMHf", name = "Stanching (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ZTdRDRew1B0zTGiU", name = "Stanching (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:dLYifig01WulSNVF", name = "Stanching (True)", attributes = ["True"] },
+]

@@ -1,0 +1,10 @@
+name = "Fire and Iceberg"
+source_note = "Lost Omens The Grand Bazaar. The paprika and winterbite salad strengthens and extends its effect at higher grades."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:KadHRRccZ5rWRl7c", name = "Fire and Iceberg", attributes = ["Base item"] },
+    { key = "equipment-srd:jNdAX4hBp0pzWalL", name = "Fire and Iceberg (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:9Fps57Xc1XxxWK0j", name = "Fire and Iceberg (Major)", attributes = ["Major"] },
+]

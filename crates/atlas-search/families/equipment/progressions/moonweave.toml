@@ -1,0 +1,9 @@
+name = "Moonweave"
+source_note = "Impossible Magic. The armor's moonlight restores progressively more additional Hit Points when healed by magic."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:PV2TxKcs09x9BfCc", name = "Moonweave", attributes = ["Base item"] },
+    { key = "equipment-srd:Lf4j51ICwt4zgxnj", name = "Moonweave (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:2SeX2vfTta5EL8x4", name = "Moonweave (Major)", attributes = ["Major"] },
+]

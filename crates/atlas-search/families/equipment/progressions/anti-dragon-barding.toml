@@ -1,0 +1,9 @@
+name = "Anti-Dragon Barding"
+source_note = "Lost Omens Draconic Codex. The spiked barding increases its protective bonus and piercing damage at the greater grade."
+item_type = "armor"
+category = "light-barding"
+
+members = [
+    { key = "equipment-srd:ZsMwDe78kIqZj5de", name = "Anti-Dragon Barding", attributes = ["Base item"] },
+    { key = "equipment-srd:YPnmDZMcGaMyCHpZ", name = "Anti-Dragon Barding (Greater)", attributes = ["Greater"] },
+]

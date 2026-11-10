@@ -1,0 +1,8 @@
+name = "Kols's Oath"
+source_note = "Lost Omens Shining Kingdoms. The clan-dagger filigree improves its skill bonuses and its activation's mental damage and Will DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:tvFMexALNZ70NVwh", name = "Kols's Oath", attributes = ["Base item"] },
+    { key = "equipment-srd:BuQsMeD7IP4mvDCQ", name = "Kols's Oath (Greater)", attributes = ["Greater"] },
+]

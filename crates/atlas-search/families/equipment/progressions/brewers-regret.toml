@@ -1,0 +1,9 @@
+name = "Brewer's Regret"
+source_note = "Lost Omens The Grand Bazaar. The sour food retains its doomed reduction and increases its bonus against death and void effects."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:MlzPOG2v9bO4XoLg", name = "Brewer's Regret", attributes = ["Base item"] },
+    { key = "equipment-srd:RN8TnAhWQ4tNKHgP", name = "Brewer's Regret (Greater)", attributes = ["Greater"] },
+]

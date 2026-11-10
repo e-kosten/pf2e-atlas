@@ -1,0 +1,11 @@
+name = "Staff of Nature's Cunning"
+source_note = "Impossible Magic. The moss-covered Nature staff adds higher-rank protective and plant spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:jwa10xel66Wc7U3p", name = "Staff of Nature's Cunning", attributes = ["Base item"] },
+    { key = "equipment-srd:xt4sb8vz8VRlJoKm", name = "Staff of Nature's Cunning (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:1yZRZeVAVxrb5HM2", name = "Staff of Nature's Cunning (Major)", attributes = ["Major"] },
+]

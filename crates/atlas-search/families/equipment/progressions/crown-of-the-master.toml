@@ -1,0 +1,8 @@
+name = "Crown of the Master"
+source_note = "Lost Omens High Seas. The coral crown improves its bonus and gains Imperative Order at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Bax4gtWcjgmqzr1M", name = "Crown of the Master", attributes = ["Base item"] },
+    { key = "equipment-srd:StxHhiQ0FRWxJol6", name = "Crown of the Master (Greater)", attributes = ["Greater"] },
+]

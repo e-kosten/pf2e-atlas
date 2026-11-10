@@ -1,0 +1,11 @@
+name = "Staff of the Dreamlands"
+source_note = "Lost Omens The Grand Bazaar. The hag-hand staff adds higher-rank dream and illusion spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:214J8KhXn2H19DeC", name = "Staff of the Dreamlands", attributes = ["Base item"] },
+    { key = "equipment-srd:eHs1vJMXGLIPues8", name = "Staff of the Dreamlands (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:NWMHPsVBIaNZ5X2W", name = "Staff of the Dreamlands (Major)", attributes = ["Major"] },
+]

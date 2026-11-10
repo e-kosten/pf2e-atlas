@@ -1,0 +1,11 @@
+name = "Birchstaff"
+source_note = "Impossible Magic. The golden birch staff adds higher-rank wood spells while retaining its defensive bonus."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:4oOmIQQTJW88JfU3", name = "Birchstaff", attributes = ["Base item"] },
+    { key = "equipment-srd:8qCrpn4pAjfSwRgm", name = "Birchstaff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:bnkQ7zSAmuW0azf1", name = "Birchstaff (Major)", attributes = ["Major"] },
+]

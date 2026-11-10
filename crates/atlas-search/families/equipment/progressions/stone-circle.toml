@@ -1,0 +1,8 @@
+name = "Stone Circle"
+source_note = "Lost Omens The Grand Bazaar. The transforming stone improves its activation frequency and changes how checks resolve."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:3GnTrwAfD00zW2cO", name = "Stone Circle", attributes = ["Base item"] },
+    { key = "equipment-srd:adqiLRzIEHiG356b", name = "Stone Circle (Greater)", attributes = ["Greater"] },
+]

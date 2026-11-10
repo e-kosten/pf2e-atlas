@@ -1,0 +1,9 @@
+name = "Paired"
+source_note = "Lost Omens The Grand Bazaar. The paired pocket runes extend their activation range to a mile and then anywhere on the same plane."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Ez0byAlwJwzRXof5", name = "Paired", attributes = ["Base item"] },
+    { key = "equipment-srd:We11d1zelZ1wskvN", name = "Paired (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:VqT8sHEf2gcY6arL", name = "Paired (Major)", attributes = ["Major"] },
+]

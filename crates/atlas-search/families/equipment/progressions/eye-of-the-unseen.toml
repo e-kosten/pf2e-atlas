@@ -1,0 +1,8 @@
+name = "Eye of the Unseen"
+source_note = "Lost Omens The Grand Bazaar. The prosthetic eye improves visual Perception and casts a higher-rank spell at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:S4w9D1naKennNO5T", name = "Eye of the Unseen", attributes = ["Base item"] },
+    { key = "equipment-srd:7CCGLWYzsRuodCMM", name = "Eye of the Unseen (Greater)", attributes = ["Greater"] },
+]

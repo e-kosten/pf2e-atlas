@@ -1,0 +1,10 @@
+name = "Quotidian Staff"
+source_note = "Impossible Magic. The everyday oak staff adds second-rank spells for repair and temperature relief."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:3IPMjCJbkFdXjNaQ", name = "Quotidian Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:NsD23QENeWxASSUu", name = "Quotidian Staff (Greater)", attributes = ["Greater"] },
+]

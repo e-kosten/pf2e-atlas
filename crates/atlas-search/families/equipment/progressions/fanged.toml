@@ -1,0 +1,9 @@
+name = "Fanged"
+source_note = "Lost Omens The Grand Bazaar. The transformation rune adds low-light vision and increasing Speed, with scent at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:pcGdJvwun0tjrUTz", name = "Fanged", attributes = ["Base item"] },
+    { key = "equipment-srd:cvb47A6K1w7RfNiv", name = "Fanged (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:qL1S3vGfv8Dh5yAE", name = "Fanged (Major)", attributes = ["Major"] },
+]
