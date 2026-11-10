@@ -87,7 +87,7 @@ function FamilyMembers({
             <label htmlFor={selector}>Group by</label>
             <Select
               id={selector}
-              virtual={false}
+              popupMatchSelectWidth={false}
               value={grouping.id}
               onChange={setAxis}
               options={family.groupings.map(({ id, label }) => ({ value: id, label }))}
