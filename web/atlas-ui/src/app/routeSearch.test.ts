@@ -166,7 +166,6 @@ it("omits irrelevant record parameters while preserving exact rank and view", ()
     canonicalRouteSearch("record", {
       rank: ["000", "000"],
       record_view: "read",
-      record_tab: "incoming",
       q: "ignored",
       page: "5",
       filter,
@@ -181,6 +180,16 @@ it("omits irrelevant record parameters while preserving exact rank and view", ()
     }),
   ).toEqual({ sort: ["level_desc", "name_asc"], seed: "invalid" });
   expect(canonicalRouteSearch("empty", { q: "ignored", rank: "bad" })).toEqual({});
+});
+
+it("distinguishes an automatic Explore landing from an explicit Referenced by tab", () => {
+  expect(canonicalRouteSearch("record", { record_view: "explore" })).toEqual({
+    record_view: "explore",
+  });
+  expect(
+    recordDestination({ recordKey: "actors:seed", view: "explore", tab: "incoming" })
+      .search,
+  ).toEqual({ record_view: "explore", record_tab: "incoming" });
 });
 
 it.each(["0", "-1", "1.5", "oops", "4294967296"])(

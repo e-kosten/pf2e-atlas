@@ -470,7 +470,11 @@ it("retains active Search filters and explicit order in the Similar handoff", as
       "link-0",
     ),
   };
-  history.replaceState(null, "", "/search" + searchStateQueryString(state));
+  history.replaceState(
+    null,
+    "",
+    "/search/records/actors:seed" + searchStateQueryString(state),
+  );
   renderRelated();
   openRelated();
   await selectTab("Similar");
@@ -881,26 +885,26 @@ it.each([
   expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
 });
 
-it("puts Versions first when alternatives arrive and retains the selected task", async () => {
+it("lands on the first Explore tab when Versions is available and preserves an explicit tab", async () => {
   let resolve!: (value: ReturnType<typeof relatedFixture>) => void;
   api.getRelatedRecords.mockReturnValue(
     new Promise((yes) => {
       resolve = yes;
     }),
   );
-  renderRelated(
-    detailFixture("actors:seed", "Viewed creature"),
-    undefined,
-    createAtlasRouter(
-      createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
-    ),
+  const router = createAtlasRouter(
+    createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
   );
+  renderRelated(detailFixture("actors:seed", "Viewed creature"), undefined, router);
   openRelated();
   await waitFor(() => expect(api.getRelatedRecords).toHaveBeenCalled());
   expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
   await act(async () => resolve({ ...relatedFixture(), show_versions: true }));
-  const versions = await screen.findByRole("tab", { name: "Versions" });
+  const versions = await screen.findByRole("tab", { name: "Versions", selected: true });
   expect(within(screen.getByRole("tablist")).getAllByRole("tab")[0]).toBe(versions);
+  expect(router.latestLocation.search.record_tab).toBeUndefined();
+  await selectTab("Referenced by");
+  await waitFor(() => expect(router.latestLocation.search.record_tab).toBe("incoming"));
   expect(
     screen.getByRole("tab", { name: "Referenced by", selected: true }),
   ).toBeVisible();

@@ -69,7 +69,7 @@ function readingSearch(
     if (focus !== undefined) search.focus = focus;
   }
   if (input.view === "explore") search.record_view = "explore";
-  if (input.tab && input.tab !== "incoming") search.record_tab = input.tab;
+  if (input.tab) search.record_tab = input.tab;
   if (input.definitionKey) search.definition_key = input.definitionKey;
   return search;
 }

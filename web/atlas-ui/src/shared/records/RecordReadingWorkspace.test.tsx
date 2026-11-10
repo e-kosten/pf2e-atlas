@@ -13,7 +13,7 @@ it("restores reading mode and the selected Explore tab through Back and Forward"
     const { tab, setTab } = useRecordExploreLocation();
     return (
       <div>
-        Explore: {tab}
+        Explore: {tab ?? "automatic"}
         <button onClick={() => setTab("similar")}>Similar</button>
         <button onClick={() => void router.navigate({ to: "/search" })}>
           Search all
@@ -40,7 +40,7 @@ it("restores reading mode and the selected Explore tab through Back and Forward"
   );
   await waitFor(() => expect(screen.getByText("Document prose")).toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Explore related records" }));
-  await waitFor(() => expect(screen.getByText("Explore: incoming")).toBeVisible());
+  await waitFor(() => expect(screen.getByText("Explore: automatic")).toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Similar" }));
   await waitFor(() => expect(screen.getByText("Explore: similar")).toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Search all" }));

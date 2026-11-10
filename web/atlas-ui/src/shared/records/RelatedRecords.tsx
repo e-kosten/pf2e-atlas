@@ -124,17 +124,21 @@ export function RelatedRecords(props: ExploreProps) {
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
   ];
-  const defaultTab = hasIncoming ? "incoming" : hasOutgoing ? "outgoing" : "similar";
+  const waitingForDefault = active === undefined && related.isPending;
   return (
     <section className="record-explore" aria-label="Explore record">
-      <Tabs
-        activeKey={items.some((item) => item.key === active) ? active : defaultTab}
-        onChange={setActive}
-        more={{ trigger: ["click"] }}
-        animated={false}
-        destroyOnHidden
-        items={items}
-      />
+      {waitingForDefault ? (
+        <LoadingStatus label="Checking versions…" />
+      ) : (
+        <Tabs
+          activeKey={items.some((item) => item.key === active) ? active : items[0].key}
+          onChange={setActive}
+          more={{ trigger: ["click"] }}
+          animated={false}
+          destroyOnHidden
+          items={items}
+        />
+      )}
     </section>
   );
 }
@@ -437,7 +441,7 @@ function FamilyVersions({
           items={[
             {
               key: "other-combinations",
-              label: `Other combinations (${others.length})`,
+              label: `Other variants (${others.length})`,
               children: cards(others),
             },
           ]}

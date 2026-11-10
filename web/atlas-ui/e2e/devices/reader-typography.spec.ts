@@ -23,6 +23,13 @@ test.describe("narrow desktop tabs with touch input", () => {
       .tap();
     const versions = page.getByRole("tab", { name: "Versions", exact: true });
     await expect(versions).toBeInViewport({ ratio: 1 });
+    await expect(versions).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(".remaster-relationship__line")).toContainText(
+      "Legacy signal",
+    );
+    await expect(
+      page.getByRole("button", { name: "Compare", exact: true }),
+    ).toBeVisible();
     const more = page.locator(".record-explore .ant-tabs-nav-more");
     await expect(more).toBeVisible();
     await more.tap();
@@ -31,13 +38,6 @@ test.describe("narrow desktop tabs with touch input", () => {
     await expect(menu).toBeHidden();
     await expect(
       page.getByRole("tab", { name: "Similar", selected: true }),
-    ).toBeVisible();
-    await versions.tap();
-    await expect(page.locator(".remaster-relationship__line")).toContainText(
-      "Legacy signal",
-    );
-    await expect(
-      page.getByRole("button", { name: "Compare", exact: true }),
     ).toBeVisible();
   });
 });
