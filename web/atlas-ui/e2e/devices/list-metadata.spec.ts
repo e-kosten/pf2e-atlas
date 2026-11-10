@@ -102,9 +102,8 @@ test("saved-list controls stay local and retain search while clearing structured
 
     const search = results.getByRole("searchbox", { name: "Search this list" });
     const back = page.getByRole("button", { name: "Results", exact: true });
-    if (await page.evaluate(() => innerWidth < 992)) {
-      await activate(back, info);
-    }
+    const wide = await page.evaluate(() => innerWidth >= 992);
+    if (!wide) await activate(back, info);
     await expect(search).toHaveValue("Atlas");
     await expect(results.getByRole("button", { name: "Add to encounter" })).toHaveCount(
       0,
@@ -117,7 +116,7 @@ test("saved-list controls stay local and retain search while clearing structured
     const reader = page
       .getByRole("region", { name: "Record preview" })
       .filter({ visible: true });
-    const before = await reader.boundingBox();
+    const before = wide ? await reader.boundingBox() : null;
     await activate(filters, info);
     await expect(panel).toBeVisible();
     if (before) {

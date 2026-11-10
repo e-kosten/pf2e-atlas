@@ -540,9 +540,9 @@ test("list drops retain order and geometry through delayed writes and refreshes"
       await page.keyboard.press("Space", { delay: 20 });
       await expect(source).toHaveAttribute("aria-pressed", "true");
       await page.keyboard.press("ArrowDown");
-      await expect(page.getByRole("status")).toContainText(
-        `was moved over droppable area ${keys[1]}`,
-      );
+      await expect(
+        page.getByRole("status").filter({ hasText: "was moved over droppable area" }),
+      ).toContainText(`was moved over droppable area ${keys[1]}`);
       await page.keyboard.press("Space");
     } else {
       const from = (await source.boundingBox())!;
@@ -574,9 +574,9 @@ test("list drops retain order and geometry through delayed writes and refreshes"
     await page.keyboard.press("Space", { delay: 20 });
     await expect(movedHandle).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("ArrowUp");
-    await expect(page.getByRole("status")).toContainText(
-      `was moved over droppable area ${keys[1]}`,
-    );
+    await expect(
+      page.getByRole("status").filter({ hasText: "was moved over droppable area" }),
+    ).toContainText(`was moved over droppable area ${keys[1]}`);
     await page.keyboard.press("Space");
     await expect.poll(() => writes).toBe(2);
     await expect(movedHandle).toBeEnabled();
