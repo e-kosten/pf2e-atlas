@@ -52,6 +52,7 @@ pub(crate) fn status_for_error(code: AppErrorCode) -> StatusCode {
         | AppErrorCode::FilterOptionInvalid => StatusCode::BAD_REQUEST,
         AppErrorCode::PartyNotFound
         | AppErrorCode::RecordNotFound
+        | AppErrorCode::EquipmentFamilyNotFound
         | AppErrorCode::SavedListItemNotFound
         | AppErrorCode::SavedListNotFound
         | AppErrorCode::EncounterNotFound

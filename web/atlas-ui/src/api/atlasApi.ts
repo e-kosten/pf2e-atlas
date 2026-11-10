@@ -598,6 +598,10 @@ function checkedSavedListDetail(value: http.SavedListDetailView): SavedListDetai
   return value;
 }
 
+export function getEquipmentFamily(familyId: string, signal?: AbortSignal) {
+  return http.getEquipmentFamily(familyId, { intent: "read", signal });
+}
+
 export async function getRelatedRecords(
   request: import("../generated/atlas").RelatedRecordsRequest,
   signal?: AbortSignal,

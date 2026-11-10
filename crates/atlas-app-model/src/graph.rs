@@ -135,4 +135,7 @@ pub struct RelatedRecordsView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub family_context: Option<VariantFamilyView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub equipment_family_id: Option<String>,
 }

@@ -771,6 +771,7 @@
           "invalid_request",
           "invalid_record_key",
           "record_not_found",
+          "equipment_family_not_found",
           "record_resolution_miss",
           "record_resolution_ambiguous",
           "saved_list_not_found",
@@ -6850,6 +6851,89 @@
           "reminders"
         ],
         "type": "object"
+      },
+      "EquipmentFamilyGroupingView": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/VariantAxisSliceView"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "groups"
+        ],
+        "type": "object"
+      },
+      "EquipmentFamilyView": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "unavailable"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "groupings": {
+                "items": {
+                  "$ref": "#/components/schemas/EquipmentFamilyGroupingView"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "enum": [
+                  "content"
+                ],
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/components/schemas/VariantFamilyChoiceView"
+                },
+                "type": "array"
+              },
+              "name": {
+                "type": "string"
+              },
+              "overviews": {
+                "items": {
+                  "$ref": "#/components/schemas/VariantFamilyChoiceView"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "name",
+              "members",
+              "groupings",
+              "overviews",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FacetUnavailableReason": {
         "enum": [
@@ -14734,6 +14818,9 @@
           "artifact_generation": {
             "type": "string"
           },
+          "equipment_family_id": {
+            "type": "string"
+          },
           "family_context": {
             "$ref": "#/components/schemas/VariantFamilyView"
           },
@@ -22580,6 +22667,53 @@
               }
             },
             "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/families/equipment/{family_id}": {
+      "get": {
+        "operationId": "getEquipmentFamily",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentFamilyView"
+                }
+              }
+            },
+            "description": "Equipment family availability and detail"
           },
           "409": {
             "content": {

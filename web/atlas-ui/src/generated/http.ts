@@ -961,6 +961,7 @@ export const AppErrorCode = {
   invalid_request: 'invalid_request',
   invalid_record_key: 'invalid_record_key',
   record_not_found: 'record_not_found',
+  equipment_family_not_found: 'equipment_family_not_found',
   record_resolution_miss: 'record_resolution_miss',
   record_resolution_ambiguous: 'record_resolution_ambiguous',
   saved_list_not_found: 'saved_list_not_found',
@@ -3877,6 +3878,33 @@ export interface EncounterTurnReviewView {
   reminders: EncounterTurnReminderView[];
 }
 
+export interface VariantAxisSliceView {
+  heading: string;
+  members: string[];
+}
+
+export interface EquipmentFamilyGroupingView {
+  groups: VariantAxisSliceView[];
+  id: string;
+  label: string;
+}
+
+export interface VariantFamilyChoiceView {
+  qualifier: string;
+  record: RecordSummaryView;
+}
+
+export type EquipmentFamilyView = {
+  kind: 'unavailable';
+  name: string;
+} | {
+  groupings: EquipmentFamilyGroupingView[];
+  kind: 'content';
+  members: VariantFamilyChoiceView[];
+  name: string;
+  overviews: VariantFamilyChoiceView[];
+};
+
 export type FacetUnavailableReason = typeof FacetUnavailableReason[keyof typeof FacetUnavailableReason];
 
 
@@ -4719,16 +4747,6 @@ export interface RelatedRecordsRequest {
   selection: RecordNavigationViewInputSchema;
 }
 
-export interface VariantAxisSliceView {
-  heading: string;
-  members: string[];
-}
-
-export interface VariantFamilyChoiceView {
-  qualifier: string;
-  record: RecordSummaryView;
-}
-
 export type VariantFamilyView = {
   general?: RecordSummaryView;
   kind: 'concrete';
@@ -4742,6 +4760,7 @@ export type VariantFamilyView = {
 
 export interface RelatedRecordsView {
   artifact_generation: string;
+  equipment_family_id?: string;
   family_context?: VariantFamilyView;
   references: RelatedCategoryViewGraphContextView;
   remaster_relationships: RelatedCategoryViewRemasterRelationshipsView;
@@ -7240,6 +7259,27 @@ export const getEncounterTurnReviewUrl = (encounterRef: string,) => {
 export const encounterTurnReview = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterTurnReviewView> => {
 
   return fetchGenerated<EncounterTurnReviewView>(getEncounterTurnReviewUrl(encounterRef),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getGetEquipmentFamilyUrl = (familyId: string,) => {
+
+
+
+
+  return `/api/families/equipment/${encodeURIComponent(String(familyId))}`
+}
+
+export const getEquipmentFamily = async (familyId: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EquipmentFamilyView> => {
+
+  return fetchGenerated<EquipmentFamilyView>(getGetEquipmentFamilyUrl(familyId),
   {
     ...options,
     method: 'GET'

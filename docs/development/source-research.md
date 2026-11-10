@@ -184,7 +184,9 @@ checks the distance sequence rather than arbitrary tied IDs.
 
 The [equipment family files](../../crates/atlas-search/families/equipment) are
 maintained with retrieval. Each TOML file declares one family. Its filename stem
-is the stable family ID, regardless of its subdirectory. Declare the expected
+is the stable family ID, regardless of its subdirectory. The family page uses
+this ID in its public URL, so keep the stem when moving or renaming a family's
+display title. Declare the expected
 item type and applicable category or weapon group once per family. Each member
 has its exact Foundry key, expected name, and display attributes or weapon
 compatibility evidence. File order defines the progression unless

@@ -37,6 +37,26 @@ pub enum VariantGroupOutcome {
 pub struct VariantExploration {
     pub variants: VariantGroupOutcome,
     pub family: Option<VariantFamilyContext>,
+    pub equipment_family_id: Option<String>,
+}
+
+pub enum EquipmentFamilyOutcome {
+    Missing,
+    Unavailable { name: String },
+    Content(EquipmentFamily),
+}
+
+pub struct EquipmentFamily {
+    pub name: String,
+    pub members: Vec<VariantFamilyChoice>,
+    pub groupings: Vec<EquipmentFamilyGrouping>,
+    pub overviews: Vec<VariantFamilyChoice>,
+}
+
+pub struct EquipmentFamilyGrouping {
+    pub id: String,
+    pub label: String,
+    pub groups: Vec<VariantAxisSlice>,
 }
 
 pub enum VariantFamilyContext {
@@ -117,6 +137,10 @@ impl AtlasRetrievalService {
         Ok(self.read_variants(request, false)?.variants)
     }
 
+    pub fn equipment_family(&self, id: &str) -> Result<EquipmentFamilyOutcome, SearchError> {
+        verified::equipment_family(self, id)
+    }
+
     pub fn variant_exploration(
         &self,
         request: VariantGroupRequest<'_>,
@@ -133,15 +157,20 @@ impl AtlasRetrievalService {
             return Ok(VariantExploration {
                 variants: VariantGroupOutcome::Missing,
                 family: None,
+                equipment_family_id: None,
             });
         };
-        let (group, family) = verified::verified_group(self, &seed, include_family)?;
-        let variants = match group {
+        let verified = verified::verified_group(self, &seed, include_family)?;
+        let variants = match verified.group {
             Some(group) => VariantGroupOutcome::Content(Box::new(group)),
-            None if family.is_some() => VariantGroupOutcome::Empty,
+            None if verified.context.is_some() => VariantGroupOutcome::Empty,
             None => self.possible_variant_group(seed)?,
         };
-        Ok(VariantExploration { variants, family })
+        Ok(VariantExploration {
+            variants,
+            family: verified.context,
+            equipment_family_id: verified.family_id,
+        })
     }
 
     fn possible_variant_group(

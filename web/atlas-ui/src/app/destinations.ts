@@ -73,6 +73,13 @@ function readingSearch(
   if (input.definitionKey) search.definition_key = input.definitionKey;
   return search;
 }
+export function equipmentFamilyDestination(familyId: string) {
+  return linkOptions({
+    to: "/families/equipment/$familyId",
+    params: { familyId },
+  });
+}
+
 export function recordDestination(input: RecordPageInput) {
   return linkOptions({
     to: "/records/$recordKey",

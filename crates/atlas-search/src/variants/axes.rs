@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use atlas_domain::SourceRecordSummary;
 
@@ -6,13 +6,17 @@ use super::catalog::{Family, GeneralRecord, Member};
 use super::{VariantAxisSlice, VariantFamilyContext};
 
 pub(super) fn qualifier(family: &Family, member: &Member) -> String {
+    labels(family, &member.coordinates)
+}
+
+pub(super) fn labels(family: &Family, values: &BTreeMap<String, String>) -> String {
     family
         .axes
         .iter()
         .flat_map(|axis| {
             axis.options
                 .iter()
-                .find(|option| member.coordinates[&axis.id] == option.id)
+                .find(|option| values.get(&axis.id) == Some(&option.id))
         })
         .map(|option| option.label.as_str())
         .collect::<Vec<_>>()

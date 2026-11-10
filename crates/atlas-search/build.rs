@@ -45,14 +45,7 @@ fn bundle() -> Result<(), Box<dyn Error>> {
         let id = path
             .file_stem()
             .and_then(|name| name.to_str())
-            .filter(|id| {
-                id.split('-').all(|part| {
-                    !part.is_empty()
-                        && part
-                            .bytes()
-                            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
-                })
-            })
+            .filter(|id| catalog::valid_family_id(id))
             .ok_or_else(|| invalid(path, "invalid family ID"))?;
         if let Some(previous) = ids.insert(id, path) {
             return Err(invalid(

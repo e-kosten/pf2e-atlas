@@ -590,6 +590,17 @@ pub(crate) async fn validate_filter(
     ))
 }
 
+#[utoipa::path(get, path = "/api/families/equipment/{family_id}", operation_id = "getEquipmentFamily", params(("family_id" = String, Path)), responses((status = 200, description = "Equipment family availability and detail", body = atlas_app_model::EquipmentFamilyView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
+pub(crate) async fn equipment_family(
+    State(state): State<AtlasWebState>,
+    Path(family_id): Path<String>,
+) -> Result<impl IntoResponse, WebError> {
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.equipment_family(family_id)).await?,
+    ))
+}
+
 #[utoipa::path(post, path = "/api/related", operation_id = "relatedRecords", request_body = atlas_app_model::RelatedRecordsRequest, responses((status = 200, description = "Successful response", body = atlas_app_model::RelatedRecordsView), (status = 409, description = "Application or browser contract conflict", body = crate::error::ConflictResponse), (status = "default", description = "Atlas error", body = atlas_app_model::AppError)))]
 pub(crate) async fn related_records(
     State(state): State<AtlasWebState>,
