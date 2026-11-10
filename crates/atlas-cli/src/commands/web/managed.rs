@@ -107,6 +107,27 @@ fn proof(secret: &[u8; 32], role: u8, challenge: &[u8]) -> String {
     format!("{:x}", sha2::digest::Output::<Sha256>::from(mac.finalize()))
 }
 
+fn prove_http(endpoint: &Endpoint) -> Option<()> {
+    let probe: ureq::Agent = ureq::Agent::config_builder()
+        .proxy(None)
+        .max_redirects(0)
+        .timeout_global(Some(Duration::from_millis(500)))
+        .build()
+        .into();
+    let challenge = format!("{:032x}", rand::random::<u128>());
+    let response = probe
+        .get(format!("{}/api/compatibility", endpoint.url()))
+        .header("x-atlas-api-contract", atlas_web::API_CONTRACT)
+        .header("x-atlas-service-challenge", &challenge)
+        .call()
+        .ok()?;
+    (response.headers().get("x-atlas-api-contract")?.as_bytes()
+        == atlas_web::API_CONTRACT.as_bytes()
+        && response.headers().get("x-atlas-service-proof")?.as_bytes()
+            == proof(&endpoint.secret, HTTP_PROOF, challenge.as_bytes()).as_bytes())
+    .then_some(())
+}
+
 pub(crate) fn search(
     runtime: &AtlasRuntime,
     request: &atlas_app_model::SearchResultsRequest,
@@ -127,24 +148,8 @@ pub(crate) fn search(
             .ok()?
             .ok()
     })?;
-    let probe: ureq::Agent = ureq::Agent::config_builder()
-        .proxy(None)
-        .max_redirects(0)
-        .timeout_global(Some(Duration::from_millis(500)))
-        .build()
-        .into();
+    prove_http(&endpoint)?;
     let challenge = format!("{:032x}", rand::random::<u128>());
-    let response = probe
-        .get(format!("{}/api/compatibility", endpoint.url()))
-        .header("x-atlas-api-contract", atlas_web::API_CONTRACT)
-        .header("x-atlas-service-challenge", &challenge)
-        .call()
-        .ok()?;
-    if response.headers().get("x-atlas-service-proof")?.as_bytes()
-        != proof(&endpoint.secret, HTTP_PROOF, challenge.as_bytes()).as_bytes()
-    {
-        return None;
-    }
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .proxy(None)
         .max_redirects(0)
@@ -261,8 +266,26 @@ pub(super) async fn run(args: WebArgs) -> Result<(), String> {
                 let _ = unused.wait();
             }
             let url = endpoint.url();
-            println!("Atlas web service listening at {url}");
-            if args.open {
+            let browser_url = args.open.then(|| url.clone());
+            if args.desktop_launcher {
+                let ready = tokio::task::spawn_blocking(move || {
+                    prove_http(&endpoint)?;
+                    Some(atlas_desktop_protocol::LauncherReady {
+                        version: atlas_desktop_protocol::VERSION,
+                        workspace: endpoint.workspace,
+                        endpoint: url,
+                        instance: endpoint.launch_id,
+                        api_contract: atlas_web::API_CONTRACT.to_owned(),
+                    })
+                })
+                .await
+                .map_err(|error| error.to_string())?
+                .ok_or("The running Atlas backend failed the desktop compatibility check")?;
+                println!("{}", serde_json::json!({"status": "ok", "data": ready}));
+            } else {
+                println!("Atlas web service listening at {url}");
+            }
+            if let Some(url) = browser_url {
                 open_browser(&url);
             }
             let mut end = [0];

@@ -19,10 +19,11 @@ path = "src/main.rs"
 
 [features]
 default = ["web"]
-web = ["dep:atlas-web", "dep:axum", "dep:tokio", "dep:ureq", "dep:hmac-sha256"]
+web = ["dep:atlas-web", "dep:axum", "dep:tokio", "dep:ureq", "dep:hmac-sha256", "dep:atlas-desktop-protocol"]
 
 [dependencies]
 atlas-cli-support.workspace = true
+atlas-desktop-protocol = { workspace = true, optional = true }
 atlas-app-service.workspace = true
 atlas-app-model.workspace = true
 atlas-web = { workspace = true, optional = true }
@@ -52,3 +53,6 @@ tempfile = "3.23.0"
 
 [dev-dependencies]
 rusqlite.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+atlas-desktop-protocol.workspace = true

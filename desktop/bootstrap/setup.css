@@ -1,0 +1,133 @@
+:root {
+  color-scheme: light dark;
+  --paper: #f7f0e4;
+  --ink: #302018;
+  --quiet: #6f5747;
+  --line: #d5c5ae;
+  --accent: #792e37;
+  --on-accent: #fff8ec;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #211c17;
+    --ink: #f6ead5;
+    --quiet: #c7af96;
+    --line: #554333;
+    --accent: #e4a8a4;
+    --on-accent: #301413;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+main {
+  padding: 29px clamp(24px, 7vw, 46px);
+  max-width: 720px;
+  margin: auto;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--brand-text);
+  font:
+    600 20px/1.15 "Lora Variable",
+    Lora,
+    Georgia,
+    serif;
+  letter-spacing: -0.01em;
+}
+section {
+  padding-block: 24px;
+}
+h1 {
+  margin: 0;
+  font:
+    600 clamp(25px, 5vw, 34px) Georgia,
+    serif;
+}
+p {
+  color: var(--quiet);
+  line-height: 1.48;
+  font-size: 14px;
+}
+.actions,
+.terminal-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+button,
+input {
+  min-height: 34px;
+  border-radius: 5px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+}
+button {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid transparent;
+}
+button.quiet,
+input {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+button:disabled {
+  opacity: 0.6;
+}
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+#phase {
+  margin-top: 6px;
+}
+#count {
+  font-variant-numeric: tabular-nums;
+}
+details {
+  font-size: 13px;
+}
+details > p {
+  overflow-wrap: anywhere;
+}
+summary {
+  cursor: pointer;
+}
+#terminal {
+  border-top: 1px solid var(--line);
+  padding-top: 15px;
+}
+#terminal form label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--quiet);
+}
+#terminal input {
+  flex: 1;
+  min-width: 160px;
+}
+#diagnostic {
+  margin-top: 15px;
+}

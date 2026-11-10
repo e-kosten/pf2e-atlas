@@ -69,10 +69,13 @@ pub(crate) fn acquire(path: &Path) -> Result<(), String> {
         .parent()
         .ok_or("source cache has no parent directory")?;
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    let temporary = tempfile::Builder::new()
-        .prefix(".pf2e-fetch-")
-        .tempdir_in(parent)
-        .map_err(|error| error.to_string())?;
+    // The cache can be shared by different workspaces. Hold the pin's lock
+    // before reclaiming a staging directory left by an interrupted process.
+    let _fetch = lock_fetch(parent).map_err(|error| error.to_string())?;
+    if path.exists() {
+        return validate(path);
+    }
+    let staging = SourceStaging::create(parent).map_err(|error| error.to_string())?;
     tracing::info!(target:"atlas_progress", phase="fetch_source", revision=REFERENCE_SOURCE_COMMIT, "Downloading Foundry source");
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .max_redirects(0)
@@ -88,16 +91,48 @@ pub(crate) fn acquire(path: &Path) -> Result<(), String> {
     let mut archive = flate2::read::GzDecoder::new(bytes).take(MAX_TREE);
     tracing::info!(target:"atlas_progress", phase="extract_source", "Extracting and verifying Foundry source");
     let root = format!("pf2e-{REFERENCE_SOURCE_COMMIT}");
-    let tree = extract(&mut archive, &root, temporary.path()).map_err(|error| error.to_string())?;
+    let tree = extract(&mut archive, &root, &staging.0).map_err(|error| error.to_string())?;
     io::copy(&mut archive, &mut io::sink()).map_err(|error| error.to_string())?;
     if archive.limit() == 0 {
         return Err(invalid_archive().to_string());
     }
     compare(tree, &expected)?;
-    match fs::rename(temporary.path(), path) {
+    match fs::rename(&staging.0, path) {
         Ok(()) => Ok(()),
         Err(_) if path.exists() => validate(path),
         Err(error) => Err(format!("cannot publish pinned source cache: {error}")),
+    }
+}
+
+fn lock_fetch(parent: &Path) -> io::Result<fs::File> {
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(parent.join(format!(".{REFERENCE_SOURCE_COMMIT}.fetch.lock")))?;
+    lock.lock()?;
+    Ok(lock)
+}
+
+struct SourceStaging(PathBuf);
+
+impl SourceStaging {
+    fn create(parent: &Path) -> io::Result<Self> {
+        let path = parent.join(format!(".{REFERENCE_SOURCE_COMMIT}.fetch"));
+        match fs::remove_dir_all(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+        fs::create_dir(&path)?;
+        Ok(Self(path))
+    }
+}
+
+impl Drop for SourceStaging {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
     }
 }
 
@@ -264,6 +299,25 @@ fn invalid_archive() -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retries_replace_only_the_staging_directory_for_the_pinned_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let _lock = lock_fetch(directory.path()).unwrap();
+        let stale = directory
+            .path()
+            .join(format!(".{REFERENCE_SOURCE_COMMIT}.fetch"));
+        let adjacent = directory.path().join("another-cache");
+        fs::create_dir(&stale).unwrap();
+        fs::create_dir(&adjacent).unwrap();
+        fs::write(stale.join("partial"), "interrupted extraction").unwrap();
+        let staging = SourceStaging::create(directory.path()).unwrap();
+        assert_eq!(staging.0, stale);
+        assert_eq!(fs::read_dir(&stale).unwrap().count(), 0);
+        drop(staging);
+        assert!(!stale.exists());
+        assert!(adjacent.is_dir());
+    }
 
     #[test]
     fn extracts_and_verifies_the_same_file_inventory_as_an_existing_cache() {

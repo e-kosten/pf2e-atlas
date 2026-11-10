@@ -168,6 +168,7 @@ dependencies = [
  "atlas-app-model",
  "atlas-app-service",
  "atlas-cli-support",
+ "atlas-desktop-protocol",
  "atlas-dice",
  "atlas-domain",
  "atlas-embedding",
@@ -206,6 +207,15 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "atlas-desktop-protocol"
+version = "0.1.0"
+dependencies = [
+ "atlas-domain",
+ "percent-encoding",
+ "serde",
 ]
 
 [[package]]

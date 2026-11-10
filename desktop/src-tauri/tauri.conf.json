@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PF2e Atlas",
+  "version": "0.1.0",
+  "identifier": "com.ekosten.pf2e-atlas",
+  "build": { "frontendDist": "../.generated/bootstrap" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src ipc: http://ipc.localhost",
+      "capabilities": ["bootstrap"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "externalBin": ["binaries/atlas"],
+    "icon": ["icons/icon.png"]
+  },
+  "plugins": {
+    "deep-link": { "desktop": { "schemes": ["pf2e-atlas"] } }
+  }
+}

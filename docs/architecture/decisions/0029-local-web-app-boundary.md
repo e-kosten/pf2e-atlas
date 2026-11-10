@@ -88,6 +88,30 @@ fails before dispatch. CLI-only builds use direct execution. Browser Host and
 Origin checks and native instance authentication are independent of the
 generated API compatibility fingerprint.
 
+## macOS desktop host
+
+The Tauri pilot bundles the matching Atlas CLI and uses the managed web
+launcher to hold a single service lease for all desktop windows. The host owns
+a pipe whose closure ends the launcher even during startup. The launcher
+authenticates the worker and checks the API contract before returning a
+versioned endpoint and workspace identity to the host. Foreground
+`atlas web` sessions hold independent leases. The served product uses the
+same origin and API as the browser, with native setup commands reserved for
+the bundled setup WebView.
+
+The setup WebView reads a versioned, source-free readiness report and invokes
+the existing CLI setup path after an explicit user action. Progress comes from
+runtime events, and the runtime continues to own setup exclusion, workspace
+maintenance and published state. The desktop host owns window recovery and
+preserves existing views when it reconnects. After a successful reference
+update, a data-free event tells the current product views to refresh readiness
+and reference queries in place.
+
+Native record URLs encode an exact `RecordKey` in a versioned path, independent
+of the local service address. The host opens the existing record reader
+route for that key. The [desktop pilot guide](../../../desktop/README.md)
+covers the local build and test workflow.
+
 ## Browser/backend compatibility
 
 The web transport owns a compatibility check independent of workspace readiness.

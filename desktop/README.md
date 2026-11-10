@@ -1,0 +1,60 @@
+# Build the macOS pilot
+
+Build a local app from the checkout on Apple Silicon. You need the Xcode
+command-line tools, the pinned [Rust toolchain](../rust-toolchain.toml) and Node 26.
+
+```sh
+npm --prefix web/atlas-ui ci
+npm --prefix desktop ci
+sh desktop/bundle-macos.sh
+```
+
+Open **PF2e Atlas.app** in `target/debug/bundle/macos`. Keep the bundle together
+with its CLI in `Contents/MacOS/atlas`. This build is for local testing.
+
+## Use the app
+
+Choose **Set up Atlas** when the workspace is empty. The app downloads the
+pinned reference data and prepares semantic search. If Atlas asks you to upgrade
+a workspace, close any other Atlas sessions using that workspace and choose
+**Upgrade workspace**. Use **PF2e Atlas → Setup and Updates** when you want to
+refresh reference data or prepare semantic search for a browse-only workspace.
+After a refresh, close Setup and Updates to return to your open Atlas views.
+If the reference data changed while Search was open, use **Refresh results**
+when prompted to read from the new version.
+
+Use **File → New Window** to open another view. All windows share the local
+workspace and service with a compatible `atlas web` session. Closing a
+window leaves the app available. Choose **Quit PF2e Atlas** to release the
+app's connection to the service.
+
+Open a record, then choose **Edit → Copy Atlas Link**. Paste into a rich-text
+editor to get a linked record name, or into a plain-text field to get the
+`pf2e-atlas://v1/record/…` URL. A link continues to open its exact record even
+if the local service moves to a different port.
+
+For shell or agent use, **Setup and Updates → Terminal and agent access** can
+add the bundled command to a bin folder you choose. If that folder is already
+on your shell's PATH, check that `command -v atlas` resolves to the path shown
+by the app. The command continues to work when the app is closed. Use
+`atlas open` or `atlas open '<link>'` to open the app from the terminal.
+Replacing the bundle at the same path keeps the link working. If you move the
+bundle, remove the old link after checking where it points, then enable the
+command again from the new location.
+
+## Test with a disposable workspace
+
+The debug build accepts an alternate home for Atlas subprocesses. Use an empty
+directory to exercise setup from scratch, or a disposable copy of a stopped
+workspace to test upgrades. Quit the pilot before switching between test homes.
+
+```sh
+test_home="$(mktemp -d)"
+open -n 'target/debug/bundle/macos/PF2e Atlas.app' \
+  --env "ATLAS_PILOT_HOME=$test_home" --env "PATH=/nonexistent"
+```
+
+Use the same `HOME` when you invoke the bundled CLI to test service sharing or
+standalone commands. See the
+[desktop service boundary](../docs/architecture/decisions/0029-local-web-app-boundary.md#macos-desktop-host)
+for ownership and transport details.

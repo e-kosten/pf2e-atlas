@@ -67,8 +67,7 @@ test("overnight review reopens a stale draft and checks current values after a l
       .getByRole("spinbutton", { name: "HP recovery for Later arrival", exact: true })
       .fill("5");
     const submit = reopened.getByRole("button", {
-      name: "Rest overnight",
-      exact: true,
+      name: /^(loading )?Rest overnight$/,
     });
     await expect(submit).toBeEnabled();
     await noPageOverflow(page);

@@ -17,3 +17,6 @@ pub(crate) mod setup;
 pub(crate) mod similar;
 #[cfg(feature = "web")]
 pub(crate) mod web;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod desktop;

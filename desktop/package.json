@@ -1,0 +1,10 @@
+{
+  "name": "atlas-macos-pilot",
+  "private": true,
+  "scripts": {
+    "bundle": "sh ./bundle-macos.sh"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

@@ -15,7 +15,7 @@ impl RuntimeError {
     }
     pub(crate) fn workspace_upgrade_required(version: u32) -> Self {
         Self::new(
-            RuntimeErrorKind::WorkspaceIncompatible,
+            RuntimeErrorKind::WorkspaceUpgradeRequired,
             format!(
                 "workspace schema {version} requires an upgrade. Run `atlas setup` to upgrade it"
             ),
@@ -99,6 +99,7 @@ pub enum RuntimeErrorKind {
     WorkspaceBusy,
     WorkspaceMaintenance,
     WorkspaceIncompatible,
+    WorkspaceUpgradeRequired,
     ReferenceChanged { expected: u64, actual: u64 },
     Search(atlas_search::SearchErrorKind),
     UnsupportedSearchProfile,

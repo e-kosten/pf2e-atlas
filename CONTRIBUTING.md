@@ -29,6 +29,8 @@ a backend. Keep Cargo output checkout-local and reuse existing builds.
 Use the [developer command map](docs/development/developer-commands.md) to choose
 a diagnostic, build, preview, or validation command and see which files it uses.
 
+For the Apple Silicon desktop pilot, see [Build the macOS pilot](desktop/README.md).
+
 ## Development loop
 
 Complete the agreed scope, integration, tests, documentation and review fixes.

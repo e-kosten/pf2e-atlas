@@ -32,7 +32,8 @@ import { SelectionSearch } from "../shared/records/SelectionSearch";
 import { LoadingStatus } from "../shared/ui/LoadingStatus";
 
 import { useSearchWorkspace } from "../features/search/useSearchWorkspace";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { isReferenceQuery } from "../shared/queries/referenceQueries";
 
 import { getReadiness } from "../api/atlasApi";
 import {
@@ -128,6 +129,18 @@ function AtlasWorkspace({
     const route = currentSearchLocation();
     if (route) setSearchReturn({ route, location });
   }
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const refreshReference = () => {
+      void queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "readiness" || isReferenceQuery(query),
+      });
+    };
+    window.addEventListener("atlas-reference-updated", refreshReference);
+    return () =>
+      window.removeEventListener("atlas-reference-updated", refreshReference);
+  }, [queryClient]);
   const readiness = useQuery({ queryKey: ["readiness"], queryFn: getReadiness });
   const searchProfile = useSearchProfileSelection(readiness.data);
   const workspace = useSearchWorkspace({

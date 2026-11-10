@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atlas Setup</title>
+    <link rel="stylesheet" href="branding.css" />
+    <link rel="stylesheet" href="setup.css" />
+    <script defer src="setup.js"></script>
+  </head>
+  <body>
+    <main>
+      <header><!-- atlas-mark --><span>PF2e Atlas</span></header>
+      <section aria-labelledby="heading">
+        <h1 id="heading">Opening Atlas</h1>
+        <p id="description" aria-live="polite">Checking your workspace.</p>
+        <div id="activity" hidden>
+          <progress id="progress" aria-label="Setup progress"></progress>
+          <p id="phase" role="status"></p>
+          <p id="count" hidden></p>
+          <button id="cancel" class="quiet" hidden>Cancel setup</button>
+        </div>
+        <p id="result" role="status" hidden></p>
+        <div class="actions">
+          <button id="primary" hidden></button>
+          <button id="secondary" class="quiet" hidden></button>
+        </div>
+        <details id="diagnostic" hidden>
+          <summary>Details</summary>
+          <p id="details"></p>
+        </details>
+      </section>
+      <details id="terminal">
+        <summary>Terminal and agent access</summary>
+        <p>
+          Optionally add the matching Atlas command to a folder on your shell’s
+          PATH.
+        </p>
+        <form id="terminal-form">
+          <label for="bin">Bin folder</label>
+          <div class="terminal-row">
+            <input id="bin" value="~/.local/bin" required />
+            <button class="quiet" type="submit">Enable terminal command</button>
+          </div>
+        </form>
+        <p id="terminal-result" role="status"></p>
+      </details>
+    </main>
+  </body>
+</html>
