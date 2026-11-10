@@ -1,0 +1,14 @@
+name = "Specialist's Ring"
+source_note = "Secrets of Magic. Each ring is dedicated to a single spell school with the same Arcana bonus and a Focus Point usable for the corresponding school spell."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:FTTrNjLsSlrPvkLi", name = "Specialist's Ring (Abjuration)", attributes = ["Abjuration"] },
+    { key = "equipment-srd:nE12I5dTvJFPr9at", name = "Specialist's Ring (Conjuration)", attributes = ["Conjuration"] },
+    { key = "equipment-srd:nyLV5YVh90kYGaBd", name = "Specialist's Ring (Divination)", attributes = ["Divination"] },
+    { key = "equipment-srd:gKlxurDeLS95zuuY", name = "Specialist's Ring (Enchantment)", attributes = ["Enchantment"] },
+    { key = "equipment-srd:6MswPHUwvqPLtN5H", name = "Specialist's Ring (Evocation)", attributes = ["Evocation"] },
+    { key = "equipment-srd:H44rJpMzx6JyoKoa", name = "Specialist's Ring (Illusion)", attributes = ["Illusion"] },
+    { key = "equipment-srd:PjCowzEMV2aJnHkV", name = "Specialist's Ring (Necromancy)", attributes = ["Necromancy"] },
+    { key = "equipment-srd:Jt3q4i2FlRPZ14VV", name = "Specialist's Ring (Transmutation)", attributes = ["Transmutation"] },
+]
