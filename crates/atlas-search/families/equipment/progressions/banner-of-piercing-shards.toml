@@ -1,0 +1,9 @@
+name = "Banner of Piercing Shards"
+source_note = "Battlecry! The embroidered shard banner inflicts increasing persistent bleed damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:rEuz05qaDTX5oxMi", name = "Banner of Piercing Shards", attributes = ["Base item"] },
+    { key = "equipment-srd:FSr3pbQJpaENl59R", name = "Banner of Piercing Shards (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:oknxWGSQPJzN2SvX", name = "Banner of Piercing Shards (Major)", attributes = ["Major"] },
+]

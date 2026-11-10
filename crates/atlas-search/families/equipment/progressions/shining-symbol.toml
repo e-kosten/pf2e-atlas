@@ -1,0 +1,9 @@
+name = "Shining Symbol"
+source_note = "GM Core. The golden religious symbol improves Religion and activation penalties and adds increasing weakness to spirit damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:YVtXlsEWb3NIkDyy", name = "Shining Symbol", attributes = ["Base item"] },
+    { key = "equipment-srd:M7c4uXraP05HYNXs", name = "Shining Symbol (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:etnis6HOeGZEbScD", name = "Shining Symbol (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Big Rock Bullet"
+source_note = "Lost Omens The Grand Bazaar. The dense granite sling bullet increases both values of its activated bludgeoning damage."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:ud970e7uPVEqx1FO", name = "Big Rock Bullet", attributes = ["Base item"] },
+    { key = "equipment-srd:FHsRKAdiLlxfSOqy", name = "Big Rock Bullet (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Fz6jQ0M3v55R8CqA", name = "Big Rock Bullet (Major)", attributes = ["Major"] },
+]

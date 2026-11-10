@@ -1,0 +1,9 @@
+name = "Warpriest's Cascade"
+source_note = "Hell's Destiny. Each grade uses the same potion-dispersing thurible rules, which explicitly allow potions up to the thurible's own item level."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:g9JXE1u023zcmXxk", name = "Warpriest's Cascade", attributes = ["Base item"] },
+    { key = "equipment-srd:uU0CpaUyUVnVmTab", name = "Warpriest's Cascade (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:2570LATnOPLMXonm", name = "Warpriest's Cascade (Major)", attributes = ["Major"] },
+]

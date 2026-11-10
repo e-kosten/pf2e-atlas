@@ -1,0 +1,12 @@
+name = "Staff of Providence"
+source_note = "Player Core 2. The divine eye staff adds higher-rank spells for guiding and protecting the bearer through the true grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:XeTmuhuNnhGf7c4t", name = "Staff of Providence", attributes = ["Base item"] },
+    { key = "equipment-srd:T1L6XbgMqJLDv2Pi", name = "Staff of Providence (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:U8vVCE2ePjyca666", name = "Staff of Providence (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:pIagOwW8EFBaKW3k", name = "Staff of Providence (True)", attributes = ["True"] },
+]

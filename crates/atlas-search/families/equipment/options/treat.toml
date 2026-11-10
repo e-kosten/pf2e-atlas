@@ -1,0 +1,9 @@
+name = "Treat"
+source_note = "Lost Omens Travel Guide, Animal Caretaking Gear Prices table. The two entries are standard and unique animal treats."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:NF8dWgLTxj8QRrmg", name = "Treat (Standard)", attributes = ["Standard"] },
+    { key = "equipment-srd:3nDKWIydNEfhJ8XJ", name = "Treat (Unique)", attributes = ["Unique"] },
+]

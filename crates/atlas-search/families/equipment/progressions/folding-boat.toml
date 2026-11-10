@@ -1,0 +1,8 @@
+name = "Folding Boat"
+source_note = "Lost Omens The Grand Bazaar. The folding box expands into a crewed cutter at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:oU3dxIAnTYlGXJVC", name = "Folding Boat", attributes = ["Base item"] },
+    { key = "equipment-srd:FQnK379odYh4Tors", name = "Folding Boat (Greater)", attributes = ["Greater"] },
+]

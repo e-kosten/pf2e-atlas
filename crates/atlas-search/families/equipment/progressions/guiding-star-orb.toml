@@ -1,0 +1,8 @@
+name = "Guiding Star Orb"
+source_note = "Spore War. The Heroic form of Candlaron's same orb gains intelligence and extends its authored abilities."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:hwVS8uNgIEfENz6q", name = "Guiding Star Orb", attributes = ["Base item"] },
+    { key = "equipment-srd:F5dQEQTyOpSBeXDJ", name = "Guiding Star Orb (Heroic)", attributes = ["Heroic"] },
+]

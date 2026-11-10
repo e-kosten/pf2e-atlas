@@ -1,0 +1,8 @@
+name = "Healer's Toolkit"
+source_note = "Player Core. The expanded toolkit adds a bonus to the same medical checks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:s1vB3HdXjMigYAnY", name = "Healer's Toolkit", attributes = ["Base item"] },
+    { key = "equipment-srd:SGkOHFyBbzWdBk8D", name = "Healer's Toolkit (Expanded)", attributes = ["Expanded"] },
+]

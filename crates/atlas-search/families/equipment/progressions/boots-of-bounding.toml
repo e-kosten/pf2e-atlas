@@ -1,0 +1,8 @@
+name = "Boots of Bounding"
+source_note = "GM Core. The spring-soled boots improve their Speed and jumping bonuses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ecqz1iUGtyQEkZwy", name = "Boots of Bounding", attributes = ["Base item"] },
+    { key = "equipment-srd:31knfVD7lEd8BPrQ", name = "Boots of Bounding (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Corrosive Staff"
+source_note = "Impossible Magic. The liquid-filled staff increases acid resistance and adds higher-rank corrosive spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:2BErYoyOCnRBQGEj", name = "Corrosive Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:QIyNSdh4v2vmGdH0", name = "Corrosive Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:dmnwpn8Ot9OVW7wY", name = "Corrosive Staff (Major)", attributes = ["Major"] },
+]

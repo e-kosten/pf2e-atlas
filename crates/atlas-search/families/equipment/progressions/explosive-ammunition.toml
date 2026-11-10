@@ -1,0 +1,8 @@
+name = "Explosive Ammunition"
+source_note = "GM Core. The soot-coated ammunition increases the fiery burst damage and Reflex DC."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:rKknk8odXDBpON5l", name = "Explosive Ammunition", attributes = ["Base item"] },
+    { key = "equipment-srd:g27kK39Nzqphl1Tb", name = "Explosive Ammunition (Greater)", attributes = ["Greater"] },
+]

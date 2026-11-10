@@ -1,0 +1,11 @@
+name = "Breath Blaster"
+source_note = "Guns & Gears. The blunderbuss improves its fundamental runes and the breath effect's damage and save DCs."
+item_type = "weapon"
+category = "martial"
+group = "firearm"
+
+members = [
+    { key = "equipment-srd:9jn87Bnp2kGnDFPQ", name = "Breath Blaster", attributes = ["Base item"] },
+    { key = "equipment-srd:4UHTZGZosYcP28lD", name = "Breath Blaster (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:WnzQy5naKy9Gj4pY", name = "Breath Blaster (Major)", attributes = ["Major"] },
+]

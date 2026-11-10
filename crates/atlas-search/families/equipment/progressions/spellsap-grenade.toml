@@ -1,0 +1,10 @@
+name = "Spellsap Grenade"
+source_note = "Rage of Elements. The djezet grenade improves direct and splash damage, attack bonus, and Will DC."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:lBITo8JcWfGxKmYT", name = "Spellsap Grenade", attributes = ["Base item"] },
+    { key = "equipment-srd:ry4In8lT0xB8Dc17", name = "Spellsap Grenade (Greater)", attributes = ["Greater"] },
+]

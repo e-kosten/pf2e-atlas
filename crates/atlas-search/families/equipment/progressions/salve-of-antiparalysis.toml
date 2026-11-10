@@ -1,0 +1,9 @@
+name = "Salve of Antiparalysis"
+source_note = "GM Core. The salve improves its paralysis counteract statistics and can reverse petrification at the greater grade."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:ZEKmCg8K2hUHbmnT", name = "Salve of Antiparalysis", attributes = ["Base item"] },
+    { key = "equipment-srd:ybu2BMu2oWj74wl8", name = "Salve of Antiparalysis (Greater)", attributes = ["Greater"] },
+]

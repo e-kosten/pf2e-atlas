@@ -1,0 +1,13 @@
+name = "Arboreal Wand"
+source_note = "Pactbreaker. The branch wand casts Heal at its listed rank, with the same residual primal effect across ranks."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:MXK38neBJmy2n2AE", name = "Arboreal Wand (Rank 2)", attributes = ["Rank 2"] },
+    { key = "equipment-srd:x6Yc3ig6qCYw5cMj", name = "Arboreal Wand (Rank 3)", attributes = ["Rank 3"] },
+    { key = "equipment-srd:eOtQtVRLeGH39dNx", name = "Arboreal Wand (Rank 4)", attributes = ["Rank 4"] },
+    { key = "equipment-srd:YynRLFPm1yt6nDAQ", name = "Arboreal Wand (Rank 5)", attributes = ["Rank 5"] },
+    { key = "equipment-srd:gSstSNe0sxB2mIKW", name = "Arboreal Wand (Rank 6)", attributes = ["Rank 6"] },
+    { key = "equipment-srd:CMcUibNLDN9xhqJO", name = "Arboreal Wand (Rank 7)", attributes = ["Rank 7"] },
+]

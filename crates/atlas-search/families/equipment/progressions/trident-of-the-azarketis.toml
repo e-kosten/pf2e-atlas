@@ -1,0 +1,10 @@
+name = "Trident of the Azarketis"
+source_note = "Lost Omens High Seas. The golden trident improves its striking rune and the rank and DC of Hydraulic Torrent. Both source records list the same price."
+item_type = "weapon"
+category = "martial"
+group = "spear"
+
+members = [
+    { key = "equipment-srd:las0qvpBOfYp5yND", name = "Trident of the Azarketis", attributes = ["Base item"] },
+    { key = "equipment-srd:jpZWi0zkXM8rVYqW", name = "Trident of the Azarketis (Greater)", attributes = ["Greater"] },
+]

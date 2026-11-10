@@ -1,0 +1,8 @@
+name = "Entertainer's Cincture"
+source_note = "GM Core. The performance sash improves its selected skill bonus and shortens the activation cooldown."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:IM9W5fovv44ZKDRQ", name = "Entertainer's Cincture", attributes = ["Base item"] },
+    { key = "equipment-srd:DrjFwJhp66GfH5Wi", name = "Entertainer's Cincture (Greater)", attributes = ["Greater"] },
+]

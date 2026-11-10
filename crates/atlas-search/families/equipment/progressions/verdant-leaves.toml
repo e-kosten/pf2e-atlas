@@ -1,0 +1,9 @@
+name = "Verdant Leaves"
+source_note = "Impossible Magic. The leaf-bound grimoire increases the rank of its Nature's Resilience spell effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Av7rFMsdTjSA6Ls9", name = "Verdant Leaves", attributes = ["Base item"] },
+    { key = "equipment-srd:hPKaa4dZbMfFCCIo", name = "Verdant Leaves (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:H7QHJRqTM7rqB05Q", name = "Verdant Leaves (Major)", attributes = ["Major"] },
+]

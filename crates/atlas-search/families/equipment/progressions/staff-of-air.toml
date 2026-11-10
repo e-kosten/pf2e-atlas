@@ -1,0 +1,11 @@
+name = "Staff of Air"
+source_note = "Treasure Vault (Remastered). The air staff adds higher-rank wind, movement, and lightning spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:8TEundYBdonchDj1", name = "Staff of Air", attributes = ["Base item"] },
+    { key = "equipment-srd:9GUSQFJZarLs5tQC", name = "Staff of Air (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:2wUR0XVYONWrBVa8", name = "Staff of Air (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Defiled Costa"
+source_note = "Lost Omens Impossible Lands. The same Mask of Terror catalyst adds an incapacitation effect on a critical failure of its secondary save."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:Bgslo3kDz8bTiYie", name = "Defiled Costa", attributes = ["Base item"] },
+    { key = "equipment-srd:oO0DqxI7EGkTYJzv", name = "Defiled Costa (Greater)", attributes = ["Greater"] },
+]

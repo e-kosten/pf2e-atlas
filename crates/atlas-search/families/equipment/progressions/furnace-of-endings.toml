@@ -1,0 +1,10 @@
+name = "Furnace of Endings"
+source_note = "Lost Omens Highhelm. The document-burning scroll case gains support for first-rank spell scrolls at the unqualified grade and higher ranks thereafter."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:AslqTIjbP81m7bzk", name = "Furnace of Endings (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:7F6WGmvZ0r3PloXC", name = "Furnace of Endings", attributes = ["Base item"] },
+    { key = "equipment-srd:JC7do7p0jkkI0crM", name = "Furnace of Endings (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Z0VXKrTDur1rgiPE", name = "Furnace of Endings (Major)", attributes = ["Major"] },
+]

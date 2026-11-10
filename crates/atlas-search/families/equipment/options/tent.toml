@@ -1,0 +1,9 @@
+name = "Tent"
+source_note = "Player Core. The named mundane tents have distinct capacity forms, Bulk, and prices. Floating and Restful Tent have separate magic effects."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:JlClrm1WfJ45oWcS", name = "Tent (Four-Person)", attributes = ["Four-Person"] },
+    { key = "equipment-srd:Wc9og4mTKZDH3xmz", name = "Tent (Pup)", attributes = ["Pup"] },
+    { key = "equipment-srd:xyzmQa3nhU8HxfUL", name = "Tent (Pavilion)", attributes = ["Pavilion"] },
+]

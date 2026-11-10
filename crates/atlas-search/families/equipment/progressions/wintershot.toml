@@ -1,0 +1,10 @@
+name = "Wintershot"
+source_note = "Spore War. The Heroic form of Jelarial's same shortbow gains intelligence and extends its authored abilities."
+item_type = "weapon"
+category = "martial"
+group = "bow"
+
+members = [
+    { key = "equipment-srd:3tspCIcL3mjcCBD2", name = "Wintershot", attributes = ["Base item"] },
+    { key = "equipment-srd:xEVWp9oaeF0yPseK", name = "Wintershot (Heroic)", attributes = ["Heroic"] },
+]

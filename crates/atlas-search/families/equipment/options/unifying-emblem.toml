@@ -1,0 +1,13 @@
+name = "Unifying Emblem"
+source_note = "Treasure Vault (Remastered). Each of the seven Shoanti clan tattoo designs grants a separate activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:uU8bqDR4oWITWZNX", name = "Unifying Emblem (Lyrune-Quah)", attributes = ["Lyrune-Quah"] },
+    { key = "equipment-srd:NJRACLvg6ULRMtZB", name = "Unifying Emblem (Shadde-Quah)", attributes = ["Shadde-Quah"] },
+    { key = "equipment-srd:JhSCwXhC3tLhI347", name = "Unifying Emblem (Shriikirri-Quah)", attributes = ["Shriikirri-Quah"] },
+    { key = "equipment-srd:qNMOpzpeQz51vMhf", name = "Unifying Emblem (Shundar-Quah)", attributes = ["Shundar-Quah"] },
+    { key = "equipment-srd:bw2RNhvtX1vvHi0y", name = "Unifying Emblem (Sklar-Quah)", attributes = ["Sklar-Quah"] },
+    { key = "equipment-srd:BhSQej6dIZh6wkWC", name = "Unifying Emblem (Skoan-Quah)", attributes = ["Skoan-Quah"] },
+    { key = "equipment-srd:zTR7xbJGFm3oppFA", name = "Unifying Emblem (Tamiir-Quah)", attributes = ["Tamiir-Quah"] },
+]

@@ -18,7 +18,43 @@ use std::{
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Exclusions {
-    exclusions: Vec<Exclusion>,
+    exclusions: Vec<ExclusionDeclaration>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExclusionDeclaration {
+    between: [ExclusionSide; 2],
+    source_note: String,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+enum ExclusionSide {
+    Family { family: String },
+    Records { records: Vec<RecordKey> },
+}
+
+impl ExclusionSide {
+    fn resolve(
+        self,
+        path: &Path,
+        families: &BTreeMap<String, Family>,
+    ) -> io::Result<Vec<RecordKey>> {
+        match self {
+            Self::Family { family } => {
+                let entry = families
+                    .get(&family)
+                    .ok_or_else(|| invalid(path, format!("unknown exclusion family {family}")))?;
+                Ok(entry
+                    .members
+                    .iter()
+                    .map(|member| member.key.clone())
+                    .collect())
+            }
+            Self::Records { records } => Ok(records),
+        }
+    }
 }
 
 fn main() {
@@ -72,6 +108,17 @@ fn bundle() -> Result<(), Box<dyn Error>> {
         return Err(invalid(root, "no family files found").into());
     }
     let Exclusions { exclusions } = read(&exclusions_path)?;
+    let exclusions = exclusions
+        .into_iter()
+        .map(|declaration| {
+            let [members, others] = declaration.between;
+            Ok(Exclusion {
+                source_note: declaration.source_note,
+                members: members.resolve(&exclusions_path, &families)?,
+                others: others.resolve(&exclusions_path, &families)?,
+            })
+        })
+        .collect::<io::Result<Vec<_>>>()?;
     validate_exclusions(&exclusions_path, &exclusions, &members)?;
     let destination = PathBuf::from(std::env::var_os("OUT_DIR").ok_or("missing OUT_DIR")?)
         .join("equipment_families.json");
@@ -164,6 +211,16 @@ fn validate_family(path: &Path, family: &Family) -> io::Result<()> {
                 format!("missing or invalid member facts for {}", member.key),
             ));
         }
+        if let Some(category) = &member.category
+            && (item_type != "consumable"
+                || category.trim().is_empty()
+                || family.category.as_ref() == Some(category))
+        {
+            return Err(invalid(
+                path,
+                format!("invalid category override for {}", member.key),
+            ));
+        }
         if let Some(fit) = &member.fit {
             let mut weapons = BTreeSet::new();
             if item_type != "ammo"
@@ -191,7 +248,13 @@ fn validate_exclusions(
     members: &BTreeMap<RecordKey, &str>,
 ) -> io::Result<()> {
     let mut pairs = BTreeSet::new();
-    for exclusion in exclusions {
+    for (index, exclusion) in exclusions.iter().enumerate() {
+        if exclusion.source_note.trim().is_empty() {
+            return Err(invalid(
+                path,
+                format!("exclusion {} requires a nonempty source_note", index + 1),
+            ));
+        }
         if exclusion.members.is_empty() || exclusion.others.is_empty() {
             return Err(invalid(
                 path,

@@ -1,0 +1,9 @@
+name = "Five-Feather Wreath"
+source_note = "Impossible Magic. The woven spellheart improves its defensive and casting statistics and adds higher-rank wind spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:5p4ORuCLOKePxUUR", name = "Five-Feather Wreath", attributes = ["Base item"] },
+    { key = "equipment-srd:alV162EF3qZrbxt0", name = "Five-Feather Wreath (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:VmmlkU5qJHcTunXV", name = "Five-Feather Wreath (Major)", attributes = ["Major"] },
+]

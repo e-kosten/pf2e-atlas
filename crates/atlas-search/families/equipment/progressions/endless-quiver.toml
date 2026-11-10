@@ -1,0 +1,8 @@
+name = "Endless Quiver"
+source_note = "Battlecry! The self-replenishing quiver increases its arrow capacity and adds precious-material choices."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:YUJrCbNopfEkFaV0", name = "Endless Quiver", attributes = ["Base item"] },
+    { key = "equipment-srd:Da8rPs6ksA14EN6B", name = "Endless Quiver (Greater)", attributes = ["Greater"] },
+]

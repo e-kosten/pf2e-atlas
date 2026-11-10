@@ -1,0 +1,8 @@
+name = "Sleeves of Storage"
+source_note = "GM Core. The robe's paired extradimensional sleeves increase storage capacity and how long a familiar can stay inside."
+item_type = "backpack"
+
+members = [
+    { key = "equipment-srd:1pglC9PQx6yOgcKL", name = "Sleeves of Storage", attributes = ["Base item"] },
+    { key = "equipment-srd:3hv6NVC2rVu4QCNt", name = "Sleeves of Storage (Greater)", attributes = ["Greater"] },
+]

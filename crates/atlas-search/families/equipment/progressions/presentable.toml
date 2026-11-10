@@ -1,0 +1,8 @@
+name = "Presentable"
+source_note = "Lost Omens The Grand Bazaar. The garment rune improves Make an Impression and gains Suggestion."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:k0AC0UxLKO4r2rwQ", name = "Presentable", attributes = ["Base item"] },
+    { key = "equipment-srd:Mwwgn9WVH9WbrAT0", name = "Presentable (Greater)", attributes = ["Greater"] },
+]

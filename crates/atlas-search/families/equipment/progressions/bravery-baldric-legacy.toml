@@ -1,0 +1,8 @@
+name = "Bravery Baldric (Legacy)"
+source_note = "Treasure Vault (legacy). The two Restoration baldrics use the same courage charge system with second- and fourth-rank Restoration. The remaster prints their counterparts as Healthful and Greater Healthful."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:3TQ9oSETsOHcHRBF", name = "Bravery Baldric (Restoration)", attributes = ["Restoration"] },
+    { key = "equipment-srd:byIihT9MMpTFvyYT", name = "Bravery Baldric (Restoration, Greater)", attributes = ["Restoration, Greater"] },
+]

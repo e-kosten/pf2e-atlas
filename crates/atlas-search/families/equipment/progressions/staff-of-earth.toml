@@ -1,0 +1,11 @@
+name = "Staff of Earth"
+source_note = "Treasure Vault (Remastered). The earth staff adds higher-rank stone, sand, and excavation spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:pX3rpVDBLqClcL9M", name = "Staff of Earth", attributes = ["Base item"] },
+    { key = "equipment-srd:jaM12dWpIozRiIhk", name = "Staff of Earth (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:a8YCTjKnXySKpU5C", name = "Staff of Earth (Major)", attributes = ["Major"] },
+]

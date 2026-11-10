@@ -1,0 +1,8 @@
+name = "Clockwork Shield"
+source_note = "Treasure Vault (Remastered). The clockwork shield increases its defensive statistics and improves its weapon runes."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:S5CMsB7AyYC8iSa0", name = "Clockwork Shield", attributes = ["Base item"] },
+    { key = "equipment-srd:ayST5rFSIKy2ynYk", name = "Clockwork Shield (Greater)", attributes = ["Greater"] },
+]

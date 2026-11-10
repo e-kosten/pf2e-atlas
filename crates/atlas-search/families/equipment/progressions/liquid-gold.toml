@@ -1,0 +1,9 @@
+name = "Liquid Gold"
+source_note = "Cradle of Quartz. Both talismans draw the attached weapon on initiative. Greater can also load it."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:Upso2k53BUfmeays", name = "Liquid Gold", attributes = ["Base item"] },
+    { key = "equipment-srd:D8aBxqJW61WFiQM2", name = "Liquid Gold (Greater)", attributes = ["Greater"] },
+]

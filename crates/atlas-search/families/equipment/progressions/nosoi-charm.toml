@@ -1,0 +1,8 @@
+name = "Nosoi Charm"
+source_note = "Night of the Gray Death. The nosoi facsimile increases its bonus and grants imprecise lifesense while held at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:DdqGs9aSwjSl0XyY", name = "Nosoi Charm", attributes = ["Base item"] },
+    { key = "equipment-srd:x0FUkGzr6vBZk8m4", name = "Nosoi Charm (Greater)", attributes = ["Greater"] },
+]

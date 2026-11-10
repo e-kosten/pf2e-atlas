@@ -1,0 +1,10 @@
+name = "Blade Byrnie"
+source_note = "Treasure Vault (Remastered). The bladed chain shirt improves both its armor runes and the runes on its conjured dagger."
+item_type = "armor"
+category = "light"
+
+members = [
+    { key = "equipment-srd:JDgFHv334yCrBY38", name = "Blade Byrnie", attributes = ["Base item"] },
+    { key = "equipment-srd:qdUlmO7XfBWQU3p5", name = "Blade Byrnie (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:fHkVbTtjhITsE2NJ", name = "Blade Byrnie (Major)", attributes = ["Major"] },
+]

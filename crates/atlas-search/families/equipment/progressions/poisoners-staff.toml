@@ -1,0 +1,11 @@
+name = "Poisoner's Staff"
+source_note = "Assault on Hunting Lodge Seven. The same protective thorned staff expands its poison spell list and improves the DC reduction at higher grades."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:SeZfwtBYwmxKrphR", name = "Poisoner's Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:xr99pbmKLO2eDMk5", name = "Poisoner's Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:YMwlSFUoIEPIyctl", name = "Poisoner's Staff (Major)", attributes = ["Major"] },
+]

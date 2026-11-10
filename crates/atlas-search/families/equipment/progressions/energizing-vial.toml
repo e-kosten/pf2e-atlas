@@ -1,0 +1,9 @@
+name = "Energizing Vial"
+source_note = "Impossible Magic. The sealed-light spellheart improves its spell statistics and electricity effects."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:il21KgU7BjYlnaUD", name = "Energizing Vial", attributes = ["Base item"] },
+    { key = "equipment-srd:AxW9mJMsANxHM3fQ", name = "Energizing Vial (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ZkXHrYuCQvQcXB4X", name = "Energizing Vial (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,11 @@
+name = "Wand of Crackling Lightning"
+source_note = "Player Core 2. The same lightning wand improves the rank of its spell and subsequent effect."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:NmhKGflbT5NnKduz", name = "Wand of Crackling Lightning (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:oyjDCHscjcLhzall", name = "Wand of Crackling Lightning (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:1SdtzFpjKIwuQ7Nh", name = "Wand of Crackling Lightning (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:U28jkj5ZDl2drtEH", name = "Wand of Crackling Lightning (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+]

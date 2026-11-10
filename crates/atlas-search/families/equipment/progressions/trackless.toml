@@ -1,0 +1,8 @@
+name = "Trackless"
+source_note = "Treasure Vault (Remastered). The rune gains an activation that extends its track-concealing effect to an emanation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:QPz923dZeG1TajQE", name = "Trackless", attributes = ["Base item"] },
+    { key = "equipment-srd:0Oqf8wHY8PYJQQTx", name = "Trackless (Greater)", attributes = ["Greater"] },
+]

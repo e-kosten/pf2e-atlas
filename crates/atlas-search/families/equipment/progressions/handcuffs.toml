@@ -1,0 +1,9 @@
+name = "Handcuffs"
+source_note = "Devil at the Dreaming Palace. The ratcheting restraints progressively increase the required lock checks and both escape DCs."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:wBeljBAAFsvgkRMy", name = "Handcuffs (Average)", attributes = ["Average"] },
+    { key = "equipment-srd:WR8GOQSx7B5AlzNu", name = "Handcuffs (Good)", attributes = ["Good"] },
+    { key = "equipment-srd:XXALNl2JjJket1vr", name = "Handcuffs (Superior)", attributes = ["Superior"] },
+]

@@ -1,0 +1,41 @@
+name = "Dragon's Breath Potion"
+source_note = "Core Rulebook. Each color has the same young, adult, and wyrm progression. Color determines breath shape, damage type, and save, while age increases damage and DC. Foundry records the green variants under poison."
+item_type = "consumable"
+category = "potion"
+
+axes = [
+    { id = "age", label = "Dragon ages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "wyrm", label = "Wyrm" },
+    ] },
+    { id = "color", label = "Dragon colors", options = [
+        { id = "black", label = "Black" },
+        { id = "brass", label = "Brass" },
+        { id = "bronze", label = "Bronze" },
+        { id = "green", label = "Green" },
+        { id = "red", label = "Red" },
+        { id = "silver", label = "Silver" },
+    ] },
+]
+
+members = [
+    { key = "equipment-srd:qNIv0owESzOzo1s0", name = "Black Dragon's Breath Potion (Young)", coordinates = { age = "young", color = "black" } },
+    { key = "equipment-srd:TqX34x9CijryfrlM", name = "Brass Dragon's Breath Potion (Young)", coordinates = { age = "young", color = "brass" } },
+    { key = "equipment-srd:TzXNMv7tnFy1FYgg", name = "Bronze Dragon's Breath Potion (Young)", coordinates = { age = "young", color = "bronze" } },
+    { key = "equipment-srd:vvgCQzWkScCzte7K", name = "Green Dragon's Breath Potion (Young)", category = "poison", coordinates = { age = "young", color = "green" } },
+    { key = "equipment-srd:fkGHYeGVK6O2VW1s", name = "Red Dragon's Breath Potion (Young)", coordinates = { age = "young", color = "red" } },
+    { key = "equipment-srd:LKwI47eeJC0Y4hGu", name = "Silver Dragon's Breath Potion (Young)", coordinates = { age = "young", color = "silver" } },
+    { key = "equipment-srd:x04huvOBBXmExTDl", name = "Black Dragon's Breath Potion (Adult)", coordinates = { age = "adult", color = "black" } },
+    { key = "equipment-srd:rOQlcAV4m8Zaebue", name = "Brass Dragon's Breath Potion (Adult)", coordinates = { age = "adult", color = "brass" } },
+    { key = "equipment-srd:vXLZfi5iCSKb96tW", name = "Bronze Dragon's Breath Potion (Adult)", coordinates = { age = "adult", color = "bronze" } },
+    { key = "equipment-srd:eV0owvv0lYQph0nn", name = "Green Dragon's Breath Potion (Adult)", category = "poison", coordinates = { age = "adult", color = "green" } },
+    { key = "equipment-srd:Bn1o5foPq1kqZKf0", name = "Red Dragon's Breath Potion (Adult)", coordinates = { age = "adult", color = "red" } },
+    { key = "equipment-srd:t9wFCiFkCRcSLtaG", name = "Silver Dragon's Breath Potion (Adult)", coordinates = { age = "adult", color = "silver" } },
+    { key = "equipment-srd:LR7Ke2V8vHjQYBni", name = "Black Dragon's Breath Potion (Wyrm)", coordinates = { age = "wyrm", color = "black" } },
+    { key = "equipment-srd:idtIMGkFmIe958Et", name = "Brass Dragon's Breath Potion (Wyrm)", coordinates = { age = "wyrm", color = "brass" } },
+    { key = "equipment-srd:lJTl2SuUaluMzPBl", name = "Bronze Dragon's Breath Potion (Wyrm)", coordinates = { age = "wyrm", color = "bronze" } },
+    { key = "equipment-srd:OJvCWeJPHEc7GpFG", name = "Green Dragon's Breath Potion (Wyrm)", category = "poison", coordinates = { age = "wyrm", color = "green" } },
+    { key = "equipment-srd:d2sU6nOtBdIVJMVI", name = "Red Dragon's Breath Potion (Wyrm)", coordinates = { age = "wyrm", color = "red" } },
+    { key = "equipment-srd:PW3H8TnouiLaTC8G", name = "Silver Dragon's Breath Potion (Wyrm)", coordinates = { age = "wyrm", color = "silver" } },
+]

@@ -1,0 +1,12 @@
+name = "Staff of Impossible Visions"
+source_note = "Player Core 2. The eye-topped staff adds progressively higher-rank vision and geometry spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:WA5eoFFuAsyx7A2t", name = "Staff of Impossible Visions", attributes = ["Base item"] },
+    { key = "equipment-srd:KxSyomQx7rpwqemP", name = "Staff of Impossible Visions (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:oT4pyqLKpJVXDb46", name = "Staff of Impossible Visions (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:1glQQ63AeQOfQNvc", name = "Staff of Impossible Visions (True)", attributes = ["True"] },
+]

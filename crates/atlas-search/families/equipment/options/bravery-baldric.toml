@@ -1,0 +1,12 @@
+name = "Bravery Baldric"
+source_note = "Treasure Vault (Remastered). The six baldrics use the same courage-triggered charge system with distinct spell effects. Healthful and Greater Healthful cast Sound Body."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:PQ74afm5YWessacn", name = "Bravery Baldric (Fleet)", attributes = ["Fleet"] },
+    { key = "equipment-srd:IUZT7A6QZteLyHZI", name = "Bravery Baldric (Healthful)", attributes = ["Healthful"] },
+    { key = "equipment-srd:6xDxnI4Z9syXq8Ec", name = "Bravery Baldric (Haste)", attributes = ["Haste"] },
+    { key = "equipment-srd:R4yGXp42qXaWEhLQ", name = "Bravery Baldric (Flight)", attributes = ["Flight"] },
+    { key = "equipment-srd:7ER2xl3PKcvaVqNI", name = "Bravery Baldric (Greater Healthful)", attributes = ["Greater Healthful"] },
+    { key = "equipment-srd:5LfD4O0zakN0fw7b", name = "Bravery Baldric (Stone)", attributes = ["Stone"] },
+]

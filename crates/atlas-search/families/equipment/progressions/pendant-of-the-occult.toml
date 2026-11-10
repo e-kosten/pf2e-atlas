@@ -1,0 +1,8 @@
+name = "Pendant of the Occult"
+source_note = "GM Core. The eye pendant improves Occultism and gains Dream Message."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:zPhqmCvWyHO8i9ws", name = "Pendant of the Occult", attributes = ["Base item"] },
+    { key = "equipment-srd:1bvH8zFQvDYky9tr", name = "Pendant of the Occult (Greater)", attributes = ["Greater"] },
+]

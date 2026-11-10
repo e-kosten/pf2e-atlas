@@ -1,0 +1,15 @@
+name = "Wand of Teeming Ghosts"
+source_note = "Treasure Vault (Remastered). The thigh-bone wand applies its ghostly effects at successively higher spell ranks."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:yWlQQOs0A3ApEc1J", name = "Wand of Teeming Ghosts (2nd-Rank)", attributes = ["2nd-Rank"] },
+    { key = "equipment-srd:SVEPGvNFj95HjlAE", name = "Wand of Teeming Ghosts (3rd-Rank)", attributes = ["3rd-Rank"] },
+    { key = "equipment-srd:ofhqc85Z3Rt7dcrQ", name = "Wand of Teeming Ghosts (4th-Rank)", attributes = ["4th-Rank"] },
+    { key = "equipment-srd:JWacChecDZbdo6sT", name = "Wand of Teeming Ghosts (5th-Rank)", attributes = ["5th-Rank"] },
+    { key = "equipment-srd:4Lhy6pAOIZdOufu3", name = "Wand of Teeming Ghosts (6th-Rank)", attributes = ["6th-Rank"] },
+    { key = "equipment-srd:sLnkcAGiRQkwQrla", name = "Wand of Teeming Ghosts (7th-Rank)", attributes = ["7th-Rank"] },
+    { key = "equipment-srd:ASroFtAWLwn6HJJH", name = "Wand of Teeming Ghosts (8th-Rank)", attributes = ["8th-Rank"] },
+    { key = "equipment-srd:Y7xHJEyX5Mm3gpq3", name = "Wand of Teeming Ghosts (9th-Rank)", attributes = ["9th-Rank"] },
+]

@@ -1,0 +1,8 @@
+name = "Cloak of the Bat"
+source_note = "Core Rulebook. The brown-and-black silk cloak improves its skill bonuses and removes the use limit on its activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:dipcMOtBFxtmsjkS", name = "Cloak of the Bat", attributes = ["Base item"] },
+    { key = "equipment-srd:ifAp8wHKBZltgHG0", name = "Cloak of the Bat (Greater)", attributes = ["Greater"] },
+]

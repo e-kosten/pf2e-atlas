@@ -1,0 +1,10 @@
+name = "Blast Lance"
+source_note = "The Smoking Gun. Both lances fire their chamber after a successful melee attack. Greater adds striking, stronger fire damage and a higher Fortitude DC."
+item_type = "weapon"
+category = "simple"
+group = "spear"
+
+members = [
+    { key = "equipment-srd:qLhb5ZvIDOmbwvc9", name = "Blast Lance", attributes = ["Base item"] },
+    { key = "equipment-srd:RijrZ8lnaYrGTeMV", name = "Blast Lance (Greater)", attributes = ["Greater"] },
+]

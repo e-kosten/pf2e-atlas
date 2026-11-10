@@ -1,0 +1,9 @@
+name = "Spirit-Sealing Fulu"
+source_note = "Impossible Magic. The undead-sealing fulu raises the Will DC and can paralyze for multiple rounds on a critical failure."
+item_type = "consumable"
+category = "fulu"
+
+members = [
+    { key = "equipment-srd:9FiSGqe8s8531Tyh", name = "Spirit-Sealing Fulu", attributes = ["Base item"] },
+    { key = "equipment-srd:NQvLv4qcTfK21y3H", name = "Spirit-Sealing Fulu (Greater)", attributes = ["Greater"] },
+]

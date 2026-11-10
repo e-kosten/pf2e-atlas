@@ -1,0 +1,9 @@
+name = "Swarmsuit"
+source_note = "Lost Omens The Grand Bazaar. The impenetrable swarmsuit improves the same suit's protection from swarms."
+item_type = "armor"
+category = "unarmored"
+
+members = [
+    { key = "equipment-srd:O6cnU1Uiss81C4bG", name = "Swarmsuit", attributes = ["Base item"] },
+    { key = "equipment-srd:3ytZSLqXQdNCuV4l", name = "Swarmsuit (Impenetrable)", attributes = ["Impenetrable"] },
+]

@@ -1,0 +1,9 @@
+name = "Anointing Oil"
+source_note = "Lost Omens Knights of Lastwall. The amber funerary oil casts higher-rank Peaceful Rest at the greater grade."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:89955RkZoEmVNo3V", name = "Anointing Oil", attributes = ["Base item"] },
+    { key = "equipment-srd:znITT3WIS59TYtCu", name = "Anointing Oil (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Life-Saver Mail"
+source_note = "GM Core. The green-gem splint mail improves its runes and increases the rank of its emergency spell."
+item_type = "armor"
+category = "heavy"
+
+members = [
+    { key = "equipment-srd:h9sZfo6UmHIOU5wb", name = "Life-Saver Mail", attributes = ["Base item"] },
+    { key = "equipment-srd:oRBcuFdQDRCn1pwo", name = "Life-Saver Mail (Greater)", attributes = ["Greater"] },
+]

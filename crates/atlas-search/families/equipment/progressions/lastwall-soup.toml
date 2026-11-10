@@ -1,0 +1,10 @@
+name = "Lastwall Soup"
+source_note = "Character Guide and Knights of Lastwall. The latter source explicitly describes an improved recipe. Improved increases the anti-undead Stealth bonus and Greater adds temporary Hit Points."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:VeCNWhvEr82ZNoSV", name = "Lastwall Soup", attributes = ["Base item"] },
+    { key = "equipment-srd:VcEd9Bh4q5vQfpLv", name = "Lastwall Soup (Improved)", attributes = ["Improved"] },
+    { key = "equipment-srd:ed8gAxli6Of58kAM", name = "Lastwall Soup (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,12 @@
+name = "Obsidian Edge"
+source_note = "Rage of Elements. The magma-cracked gun sword improves its runes, fire and piercing damage, and Reflex DC through the true grade."
+item_type = "weapon"
+category = "martial"
+group = "firearm"
+
+members = [
+    { key = "equipment-srd:39bdYkGlqjFR0AOL", name = "Obsidian Edge", attributes = ["Base item"] },
+    { key = "equipment-srd:XVxnCBQEW5idfAPw", name = "Obsidian Edge (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:KRQDhu2XVmOlaVRu", name = "Obsidian Edge (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:8W8NvYlRM2lQPJf0", name = "Obsidian Edge (True)", attributes = ["True"] },
+]

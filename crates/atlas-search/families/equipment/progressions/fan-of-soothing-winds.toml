@@ -1,0 +1,8 @@
+name = "Fan of Soothing Winds"
+source_note = "Rage of Elements. The bead-lined fan improves the spell DC and casts stronger versions of each activation spell."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:rj5tlZn0yGXG5KVH", name = "Fan of Soothing Winds", attributes = ["Base item"] },
+    { key = "equipment-srd:CxpixKu1opjv4n9K", name = "Fan of Soothing Winds (Greater)", attributes = ["Greater"] },
+]

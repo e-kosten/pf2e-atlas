@@ -1,0 +1,9 @@
+name = "Warleader's Bulwark"
+source_note = "Player Core 2. The bronze breastplate improves its potency and increases both the Diplomacy bonus and the penalties for concealing the wearer."
+item_type = "armor"
+category = "medium"
+
+members = [
+    { key = "equipment-srd:RUEAV5LMUGFHcXcW", name = "Warleader's Bulwark", attributes = ["Base item"] },
+    { key = "equipment-srd:XKON66YXYLXlGPPg", name = "Warleader's Bulwark (Greater)", attributes = ["Greater"] },
+]

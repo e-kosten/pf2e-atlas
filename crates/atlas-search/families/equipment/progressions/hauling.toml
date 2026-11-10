@@ -1,0 +1,8 @@
+name = "Hauling"
+source_note = "Lost Omens The Grand Bazaar. The movement weapon rune increases its Reflex DC and displacement distance."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:2ovu1AioLLff9p8w", name = "Hauling", attributes = ["Base item"] },
+    { key = "equipment-srd:o0XXVVymB8kluwLK", name = "Hauling (Greater)", attributes = ["Greater"] },
+]

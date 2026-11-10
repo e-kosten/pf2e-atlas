@@ -1,0 +1,8 @@
+name = "Winged"
+source_note = "GM Core. The armor rune's activated wings remain tangible indefinitely at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ds7j3D8IIyxWd2XI", name = "Winged", attributes = ["Base item"] },
+    { key = "equipment-srd:Ztb4xv4UGZbF32TE", name = "Winged (Greater)", attributes = ["Greater"] },
+]

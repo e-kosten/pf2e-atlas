@@ -1,0 +1,8 @@
+name = "Veiled Figurehead"
+source_note = "Rage of Elements. The faceless ship figurehead increases illusion duration and DC and broadens the disguise."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Jn0PNvEONsnhYFO9", name = "Veiled Figurehead", attributes = ["Base item"] },
+    { key = "equipment-srd:ggAuloLn6sZpEgT9", name = "Veiled Figurehead (Greater)", attributes = ["Greater"] },
+]

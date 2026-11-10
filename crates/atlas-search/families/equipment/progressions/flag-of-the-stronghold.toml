@@ -1,0 +1,8 @@
+name = "Flag of the Stronghold"
+source_note = "Battlecry! The stronghold banner increases its aura's resistance to siege weapon damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:iJuY7fH2l0rkl5it", name = "Flag of the Stronghold", attributes = ["Base item"] },
+    { key = "equipment-srd:Or69xk2mRbwnOP4r", name = "Flag of the Stronghold (Major)", attributes = ["Major"] },
+]

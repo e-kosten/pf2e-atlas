@@ -1,0 +1,10 @@
+name = "Magnetic Suit"
+source_note = "Guns & Gears. The attracting and repelling suit increases the area and the modifiers for both modes at each grade."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:XLJc4GDQmeAv1cmG", name = "Magnetic Suit", attributes = ["Base item"] },
+    { key = "equipment-srd:R8FHP4u80ee7PgWa", name = "Magnetic Suit (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:hlXXODDYeRzWuPCK", name = "Magnetic Suit (Major)", attributes = ["Major"] },
+]

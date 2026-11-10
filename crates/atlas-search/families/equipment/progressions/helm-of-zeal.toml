@@ -1,0 +1,8 @@
+name = "Helm Of Zeal"
+source_note = "Player Core 2. The divine helmet improves its chosen skill bonus and shortens the Rally to the Cause cooldown."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:h2gpUvHN3hTRS7jv", name = "Helm Of Zeal", attributes = ["Base item"] },
+    { key = "equipment-srd:FKf6eELtbFhbK69W", name = "Helm Of Zeal (Greater)", attributes = ["Greater"] },
+]

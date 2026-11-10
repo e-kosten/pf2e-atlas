@@ -1,0 +1,8 @@
+name = "Tank"
+source_note = "Lost Omens Travel Guide, Animal Caretaking Gear Prices table. The two exact entries are stationary and traveling animal tanks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:JU0fzXWJIdz9WOGF", name = "Tank (Stationary)", attributes = ["Stationary"] },
+    { key = "equipment-srd:S0hmnalGCudgXaLG", name = "Tank (Traveling)", attributes = ["Traveling"] },
+]

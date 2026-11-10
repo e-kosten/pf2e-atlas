@@ -1,0 +1,9 @@
+name = "Beetle Gel"
+source_note = "Impossible Magic. The beetle-forming gel animates a larger object as a giant stag beetle at the greater grade."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:xBNg6XqMUM9jCuCN", name = "Beetle Gel", attributes = ["Base item"] },
+    { key = "equipment-srd:twoixuegpjAwbjld", name = "Beetle Gel (Greater)", attributes = ["Greater"] },
+]

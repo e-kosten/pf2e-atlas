@@ -1,0 +1,11 @@
+name = "Manacles"
+source_note = "Player Core. The successive restraint qualities require increasingly difficult and numerous lock checks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ZPY2dOaMYciIJv1Q", name = "Manacles (Poor)", attributes = ["Poor"] },
+    { key = "equipment-srd:ckGYDocGEaelHfXF", name = "Manacles (Simple)", attributes = ["Simple"] },
+    { key = "equipment-srd:lWeADBqMFwFlVIuV", name = "Manacles (Average)", attributes = ["Average"] },
+    { key = "equipment-srd:5g0rE5yMsTH3E2LJ", name = "Manacles (Good)", attributes = ["Good"] },
+    { key = "equipment-srd:5zkoqnp6X5yPCXVy", name = "Manacles (Superior)", attributes = ["Superior"] },
+]

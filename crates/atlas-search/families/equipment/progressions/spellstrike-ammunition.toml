@@ -1,0 +1,15 @@
+name = "Spellstrike Ammunition"
+source_note = "GM Core. Each type uses the same spell reservoir with progressively higher maximum spell rank. The pinned Type IX record lists a tenth-rank maximum."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:NSo0bFX7DGGjqKKl", name = "Spellstrike Ammunition (Type I)", attributes = ["Type I"] },
+    { key = "equipment-srd:mmsuA7qPxFLLghtx", name = "Spellstrike Ammunition (Type II)", attributes = ["Type II"] },
+    { key = "equipment-srd:mz0GbCF2WT1DSYac", name = "Spellstrike Ammunition (Type III)", attributes = ["Type III"] },
+    { key = "equipment-srd:WSZl9S0Nui7pTMa8", name = "Spellstrike Ammunition (Type IV)", attributes = ["Type IV"] },
+    { key = "equipment-srd:XyrFcBF5ygIFFGes", name = "Spellstrike Ammunition (Type V)", attributes = ["Type V"] },
+    { key = "equipment-srd:n4FF7K3SLb7q1v6v", name = "Spellstrike Ammunition (Type VI)", attributes = ["Type VI"] },
+    { key = "equipment-srd:WearPqN56FQofpF6", name = "Spellstrike Ammunition (Type VII)", attributes = ["Type VII"] },
+    { key = "equipment-srd:oqiC4Mc5qKNCl88e", name = "Spellstrike Ammunition (Type VIII)", attributes = ["Type VIII"] },
+    { key = "equipment-srd:aAGjV3wkopQ44VX3", name = "Spellstrike Ammunition (Type IX)", attributes = ["Type IX"] },
+]

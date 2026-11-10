@@ -1,0 +1,10 @@
+name = "Boulder Seed"
+source_note = "Treasure Vault (Remastered). The growing seed bomb improves its attack and damage and creates a larger, tougher obstruction."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:sjOkiftTv4KbR2c0", name = "Boulder Seed", attributes = ["Base item"] },
+    { key = "equipment-srd:OHwsumgfO1oyH7KL", name = "Boulder Seed (Greater)", attributes = ["Greater"] },
+]

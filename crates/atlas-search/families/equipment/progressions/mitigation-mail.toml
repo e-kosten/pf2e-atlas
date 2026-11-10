@@ -1,0 +1,10 @@
+name = "Mitigation Mail"
+source_note = "Battlecry! The chain mail improves its fundamental runes and restores more Hit Points with Salve."
+item_type = "armor"
+category = "medium"
+
+members = [
+    { key = "equipment-srd:zaqwfgmFMHUIq4lh", name = "Mitigation Mail", attributes = ["Base item"] },
+    { key = "equipment-srd:OdF2XdbXJczSn83Q", name = "Mitigation Mail (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:f7ccIV9tllxCxEdg", name = "Mitigation Mail (Major)", attributes = ["Major"] },
+]

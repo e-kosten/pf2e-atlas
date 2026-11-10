@@ -1,0 +1,11 @@
+name = "Animal Staff"
+source_note = "GM Core. The animal-headed identification staff adds higher-rank animal spells at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:WcuknnE3xYfSdbhm", name = "Animal Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:bT9azgpc96DNbitA", name = "Animal Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Oo7IpJQDSTmzUyzG", name = "Animal Staff (Major)", attributes = ["Major"] },
+]

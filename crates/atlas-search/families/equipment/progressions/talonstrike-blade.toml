@@ -1,0 +1,10 @@
+name = "Talonstrike Blade"
+source_note = "Battlecry! The Eagle Knight silver bastard sword improves its striking rune and gains Grasping Talons against a struck target."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:6Wj3janUyfxe17d0", name = "Talonstrike Blade", attributes = ["Base item"] },
+    { key = "equipment-srd:zxzJzXkM2CtODNQv", name = "Talonstrike Blade (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Staff of Arcane Might"
+source_note = "GM Core. The rune-topped staff improves its weapon runes and Sunder activation and adds higher-rank arcane spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:0mCj6HZcwFzVxVyM", name = "Staff of Arcane Might", attributes = ["Base item"] },
+    { key = "equipment-srd:L7FuscHIuzQ7FjnB", name = "Staff of Arcane Might (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:w2AxS7q8bjh77pp2", name = "Staff of Arcane Might (Major)", attributes = ["Major"] },
+]

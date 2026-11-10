@@ -1,0 +1,8 @@
+name = "Thieves' Toolkit Picks"
+source_note = "Player Core. The two sets of replacement picks fit the standard and infiltrator kits respectively. Both source records explicitly describe replacement parts."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Sw7MBLASN3xK4Y44", name = "Thieves' Toolkit (Replacement Picks)", attributes = ["Standard"] },
+    { key = "equipment-srd:BznmPaRjI4Orb0IH", name = "Thieves' Toolkit (Infiltrator Picks)", attributes = ["Infiltrator"] },
+]

@@ -1,0 +1,8 @@
+name = "Floating Tent"
+source_note = "Rage of Elements. Pup and four-person tents share the floating construction with different capacities and furnishings."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:1m0wiNht4sd05oL6", name = "Floating Tent (Pup)", attributes = ["Pup"] },
+    { key = "equipment-srd:XQBkuELucpI0c7XW", name = "Floating Tent (Four-Person)", attributes = ["Four-Person"] },
+]

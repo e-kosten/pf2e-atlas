@@ -1,0 +1,8 @@
+name = "Tradecraft Tattoo"
+source_note = "Treasure Vault (Remastered). The tradecraft tattoo improves its bonus and makes its spell last until reactivated."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ImedbomHGVFtE3D7", name = "Tradecraft Tattoo", attributes = ["Base item"] },
+    { key = "equipment-srd:0zBuCoOeNkIwi8bj", name = "Tradecraft Tattoo (Greater)", attributes = ["Greater"] },
+]

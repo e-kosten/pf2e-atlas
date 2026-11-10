@@ -1,0 +1,9 @@
+name = "Potion of Swimming"
+source_note = "GM Core. The saltwater potion grants the same swim Speed for an hour at the greater grade, up from ten minutes."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:Eb4dEuV22QVlMumS", name = "Potion of Swimming", attributes = ["Base item"] },
+    { key = "equipment-srd:OMJgFmy3jut79Iaj", name = "Potion of Swimming (Greater)", attributes = ["Greater"] },
+]

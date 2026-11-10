@@ -1,0 +1,10 @@
+name = "Belkzen Deadsmasher"
+source_note = "Battlecry! The orc-faced morningstar improves its runes, adds ghost touch, and doubles void resistance."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:VDyPNtcxDbVGQ613", name = "Belkzen Deadsmasher", attributes = ["Base item"] },
+    { key = "equipment-srd:lJOygeHETz6S8cEz", name = "Belkzen Deadsmasher (Greater)", attributes = ["Greater"] },
+]

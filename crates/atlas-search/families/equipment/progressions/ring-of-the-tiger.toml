@@ -1,0 +1,8 @@
+name = "Ring of the Tiger"
+source_note = "Kingmaker. The tiger-carved ring improves its bonus and the damage dice of its granted attack."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:JWUTLYX1zaBntC1L", name = "Ring of the Tiger", attributes = ["Base item"] },
+    { key = "equipment-srd:7q3B8wvZFltHTpPo", name = "Ring of the Tiger (Greater)", attributes = ["Greater"] },
+]

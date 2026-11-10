@@ -1,0 +1,9 @@
+name = "Crown of the Fire Eater"
+source_note = "Lost Omens The Grand Bazaar. The flaming crown increases fire resistance and improves the retaliation activation's damage and DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:gxzlLfvXeZ8BGlf4", name = "Crown of the Fire Eater", attributes = ["Base item"] },
+    { key = "equipment-srd:qHwbdYOPZ9mwmru1", name = "Crown of the Fire Eater (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:vfVpgUuieLdPoqY7", name = "Crown of the Fire Eater (Major)", attributes = ["Major"] },
+]

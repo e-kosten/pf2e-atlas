@@ -1,0 +1,9 @@
+name = "Seer's Flute"
+source_note = "Treasure Vault (Remastered). The seer's flute adds higher-rank divination spells and improves its bonus at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:eLsmwHVW5qiwcd7c", name = "Seer's Flute", attributes = ["Base item"] },
+    { key = "equipment-srd:D7ARQDAr9tO61UqY", name = "Seer's Flute (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:QqN3JHXXNveMnjnd", name = "Seer's Flute (Major)", attributes = ["Major"] },
+]

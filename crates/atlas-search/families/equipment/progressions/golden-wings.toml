@@ -1,0 +1,10 @@
+name = "Golden Wings"
+source_note = "Lost Omens High Seas. Assisted Flight progresses from assisted leaps to gliding, then a fly Speed and a faster fly Speed at the true grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:KeKtKdzvfLfPW5PK", name = "Golden Wings", attributes = ["Base item"] },
+    { key = "equipment-srd:JhBdNkBQMF1QTVt2", name = "Golden Wings (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:EJ0KX0DV1BnnuNYv", name = "Golden Wings (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:QOD35361DkDqAXaR", name = "Golden Wings (True)", attributes = ["True"] },
+]

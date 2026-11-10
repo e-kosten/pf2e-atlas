@@ -1,0 +1,8 @@
+name = "Flaming"
+source_note = "GM Core. The weapon rune doubles critical persistent fire damage and bypasses fire resistance at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:XszNvxnymWYRaoTp", name = "Flaming", attributes = ["Base item"] },
+    { key = "equipment-srd:RSZwUlCzUX7Nb4UA", name = "Flaming (Greater)", attributes = ["Greater"] },
+]

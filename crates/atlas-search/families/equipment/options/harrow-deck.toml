@@ -1,0 +1,9 @@
+name = "Harrow Deck"
+source_note = "Assault on Hunting Lodge Seven. The common, fine, and simple decks are different constructions of the same deck. Hardened Harrow Deck is a separate weapon."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:B3aJa0csNZOGXLXT", name = "Harrow Deck (Common)", attributes = ["Common"] },
+    { key = "equipment-srd:OP1TkZ9ugn86W4Br", name = "Harrow Deck (Fine)", attributes = ["Fine"] },
+    { key = "equipment-srd:C1j0Zs26TPVjplbs", name = "Harrow Deck (Simple)", attributes = ["Simple"] },
+]

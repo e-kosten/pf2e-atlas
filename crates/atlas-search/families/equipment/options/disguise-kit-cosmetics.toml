@@ -1,0 +1,8 @@
+name = "Disguise Kit Cosmetics"
+source_note = "Player Core. These are standard and elite replacement cosmetics for the separately cataloged kit grades. The exact refills form their own family."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:FWMGkUotwUJuht7i", name = "Disguise Kit (Replacement Cosmetics)", attributes = ["Replacement Cosmetics"] },
+    { key = "equipment-srd:IRqbsE8MgGLTfHLz", name = "Disguise Kit (Elite Cosmetics)", attributes = ["Elite Cosmetics"] },
+]

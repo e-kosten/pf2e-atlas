@@ -1,0 +1,9 @@
+name = "Soaring Wings"
+source_note = "Treasure Vault (Remastered). The wings tattoo extends its flight duration and gains unlimited activations at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:aaua3vcUXyBFpRe9", name = "Soaring Wings", attributes = ["Base item"] },
+    { key = "equipment-srd:oCwTZg3JuwLSA7Yj", name = "Soaring Wings (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:pIy2L56i70OUd2HZ", name = "Soaring Wings (Major)", attributes = ["Major"] },
+]

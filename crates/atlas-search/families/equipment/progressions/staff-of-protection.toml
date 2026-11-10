@@ -1,0 +1,11 @@
+name = "Staff of Protection"
+source_note = "GM Core. The sturdy staff adds higher-rank protective spells while keeping the same defense against shoves and trips."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:4O00N0HoPz5ywNyz", name = "Staff of Protection", attributes = ["Base item"] },
+    { key = "equipment-srd:XE8AxkahYPVzeLCW", name = "Staff of Protection (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:TLLZIFIPbhW8kjyL", name = "Staff of Protection (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,8 @@
+name = "Inspiring Spotlight"
+source_note = "Legacy of the Lost God and Lost Omens Rival Academies. The portable and mounted records share movable burst illumination and counteract mechanics. The legacy line spotlight uses a fixed hourly beam and is a distinct concrete record."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:C9lcnBy4pS3MIyoU", name = "Inspiring Spotlight (Portable)", attributes = ["Portable"] },
+    { key = "equipment-srd:uTPqImeDq7bEsFak", name = "Inspiring Spotlight (Mounted)", attributes = ["Mounted"] },
+]

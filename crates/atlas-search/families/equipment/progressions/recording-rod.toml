@@ -1,0 +1,9 @@
+name = "Recording Rod"
+source_note = "Devil at the Dreaming Palace. Both rods record a scene with the same manual or automatic triggers. The reusable model supports another recording after erasing the first."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:1Nez8K5C4fwgFrTz", name = "Recording Rod (Basic)", attributes = ["Basic"] },
+    { key = "equipment-srd:jrLgEJxPvUKtSMMO", name = "Recording Rod (Reusable)", attributes = ["Reusable"] },
+]

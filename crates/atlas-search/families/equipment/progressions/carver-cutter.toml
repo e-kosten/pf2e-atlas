@@ -1,0 +1,12 @@
+name = "Carver-cutter"
+source_note = "Rage of Elements. The woodcarver's weapon improves its runes, numeric bonus, and activation damage through the true grade."
+item_type = "weapon"
+category = "martial"
+group = "axe"
+
+members = [
+    { key = "equipment-srd:0liiZqvhcM69tKl9", name = "Carver-cutter", attributes = ["Base item"] },
+    { key = "equipment-srd:MNx8UznusoyRy06k", name = "Carver-cutter (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:O5PgCWNhFtTFL7S5", name = "Carver-cutter (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:ePmUVkh4NgM4eGdR", name = "Carver-cutter (True)", attributes = ["True"] },
+]

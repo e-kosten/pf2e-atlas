@@ -1,0 +1,10 @@
+name = "Lodestone Bomb"
+source_note = "Treasure Vault (Remastered). The lodestone bomb improves attack, damage, splash, and persistent force damage."
+item_type = "weapon"
+category = "martial"
+group = "bomb"
+
+members = [
+    { key = "equipment-srd:DBQ68Evl8PdLAVmt", name = "Lodestone Bomb", attributes = ["Base item"] },
+    { key = "equipment-srd:APJ0NWJ4DYUXNpNm", name = "Lodestone Bomb (Greater)", attributes = ["Greater"] },
+]

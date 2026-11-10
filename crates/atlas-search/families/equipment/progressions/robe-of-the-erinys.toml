@@ -1,0 +1,9 @@
+name = "Robe of the Erinys"
+source_note = "Hellbreakers. The scarlet robe increases its poison damage and Fortitude DC at each grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Sdb13IJJMmryDqox", name = "Robe of the Erinys", attributes = ["Base item"] },
+    { key = "equipment-srd:PtlGktLAPSkBOlzJ", name = "Robe of the Erinys (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:08w0aIB1JRipvrUN", name = "Robe of the Erinys (Major)", attributes = ["Major"] },
+]

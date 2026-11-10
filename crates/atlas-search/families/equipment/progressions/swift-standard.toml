@@ -1,0 +1,9 @@
+name = "Swift Standard"
+source_note = "Battlecry! The horse-embroidered banner's aura grants progressively greater Speed bonuses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:5dM1ysuBsLj0OWIv", name = "Swift Standard", attributes = ["Base item"] },
+    { key = "equipment-srd:WJkVwjoSsGU2fAgi", name = "Swift Standard (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:i2krvXNn4QQfh3ov", name = "Swift Standard (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Binding Coil"
+source_note = "Impossible Magic. The warm red weapon talisman increases the DCs associated with its binding effect."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:mBwtPr9SGyuq0vPW", name = "Binding Coil", attributes = ["Base item"] },
+    { key = "equipment-srd:ah9jxSBerznPowW7", name = "Binding Coil (Greater)", attributes = ["Greater"] },
+]

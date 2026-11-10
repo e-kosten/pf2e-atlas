@@ -1,0 +1,8 @@
+name = "Energy-Resistant"
+source_note = "GM Core. The protective rune doubles resistance to the energy type selected when it was created."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Lw3B9DpnyrpXD9Di", name = "Energy-Resistant", attributes = ["Base item"] },
+    { key = "equipment-srd:9CAWAKkZE7dr4FlJ", name = "Energy-Resistant (Greater)", attributes = ["Greater"] },
+]

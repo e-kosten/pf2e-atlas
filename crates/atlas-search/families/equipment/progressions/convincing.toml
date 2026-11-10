@@ -1,0 +1,9 @@
+name = "Convincing"
+source_note = "Impossible Magic. The decorative armor rune increases its Diplomacy bonus at each grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ft3Iejj2UlqH4J3J", name = "Convincing", attributes = ["Base item"] },
+    { key = "equipment-srd:QyR2zHM3tChs6I6M", name = "Convincing (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:0IlAAtOLgJ4kA537", name = "Convincing (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Wand of Chromatic Burst"
+source_note = "Treasure Vault (Remastered). The same chromatic wand improves spell rank and damage."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:hgWCwA6Yfqiz9tyr", name = "Wand of Chromatic Burst (4th-rank)", attributes = ["4th-rank"] },
+    { key = "equipment-srd:0KaC1NryNfckdS7T", name = "Wand of Chromatic Burst (7th-rank)", attributes = ["7th-rank"] },
+]

@@ -1,0 +1,8 @@
+name = "Advancing"
+source_note = "Treasure Vault (Remastered). The rune allows movement up to full Speed after defeating an enemy at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:45zjE7pj6FUHuz3K", name = "Advancing", attributes = ["Base item"] },
+    { key = "equipment-srd:1neYjXMc4srH7KQ0", name = "Advancing (Greater)", attributes = ["Greater"] },
+]

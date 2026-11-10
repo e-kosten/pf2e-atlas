@@ -1,0 +1,9 @@
+name = "Dragon Turtle Scale"
+source_note = "GM Core. The clasped scale grants a swim Speed equal to land Speed at the greater grade, up from half land Speed."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:GnXKCkgZQG0UmuHz", name = "Dragon Turtle Scale", attributes = ["Base item"] },
+    { key = "equipment-srd:4MfrhRlz4VeYtYVn", name = "Dragon Turtle Scale (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Kraken Figurehead"
+source_note = "Rage of Elements. The wracking ship figurehead raises the escape DC and adds hull damage to its pulling effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:yJAhgNvKFcCSPpG3", name = "Kraken Figurehead", attributes = ["Base item"] },
+    { key = "equipment-srd:nvYrpdzZzH50t52q", name = "Kraken Figurehead (Wracking)", attributes = ["Wracking"] },
+]

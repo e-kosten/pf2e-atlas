@@ -1,0 +1,9 @@
+name = "Dazzling Rosary"
+source_note = "Impossible Magic. The catalyst retains the same dazzling effect but supports Spiritual Armament of any spell rank at the greater grade."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:xcH5IW7ahE3q8cPq", name = "Dazzling Rosary", attributes = ["Base item"] },
+    { key = "equipment-srd:xnIEWJYmJh6j58Wd", name = "Dazzling Rosary (Greater)", attributes = ["Greater"] },
+]

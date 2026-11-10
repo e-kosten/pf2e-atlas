@@ -1,0 +1,8 @@
+name = "Ring of Maniacal Devices"
+source_note = "Player Core 2. The toolkit-producing ring improves its bonus and adds a choice of seventh-rank spell."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:nLvP7U50hLqz26Uy", name = "Ring of Maniacal Devices", attributes = ["Base item"] },
+    { key = "equipment-srd:Wkm2VYPsfGjWBtQe", name = "Ring of Maniacal Devices (Greater)", attributes = ["Greater"] },
+]

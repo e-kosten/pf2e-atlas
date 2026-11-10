@@ -1,0 +1,8 @@
+name = "Giant-Killing"
+source_note = "Kingmaker. The weapon rune improves anti-giant mental damage, bypasses mental resistance, and adds a critical-hit save with graded effects."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:EjV3Pb13DLzGTCcY", name = "Giant-Killing", attributes = ["Base item"] },
+    { key = "equipment-srd:CxadMTEjnuXyqmcQ", name = "Giant-Killing (Greater)", attributes = ["Greater"] },
+]

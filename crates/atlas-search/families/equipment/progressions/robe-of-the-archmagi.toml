@@ -1,0 +1,9 @@
+name = "Robe of the Archmagi"
+source_note = "Core Rulebook. The arcane robe doubles its spell damage resistance and extends its defensive activation to a nearby ally."
+item_type = "armor"
+category = "unarmored"
+
+members = [
+    { key = "equipment-srd:Wkh5rQx3IqInEKdT", name = "Robe of the Archmagi", attributes = ["Base item"] },
+    { key = "equipment-srd:7ynjS9llFg7tPMoj", name = "Robe of the Archmagi (Greater)", attributes = ["Greater"] },
+]

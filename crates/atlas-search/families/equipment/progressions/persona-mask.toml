@@ -1,0 +1,8 @@
+name = "Persona Mask"
+source_note = "GM Core. The alabaster mask improves its Performance bonus and gains the Sacrifice Role reaction."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:MKupH1T018JubYJW", name = "Persona Mask", attributes = ["Base item"] },
+    { key = "equipment-srd:0PPQl3TEr1yNhhN6", name = "Persona Mask (Greater)", attributes = ["Greater"] },
+]

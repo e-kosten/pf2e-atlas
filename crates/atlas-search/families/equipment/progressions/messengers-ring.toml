@@ -1,0 +1,8 @@
+name = "Messenger's Ring"
+source_note = "GM Core. The insignia ring improves Diplomacy and adds hourly Sending."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:HAtj6AGCIZHpD7Nl", name = "Messenger's Ring", attributes = ["Base item"] },
+    { key = "equipment-srd:b9YHyjOL4sg7tjI4", name = "Messenger's Ring (Greater)", attributes = ["Greater"] },
+]

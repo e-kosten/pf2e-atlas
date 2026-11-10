@@ -1,0 +1,9 @@
+name = "Wyrm Claw"
+source_note = "Treasure Vault. The silver-mounted dragon claw improves its resistance and breath effect damage and Reflex DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:r81OfbBRPTXi0Fwd", name = "Wyrm Claw", attributes = ["Base item"] },
+    { key = "equipment-srd:lSpoAPC5VeGcSoDG", name = "Wyrm Claw (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:orChmPy2wJ6DWwHU", name = "Wyrm Claw (Major)", attributes = ["Major"] },
+]

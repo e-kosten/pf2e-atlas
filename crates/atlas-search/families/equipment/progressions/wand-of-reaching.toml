@@ -1,0 +1,15 @@
+name = "Wand of Reaching"
+source_note = "Treasure Vault (Remastered). The silver wand increases the range of its contained spell at successively higher ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:cyw2OgL4XJ9HOu0b", name = "Wand of Reaching (1st-Rank)", attributes = ["1st-Rank"] },
+    { key = "equipment-srd:rmbvBjcDMDAZLJ7v", name = "Wand of Reaching (2nd-Rank)", attributes = ["2nd-Rank"] },
+    { key = "equipment-srd:AzLEUTp4RHYAoXIe", name = "Wand of Reaching (3rd-Rank)", attributes = ["3rd-Rank"] },
+    { key = "equipment-srd:XgKwydoro5eaIWC8", name = "Wand of Reaching (4th-Rank)", attributes = ["4th-Rank"] },
+    { key = "equipment-srd:dPwRgQKEFLLDF2iB", name = "Wand of Reaching (5th-Rank)", attributes = ["5th-Rank"] },
+    { key = "equipment-srd:pCr0zPdJoXZW3I6y", name = "Wand of Reaching (6th-Rank)", attributes = ["6th-Rank"] },
+    { key = "equipment-srd:qeLAYEwUXNbri5eB", name = "Wand of Reaching (7th-Rank)", attributes = ["7th-Rank"] },
+    { key = "equipment-srd:eFGpWmM8ehW9mkI4", name = "Wand of Reaching (8th-Rank)", attributes = ["8th-Rank"] },
+    { key = "equipment-srd:sa9UGUMWYiZkTPjA", name = "Wand of Reaching (9th-Rank)", attributes = ["9th-Rank"] },
+]

@@ -1,0 +1,10 @@
+name = "Sniper's Bead"
+source_note = "Guns & Gears. The firearm talisman extends its range benefit to more range increments at each grade."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:WeiUTSRc17HLNehg", name = "Sniper's Bead", attributes = ["Base item"] },
+    { key = "equipment-srd:R9EZOG8Zeeo2RnwO", name = "Sniper's Bead (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:e90XsQumDxHzqS7z", name = "Sniper's Bead (Major)", attributes = ["Major"] },
+]

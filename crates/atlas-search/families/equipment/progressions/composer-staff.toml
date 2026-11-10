@@ -1,0 +1,11 @@
+name = "Composer Staff"
+source_note = "Treasure Vault (Remastered). The musical staff adds higher-rank sound and performance spells and improves its bonus at the major grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:6TC4FywUTzVAK97v", name = "Composer Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:KSHZBPFxPD6uCZXM", name = "Composer Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:pBPVm5JjKfKX8gaX", name = "Composer Staff (Major)", attributes = ["Major"] },
+]

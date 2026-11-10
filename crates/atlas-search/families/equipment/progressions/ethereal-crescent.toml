@@ -1,0 +1,9 @@
+name = "Ethereal Crescent"
+source_note = "Battlecry! The translucent weapon consumable adds an astral rune effect at the greater grade."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:wYDTn07x34o2slUD", name = "Ethereal Crescent", attributes = ["Base item"] },
+    { key = "equipment-srd:4BoDAxtqWYIgXayF", name = "Ethereal Crescent (Greater)", attributes = ["Greater"] },
+]

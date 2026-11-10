@@ -1,0 +1,11 @@
+name = "Fluid Form Staff"
+source_note = "GM Core. The sand-filled staff for identifying transformation magic adds higher-rank form spells at each grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:B71BgdfFApkYmAjc", name = "Fluid Form Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:bQynfb23iexSu8zU", name = "Fluid Form Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:smrNvKVL976JNEab", name = "Fluid Form Staff (Major)", attributes = ["Major"] },
+]

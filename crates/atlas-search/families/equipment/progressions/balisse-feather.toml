@@ -1,0 +1,9 @@
+name = "Balisse Feather"
+source_note = "Player Core 2. The smoldering weapon talisman increases its Will DC and further reduces the target's resistances."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:Do8vjuUBOslgPtyw", name = "Balisse Feather", attributes = ["Base item"] },
+    { key = "equipment-srd:K2Exm6VVe9XXCdZe", name = "Balisse Feather (Greater)", attributes = ["Greater"] },
+]

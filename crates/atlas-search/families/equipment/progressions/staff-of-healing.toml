@@ -1,0 +1,12 @@
+name = "Staff of Healing"
+source_note = "GM Core. The white staff increases its Heal bonus and adds higher-rank restorative spells through the true grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:3OkOKxCee9WruGU5", name = "Staff of Healing", attributes = ["Base item"] },
+    { key = "equipment-srd:XSwEE8wjHr6UXzpw", name = "Staff of Healing (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:FTVap8IjoKgCexH7", name = "Staff of Healing (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:WbcQqXrUytXkCMK3", name = "Staff of Healing (True)", attributes = ["True"] },
+]

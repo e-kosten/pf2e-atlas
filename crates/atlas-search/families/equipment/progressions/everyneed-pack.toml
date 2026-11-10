@@ -1,0 +1,8 @@
+name = "Everyneed Pack"
+source_note = "Treasure Vault (Remastered). The pocketed pack increases its per-item, per-activation, and total value of retrievable gear."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:P8xfjaEsrcKxl7k0", name = "Everyneed Pack", attributes = ["Base item"] },
+    { key = "equipment-srd:31tSOy1iHCjNNd4N", name = "Everyneed Pack (Greater)", attributes = ["Greater"] },
+]

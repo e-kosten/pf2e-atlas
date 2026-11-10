@@ -1,0 +1,8 @@
+name = "Thunderblast Slippers"
+source_note = "Treasure Vault (Remastered). The slippers increase activation distance, damage, and Fortitude DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LV8nFuV3NiNYlxpo", name = "Thunderblast Slippers", attributes = ["Base item"] },
+    { key = "equipment-srd:cEXLUGa9qTh8Y6kX", name = "Thunderblast Slippers (Greater)", attributes = ["Greater"] },
+]

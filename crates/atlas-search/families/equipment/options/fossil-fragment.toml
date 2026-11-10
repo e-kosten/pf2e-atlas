@@ -1,0 +1,13 @@
+name = "Fossil Fragment"
+source_note = "Rage of Elements. The seven fragments share fossil animation and produce distinct creatures or an awakened tree."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ktHdg7fqKtl5hXKJ", name = "Fossil Fragment (Deinonychus Claw)", attributes = ["Deinonychus Claw"] },
+    { key = "equipment-srd:aVHz2tXvlNDFIneB", name = "Fossil Fragment (Eurypterid Paddle)", attributes = ["Eurypterid Paddle"] },
+    { key = "equipment-srd:6R3e78H9YwzmMbjF", name = "Fossil Fragment (Amber Mosquito)", attributes = ["Amber Mosquito"] },
+    { key = "equipment-srd:fTnjEAHVuM0fGkL4", name = "Fossil Fragment (Petrified Wood)", attributes = ["Petrified Wood"] },
+    { key = "equipment-srd:l6bEZwKaxCGNgZQc", name = "Fossil Fragment (Triceratops Frill)", attributes = ["Triceratops Frill"] },
+    { key = "equipment-srd:oPrV7aMAlBypaAMD", name = "Fossil Fragment (Tyrannosaur Tooth)", attributes = ["Tyrannosaur Tooth"] },
+    { key = "equipment-srd:ocEK7WNH9t3ZPIfd", name = "Fossil Fragment (Brontosaurus Phalange)", attributes = ["Brontosaurus Phalange"] },
+]

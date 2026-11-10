@@ -1,0 +1,10 @@
+name = "Elemental Wayfinder"
+source_note = "Lost Omens Pathfinder Society Guide. The same wayfinder design gains a distinct spell and benefit for each element."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:SMBPvsZH7yAsGSQa", name = "Elemental Wayfinder (Air)", attributes = ["Air"] },
+    { key = "equipment-srd:PMmJ47MLUXAWmXFg", name = "Elemental Wayfinder (Earth)", attributes = ["Earth"] },
+    { key = "equipment-srd:JhDhFq2JGBGR2lwb", name = "Elemental Wayfinder (Fire)", attributes = ["Fire"] },
+    { key = "equipment-srd:QZliTmapMRrEJ6q8", name = "Elemental Wayfinder (Water)", attributes = ["Water"] },
+]

@@ -1,0 +1,10 @@
+name = "Blade of Four Energies"
+source_note = "Impossible Magic. The same four-gem shifting blade improves its runes and activation rank and DC."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:AUJfvrouapAeC4Mg", name = "Blade of Four Energies", attributes = ["Base item"] },
+    { key = "equipment-srd:AWUzApS5PPwt3TCI", name = "Blade of Four Energies (Greater)", attributes = ["Greater"] },
+]

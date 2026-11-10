@@ -1,0 +1,9 @@
+name = "Oozepick"
+source_note = "Lost Omens Impossible Lands. The silver ooze lockpick lasts longer and improves its item bonus at the greater grade."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:hKed91BOXjyaNG3x", name = "Oozepick", attributes = ["Base item"] },
+    { key = "equipment-srd:HwWrR4CG3Fe7QZrO", name = "Oozepick (Greater)", attributes = ["Greater"] },
+]

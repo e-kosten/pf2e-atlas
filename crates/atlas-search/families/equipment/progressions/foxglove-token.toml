@@ -1,0 +1,9 @@
+name = "Foxglove Token"
+source_note = "Severed at the Root. The spellheart raises spell DC, poison resistance and weapon damage and gains additional spells by grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Wh9kusgVXera0bXh", name = "Foxglove Token", attributes = ["Base item"] },
+    { key = "equipment-srd:1qlc8Jxb9DM63O0y", name = "Foxglove Token (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:GakendMciczlPLHQ", name = "Foxglove Token (Major)", attributes = ["Major"] },
+]

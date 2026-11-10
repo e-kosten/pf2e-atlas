@@ -1,0 +1,8 @@
+name = "Fleshgem"
+source_note = "Lost Omens The Grand Bazaar. The flesh-embedded crystals share a physical form but implement distinct combat and earth magic effects."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ClfUJ4AtaxglVGvs", name = "Fleshgem (Combat)", attributes = ["Combat"] },
+    { key = "equipment-srd:bh3zC7WcVlM0qgYZ", name = "Fleshgem (Earthspeaker)", attributes = ["Earthspeaker"] },
+]

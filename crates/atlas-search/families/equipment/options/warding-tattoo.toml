@@ -1,0 +1,10 @@
+name = "Warding Tattoo"
+source_note = "Impossible Magic. The bare tattoo is a concrete protective item. Trail, Wave, and Fiend add different protections to its warding activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:vx5bG5YNeC78u49n", name = "Warding Tattoo", attributes = ["Base item"] },
+    { key = "equipment-srd:XFJD6eOX6H9sLcbC", name = "Warding Tattoo (Trail)", attributes = ["Trail"] },
+    { key = "equipment-srd:UkEDBhYxHWcTaMTG", name = "Warding Tattoo (Wave)", attributes = ["Wave"] },
+    { key = "equipment-srd:V0ryBu9M5OPd4Wub", name = "Warding Tattoo (Fiend)", attributes = ["Fiend"] },
+]

@@ -1,0 +1,9 @@
+name = "Wand of the Snowfields"
+source_note = "Player Core 2. The snowfield wand casts its same effect at fifth and seventh rank."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:ut83Grf73Z8ZTaV1", name = "Wand of the Snowfields (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:q2kE0mEUAEL3gQv0", name = "Wand of the Snowfields (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+]

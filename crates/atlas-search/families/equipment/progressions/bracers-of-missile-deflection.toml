@@ -1,0 +1,8 @@
+name = "Bracers of Missile Deflection"
+source_note = "GM Core. The dawnsilver bracers shorten their ranged-defense activation cooldown from a day to ten minutes."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:eurAnvH8bK0ZctOR", name = "Bracers of Missile Deflection", attributes = ["Base item"] },
+    { key = "equipment-srd:P5nasaE0JgvkZyZp", name = "Bracers of Missile Deflection (Greater)", attributes = ["Greater"] },
+]

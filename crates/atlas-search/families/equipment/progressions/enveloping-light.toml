@@ -1,0 +1,8 @@
+name = "Enveloping Light"
+source_note = "Lost Omens The Grand Bazaar. The concentric tattoo expands its protective triggers and improves its spell rank and healing."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:tqgCxayEMsUxb1PV", name = "Enveloping Light", attributes = ["Base item"] },
+    { key = "equipment-srd:3x7YAs6nos79Dpt7", name = "Enveloping Light (Greater)", attributes = ["Greater"] },
+]

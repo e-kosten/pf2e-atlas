@@ -1,0 +1,9 @@
+name = "Thorn Triad"
+source_note = "Rage of Elements. The thorned spellheart improves its DC and plant effects and adds higher-rank spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:j1To2GxVU46H1uOG", name = "Thorn Triad", attributes = ["Base item"] },
+    { key = "equipment-srd:3LJ3l5QKyjxiVBbu", name = "Thorn Triad (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:XIQmnhUfmhojIZT7", name = "Thorn Triad (Major)", attributes = ["Major"] },
+]

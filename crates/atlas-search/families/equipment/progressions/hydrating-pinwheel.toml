@@ -1,0 +1,9 @@
+name = "Hydrating Pinwheel"
+source_note = "Impossible Magic. The solid-water spellheart improves damage and spell DC at higher grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:6KSvDOocytrgkRDb", name = "Hydrating Pinwheel", attributes = ["Base item"] },
+    { key = "equipment-srd:9d65hIWkqp73r5kq", name = "Hydrating Pinwheel (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Jnhvy5jKPpAFxkrd", name = "Hydrating Pinwheel (Major)", attributes = ["Major"] },
+]

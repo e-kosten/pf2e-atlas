@@ -1,0 +1,8 @@
+name = "Gravebane Ammunition"
+source_note = "Impossible Magic. The blessed ammunition increases vitality damage and Fortitude DC."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:KvRuh3yhNiTRunnV", name = "Gravebane Ammunition", attributes = ["Base item"] },
+    { key = "equipment-srd:f7swvmM1zeGNzO02", name = "Gravebane Ammunition (Greater)", attributes = ["Greater"] },
+]

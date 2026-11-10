@@ -1,0 +1,12 @@
+name = "Surging Serum"
+source_note = "Player Core 2. All five grades counteract clumsy and enfeebled effects, with different ranks and modifiers. Foundry records Minor under other."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:yE7PPagK0wsHMA8l", name = "Surging Serum (Minor)", category = "other", attributes = ["Minor"] },
+    { key = "equipment-srd:1TWHN8RbimPVXM0U", name = "Surging Serum (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:tslVf3qtQE7V1YvG", name = "Surging Serum (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:62HxCEDwhlZaeR0Q", name = "Surging Serum (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:YIgIF1845n5UBFnE", name = "Surging Serum (Major)", attributes = ["Major"] },
+]

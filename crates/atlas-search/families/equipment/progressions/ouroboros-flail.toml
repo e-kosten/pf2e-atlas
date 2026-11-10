@@ -1,0 +1,11 @@
+name = "Ouroboros Flail"
+source_note = "Impossible Magic. The extendable chain flail improves its weapon runes, Chained Grasp DC, and reach."
+item_type = "weapon"
+category = "martial"
+group = "flail"
+
+members = [
+    { key = "equipment-srd:N7cH1SS57NNaOtf5", name = "Ouroboros Flail", attributes = ["Base item"] },
+    { key = "equipment-srd:sLuU3V5Hv9bYrl2a", name = "Ouroboros Flail (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:j9Z8TrUDHhdArJgi", name = "Ouroboros Flail (Major)", attributes = ["Major"] },
+]

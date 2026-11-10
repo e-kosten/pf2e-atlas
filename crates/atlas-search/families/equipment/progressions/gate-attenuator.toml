@@ -1,0 +1,9 @@
+name = "Gate Attenuator"
+source_note = "Rage of Elements. The kinetic gate accessory improves its bonus and elemental spells and grants Constitution at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ioiMUDqv85BI4shY", name = "Gate Attenuator", attributes = ["Base item"] },
+    { key = "equipment-srd:RC3axCXEWwiSEEUl", name = "Gate Attenuator (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Nd6h6E5HfsIXu0Rn", name = "Gate Attenuator (Major)", attributes = ["Major"] },
+]

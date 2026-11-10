@@ -1,0 +1,11 @@
+name = "Plate of Yled"
+source_note = "Wake the Dead #5. The plate armor improves its fundamental runes and activation DC through the true grade."
+item_type = "armor"
+category = "heavy"
+
+members = [
+    { key = "equipment-srd:E47syLjnN3KXr0bW", name = "Plate of Yled", attributes = ["Base item"] },
+    { key = "equipment-srd:8EO2ibeDloBIVFF4", name = "Plate of Yled (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:NhyID8liSflMQ7ti", name = "Plate of Yled (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:GBleItbLFB08D8C5", name = "Plate of Yled (True)", attributes = ["True"] },
+]

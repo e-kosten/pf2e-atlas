@@ -1,0 +1,8 @@
+name = "Disruption Ammunition"
+source_note = "Impossible Magic. The alchemically treated ammunition improves the counteract rank and modifier against a Sustained spell effect."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:lVsxg17O9XIKEczc", name = "Disruption Ammunition", attributes = ["Base item"] },
+    { key = "equipment-srd:FcwaLx6YSJhwQEAs", name = "Disruption Ammunition (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Reading Ring"
+source_note = "Lost Omens The Grand Bazaar. The personalized ring can read and convey any written language at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:k7ExX8IPY7mSzYPF", name = "Reading Ring", attributes = ["Base item"] },
+    { key = "equipment-srd:7U16hk57BHVM5QYs", name = "Reading Ring (Greater)", attributes = ["Greater"] },
+]

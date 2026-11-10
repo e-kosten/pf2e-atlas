@@ -1,0 +1,11 @@
+name = "Dragon's Blood Pudding"
+source_note = "Lost Omens The Grand Bazaar. The mandrake pudding improves its counteract statistics and adds and extends a quickened benefit."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:xky9NMHpP3yqzYOj", name = "Dragon's Blood Pudding", attributes = ["Base item"] },
+    { key = "equipment-srd:fzAkwYDi8sXWfCNu", name = "Dragon's Blood Pudding (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:QrjeT3xBssyjvEHQ", name = "Dragon's Blood Pudding (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kUvjWSGWpwBvTVax", name = "Dragon's Blood Pudding (Major)", attributes = ["Major"] },
+]

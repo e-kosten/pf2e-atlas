@@ -1,0 +1,9 @@
+name = "Pickled Demon Tongue"
+source_note = "Gatewalkers. The spellheart improves spell statistics, acid resistance and damage, and adds higher-rank acid spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:lu42Up1309MqFya4", name = "Pickled Demon Tongue", attributes = ["Base item"] },
+    { key = "equipment-srd:HnOWpyuCHwewPZMu", name = "Pickled Demon Tongue (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Ug0lQVTJlGKrHQgQ", name = "Pickled Demon Tongue (Major)", attributes = ["Major"] },
+]

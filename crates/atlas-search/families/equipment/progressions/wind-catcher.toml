@@ -1,0 +1,8 @@
+name = "Wind-Catcher"
+source_note = "Lost Omens The Grand Bazaar. The vehicle rune doubles the Speed bonus and its fallback movement in calm air."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LH9nHvta0q39JD86", name = "Wind-Catcher", attributes = ["Base item"] },
+    { key = "equipment-srd:wbCw7hNyQZSuy4QL", name = "Wind-Catcher (Greater)", attributes = ["Greater"] },
+]

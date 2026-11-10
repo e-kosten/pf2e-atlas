@@ -1,0 +1,10 @@
+name = "Privacy Ward Fulu"
+source_note = "Season of Ghosts. The same wall ward increases coverage, duration, and concealment benefits from hallway to chamber."
+item_type = "consumable"
+category = "fulu"
+
+members = [
+    { key = "equipment-srd:UaSVmCl0JQ76kiYY", name = "Privacy Ward Fulu (Hallway)", attributes = ["Hallway"] },
+    { key = "equipment-srd:PfVTTuTsErku7vss", name = "Privacy Ward Fulu (Room)", attributes = ["Room"] },
+    { key = "equipment-srd:pDbWjlhIoQpUIvLb", name = "Privacy Ward Fulu (Chamber)", attributes = ["Chamber"] },
+]

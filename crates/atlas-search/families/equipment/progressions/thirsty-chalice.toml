@@ -1,0 +1,9 @@
+name = "Thirsty Chalice"
+source_note = "Impossible Magic. The slate spellheart increases its casting DC, void damage, and numeric benefit."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:DQhYNMR0g17psFQq", name = "Thirsty Chalice", attributes = ["Base item"] },
+    { key = "equipment-srd:GulGtcZpkKlr2VgB", name = "Thirsty Chalice (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kAGxPZdxDxBOi2dO", name = "Thirsty Chalice (Major)", attributes = ["Major"] },
+]

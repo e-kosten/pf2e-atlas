@@ -1,0 +1,8 @@
+name = "Grappling Gun"
+source_note = "Guns & Gears. The clockwork model adds a powered reel to the same grappling gun."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:7C5xxZw1VTiyUg37", name = "Grappling Gun", attributes = ["Base item"] },
+    { key = "equipment-srd:TyWs8hIOYxjcm037", name = "Grappling Gun (Clockwork)", attributes = ["Clockwork"] },
+]

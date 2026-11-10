@@ -1,0 +1,13 @@
+name = "Drake Rifle"
+source_note = "Guns & Gears. The five drake rifles share a single firing mechanism, with distinct damage types and critical effects."
+item_type = "weapon"
+category = "martial"
+group = "firearm"
+
+members = [
+    { key = "equipment-srd:FU9tZ3neEPM8szay", name = "Drake Rifle (Acid)", attributes = ["Acid"] },
+    { key = "equipment-srd:5TOdQaW1XEjDhTP0", name = "Drake Rifle (Cold)", attributes = ["Cold"] },
+    { key = "equipment-srd:h1G2xCiMrHd7uFko", name = "Drake Rifle (Electricity)", attributes = ["Electricity"] },
+    { key = "equipment-srd:Gfu13B6b9eDdHCtV", name = "Drake Rifle (Fire)", attributes = ["Fire"] },
+    { key = "equipment-srd:ywUMtG1viqbnDFYT", name = "Drake Rifle (Poison)", attributes = ["Poison"] },
+]

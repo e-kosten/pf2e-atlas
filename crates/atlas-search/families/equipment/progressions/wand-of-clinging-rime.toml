@@ -1,0 +1,10 @@
+name = "Wand of Clinging Rime"
+source_note = "Treasure Vault (Remastered). The same rime wand increases spell rank and persistent cold damage."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:OpEFPyX1jwuV7ljp", name = "Wand of Clinging Rime (7th-rank)", attributes = ["7th-rank"] },
+    { key = "equipment-srd:Z8o1V947lwkhPhzI", name = "Wand of Clinging Rime (8th-rank)", attributes = ["8th-rank"] },
+    { key = "equipment-srd:P112tFaNhgJrBhmu", name = "Wand of Clinging Rime (9th-rank)", attributes = ["9th-rank"] },
+]

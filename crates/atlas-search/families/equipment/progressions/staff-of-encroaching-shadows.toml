@@ -1,0 +1,11 @@
+name = "Staff of Encroaching Shadows"
+source_note = "Impossible Magic. The obsidian Stealth staff adds higher-rank spells for darkness and shadow."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:kC4GmC5IVxO24tbH", name = "Staff of Encroaching Shadows", attributes = ["Base item"] },
+    { key = "equipment-srd:4ANdxkBpdBVOUa7r", name = "Staff of Encroaching Shadows (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:AUcS3DusEWtmxZOM", name = "Staff of Encroaching Shadows (Major)", attributes = ["Major"] },
+]

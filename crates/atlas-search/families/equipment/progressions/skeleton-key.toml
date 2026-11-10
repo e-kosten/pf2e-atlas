@@ -1,0 +1,8 @@
+name = "Skeleton Key"
+source_note = "GM Core. The grinning-skull key improves its lockpicking bonus and shortens its activation cooldown."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:fprUZviW8khm2BLo", name = "Skeleton Key", attributes = ["Base item"] },
+    { key = "equipment-srd:AFE073UYI0mkWuUs", name = "Skeleton Key (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Armbands of Athleticism"
+source_note = "GM Core. The weightlifter-stamped bands improve their Athletics and Speed bonuses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:wI4Tj8bNwpZHequC", name = "Armbands of Athleticism", attributes = ["Base item"] },
+    { key = "equipment-srd:FNccUmKsyXKmfe5c", name = "Armbands of Athleticism (Greater)", attributes = ["Greater"] },
+]

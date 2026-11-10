@@ -1,0 +1,10 @@
+name = "Nexian Sealing Blade"
+source_note = "Wake the Dead #1. The sealing blade improves its runes and the sonic damage and Fortitude DC of its activation."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:WFumHA7dT5s3jCRT", name = "Nexian Sealing Blade", attributes = ["Base item"] },
+    { key = "equipment-srd:cnfsOL7Pes47WPpR", name = "Nexian Sealing Blade (Greater)", attributes = ["Greater"] },
+]

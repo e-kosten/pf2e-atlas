@@ -1,0 +1,10 @@
+name = "Possum's Play"
+source_note = "Impossible Magic. The fur charm increases its feigned-death duration and the DC for detecting the deception."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:Cmqao1h8JkpzS8o7", name = "Possum's Play", attributes = ["Base item"] },
+    { key = "equipment-srd:nijFNyYKIUqgtzMi", name = "Possum's Play (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:5eKLWz5KgJioeWk4", name = "Possum's Play (Major)", attributes = ["Major"] },
+]

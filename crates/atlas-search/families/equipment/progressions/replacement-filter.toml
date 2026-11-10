@@ -1,0 +1,9 @@
+name = "Replacement Filter"
+source_note = "Lost Omens Pathfinder Society Guide. The replacement filters use the same mechanism with different item levels and modifiers."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:khU38JBZBOAxWzhY", name = "Replacement Filter (Level 1)", attributes = ["Level 1"] },
+    { key = "equipment-srd:CtAg4DpSssKBIw8R", name = "Replacement Filter (Level 5)", attributes = ["Level 5"] },
+    { key = "equipment-srd:vuvRsWXrzHbs0tF5", name = "Replacement Filter (Level 10)", attributes = ["Level 10"] },
+]

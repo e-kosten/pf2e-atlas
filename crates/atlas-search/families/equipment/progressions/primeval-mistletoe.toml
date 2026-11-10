@@ -1,0 +1,8 @@
+name = "Primeval Mistletoe"
+source_note = "GM Core. The primal sprig improves Nature, casts higher-rank spells, and gains Cultivate."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:J5MqY1P3JWrezcQX", name = "Primeval Mistletoe", attributes = ["Base item"] },
+    { key = "equipment-srd:HZDkF6MlNQ6yYobD", name = "Primeval Mistletoe (Greater)", attributes = ["Greater"] },
+]

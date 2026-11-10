@@ -1,0 +1,11 @@
+name = "Spy Staff"
+source_note = "Treasure Vault (Remastered). The spying staff improves DC and detection and adds higher-rank surveillance spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:eoSl6Rbop1EX5DwP", name = "Spy Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:4nEdlX9GOlXGyfpl", name = "Spy Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:tzzvevwmwwKQaHK0", name = "Spy Staff (Major)", attributes = ["Major"] },
+]

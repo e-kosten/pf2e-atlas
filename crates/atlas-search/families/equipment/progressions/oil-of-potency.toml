@@ -1,0 +1,10 @@
+name = "Oil of Potency"
+source_note = "GM Core. The viscous oil grants progressively stronger temporary fundamental runes to weapons or armor."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:j2CHumvbjmlLQX2i", name = "Oil of Potency", attributes = ["Base item"] },
+    { key = "equipment-srd:PLuJEzJWaWamW0Fc", name = "Oil of Potency (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:B9NVsgy2jvd6sJID", name = "Oil of Potency (Major)", attributes = ["Major"] },
+]

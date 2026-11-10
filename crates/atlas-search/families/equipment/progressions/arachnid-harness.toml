@@ -1,0 +1,9 @@
+name = "Arachnid Harness"
+source_note = "Treasure Vault (Remastered). The spider-limbed leather armor gains a resilient rune and poison resistance and improves activation frequency."
+item_type = "armor"
+category = "light"
+
+members = [
+    { key = "equipment-srd:JG7p7yI12cAPuJ8X", name = "Arachnid Harness", attributes = ["Base item"] },
+    { key = "equipment-srd:NIyJqiW1Wci6gP9m", name = "Arachnid Harness (Greater)", attributes = ["Greater"] },
+]

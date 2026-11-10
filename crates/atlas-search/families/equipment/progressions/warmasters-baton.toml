@@ -1,0 +1,10 @@
+name = "Warmaster's Baton"
+source_note = "Hell's Destiny. The silver mace's Rally Forth activation becomes available once per hour at the greater grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:gUlsLMYHZriqYyYK", name = "Warmaster's Baton", attributes = ["Base item"] },
+    { key = "equipment-srd:vWpchgC4NSR6Z5vd", name = "Warmaster's Baton (Greater)", attributes = ["Greater"] },
+]

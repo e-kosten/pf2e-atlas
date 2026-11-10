@@ -1,0 +1,15 @@
+name = "Wand of Widening"
+source_note = "GM Core. The area-expanding wand has separate concrete records for successive spell ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Zw3BKaJYxxxzNZ0f", name = "Wand of Widening (1st-Rank Spell)", attributes = ["1st-Rank Spell"] },
+    { key = "equipment-srd:qmWlvoIlJRJ6pAeG", name = "Wand of Widening (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:TJaumkbZy11sIAgR", name = "Wand of Widening (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:zYRzgETeR1Hs1ti1", name = "Wand of Widening (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:TGxZ3acyWjjTvfU9", name = "Wand of Widening (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:JDQ4jqp6O8SurQGe", name = "Wand of Widening (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:kNfdGNIGzF0fW7aq", name = "Wand of Widening (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:20nQTcGzpUv8jJ6R", name = "Wand of Widening (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+    { key = "equipment-srd:t5978mZ6CqfUDCP6", name = "Wand of Widening (9th-Rank Spell)", attributes = ["9th-Rank Spell"] },
+]

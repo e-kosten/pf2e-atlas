@@ -1,0 +1,11 @@
+name = "Tentacle Cannon"
+source_note = "Guns & Gears. The cephalopod-built cannon improves its runes, its checks, and its Reflex DC."
+item_type = "weapon"
+category = "martial"
+group = "firearm"
+
+members = [
+    { key = "equipment-srd:1IicJ7ESDNhGUqDE", name = "Tentacle Cannon", attributes = ["Base item"] },
+    { key = "equipment-srd:U8P9aRhjFpptHJCd", name = "Tentacle Cannon (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:rKCiDIoozZTkyE4j", name = "Tentacle Cannon (Major)", attributes = ["Major"] },
+]

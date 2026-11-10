@@ -1,0 +1,36 @@
+name = "Elemental Ammunition"
+source_note = "Treasure Vault (Remastered). All fifteen records fit any ammunition and apply persistent and splash damage. Grade controls damage amount and damage type controls both damage effects."
+item_type = "ammo"
+
+axes = [
+    { id = "grade", label = "Grades", options = [
+        { id = "lesser", label = "Lesser" },
+        { id = "moderate", label = "Moderate" },
+        { id = "greater", label = "Greater" },
+    ] },
+    { id = "damage-type", label = "Damage types", options = [
+        { id = "acid", label = "Acid" },
+        { id = "cold", label = "Cold" },
+        { id = "electricity", label = "Electricity" },
+        { id = "fire", label = "Fire" },
+        { id = "poison", label = "Poison" },
+    ] },
+]
+
+members = [
+    { key = "equipment-srd:zHzAZRDVtl2NFqyh", name = "Elemental Ammunition (Lesser, Acid)", coordinates = { grade = "lesser", damage-type = "acid" } },
+    { key = "equipment-srd:WnNvHEYObRivN1wI", name = "Elemental Ammunition (Lesser, Cold)", coordinates = { grade = "lesser", damage-type = "cold" } },
+    { key = "equipment-srd:IhRPEmA2JlYNiCPK", name = "Elemental Ammunition (Lesser, Electricity)", coordinates = { grade = "lesser", damage-type = "electricity" } },
+    { key = "equipment-srd:CGmJzsdRb5aJ4eFn", name = "Elemental Ammunition (Lesser, Fire)", coordinates = { grade = "lesser", damage-type = "fire" } },
+    { key = "equipment-srd:EVaMsTsWhdPkCtrg", name = "Elemental Ammunition (Lesser, Poison)", coordinates = { grade = "lesser", damage-type = "poison" } },
+    { key = "equipment-srd:2pB7AsbE0c7HvoZZ", name = "Elemental Ammunition (Moderate, Acid)", coordinates = { grade = "moderate", damage-type = "acid" } },
+    { key = "equipment-srd:zG5ErG09BZiVIGcP", name = "Elemental Ammunition (Moderate, Cold)", coordinates = { grade = "moderate", damage-type = "cold" } },
+    { key = "equipment-srd:39kmT1vcfywtQtg9", name = "Elemental Ammunition (Moderate, Electricity)", coordinates = { grade = "moderate", damage-type = "electricity" } },
+    { key = "equipment-srd:xUMgX1vrP4EfLlw2", name = "Elemental Ammunition (Moderate, Fire)", coordinates = { grade = "moderate", damage-type = "fire" } },
+    { key = "equipment-srd:xZ9fSlTKVpKOCOQm", name = "Elemental Ammunition (Moderate, Poison)", coordinates = { grade = "moderate", damage-type = "poison" } },
+    { key = "equipment-srd:q2TpCwdlLGdcasKD", name = "Elemental Ammunition (Greater, Acid)", coordinates = { grade = "greater", damage-type = "acid" } },
+    { key = "equipment-srd:98t5XqMj2wRKjGsI", name = "Elemental Ammunition (Greater, Cold)", coordinates = { grade = "greater", damage-type = "cold" } },
+    { key = "equipment-srd:xsuxsWD8OT11adpI", name = "Elemental Ammunition (Greater, Electricity)", coordinates = { grade = "greater", damage-type = "electricity" } },
+    { key = "equipment-srd:mwT86aIYuKy9mWHY", name = "Elemental Ammunition (Greater, Fire)", coordinates = { grade = "greater", damage-type = "fire" } },
+    { key = "equipment-srd:oS43VwmYZlSLxx1G", name = "Elemental Ammunition (Greater, Poison)", coordinates = { grade = "greater", damage-type = "poison" } },
+]

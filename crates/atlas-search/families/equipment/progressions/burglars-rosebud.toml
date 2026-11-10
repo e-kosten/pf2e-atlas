@@ -1,0 +1,9 @@
+name = "Burglar's Rosebud"
+source_note = "Shepherd of Decay. Both rosebuds disperse guard animals. Greater raises the Fortitude DC."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:CvrP46hl92nk8OxF", name = "Burglar's Rosebud", attributes = ["Base item"] },
+    { key = "equipment-srd:o5bvKVQbeFD0nBBL", name = "Burglar's Rosebud (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Wand Of Splintered Sorrows"
+source_note = "Severed at the Root. The rough-cut wand uses the same spell and follow-up effect at each listed rank."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:epES0Dpk4FqRmZEz", name = "Wand Of Splintered Sorrows (Rank 2)", attributes = ["Rank 2"] },
+    { key = "equipment-srd:6VLzI3shCnzDb5aG", name = "Wand Of Splintered Sorrows (Rank 4)", attributes = ["Rank 4"] },
+    { key = "equipment-srd:105IJO0JyDdj22xA", name = "Wand Of Splintered Sorrows (Rank 6)", attributes = ["Rank 6"] },
+    { key = "equipment-srd:ktWJ6Xx4B2AgPQ6n", name = "Wand Of Splintered Sorrows (Rank 8)", attributes = ["Rank 8"] },
+]

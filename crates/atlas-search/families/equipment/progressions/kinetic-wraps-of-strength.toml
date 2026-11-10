@@ -1,0 +1,8 @@
+name = "Kinetic Wraps of Strength"
+source_note = "Lost Omens High Seas. The woven wraps increase their bonus for applying force at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:KQxSa2AihDXJewBG", name = "Kinetic Wraps of Strength", attributes = ["Base item"] },
+    { key = "equipment-srd:aiYkIeEfbuO8bvXx", name = "Kinetic Wraps of Strength (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,12 @@
+name = "Staff of the Desert Winds"
+source_note = "Impossible Magic. The acacia and sandstone staff adds higher-rank desert-themed spells through the true grade."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:0yp4hAgJKt9Al2lz", name = "Staff of the Desert Winds", attributes = ["Base item"] },
+    { key = "equipment-srd:uqbvXACABUJG0ifJ", name = "Staff of the Desert Winds (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:FkT0UkXdNEmKRhRx", name = "Staff of the Desert Winds (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:IEmYcavVfSy58aYx", name = "Staff of the Desert Winds (True)", attributes = ["True"] },
+]

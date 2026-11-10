@@ -1,0 +1,9 @@
+name = "Stalwart's Banner"
+source_note = "Battlecry! The green banner's Stand Firm activation improves temporary Hit Points and bonuses against movement and being knocked prone."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:de8DDy0Qi5tdeNWh", name = "Stalwart's Banner", attributes = ["Base item"] },
+    { key = "equipment-srd:rZJipZrmJzfoROZI", name = "Stalwart's Banner (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:uUIbYZgT6c74F6T7", name = "Stalwart's Banner (Major)", attributes = ["Major"] },
+]

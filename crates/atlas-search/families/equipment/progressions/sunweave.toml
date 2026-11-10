@@ -1,0 +1,9 @@
+name = "Sunweave"
+source_note = "Impossible Magic. The glowing armor rune improves its Perception bonus across all three grades."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:81Ejj6xXLN3l6uDb", name = "Sunweave", attributes = ["Base item"] },
+    { key = "equipment-srd:mDEkOSueuDOFW6V2", name = "Sunweave (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:yYCZXExIR7b9PO4V", name = "Sunweave (Major)", attributes = ["Major"] },
+]

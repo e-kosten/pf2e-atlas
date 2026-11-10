@@ -1,0 +1,9 @@
+name = "Phantasmal Doorknob"
+source_note = "Treasure Vault (Remastered). The doorknob spellheart improves its DC, can blind targets, and adds higher-rank illusions."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:IISieImYvSQ8AqmC", name = "Phantasmal Doorknob", attributes = ["Base item"] },
+    { key = "equipment-srd:7dkdtY9cTXM3gMon", name = "Phantasmal Doorknob (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:9BXiGLvOFxDBmQrQ", name = "Phantasmal Doorknob (Major)", attributes = ["Major"] },
+]

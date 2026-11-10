@@ -1,0 +1,12 @@
+name = "Instinct Crown"
+source_note = "Treasure Vault (Remastered). Each crown is keyed to a different barbarian instinct and grants the corresponding rage effect."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:QbCraR5KFlkIJiVA", name = "Instinct Crown (Animal)", attributes = ["Animal"] },
+    { key = "equipment-srd:a4RIB8GPOliFoN31", name = "Instinct Crown (Dragon)", attributes = ["Dragon"] },
+    { key = "equipment-srd:htukDa8cAycwf7zr", name = "Instinct Crown (Fury)", attributes = ["Fury"] },
+    { key = "equipment-srd:hA0o5qdKXcuPJVmn", name = "Instinct Crown (Giant)", attributes = ["Giant"] },
+    { key = "equipment-srd:MxS9ifx1gr1PKxBl", name = "Instinct Crown (Spirit)", attributes = ["Spirit"] },
+    { key = "equipment-srd:gtDHRMgsyERaxf2c", name = "Instinct Crown (Superstition)", attributes = ["Superstition"] },
+]

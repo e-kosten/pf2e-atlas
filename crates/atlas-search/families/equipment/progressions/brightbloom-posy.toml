@@ -1,0 +1,9 @@
+name = "Brightbloom Posy"
+source_note = "Treasure Vault (Remastered). The flower spellheart improves its spell DC and adds Petal Storm and higher-rank casting."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LqAf5RwxiZJredii", name = "Brightbloom Posy", attributes = ["Base item"] },
+    { key = "equipment-srd:GHaUZqivF30WJHS3", name = "Brightbloom Posy (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:XazXltJ0tsYy1xXQ", name = "Brightbloom Posy (Major)", attributes = ["Major"] },
+]

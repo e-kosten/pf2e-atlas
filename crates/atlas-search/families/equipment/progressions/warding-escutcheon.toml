@@ -1,0 +1,8 @@
+name = "Warding Escutcheon"
+source_note = "Treasure Vault (Remastered). The doorway shield increases its defenses and door-opening DCs and gains a larger warded form."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:TxQvgyLziolSVfqY", name = "Warding Escutcheon", attributes = ["Base item"] },
+    { key = "equipment-srd:K5IWk98rsEMyJ1Xb", name = "Warding Escutcheon (Greater)", attributes = ["Greater"] },
+]

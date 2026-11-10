@@ -1,0 +1,9 @@
+name = "Unmemorable Mantle"
+source_note = "Lost Omens Character Guide. The brass-clasp mantle improves its Deception bonus and Will DC and shortens the activation cooldown at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Oudcra1CGDmUq0BH", name = "Unmemorable Mantle", attributes = ["Base item"] },
+    { key = "equipment-srd:e4lHxftAOoTmGXuG", name = "Unmemorable Mantle (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:HcjEb07UjWchysx5", name = "Unmemorable Mantle (Major)", attributes = ["Major"] },
+]

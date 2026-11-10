@@ -1,0 +1,8 @@
+name = "Wrist Grappler"
+source_note = "Lost Omens Firebrands. The clockwork wrist grappler uses a powered version of the same wrist-mounted grappling mechanism."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:fEc4v3EiddH2v0kd", name = "Wrist Grappler", attributes = ["Base item"] },
+    { key = "equipment-srd:kRBYoE6j2QUXQJGS", name = "Wrist Grappler (Clockwork)", attributes = ["Clockwork"] },
+]

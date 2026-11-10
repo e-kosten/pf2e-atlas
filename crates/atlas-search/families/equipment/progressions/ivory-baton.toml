@@ -1,0 +1,8 @@
+name = "Ivory Baton"
+source_note = "Lost Omens Monsters of Myth. The same construct-commanding baton increases the rank and DC of its spell."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:yzgMOspvPTLDe6Ln", name = "Ivory Baton", attributes = ["Base item"] },
+    { key = "equipment-srd:ISsagQkLvsgpoLxP", name = "Ivory Baton (Greater)", attributes = ["Greater"] },
+]

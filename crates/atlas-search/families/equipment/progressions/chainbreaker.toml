@@ -1,0 +1,10 @@
+name = "Chainbreaker"
+source_note = "Battlecry! The eagle-engraved pick improves potency and ignores more Hardness when breaking restraints or confinement."
+item_type = "weapon"
+category = "martial"
+group = "pick"
+
+members = [
+    { key = "equipment-srd:zmgF0sh9YicCngev", name = "Chainbreaker", attributes = ["Base item"] },
+    { key = "equipment-srd:hgyktS6n2t5MztjW", name = "Chainbreaker (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Horned Hand Rests"
+source_note = "Lost Omens The Grand Bazaar. The legchair horns improve their damage and the activation's Fortitude DC."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:0SSu1fch6ah0oTti", name = "Horned Hand Rests", attributes = ["Base item"] },
+    { key = "equipment-srd:uQNw11Osk2pwx6d8", name = "Horned Hand Rests (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Cloak of Repute"
+source_note = "Lost Omens Character Guide. The jeweled cloak improves Diplomacy and activation frequency and mitigates critical failure at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:oC4ZMEdBJ3ia4ALm", name = "Cloak of Repute", attributes = ["Base item"] },
+    { key = "equipment-srd:xzN8mFG2Z70SaXLa", name = "Cloak of Repute (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:NFFgDfLBkCjkj0dc", name = "Cloak of Repute (Major)", attributes = ["Major"] },
+]

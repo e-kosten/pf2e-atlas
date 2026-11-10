@@ -1,0 +1,8 @@
+name = "Conundrum Spectacles"
+source_note = "Special: Fumbus! The wire spectacles improve Decipher Writing and increase daily uses of their activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:pASszbK2LjpNUJY1", name = "Conundrum Spectacles", attributes = ["Base item"] },
+    { key = "equipment-srd:HY6ZJpn5t0FDMTKM", name = "Conundrum Spectacles (Greater)", attributes = ["Greater"] },
+]

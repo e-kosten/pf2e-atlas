@@ -1,0 +1,10 @@
+name = "Mask"
+source_note = "Lost Omens The Grand Bazaar. Ordinary, fine, plague, and rubber masks are distinct mundane designs with their own construction and uses."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:OnyNpbR0dowRKg3I", name = "Mask (Fine)", attributes = ["Fine"] },
+    { key = "equipment-srd:2c5pF6q5XkjLn8MU", name = "Mask (Ordinary)", attributes = ["Ordinary"] },
+    { key = "equipment-srd:8SZ9FRW4rBhjyW3j", name = "Mask (Plague)", attributes = ["Plague"] },
+    { key = "equipment-srd:Uz5K5773R3DB3b3o", name = "Mask (Rubber)", attributes = ["Rubber"] },
+]

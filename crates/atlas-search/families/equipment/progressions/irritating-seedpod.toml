@@ -1,0 +1,11 @@
+name = "Irritating Seedpod"
+source_note = "Shepherd of Decay. All four catalyst grades modify Mist with pollen. The unqualified level-7 item sits between Lesser and Greater and the higher tiers increase the DC and penalties."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:a7apCVmrBGGIK3fZ", name = "Irritating Seedpod (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:9jUxAAt0hj9luWKK", name = "Irritating Seedpod", attributes = ["Base item"] },
+    { key = "equipment-srd:Lq823hDvDNP5321d", name = "Irritating Seedpod (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:iXKdE5ZdENm6a1ig", name = "Irritating Seedpod (Major)", attributes = ["Major"] },
+]

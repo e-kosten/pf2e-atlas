@@ -1,0 +1,8 @@
+name = "Anchoring"
+source_note = "Lost Omens The Grand Bazaar. The anti-escape weapon rune improves the rank, DC, and counteract modifier of its Planar Tether."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:SuKERInt6Z3I3bCa", name = "Anchoring", attributes = ["Base item"] },
+    { key = "equipment-srd:kY41VIXUSEJYEznp", name = "Anchoring (Greater)", attributes = ["Greater"] },
+]

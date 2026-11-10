@@ -1,0 +1,8 @@
+name = "Arcane Standard"
+source_note = "Battlecry! The glittering banner's Magical Weakness activation increases the weakness it grants."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:j86sLZkEN6TVfW1E", name = "Arcane Standard", attributes = ["Base item"] },
+    { key = "equipment-srd:eX15uF7JR1jWDFHs", name = "Arcane Standard (Greater)", attributes = ["Greater"] },
+]

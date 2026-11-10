@@ -1,0 +1,9 @@
+name = "Rovagug's Mud"
+source_note = "Treasure Vault (Remastered). The destructive mud increases its area damage, save DC, and numeric effect."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:pXV4ov0DJHzIHSEW", name = "Rovagug's Mud", attributes = ["Base item"] },
+    { key = "equipment-srd:aMbJl8eTV3Ri5O6e", name = "Rovagug's Mud (Greater)", attributes = ["Greater"] },
+]

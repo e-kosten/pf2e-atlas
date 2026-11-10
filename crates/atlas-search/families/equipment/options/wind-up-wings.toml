@@ -1,0 +1,8 @@
+name = "Wind-up Wings"
+source_note = "Guns & Gears. Both attach to and propel a thrown weapon. Flutterback returns the weapon and Homing reduces concealment and cover."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:vDQSR3fgfYqLp0aB", name = "Wind-up Wings (Flutterback)", attributes = ["Flutterback"] },
+    { key = "equipment-srd:PxHexTD0gzPtMFj6", name = "Wind-up Wings (Homing)", attributes = ["Homing"] },
+]

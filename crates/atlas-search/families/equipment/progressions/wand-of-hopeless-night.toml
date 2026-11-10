@@ -1,0 +1,9 @@
+name = "Wand of Hopeless Night"
+source_note = "Player Core 2. The same wand improves spell rank and the Will DC of its hopeless night effect."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:ZJ3ahspZOXL4CK4J", name = "Wand of Hopeless Night (2nd-Rank Spell)", attributes = ["2nd-Rank Spell"] },
+    { key = "equipment-srd:9ftc8XfloerPcJnI", name = "Wand of Hopeless Night (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+]

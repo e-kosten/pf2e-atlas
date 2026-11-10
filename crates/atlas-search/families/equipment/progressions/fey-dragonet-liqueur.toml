@@ -1,0 +1,10 @@
+name = "Fey Dragonet Liqueur"
+source_note = "Treasure Vault (Remastered). The liqueur retains the same effect and raises its Will DC at each grade."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:NKRuXILXLlDbxTs9", name = "Fey Dragonet Liqueur (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:CtePdUJWKgjwpatZ", name = "Fey Dragonet Liqueur", attributes = ["Base item"] },
+    { key = "equipment-srd:sd3H2Nir3qLFNVI3", name = "Fey Dragonet Liqueur (Greater)", attributes = ["Greater"] },
+]

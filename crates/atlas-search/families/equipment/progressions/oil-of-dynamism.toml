@@ -1,0 +1,9 @@
+name = "Oil of Dynamism"
+source_note = "Player Core 2. The golden oil animates an object of up to level 11 at the greater grade."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:C0kSU5KWMzLngvTa", name = "Oil of Dynamism", attributes = ["Base item"] },
+    { key = "equipment-srd:EP8f2NL28vPlmX7k", name = "Oil of Dynamism (Greater)", attributes = ["Greater"] },
+]

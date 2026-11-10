@@ -1,0 +1,8 @@
+name = "Clandestine Cloak"
+source_note = "GM Core. The nondescript cloak improves its bonuses, spell rank, and duration."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:hmmDa6LCS22dZT7P", name = "Clandestine Cloak", attributes = ["Base item"] },
+    { key = "equipment-srd:6jRXUXzYKIpm2uNp", name = "Clandestine Cloak (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Weapon Potency"
+source_note = "GM Core and War of Immortals. The rune increases attack bonus and property-rune capacity. Foundry's fundamental weapon rune table explicitly places Mythic after +3."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:DKWuJb2rSgiotOG7", name = "Weapon Potency (+1)", attributes = ["+1"] },
+    { key = "equipment-srd:pOoEiuEuITm4I2Il", name = "Weapon Potency (+2)", attributes = ["+2"] },
+    { key = "equipment-srd:rvItjGQaYT7Luwtm", name = "Weapon Potency (+3)", attributes = ["+3"] },
+    { key = "equipment-srd:p1oT9B3kdPGJUy3u", name = "Mythic Weapon Potency", attributes = ["Mythic"] },
+]

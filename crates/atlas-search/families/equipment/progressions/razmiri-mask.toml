@@ -1,0 +1,10 @@
+name = "Razmiri Mask"
+source_note = "Lost Omens Divine Mysteries. The unqualified mask is a concrete item. The three materials improve bonuses and add stronger divine-themed abilities."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:UaOrOGrjcXgSeBvr", name = "Razmiri Mask", attributes = ["Base item"] },
+    { key = "equipment-srd:eAEZWwzLf6Qr1l0Q", name = "Razmiri Mask (Silver)", attributes = ["Silver"] },
+    { key = "equipment-srd:HHxX5hA2RK7yI483", name = "Razmiri Mask (Gold)", attributes = ["Gold"] },
+    { key = "equipment-srd:Im9gFhIGtTxRJkS2", name = "Razmiri Mask (Porcelain)", attributes = ["Porcelain"] },
+]

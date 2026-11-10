@@ -1,0 +1,11 @@
+name = "Staff of the Dead"
+source_note = "GM Core. The bone-adorned staff adds higher-rank spells while preserving its temporary Hit Point bonus for summoned undead."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:1uWytZ76MwVQYIO9", name = "Staff of the Dead", attributes = ["Base item"] },
+    { key = "equipment-srd:Ab5EjJyoRSec5YrW", name = "Staff of the Dead (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:E30OrRp0StKLQwbQ", name = "Staff of the Dead (Major)", attributes = ["Major"] },
+]

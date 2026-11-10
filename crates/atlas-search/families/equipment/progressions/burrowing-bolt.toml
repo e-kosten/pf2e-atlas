@@ -1,0 +1,8 @@
+name = "Burrowing Bolt"
+source_note = "Battlecry! The drilling ammunition burrows through harder and thicker material at the greater grade."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:6zkI2QVa8UxgjpQS", name = "Burrowing Bolt", attributes = ["Base item"] },
+    { key = "equipment-srd:HAXiBgieevN13XlF", name = "Burrowing Bolt (Greater)", attributes = ["Greater"] },
+]

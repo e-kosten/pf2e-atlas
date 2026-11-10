@@ -1,0 +1,9 @@
+name = "Brooch of Inspiration"
+source_note = "Lost Omens The Grand Bazaar. The garnet brooch improves its Recall Knowledge bonus and cooldown and broadens its benefit to any skill at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Xnhp7g1UOPVPZx7u", name = "Brooch of Inspiration", attributes = ["Base item"] },
+    { key = "equipment-srd:M0tbJD3SEW4pClpb", name = "Brooch of Inspiration (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:IxcUx7trxUdhF9DQ", name = "Brooch of Inspiration (Major)", attributes = ["Major"] },
+]

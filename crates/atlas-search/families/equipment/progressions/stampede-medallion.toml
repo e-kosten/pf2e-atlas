@@ -1,0 +1,9 @@
+name = "Stampede Medallion"
+source_note = "Impossible Magic. The eidolon medallion increases activation damage and Reflex DC and improves its bonus at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:fUzFWIPK4mdZSGyH", name = "Stampede Medallion", attributes = ["Base item"] },
+    { key = "equipment-srd:vp2q2h2KoVjRs8nL", name = "Stampede Medallion (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:aR4rXlJnDg61SUBL", name = "Stampede Medallion (Major)", attributes = ["Major"] },
+]

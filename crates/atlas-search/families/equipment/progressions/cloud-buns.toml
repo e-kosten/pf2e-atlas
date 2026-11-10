@@ -1,0 +1,9 @@
+name = "Cloud Buns"
+source_note = "Lost Omens Tian Xia Character Guide. The elemental buns extend their flight benefit and add an Acrobatics bonus for maneuvering in flight."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:NZDZzVgW2Pu8blar", name = "Cloud Buns", attributes = ["Base item"] },
+    { key = "equipment-srd:TioBntQv3VAnS7Wb", name = "Cloud Buns (Greater)", attributes = ["Greater"] },
+]

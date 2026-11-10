@@ -1,0 +1,10 @@
+name = "Staff of the Black Desert"
+source_note = "Lord of the Black Sands. Both staffs grant the sandstorm Occultism benefit, with Greater adding sixth- and seventh-rank magic."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:ED3By5mICaJeiQYo", name = "Staff of the Black Desert", attributes = ["Base item"] },
+    { key = "equipment-srd:Ri09KBg9DG0aapLw", name = "Staff of the Black Desert (Greater)", attributes = ["Greater"] },
+]

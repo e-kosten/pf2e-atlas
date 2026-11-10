@@ -1,0 +1,10 @@
+name = "Resilient"
+source_note = "GM Core and War of Immortals. The armor runes grant successive +1 through +4 save bonuses. Foundry's fundamental rune table explicitly orders Mythic after Major."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:eSjQgsl3pYkirOwk", name = "Resilient", attributes = ["Base item"] },
+    { key = "equipment-srd:fCdcyCkGlmp0c34A", name = "Resilient (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:WKcvvaZ0LxwYreb7", name = "Resilient (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:5PuhK1jPUkMqGShH", name = "Mythic Resilient", attributes = ["Mythic"] },
+]

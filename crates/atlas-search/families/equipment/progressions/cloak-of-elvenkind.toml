@@ -1,0 +1,8 @@
+name = "Cloak of Elvenkind"
+source_note = "Core Rulebook. The hooded elven cloak improves its bonus and casting and adds forest Sneaking benefits."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:MNBnZn0b80Q7yHJM", name = "Cloak of Elvenkind", attributes = ["Base item"] },
+    { key = "equipment-srd:ZelCRLDI6M5IfjAI", name = "Cloak of Elvenkind (Greater)", attributes = ["Greater"] },
+]

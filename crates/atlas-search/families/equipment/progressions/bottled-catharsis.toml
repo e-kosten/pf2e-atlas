@@ -1,0 +1,12 @@
+name = "Bottled Catharsis"
+source_note = "Player Core 2. All five grades use the same emotion and stupefied counteract effect, with different ranks and modifiers. Foundry records Minor under other."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:e2II4yMBFBqVivnk", name = "Bottled Catharsis (Minor)", category = "other", attributes = ["Minor"] },
+    { key = "equipment-srd:8KbayiwrUJtvif0a", name = "Bottled Catharsis (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:XfcSVHwMA60JxUXJ", name = "Bottled Catharsis (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:vMs9n8oXlZttcJkX", name = "Bottled Catharsis (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:Pnw4A7fhUhTS85Te", name = "Bottled Catharsis (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Oil of Weightlessness"
+source_note = "GM Core. The oil makes heavier objects negligible Bulk and lasts longer at the greater grade."
+item_type = "consumable"
+category = "oil"
+
+members = [
+    { key = "equipment-srd:6DmHDtIsGzH1s5JO", name = "Oil of Weightlessness", attributes = ["Base item"] },
+    { key = "equipment-srd:Ru4xaA4kjdZ4IFS5", name = "Oil of Weightlessness (Greater)", attributes = ["Greater"] },
+]

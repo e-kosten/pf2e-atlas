@@ -1,0 +1,10 @@
+name = "Demon Bone Tiles"
+source_note = "Lost Omens Rival Academies. The three demon materials implement the same Shield catalyst with increasingly strong bleed damage and Reflex DCs."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:kxeAuCejzM44gsLN", name = "Demon Bone Tiles (Pusk)", attributes = ["Pusk"] },
+    { key = "equipment-srd:7ztQ3uhnJYVzAA2l", name = "Demon Bone Tiles (Brimorak)", attributes = ["Brimorak"] },
+    { key = "equipment-srd:k58XPeaA3qcPJIhg", name = "Demon Bone Tiles (Seraptis)", attributes = ["Seraptis"] },
+]

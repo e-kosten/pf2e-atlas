@@ -1,3 +1,107 @@
+# Each entry blocks Possible variants suggestions between its two sides
+# in both directions. Family sides cover all concrete members.
+
 [[exclusions]]
-members = ["equipment-srd:Jvp0x2Sc82WVpExT", "equipment-srd:YhkomhtKBK3i9C7Q"]
-others = ["equipment-srd:IRqbsE8MgGLTfHLz", "equipment-srd:FWMGkUotwUJuht7i"]
+between = [
+    { family = "disguise-kit" },
+    { family = "disguise-kit-cosmetics" },
+]
+source_note = "Player Core describes the cosmetics as refills for the standard and elite disguise kits."
+
+[[exclusions]]
+between = [
+    { family = "inspiring-spotlight" },
+    { records = [
+        "equipment-srd:M1fRjN7E3P55zvmc", # Inspiring Spotlight
+    ] },
+]
+source_note = "The Rival Academies spotlights create a movable burst. The Legacy of the Lost God spotlight uses a fixed line beam."
+
+[[exclusions]]
+between = [
+    { records = [
+        "equipment-srd:HWQEGY2X0QXj2zfN", # Martyr's Shield
+    ] },
+    { records = [
+        "equipment-srd:stlTN5eb1qRJMHgB", # Martyr's Shield (Hellbreakers)
+    ] },
+]
+source_note = "GM Core's intelligent sturdy shield and Hellbreakers' reinforcing steel shield have distinct protection mechanics."
+
+[[exclusions]]
+between = [
+    { records = [
+        "equipment-srd:iYiA6CMR1N2E2Ny2", # Earplugs (PFS Guide)
+    ] },
+    { records = [
+        "equipment-srd:ksNUlyRHFUSK9xmz", # Earplugs
+    ] },
+]
+source_note = "Pathfinder Society Guide and Guns & Gears give separate rules for mundane earplugs. The publication suffix identifies the printing."
+
+[[exclusions]]
+between = [
+    { records = [
+        "equipment-srd:Ejmv9IHGp9Ad9dgu", # Thieves' Tools (Concealable)
+    ] },
+    { records = [
+        "equipment-srd:TxMFNfkoccirCitP", # Thieves' Tools (Concealable Picks)
+    ] },
+]
+source_note = "Pathfinder Society Guide describes Concealable Picks as replacement parts for the complete Concealable Thieves' Tools kit."
+
+[[exclusions]]
+between = [
+    { records = [
+        "equipment-srd:6XX3tYxkyQXCMAbd", # Called (Lastwall)
+    ] },
+    { records = [
+        "equipment-srd:QHc7AnKoMpcqsI2d", # Called
+    ] },
+]
+source_note = "Knights of Lastwall's bonded weapon rune and The Grand Bazaar's general item retrieval rune have different targeting, range, and ownership rules."
+
+[[exclusions]]
+between = [
+    { family = "surprise-doll" },
+    { records = [
+        "equipment-srd:ZPFDfWPmWLPUJeW1", # Doll
+    ] },
+]
+source_note = "NPC Core's surprise dolls conceal an item in a compartment. The Grand Bazaar entry describes an ordinary doll with no compartment rules."
+
+[[exclusions]]
+between = [
+    { records = [
+        "equipment-srd:PIzBQehx975vMsvZ", # Throwing Knife
+    ] },
+    { records = [
+        "equipment-srd:uM0OlCC1Sh6OLdNn", # Throwing Knife (Extinction Curse)
+    ] },
+]
+source_note = "The Grand Bazaar and The Show Must Go On describe the same level-0 throwing knife design. The Extinction Curse suffix identifies the publication."
+
+[[exclusions]]
+between = [
+    { family = "thieves-toolkit" },
+    { family = "thieves-toolkit-picks" },
+]
+source_note = "Player Core describes the picks as replacement parts for the complete toolkits. Each pair forms its own verified family."
+
+[[exclusions]]
+between = [
+    { records = [
+        "equipment-srd:3yLu12TCwN8utY0u", # Writing Set (Extra Ink and Paper)
+    ] },
+    { records = [
+        "equipment-srd:QJb8S927Yj81EgHH", # Writing Set
+    ] },
+]
+source_note = "Player Core describes the extra ink and paper as supplies to refill the writing set."
+
+[[exclusions]]
+between = [
+    { family = "bravery-baldric" },
+    { family = "bravery-baldric-legacy" },
+]
+source_note = "Treasure Vault's legacy baldrics grant Restoration. The remastered line uses Sound Body for the equivalent Healthful options."

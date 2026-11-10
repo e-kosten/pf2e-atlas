@@ -1,0 +1,9 @@
+name = "Feral Linguist"
+source_note = "Severed at the Root. Both whistles serve as catalysts for speaking with animals. Greater expands the spells the caster can use during the effect."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:FO2QKhTLyjbwrCrZ", name = "Feral Linguist", attributes = ["Base item"] },
+    { key = "equipment-srd:iUwss4XHPassdhV3", name = "Feral Linguist (Greater)", attributes = ["Greater"] },
+]

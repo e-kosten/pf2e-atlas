@@ -1,0 +1,8 @@
+name = "Boots of Elvenkind"
+source_note = "Core Rulebook. The pointed elven boots improve their bonus and movement benefit and add constant forest track concealment."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:T00Xa9aDwHxd60Zh", name = "Boots of Elvenkind", attributes = ["Base item"] },
+    { key = "equipment-srd:8NgA4PFFXZPZ9SSg", name = "Boots of Elvenkind (Greater)", attributes = ["Greater"] },
+]

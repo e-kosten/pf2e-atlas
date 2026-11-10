@@ -1,0 +1,9 @@
+name = "Flaming Star"
+source_note = "Impossible Magic. The goldstone spellheart improves its fire resistance and casting statistics and adds higher-rank fire spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:FkII0xws6an5vFSS", name = "Flaming Star", attributes = ["Base item"] },
+    { key = "equipment-srd:FMtUVzTDiTbxXMN9", name = "Flaming Star (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:XJZTTkI3ERnu6iFf", name = "Flaming Star (Major)", attributes = ["Major"] },
+]

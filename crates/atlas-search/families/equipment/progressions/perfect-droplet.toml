@@ -1,0 +1,9 @@
+name = "Perfect Droplet"
+source_note = "Impossible Magic. The water sphere improves resistance and spell DC and adds progressively higher-rank water spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:OoDp1T4IUUsNnrV6", name = "Perfect Droplet", attributes = ["Base item"] },
+    { key = "equipment-srd:X1uTEyn6CRXCzgqr", name = "Perfect Droplet (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:YG6HRwfMVK3jdslZ", name = "Perfect Droplet (Major)", attributes = ["Major"] },
+]

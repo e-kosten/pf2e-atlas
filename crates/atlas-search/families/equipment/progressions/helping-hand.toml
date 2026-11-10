@@ -1,0 +1,9 @@
+name = "Helping Hand"
+source_note = "Impossible Magic. The articulated wooden spellheart increases its benefit and adds Mending and additional casting."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:YaeCWcCqWUOi8n1y", name = "Helping Hand", attributes = ["Base item"] },
+    { key = "equipment-srd:BwVniUj63Jx2gQGC", name = "Helping Hand (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:axQMs6Dmb4DAmwBA", name = "Helping Hand (Major)", attributes = ["Major"] },
+]

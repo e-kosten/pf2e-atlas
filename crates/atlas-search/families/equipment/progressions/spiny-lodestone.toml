@@ -1,0 +1,9 @@
+name = "Spiny Lodestone"
+source_note = "Rage of Elements. The magnetite spellheart improves spell statistics and combat benefits and adds higher-rank magnetic spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:AYg155apTZtebV4Z", name = "Spiny Lodestone", attributes = ["Base item"] },
+    { key = "equipment-srd:wnWo9t2mNV4YaH37", name = "Spiny Lodestone (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:aBMTXPmHg9EDe2R6", name = "Spiny Lodestone (Major)", attributes = ["Major"] },
+]

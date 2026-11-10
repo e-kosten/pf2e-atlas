@@ -1,0 +1,10 @@
+name = "Skyrider Sword"
+source_note = "Lost Omens The Grand Bazaar. The flying greatsword improves its runes and adds an aerial capability."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:SatFUtE2UaPvC394", name = "Skyrider Sword", attributes = ["Base item"] },
+    { key = "equipment-srd:y49tnkAWZqJRMkba", name = "Skyrider Sword (Greater)", attributes = ["Greater"] },
+]

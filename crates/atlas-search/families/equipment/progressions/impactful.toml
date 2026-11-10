@@ -1,0 +1,8 @@
+name = "Impactful"
+source_note = "Impossible Magic. The force weapon rune improves its critical Fortitude DC and forced movement."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:H9qYN48voa2ZDy3i", name = "Impactful", attributes = ["Base item"] },
+    { key = "equipment-srd:ri9QkRCD6cAbQ6t3", name = "Impactful (Greater)", attributes = ["Greater"] },
+]

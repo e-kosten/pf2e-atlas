@@ -1,0 +1,8 @@
+name = "Ventriloquist's Ring"
+source_note = "GM Core. The copper songbird ring improves Deception and allows unrestricted uses of a higher-rank activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:1r6StS0irdvi5JHY", name = "Ventriloquist's Ring", attributes = ["Base item"] },
+    { key = "equipment-srd:dolBtAdB5lpQpQpp", name = "Ventriloquist's Ring (Greater)", attributes = ["Greater"] },
+]

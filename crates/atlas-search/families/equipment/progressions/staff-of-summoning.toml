@@ -1,0 +1,11 @@
+name = "Staff of Summoning"
+source_note = "GM Core. Each staff grants summoned creatures temporary HP keyed to the summoning spell rank, and higher grades expand the spell list."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:v0IrX97Pf96jPvxP", name = "Staff of Summoning", attributes = ["Base item"] },
+    { key = "equipment-srd:GeAz02cQMU4X9nYp", name = "Staff of Summoning (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:027hHaJojFz1qJBG", name = "Staff of Summoning (Major)", attributes = ["Major"] },
+]

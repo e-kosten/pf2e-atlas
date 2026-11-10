@@ -1,0 +1,10 @@
+name = "Barricade Stone"
+source_note = "Pathfinder #171: Hurricane's Howl. The three shapes use the same expanding stone rules, and Cylinder explicitly refers to Sphere for horizontal use. Foundry records Cylinder under potion."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:RBjyD36IrrFOwFXR", name = "Barricade Stone (Sphere)", attributes = ["Sphere"] },
+    { key = "equipment-srd:eVowRVEo42PBFvNK", name = "Barricade Stone (Cube)", attributes = ["Cube"] },
+    { key = "equipment-srd:uswFgspZL8QrHecL", name = "Barricade Stone (Cylinder)", category = "potion", attributes = ["Cylinder"] },
+]

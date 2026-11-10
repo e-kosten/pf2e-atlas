@@ -1,0 +1,10 @@
+name = "Impossible Cake"
+source_note = "Lost Omens The Grand Bazaar. The deceptive cake increases the duration and bonus of its effect across the grades."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:hOemslrdMyHCgSBk", name = "Impossible Cake", attributes = ["Base item"] },
+    { key = "equipment-srd:RkZgEViFodxXsLu3", name = "Impossible Cake (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:IBJIBTkTilVV0BdC", name = "Impossible Cake (Major)", attributes = ["Major"] },
+]

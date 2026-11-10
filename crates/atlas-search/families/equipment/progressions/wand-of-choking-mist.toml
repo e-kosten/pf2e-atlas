@@ -1,0 +1,9 @@
+name = "Wand of Choking Mist"
+source_note = "Treasure Vault (Remastered). The same wand removes breathable air in the cloud from Mist or Cinder Swarm at its two ranks."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:Rhr6rkOwjFwCJV0T", name = "Wand of Choking Mist (2nd-Rank)", attributes = ["2nd-Rank"] },
+    { key = "equipment-srd:GL1C4vC6mmXFm25L", name = "Wand of Choking Mist (4th-Rank)", attributes = ["4th-Rank"] },
+]

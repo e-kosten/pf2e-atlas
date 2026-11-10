@@ -1,0 +1,9 @@
+name = "Entertainer's Lute"
+source_note = "Treasure Vault (Remastered). The lute adds higher-rank performance spells and gains an improved bonus at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Jpgl3HlEd8u20fUY", name = "Entertainer's Lute", attributes = ["Base item"] },
+    { key = "equipment-srd:pDNlJMlF4OotsVBh", name = "Entertainer's Lute (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ytGUz1nsPSsyuEsJ", name = "Entertainer's Lute (Major)", attributes = ["Major"] },
+]

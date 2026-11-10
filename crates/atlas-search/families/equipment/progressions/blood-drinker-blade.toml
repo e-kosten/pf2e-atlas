@@ -1,0 +1,10 @@
+name = "Blood-Drinker Blade"
+source_note = "Pathfinder #213: Thirst for Blood. The life-drinking shortsword gains wounding, a longer Drink Life benefit, and Exsanguinate."
+item_type = "weapon"
+category = "martial"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:V9e6G1ZolN7Ncg7g", name = "Blood-Drinker Blade", attributes = ["Base item"] },
+    { key = "equipment-srd:vtPf23T4O6fPIF4P", name = "Blood-Drinker Blade (Greater)", attributes = ["Greater"] },
+]

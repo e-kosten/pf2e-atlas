@@ -1,0 +1,11 @@
+name = "Staff of Water"
+source_note = "Treasure Vault (Remastered). The water staff improves its numeric benefit and adds higher-rank water spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:frCSW1zLFYiYpjdR", name = "Staff of Water", attributes = ["Base item"] },
+    { key = "equipment-srd:DwNELc8YIKTb2uj1", name = "Staff of Water (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:QMqPGk7oL4kESGc3", name = "Staff of Water (Major)", attributes = ["Major"] },
+]

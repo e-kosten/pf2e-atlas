@@ -1,0 +1,8 @@
+name = "Berserker's Cloak"
+source_note = "Player Core 2. The bearskin cloak improves the weapon rune benefits granted by its bear abilities."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:DwLaGtbBdCh2NFbT", name = "Berserker's Cloak", attributes = ["Base item"] },
+    { key = "equipment-srd:OGKI8NS8Er3qumJS", name = "Berserker's Cloak (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Volcanic Vigor"
+source_note = "Heavy is the Crown. Both tattoos protect against heat. Greater extends that protection to incredible heat and improves the activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:l0UMYlCZEUaHExKt", name = "Volcanic Vigor", attributes = ["Base item"] },
+    { key = "equipment-srd:Eft7NqspkOtGv1Ov", name = "Volcanic Vigor (Greater)", attributes = ["Greater"] },
+]

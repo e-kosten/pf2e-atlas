@@ -1,0 +1,8 @@
+name = "Artisan's Toolkit"
+source_note = "Player Core. The sterling toolkit gives a Crafting bonus while serving the same artisan function."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:y34yjumCFakrbtdw", name = "Artisan's Toolkit", attributes = ["Base item"] },
+    { key = "equipment-srd:0QgniSjpzksm5riV", name = "Artisan's Toolkit (Sterling)", attributes = ["Sterling"] },
+]

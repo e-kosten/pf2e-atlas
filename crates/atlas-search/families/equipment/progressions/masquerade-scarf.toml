@@ -1,0 +1,8 @@
+name = "Masquerade Scarf"
+source_note = "GM Core. The embroidered disguise scarf activates in two actions and casts a higher-rank illusion at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:fvpLYx1Lo42cdleQ", name = "Masquerade Scarf", attributes = ["Base item"] },
+    { key = "equipment-srd:WPSp5MLb0VOfmUqH", name = "Masquerade Scarf (Greater)", attributes = ["Greater"] },
+]

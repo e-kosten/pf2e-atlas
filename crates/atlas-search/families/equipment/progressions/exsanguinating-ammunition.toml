@@ -1,0 +1,9 @@
+name = "Exsanguinating Ammunition"
+source_note = "Guns & Gears. The same bleeding agent applies progressively greater weakness to persistent bleed damage."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:QMTW4MjXMIUGp41b", name = "Exsanguinating Ammunition", attributes = ["Base item"] },
+    { key = "equipment-srd:5Q6EFM1MSRX6WNTE", name = "Exsanguinating Ammunition (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:c6HS4K7omXsmZiZT", name = "Exsanguinating Ammunition (Major)", attributes = ["Major"] },
+]

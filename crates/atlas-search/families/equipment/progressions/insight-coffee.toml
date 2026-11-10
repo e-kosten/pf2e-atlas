@@ -1,0 +1,10 @@
+name = "Insight Coffee"
+source_note = "Treasure Vault (Remastered). The three grades share the blend-dependent Recall Knowledge and Strategic Strike benefits, with increasing item bonuses. Foundry records Greater under other."
+item_type = "consumable"
+category = "elixir"
+
+members = [
+    { key = "equipment-srd:sPceDzKeOA8PpK2v", name = "Insight Coffee (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:vzP0pLxes9bn0zV8", name = "Insight Coffee (Moderate)", attributes = ["Moderate"] },
+    { key = "equipment-srd:CorMilTH3XKGW49D", name = "Insight Coffee (Greater)", category = "other", attributes = ["Greater"] },
+]

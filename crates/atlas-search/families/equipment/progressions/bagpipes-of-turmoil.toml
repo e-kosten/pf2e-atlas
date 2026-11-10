@@ -1,0 +1,9 @@
+name = "Bagpipes of Turmoil"
+source_note = "Treasure Vault (Remastered). The same bagpipes add higher-rank spells and gain an improved bonus at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:y8nPmHXIdt4KhMQU", name = "Bagpipes of Turmoil", attributes = ["Base item"] },
+    { key = "equipment-srd:7eggb7exEAbZABrd", name = "Bagpipes of Turmoil (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:nhyXfERJ0SNFmcb0", name = "Bagpipes of Turmoil (Major)", attributes = ["Major"] },
+]

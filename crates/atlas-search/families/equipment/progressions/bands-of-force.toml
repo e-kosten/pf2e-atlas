@@ -1,0 +1,9 @@
+name = "Bands of Force"
+source_note = "GM Core. The level-8 bands are a concrete item. Greater and Major increase AC and saving throw bonuses and the reaction's Reflex modifier."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:02q8s6sSicMkhs1l", name = "Bands of Force", attributes = ["Base item"] },
+    { key = "equipment-srd:8mhSUxEvNuXDP8Ki", name = "Bands of Force (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:rqJzQawe3CbXiWnG", name = "Bands of Force (Major)", attributes = ["Major"] },
+]

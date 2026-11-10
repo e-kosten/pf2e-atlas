@@ -1,0 +1,10 @@
+name = "Cayden's Brew"
+source_note = "Treasure Vault (Remastered). The double and triple brews improve the same breath effect's Fortitude DC."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:wtNZDBNjFsrrFjOR", name = "Cayden's Brew", attributes = ["Base item"] },
+    { key = "equipment-srd:g1aarurTGfb7QDTO", name = "Cayden's Brew (Double)", attributes = ["Double"] },
+    { key = "equipment-srd:UpUJ6NHBin7bubeX", name = "Cayden's Brew (Triple)", attributes = ["Triple"] },
+]

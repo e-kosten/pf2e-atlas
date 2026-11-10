@@ -43,6 +43,7 @@ pub(super) struct Family {
 pub(super) struct Member {
     pub(super) key: RecordKey,
     pub(super) name: String,
+    pub(super) category: Option<String>,
     #[serde(default)]
     pub(super) attributes: Vec<String>,
     pub(super) fit: Option<Fit>,
@@ -98,6 +99,7 @@ pub(super) struct Weapon {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Exclusion {
+    pub(super) source_note: String,
     pub(super) members: Vec<RecordKey>,
     pub(super) others: Vec<RecordKey>,
 }

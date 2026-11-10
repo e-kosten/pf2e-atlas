@@ -1,0 +1,11 @@
+name = "Spore Shephard's Staff"
+source_note = "Mantle of Gold. The fungus spell list grows from the base staff through Greater to Major. Major is ordered by its authored tier and spell list despite the source reusing the base level and price."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:bTwZNckINJgiT8Ef", name = "Spore Shephard's Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:UEIwFJMx3wYt0Blp", name = "Spore Shephard's Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:7XEVXfgeabmO7fMd", name = "Spore Shephard's Staff (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Wand of Paralytic Shock"
+source_note = "Treasure Vault (Remastered). The two-pronged wand increases its spell rank and electricity damage."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:qqT5PVPnjBST4fZb", name = "Wand of Paralytic Shock (3rd-Rank)", attributes = ["3rd-Rank"] },
+    { key = "equipment-srd:ZjcRzYBjtPtb01MB", name = "Wand of Paralytic Shock (7th-Rank)", attributes = ["7th-Rank"] },
+]

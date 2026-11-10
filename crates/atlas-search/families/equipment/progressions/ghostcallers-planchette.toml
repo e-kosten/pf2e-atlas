@@ -1,0 +1,8 @@
+name = "Ghostcaller's Planchette"
+source_note = "Treasure Vault (Remastered). The planchette increases its DC and numeric benefits, adds rune effects, and casts higher-rank spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:v7YHA9UhDgsvQ47Q", name = "Ghostcaller's Planchette", attributes = ["Base item"] },
+    { key = "equipment-srd:utRZnCD2XI9Q1dWE", name = "Ghostcaller's Planchette (Greater)", attributes = ["Greater"] },
+]

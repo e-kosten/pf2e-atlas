@@ -1,0 +1,8 @@
+name = "Crafter's Eyepiece"
+source_note = "GM Core. The project-previewing eyepiece improves its bonus and gains the Prototype activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:RgNBGpBc9G2yw1C2", name = "Crafter's Eyepiece", attributes = ["Base item"] },
+    { key = "equipment-srd:JSYtBZ7XblyAEFoV", name = "Crafter's Eyepiece (Greater)", attributes = ["Greater"] },
+]

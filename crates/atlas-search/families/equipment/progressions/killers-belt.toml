@@ -1,0 +1,8 @@
+name = "Killer's Belt"
+source_note = "Battlecry! The ruby-studded belt improves its Intimidation bonus and persistent bleed damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:58mczRPEMWRcBrYK", name = "Killer's Belt", attributes = ["Base item"] },
+    { key = "equipment-srd:wIwtSiWfRVMF8dHw", name = "Killer's Belt (Greater)", attributes = ["Greater"] },
+]

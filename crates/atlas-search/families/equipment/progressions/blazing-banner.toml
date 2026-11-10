@@ -1,0 +1,9 @@
+name = "Blazing Banner"
+source_note = "Battlecry! The fiery banner increases its persistent fire damage."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:LTepkOAQfuMKj401", name = "Blazing Banner", attributes = ["Base item"] },
+    { key = "equipment-srd:WZjEGBpI5evPkZTj", name = "Blazing Banner (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:6ULZ5To69HSNrfzE", name = "Blazing Banner (Major)", attributes = ["Major"] },
+]

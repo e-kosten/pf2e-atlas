@@ -1,0 +1,9 @@
+name = "Heavy Barding"
+source_note = "Player Core. The same heavy companion armor has identical defenses and penalties in small-or-medium and large sizes."
+item_type = "armor"
+category = "heavy-barding"
+
+members = [
+    { key = "equipment-srd:juQGJI9deskAVfm7", name = "Heavy Barding (Small or Medium)", attributes = ["Small or Medium"] },
+    { key = "equipment-srd:MUtAHJXf22SiVBeH", name = "Heavy Barding (Large)", attributes = ["Large"] },
+]

@@ -1,0 +1,10 @@
+name = "Rustbringer"
+source_note = "Rage of Elements. The rusted flail improves its runes and acid damage against metal targets."
+item_type = "weapon"
+category = "martial"
+group = "flail"
+
+members = [
+    { key = "equipment-srd:rnoP6uPxauJiSGPK", name = "Rustbringer", attributes = ["Base item"] },
+    { key = "equipment-srd:Fye3IZN9FVDYm4KJ", name = "Rustbringer (Greater)", attributes = ["Greater"] },
+]

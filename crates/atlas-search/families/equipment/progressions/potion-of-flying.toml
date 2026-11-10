@@ -1,0 +1,9 @@
+name = "Potion of Flying"
+source_note = "GM Core. Both potions grant a 40-foot fly Speed, with Greater extending the duration from one minute to one hour."
+item_type = "consumable"
+category = "potion"
+
+members = [
+    { key = "equipment-srd:KlJSw919hpN6V9oK", name = "Potion of Flying (Standard)", attributes = ["Standard"] },
+    { key = "equipment-srd:E999hL7XlAlfZhjK", name = "Potion of Flying (Greater)", attributes = ["Greater"] },
+]

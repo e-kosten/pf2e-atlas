@@ -1,0 +1,8 @@
+name = "Shock"
+source_note = "GM Core. The electric weapon rune bypasses electricity resistance at the greater grade, including when the critical arc jumps."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:NVst7e69agGG9Qwd", name = "Shock", attributes = ["Base item"] },
+    { key = "equipment-srd:TEa1oKZbwsOvC6TZ", name = "Shock (Greater)", attributes = ["Greater"] },
+]

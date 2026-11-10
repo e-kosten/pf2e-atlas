@@ -1,0 +1,11 @@
+name = "Clothing"
+source_note = "Player Core and Howl of the Wild. The records describe ordinary clothes and specific social or environmental clothing options. Explorer's Clothing is separate armor."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:SLQgdLk5K9JV4ACF", name = "Clothing (Cold-Weather)", attributes = ["Cold-Weather"] },
+    { key = "equipment-srd:eH9QuNtPi5BkeKO7", name = "Clothing (Desert)", attributes = ["Desert"] },
+    { key = "equipment-srd:jJZbdMHMdh8UL2j8", name = "Clothing (Fine)", attributes = ["Fine"] },
+    { key = "equipment-srd:ilbLQNy6TbBPW7sQ", name = "Clothing (Ordinary)", attributes = ["Ordinary"] },
+    { key = "equipment-srd:rXZxM7SbqEnvXyal", name = "Clothing (High-Fashion Fine)", attributes = ["High-Fashion Fine"] },
+]

@@ -1,0 +1,8 @@
+name = "Fortification"
+source_note = "GM Core. The defensive rune lowers the flat-check DC for turning a critical hit into a normal hit."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:8buhFcGwuaJRrp0y", name = "Fortification", attributes = ["Base item"] },
+    { key = "equipment-srd:ujWnpVMkbTljMGN9", name = "Fortification (Greater)", attributes = ["Greater"] },
+]

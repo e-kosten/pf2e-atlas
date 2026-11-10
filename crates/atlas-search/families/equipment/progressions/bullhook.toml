@@ -1,0 +1,8 @@
+name = "Bullhook"
+source_note = "Legacy of the Lost God. Both rods direct performing animals, with Greater strengthening its animal-command magic."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:2EOeljZiUdNVf8s2", name = "Bullhook", attributes = ["Base item"] },
+    { key = "equipment-srd:Yguqipt5N29Bkz0d", name = "Bullhook (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Cooperative Waffles"
+source_note = "Treasure Vault (Remastered). The shared waffles extend their benefit to successful Aid checks at the greater grade."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:T28lI7becoK1ZGqr", name = "Cooperative Waffles", attributes = ["Base item"] },
+    { key = "equipment-srd:awPkC6AWcHS3T4oz", name = "Cooperative Waffles (Greater)", attributes = ["Greater"] },
+]

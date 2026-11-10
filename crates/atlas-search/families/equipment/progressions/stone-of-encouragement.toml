@@ -1,0 +1,8 @@
+name = "Stone of Encouragement"
+source_note = "Lost Omens Firebrands. The palm-sized telepathic stone increases its granted bonus at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:mmQT6AZjXO1ty3dv", name = "Stone of Encouragement", attributes = ["Base item"] },
+    { key = "equipment-srd:JOswp4pSSevZFeNG", name = "Stone of Encouragement (Greater)", attributes = ["Greater"] },
+]

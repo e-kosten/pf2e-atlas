@@ -1,0 +1,9 @@
+name = "Countering Charm"
+source_note = "GM Core. The gemstone charm holds the same kind of countering magic, with progressively higher counteract modifiers."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:dvHvLFTbjnsE0xoN", name = "Countering Charm", attributes = ["Base item"] },
+    { key = "equipment-srd:rrWSGLJVxXAMeP07", name = "Countering Charm (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:39wTBxfaHkAHwXhw", name = "Countering Charm (Major)", attributes = ["Major"] },
+]

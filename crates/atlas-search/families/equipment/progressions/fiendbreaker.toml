@@ -1,0 +1,10 @@
+name = "Fiendbreaker"
+source_note = "Spore War. The Heroic form of Jininsiel's same staff gains intelligence, higher-rank spells, and Restore Mind."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:ICreMLiKizKZkype", name = "Fiendbreaker", attributes = ["Base item"] },
+    { key = "equipment-srd:wu50pzerLWnVrHG8", name = "Fiendbreaker (Heroic)", attributes = ["Heroic"] },
+]

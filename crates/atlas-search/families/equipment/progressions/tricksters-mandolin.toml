@@ -1,0 +1,9 @@
+name = "Trickster's Mandolin"
+source_note = "Treasure Vault (Remastered). The mandolin adds higher-rank illusion spells and gains an improved bonus at the major grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:kILYXCczAc6ZfArJ", name = "Trickster's Mandolin", attributes = ["Base item"] },
+    { key = "equipment-srd:Pq7JhHw3QhqqxY9d", name = "Trickster's Mandolin (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:18ztTUiUZNjuc7K1", name = "Trickster's Mandolin (Major)", attributes = ["Major"] },
+]

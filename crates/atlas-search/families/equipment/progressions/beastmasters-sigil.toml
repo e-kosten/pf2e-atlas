@@ -1,0 +1,9 @@
+name = "Beastmaster's Sigil"
+source_note = "Treasure Vault (Remastered). The beast spellheart improves DC, bonuses, and bleed damage and adds higher-rank summons."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:JWFR4O5V06UUvx6W", name = "Beastmaster's Sigil", attributes = ["Base item"] },
+    { key = "equipment-srd:fWgH0JxNCOpI7SVr", name = "Beastmaster's Sigil (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:ZxOoQ4cHfJXXbP9F", name = "Beastmaster's Sigil (Major)", attributes = ["Major"] },
+]

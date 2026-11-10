@@ -1,0 +1,8 @@
+name = "Crushing"
+source_note = "Lost Omens The Grand Bazaar. The critical-hit weapon rune increases the clumsy and enfeebled values it imposes."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:JY8X4RSfg6xIqAC9", name = "Crushing", attributes = ["Base item"] },
+    { key = "equipment-srd:t6SSQYruLsDWj5Tl", name = "Crushing (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Godrending Ammunition"
+source_note = "Lost Omens Shining Kingdoms. The embedded warshard increases slashing damage and the target's Fortitude DC at the greater grade."
+item_type = "ammo"
+
+members = [
+    { key = "equipment-srd:0PGauxNX76JaaREG", name = "Godrending Ammunition", attributes = ["Base item"] },
+    { key = "equipment-srd:Irl1fogVpiKWJpCV", name = "Godrending Ammunition (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,8 @@
+name = "Cube of Nex"
+source_note = "Lost Omens Impossible Lands. Both cube artifacts use the same six-face barrier rules. The stronger artifact suppresses all schools of magic, exempts its user, and can deactivate lesser cubes."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:ckJkldBWN8n1Hq2a", name = "Lesser Cube of Nex", attributes = ["Lesser"] },
+    { key = "equipment-srd:1kLz3leyfccLcAMK", name = "Cube of Nex", attributes = ["Base item"] },
+]

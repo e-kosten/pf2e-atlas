@@ -1,0 +1,8 @@
+name = "Alacritous Horseshoes"
+source_note = "GM Core. The iron horseshoes improve the animal's land Speed and skill bonus."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:peoheZMxdPHUNo93", name = "Alacritous Horseshoes", attributes = ["Base item"] },
+    { key = "equipment-srd:t0pzdb54KD2JQcEa", name = "Alacritous Horseshoes (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Quenching"
+source_note = "Treasure Vault (Remastered). The rune lowers the flat-check DC to end persistent acid and fire through the true grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:tpkkAtlMIOL8TnW6", name = "Quenching", attributes = ["Base item"] },
+    { key = "equipment-srd:HhtZl2pr7xChKu2c", name = "Quenching (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:3rlu75EjB2SVAuOI", name = "Quenching (Major)", attributes = ["Major"] },
+    { key = "equipment-srd:hGZNrPMdxsabNFLx", name = "Quenching (True)", attributes = ["True"] },
+]

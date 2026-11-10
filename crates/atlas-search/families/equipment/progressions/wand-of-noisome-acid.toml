@@ -1,0 +1,11 @@
+name = "Wand of Noisome Acid"
+source_note = "Treasure Vault (Remastered). The wand casts stronger Acid Grip and applies its same follow-up effect. The fourth-rank source name has a spelling error."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:JN2wkB9JG4nklVKP", name = "Wand of Noisome Acid (2nd-Rank)", attributes = ["2nd-Rank"] },
+    { key = "equipment-srd:Nv4DjyBqIMXQ4KM4", name = "Wand of Noisome Acid (4nd-Rank)", attributes = ["4th-Rank"] },
+    { key = "equipment-srd:ljZwHU5BMnFafVa3", name = "Wand of Noisome Acid (6th-Rank)", attributes = ["6th-Rank"] },
+    { key = "equipment-srd:T1XSnU0bwrn3m520", name = "Wand of Noisome Acid (8th-Rank)", attributes = ["8th-Rank"] },
+]

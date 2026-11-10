@@ -1,0 +1,8 @@
+name = "Doubling Rings"
+source_note = "GM Core. The linked gold and iron rings add property-rune replication at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:DwMXEqy7Ws8NYQQh", name = "Doubling Rings", attributes = ["Base item"] },
+    { key = "equipment-srd:gRQXLqUuP4GWfDWI", name = "Doubling Rings (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,10 @@
+name = "Firestarter Pellets"
+source_note = "Impossible Magic. The Fireball catalyst increases the persistent fire damage on failure and critical failure."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:VmMSP1EbMVnj2pZ2", name = "Firestarter Pellets", attributes = ["Base item"] },
+    { key = "equipment-srd:SsWxgxols1Q1qPVf", name = "Firestarter Pellets (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kFqPDnz0dYvK0mIG", name = "Firestarter Pellets (Major)", attributes = ["Major"] },
+]

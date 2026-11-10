@@ -1,0 +1,9 @@
+name = "Noxious Incense"
+source_note = "Impossible Magic. The pungent catalyst lifts its supported spell rank limit at the greater grade."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:0GY1BYECGqz6YJ88", name = "Noxious Incense", attributes = ["Base item"] },
+    { key = "equipment-srd:EDjJy68ZFLu57ldN", name = "Noxious Incense (Greater)", attributes = ["Greater"] },
+]

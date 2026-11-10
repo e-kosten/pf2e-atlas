@@ -1,0 +1,8 @@
+name = "Blazons of Shared Power"
+source_note = "Guns & Gears. The matching brass emblems add property-rune replication at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:P8hf8WT6oRxYmfLB", name = "Blazons of Shared Power", attributes = ["Base item"] },
+    { key = "equipment-srd:ZR3Kekd3hrWmAv6d", name = "Blazons of Shared Power (Greater)", attributes = ["Greater"] },
+]

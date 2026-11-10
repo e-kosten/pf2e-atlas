@@ -1,0 +1,11 @@
+name = "Spellstriker Staff"
+source_note = "Treasure Vault (Remastered). The spellstriking staff improves its runes and adds higher-rank combat spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:Cb0h1Y2OSrbYXJQ2", name = "Spellstriker Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:Y2L8NM50BvRfUaat", name = "Spellstriker Staff (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:AFkybwwQzAArjrF4", name = "Spellstriker Staff (Major)", attributes = ["Major"] },
+]

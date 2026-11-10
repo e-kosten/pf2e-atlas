@@ -1,0 +1,13 @@
+name = "Wand of Overflowing Life"
+source_note = "Player Core 2. The life wand applies the same healing mechanism and effects at successively higher listed ranks."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:qQpcBE7ngv7TIAW3", name = "Wand of Overflowing Life (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:85GqeSGXjSQwLy07", name = "Wand of Overflowing Life (4th-Rank Spell)", attributes = ["4th-Rank Spell"] },
+    { key = "equipment-srd:aj2eTtEAgLu4f14b", name = "Wand of Overflowing Life (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:VtzChvlCG2TQRrgu", name = "Wand of Overflowing Life (6th-Rank Spell)", attributes = ["6th-Rank Spell"] },
+    { key = "equipment-srd:grRxpX1iE3zOJA1q", name = "Wand of Overflowing Life (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+    { key = "equipment-srd:xZFbFeJckiQS7smT", name = "Wand of Overflowing Life (8th-Rank Spell)", attributes = ["8th-Rank Spell"] },
+]

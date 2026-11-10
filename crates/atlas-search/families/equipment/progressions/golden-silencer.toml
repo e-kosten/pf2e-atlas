@@ -1,0 +1,9 @@
+name = "Golden Silencer"
+source_note = "Cradle of Quartz. Both silence a victim for a clandestine raid, with Greater using a higher Fortitude DC and a longer effect that permits repeat saves."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:M7Ful1B1IWeibSm7", name = "Golden Silencer (Standard)", attributes = ["Standard"] },
+    { key = "equipment-srd:PkrpCUXdV3I1boRQ", name = "Golden Silencer (Greater)", attributes = ["Greater"] },
+]

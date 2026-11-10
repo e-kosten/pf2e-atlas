@@ -1,0 +1,8 @@
+name = "Sparking Grimoire"
+source_note = "Impossible Magic. The lightning-embossed spellbook extends Static Shock to the user's allies at the greater grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:hx7aQv58VZueUvlJ", name = "Sparking Grimoire", attributes = ["Base item"] },
+    { key = "equipment-srd:OPOxrngmyQh4ctj8", name = "Sparking Grimoire (Greater)", attributes = ["Greater"] },
+]

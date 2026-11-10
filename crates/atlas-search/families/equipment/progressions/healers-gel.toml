@@ -1,0 +1,10 @@
+name = "Healer's Gel"
+source_note = "Impossible Magic. The scented Heal catalyst grants progressively more temporary Hit Points."
+item_type = "consumable"
+category = "catalyst"
+
+members = [
+    { key = "equipment-srd:q8aRbsKX93R5AXNb", name = "Healer's Gel", attributes = ["Base item"] },
+    { key = "equipment-srd:ZxkTbyq61JTQ7Zkt", name = "Healer's Gel (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:3M7iB9tfrsWTccZ0", name = "Healer's Gel (Major)", attributes = ["Major"] },
+]

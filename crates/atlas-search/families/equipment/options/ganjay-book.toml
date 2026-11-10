@@ -1,0 +1,8 @@
+name = "Ganjay Book"
+source_note = "Lost Omens Pathfinder Society Guide. The two folding books implement the same creases at different unfolded and folded Bulk."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:2mt15LcfMArk7JqT", name = "Ganjay Book (1 bulk book)", attributes = ["1 bulk book"] },
+    { key = "equipment-srd:yvS4UatIZAGH4tng", name = "Ganjay Book (Light bulk book)", attributes = ["Light bulk book"] },
+]

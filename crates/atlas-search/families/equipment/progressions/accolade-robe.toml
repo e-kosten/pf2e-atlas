@@ -1,0 +1,8 @@
+name = "Accolade Robe"
+source_note = "GM Core. The honors robe improves its bonus and allows Review as a free action."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:D8VKhm7rSBozJkMN", name = "Accolade Robe", attributes = ["Base item"] },
+    { key = "equipment-srd:ZdAZ1ALZ28QOeCN7", name = "Accolade Robe (Greater)", attributes = ["Greater"] },
+]

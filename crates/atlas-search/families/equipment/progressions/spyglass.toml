@@ -1,0 +1,8 @@
+name = "Spyglass"
+source_note = "Player Core. The fine spyglass improves Perception for discerning details at a distance."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:UtRH6jt3iNFCgLLG", name = "Spyglass", attributes = ["Base item"] },
+    { key = "equipment-srd:rV7MTDCseZmEZKDw", name = "Spyglass (Fine)", attributes = ["Fine"] },
+]

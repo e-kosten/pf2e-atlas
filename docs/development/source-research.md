@@ -189,8 +189,19 @@ this ID in its public URL, so keep the stem when moving or renaming a family's
 display title. Declare the expected
 item type and applicable category or weapon group once per family. Each member
 has its exact Foundry key, expected name, and display attributes or weapon
-compatibility evidence. File order defines the progression unless
-`order_by_level = true`. Exclusions are declared alongside the family files.
+compatibility evidence. If the source establishes that a consumable belongs to
+the family and Foundry assigns it a different category, declare that exact
+member's expected `category` and explain the relationship in the source note.
+This only affects verification of the declared member. File order defines the
+progression unless `order_by_level = true`.
+
+In [exclusions.toml](../../crates/atlas-search/families/equipment/exclusions.toml),
+each entry blocks Possible variants suggestions between its two sides in both
+directions. In `between`, use `{ family = "family-id" }` when the rule applies to
+every concrete member of that family. Adding a member extends the exclusion.
+Use `{ records = [...] }` when the rule applies to specific records. Put the
+exact Foundry name beside each listed key as a comment and give every entry a
+`source_note` that explains why the sides should stay separate.
 
 For families with several independent dimensions, declare ordered `axes` and
 their options. Give each concrete member one `coordinates` value per axis.

@@ -1,0 +1,9 @@
+name = "Toothy Knife"
+source_note = "Battlecry! The jagged weapon consumable increases the flat-check DCs for ending persistent bleed damage."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:axX8gAJvIGWrmHJ0", name = "Toothy Knife", attributes = ["Base item"] },
+    { key = "equipment-srd:A5pqQcVhPVtNc7Ol", name = "Toothy Knife (Greater)", attributes = ["Greater"] },
+]

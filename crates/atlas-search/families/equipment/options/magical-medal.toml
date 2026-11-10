@@ -1,0 +1,11 @@
+name = "Magical Medal"
+source_note = "Battlecry! The military commendations share the medal design and grant different effects based on their emblem."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:vcq8mSC6518uTTAi", name = "Magical Medal (Gorilla's Might)", attributes = ["Gorilla's Might"] },
+    { key = "equipment-srd:WrGXBxdGeLQlvE19", name = "Magical Medal (Griffon's Heart)", attributes = ["Griffon's Heart"] },
+    { key = "equipment-srd:MRbukveaBbzGzpZb", name = "Magical Medal (Wolf Pack)", attributes = ["Wolf Pack"] },
+    { key = "equipment-srd:CWz4kW5b5wuIDaaI", name = "Magical Medal (Unicorn's Purity)", attributes = ["Unicorn's Purity"] },
+    { key = "equipment-srd:GffKny4ykYFkmyDZ", name = "Magical Medal (Phoenix's Fire)", attributes = ["Phoenix's Fire"] },
+]

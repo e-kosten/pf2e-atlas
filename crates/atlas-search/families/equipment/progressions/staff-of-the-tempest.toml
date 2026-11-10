@@ -1,0 +1,11 @@
+name = "Staff of the Tempest"
+source_note = "Player Core 2. The lightning-struck staff adds higher-rank weather and lightning spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:0S8lZFSEP7ZlLFqA", name = "Staff of the Tempest", attributes = ["Base item"] },
+    { key = "equipment-srd:8Ia2jOo23XoArpJm", name = "Staff of the Tempest (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:RDoxgjEFsherGA5x", name = "Staff of the Tempest (Major)", attributes = ["Major"] },
+]

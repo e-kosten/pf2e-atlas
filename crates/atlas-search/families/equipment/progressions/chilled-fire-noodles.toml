@@ -1,0 +1,9 @@
+name = "Chilled Fire Noodles"
+source_note = "Lost Omens Tian Xia Character Guide. The spiced noodles extend their temporary benefit to four hours at the greater grade."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:lXQ9ATsfuBo1MRko", name = "Chilled Fire Noodles", attributes = ["Base item"] },
+    { key = "equipment-srd:LY4HQe0WfYy95d6M", name = "Chilled Fire Noodles (Greater)", attributes = ["Greater"] },
+]

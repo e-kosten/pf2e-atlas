@@ -1,0 +1,8 @@
+name = "Mage's Hat"
+source_note = "GM Core. The Arcana and Prestidigitation hat improves its bonus and gains a specific summoning activation."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:SswqJqeAWGtX3tTF", name = "Mage's Hat", attributes = ["Base item"] },
+    { key = "equipment-srd:Hd1AfC08ytBg67Ey", name = "Mage's Hat (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,9 @@
+name = "Cultist Cowl"
+source_note = "Seven Dooms for Sandpoint. Cowl fabrics correspond to cult rank. Greater and Major increase the benefits and add Crisis of Faith."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:bqUAjBYBI3Avb1hf", name = "Cultist Cowl", attributes = ["Base item"] },
+    { key = "equipment-srd:GWaTch1J0tPjoi8s", name = "Cultist Cowl (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:uKB9FBAoAsj46UgA", name = "Cultist Cowl (Major)", attributes = ["Major"] },
+]

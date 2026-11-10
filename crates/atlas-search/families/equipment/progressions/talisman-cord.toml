@@ -1,0 +1,9 @@
+name = "Talisman Cord"
+source_note = "Lost Omens Pathfinder Society Guide. The talisman-preserving cord is attuned to one, two, or three magic schools according to grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:tnPteWjbm97bdTj5", name = "Talisman Cord (Lesser)", attributes = ["Lesser"] },
+    { key = "equipment-srd:HvmIoRCaQJmkwluG", name = "Talisman Cord", attributes = ["Base item"] },
+    { key = "equipment-srd:62ZOnGqCMlXCHngg", name = "Talisman Cord (Greater)", attributes = ["Greater"] },
+]

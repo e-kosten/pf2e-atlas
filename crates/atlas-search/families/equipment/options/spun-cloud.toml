@@ -1,0 +1,12 @@
+name = "Spun Cloud"
+source_note = "Rage of Elements. Five named colors use the same cloud activation with color-specific effects, such as electricity protection, concealment, fear and nausea."
+item_type = "consumable"
+category = "other"
+
+members = [
+    { key = "equipment-srd:a05LWc1gKq0NwRfs", name = "Spun Cloud (White)", attributes = ["White"] },
+    { key = "equipment-srd:PEjGV24mOK5gPPPS", name = "Spun Cloud (Blue)", attributes = ["Blue"] },
+    { key = "equipment-srd:0Lz5mlbB6QTZIYLf", name = "Spun Cloud (Black)", attributes = ["Black"] },
+    { key = "equipment-srd:qDvsHszooFbPAqlN", name = "Spun Cloud (Red)", attributes = ["Red"] },
+    { key = "equipment-srd:9BNMhEZ2ztFtu2WU", name = "Spun Cloud (Green)", attributes = ["Green"] },
+]

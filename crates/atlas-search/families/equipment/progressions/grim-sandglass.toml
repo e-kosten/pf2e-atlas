@@ -1,0 +1,9 @@
+name = "Grim Sandglass"
+source_note = "Impossible Magic. The balanced-sand spellheart improves its defensive and casting statistics and adds higher-rank Harm."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:OjOpj9u1EdEUhKuX", name = "Grim Sandglass", attributes = ["Base item"] },
+    { key = "equipment-srd:yQTmIcXIDg7nVpJX", name = "Grim Sandglass (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:beHqICAYt9ZuyBay", name = "Grim Sandglass (Major)", attributes = ["Major"] },
+]

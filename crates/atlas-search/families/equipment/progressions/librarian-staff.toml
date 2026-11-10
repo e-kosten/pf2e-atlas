@@ -1,0 +1,10 @@
+name = "Librarian Staff"
+source_note = "Treasure Vault (Remastered). The library staff improves its range and adds higher-rank research and translation spells."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:bh1Jr4YqfXQe7r9I", name = "Librarian Staff", attributes = ["Base item"] },
+    { key = "equipment-srd:QFvB2qgpWdeEa4fT", name = "Librarian Staff (Greater)", attributes = ["Greater"] },
+]

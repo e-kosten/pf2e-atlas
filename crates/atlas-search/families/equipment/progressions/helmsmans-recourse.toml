@@ -1,0 +1,9 @@
+name = "Helmsman's Recourse"
+source_note = "Treasure Vault (Remastered). The helm-themed shield improves defensive statistics and gains throwing and Water Walk capabilities."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:WDmuP3H7jNqobraf", name = "Helmsman's Recourse", attributes = ["Base item"] },
+    { key = "equipment-srd:19T3MHwhB6Wk4AjV", name = "Helmsman's Recourse (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:kSjfrC31qFi2qovr", name = "Helmsman's Recourse (Major)", attributes = ["Major"] },
+]

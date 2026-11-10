@@ -1,0 +1,11 @@
+name = "Staff of the Mage's Friend"
+source_note = "Impossible Magic. The familiar-shaped telepathy staff adds higher-rank spells for working with a familiar."
+item_type = "weapon"
+category = "simple"
+group = "club"
+
+members = [
+    { key = "equipment-srd:V7ZhF0iSuXyM8jAD", name = "Staff of the Mage's Friend", attributes = ["Base item"] },
+    { key = "equipment-srd:o4yul8PJpZgbkupW", name = "Staff of the Mage's Friend (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:tDkMBFkTVHSMC9PM", name = "Staff of the Mage's Friend (Major)", attributes = ["Major"] },
+]

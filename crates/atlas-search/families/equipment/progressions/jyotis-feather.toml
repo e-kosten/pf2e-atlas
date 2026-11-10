@@ -1,0 +1,9 @@
+name = "Jyoti's Feather"
+source_note = "Treasure Vault (Remastered). The feather spellheart improves its bonus and adds higher-rank restorative spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:zAnxjSoJBggguWFP", name = "Jyoti's Feather", attributes = ["Base item"] },
+    { key = "equipment-srd:GtSPUCDpIMUEq9B0", name = "Jyoti's Feather (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:y4dGIbK5wGUJTufR", name = "Jyoti's Feather (Major)", attributes = ["Major"] },
+]

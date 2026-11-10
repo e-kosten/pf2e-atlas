@@ -1,0 +1,8 @@
+name = "Testudo Shield"
+source_note = "Battlecry! The eagle-emblazoned tower shield creates a longer barrier with Tortoise Form."
+item_type = "shield"
+
+members = [
+    { key = "equipment-srd:ZuqvNXDyhedwJM7y", name = "Testudo Shield", attributes = ["Base item"] },
+    { key = "equipment-srd:GmjKkSdqU9rapwSq", name = "Testudo Shield (Greater)", attributes = ["Greater"] },
+]

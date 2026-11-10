@@ -1,0 +1,8 @@
+name = "Alchemist's Lab"
+source_note = "Player Core. The expanded alchemist's lab adds a Crafting bonus for creating alchemical items."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:k6xZkDUpF7E1Totd", name = "Alchemist's Lab", attributes = ["Base item"] },
+    { key = "equipment-srd:uhka9LHEP3wDKytG", name = "Alchemist's Lab (Expanded)", attributes = ["Expanded"] },
+]

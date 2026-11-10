@@ -1,0 +1,11 @@
+name = "Flashblade"
+source_note = "Lost Omens Tian Xia Character Guide. The lightning-scriven nodachi improves its runes and extends the reach of its readied Strike."
+item_type = "weapon"
+category = "advanced"
+group = "sword"
+
+members = [
+    { key = "equipment-srd:QKhVKfaum7DyF53w", name = "Flashblade", attributes = ["Base item"] },
+    { key = "equipment-srd:uPtU3QGn9UdskxFh", name = "Flashblade (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:GWwbrnWBymUQn4JI", name = "Flashblade (Major)", attributes = ["Major"] },
+]

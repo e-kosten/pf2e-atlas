@@ -1,0 +1,9 @@
+name = "Dawnlight"
+source_note = "Book of the Dead. The feather reliquary improves its casting ranks and statistics and gains a damaging response to counteracting darkness."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:1tqyghMGI6PEYFGK", name = "Dawnlight", attributes = ["Base item"] },
+    { key = "equipment-srd:babiGiHQwY6Bg4XP", name = "Dawnlight (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:KtpxwEfpbfDDEURF", name = "Dawnlight (Major)", attributes = ["Major"] },
+]

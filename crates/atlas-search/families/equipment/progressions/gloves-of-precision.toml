@@ -1,0 +1,8 @@
+name = "Gloves of Precision"
+source_note = "Lost Omens High Seas. The same fingerless gloves improve their bonus for precise tasks from +2 to +3."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:Pa7wOKJfdSgMCtMg", name = "Gloves of Precision", attributes = ["Base item"] },
+    { key = "equipment-srd:hXcKRAMkiaZSUvEh", name = "Gloves of Precision (Greater)", attributes = ["Greater"] },
+]

@@ -1,0 +1,11 @@
+name = "Wand of Shardstorm"
+source_note = "GM Core. The dragon-headed wand casts Force Barrage at progressively higher listed ranks."
+item_type = "consumable"
+category = "wand"
+
+members = [
+    { key = "equipment-srd:KPWN5tGGkvZR7K3K", name = "Wand of Shardstorm (1st-Rank Spell)", attributes = ["1st-Rank Spell"] },
+    { key = "equipment-srd:3Lexs7KnhbV0HgFh", name = "Wand of Shardstorm (3rd-Rank Spell)", attributes = ["3rd-Rank Spell"] },
+    { key = "equipment-srd:y6if8e8OB3RUywF8", name = "Wand of Shardstorm (5th-Rank Spell)", attributes = ["5th-Rank Spell"] },
+    { key = "equipment-srd:WeX7rAO2kAyP0QnG", name = "Wand of Shardstorm (7th-Rank Spell)", attributes = ["7th-Rank Spell"] },
+]

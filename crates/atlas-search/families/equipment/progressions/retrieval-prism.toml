@@ -1,0 +1,9 @@
+name = "Retrieval Prism"
+source_note = "Impossible Magic. The armor-affixed prism can retrieve a broader range of possessed items at the greater grade."
+item_type = "consumable"
+category = "talisman"
+
+members = [
+    { key = "equipment-srd:HVPbv5n2e1vcT9Ug", name = "Retrieval Prism", attributes = ["Base item"] },
+    { key = "equipment-srd:xK3rWA6HtaJvKSuC", name = "Retrieval Prism (Greater)", attributes = ["Greater"] },
+]

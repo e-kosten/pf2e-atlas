@@ -1,0 +1,8 @@
+name = "Rhythm Bone"
+source_note = "Kindled Magic. Both bones record and repeat sound. Greater records for ten minutes and expands the audible range."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:geAAUwfmOc5U0qOE", name = "Rhythm Bone", attributes = ["Base item"] },
+    { key = "equipment-srd:41MNmuj0PbHnhz0M", name = "Rhythm Bone (Greater)", attributes = ["Greater"] },
+]

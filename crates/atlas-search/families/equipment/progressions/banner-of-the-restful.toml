@@ -1,0 +1,9 @@
+name = "Banner of the Restful"
+source_note = "Battlecry! The protective banner improves the Perception DC bonus in its aura."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:xldy59c3WDGYlAYs", name = "Banner of the Restful", attributes = ["Base item"] },
+    { key = "equipment-srd:gIzTEarIzmm037vP", name = "Banner of the Restful (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:NpyFguDxjWng8MLU", name = "Banner of the Restful (Major)", attributes = ["Major"] },
+]

@@ -1,0 +1,9 @@
+name = "Cloak of Social Graces"
+source_note = "Lost Omens High Seas. The hand-dyed cloak improves its item bonus and spell rank at each grade."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:RgftC5CQWI57S2RD", name = "Cloak of Social Graces", attributes = ["Base item"] },
+    { key = "equipment-srd:7TnsMvO8tbvKjzzg", name = "Cloak of Social Graces (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:W4BRklZIp5c3Nv77", name = "Cloak of Social Graces (Major)", attributes = ["Major"] },
+]

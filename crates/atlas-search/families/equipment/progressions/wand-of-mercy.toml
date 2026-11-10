@@ -1,0 +1,15 @@
+name = "Wand of Mercy"
+source_note = "Treasure Vault (Remastered). The winged crystal wand can make its spell nonlethal across successive ranks."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:vSiePW2xIEOmXB0H", name = "Wand of Mercy (1st-rank)", attributes = ["1st-rank"] },
+    { key = "equipment-srd:6irTMXWYnysLljb6", name = "Wand of Mercy (2nd-rank)", attributes = ["2nd-rank"] },
+    { key = "equipment-srd:VB9hU5JVAsvNXc1w", name = "Wand of Mercy (3rd-rank)", attributes = ["3rd-rank"] },
+    { key = "equipment-srd:YU9FFzOsMDdmKW7x", name = "Wand of Mercy (4th-rank)", attributes = ["4th-rank"] },
+    { key = "equipment-srd:clcqWFuj42N28oeT", name = "Wand of Mercy (5th-rank)", attributes = ["5th-rank"] },
+    { key = "equipment-srd:MjiZtQW7QBLFbq7W", name = "Wand of Mercy (6th-rank)", attributes = ["6th-rank"] },
+    { key = "equipment-srd:K8T5OYXjmniOvhmA", name = "Wand of Mercy (7th-rank)", attributes = ["7th-rank"] },
+    { key = "equipment-srd:3DGLuHRME4e2XgvX", name = "Wand of Mercy (8th-rank)", attributes = ["8th-rank"] },
+    { key = "equipment-srd:LSf18TMRtHV6SMs9", name = "Wand of Mercy (9th-rank)", attributes = ["9th-rank"] },
+]

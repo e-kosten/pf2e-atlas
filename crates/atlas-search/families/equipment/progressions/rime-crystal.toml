@@ -1,0 +1,9 @@
+name = "Rime Crystal"
+source_note = "Treasure Vault (Remastered). The cold spellheart improves resistance, damage, and spell statistics and adds higher-rank cold spells."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:dmsdzOxdykeWXUHr", name = "Rime Crystal", attributes = ["Base item"] },
+    { key = "equipment-srd:neanlQgRTZQh2zy7", name = "Rime Crystal (Greater)", attributes = ["Greater"] },
+    { key = "equipment-srd:p6tS5mzfGkQJLUDp", name = "Rime Crystal (Major)", attributes = ["Major"] },
+]

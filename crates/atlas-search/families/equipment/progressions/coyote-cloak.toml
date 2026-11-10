@@ -1,0 +1,8 @@
+name = "Coyote Cloak"
+source_note = "GM Core. The coyote-fur cloak improves Survival and feeds more creatures on a critical Subsist success."
+item_type = "equipment"
+
+members = [
+    { key = "equipment-srd:mvMeloQxSiEGIlhL", name = "Coyote Cloak", attributes = ["Base item"] },
+    { key = "equipment-srd:sls3pfkhgCbW723f", name = "Coyote Cloak (Greater)", attributes = ["Greater"] },
+]
