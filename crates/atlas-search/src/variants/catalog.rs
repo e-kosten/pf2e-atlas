@@ -43,6 +43,7 @@ pub(super) struct Family {
 pub(super) struct Member {
     pub(super) key: RecordKey,
     pub(super) name: String,
+    pub(super) category: Option<String>,
     #[serde(default)]
     pub(super) attributes: Vec<String>,
     pub(super) fit: Option<Fit>,

@@ -165,6 +165,7 @@ fn overview_matches(
             selected.family,
             seed,
             &general.name,
+            selected.family.category.as_deref(),
             None,
             source,
         ),
@@ -222,6 +223,7 @@ fn reviewed_members<'a>(
             family,
             &summary,
             &member.name,
+            member.category.as_deref().or(family.category.as_deref()),
             member.fit.as_ref(),
             loaded.map(|detail| &detail.source),
         )? {
@@ -333,10 +335,16 @@ fn read_general(
     let Some(summary) = retrieval.index.read_summary(&entry.key)? else {
         return Ok(None);
     };
-    Ok(
-        record_matches(retrieval, family, &summary, &entry.name, None, None)?
-            .then(|| Box::new(summary)),
-    )
+    Ok(record_matches(
+        retrieval,
+        family,
+        &summary,
+        &entry.name,
+        family.category.as_deref(),
+        None,
+        None,
+    )?
+    .then(|| Box::new(summary)))
 }
 
 fn token_matches(value: impl serde::Serialize, expected: Option<&str>) -> bool {
@@ -359,6 +367,7 @@ fn record_matches(
     family: &Family,
     summary: &SourceRecordSummary,
     expected_name: &str,
+    category: Option<&str>,
     fit: Option<&Fit>,
     source: Option<&SourceBackedRecord>,
 ) -> Result<bool, SearchError> {
@@ -368,7 +377,7 @@ fn record_matches(
     {
         return Ok(false);
     }
-    if family.category.is_none() && fit.is_none() {
+    if category.is_none() && fit.is_none() {
         return Ok(true);
     }
     let fetched;
@@ -392,7 +401,6 @@ fn record_matches(
             .is_some_and(|base| token_matches(base, Some(&fit.ammo_type)))
             && fit.matches(retrieval)?);
     }
-    let category = family.category.as_deref();
     Ok(match compatibility(record) {
         Some(Compatibility::Weapon(value, group)) => {
             token_matches(value, category) && token_matches(group, family.group.as_deref())
@@ -489,7 +497,7 @@ mod tests {
                 "type": family.item_type,
                 "name": name,
                 "system": {
-                    "category": family.category,
+                    "category": member.category.as_ref().or(family.category.as_ref()),
                     "level": level.map(|value| json!({"value": value})),
                     "traits": {"value": [], "rarity": "common"}
                 }
@@ -516,6 +524,55 @@ mod tests {
         retrieval
             .verified_equipment_family_reference(&detail)
             .unwrap()
+    }
+
+    #[test]
+    fn reviewed_family_checks_the_exact_members_source_category() {
+        let family = &catalog().unwrap().families["surging-serum"];
+        let minor = family
+            .members
+            .iter()
+            .find(|member| member.name == "Surging Serum (Minor)")
+            .unwrap();
+        let lesser = &family.members[1];
+        for (category, verified) in [("other", true), ("elixir", false)] {
+            let (retrieval, _artifact) = test_support::open_source_fixture(
+                family
+                    .members
+                    .iter()
+                    .map(|member| {
+                        if member.key == minor.key {
+                            return test_support::record(
+                                "equipment-srd",
+                                "Item",
+                                json!({
+                                    "_id": minor.key.id().as_str(),
+                                    "type": "consumable",
+                                    "name": minor.name,
+                                    "system": {"category": category, "level": {"value": 2}}
+                                }),
+                            );
+                        }
+                        fixture(family, member, &member.name, Some(4))
+                    })
+                    .collect(),
+                false,
+            )
+            .unwrap();
+            let page = retrieval.equipment_family("surging-serum").unwrap();
+            assert!(match page {
+                EquipmentFamilyOutcome::Content(_) => verified,
+                EquipmentFamilyOutcome::Unavailable { .. } => !verified,
+                EquipmentFamilyOutcome::Missing => false,
+            });
+            for seed in [minor, lesser] {
+                let VariantGroupOutcome::Content(group) = variants(&retrieval, &seed.key) else {
+                    panic!("expected variants for {}", seed.name);
+                };
+                assert_eq!(group.verified, verified);
+                assert_eq!(reference(&retrieval, &seed.key).is_some(), verified);
+            }
+        }
     }
 
     #[test]

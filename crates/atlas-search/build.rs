@@ -164,6 +164,16 @@ fn validate_family(path: &Path, family: &Family) -> io::Result<()> {
                 format!("missing or invalid member facts for {}", member.key),
             ));
         }
+        if let Some(category) = &member.category
+            && (item_type != "consumable"
+                || category.trim().is_empty()
+                || family.category.as_ref() == Some(category))
+        {
+            return Err(invalid(
+                path,
+                format!("invalid category override for {}", member.key),
+            ));
+        }
         if let Some(fit) = &member.fit {
             let mut weapons = BTreeSet::new();
             if item_type != "ammo"

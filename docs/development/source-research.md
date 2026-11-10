@@ -189,8 +189,12 @@ this ID in its public URL, so keep the stem when moving or renaming a family's
 display title. Declare the expected
 item type and applicable category or weapon group once per family. Each member
 has its exact Foundry key, expected name, and display attributes or weapon
-compatibility evidence. File order defines the progression unless
-`order_by_level = true`. Exclusions are declared alongside the family files.
+compatibility evidence. If the source establishes that a consumable belongs to
+the family and Foundry assigns it a different category, declare that exact
+member's expected `category` and explain the relationship in the source note.
+This only affects verification of the declared member. File order defines the
+progression unless `order_by_level = true`. Exclusions are declared alongside
+the family files.
 
 For families with several independent dimensions, declare ordered `axes` and
 their options. Give each concrete member one `coordinates` value per axis.
