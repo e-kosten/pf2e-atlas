@@ -97,7 +97,7 @@ export function EditEncounterModal({
   feedback,
   afterClose,
 }: {
-  encounter?: EncounterSummaryView;
+  encounter: EncounterSummaryView;
   encounterNote: string | undefined;
   open: boolean;
   onCancel: () => void;
@@ -129,11 +129,11 @@ export function EditEncounterModal({
       cancelButtonProps={{ disabled: pending }}
       footer={(_, { CancelBtn }) => (
         <EncounterEditActions
-          name={encounter?.name ?? "Encounter"}
+          name={encounter.name}
           formId={formId}
           cancelButton={<CancelBtn />}
           onDelete={onDelete}
-          disabled={disabled || !encounter}
+          disabled={disabled}
           pending={pending}
           saveBlocked={saveBlocked}
         />
@@ -143,30 +143,28 @@ export function EditEncounterModal({
       mask={{ closable: !pending }}
     >
       {feedback}
-      {encounter && (
-        <>
-          <EditEncounterForm
-            key={encounter.encounter_key}
-            externalFormId={formId}
-            hideActions
-            draftCheck={hasDraft}
-            onConflictChange={setSaveBlocked}
-            onRefreshConflict={onRefreshConflict}
-            encounter={encounter}
-            disabled={disabled}
-            pending={pending}
-            error={error}
-            encounterNote={encounterNote}
-            onCancel={onCancel}
-            onDelete={onDelete}
-            onSave={onSave}
-          />
-          <div className="encounter-settings__dates">
-            <span>Created {formatDate(encounter.created_at)}</span>
-            <span>Updated {formatDate(encounter.updated_at)}</span>
-          </div>
-        </>
-      )}
+      <>
+        <EditEncounterForm
+          key={encounter.encounter_key}
+          externalFormId={formId}
+          hideActions
+          draftCheck={hasDraft}
+          onConflictChange={setSaveBlocked}
+          onRefreshConflict={onRefreshConflict}
+          encounter={encounter}
+          disabled={disabled}
+          pending={pending}
+          error={error}
+          encounterNote={encounterNote}
+          onCancel={onCancel}
+          onDelete={onDelete}
+          onSave={onSave}
+        />
+        <div className="encounter-settings__dates">
+          <span>Created {formatDate(encounter.created_at)}</span>
+          <span>Updated {formatDate(encounter.updated_at)}</span>
+        </div>
+      </>
     </EncounterModal>
   );
 }

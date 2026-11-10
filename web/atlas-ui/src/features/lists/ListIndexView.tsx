@@ -26,6 +26,8 @@ import {
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
 import { EditListModal } from "./EditListModal";
+import { useListSettingsOpening } from "./useListSettingsOpening";
+import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
@@ -78,11 +80,8 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<{ key: string; open: boolean }>();
-  const editOpener = useRef<HTMLElement>(null);
+  const editing = useListSettingsOpening();
   const newList = useRef<HTMLButtonElement>(null);
-  const closeEditor = () =>
-    setEditing((current) => current && { ...current, open: false });
   const selectedTags = [...state.include, ...state.exclude];
   const lists = useSavedLists();
   const allLists = useMemo(() => lists.data?.lists ?? [], [lists.data?.lists]);
@@ -189,18 +188,17 @@ export function ListIndexView(_props: ListIndexViewProps) {
       className="list-index-view"
       overlays={
         <>
-          {editing && (
+          {editing.data && editing.ref && (
             <EditListModal
-              listRef={editing.key}
+              listRef={editing.ref}
+              initialDetail={editing.data}
               open={editing.open}
-              onClose={closeEditor}
-              onDeleted={closeEditor}
+              onClose={editing.close}
+              onDeleted={editing.close}
               afterClose={() => {
-                setEditing(undefined);
+                editing.clear();
                 restoreOverlayFocus(
-                  editOpener.current?.isConnected
-                    ? editOpener.current
-                    : newList.current,
+                  editing.opener?.isConnected ? editing.opener : newList.current,
                   undefined,
                 );
               }}
@@ -237,12 +235,23 @@ export function ListIndexView(_props: ListIndexViewProps) {
           }
         />
       )}
+      <SettingsOpeningError
+        error={editing.error}
+        title="List settings could not load"
+        onRetry={() => {
+          editing.opener?.focus({ preventScroll: true });
+          editing.retry();
+        }}
+      />
       <IndexTable
-        columns={listIndexColumns((list, opener) => {
-          opener.focus({ preventScroll: true });
-          editOpener.current = opener;
-          setEditing({ key: list.list_key, open: true });
-        })}
+        columns={listIndexColumns(
+          (list, opener) => {
+            opener.focus({ preventScroll: true });
+
+            editing.begin(list.list_key, opener);
+          },
+          editing.preparing ? editing.ref : undefined,
+        )}
         scroll={{ x: 880 }}
         dataSource={filteredLists}
         loading={lists.isLoading || lists.isFetching}
@@ -284,6 +293,7 @@ function filterLists(
 }
 function listIndexColumns(
   onEdit: (list: SavedListSummaryView, opener: HTMLElement) => void,
+  openingKey?: string,
 ): ColumnsType<SavedListSummaryView> {
   const columns: ColumnsType<SavedListSummaryView> = [
     {
@@ -357,6 +367,8 @@ function listIndexColumns(
         <PaneIconButton
           icon={<Pencil size={15} />}
           label={`Edit ${list.name}`}
+          aria-busy={openingKey === list.list_key}
+          loading={openingKey === list.list_key ? { delay: 200 } : false}
           onClick={(event) => {
             stopIndexRowAction(event);
             onEdit(list, event.currentTarget);

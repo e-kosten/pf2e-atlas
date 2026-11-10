@@ -1,12 +1,14 @@
 import { Button } from "antd";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { EditEncounterModal } from "./EncounterModals";
 import type { useEncounterMutations } from "./useEncounterMutations";
-import type { useEncounterQuery } from "./useEncounterQuery";
+import type { EncounterDetailView } from "../../generated/atlas";
 
 export function EncounterSettingsEditor({
   encounter,
+  readError,
+  retryRead,
+  refreshing,
   mutations,
   open,
   disabled = false,
@@ -14,7 +16,10 @@ export function EncounterSettingsEditor({
   onDeleted,
   afterClose,
 }: {
-  encounter: ReturnType<typeof useEncounterQuery>;
+  encounter: EncounterDetailView;
+  readError: Error | null;
+  retryRead: () => void;
+  refreshing: boolean;
   mutations: ReturnType<typeof useEncounterMutations>;
   open: boolean;
   disabled?: boolean;
@@ -46,26 +51,24 @@ export function EncounterSettingsEditor({
         </Button>
       }
     />
-  ) : encounter.error && !mutations.metadataRefreshFailed ? (
+  ) : readError && !mutations.metadataRefreshFailed ? (
     <ErrorNotice
-      error={encounter.error}
+      error={readError}
       title="Encounter could not load"
       action={
-        <Button loading={encounter.isFetching} onClick={() => void encounter.refetch()}>
+        <Button loading={refreshing} onClick={retryRead}>
           Retry encounter
         </Button>
       }
     />
-  ) : !encounter.data && encounter.isLoading ? (
-    <LoadingStatus label="Loading encounter…" />
   ) : null;
 
   return (
     <EditEncounterModal
-      encounter={encounter.data?.encounter}
-      encounterNote={encounter.data?.note}
+      encounter={encounter.encounter}
+      encounterNote={encounter.note}
       disabled={
-        disabled || mutations.pending || !!mutations.refreshError || !!encounter.error
+        disabled || mutations.pending || !!mutations.refreshError || !!readError
       }
       pending={mutations.pending}
       error={mutations.errorKind === "metadata" ? mutations.errorMessage : undefined}
@@ -74,14 +77,10 @@ export function EncounterSettingsEditor({
       onCancel={() => onClose()}
       afterClose={afterClose}
       onRefreshConflict={mutations.refreshMetadataConflict}
-      onDelete={
-        encounter.data
-          ? async () => {
-              const result = await mutations.run({ kind: "delete" });
-              if (result.active) onDeleted();
-            }
-          : undefined
-      }
+      onDelete={async () => {
+        const result = await mutations.run({ kind: "delete" });
+        if (result.active) onDeleted();
+      }}
       onSave={async (request) => {
         const result = await mutations.run({ kind: "metadata", request });
         if (result.active && result.refreshed && result.view)

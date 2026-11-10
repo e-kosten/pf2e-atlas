@@ -13,6 +13,8 @@ import {
 } from "../../shared/records/ReferenceSelectionStatus";
 import { ListEntryNoteEditor, useListEntryNote } from "./ListEntryNote";
 import { EditListModal } from "./EditListModal";
+import { useListSettingsOpening } from "./useListSettingsOpening";
+import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
   keepPreviousData,
@@ -59,7 +61,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
   const queryClient = useQueryClient();
   const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
-  const [editing, setEditing] = useState<{ key: string; open: boolean }>();
+  const editing = useListSettingsOpening(onCloseDirectEditor ? route.slug : undefined);
   const [resolvedListKey, setResolvedListKey] = useState<string>();
   const listRef = resolvedListKey ?? route.slug;
   const [filters, setFilters] = useState<SearchFormState>(() =>
@@ -319,22 +321,32 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
           list={listView?.list}
           loading={listLoading}
           onAddRecords={() => setAddOpen(true)}
-          onEdit={() => {
-            if (listIdentity) setEditing({ key: listIdentity.list_key, open: true });
+          editPreparing={editing.preparing}
+          onEdit={(opener) => {
+            if (listIdentity) editing.begin(listIdentity.list_key, opener);
           }}
         />
         {listView?.reference_error && (
           <Alert type="warning" title="Reference details could not be checked" />
         )}
-        {(editing || onCloseDirectEditor) && (
+        <SettingsOpeningError
+          error={editing.error}
+          title="List settings could not load"
+          onRetry={() => {
+            editing.opener?.focus({ preventScroll: true });
+            editing.retry();
+          }}
+        />
+        {editing.data && editing.ref && (
           <EditListModal
-            listRef={editing?.key ?? route.slug}
-            open={editing?.open ?? true}
+            listRef={editing.ref}
+            initialDetail={editing.data}
+            open={editing.open}
             onClose={(slug) => {
-              if (onCloseDirectEditor) onCloseDirectEditor(slug ?? route.slug);
-              else setEditing((current) => current && { ...current, open: false });
+              editing.close();
+              onCloseDirectEditor?.(slug ?? route.slug);
             }}
-            afterClose={() => setEditing(undefined)}
+            afterClose={editing.clear}
             onDeleted={() => navigateDestination(listsDestination())}
           />
         )}

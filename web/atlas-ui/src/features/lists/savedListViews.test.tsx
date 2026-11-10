@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { AtlasApiError } from "../../api/apiError";
 import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { RouterTestContext } from "../../test/router";
@@ -38,19 +37,32 @@ import { useSavedListFilterDiscovery } from "./useSavedListFilters";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ListDetailView } from "./ListDetailView";
 import { EditListModal } from "./EditListModal";
+import { useListSettingsOpening } from "./useListSettingsOpening";
+import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
 import { ListIndexView } from "./ListIndexView";
 import { savedListTagOptions } from "./listUtils";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 
 function ListSettingsFixture({ route }: { route: { slug: string } }) {
-  const [open, setOpen] = useState(true);
+  const editing = useListSettingsOpening(route.slug);
   return (
-    <EditListModal
-      listRef={route.slug}
-      open={open}
-      onClose={() => setOpen(false)}
-      onDeleted={() => setOpen(false)}
-    />
+    <>
+      <SettingsOpeningError
+        error={editing.error}
+        title="List settings could not load"
+        onRetry={editing.retry}
+      />
+      {editing.data && (
+        <EditListModal
+          listRef={route.slug}
+          initialDetail={editing.data}
+          open={editing.open}
+          onClose={editing.close}
+          onDeleted={editing.close}
+          afterClose={editing.clear}
+        />
+      )}
+    </>
   );
 }
 
@@ -1370,9 +1382,10 @@ describe("list views", () => {
     });
     expect(screen.queryByDisplayValue("Research")).not.toBeInTheDocument();
     expect(await screen.findByDisplayValue("Replacement list")).toBeVisible();
-    await waitFor(() =>
-      expect(apiMocks.getSavedList).toHaveBeenCalledWith("list_other"),
+    await act(async () =>
+      client.invalidateQueries({ queryKey: ["saved-list", "list_other"] }),
     );
+    expect(apiMocks.getSavedList).toHaveBeenCalledWith("list_other");
     expect(apiMocks.getSavedList).not.toHaveBeenCalledWith("list_research");
   });
 
@@ -1702,13 +1715,23 @@ describe("list views", () => {
     rerender(<ListSettingsFixture route={{ slug: "other" }} />);
     expect(await screen.findByLabelText("Name")).toHaveValue("Other list");
   });
-  it("retries an initial list failure without discarding later edits", async () => {
+  it("retries a list settings read outside the dialog and opens with fresh values", async () => {
+    const initial = savedListDetailFixture();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(["saved-list", "list_research"], initial);
     apiMocks.getSavedList.mockRejectedValueOnce(new Error("List unavailable"));
-    render(<ListSettingsFixture route={{ slug: "research" }} />, {
-      wrapper: queryClientWrapper(),
+    render(<ListSettingsFixture route={{ slug: "list_research" }} />, {
+      wrapper: queryClientWrapper(client),
     });
-    fireEvent.click(await screen.findByRole("button", { name: "Retry list" }));
-    expect(await screen.findByLabelText("Name")).toHaveValue("Research");
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    expect(screen.queryByRole("dialog", { name: "Edit list" })).toBeNull();
+    apiMocks.getSavedList.mockResolvedValue({
+      ...initial,
+      list: { ...initial.list, name: "Fresh list name" },
+    });
+    fireEvent.click(retry);
+    const editor = within(await screen.findByRole("dialog", { name: "Edit list" }));
+    expect(editor.getByLabelText("Name")).toHaveValue("Fresh list name");
   });
 });
 

@@ -16,6 +16,7 @@ export function ListBrowseHeader({
   loading,
   onAddRecords,
   onEdit,
+  editPreparing,
   onRetry,
 }: {
   error?: Error | null;
@@ -23,7 +24,8 @@ export function ListBrowseHeader({
   list: SavedListSummaryView | undefined;
   loading: boolean;
   onAddRecords: () => void;
-  onEdit: () => void;
+  onEdit: (opener: HTMLElement) => void;
+  editPreparing?: boolean;
   onRetry: () => void;
 }) {
   const errorNotice = error ? (
@@ -66,9 +68,12 @@ export function ListBrowseHeader({
               </Button>
               <Button
                 icon={<Pencil size={16} />}
+                aria-label="Edit list"
+                aria-busy={editPreparing}
+                loading={editPreparing ? { delay: 200 } : false}
                 onClick={(event) => {
                   event.currentTarget.focus({ preventScroll: true });
-                  onEdit();
+                  onEdit(event.currentTarget);
                 }}
               >
                 Edit list

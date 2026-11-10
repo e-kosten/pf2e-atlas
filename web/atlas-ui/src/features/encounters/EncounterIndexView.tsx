@@ -12,7 +12,7 @@ import type { ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { deleteEncounter, getEncounters } from "../../api/atlasApi";
-import type { EncounterSummaryView } from "../../generated/atlas";
+import type { EncounterDetailView, EncounterSummaryView } from "../../generated/atlas";
 import { formatDate } from "../../shared/ui/formatDate";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
@@ -22,7 +22,9 @@ import { PartyManager } from "../parties/PartyManager";
 import { encounterStatusLabels } from "./encounterStatus";
 import { CreateEncounterModal } from "./EncounterModals";
 import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
-import { useEncounterQuery } from "./useEncounterQuery";
+import { useCanonicalEncounter } from "./useEncounterQuery";
+import { useEncounterSettingsOpening } from "./useEncounterSettingsOpening";
+import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
 import { useEncounterMutations } from "./useEncounterMutations";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 type EncounterIndexViewProps = {
@@ -33,11 +35,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   const queryClient = useQueryClient();
   const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editing, setEditing] = useState<{ key: string; open: boolean }>();
-  const editOpener = useRef<HTMLElement>(null);
+  const editing = useEncounterSettingsOpening();
   const newEncounter = useRef<HTMLButtonElement>(null);
-  const closeEditor = () =>
-    setEditing((current) => current && { ...current, open: false });
   const search = useRouterState({
     router: atlasRouter,
     select: (state) => state.location.search,
@@ -84,18 +83,16 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       overlays={
         <>
           {partiesOpen && <PartyManager onClose={() => setPartiesOpen(false)} />}
-          {editing && (
+          {editing.data && (
             <EncounterIndexEditor
-              key={editing.key}
-              encounterKey={editing.key}
+              key={editing.data.encounter.encounter_key}
+              initialDetail={editing.data}
               open={editing.open}
-              onClose={closeEditor}
+              onClose={editing.close}
               afterClose={() => {
-                setEditing(undefined);
+                editing.clear();
                 restoreOverlayFocus(
-                  editOpener.current?.isConnected
-                    ? editOpener.current
-                    : newEncounter.current,
+                  editing.opener?.isConnected ? editing.opener : newEncounter.current,
                   undefined,
                 );
               }}
@@ -157,15 +154,27 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           title="Encounter could not be deleted"
         />
       )}
+      <SettingsOpeningError
+        error={editing.error}
+        title="Encounter settings could not load"
+        onRetry={() => {
+          editing.opener?.focus({ preventScroll: true });
+          editing.retry();
+        }}
+      />
       <IndexTable
         columns={encounterColumns(
           (encounter, opener) => {
             opener.focus({ preventScroll: true });
-            editOpener.current = opener;
-            setEditing({ key: encounter.encounter_key, open: true });
+
+            editing.begin(encounter.encounter_key, opener);
           },
-          (encounter) => deleteMutation.mutateAsync(encounter),
+          (encounter) => {
+            if (editing.ref === encounter.encounter_key) editing.abandon();
+            return deleteMutation.mutateAsync(encounter);
+          },
           deleteMutation.isPending,
+          editing.preparing ? editing.ref : undefined,
         )}
         scroll={{ x: 800 }}
         dataSource={visible}
@@ -192,21 +201,25 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   );
 }
 function EncounterIndexEditor({
-  encounterKey,
+  initialDetail,
   open,
   onClose,
   afterClose,
 }: {
-  encounterKey: string;
+  initialDetail: EncounterDetailView;
   open: boolean;
   onClose: () => void;
   afterClose: () => void;
 }) {
-  const encounter = useEncounterQuery(encounterKey);
+  const encounterKey = initialDetail.encounter.encounter_key;
+  const encounter = useCanonicalEncounter(encounterKey);
   const mutations = useEncounterMutations(encounterKey, encounterKey);
   return (
     <EncounterSettingsEditor
-      encounter={encounter}
+      encounter={encounter.data ?? initialDetail}
+      readError={encounter.error}
+      retryRead={() => void encounter.refetch()}
+      refreshing={encounter.isFetching}
       mutations={mutations}
       open={open}
       onClose={onClose}
@@ -220,6 +233,7 @@ function encounterColumns(
   onEdit: (encounter: EncounterSummaryView, opener: HTMLElement) => void,
   onDelete: (encounter: EncounterSummaryView) => Promise<unknown>,
   deleting: boolean,
+  openingKey?: string,
 ): ColumnsType<EncounterSummaryView> {
   return [
     {
@@ -254,6 +268,9 @@ function encounterColumns(
         <span className="encounter-row-actions">
           <PaneIconButton
             label={`Edit ${encounter.name}`}
+            aria-busy={openingKey === encounter.encounter_key}
+            disabled={deleting}
+            loading={openingKey === encounter.encounter_key ? { delay: 200 } : false}
             size="small"
             icon={<Edit2 size={14} />}
             onClick={(event) => {

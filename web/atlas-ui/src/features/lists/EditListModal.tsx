@@ -16,11 +16,11 @@ import { normalizeOptionalText, normalizeTags, savedListTagOptions } from "./lis
 import { invalidateSavedListQueries, useSavedLists } from "./savedListQueries";
 import { formatDate } from "../../shared/ui/formatDate";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
-import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { AtlasModal } from "../../shared/ui/overlays/AtlasModal";
 
 type EditListModalProps = {
   listRef: string;
+  initialDetail: SavedListDetailView;
   open: boolean;
   onClose: (slug?: string) => void;
   onDeleted: () => void;
@@ -68,27 +68,19 @@ export function EditListModal(props: EditListModalProps) {
 
 function ListEditor({
   listRef,
+  initialDetail,
   open,
   onClose,
   onDeleted,
   afterClose,
 }: EditListModalProps) {
-  const [resolved, setResolved] = useState<{
-    detail: SavedListDetailView;
-    updatedAt: number;
-  }>();
+  const listKey = initialDetail.list.list_key;
   const list = useQuery({
-    ...listQuery(resolved?.detail.list.list_key ?? listRef),
-    initialData: resolved?.detail,
-    initialDataUpdatedAt: resolved?.updatedAt,
-    refetchOnMount: resolved ? undefined : "always",
+    ...listQuery(listKey),
+    initialData: initialDetail,
+    staleTime: 20_000,
   });
-  if (!resolved && list.isFetchedAfterMount && list.isSuccess) {
-    setResolved({ detail: list.data, updatedAt: list.dataUpdatedAt });
-  }
-  const saved = resolved ? list.data?.list : undefined;
-  const loading = list.isLoading || (!resolved && list.isFetching);
-  const listKey = saved?.list_key ?? listRef;
+  const saved = list.data.list;
   const readError = list.error;
   const retry = () => void list.refetch();
   const formId = useId();
@@ -103,8 +95,7 @@ function ListEditor({
   const descriptionDirty = !!edits.description;
   const tagsDirty = !!edits.tags;
   useLayoutEffect(() => {
-    if (!saved) return;
-    const previous = shown.current ?? saved;
+    const previous = shown.current;
     shown.current = {
       ...saved,
       name: nameDirty ? previous.name : saved.name,
@@ -185,7 +176,6 @@ function ListEditor({
   function changeValues(changes: Partial<EditListFormValues>) {
     // Capture what the form showed even if a newer query response is now available.
     const baseline = shown.current;
-    if (!baseline) return;
     setEdits((previous) => {
       const next = { ...previous };
       if (changes.name !== undefined) {
@@ -250,7 +240,7 @@ function ListEditor({
     setEdits({});
     setReview(undefined);
     update.reset();
-    if (saved) form.resetFields();
+    form.resetFields();
     onClose(slug);
   };
   return (
@@ -271,134 +261,122 @@ function ListEditor({
       footer={(_, { CancelBtn }) => (
         <Space wrap>
           <CancelBtn />
-          {saved && (
-            <Button
-              htmlType="submit"
-              form={formId}
-              loading={update.isPending}
-              disabled={disabled || !!review}
-              type="primary"
-            >
-              Save
-            </Button>
-          )}
+          <Button
+            htmlType="submit"
+            form={formId}
+            loading={update.isPending}
+            disabled={disabled || !!review}
+            type="primary"
+          >
+            Save
+          </Button>
         </Space>
       )}
     >
-      {saved ? (
-        <>
-          <Form
-            form={form}
-            name={formId}
-            id={formId}
-            layout="vertical"
-            disabled={disabled}
-            onValuesChange={changeValues}
-            onFinish={() => {
-              if (review || disabled || saving.current) return;
-              saving.current = true;
-              update.mutate(
-                {
-                  ...(edits.name && { name: edits.name }),
-                  ...(edits.description && { description: edits.description }),
-                  ...(edits.tags && { tags: edits.tags }),
+      <>
+        <Form
+          form={form}
+          name={formId}
+          id={formId}
+          layout="vertical"
+          disabled={disabled}
+          onValuesChange={changeValues}
+          onFinish={() => {
+            if (review || disabled || saving.current) return;
+            saving.current = true;
+            update.mutate(
+              {
+                ...(edits.name && { name: edits.name }),
+                ...(edits.description && { description: edits.description }),
+                ...(edits.tags && { tags: edits.tags }),
+              },
+              {
+                onSuccess: (view) => close(view.list.slug),
+                onError: (error) => {
+                  const conflict = savedEditConflictFields(error);
+                  const affected = fields.filter((field) => conflict?.includes(field));
+                  if (affected.length) void refreshReview(affected);
                 },
-                {
-                  onSuccess: (view) => close(view.list.slug),
-                  onError: (error) => {
-                    const conflict = savedEditConflictFields(error);
-                    const affected = fields.filter((field) =>
-                      conflict?.includes(field),
-                    );
-                    if (affected.length) void refreshReview(affected);
-                  },
-                },
-              );
-            }}
+              },
+            );
+          }}
+        >
+          <Form.Item
+            label="Name"
+            name="name"
+            validateFirst
+            rules={[{ required: true, whitespace: true, message: "Name is required." }]}
           >
-            <Form.Item
-              label="Name"
-              name="name"
-              validateFirst
-              rules={[
-                { required: true, whitespace: true, message: "Name is required." },
-              ]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item label="Description" name="description">
-              <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
-            </Form.Item>
-            <Form.Item label="Tags" name="tags">
-              <Select
-                mode="tags"
-                showSearch={{ optionFilterProp: "label" }}
-                options={tagOptions}
-                tokenSeparators={[","]}
-              />
-            </Form.Item>
-            {review && (
-              <SavedEditConflictReview
-                fields={
-                  review.status === "ready"
-                    ? review.fields.map((field) => {
-                        const fresh = review.saved;
-                        const edit = edits[field];
-                        const value = edit ? edit.value : saved[field];
-                        return {
-                          field,
-                          label: labels[field],
-                          saved: displaySetting(fresh[field]),
-                          draft: displaySetting(value),
-                          onUseSaved: () => resolveField(field, true, fresh),
-                          onKeepMine: () => resolveField(field, false, fresh),
-                        };
-                      })
-                    : []
-                }
-                loading={review.status === "loading"}
-                refreshFailed={review.status === "failed"}
-                onRetry={() => void refreshReview(review.fields)}
-              />
-            )}
-          </Form>
-          <dl className="list-settings__meta">
-            <div>
-              <dt>Created</dt>
-              <dd>{formatDate(saved.created_at)}</dd>
-            </div>
-            <div>
-              <dt>Updated</dt>
-              <dd>{formatDate(saved.updated_at)}</dd>
-            </div>
-          </dl>
-          <div className="list-settings__danger">
-            <DangerActionButton
-              confirmTitle={`Delete ${saved.name}?`}
-              confirmContent="This permanently deletes the list and its saved membership."
-              confirmOkText="Delete list"
-              icon={<Trash2 size={16} />}
-              disabled={disabled}
-              loading={deleteListMutation.isPending}
-              onConfirm={() =>
-                deleteListMutation.mutateAsync(undefined, { onSuccess: onDeleted })
+            <Input />
+          </Form.Item>
+          <Form.Item label="Description" name="description">
+            <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+          </Form.Item>
+          <Form.Item label="Tags" name="tags">
+            <Select
+              mode="tags"
+              showSearch={{ optionFilterProp: "label" }}
+              options={tagOptions}
+              tokenSeparators={[","]}
+            />
+          </Form.Item>
+          {review && (
+            <SavedEditConflictReview
+              fields={
+                review.status === "ready"
+                  ? review.fields.map((field) => {
+                      const fresh = review.saved;
+                      const edit = edits[field];
+                      const value = edit ? edit.value : saved[field];
+                      return {
+                        field,
+                        label: labels[field],
+                        saved: displaySetting(fresh[field]),
+                        draft: displaySetting(value),
+                        onUseSaved: () => resolveField(field, true, fresh),
+                        onKeepMine: () => resolveField(field, false, fresh),
+                      };
+                    })
+                  : []
               }
-            >
-              Delete List
-            </DangerActionButton>
-          </div>
-          {!review && update.error && (
-            <ErrorNotice
-              error={update.error}
-              title="List changes could not be confirmed"
+              loading={review.status === "loading"}
+              refreshFailed={review.status === "failed"}
+              onRetry={() => void refreshReview(review.fields)}
             />
           )}
-        </>
-      ) : loading ? (
-        <LoadingStatus label="Loading list…" />
-      ) : !readError ? (
-        <p>List not found</p>
-      ) : null}
+        </Form>
+        <dl className="list-settings__meta">
+          <div>
+            <dt>Created</dt>
+            <dd>{formatDate(saved.created_at)}</dd>
+          </div>
+          <div>
+            <dt>Updated</dt>
+            <dd>{formatDate(saved.updated_at)}</dd>
+          </div>
+        </dl>
+        <div className="list-settings__danger">
+          <DangerActionButton
+            confirmTitle={`Delete ${saved.name}?`}
+            confirmContent="This permanently deletes the list and its saved membership."
+            confirmOkText="Delete list"
+            icon={<Trash2 size={16} />}
+            disabled={disabled}
+            loading={deleteListMutation.isPending}
+            onConfirm={() =>
+              deleteListMutation.mutateAsync(undefined, { onSuccess: onDeleted })
+            }
+          >
+            Delete List
+          </DangerActionButton>
+        </div>
+        {!review && update.error && (
+          <ErrorNotice
+            error={update.error}
+            title="List changes could not be confirmed"
+          />
+        )}
+      </>
       {!review && readError && (
         <ErrorNotice
           error={readError}

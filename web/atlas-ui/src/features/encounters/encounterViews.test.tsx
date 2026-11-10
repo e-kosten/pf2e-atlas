@@ -3059,6 +3059,65 @@ describe("encounter views", () => {
     expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
   });
 
+  it("waits for fresh encounter settings and retries before opening", async () => {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const opener = screen.getByRole("button", { name: "Encounter settings" });
+    await waitFor(() => expect(opener).toBeEnabled());
+    const reading = deferred<EncounterDetailViewDto>();
+    apiMocks.getEncounter.mockReturnValueOnce(reading.promise);
+    fireEvent.click(opener);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
+    await waitFor(() =>
+      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush"),
+    );
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    await act(async () => reading.reject(new Error("Read unavailable")));
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    setEncounterDetail({
+      ...serverEncounter,
+      encounter: { ...serverEncounter.encounter, name: "Fresh encounter name" },
+    });
+    fireEvent.click(retry);
+    const editor = within(await screen.findByRole("dialog", { name: "Settings" }));
+    expect(editor.getByLabelText("Name")).toHaveValue("Fresh encounter name");
+    fireEvent.click(editor.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
+  it("keeps a newer encounter snapshot when an older settings response arrives late", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(client),
+    });
+    const opener = screen.getByRole("button", { name: "Encounter settings" });
+    await waitFor(() => expect(opener).toBeEnabled());
+    const original = serverEncounter;
+    const reading = deferred<EncounterDetailViewDto>();
+    apiMocks.getEncounter.mockReturnValueOnce(reading.promise);
+    fireEvent.click(opener);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
+    await waitFor(() =>
+      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush"),
+    );
+    const newer = {
+      ...original,
+      revision: original.revision + 1,
+      encounter: { ...original.encounter, name: "Newer encounter name" },
+    };
+    act(() =>
+      client.setQueryData(["encounter", original.encounter.encounter_key], newer),
+    );
+    await act(async () => reading.resolve(original));
+    const editor = within(await screen.findByRole("dialog", { name: "Settings" }));
+    expect(editor.getByLabelText("Name")).toHaveValue("Newer encounter name");
+    expect(
+      client.getQueryData(["encounter", original.encounter.encounter_key]),
+    ).toEqual(newer);
+  });
+
   it("keeps delayed and rejected Save open with its draft", async () => {
     const saving = deferred<{ encounter_key: string }>();
     apiMocks.updateEncounter.mockReturnValue(saving.promise);
