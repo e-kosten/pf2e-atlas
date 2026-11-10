@@ -1,3 +1,7 @@
+mod axes;
+#[cfg(test)]
+#[path = "../build_axes.rs"]
+mod build_axes;
 mod catalog;
 mod verified;
 
@@ -30,6 +34,33 @@ pub enum VariantGroupOutcome {
     Unavailable { reason: String },
     Content(Box<VariantGroupResult>),
 }
+pub struct VariantExploration {
+    pub variants: VariantGroupOutcome,
+    pub family: Option<VariantFamilyContext>,
+}
+
+pub enum VariantFamilyContext {
+    Concrete {
+        slices: Vec<VariantAxisSlice>,
+        other_combinations: Vec<RecordKey>,
+        general: Option<Box<SourceRecordSummary>>,
+    },
+    General {
+        heading: String,
+        members: Vec<VariantFamilyChoice>,
+    },
+}
+
+pub struct VariantAxisSlice {
+    pub heading: String,
+    pub members: Vec<RecordKey>,
+}
+
+pub struct VariantFamilyChoice {
+    pub summary: SourceRecordSummary,
+    pub qualifier: String,
+}
+
 use crate::{AtlasRetrievalService, SearchError};
 use atlas_record::source_record::{ItemSourceView, SourceBackedRecord, SourceNodeView};
 fn naming(name: &str) -> (&str, &str, &str) {
@@ -83,12 +114,40 @@ impl AtlasRetrievalService {
         &self,
         request: VariantGroupRequest<'_>,
     ) -> Result<VariantGroupOutcome, SearchError> {
+        Ok(self.read_variants(request, false)?.variants)
+    }
+
+    pub fn variant_exploration(
+        &self,
+        request: VariantGroupRequest<'_>,
+    ) -> Result<VariantExploration, SearchError> {
+        self.read_variants(request, true)
+    }
+
+    fn read_variants(
+        &self,
+        request: VariantGroupRequest<'_>,
+        include_family: bool,
+    ) -> Result<VariantExploration, SearchError> {
         let Some(seed) = self.index.read_summary(request.record_key)? else {
-            return Ok(VariantGroupOutcome::Missing);
+            return Ok(VariantExploration {
+                variants: VariantGroupOutcome::Missing,
+                family: None,
+            });
         };
-        if let Some(group) = verified::verified_group(self, &seed)? {
-            return Ok(VariantGroupOutcome::Content(Box::new(group)));
-        }
+        let (group, family) = verified::verified_group(self, &seed, include_family)?;
+        let variants = match group {
+            Some(group) => VariantGroupOutcome::Content(Box::new(group)),
+            None if family.is_some() => VariantGroupOutcome::Empty,
+            None => self.possible_variant_group(seed)?,
+        };
+        Ok(VariantExploration { variants, family })
+    }
+
+    fn possible_variant_group(
+        &self,
+        seed: SourceRecordSummary,
+    ) -> Result<VariantGroupOutcome, SearchError> {
         let Some(name) = seed.name.as_value() else {
             return Ok(VariantGroupOutcome::Unavailable {
                 reason: "The seed name is unavailable for variant verification".into(),

@@ -8,19 +8,14 @@ export function useRecordExploreLocation() {
   const contextRouter = useRouter({ warn: false });
   const router = contextRouter ?? atlasRouter;
   const search = useRouterState({ router, select: (state) => state.location.search });
-  const { view: mode = "read", tab = "incoming" } = readingView(search);
+  const { view: mode = "read", tab } = readingView(search);
   const resetPending = useRef(false);
   const update = useCallback(
-    (
-      mode: "read" | "explore",
-      tab: RecordExploreTab = readingView(router.latestLocation.search).tab ??
-        "incoming",
-      replace = false,
-    ) => {
+    (mode: "read" | "explore", tab: RecordExploreTab | undefined, replace = false) => {
       const next = { ...router.latestLocation.search };
       if (mode === "explore") next.record_view = "explore";
       else delete next.record_view;
-      if (tab !== "incoming") next.record_tab = tab;
+      if (tab) next.record_tab = tab;
       else delete next.record_tab;
       return router.navigate({
         to: ".",
@@ -38,7 +33,7 @@ export function useRecordExploreLocation() {
     if (view.view !== "explore" || view.tab !== "versions" || resetPending.current)
       return;
     resetPending.current = true;
-    void update("read", "incoming", true).finally(() => {
+    void update("read", undefined, true).finally(() => {
       resetPending.current = false;
     });
   }, [router, update]);
@@ -46,7 +41,8 @@ export function useRecordExploreLocation() {
     mode,
     tab,
     resetUnavailableVersions,
-    setMode: (mode: "read" | "explore") => void update(mode),
+    setMode: (mode: "read" | "explore") =>
+      void update(mode, readingView(router.latestLocation.search).tab),
     setTab: (tab: string) =>
       void update("explore", readingView({ record_tab: tab }).tab, true),
   };

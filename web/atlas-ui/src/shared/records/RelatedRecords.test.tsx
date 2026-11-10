@@ -470,7 +470,11 @@ it("retains active Search filters and explicit order in the Similar handoff", as
       "link-0",
     ),
   };
-  history.replaceState(null, "", "/search" + searchStateQueryString(state));
+  history.replaceState(
+    null,
+    "",
+    "/search/records/actors:seed" + searchStateQueryString(state),
+  );
   renderRelated();
   openRelated();
   await selectTab("Similar");
@@ -648,6 +652,34 @@ it("shows verified equipment variants with their attributes and omits the curren
   expect(screen.getByText("Sonic, Moderate", { exact: true })).toBeVisible();
   expect(screen.queryByRole("link", { name: /Fire, Lesser/ })).toBeNull();
   expect(screen.getByRole("button", { name: "Compare" })).toBeVisible();
+});
+
+it("renders a scoped general description as the Versions view with exact specific links", async () => {
+  const specific = summaryFixture(
+    "equipment-srd:evdDpgFpiFZt9UyA",
+    "Potion of Cold Resistance (Moderate)",
+  );
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    show_versions: true,
+    family_context: {
+      kind: "general",
+      heading: "Damage types",
+      members: [{ record: specific, qualifier: "Cold, Moderate" }],
+    },
+  });
+
+  const onReference = renderRelated();
+  openRelated();
+  await selectTab("Versions");
+
+  expect(await screen.findByRole("heading", { name: "Damage types" })).toBeVisible();
+  expect(screen.queryByText("No other editions or variants found.")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Possible variants" })).toBeNull();
+  const link = screen.getByRole("link", { name: /^Potion of Cold Resistance/ });
+  expect(link.getAttribute("href")).toContain("evdDpgFpiFZt9UyA");
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith(specific.record_key, link);
 });
 
 it("retires preview rows after a generation conflict and retains a local recovery action", async () => {
@@ -853,25 +885,29 @@ it.each([
   expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
 });
 
-it("waits for useful alternatives before advertising Versions during ordinary Explore loading", async () => {
+it("lands on the first Explore tab when Versions is available and preserves an explicit tab", async () => {
   let resolve!: (value: ReturnType<typeof relatedFixture>) => void;
   api.getRelatedRecords.mockReturnValue(
     new Promise((yes) => {
       resolve = yes;
     }),
   );
-  renderRelated(
-    detailFixture("actors:seed", "Viewed creature"),
-    undefined,
-    createAtlasRouter(
-      createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
-    ),
+  const router = createAtlasRouter(
+    createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
   );
+  renderRelated(detailFixture("actors:seed", "Viewed creature"), undefined, router);
   openRelated();
   await waitFor(() => expect(api.getRelatedRecords).toHaveBeenCalled());
   expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
   await act(async () => resolve({ ...relatedFixture(), show_versions: true }));
-  expect(await screen.findByRole("tab", { name: "Versions" })).toBeVisible();
+  const versions = await screen.findByRole("tab", { name: "Versions", selected: true });
+  expect(within(screen.getByRole("tablist")).getAllByRole("tab")[0]).toBe(versions);
+  expect(router.latestLocation.search.record_tab).toBeUndefined();
+  await selectTab("Referenced by");
+  await waitFor(() => expect(router.latestLocation.search.record_tab).toBe("incoming"));
+  expect(
+    screen.getByRole("tab", { name: "Referenced by", selected: true }),
+  ).toBeVisible();
 });
 
 it.each([

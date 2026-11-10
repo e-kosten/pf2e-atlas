@@ -9,7 +9,7 @@ import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
-import { Button, Empty, Tabs, Typography } from "antd";
+import { Button, Collapse, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { useEffect, useState } from "react";
 import { Columns2 } from "lucide-react";
@@ -40,6 +40,7 @@ import type {
   RecordDetailView,
   RecordSummaryView,
   RecordNavigationView,
+  VariantFamilyView,
 } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import {
@@ -100,6 +101,9 @@ export function RelatedRecords(props: ExploreProps) {
       resetUnavailableVersions();
   }, [mode, active, related.isSuccess, versions, resetUnavailableVersions]);
   const items = [
+    ...(versions || (related.isPending && active === "versions") || related.error
+      ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
+      : []),
     ...(hasIncoming
       ? [
           {
@@ -119,20 +123,22 @@ export function RelatedRecords(props: ExploreProps) {
         ]
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
-    ...(versions || (related.isPending && active === "versions") || related.error
-      ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
-      : []),
   ];
+  const waitingForDefault = active === undefined && related.isPending;
   return (
     <section className="record-explore" aria-label="Explore record">
-      <Tabs
-        activeKey={items.some((item) => item.key === active) ? active : items[0].key}
-        onChange={setActive}
-        more={{ trigger: ["click"] }}
-        animated={false}
-        destroyOnHidden
-        items={items}
-      />
+      {waitingForDefault ? (
+        <LoadingStatus label="Checking versions…" />
+      ) : (
+        <Tabs
+          activeKey={items.some((item) => item.key === active) ? active : items[0].key}
+          onChange={setActive}
+          more={{ trigger: ["click"] }}
+          animated={false}
+          destroyOnHidden
+          items={items}
+        />
+      )}
     </section>
   );
 }
@@ -346,7 +352,7 @@ function VersionCard({
 }: {
   record: RecordSummaryView;
   onReference: RecordReferenceHandler;
-  onCompare: () => void;
+  onCompare?: () => void;
   context?: string;
 }) {
   return (
@@ -358,16 +364,90 @@ function VersionCard({
         onPreview={(anchor) => onReference(record.record_key, anchor)}
         context={context}
         actions={
-          <Button
-            size="small"
-            icon={<Columns2 size={14} aria-hidden="true" />}
-            onClick={onCompare}
-          >
-            Compare
-          </Button>
+          onCompare && (
+            <Button
+              size="small"
+              icon={<Columns2 size={14} aria-hidden="true" />}
+              onClick={onCompare}
+            >
+              Compare
+            </Button>
+          )
         }
       />
     </div>
+  );
+}
+
+function FamilyVersions({
+  family,
+  choices,
+  onReference,
+  onCompare,
+}: {
+  family: VariantFamilyView;
+  choices: { record: RecordSummaryView; qualifier?: string }[];
+  onReference: RecordReferenceHandler;
+  onCompare: (key: string) => void;
+}) {
+  const cards = (members: typeof choices) => (
+    <div className="record-explore__results" role="list">
+      {members.map(({ record, qualifier }) => (
+        <VersionCard
+          key={record.record_key}
+          record={record}
+          context={qualifier}
+          onReference={onReference}
+          onCompare={() => onCompare(record.record_key)}
+        />
+      ))}
+    </div>
+  );
+  if (family.kind === "general") {
+    return (
+      <section>
+        <h3>{family.heading}</h3>
+        {cards(family.members)}
+      </section>
+    );
+  }
+  const byKey = new Map(choices.map((choice) => [choice.record.record_key, choice]));
+  const select = (keys: string[]) =>
+    keys.flatMap((key) => {
+      const choice = byKey.get(key);
+      return choice ? [choice] : [];
+    });
+  const others = select(family.other_combinations);
+  const general = family.general;
+  return (
+    <>
+      {family.slices.map((slice) => (
+        <section key={slice.members[0]}>
+          <h3>{slice.heading}</h3>
+          {cards(select(slice.members))}
+        </section>
+      ))}
+      {general && (
+        <section>
+          <h3>Variant overview</h3>
+          <div className="record-explore__results" role="list">
+            <VersionCard record={general} onReference={onReference} />
+          </div>
+        </section>
+      )}
+      {others.length > 0 && (
+        <Collapse
+          className="record-explore__combinations"
+          items={[
+            {
+              key: "other-combinations",
+              label: `Other variants (${others.length})`,
+              children: cards(others),
+            },
+          ]}
+        />
+      )}
+    </>
   );
 }
 
@@ -411,6 +491,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
   };
   const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
+  const family = related.data?.family_context;
   const verified = variants?.kind === "content" && variants.content.verified;
   const variantLabels = new Map(
     verified && variants.kind === "content"
@@ -437,7 +518,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           reloadLabel={reloadLabel}
         />
       )}
-      {variants?.kind === "error" ? (
+      {!family && variants?.kind === "error" ? (
         <ErrorNotice
           error={variants.error}
           compact
@@ -448,7 +529,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
             </Button>
           }
         />
-      ) : variants?.kind === "unavailable" ? (
+      ) : !family && variants?.kind === "unavailable" ? (
         <Typography.Paragraph type="secondary">{variants.reason}</Typography.Paragraph>
       ) : null}
       {relationships && (
@@ -467,35 +548,48 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         referenceActions={compareReferences}
         showExplanations={false}
       />
-      {choices.length > 0 && (
-        <section>
-          <h3>{verified ? "Variants" : "Possible variants"}</h3>
-          {variants?.kind === "content" && variants.content.ambiguous && (
-            <Typography.Paragraph type="secondary">
-              Some matches are uncertain. Compare them to check how they differ.
-            </Typography.Paragraph>
-          )}
-          <div className="record-explore__results" role="list">
-            {choices.map((record) => (
-              <VersionCard
-                key={record.record_key}
-                record={record}
-                context={variantLabels.get(record.record_key)}
-                onReference={onReference}
-                onCompare={() =>
-                  setComparison({ target: record.record_key, open: true })
-                }
-              />
-            ))}
-          </div>
-          {variants?.kind === "content" && variants.content.truncated && (
-            <Typography.Paragraph type="secondary">
-              More possible variants may exist.
-            </Typography.Paragraph>
-          )}
-        </section>
+      {family ? (
+        <FamilyVersions
+          family={family}
+          choices={choices.map((record) => ({
+            record,
+            qualifier: variantLabels.get(record.record_key),
+          }))}
+          onReference={onReference}
+          onCompare={(target) => setComparison({ target, open: true })}
+        />
+      ) : (
+        choices.length > 0 && (
+          <section>
+            <h3>{verified ? "Variants" : "Possible variants"}</h3>
+            {variants?.kind === "content" && variants.content.ambiguous && (
+              <Typography.Paragraph type="secondary">
+                Some matches are uncertain. Compare them to check how they differ.
+              </Typography.Paragraph>
+            )}
+            <div className="record-explore__results" role="list">
+              {choices.map((record) => (
+                <VersionCard
+                  key={record.record_key}
+                  record={record}
+                  context={variantLabels.get(record.record_key)}
+                  onReference={onReference}
+                  onCompare={() =>
+                    setComparison({ target: record.record_key, open: true })
+                  }
+                />
+              ))}
+            </div>
+            {variants?.kind === "content" && variants.content.truncated && (
+              <Typography.Paragraph type="secondary">
+                More possible variants may exist.
+              </Typography.Paragraph>
+            )}
+          </section>
+        )
       )}
-      {relationships?.kind === "empty" &&
+      {!family &&
+        relationships?.kind === "empty" &&
         variants?.kind === "empty" &&
         (!related.data?.source_remaster_context ||
           related.data.source_remaster_context.kind === "empty") && (

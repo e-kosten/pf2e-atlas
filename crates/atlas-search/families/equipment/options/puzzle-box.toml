@@ -2,11 +2,23 @@ name = "Puzzle Box"
 source_note = "Equipment entries share the puzzle rules, with three difficulties and a hollow construction option at each."
 item_type = "equipment"
 
+axes = [
+    { id = "difficulty", label = "Difficulties", options = [
+        { id = "simple", label = "Simple" },
+        { id = "complex", label = "Complex" },
+        { id = "challenging", label = "Challenging" },
+    ] },
+    { id = "construction", label = "Construction options", options = [
+        { id = "standard", label = "standard construction" },
+        { id = "hollow", label = "Hollow" },
+    ] },
+]
+
 members = [
-    { key = "equipment-srd:ZRaZSTEOpTC1ObdE", name = "Puzzle Box (Simple)", attributes = ["Simple", "standard construction"] },
-    { key = "equipment-srd:2qJyAnnVIMFIdeTD", name = "Puzzle Box (Simple) (Hollow)", attributes = ["Simple", "Hollow"] },
-    { key = "equipment-srd:6lmTRwT1dNzgWcUd", name = "Puzzle Box (Complex)", attributes = ["Complex", "standard construction"] },
-    { key = "equipment-srd:9wBwuCi6jo4sfaLb", name = "Puzzle Box (Complex) (Hollow)", attributes = ["Complex", "Hollow"] },
-    { key = "equipment-srd:naxISKMwhLQ5F9yS", name = "Puzzle Box (Challenging)", attributes = ["Challenging", "standard construction"] },
-    { key = "equipment-srd:1uwONfUHwHjRJp6o", name = "Puzzle Box (Challenging) (Hollow)", attributes = ["Challenging", "Hollow"] },
+    { key = "equipment-srd:ZRaZSTEOpTC1ObdE", name = "Puzzle Box (Simple)", coordinates = { difficulty = "simple", construction = "standard" } },
+    { key = "equipment-srd:2qJyAnnVIMFIdeTD", name = "Puzzle Box (Simple) (Hollow)", coordinates = { difficulty = "simple", construction = "hollow" } },
+    { key = "equipment-srd:6lmTRwT1dNzgWcUd", name = "Puzzle Box (Complex)", coordinates = { difficulty = "complex", construction = "standard" } },
+    { key = "equipment-srd:9wBwuCi6jo4sfaLb", name = "Puzzle Box (Complex) (Hollow)", coordinates = { difficulty = "complex", construction = "hollow" } },
+    { key = "equipment-srd:naxISKMwhLQ5F9yS", name = "Puzzle Box (Challenging)", coordinates = { difficulty = "challenging", construction = "standard" } },
+    { key = "equipment-srd:1uwONfUHwHjRJp6o", name = "Puzzle Box (Challenging) (Hollow)", coordinates = { difficulty = "challenging", construction = "hollow" } },
 ]

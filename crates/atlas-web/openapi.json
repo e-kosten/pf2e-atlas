@@ -14734,6 +14734,9 @@
           "artifact_generation": {
             "type": "string"
           },
+          "family_context": {
+            "$ref": "#/components/schemas/VariantFamilyView"
+          },
           "references": {
             "$ref": "#/components/schemas/RelatedCategoryView_GraphContextView"
           },
@@ -19352,6 +19355,24 @@
         ],
         "type": "object"
       },
+      "VariantAxisSliceView": {
+        "properties": {
+          "heading": {
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "heading",
+          "members"
+        ],
+        "type": "object"
+      },
       "VariantEvidenceView": {
         "properties": {
           "compatibility": {
@@ -19374,6 +19395,81 @@
           "compatibility"
         ],
         "type": "object"
+      },
+      "VariantFamilyChoiceView": {
+        "properties": {
+          "qualifier": {
+            "type": "string"
+          },
+          "record": {
+            "$ref": "#/components/schemas/RecordSummaryView"
+          }
+        },
+        "required": [
+          "record",
+          "qualifier"
+        ],
+        "type": "object"
+      },
+      "VariantFamilyView": {
+        "oneOf": [
+          {
+            "properties": {
+              "general": {
+                "$ref": "#/components/schemas/RecordSummaryView"
+              },
+              "kind": {
+                "enum": [
+                  "concrete"
+                ],
+                "type": "string"
+              },
+              "other_combinations": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "slices": {
+                "items": {
+                  "$ref": "#/components/schemas/VariantAxisSliceView"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "slices",
+              "other_combinations",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "heading": {
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "general"
+                ],
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/components/schemas/VariantFamilyChoiceView"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "heading",
+              "members",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "VehicleReferenceView": {
         "properties": {

@@ -126,7 +126,7 @@ export function readingView(search: AtlasSearchParams): ReadingViewInput {
     throw new ReadingUrlError("This record link contains an invalid Explore tab.");
   return {
     view: mode === "explore" ? "explore" : "read",
-    tab: (tab as RecordExploreTab | undefined) ?? "incoming",
+    tab: tab as RecordExploreTab | undefined,
   };
 }
 

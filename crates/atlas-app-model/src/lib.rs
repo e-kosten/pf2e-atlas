@@ -177,7 +177,8 @@ pub use filter::{
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
     RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView, SearchResultsView,
-    SimilarRecordsView, VariantEvidenceView, VariantGroupView,
+    SimilarRecordsView, VariantAxisSliceView, VariantEvidenceView, VariantFamilyChoiceView,
+    VariantFamilyView, VariantGroupView,
 };
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,

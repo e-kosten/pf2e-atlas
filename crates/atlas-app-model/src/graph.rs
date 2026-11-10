@@ -34,6 +34,34 @@ pub struct VariantGroupView {
 }
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum VariantFamilyView {
+    Concrete {
+        slices: Vec<VariantAxisSliceView>,
+        other_combinations: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "openapi", schema(nullable = false))]
+        general: Option<Box<RecordSummaryView>>,
+    },
+    General {
+        heading: String,
+        members: Vec<VariantFamilyChoiceView>,
+    },
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VariantAxisSliceView {
+    pub heading: String,
+    pub members: Vec<String>,
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VariantFamilyChoiceView {
+    pub record: RecordSummaryView,
+    pub qualifier: String,
+}
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariantEvidenceView {
     pub record_key: String,
     pub naming_convention: String,
@@ -104,4 +132,7 @@ pub struct RelatedRecordsView {
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub source_remaster_context: Option<RelatedCategoryView<crate::RemasterSourceContextView>>,
     pub variants: RelatedCategoryView<VariantGroupView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub family_context: Option<VariantFamilyView>,
 }

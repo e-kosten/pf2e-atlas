@@ -62,6 +62,7 @@ pub use text::{
     TextSearchResult,
 };
 pub use variants::{
+    VariantAxisSlice, VariantExploration, VariantFamilyChoice, VariantFamilyContext,
     VariantGroupOutcome, VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
 };
 

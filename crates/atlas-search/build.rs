@@ -1,5 +1,7 @@
 //! Compile the maintainer-edited equipment families into one embedded payload.
 
+mod build_axes;
+
 #[path = "src/variants/catalog.rs"]
 mod catalog;
 
@@ -30,6 +32,7 @@ fn bundle() -> Result<(), Box<dyn Error>> {
     let root = Path::new("families/equipment");
     let exclusions_path = root.join("exclusions.toml");
     println!("cargo:rerun-if-changed=src/variants/catalog.rs");
+    println!("cargo:rerun-if-changed=build_axes.rs");
     println!("cargo:rerun-if-changed={}", root.display());
     let mut paths = Vec::new();
     family_files(root, &mut paths)?;
@@ -60,13 +63,14 @@ fn bundle() -> Result<(), Box<dyn Error>> {
         }
         let family = read::<Family>(path)?;
         validate_family(path, &family)?;
-        for member in &family.members {
-            if let Some(previous) = members.insert(member.key.clone(), id) {
-                return Err(invalid(
-                    path,
-                    format!("{} already belongs to {previous}", member.key),
-                )
-                .into());
+        for key in family
+            .members
+            .iter()
+            .map(|member| &member.key)
+            .chain(family.general_records.iter().map(|record| &record.key))
+        {
+            if let Some(previous) = members.insert(key.clone(), id) {
+                return Err(invalid(path, format!("{key} already belongs to {previous}")).into());
             }
         }
         families.insert(id.to_owned(), family);
@@ -152,6 +156,7 @@ fn validate_family(path: &Path, family: &Family) -> io::Result<()> {
             "invalid item type or required compatibility fields",
         ));
     }
+    build_axes::validate(family).map_err(|error| invalid(path, error))?;
     for member in &family.members {
         if !equipment_key(&member.key)
             || member.name.trim().is_empty()
@@ -159,7 +164,7 @@ fn validate_family(path: &Path, family: &Family) -> io::Result<()> {
                 .attributes
                 .iter()
                 .any(|attribute| attribute.trim().is_empty())
-            || (member.attributes.is_empty() && member.fit.is_none())
+            || (family.axes.is_empty() && member.attributes.is_empty() && member.fit.is_none())
         {
             return Err(invalid(
                 path,

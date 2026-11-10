@@ -88,12 +88,19 @@ pub(crate) fn retrieval_mode(
     }
 }
 
-pub(crate) fn variant_group_view(
+fn variant_group_view(
     r: &atlas_search::AtlasRetrievalService,
     record_key: &RecordKey,
 ) -> AppServiceResult<atlas_app_model::RelatedCategoryView<atlas_app_model::VariantGroupView>> {
+    project_variant_outcome(r, r.variant_group(VariantGroupRequest { record_key })?)
+}
+
+pub(crate) fn project_variant_outcome(
+    r: &atlas_search::AtlasRetrievalService,
+    outcome: atlas_search::VariantGroupOutcome,
+) -> AppServiceResult<atlas_app_model::RelatedCategoryView<atlas_app_model::VariantGroupView>> {
     use atlas_app_model::RelatedCategoryView;
-    Ok(match r.variant_group(VariantGroupRequest { record_key })? {
+    Ok(match outcome {
         atlas_search::VariantGroupOutcome::Missing => {
             return Err(AppServiceError::new(
                 AppErrorCode::RecordNotFound,

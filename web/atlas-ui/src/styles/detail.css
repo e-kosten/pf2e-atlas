@@ -111,6 +111,10 @@
   --browse-pane-inset: var(--space-group);
 }
 
+.record-explore__combinations {
+  margin-block-start: var(--space-group);
+}
+
 .record-edition-notice {
   margin-block-end: var(--space-group);
 }

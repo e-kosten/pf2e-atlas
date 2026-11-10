@@ -3,20 +3,35 @@ source_note = "GM Core. Five damage types with three grades each."
 item_type = "consumable"
 category = "potion"
 
+axes = [
+    { id = "damage-type", label = "Damage types", options = [
+        { id = "acid", label = "Acid" },
+        { id = "cold", label = "Cold" },
+        { id = "electricity", label = "Electricity" },
+        { id = "fire", label = "Fire" },
+        { id = "sonic", label = "Sonic" },
+    ] },
+    { id = "grade", label = "Grades", options = [
+        { id = "lesser", label = "Lesser" },
+        { id = "moderate", label = "Moderate" },
+        { id = "greater", label = "Greater" },
+    ] },
+]
+
 members = [
-    { key = "equipment-srd:vPcDIowg3LAqZYAE", name = "Energy Breath Potion (Acid, Lesser)", attributes = ["Acid", "Lesser"] },
-    { key = "equipment-srd:xRrMmFzpa0WU9uV4", name = "Energy Breath Potion (Cold, Lesser)", attributes = ["Cold", "Lesser"] },
-    { key = "equipment-srd:xpVHMxLcwgXzL39e", name = "Energy Breath Potion (Electricity, Lesser)", attributes = ["Electricity", "Lesser"] },
-    { key = "equipment-srd:3fSc2e5xRjJ7w4g3", name = "Energy Breath Potion (Fire, Lesser)", attributes = ["Fire", "Lesser"] },
-    { key = "equipment-srd:zAn1SNGYW93kmzdn", name = "Energy Breath Potion (Sonic, Lesser)", attributes = ["Sonic", "Lesser"] },
-    { key = "equipment-srd:2VC7FLItVrFWNe4L", name = "Energy Breath Potion (Acid, Moderate)", attributes = ["Acid", "Moderate"] },
-    { key = "equipment-srd:WwWssHoEhyh7Yrrw", name = "Energy Breath Potion (Cold, Moderate)", attributes = ["Cold", "Moderate"] },
-    { key = "equipment-srd:zQnidYCmLCBPfdii", name = "Energy Breath Potion (Electricity, Moderate)", attributes = ["Electricity", "Moderate"] },
-    { key = "equipment-srd:NqNwLeqto2isVWNL", name = "Energy Breath Potion (Fire, Moderate)", attributes = ["Fire", "Moderate"] },
-    { key = "equipment-srd:jjfxEYViPr4FDeMH", name = "Energy Breath Potion (Sonic, Moderate)", attributes = ["Sonic", "Moderate"] },
-    { key = "equipment-srd:2JXUER4xY8s36HUv", name = "Energy Breath Potion (Acid, Greater)", attributes = ["Acid", "Greater"] },
-    { key = "equipment-srd:OiQDcUMrlrYXDgEf", name = "Energy Breath Potion (Cold, Greater)", attributes = ["Cold", "Greater"] },
-    { key = "equipment-srd:ltILKAEnrZ8vKwY0", name = "Energy Breath Potion (Electricity, Greater)", attributes = ["Electricity", "Greater"] },
-    { key = "equipment-srd:KZbAqbt7qxJPPkii", name = "Energy Breath Potion (Fire, Greater)", attributes = ["Fire", "Greater"] },
-    { key = "equipment-srd:4vb8fplhdtLDBxxh", name = "Energy Breath Potion (Sonic, Greater)", attributes = ["Sonic", "Greater"] },
+    { key = "equipment-srd:vPcDIowg3LAqZYAE", name = "Energy Breath Potion (Acid, Lesser)", coordinates = { damage-type = "acid", grade = "lesser" } },
+    { key = "equipment-srd:xRrMmFzpa0WU9uV4", name = "Energy Breath Potion (Cold, Lesser)", coordinates = { damage-type = "cold", grade = "lesser" } },
+    { key = "equipment-srd:xpVHMxLcwgXzL39e", name = "Energy Breath Potion (Electricity, Lesser)", coordinates = { damage-type = "electricity", grade = "lesser" } },
+    { key = "equipment-srd:3fSc2e5xRjJ7w4g3", name = "Energy Breath Potion (Fire, Lesser)", coordinates = { damage-type = "fire", grade = "lesser" } },
+    { key = "equipment-srd:zAn1SNGYW93kmzdn", name = "Energy Breath Potion (Sonic, Lesser)", coordinates = { damage-type = "sonic", grade = "lesser" } },
+    { key = "equipment-srd:2VC7FLItVrFWNe4L", name = "Energy Breath Potion (Acid, Moderate)", coordinates = { damage-type = "acid", grade = "moderate" } },
+    { key = "equipment-srd:WwWssHoEhyh7Yrrw", name = "Energy Breath Potion (Cold, Moderate)", coordinates = { damage-type = "cold", grade = "moderate" } },
+    { key = "equipment-srd:zQnidYCmLCBPfdii", name = "Energy Breath Potion (Electricity, Moderate)", coordinates = { damage-type = "electricity", grade = "moderate" } },
+    { key = "equipment-srd:NqNwLeqto2isVWNL", name = "Energy Breath Potion (Fire, Moderate)", coordinates = { damage-type = "fire", grade = "moderate" } },
+    { key = "equipment-srd:jjfxEYViPr4FDeMH", name = "Energy Breath Potion (Sonic, Moderate)", coordinates = { damage-type = "sonic", grade = "moderate" } },
+    { key = "equipment-srd:2JXUER4xY8s36HUv", name = "Energy Breath Potion (Acid, Greater)", coordinates = { damage-type = "acid", grade = "greater" } },
+    { key = "equipment-srd:OiQDcUMrlrYXDgEf", name = "Energy Breath Potion (Cold, Greater)", coordinates = { damage-type = "cold", grade = "greater" } },
+    { key = "equipment-srd:ltILKAEnrZ8vKwY0", name = "Energy Breath Potion (Electricity, Greater)", coordinates = { damage-type = "electricity", grade = "greater" } },
+    { key = "equipment-srd:KZbAqbt7qxJPPkii", name = "Energy Breath Potion (Fire, Greater)", coordinates = { damage-type = "fire", grade = "greater" } },
+    { key = "equipment-srd:4vb8fplhdtLDBxxh", name = "Energy Breath Potion (Sonic, Greater)", coordinates = { damage-type = "sonic", grade = "greater" } },
 ]
