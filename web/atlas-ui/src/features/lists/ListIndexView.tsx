@@ -7,11 +7,7 @@ import {
   destinationHref,
   isPrimaryActivation,
 } from "../../app/navigation";
-import {
-  listDestination,
-  listEditDestination,
-  listsDestination,
-} from "../../app/destinations";
+import { listDestination, listsDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { ListTagSummary } from "./ListTagSummary";
@@ -27,8 +23,12 @@ import {
   RowTitleLink,
   stopIndexRowAction,
 } from "../../shared/ui/tables/IndexTable";
-import { PaneIconLink } from "../../shared/ui/actions/PaneAction";
+import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { EntityIndexPage } from "../../shared/ui/pages/EntityIndexPage";
+import { EditListModal } from "./EditListModal";
+import { useListSettingsOpening } from "./useListSettingsOpening";
+import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
+import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { CreateListModal } from "./CreateListModal";
 import { useSavedLists } from "./savedListQueries";
 import { listCountLabel, savedListTagOptions } from "./listUtils";
@@ -80,6 +80,8 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const editing = useListSettingsOpening();
+  const newList = useRef<HTMLButtonElement>(null);
   const selectedTags = [...state.include, ...state.exclude];
   const lists = useSavedLists();
   const allLists = useMemo(() => lists.data?.lists ?? [], [lists.data?.lists]);
@@ -111,6 +113,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
     <EntityIndexPage
       actions={
         <Button
+          ref={newList}
           icon={<Plus size={16} />}
           onClick={(event) => {
             event.currentTarget.focus({ preventScroll: true });
@@ -184,19 +187,37 @@ export function ListIndexView(_props: ListIndexViewProps) {
       }
       className="list-index-view"
       overlays={
-        <CreateListModal
-          open={createOpen}
-          onCancel={() => setCreateOpen(false)}
-          onCreated={(slug) => {
-            setCreateOpen(false);
-            navigateDestination(
-              listDestination({
-                slug,
-                selectedRecordKey: null,
-              }),
-            );
-          }}
-        />
+        <>
+          {editing.data && editing.ref && (
+            <EditListModal
+              listRef={editing.ref}
+              initialDetail={editing.data}
+              open={editing.open}
+              onClose={editing.close}
+              onDeleted={editing.close}
+              afterClose={() => {
+                editing.clear();
+                restoreOverlayFocus(
+                  editing.opener?.isConnected ? editing.opener : newList.current,
+                  undefined,
+                );
+              }}
+            />
+          )}
+          <CreateListModal
+            open={createOpen}
+            onCancel={() => setCreateOpen(false)}
+            onCreated={(slug) => {
+              setCreateOpen(false);
+              navigateDestination(
+                listDestination({
+                  slug,
+                  selectedRecordKey: null,
+                }),
+              );
+            }}
+          />
+        </>
       }
       summary={lists.data ? listCountLabel(filteredLists.length) : undefined}
       title="Saved Lists"
@@ -214,8 +235,23 @@ export function ListIndexView(_props: ListIndexViewProps) {
           }
         />
       )}
+      <SettingsOpeningError
+        error={editing.error}
+        title="List settings could not load"
+        onRetry={() => {
+          editing.opener?.focus({ preventScroll: true });
+          editing.retry();
+        }}
+      />
       <IndexTable
-        columns={listIndexColumns()}
+        columns={listIndexColumns(
+          (list, opener) => {
+            opener.focus({ preventScroll: true });
+
+            editing.begin(list.list_key, opener);
+          },
+          editing.preparing ? editing.ref : undefined,
+        )}
         scroll={{ x: 880 }}
         dataSource={filteredLists}
         loading={lists.isLoading || lists.isFetching}
@@ -255,7 +291,10 @@ function filterLists(
       !list.tags.some((tag) => excluded.has(tag)),
   );
 }
-function listIndexColumns(): ColumnsType<SavedListSummaryView> {
+function listIndexColumns(
+  onEdit: (list: SavedListSummaryView, opener: HTMLElement) => void,
+  openingKey?: string,
+): ColumnsType<SavedListSummaryView> {
   const columns: ColumnsType<SavedListSummaryView> = [
     {
       title: "List",
@@ -325,21 +364,14 @@ function listIndexColumns(): ColumnsType<SavedListSummaryView> {
       title: "",
       width: 72,
       render: (_, list) => (
-        <PaneIconLink
-          href={destinationHref(listEditDestination({ slug: list.slug }))}
+        <PaneIconButton
           icon={<Pencil size={15} />}
           label={`Edit ${list.name}`}
+          aria-busy={openingKey === list.list_key}
+          loading={openingKey === list.list_key ? { delay: 200 } : false}
           onClick={(event) => {
             stopIndexRowAction(event);
-            if (!isPrimaryActivation(event)) {
-              return;
-            }
-            event.preventDefault();
-            navigateDestination(
-              listEditDestination({
-                slug: list.slug,
-              }),
-            );
+            onEdit(list, event.currentTarget);
           }}
           title="Edit"
         />

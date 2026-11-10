@@ -15,7 +15,9 @@ import { useEncounterStrike } from "./useEncounterStrike";
 import { useEncounterMutations } from "./useEncounterMutations";
 import { useEncounterQuery } from "./useEncounterQuery";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
-import { EditEncounterModal } from "./EncounterModals";
+import { EncounterSettingsEditor } from "./EncounterSettingsEditor";
+import { useEncounterSettingsOpening } from "./useEncounterSettingsOpening";
+import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
 import { EncounterTurnReview } from "./EncounterTurnReview";
 import { useEncounterTurnReview } from "./useEncounterTurnReview";
 import { EncounterRosterPane } from "./EncounterRosterPane";
@@ -28,16 +30,17 @@ import { WorkspaceLayout } from "../../shared/layout/WorkspaceLayout";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
 type EncounterDetailViewProps = {
   route: { slug: string };
+  onCloseDirectEditor?: (slug: string) => void;
 };
 const ENCOUNTER_WIDTH_SPECS = {
   filter: { defaultWidth: 360, minWidth: 300 },
   results: { defaultWidth: 620, minWidth: 420 },
   detail: { defaultWidth: 360, minWidth: 320 },
 };
-export function EncounterDetailView({ route }: EncounterDetailViewProps) {
-  return <EncounterDetail key={route.slug} route={route} />;
+export function EncounterDetailView(props: EncounterDetailViewProps) {
+  return <EncounterDetail key={props.route.slug} {...props} />;
 }
-function EncounterDetail({ route }: EncounterDetailViewProps) {
+function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProps) {
   const client = useQueryClient();
   const screens = Grid.useBreakpoint();
   const narrow = screens.md === false;
@@ -74,7 +77,16 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   const [selectedParticipantKey, setSelectedParticipantKey] = useState<string | null>(
     null,
   );
-  const [editEncounterOpen, setEditEncounterOpen] = useState(false);
+  const [directEditorOpen, setDirectEditorOpen] = useState(!!onCloseDirectEditor);
+  const editing = useEncounterSettingsOpening();
+  const closeEditor = (slug?: string) => {
+    if (directEditorOpen) {
+      setDirectEditorOpen(false);
+      onCloseDirectEditor?.(slug ?? encounter.data?.encounter.slug ?? route.slug);
+    } else {
+      editing.close();
+    }
+  };
   const [recoveryMode, setRecoveryMode] = useState<
     "reset_encounter" | "rest_overnight" | { participantKey: string } | null
   >(null);
@@ -116,6 +128,13 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   }, [encounter.data]);
   usePageTitle(encounter.data?.encounter.name ?? "Encounter");
   const mutations = useEncounterMutations(route.slug, encounterKey);
+  const [openedSettings, setOpenedSettings] = useState(false);
+  const showPreparedSettings = editing.open && (openedSettings || !mutations.pending);
+  if (showPreparedSettings !== openedSettings) setOpenedSettings(showPreparedSettings);
+  const preparingSettings =
+    editing.preparing || (editing.open && !showPreparedSettings);
+  const editEncounterOpen =
+    showPreparedSettings || (directEditorOpen && !!encounterKey);
   const strikes = useEncounterStrike({
     encounterRef: encounterKey ?? route.slug,
     revision: encounter.data?.revision ?? 0,
@@ -256,7 +275,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     : undefined;
   const recovery =
     mutations.refreshError &&
-    !(editEncounterOpen && mutations.metadataRefreshFailed) ? (
+    !(editEncounterOpen && mutations.errorKind === "metadata") ? (
       <ErrorNotice
         error={mutations.refreshError}
         outcome={mutations.refreshOutcome}
@@ -306,8 +325,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 onClick: ({ key }) => {
                   settingsTrigger.current?.focus({ preventScroll: true });
                   recoveryTrigger.current = settingsTrigger.current;
-                  if (key === "edit") setEditEncounterOpen(true);
-                  else
+                  if (key === "edit") {
+                    if (encounterKey) {
+                      mutations.clearSettingsError();
+                      editing.begin(encounterKey, settingsTrigger.current);
+                    }
+                  } else
                     setRecoveryMode(
                       key === "rest" ? "rest_overnight" : "reset_encounter",
                     );
@@ -318,12 +341,22 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 type="text"
                 ref={settingsTrigger}
                 aria-label="Encounter settings"
+                aria-busy={preparingSettings}
+                loading={preparingSettings ? { delay: 200 } : false}
                 disabled={disabled}
                 icon={<Settings size={18} />}
               />
             </Dropdown>
           </section>
-          {encounter.error && !mutations.refreshError && (
+          <SettingsOpeningError
+            error={editing.error}
+            title="Encounter settings could not load"
+            onRetry={() => {
+              settingsTrigger.current?.focus({ preventScroll: true });
+              editing.retry();
+            }}
+          />
+          {encounter.error && !mutations.refreshError && !editEncounterOpen && (
             <ErrorNotice
               error={encounter.error}
               title={
@@ -805,26 +838,18 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             onClose={closeRecovery}
           />
         )}
-        {encounterSummary && (
-          <EditEncounterModal
-            encounter={encounterSummary}
+        {encounter.data && (editEncounterOpen || (editing.data && !editing.open)) && (
+          <EncounterSettingsEditor
+            encounter={encounter.data}
+            readError={encounter.error}
+            retryRead={() => void encounter.refetch()}
+            refreshing={encounter.isFetching}
+            afterClose={editing.clear}
+            mutations={mutations}
             disabled={disabled}
-            pending={mutations.pending}
-            error={
-              mutations.errorKind === "metadata" ? mutations.errorMessage : undefined
-            }
-            encounterNote={encounter.data?.note}
-            onRefreshConflict={mutations.refreshMetadataConflict}
             open={editEncounterOpen}
-            onCancel={() => setEditEncounterOpen(false)}
-            onDelete={async () => {
-              const result = await mutations.run({ kind: "delete" });
-              if (result.active) navigateDestination(encountersDestination());
-            }}
-            onSave={async (request) => {
-              await mutations.run({ kind: "metadata", request });
-              setEditEncounterOpen(false);
-            }}
+            onClose={closeEditor}
+            onDeleted={() => navigateDestination(encountersDestination())}
           />
         )}
         {initiativeOpen && encounter.data && (

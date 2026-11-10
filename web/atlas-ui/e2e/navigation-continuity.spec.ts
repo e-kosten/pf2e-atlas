@@ -44,18 +44,23 @@ test("encounter titles and focused rows navigate once in the same document", asy
       await expect(title).toBeVisible();
     }
     expect(bootstrap).toEqual([]);
-    // The adjacent edit control keeps its existing destination and workflow.
-    const edit = page.getByRole("link", { name: `Edit ${name}`, exact: true });
-    await expect(edit).toHaveAttribute("href", `${href}/edit`);
+    const edit = page.getByRole("button", { name: `Edit ${name}`, exact: true });
+    const historyLength = await page.evaluate(() => history.length);
     await edit.click();
-    await expect(page.getByRole("textbox", { name: /Name$/ })).toHaveValue(name);
+    const editor = page.getByRole("dialog", { name: "Settings", exact: true });
+    await expect(editor.getByRole("textbox", { name: /Name$/ })).toHaveValue(name);
+    await editor.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(editor).toBeHidden();
+    await expect(edit).toBeFocused();
+    await expect(page).toHaveURL(/\/encounters$/);
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
     expect(await documentIdentity(page)).toEqual(identity);
   } finally {
     await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
   }
 });
 
-test("encounter title and edit hrefs retain native new-tab and middle-click activation", async ({
+test("encounter titles retain native new-tab and middle-click activation", async ({
   page,
   context,
   browserName,
@@ -67,14 +72,10 @@ test("encounter title and edit hrefs retain native new-tab and middle-click acti
   try {
     await page.goto("/encounters");
     let identity = await documentIdentity(page);
-    for (const [label, suffix, middle] of [
-      [name, "", false],
-      [name, "", true],
-      [`Edit ${name}`, "/edit", false],
-    ] as const) {
-      const link = page.getByRole("link", { name: label, exact: true });
-      const href = `/encounters/${encounter.slug}${suffix}`;
-      await expect(link).toHaveAttribute("href", href);
+    const link = page.getByRole("link", { name, exact: true });
+    const href = `/encounters/${encounter.slug}`;
+    await expect(link).toHaveAttribute("href", href);
+    for (const middle of [false, true]) {
       if (middle && browserName === "webkit") {
         // This headless engine follows the baseline native anchor in the current
         // tab on middle-click. Preserve that default; Chromium opens a new tab.

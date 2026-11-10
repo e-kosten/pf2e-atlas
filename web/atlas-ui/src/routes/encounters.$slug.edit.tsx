@@ -1,6 +1,7 @@
 import { routeSearch } from "../app/routeSearch";
 import { createFileRoute } from "@tanstack/react-router";
-import { EncounterEditView } from "../features/encounters/EncounterEditView";
+import { EncounterDetailView } from "../features/encounters/EncounterDetailView";
+import { encounterDestination } from "../app/destinations";
 export const Route = createFileRoute("/encounters/$slug/edit")({
   ...routeSearch("empty"),
   staticData: { section: "encounters" },
@@ -8,5 +9,17 @@ export const Route = createFileRoute("/encounters/$slug/edit")({
 });
 function Page() {
   const params = Route.useParams();
-  return <EncounterEditView route={{ slug: params.slug }} />;
+  const navigate = Route.useNavigate();
+  return (
+    <EncounterDetailView
+      route={{ slug: params.slug }}
+      onCloseDirectEditor={(slug) =>
+        void navigate({
+          ...encounterDestination({ slug }),
+          replace: true,
+          resetScroll: false,
+        })
+      }
+    />
+  );
 }

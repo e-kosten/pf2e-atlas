@@ -7,9 +7,18 @@ import {
 import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, InputNumber, Popconfirm, Select } from "antd";
+import { Button, Form, Input, InputNumber, Select } from "antd";
 import type { FormInstance } from "antd";
-import { useId, useState } from "react";
+import {
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
+import { formatDate } from "../../shared/ui/formatDate";
+import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { createEncounter } from "../../api/atlasApi";
 import type {
   EncounterDetailView,
@@ -85,6 +94,8 @@ export function EditEncounterModal({
   disabled = false,
   pending = false,
   error,
+  feedback,
+  afterClose,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
@@ -96,8 +107,11 @@ export function EditEncounterModal({
   disabled?: boolean;
   pending?: boolean;
   error?: string;
+  feedback?: ReactNode;
+  afterClose?: () => void;
 }) {
   const formId = useId();
+  const hasDraft = useRef<() => boolean>(null);
   const [saveBlocked, setSaveBlocked] = useState(false);
   const cancel = () => {
     setSaveBlocked(false);
@@ -109,36 +123,48 @@ export function EditEncounterModal({
       open={open}
       destroyOnHidden
       onCancel={cancel}
-      footer={
+      afterClose={afterClose}
+      confirmDiscard={{ when: () => hasDraft.current?.() ?? false, onDiscard: cancel }}
+      confirmLoading={pending}
+      cancelButtonProps={{ disabled: pending }}
+      footer={(_, { CancelBtn }) => (
         <EncounterEditActions
           name={encounter.name}
           formId={formId}
-          onCancel={cancel}
+          cancelButton={<CancelBtn />}
           onDelete={onDelete}
           disabled={disabled}
           pending={pending}
           saveBlocked={saveBlocked}
         />
-      }
+      )}
       closable={!pending}
       keyboard={!pending}
       mask={{ closable: !pending }}
     >
-      <EditEncounterForm
-        key={encounter.encounter_key}
-        externalFormId={formId}
-        hideActions
-        onConflictChange={setSaveBlocked}
-        onRefreshConflict={onRefreshConflict}
-        encounter={encounter}
-        disabled={disabled}
-        pending={pending}
-        error={error}
-        encounterNote={encounterNote}
-        onCancel={onCancel}
-        onDelete={onDelete}
-        onSave={onSave}
-      />
+      {feedback}
+      <>
+        <EditEncounterForm
+          key={encounter.encounter_key}
+          externalFormId={formId}
+          hideActions
+          draftCheck={hasDraft}
+          onConflictChange={setSaveBlocked}
+          onRefreshConflict={onRefreshConflict}
+          encounter={encounter}
+          disabled={disabled}
+          pending={pending}
+          error={error}
+          encounterNote={encounterNote}
+          onCancel={onCancel}
+          onDelete={onDelete}
+          onSave={onSave}
+        />
+        <div className="encounter-settings__dates">
+          <span>Created {formatDate(encounter.created_at)}</span>
+          <span>Updated {formatDate(encounter.updated_at)}</span>
+        </div>
+      </>
     </EncounterModal>
   );
 }
@@ -156,6 +182,7 @@ export function EditEncounterForm({
   externalFormId,
   onConflictChange,
   hideActions = false,
+  draftCheck,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
@@ -169,6 +196,7 @@ export function EditEncounterForm({
   externalFormId?: string;
   onConflictChange?: (blocked: boolean) => void;
   hideActions?: boolean;
+  draftCheck?: Ref<() => boolean>;
 }) {
   const generatedFormId = useId();
   const formId = externalFormId ?? generatedFormId;
@@ -181,6 +209,7 @@ export function EditEncounterForm({
     onRefreshConflict,
     onConflictChange,
   });
+  useImperativeHandle(draftCheck, () => draft.hasChanges, [draft.hasChanges]);
   return (
     <>
       {draft.conflict && <EncounterSettingsConflict draft={draft} form={form} />}
@@ -212,7 +241,7 @@ export function EditEncounterForm({
         </Form.Item>
         <Form.Item
           name="round_duration_seconds"
-          label="Seconds per round"
+          label="Round duration"
           rules={[
             { required: true, type: "number", min: 1, max: 86400, transform: Number },
             {
@@ -223,8 +252,18 @@ export function EditEncounterForm({
             },
           ]}
         >
-          <InputNumber min={1} max={86400} precision={0} />
+          <InputNumber
+            min={1}
+            max={86400}
+            precision={0}
+            suffix={<span>seconds</span>}
+            aria-describedby={`${formId}-duration-unit`}
+            style={{ width: 144 }}
+          />
         </Form.Item>
+        <span id={`${formId}-duration-unit`} hidden>
+          In seconds
+        </span>
         <Form.Item name="status" label="Status" rules={[{ required: true }]}>
           <Select<EncounterStatusView>
             options={["draft", "running", "complete", "archived"].map((value) => ({
@@ -275,6 +314,7 @@ function EncounterEditActions({
   name,
   formId,
   onCancel,
+  cancelButton,
   onDelete,
   disabled,
   pending,
@@ -283,6 +323,7 @@ function EncounterEditActions({
   name: string;
   formId: string;
   onCancel?: () => void;
+  cancelButton?: ReactNode;
   onDelete?: () => Promise<unknown>;
   disabled: boolean;
   pending: boolean;
@@ -290,27 +331,22 @@ function EncounterEditActions({
 }) {
   return (
     <div className="encounter-actions">
-      {onCancel ? (
-        <Button disabled={pending} onClick={onCancel}>
-          Cancel
-        </Button>
-      ) : null}
+      {cancelButton ??
+        (onCancel ? (
+          <Button disabled={pending} onClick={onCancel}>
+            Cancel
+          </Button>
+        ) : null)}
       {onDelete ? (
-        <Popconfirm
-          title={`Delete ${name}?`}
-          description="This permanently deletes the encounter."
-          placement="topLeft"
-          okText="Delete"
-          cancelText="Cancel"
-          okButtonProps={{ danger: true, loading: pending }}
-          cancelButtonProps={{ disabled: pending }}
+        <DangerActionButton
+          confirmTitle={`Delete ${name}?`}
+          confirmContent="This permanently deletes the encounter."
+          confirmOkText="Delete"
           disabled={disabled}
           onConfirm={onDelete}
         >
-          <Button disabled={disabled} danger>
-            Delete
-          </Button>
-        </Popconfirm>
+          Delete
+        </DangerActionButton>
       ) : null}
       <Button
         disabled={disabled || saveBlocked}

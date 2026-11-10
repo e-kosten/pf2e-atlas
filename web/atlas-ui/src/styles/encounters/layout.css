@@ -1,51 +1,9 @@
-.encounter-edit-view {
-  margin: 0 auto;
-  max-width: 1120px;
-  padding: 24px;
-}
-
-.encounter-edit-view {
-  max-width: 760px;
-}
-
-.encounter-edit-view__header,
-.encounter-edit-view__content {
-  background: var(--panel);
-}
-
-.encounter-edit-view__header {
-  align-items: flex-start;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  justify-content: space-between;
-  padding: 20px;
-}
-
-.encounter-edit-view__header h2 {
-  font-size: 20px;
-  margin: 0;
-}
-
-.encounter-edit-view__header p,
-.encounter-edit-view__metadata {
+.encounter-settings__dates {
   color: var(--muted);
-}
-
-.encounter-edit-view__header p {
-  margin: 4px 0 0;
-}
-
-.encounter-edit-view__content {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-}
-
-.encounter-edit-view__metadata {
   display: flex;
   flex-wrap: wrap;
-  font-size: 13px;
-  gap: 16px;
+  font-size: 12px;
+  gap: 12px;
 }
 
 .encounter-detail-view {

@@ -23,13 +23,7 @@ export function useEncounterQuery(slug: string) {
   const key = encounterKey ?? resolution.data;
   if (key !== encounterKey) setEncounterKey(key);
 
-  const query = useQuery({
-    queryKey: ["encounter", key],
-    queryFn: () => getEncounter(key!),
-    enabled: key !== undefined,
-    // Route resolution just loaded the canonical snapshot.
-    staleTime: 20_000,
-  });
+  const query = useCanonicalEncounter(key);
   const active = key === undefined ? resolution : query;
   return {
     data: key === undefined ? undefined : query.data,
@@ -39,4 +33,14 @@ export function useEncounterQuery(slug: string) {
     isPending: active.isPending,
     refetch: active.refetch,
   };
+}
+
+export function useCanonicalEncounter(key: string | undefined) {
+  return useQuery({
+    queryKey: ["encounter", key],
+    queryFn: () => getEncounter(key!),
+    enabled: key !== undefined,
+    // Route resolution just loaded the canonical snapshot.
+    staleTime: 20_000,
+  });
 }

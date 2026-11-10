@@ -17,6 +17,7 @@ const infoProps: ComponentProps<typeof ListBrowseHeader> = {
   list: undefined,
   loading: false,
   onAddRecords: vi.fn(),
+  onEdit: vi.fn(),
   onRetry: vi.fn(),
 };
 

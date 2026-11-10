@@ -3,7 +3,7 @@ import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { Alert, Grid } from "antd";
 import type { ListPageInput } from "../../app/destinations";
 import { navigateDestination, destinationHref } from "../../app/navigation";
-import { listDestination } from "../../app/destinations";
+import { listDestination, listsDestination } from "../../app/destinations";
 import { atlasRouter } from "../../app/router";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { usePreparedReferenceSelection } from "../../shared/records/usePreparedReferenceSelection";
@@ -12,6 +12,9 @@ import {
   hasReferenceSelectionStatus,
 } from "../../shared/records/ReferenceSelectionStatus";
 import { ListEntryNoteEditor, useListEntryNote } from "./ListEntryNote";
+import { EditListModal } from "./EditListModal";
+import { useListSettingsOpening } from "./useListSettingsOpening";
+import { SettingsOpeningError } from "../../shared/ui/overlays/SettingsOpeningError";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
   keepPreviousData,
@@ -52,11 +55,13 @@ import {
 } from "./useSavedListFilters";
 type ListDetailViewProps = {
   route: ListPageInput;
+  onCloseDirectEditor?: (slug: string) => void;
 };
-export function ListDetailView({ route }: ListDetailViewProps) {
+export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewProps) {
   const queryClient = useQueryClient();
   const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
+  const editing = useListSettingsOpening(onCloseDirectEditor ? route.slug : undefined);
   const [resolvedListKey, setResolvedListKey] = useState<string>();
   const listRef = resolvedListKey ?? route.slug;
   const [filters, setFilters] = useState<SearchFormState>(() =>
@@ -316,9 +321,34 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           list={listView?.list}
           loading={listLoading}
           onAddRecords={() => setAddOpen(true)}
+          editPreparing={editing.preparing}
+          onEdit={(opener) => {
+            if (listIdentity) editing.begin(listIdentity.list_key, opener);
+          }}
         />
         {listView?.reference_error && (
           <Alert type="warning" title="Reference details could not be checked" />
+        )}
+        <SettingsOpeningError
+          error={editing.error}
+          title="List settings could not load"
+          onRetry={() => {
+            editing.opener?.focus({ preventScroll: true });
+            editing.retry();
+          }}
+        />
+        {editing.data && editing.ref && (
+          <EditListModal
+            listRef={editing.ref}
+            initialDetail={editing.data}
+            open={editing.open}
+            onClose={(slug) => {
+              editing.close();
+              onCloseDirectEditor?.(slug ?? route.slug);
+            }}
+            afterClose={editing.clear}
+            onDeleted={() => navigateDestination(listsDestination())}
+          />
         )}
         <ListRecordPicker
           key={route.slug}

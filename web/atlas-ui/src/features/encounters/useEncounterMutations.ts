@@ -563,5 +563,9 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
             : "Participant changed; current encounter could not load",
     retryRefresh,
     refreshMetadataConflict,
+    clearSettingsError: () => {
+      if (mutation.variables?.kind === "metadata" && mutation.error && !refreshError)
+        mutation.reset();
+    },
   };
 }

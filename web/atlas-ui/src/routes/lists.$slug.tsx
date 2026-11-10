@@ -1,4 +1,5 @@
-import { createFileRoute, Outlet, useMatch } from "@tanstack/react-router";
+import { createFileRoute, useMatch } from "@tanstack/react-router";
+import { listDestination } from "../app/destinations";
 import { ListDetailView } from "../features/lists/ListDetailView";
 import {
   stringifySearchParams,
@@ -29,10 +30,20 @@ function ListWorkspace() {
     record_tab: _tab,
     ...criteria
   } = search;
-  if (editor) return <Outlet />;
+  const navigate = Route.useNavigate();
   return (
     <ListDetailView
       key={slug}
+      onCloseDirectEditor={
+        editor
+          ? (canonicalSlug) =>
+              void navigate({
+                ...listDestination({ slug: canonicalSlug, selectedRecordKey: null }),
+                replace: true,
+                resetScroll: false,
+              })
+          : undefined
+      }
       route={{
         slug,
         query: stringifySearchParams(criteria) || undefined,

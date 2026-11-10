@@ -37,12 +37,25 @@ import type {
   TurnResourcesView,
 } from "../../generated/atlas";
 import { EncounterDetailView } from "./EncounterDetailView";
-import { EncounterEditView } from "./EncounterEditView";
+import { encounterDestination } from "../../app/destinations";
+import { navigateDestination } from "../../app/navigation";
+
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EditEncounterForm } from "./EncounterModals";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { atlasRouter } from "../../app/router";
 import { RouterTestContext } from "../../test/router";
+
+function DirectEncounterEditor({ route }: { route: { slug: string } }) {
+  return (
+    <EncounterDetailView
+      route={route}
+      onCloseDirectEditor={(slug) =>
+        navigateDestination(encounterDestination({ slug }))
+      }
+    />
+  );
+}
 
 const apiMocks = vi.hoisted(() => ({
   previewEncounterRecovery: vi.fn(),
@@ -538,7 +551,7 @@ describe("encounter views", () => {
     expect(screen.queryByRole("dialog", { name: "Goblin: Command" })).toBeNull();
   });
 
-  it("renders active encounter rows, hides archived rows, and routes to edit", async () => {
+  it("renders active encounter rows, hides archived rows, and edits in place", async () => {
     render(<EncounterIndexView route={{}} />, {
       wrapper: queryClientWrapper(),
     });
@@ -563,10 +576,20 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Active" }));
     expect(await screen.findByText("Ambush")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("link", { name: "Edit Ambush" }));
+    const opener = screen.getByRole("button", { name: "Edit Ambush" });
+    const locationBeforeEdit = window.location.href;
+    fireEvent.click(opener);
+    const editor = within(await screen.findByRole("dialog", { name: "Settings" }));
+    const name = await editor.findByLabelText("Name");
+    expect(name).toHaveValue("Ambush");
+    fireEvent.change(name, { target: { value: "Discard this" } });
+    fireEvent.click(editor.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(editor.getByRole("button", { name: "Discard" }));
     await waitFor(() =>
-      expect(window.location.pathname).toBe("/encounters/ambush/edit"),
+      expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull(),
     );
+    expect(window.location.href).toBe(locationBeforeEdit);
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   it("uses the router for encounter titles and leaves modified activation native", async () => {
@@ -617,7 +640,7 @@ describe("encounter views", () => {
       };
       return { encounter_key: "encounter_ambush" };
     });
-    render(<EncounterEditView route={{ slug: "ambush" }} />, {
+    render(<DirectEncounterEditor route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
@@ -638,7 +661,7 @@ describe("encounter views", () => {
     );
   });
 
-  it.each(["page", "modal"] as const)(
+  it.each(["direct link", "detail"] as const)(
     "keeps the mounted %s bound to its encounter through a rename and reused slug",
     async (surface) => {
       const queryClient = new QueryClient({
@@ -646,15 +669,15 @@ describe("encounter views", () => {
       });
       const wrapper = queryClientWrapper(queryClient);
       const view = render(
-        surface === "page" ? (
-          <EncounterEditView route={{ slug: "ambush" }} />
+        surface === "direct link" ? (
+          <DirectEncounterEditor route={{ slug: "ambush" }} />
         ) : (
           <EncounterDetailView route={{ slug: "ambush" }} />
         ),
         { wrapper },
       );
       let editor: ReturnType<typeof within> | typeof screen = screen;
-      if (surface === "modal") {
+      if (surface === "detail") {
         const settings = await screen.findByRole("button", {
           name: "Encounter settings",
         });
@@ -681,7 +704,7 @@ describe("encounter views", () => {
           name: "Replacement",
         },
       };
-      if (surface === "page") {
+      if (surface === "direct link") {
         apiMocks.getEncounter.mockRejectedValueOnce(new Error("Read unavailable"));
       }
       apiMocks.getEncounter.mockImplementation(async (ref) =>
@@ -695,8 +718,12 @@ describe("encounter views", () => {
       );
       expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush");
       expect(name).toHaveValue("My name");
-      if (surface === "page") {
-        fireEvent.click(await screen.findByRole("button", { name: "Retry encounter" }));
+      if (surface === "direct link") {
+        fireEvent.click(
+          await within(
+            await screen.findByRole("dialog", { name: "Settings" }),
+          ).findByRole("button", { name: "Retry encounter" }),
+        );
       }
       await waitFor(() =>
         expect(editor.getByLabelText("Note")).toHaveValue("Fresh note"),
@@ -712,12 +739,12 @@ describe("encounter views", () => {
           },
         ),
       );
-      if (surface === "page") {
+      if (surface === "direct link") {
         await waitFor(() =>
           expect(location.pathname).toBe("/encounters/renamed-ambush"),
         );
         view.unmount();
-        render(<EncounterEditView route={{ slug: "ambush" }} />, { wrapper });
+        render(<DirectEncounterEditor route={{ slug: "ambush" }} />, { wrapper });
         await waitFor(() =>
           expect(screen.getByLabelText("Name")).toHaveValue("Replacement"),
         );
@@ -733,7 +760,7 @@ describe("encounter views", () => {
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
     const wrapper = queryClientWrapper(queryClient);
-    const previous = render(<EncounterEditView route={{ slug: "ambush" }} />, {
+    const previous = render(<DirectEncounterEditor route={{ slug: "ambush" }} />, {
       wrapper,
     });
     fireEvent.change(await screen.findByLabelText("Name"), {
@@ -763,7 +790,7 @@ describe("encounter views", () => {
           ? saved
           : replacement,
     );
-    render(<EncounterEditView route={{ slug: "ambush" }} />, { wrapper });
+    render(<DirectEncounterEditor route={{ slug: "ambush" }} />, { wrapper });
     await waitFor(() =>
       expect(
         apiMocks.getEncounter.mock.calls.filter(([ref]) => ref === "ambush"),
@@ -845,7 +872,7 @@ describe("encounter views", () => {
         details: { fields: ["name"] },
       });
     });
-    render(<EncounterEditView route={{ slug: "ambush" }} />, {
+    render(<DirectEncounterEditor route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     const name = await screen.findByLabelText("Name");
@@ -3067,6 +3094,65 @@ describe("encounter views", () => {
     expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
   });
 
+  it("waits for fresh encounter settings and retries before opening", async () => {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const opener = screen.getByRole("button", { name: "Encounter settings" });
+    await waitFor(() => expect(opener).toBeEnabled());
+    const reading = deferred<EncounterDetailViewDto>();
+    apiMocks.getEncounter.mockReturnValueOnce(reading.promise);
+    fireEvent.click(opener);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
+    await waitFor(() =>
+      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush"),
+    );
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    await act(async () => reading.reject(new Error("Read unavailable")));
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    expect(screen.queryByRole("dialog", { name: "Settings" })).toBeNull();
+    setEncounterDetail({
+      ...serverEncounter,
+      encounter: { ...serverEncounter.encounter, name: "Fresh encounter name" },
+    });
+    fireEvent.click(retry);
+    const editor = within(await screen.findByRole("dialog", { name: "Settings" }));
+    expect(editor.getByLabelText("Name")).toHaveValue("Fresh encounter name");
+    fireEvent.click(editor.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
+  it("keeps a newer encounter snapshot when an older settings response arrives late", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(client),
+    });
+    const opener = screen.getByRole("button", { name: "Encounter settings" });
+    await waitFor(() => expect(opener).toBeEnabled());
+    const original = serverEncounter;
+    const reading = deferred<EncounterDetailViewDto>();
+    apiMocks.getEncounter.mockReturnValueOnce(reading.promise);
+    fireEvent.click(opener);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
+    await waitFor(() =>
+      expect(apiMocks.getEncounter).toHaveBeenLastCalledWith("encounter_ambush"),
+    );
+    const newer = {
+      ...original,
+      revision: original.revision + 1,
+      encounter: { ...original.encounter, name: "Newer encounter name" },
+    };
+    act(() =>
+      client.setQueryData(["encounter", original.encounter.encounter_key], newer),
+    );
+    await act(async () => reading.resolve(original));
+    const editor = within(await screen.findByRole("dialog", { name: "Settings" }));
+    expect(editor.getByLabelText("Name")).toHaveValue("Newer encounter name");
+    expect(
+      client.getQueryData(["encounter", original.encounter.encounter_key]),
+    ).toEqual(newer);
+  });
+
   it("keeps delayed and rejected Save open with its draft", async () => {
     const saving = deferred<{ encounter_key: string }>();
     apiMocks.updateEncounter.mockReturnValue(saving.promise);
@@ -3115,6 +3201,7 @@ describe("encounter views", () => {
     await waitFor(() => expect(name).toHaveValue(savedName));
     fireEvent.change(name, { target: { value: "Canceled draft" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Discard" }));
     await waitFor(() =>
       expect(
         screen.queryByRole("dialog", { name: "Settings" }),
@@ -3144,7 +3231,7 @@ describe("encounter views", () => {
         </SearchProfileProvider>
       </QueryClientProvider>
     );
-    const { rerender } = render(<EncounterEditView route={{ slug: "ambush" }} />, {
+    const { rerender } = render(<DirectEncounterEditor route={{ slug: "ambush" }} />, {
       wrapper,
     });
     const name = await screen.findByLabelText("Name");
@@ -3174,7 +3261,7 @@ describe("encounter views", () => {
       encounter: { ...encounterIndexFixture().encounters[1], name: "Other encounter" },
     };
     setEncounterDetail(other);
-    rerender(<EncounterEditView route={{ slug: "other" }} />);
+    rerender(<DirectEncounterEditor route={{ slug: "other" }} />);
     expect(await screen.findByLabelText("Name")).toHaveValue("Other encounter");
   });
 
@@ -3447,7 +3534,7 @@ describe("encounter views", () => {
     apiMocks.getEncounter.mockImplementation((ref) =>
       Promise.resolve(ref === "other" ? other : original),
     );
-    const { rerender } = render(<EncounterEditView route={{ slug: "ambush" }} />, {
+    const { rerender } = render(<DirectEncounterEditor route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
     fireEvent.change(await screen.findByLabelText("Name"), {
@@ -3456,7 +3543,7 @@ describe("encounter views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(apiMocks.updateEncounter).toHaveBeenCalledOnce());
     history.replaceState(null, "", "/encounters/other/edit");
-    rerender(<EncounterEditView route={{ slug: "other" }} />);
+    rerender(<DirectEncounterEditor route={{ slug: "other" }} />);
     await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue("Other"));
     await act(async () => saving.resolve({ encounter_key: "encounter_ambush" }));
     await waitFor(() =>
