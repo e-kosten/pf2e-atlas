@@ -13,18 +13,26 @@ test.describe("narrow desktop tabs with touch input", () => {
     userAgent: devices["Desktop Chrome"].userAgent,
   });
 
-  test("Explore overflow dismisses after selecting Versions", async ({ page }) => {
+  test("Explore keeps Versions visible and dismisses overflow after selecting Similar", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 320, height: 844 });
     await page.goto("/records/browser-editions:remaster00000001");
     await page
       .getByRole("button", { name: "Explore related records", exact: true })
       .tap();
+    const versions = page.getByRole("tab", { name: "Versions", exact: true });
+    await expect(versions).toBeInViewport({ ratio: 1 });
     const more = page.locator(".record-explore .ant-tabs-nav-more");
     await expect(more).toBeVisible();
     await more.tap();
     const menu = page.getByRole("listbox", { name: "expanded dropdown", exact: true });
-    await menu.getByRole("option", { name: "Versions", exact: true }).tap();
+    await menu.getByRole("option", { name: "Similar", exact: true }).tap();
     await expect(menu).toBeHidden();
+    await expect(
+      page.getByRole("tab", { name: "Similar", selected: true }),
+    ).toBeVisible();
+    await versions.tap();
     await expect(page.locator(".remaster-relationship__line")).toContainText(
       "Legacy signal",
     );

@@ -101,6 +101,9 @@ export function RelatedRecords(props: ExploreProps) {
       resetUnavailableVersions();
   }, [mode, active, related.isSuccess, versions, resetUnavailableVersions]);
   const items = [
+    ...(versions || (related.isPending && active === "versions") || related.error
+      ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
+      : []),
     ...(hasIncoming
       ? [
           {
@@ -120,14 +123,12 @@ export function RelatedRecords(props: ExploreProps) {
         ]
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
-    ...(versions || (related.isPending && active === "versions") || related.error
-      ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
-      : []),
   ];
+  const defaultTab = hasIncoming ? "incoming" : hasOutgoing ? "outgoing" : "similar";
   return (
     <section className="record-explore" aria-label="Explore record">
       <Tabs
-        activeKey={items.some((item) => item.key === active) ? active : items[0].key}
+        activeKey={items.some((item) => item.key === active) ? active : defaultTab}
         onChange={setActive}
         more={{ trigger: ["click"] }}
         animated={false}

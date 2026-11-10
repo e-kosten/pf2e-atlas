@@ -881,7 +881,7 @@ it.each([
   expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
 });
 
-it("waits for useful alternatives before advertising Versions during ordinary Explore loading", async () => {
+it("puts Versions first when alternatives arrive and retains the selected task", async () => {
   let resolve!: (value: ReturnType<typeof relatedFixture>) => void;
   api.getRelatedRecords.mockReturnValue(
     new Promise((yes) => {
@@ -899,7 +899,11 @@ it("waits for useful alternatives before advertising Versions during ordinary Ex
   await waitFor(() => expect(api.getRelatedRecords).toHaveBeenCalled());
   expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
   await act(async () => resolve({ ...relatedFixture(), show_versions: true }));
-  expect(await screen.findByRole("tab", { name: "Versions" })).toBeVisible();
+  const versions = await screen.findByRole("tab", { name: "Versions" });
+  expect(within(screen.getByRole("tablist")).getAllByRole("tab")[0]).toBe(versions);
+  expect(
+    screen.getByRole("tab", { name: "Referenced by", selected: true }),
+  ).toBeVisible();
 });
 
 it.each([
