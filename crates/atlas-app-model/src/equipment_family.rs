@@ -23,3 +23,10 @@ pub struct EquipmentFamilyGroupingView {
     pub label: String,
     pub groups: Vec<VariantAxisSliceView>,
 }
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EquipmentFamilyReferenceView {
+    pub id: String,
+    pub name: String,
+}

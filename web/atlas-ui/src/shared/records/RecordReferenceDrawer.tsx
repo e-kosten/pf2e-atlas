@@ -169,6 +169,8 @@ export function RecordReferenceDrawer({
               headingRef={heading}
               headingId={headingId}
               presentation={detail?.presentation}
+              equipmentFamily={detail?.equipment_family}
+              onEquipmentFamilyNavigate={close}
               root={detail?.record}
               selection={detail?.selected}
               relationships={detail?.relationships}

@@ -97,7 +97,15 @@ impl Fixture {
                 "Item",
                 json!({
                     "_id": id, "type": "equipment", "name": name,
-                    "system": {"level": {"value": level}, "publication": {"remaster": true}}
+                    "system": {
+                        "level": {"value": level},
+                        "publication": {"remaster": true},
+                        "description": {"value": "<p>Jolt coil rules.</p>"},
+                        "subitems": [{
+                            "_id": "familychild00001", "type": "equipment", "name": "Fixture part",
+                            "system": {"description": {"value": "<p>A fitted part.</p>"}}
+                        }]
+                    }
                 }),
             )
         })

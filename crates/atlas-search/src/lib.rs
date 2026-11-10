@@ -62,9 +62,9 @@ pub use text::{
     TextSearchResult,
 };
 pub use variants::{
-    EquipmentFamily, EquipmentFamilyGrouping, EquipmentFamilyOutcome, VariantAxisSlice,
-    VariantExploration, VariantFamilyChoice, VariantFamilyContext, VariantGroupOutcome,
-    VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
+    EquipmentFamily, EquipmentFamilyGrouping, EquipmentFamilyOutcome, EquipmentFamilyReference,
+    VariantAxisSlice, VariantExploration, VariantFamilyChoice, VariantFamilyContext,
+    VariantGroupOutcome, VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
 };
 
 mod fusion;

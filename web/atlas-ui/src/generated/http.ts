@@ -3889,6 +3889,11 @@ export interface EquipmentFamilyGroupingView {
   label: string;
 }
 
+export interface EquipmentFamilyReferenceView {
+  id: string;
+  name: string;
+}
+
 export interface VariantFamilyChoiceView {
   qualifier: string;
   record: RecordSummaryView;
@@ -4665,6 +4670,7 @@ export interface RecordDetailView {
   artifact_generation: string;
   /** Default adjustment for adding this root creature to an encounter. */
   encounter_adjustment?: EncounterParticipantVariantView;
+  equipment_family?: EquipmentFamilyReferenceView;
   presentation: RecordPresentationView;
   record: RecordSummaryView;
   relationships: RecordRelationshipView[];
@@ -4760,7 +4766,6 @@ export type VariantFamilyView = {
 
 export interface RelatedRecordsView {
   artifact_generation: string;
-  equipment_family_id?: string;
   family_context?: VariantFamilyView;
   references: RelatedCategoryViewGraphContextView;
   remaster_relationships: RelatedCategoryViewRemasterRelationshipsView;

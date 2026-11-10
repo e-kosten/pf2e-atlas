@@ -127,6 +127,9 @@ impl RecordDetailRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordDetailView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub equipment_family: Option<crate::EquipmentFamilyReferenceView>,
     /// Change statements associated with the exact selected document.
     pub remaster_relationships: crate::RelatedCategoryView<crate::RemasterRelationshipsView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

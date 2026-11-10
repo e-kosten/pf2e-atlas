@@ -329,6 +329,7 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
+        equipment_family: None,
         remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
         source_remaster_context: None,
         artifact_generation: "test-generation".into(),

@@ -37,7 +37,11 @@ pub enum VariantGroupOutcome {
 pub struct VariantExploration {
     pub variants: VariantGroupOutcome,
     pub family: Option<VariantFamilyContext>,
-    pub equipment_family_id: Option<String>,
+}
+
+pub struct EquipmentFamilyReference {
+    pub id: String,
+    pub name: String,
 }
 
 pub enum EquipmentFamilyOutcome {
@@ -137,6 +141,13 @@ impl AtlasRetrievalService {
         Ok(self.read_variants(request, false)?.variants)
     }
 
+    pub fn verified_equipment_family_reference(
+        &self,
+        detail: &crate::SourceRecordDetail,
+    ) -> Result<Option<EquipmentFamilyReference>, SearchError> {
+        verified::family_reference(self, detail)
+    }
+
     pub fn equipment_family(&self, id: &str) -> Result<EquipmentFamilyOutcome, SearchError> {
         verified::equipment_family(self, id)
     }
@@ -157,7 +168,6 @@ impl AtlasRetrievalService {
             return Ok(VariantExploration {
                 variants: VariantGroupOutcome::Missing,
                 family: None,
-                equipment_family_id: None,
             });
         };
         let verified = verified::verified_group(self, &seed, include_family)?;
@@ -169,7 +179,6 @@ impl AtlasRetrievalService {
         Ok(VariantExploration {
             variants,
             family: verified.context,
-            equipment_family_id: verified.family_id,
         })
     }
 

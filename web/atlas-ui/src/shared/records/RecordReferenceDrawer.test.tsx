@@ -1,3 +1,6 @@
+import { createMemoryHistory } from "@tanstack/react-router";
+import { createAtlasRouter } from "../../app/router";
+import { RouterTestContext } from "../../test/router";
 import { detailFixture } from "../../test/fixtures";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
@@ -32,6 +35,35 @@ describe("RecordReferenceDrawer", () => {
       await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     },
   );
+  it("returns from a member preview to the family page on primary activation", async () => {
+    const detail = detailFixture("equipment-srd:coil", "Jolt Coil");
+    detail.equipment_family = { id: "jolt-coil", name: "Jolt Coil" };
+    const path = "/families/equipment/jolt-coil";
+    const router = createAtlasRouter(createMemoryHistory({ initialEntries: [path] }));
+    const onClose = vi.fn();
+    render(
+      <RouterTestContext router={router}>
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <RecordReferenceDrawer
+            destination={{ kind: "record", navigation: detail.selected }}
+            anchor={document.createElement("button")}
+            detail={detail}
+            loading={false}
+            onClose={onClose}
+            onReference={vi.fn()}
+          />
+        </ConfigProvider>
+      </RouterTestContext>,
+    );
+
+    const link = screen.getByRole("link", { name: "Jolt Coil" });
+    expect(link).toHaveAttribute("href", path);
+    fireEvent.click(link, { metaKey: true });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(link);
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  });
+
   it("opens the pending Drawer immediately, delays its spinner and retains its heading when content arrives", async () => {
     const anchor = document.createElement("button");
     document.body.append(anchor);
