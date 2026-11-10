@@ -1411,8 +1411,10 @@ describe("list views", () => {
     await act(async () => {
       client.setQueryData(["saved-list", "list_research"], fresh);
     });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Description")).toHaveValue("Saved description"),
+    );
     expect(screen.getByLabelText("Name")).toHaveValue("My name");
-    expect(screen.getByLabelText("Description")).toHaveValue("Saved description");
     fireEvent.change(screen.getByLabelText("Description"), { target: { value: "" } });
 
     apiMocks.updateSavedList.mockRejectedValueOnce(
