@@ -1010,7 +1010,6 @@ it("retains backend scope guidance while directions load but invalidates it for 
       exclude_clause_id: "edit",
       incomplete: false,
       list_ref: null,
-      trait_key: null,
       connection_scope: null,
       expected_artifact_generation: "generation-a",
     },

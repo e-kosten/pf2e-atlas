@@ -1419,7 +1419,6 @@
   },
   "trait_records": {
     "artifact_generation": "fixture-generation",
-    "kind": "members",
     "page": {
       "count": 1,
       "has_more": false,

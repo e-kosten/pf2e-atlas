@@ -19,7 +19,6 @@ async function memberships(request: APIRequestContext, detail: TraitDetailView) 
   const response = await request.post("/api/traits/records", {
     data: {
       trait_key: detail.trait_key,
-      kind: "members",
       page: { number: 1, size: 5 },
       expected_artifact_generation: detail.artifact_generation,
     },
@@ -102,8 +101,8 @@ test("definition references retain authored labels and checked record links", as
 }, testInfo) => {
   const detail = await definition(request, "trait:throneglass");
   expect(
-    detail.content?.references.filter((reference) => reference.target).length,
-  ).toBe(2);
+    detail.content?.references.map((reference) => reference.destination.kind),
+  ).toEqual(["resolved_record", "resolved_record"]);
   await page.goto("/traits/trait:throneglass");
   const content = page.locator(".prepared-content");
   for (const label of ["Stupefied 1", "Stupefied 2"]) {
@@ -111,18 +110,15 @@ test("definition references retain authored labels and checked record links", as
       content.getByRole("link", { name: label, exact: true }),
     ).toHaveAttribute("href", /\/records\/conditionitems:/);
   }
-  await page.getByRole("tab", { name: "References", exact: true }).click();
-  const references = page.getByRole("region", {
-    name: "Trait references",
-    exact: true,
-  });
-  await expect(references.getByRole("link").first()).toBeVisible();
-  await expect(
-    page.getByRole("tab", { name: "References", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "References", exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("link", { name: "Search trait references" })).toHaveCount(
+    0,
+  );
   const screenshot = testInfo.outputPath("trait-throneglass.png");
   await page.screenshot({ path: screenshot, fullPage: true, animations: "disabled" });
-  await testInfo.attach("Throneglass trait and references", {
+  await testInfo.attach("Throneglass trait with inline links", {
     path: screenshot,
     contentType: "image/png",
   });
@@ -185,7 +181,7 @@ test("trait membership opens the exact embedded source", async ({
   });
 });
 
-test("stale trait Similar links open empty Search or the default trait tab", async ({
+test("stale trait Similar links open empty Search or trait membership", async ({
   page,
 }, testInfo) => {
   await page.goto(
@@ -196,9 +192,7 @@ test("stale trait Similar links open empty Search or the default trait tab", asy
 
   await page.goto("/traits/trait:agile?tab=similar");
   await expect(page.getByRole("heading", { name: "Agile", exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("tab", { name: "With this trait", selected: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "With this trait" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Similar", exact: true })).toHaveCount(0);
   await testInfo.attach("Trait page after retirement", {
     body: await page.screenshot({ animations: "disabled" }),

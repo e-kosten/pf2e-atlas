@@ -2,7 +2,6 @@ import { AtlasApiError } from "../../api/atlasApi";
 import type {
   ResultSort,
   SearchResultsRequest,
-  TraitRecordsRequest,
   SimilarityOptions,
   SimilaritySourceSections,
   SearchContentScope,
@@ -12,8 +11,8 @@ import type {
 
 /** Ordering and paging may retain a labelled prior page; eligibility and source identity may not. */
 export function sameSearchPageContext(
-  previous: SearchResultsRequest | TraitRecordsRequest,
-  next: SearchResultsRequest | TraitRecordsRequest,
+  previous: SearchResultsRequest,
+  next: SearchResultsRequest,
 ): boolean {
   return (
     JSON.stringify({ ...previous, sort: undefined, page: undefined }) ===

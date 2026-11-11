@@ -126,8 +126,8 @@ The record finder reuses SearchPickerModal and retains its own search and filter
 Its candidate corpus is the inverse of the chosen relationship over the parent's
 static eligibility, before picker ranking and pagination. Parent text and Similar
 admission, paging, ranking and edition preference do not restrict that eligibility.
-App-service resolves saved-list membership, trait-reference route membership and
-inherited connected scopes in the consuming workspace snapshot. The static DTO
+App-service resolves saved-list membership and inherited connected scopes in
+the consuming workspace snapshot. The static DTO
 cannot carry a parent semantic search. Nested contexts are bounded to four levels.
 Index compiles the parent predicate through ordinary eligibility SQL and joins
 resolved occurrences directly, retaining exact root owner restrictions. Only the

@@ -7,10 +7,7 @@ pub(crate) fn search_sort(
     requested: Option<ResultSort>,
     criteria: &SearchCriteria,
 ) -> AppServiceResult<ResultSort> {
-    let has_matching = !matches!(
-        criteria,
-        SearchCriteria::ListRecords { .. } | SearchCriteria::TraitReferences { query: None, .. }
-    );
+    let has_matching = !matches!(criteria, SearchCriteria::ListRecords { .. });
     let sort = requested.unwrap_or_else(|| {
         if has_matching {
             ResultSort::Relevance {}

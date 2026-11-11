@@ -2351,8 +2351,6 @@ export interface StaticSearchContext {
   incomplete?: boolean;
   /** @nullable */
   list_ref?: string | null;
-  /** @nullable */
-  trait_key?: string | null;
 }
 
 export interface SearchConnectionScope {
@@ -5060,12 +5058,6 @@ export type SearchCriteria = {
   source_sections?: SimilaritySourceSections | null;
 } | {
   filter?: QueryPredicateInputSchema | null;
-  kind: 'trait_references';
-  /** @nullable */
-  query?: string | null;
-  trait_key: string;
-} | {
-  filter?: QueryPredicateInputSchema | null;
   kind: 'list_records';
 } | {
   filter?: QueryPredicateInputSchema | null;
@@ -5092,10 +5084,6 @@ export interface SearchMatchSectionView {
 export type SearchModeSummary = {
   kind: 'similar_records';
   seed: RecordSummaryView;
-} | {
-  kind: 'trait_references';
-  title: string;
-  trait_key: string;
 } | {
   kind: 'list_records';
 } | {
@@ -5339,14 +5327,6 @@ export interface TableRollView {
   outcome: RollOutcome;
 }
 
-export type TraitAssociationKind = typeof TraitAssociationKind[keyof typeof TraitAssociationKind];
-
-
-export const TraitAssociationKind = {
-  members: 'members',
-  references: 'references',
-} as const;
-
 export interface TraitDetailRequest {
   /** @nullable */
   expected_artifact_generation?: string | null;
@@ -5368,14 +5348,12 @@ export interface TraitDetailView {
 export interface TraitRecordView {
   navigation: RecordNavigationView;
   record: RecordSummaryView;
-  reference_direction?: string;
   /** @nullable */
   source_label: string | null;
 }
 
 export interface TraitRecordsPage {
   artifact_generation: string;
-  kind: TraitAssociationKind;
   page: SearchPageView;
   rows: TraitRecordView[];
   trait_key: string;
@@ -5383,7 +5361,6 @@ export interface TraitRecordsPage {
 
 export interface TraitRecordsRequest {
   expected_artifact_generation: string;
-  kind: TraitAssociationKind;
   page: SearchPageRequest;
   trait_key: string;
 }
