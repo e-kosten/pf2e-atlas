@@ -42,6 +42,7 @@ implementation status does not require a new ADR; a new durable decision does.
 - [0067: Current-content remaster relationships](0067-remaster-relationships.md)
 - [0053: Field-aware fusion](0053-field-aware-search-fusion.md)
 - [0056: Trait reference entities](0056-trait-reference-entities.md)
+- [0069: Trait reading and membership](0069-trait-reading-and-membership.md)
 - [0068: Contextual reference definitions](0068-contextual-reference-definitions.md)
 - [0057: Relationship-scoped search](0057-relationship-scoped-search.md)
 - [0059: Configurable Similar](0059-configurable-similarity.md)

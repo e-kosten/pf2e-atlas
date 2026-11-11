@@ -130,7 +130,7 @@ it("preserves only explicit trait profiles with singleton validation and canonic
       search_profile: [" embeddinggemma ", " embeddinggemma "],
       tab: "references",
     }),
-  ).toEqual({ search_profile: "embeddinggemma", tab: "references" });
+  ).toEqual({ search_profile: "embeddinggemma" });
   expect(canonicalRouteSearch("trait", { search_profile: "  " })).toEqual({});
   expect(canonicalRouteSearch("trait", {})).toEqual({});
   expect(() =>
@@ -335,4 +335,11 @@ it("drops stale trait Similar state instead of running a filtered search", () =>
     }),
   ).toEqual({});
   expect(canonicalRouteSearch("trait", { tab: "similar" })).toEqual({});
+});
+
+it("drops retired trait scope while retaining ordinary Search parameters", () => {
+  expect(canonicalRouteSearch("search", { trait_refs: "trait:fire" })).toEqual({});
+  expect(
+    canonicalRouteSearch("search", { trait_refs: "trait:fire", q: " flame ", filter }),
+  ).toEqual({ q: "flame", filter });
 });

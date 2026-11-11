@@ -261,10 +261,6 @@ export function FilterControls({
           workspace.filterDiscoveryContext?.kind === "saved_list"
             ? workspace.filterDiscoveryContext.list_ref
             : null,
-        trait_key:
-          workspace.resultRequest?.criteria.kind === "trait_references"
-            ? workspace.resultRequest.criteria.trait_key
-            : null,
         connection_scope: workspace.resultRequest?.connection_scope ?? null,
       },
       afterClose: () => {

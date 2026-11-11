@@ -737,7 +737,7 @@ export async function getTraitRecords(
       message: "Reference collection changed. Reload trait.",
       recoverable_action: "reload_record",
     });
-  if (result.trait_key !== request.trait_key || result.kind !== request.kind)
+  if (result.trait_key !== request.trait_key)
     throw new Error("The trait response does not match this request. Retry.");
   checkSearchPage(result);
   return result;

@@ -163,7 +163,7 @@ it("retains sort priority on trait native links", () => {
         query: "?tab=references&sort=level_desc&sort=name_asc",
       }),
     ),
-  ).toBe("/traits/trait:agile?tab=references&sort=level_desc&sort=name_asc");
+  ).toBe("/traits/trait:agile?sort=level_desc&sort=name_asc");
 });
 
 it.each([

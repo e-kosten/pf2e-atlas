@@ -23,7 +23,7 @@ pub struct TraitDefinition {
     pub content_locale: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraitReferenceInput {
+struct TraitReferenceInput {
     pub source_label: Option<String>,
     pub owners: Vec<OwnedContentLocator>,
     pub field: Option<String>,
@@ -202,94 +202,6 @@ impl SqliteIndexReader {
                     record: record.clone(),
                     owners,
                     source_label,
-                });
-            }
-        }
-        Ok((entries, total))
-    }
-    /// Complete distinct root eligibility, independent of occurrence preview limits.
-    pub fn trait_reference_record_keys(
-        &self,
-        key: &TraitKey,
-    ) -> Result<Vec<RecordKey>, IndexError> {
-        let mut statement = self.native()?.prepare(
-            "SELECT DISTINCT record_key FROM trait_references WHERE trait_key=?1 ORDER BY record_key",
-        )?;
-        let keys = statement
-            .query_map([key.to_string()], |row| row.get::<_, String>(0))?
-            .collect::<Result<Vec<_>, _>>()?;
-        keys.into_iter()
-            .map(|key| {
-                key.parse().map_err(|error| {
-                    IndexError::Invalid(format!("invalid trait reference key: {error}"))
-                })
-            })
-            .collect()
-    }
-    pub fn trait_references(
-        &self,
-        key: &TraitKey,
-        limit: u32,
-        offset: u32,
-    ) -> Result<(Vec<SourceRecordSummary>, u64), IndexError> {
-        if limit == 0 || limit > 100 {
-            return Err(IndexError::Invalid("trait page size must be 1..100".into()));
-        }
-        let total = self.native()?.query_row(
-            "SELECT count(DISTINCT record_key) FROM trait_references WHERE trait_key=?1",
-            [key.to_string()],
-            |r| r.get(0),
-        )?;
-        let mut stmt=self.native()?.prepare("SELECT DISTINCT record_key FROM trait_references WHERE trait_key=?1 ORDER BY record_key LIMIT ?2 OFFSET ?3")?;
-        let keys = stmt
-            .query_map(params![key.to_string(), limit, offset], |r| {
-                r.get::<_, String>(0)
-            })?
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .map(|s| {
-                s.parse()
-                    .map_err(|e| IndexError::Invalid(format!("invalid reference key: {e}")))
-            })
-            .collect::<Result<Vec<RecordKey>, _>>()?;
-        Ok((self.read_summaries(&keys)?.records, total))
-    }
-    pub fn trait_reference_entries(
-        &self,
-        key: &TraitKey,
-        limit: u32,
-        offset: u32,
-    ) -> Result<(Vec<TraitReference>, u64), IndexError> {
-        if limit == 0 || limit > 100 {
-            return Err(IndexError::Invalid("trait page size must be 1..100".into()));
-        }
-        let total = self.native()?.query_row(
-            "SELECT count(*) FROM trait_references WHERE trait_key=?1",
-            [key.to_string()],
-            |r| r.get(0),
-        )?;
-        let mut stmt=self.native()?.prepare("SELECT evidence FROM trait_references WHERE trait_key=?1 ORDER BY record_key,evidence LIMIT ?2 OFFSET ?3")?;
-        let rows = stmt
-            .query_map(params![key.to_string(), limit, offset], |r| {
-                r.get::<_, String>(0)
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-        let rows = rows
-            .iter()
-            .map(|json| serde_json::from_str::<TraitReferenceInput>(json))
-            .collect::<Result<Vec<_>, _>>()?;
-        let summaries = self.trait_page_summaries(rows.iter().map(|source| &source.record))?;
-        let mut entries = Vec::new();
-        for source in rows {
-            if let Some(record) = summaries.get(&source.record) {
-                entries.push(TraitReference {
-                    record: record.clone(),
-                    source_label: source.source_label,
-                    owners: source.owners,
-                    field: source.field,
-                    direction: source.direction,
-                    occurrence_path: source.occurrence_path,
-                    evidence: source.evidence,
                 });
             }
         }
@@ -933,7 +845,16 @@ mod tests {
                 .0
                 .is_empty()
         );
-        assert!(reader.trait_references(&key, 20, 0).unwrap().0.is_empty());
+        let reference_count: usize = reader
+            .native()
+            .unwrap()
+            .query_row(
+                "SELECT count(*) FROM trait_references WHERE trait_key=?1",
+                [key.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(reference_count, 0);
     }
     #[test]
     fn legacy_context_without_trait_policy_requires_source_preparation() {
@@ -960,15 +881,4 @@ mod tests {
             crate::ReferenceUpgrade::SourcePreparation
         );
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct TraitReference {
-    pub source_label: Option<String>,
-    pub record: SourceRecordSummary,
-    pub owners: Vec<OwnedContentLocator>,
-    pub field: Option<String>,
-    pub direction: String,
-    pub occurrence_path: String,
-    pub evidence: String,
 }

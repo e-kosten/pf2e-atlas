@@ -16,7 +16,6 @@ import {
   type SearchPreferences,
 } from "../search/searchPreferences";
 export const SIMILAR_QUERY_CONFLICT = "Choose either text or a similar-record seed";
-export const SEARCH_SCOPE_CONFLICT = "Choose either Similar or trait references";
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export const UNKNOWN_RESULT_SORT = "Unknown result order";
 export const INVALID_RESULT_SORT = "Choose an order available for this search";
@@ -32,7 +31,6 @@ export type SearchFormState = {
   query: string;
   mode: "browse" | "text_search" | "similar_records";
   similarSeed: string | null;
-  traitReferenceSeed?: string | null;
   filter: QueryPredicate | null;
   filterError: string | null;
   /** Transient URL recovery state, excluded from requests and execution identity. */
@@ -59,25 +57,9 @@ export function buildSearchRequest(
   if (state.filterWasReset)
     throw new Error("This search link must be reset before requesting results");
   if (state.filterError) throw new Error(state.filterError);
-  if (state.similarSeed && state.traitReferenceSeed)
-    throw new Error(SEARCH_SCOPE_CONFLICT);
   if (state.similarSeed && state.query.trim()) throw new Error(SIMILAR_QUERY_CONFLICT);
   const page = { number, size: state.pageSize };
   const sortRequest = state.sort ? { sort: state.sort } : {};
-  if (state.traitReferenceSeed)
-    return {
-      search_profile,
-      ...sortRequest,
-      page,
-      expected_artifact_generation,
-      ranking: state.ranking ?? "score",
-      criteria: {
-        kind: "trait_references",
-        trait_key: state.traitReferenceSeed,
-        query: state.query.trim() || null,
-        filter: state.filter,
-      },
-    };
   if (state.similarSeed)
     return {
       search_profile,
@@ -116,10 +98,7 @@ export function hasExecutableSearch(state: SearchFormState): boolean {
   return (
     !state.filterWasReset &&
     !state.filterError &&
-    (!!state.similarSeed ||
-      !!state.traitReferenceSeed ||
-      state.query.trim().length > 0 ||
-      state.filter !== null)
+    (!!state.similarSeed || state.query.trim().length > 0 || state.filter !== null)
   );
 }
 export function buildFilterDiscoveryContext(
@@ -133,9 +112,7 @@ export function buildFilterDiscoveryContext(
     kind: "filtered",
     filter: state.filter,
     text: state.query.trim() || null,
-    ...(state.query.trim() && !state.traitReferenceSeed
-      ? { search_content: state.searchContent ?? "all" }
-      : {}),
+    ...(state.query.trim() ? { search_content: state.searchContent ?? "all" } : {}),
   };
 }
 export function buildSavedListFilterDiscoveryContext(
@@ -173,7 +150,6 @@ export function encodeSearchExecutionState(
       sort: state.sort,
       query: state.query,
       similarSeed: state.similarSeed,
-      traitReferenceSeed: state.traitReferenceSeed,
       mode: state.mode,
       filter: state.filter,
       filterError: state.filterError,
@@ -191,7 +167,7 @@ export function searchStateQueryString(
   encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
-  if (!state.traitReferenceSeed && (state.similarSeed || state.query.trim()))
+  if (state.similarSeed || state.query.trim())
     params.set("search_content", state.searchContent ?? "all");
   if (state.similarSeed && state.similarity) {
     const settings = state.similarity;
@@ -210,7 +186,6 @@ export function searchStateQueryString(
         params.set("similarity_generation", state.similarityGeneration);
     }
   }
-  if (state.traitReferenceSeed) params.set("trait_refs", state.traitReferenceSeed);
   if (state.filter) params.set("filter", encodeFilterUrl(state.filter));
   if (state.pageSize !== 25) params.set("limit", String(state.pageSize));
   return params.size ? "?" + params.toString() : "";
@@ -279,7 +254,6 @@ export function decodeSearchStateFromParams(
     }
   }
   if (similarSeed && params.get("q")?.trim()) filterError = SIMILAR_QUERY_CONFLICT;
-  if (similarSeed && params.get("trait_refs")) filterError = SEARCH_SCOPE_CONFLICT;
   const { sort, sortError } = decodeResultSort(
     params,
     surface,
@@ -297,9 +271,6 @@ export function decodeSearchStateFromParams(
     ...(similarity ? { similarity } : {}),
     ...(params.get("similarity_generation")
       ? { similarityGeneration: params.get("similarity_generation")! }
-      : {}),
-    ...(params.get("trait_refs")
-      ? { traitReferenceSeed: params.get("trait_refs") }
       : {}),
     mode: similarSeed
       ? "similar_records"

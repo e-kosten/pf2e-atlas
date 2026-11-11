@@ -4,8 +4,8 @@ use crate::{
     definitions::check_generation,
 };
 use atlas_app_model::{
-    RecordNavigationView, TraitAssociationKind, TraitDetailRequest, TraitDetailView,
-    TraitRecordView, TraitRecordsPage, TraitRecordsRequest,
+    RecordNavigationView, TraitDetailRequest, TraitDetailView, TraitRecordView, TraitRecordsPage,
+    TraitRecordsRequest,
 };
 use atlas_domain::TraitKey;
 use atlas_search::{SearchPage, TraitAssociationRequest};
@@ -75,77 +75,36 @@ impl AtlasAppService {
         self.with_retrieval(execution, move |retrieval| {
             let generation = retrieval.artifact_generation()?;
             check_generation(Some(&request.expected_artifact_generation), &generation)?;
-            let (rows, page) = match request.kind {
-                TraitAssociationKind::Members => {
-                    let result = retrieval.trait_memberships(TraitAssociationRequest {
-                        trait_key: &key,
-                        page,
-                    })?;
-                    projection_execution.check()?;
-                    let rows = result
-                        .entries
-                        .into_iter()
-                        .map(|member| TraitRecordView {
-                            source_label: member.source_label,
-                            reference_direction: None,
-                            navigation: RecordNavigationView {
-                                spell_rank: None,
-                                record_key: member.record.key.to_string(),
-                                source_fingerprint: crate::projection::navigation_fingerprint(
-                                    &member.owners,
-                                    retrieval.source_fingerprint(),
-                                ),
-                                owners: member.owners,
-                                field: None,
-                                passage: None,
-                            },
-                            record: crate::projection::localized_summary_view(
-                                &member.record,
-                                retrieval,
-                            ),
-                        })
-                        .collect();
-                    (rows, crate::projection::search_page_view(result.page))
-                }
-                TraitAssociationKind::References => {
-                    let result = retrieval.trait_references(TraitAssociationRequest {
-                        trait_key: &key,
-                        page,
-                    })?;
-                    projection_execution.check()?;
-                    let rows = result
-                        .entries
-                        .into_iter()
-                        .map(|reference| TraitRecordView {
-                            source_label: reference.source_label,
-                            navigation: RecordNavigationView {
-                                spell_rank: None,
-                                record_key: reference.record.key.to_string(),
-                                source_fingerprint: crate::projection::navigation_fingerprint(
-                                    &reference.owners,
-                                    retrieval.source_fingerprint(),
-                                ),
-                                owners: reference.owners,
-                                field: reference.field,
-                                passage: None,
-                            },
-                            record: crate::projection::localized_summary_view(
-                                &reference.record,
-                                retrieval,
-                            ),
-                            reference_direction: Some(reference.direction),
-                        })
-                        .collect();
-                    (rows, crate::projection::search_page_view(result.page))
-                }
-            };
+            let result = retrieval.trait_memberships(TraitAssociationRequest {
+                trait_key: &key,
+                page,
+            })?;
+            projection_execution.check()?;
+            let rows = result
+                .entries
+                .into_iter()
+                .map(|member| TraitRecordView {
+                    source_label: member.source_label,
+                    navigation: RecordNavigationView {
+                        spell_rank: None,
+                        record_key: member.record.key.to_string(),
+                        source_fingerprint: crate::projection::navigation_fingerprint(
+                            &member.owners,
+                            retrieval.source_fingerprint(),
+                        ),
+                        owners: member.owners,
+                        field: None,
+                        passage: None,
+                    },
+                    record: crate::projection::localized_summary_view(&member.record, retrieval),
+                })
+                .collect();
             projection_execution.check()?;
             Ok(TraitRecordsPage {
                 artifact_generation: generation,
                 trait_key: key.to_string(),
-                kind: request.kind,
                 rows,
-                page,
+                page: crate::projection::search_page_view(result.page),
             })
         })
     }
@@ -183,7 +142,6 @@ mod tests {
         assert!(view.indexing_locale.is_none());
         let request = TraitRecordsRequest {
             trait_key: "trait:attack".into(),
-            kind: TraitAssociationKind::Members,
             page: SearchPageRequest {
                 number: 1,
                 size: 20,
@@ -251,7 +209,6 @@ mod tests {
             .trait_records(
                 TraitRecordsRequest {
                     trait_key: "trait:agile".into(),
-                    kind: TraitAssociationKind::Members,
                     page: SearchPageRequest {
                         number: 1,
                         size: 20,

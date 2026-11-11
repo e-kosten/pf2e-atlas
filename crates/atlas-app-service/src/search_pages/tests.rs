@@ -44,17 +44,13 @@ fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
 }
 
 fn static_parent(request: SearchResultsRequest) -> Box<atlas_app_model::StaticSearchContext> {
-    let (filter, trait_key) = match request.criteria {
-        SearchCriteria::TraitReferences {
-            filter, trait_key, ..
-        } => (filter, Some(trait_key)),
+    let filter = match request.criteria {
         SearchCriteria::ListRecords { filter }
         | SearchCriteria::TextSearch { filter, .. }
-        | SearchCriteria::SimilarRecords { filter, .. } => (filter, None),
+        | SearchCriteria::SimilarRecords { filter, .. } => filter,
     };
     Box::new(atlas_app_model::StaticSearchContext {
         filter,
-        trait_key,
         list_ref: None,
         exclude_clause_id: None,
         incomplete: false,
@@ -728,120 +724,6 @@ fn relationship_predicate(
     }
 }
 
-fn trait_search_fixture(semantic: bool, reference_count: u32) -> FixtureWorker {
-    let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, move || {
-        let mut fixture = input(
-            (0..=reference_count).map(|i| record("items", "Item", json!({
-                "_id": format!("{i:016}"), "name": format!("Record {i}"), "type": "effect",
-                "system": {"level": {"value": i}, "description": {"value":
-                    if i < reference_count { "@Localize[PF2E.TraitAgile] @Localize[PF2E.TraitAgile]" } else { "Unrelated" }
-                }}
-            }))).collect(), semantic,
-        );
-        let key = atlas_domain::TraitKey::new("agile").unwrap();
-        fixture.traits.push(atlas_search::TraitDefinition {
-            key: key.clone(),
-            label: "Agile".into(),
-            label_key: None,
-            description_key: None,
-            description_html: None,
-            authored_markup: None,
-            prepared: None,
-            catalogs: vec![],
-            source_locations: vec![],
-            source_revision: fixture.context.source_revision.clone(),
-            indexing_locale: fixture.context.indexing_locale.clone(),
-            content_locale: None,
-        });
-        Ok(open_input_fixture(fixture)?)
-    });
-    fixture_worker_with_executor(executor)
-}
-
-#[test]
-fn trait_reference_search_deduplicates_roots_and_filters_before_paging() {
-    let fixture = trait_search_fixture(false, 3);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let mut search = request(
-        SearchCriteria::TraitReferences {
-            trait_key: "trait:agile".into(),
-            query: None,
-            filter: None,
-        },
-        1,
-    );
-    let first = fixture
-        .worker
-        .search_page(search.clone(), &execution)
-        .unwrap();
-    assert_eq!(
-        first.mode,
-        SearchModeSummary::TraitReferences {
-            trait_key: "trait:agile".into(),
-            title: "Agile".into(),
-        }
-    );
-    assert_eq!(first.page.total, 3);
-    search.page.number = 3;
-    let last = fixture
-        .worker
-        .search_page(search.clone(), &execution)
-        .unwrap();
-    assert_eq!(last.rows[0].record.record_key, "items:0000000000000002");
-    assert!(!last.page.has_more);
-    search.page.number = 1;
-    search.criteria = SearchCriteria::TraitReferences {
-        trait_key: "trait:agile".into(),
-        query: None,
-        filter: Some(levels_at_least_two()),
-    };
-    let filtered = fixture.worker.search_page(search, &execution).unwrap();
-    assert_eq!(filtered.page.total, 1);
-    assert_eq!(filtered.rows[0].record.record_key, "items:0000000000000002");
-}
-
-#[test]
-fn trait_reference_search_reaches_records_beyond_association_preview_limits() {
-    let fixture = trait_search_fixture(false, 131);
-    let result = fixture
-        .worker
-        .search_page(
-            request(
-                SearchCriteria::TraitReferences {
-                    trait_key: "trait:agile".into(),
-                    query: None,
-                    filter: None,
-                },
-                131,
-            ),
-            &crate::ReadExecutionContext::uncancellable(),
-        )
-        .unwrap();
-    assert_eq!(result.page.total, 131);
-    assert_eq!(result.rows[0].record.record_key, "items:0000000000000099");
-    assert!(!result.page.has_more);
-}
-
-#[test]
-fn trait_reference_text_search_rejects_stale_generation_before_query_inference() {
-    let fixture = trait_search_fixture(true, 3);
-    let mut search = request(
-        SearchCriteria::TraitReferences {
-            trait_key: "trait:agile".into(),
-            query: Some("query needing unavailable model assets".into()),
-            filter: None,
-        },
-        1,
-    );
-    search.expected_artifact_generation = Some("retired-generation".into());
-    let error = fixture
-        .worker
-        .search_page(search, &crate::ReadExecutionContext::uncancellable())
-        .unwrap_err()
-        .into_app_error();
-    assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
-}
-
 #[test]
 fn similarity_inventory_and_explicit_parts_share_generation_and_effective_configuration() {
     let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, || {
@@ -1315,7 +1197,7 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
 
 #[test]
 fn similar_record_responses_acknowledge_scoring_and_mapping_recipes() {
-    let fixture = trait_search_fixture(true, 3);
+    let (fixture, _) = fixture(true);
     let execution = crate::ReadExecutionContext::uncancellable();
     {
         for options in [
@@ -1502,39 +1384,6 @@ fn connected_picker_uses_complete_static_scope_and_its_own_filters_before_paging
             .into_app_error()
             .code,
         AppErrorCode::ArtifactGenerationChanged
-    );
-}
-
-#[test]
-fn connected_trait_scope_intersects_instead_of_replacing_connected_candidates() {
-    let fixture = trait_search_fixture(false, 3);
-    let execution = crate::ReadExecutionContext::uncancellable();
-    let mut search = request(
-        SearchCriteria::TraitReferences {
-            trait_key: "trait:agile".into(),
-            query: None,
-            filter: None,
-        },
-        1,
-    );
-    search.connection_scope = Some(atlas_app_model::SearchConnectionScope {
-        parent: static_parent(request(
-            SearchCriteria::ListRecords {
-                filter: Some(atlas_domain::QueryPredicate::boolean(false)),
-            },
-            1,
-        )),
-        direction: atlas_domain::QueryRelationshipDirection::Incoming,
-        include_contents: true,
-    });
-    assert_eq!(
-        fixture
-            .worker
-            .search_page(search, &execution)
-            .unwrap()
-            .page
-            .total,
-        0
     );
 }
 

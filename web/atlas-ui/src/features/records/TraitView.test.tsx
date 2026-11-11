@@ -47,10 +47,9 @@ beforeEach(() => {
     .mockResolvedValue(detailFixture("actors:creature", "Creature"));
   api.getTraitDetail.mockReset().mockResolvedValue(definition);
   api.searchPage.mockReset();
-  api.getTraitRecords.mockReset().mockImplementation(async (request) => ({
+  api.getTraitRecords.mockReset().mockImplementation(async () => ({
     search_profile: null,
     trait_key: "trait:agile",
-    kind: request.kind,
     artifact_generation: "generation-one",
     rows: [
       {
@@ -90,7 +89,6 @@ it("loads exact membership with generation guard and native record navigation", 
   );
   expect(api.getTraitRecords.mock.calls[0][0]).toMatchObject({
     trait_key: "trait:agile",
-    kind: "members",
     expected_artifact_generation: "generation-one",
   });
 });
@@ -177,7 +175,7 @@ it("offers generation recovery only after a stale association and rereads the tr
     ),
   ).toBe(true);
   const associations = client.getQueryCache().findAll({ queryKey: ["trait-records"] });
-  expect(associations).toHaveLength(2);
+  expect(associations).toHaveLength(1);
   for (const query of associations)
     expect(query.queryKey[1]).toMatchObject({
       trait_key: "trait:agile",
@@ -199,7 +197,7 @@ it.each([undefined, "?tab=references", "?tab=similar"])(
     expect(
       screen.queryByText("No definition is available in this reference collection."),
     ).toBeNull();
-    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "With this trait" })).toBeNull();
     expect(api.getTraitRecords).not.toHaveBeenCalled();
     expect(api.searchPage).not.toHaveBeenCalled();
     expect(document.title).toBe("Link not found · Atlas");
@@ -208,14 +206,14 @@ it.each([undefined, "?tab=references", "?tab=similar"])(
 it("stops presenting the trait page when a successful refresh removes its content", async () => {
   const client = setup();
   expect(await screen.findByText("Multiple attack penalty is reduced.")).toBeVisible();
-  await screen.findByRole("tab", { name: "With this trait" });
+  await screen.findByRole("heading", { name: "With this trait" });
   api.getTraitDetail.mockResolvedValue({ ...definition, content: null });
   await act(async () => {
     await client.invalidateQueries({ queryKey: ["trait-detail"] });
   });
   expect(await screen.findByText("Link not found")).toBeVisible();
   expect(screen.queryByText("Multiple attack penalty is reduced.")).toBeNull();
-  expect(screen.queryByRole("tab")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "With this trait" })).toBeNull();
 });
 
 it("keeps exact embedded membership addresses in native links and navigation", async () => {
@@ -228,7 +226,6 @@ it("keeps exact embedded membership addresses in native links and navigation", a
   };
   api.getTraitRecords.mockResolvedValueOnce({
     trait_key: "trait:agile",
-    kind: "members",
     artifact_generation: "generation-one",
     search_profile: null,
     rows: [
@@ -262,57 +259,39 @@ it("keeps exact embedded membership addresses in native links and navigation", a
 });
 it("uses the default association when a stale link selects Similar", async () => {
   setup("?tab=similar");
-  expect(
-    await screen.findByRole("tab", { name: "With this trait", selected: true }),
-  ).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "With this trait" })).toBeVisible();
   expect(screen.queryByRole("tab", { name: "Similar" })).toBeNull();
   expect(api.searchPage).not.toHaveBeenCalled();
 });
 
-it.each(["members", "references"] as const)(
-  "opens primary Search with exact %s criteria and no inline full-result mode",
-  async (kind) => {
-    setup();
-    await screen.findByRole("tab", { name: "With this trait" });
-    if (kind !== "members")
-      fireEvent.click(
-        screen.getByRole("tab", {
-          name: "References",
-        }),
-      );
-    const link = await screen.findByRole("link", {
-      name:
-        kind === "members"
-          ? "Search records with this trait"
-          : "Search trait references",
-    });
-    expect(link).not.toHaveClass("ant-btn-primary");
-    const url = new URL(link.getAttribute("href")!, location.origin);
-    expect(url.pathname).toBe("/search");
-    const search = decodeSearchStateFromParams(url.searchParams);
-    expect(url.searchParams.get("search_profile")).toBe("embeddinggemma");
-    expect(buildSearchRequest(search, 1).criteria).toMatchObject(
-      kind === "members"
-        ? {
-            kind: "list_records",
-            filter: {
-              kind: "set_match",
-              field: "traits",
-              op: "includes_any",
-              values: ["agile"],
-            },
-          }
-        : { kind: "trait_references", trait_key: "trait:agile" },
-    );
-    expect(fireEvent.click(link, { metaKey: true })).toBe(true);
-    expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
-  },
-);
+it("opens ordinary Search with the exact membership filter", async () => {
+  setup();
+  const link = await screen.findByRole("link", {
+    name: "Search records with this trait",
+  });
+  expect(link).not.toHaveClass("ant-btn-primary");
+  const url = new URL(link.getAttribute("href")!, location.origin);
+  expect(url.pathname).toBe("/search");
+  expect(url.searchParams.get("search_profile")).toBe("embeddinggemma");
+  const search = decodeSearchStateFromParams(url.searchParams);
+  expect(buildSearchRequest(search, 1).criteria).toMatchObject({
+    kind: "list_records",
+    filter: {
+      kind: "set_match",
+      field: "traits",
+      op: "includes_any",
+      values: ["agile"],
+    },
+  });
+  expect(fireEvent.click(link, { metaKey: true })).toBe(true);
+  expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
+  expect(screen.queryByRole("tab", { name: "References" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Search trait references" })).toBeNull();
+});
 
-it("hides known-empty associations", async () => {
+it("hides membership and its Search action after an empty response", async () => {
   api.getTraitRecords.mockImplementation(async (request: TraitRecordsRequest) => ({
     trait_key: request.trait_key,
-    kind: request.kind,
     search_profile: null,
     artifact_generation: request.expected_artifact_generation,
     sort: { kind: "relevance" },
@@ -320,10 +299,16 @@ it("hides known-empty associations", async () => {
     page: { number: 1, size: 5, count: 0, total: 0, has_more: false, next_page: null },
     coverage: null,
   }));
-  setup();
+  const client = setup();
   await screen.findByText("Multiple attack penalty is reduced.");
-  await waitFor(() => expect(screen.queryByText("Loading connections…")).toBeNull());
-  expect(screen.queryByRole("tab", { name: "Similar" })).toBeNull();
-  expect(screen.queryByRole("tab", { name: "References" })).toBeNull();
-  expect(screen.queryByRole("tab", { name: "With this trait" })).toBeNull();
+  await waitFor(() => {
+    const query = client
+      .getQueryCache()
+      .find({ queryKey: ["trait-records"], exact: false });
+    expect(query?.state.status).toBe("success");
+  });
+  expect(screen.queryByRole("heading", { name: "With this trait" })).toBeNull();
+  expect(
+    screen.queryByRole("link", { name: "Search records with this trait" }),
+  ).toBeNull();
 });
