@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import type { ReorderPlacement } from "../../generated/atlas";
@@ -63,6 +64,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
   const queryClient = useQueryClient();
   const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
+  const paused = useSavedWritesPaused();
   const editing = useListSettingsOpening(onCloseDirectEditor ? route.slug : undefined);
   const [resolvedListKey, setResolvedListKey] = useState<string>();
   const listRef = resolvedListKey ?? route.slug;
@@ -449,6 +451,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
             error={removeItem.error}
             reorderError={reorderItem.error}
             mutating={
+              paused ||
               reorderItem.isPending ||
               removeItem.isPending ||
               list.isPlaceholderData ||

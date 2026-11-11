@@ -13,6 +13,7 @@ tauri-build = { version = "2", features = [] }
 atlas-desktop-protocol = { path = "../../crates/atlas-desktop-protocol" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+getrandom = "0.4"
 tauri = { version = "2", features = [] }
 tauri-plugin-deep-link = "2"
 tauri-plugin-clipboard-manager = "2"

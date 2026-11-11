@@ -96,8 +96,8 @@ a pipe whose closure ends the launcher even during startup. The launcher
 authenticates the worker and checks the API contract before returning a
 versioned endpoint and workspace identity to the host. Foreground
 `atlas web` sessions hold independent leases. The served product uses the
-same origin and API as the browser, with native setup commands reserved for
-the bundled setup WebView.
+same origin and API as the browser. Browser clients read readiness through
+the shared API.
 
 The bundled setup page reads a versioned, source-free readiness report and invokes
 the existing CLI setup path after an explicit user action. Progress comes from
@@ -106,11 +106,17 @@ maintenance and published state. The primary desktop window navigates from
 bundled setup to the verified service and waits for the product shell to render.
 The host retains the requested destination and returns to setup with a retry
 action if the initial render fails. Retry uses the published workspace.
-Setup permissions apply to the bundled origin in either window. Once the product
-is mounted, the separate setup and recovery surface preserves active views and
-drafts. After a successful reference
-update, a data-free event tells the current product views to refresh readiness
-and reference queries in place.
+Fresh managed setup opens the primary window on a verified keyword publication
+receipt from the setup child. The child continues semantic preparation under
+the same setup guard. A narrowly scoped product permission exposes the native
+progress panel and its cancel and resume actions. The host validates the WebView,
+loopback origin, service instance, current document attachment and job on each
+action. Product documents disallow child frames. The bundled setup surface
+retains its existing permissions for explicit reference updates and workspace
+upgrades, preserving mounted product views and drafts. A data-free event tells
+the current product views to refresh readiness and reference queries in place.
+The shared managed worker can warm the model on first attachment or after
+receiving an authenticated publication notification without adding a lease.
 
 Native record URLs encode an exact `RecordKey` in a versioned path, independent
 of the local service address. The host opens the existing record reader

@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -23,6 +24,7 @@ export function CreateListModal({
   onCreated: (slug: string) => void;
   open: boolean;
 }) {
+  const paused = useSavedWritesPaused();
   const [form] = Form.useForm<CreateListFormValues>();
   const queryClient = useQueryClient();
   const inFlight = useRef(false);
@@ -59,14 +61,17 @@ export function CreateListModal({
       onCancel={() => {
         if (!inFlight.current) onCancel();
       }}
-      onOk={() => form.submit()}
+      okButtonProps={{ disabled: paused }}
+      onOk={() => {
+        if (!paused) form.submit();
+      }}
       open={open}
       title="New List"
     >
       <Form
         form={form}
         layout="vertical"
-        disabled={create.isPending}
+        disabled={paused || create.isPending}
         onFinish={(values) => {
           if (inFlight.current) return;
           inFlight.current = true;

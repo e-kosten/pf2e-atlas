@@ -89,6 +89,7 @@ impl<'a> ExactRecordRead<'a> {
 
 pub struct WorkspaceWrite {
     session: WriteSession,
+    _saved_write: std::fs::File,
 }
 impl WorkspaceWrite {
     pub fn local_state(&self) -> atlas_local_state::LocalStateResult<LocalStateWrite<'_>> {
@@ -184,8 +185,15 @@ impl AtlasRuntime {
     }
     pub fn write_workspace(&self) -> Result<WorkspaceWrite, RuntimeError> {
         crate::workspace::register_extensions()?;
+        let workspace = Workspace::existing(self.index_path())?;
+        let saved_write = workspace.saved_write_guard()?;
         Ok(WorkspaceWrite {
-            session: Workspace::existing(self.index_path())?.write(WORKSPACE_SCHEMA_VERSION)?,
+            session: workspace.write(WORKSPACE_SCHEMA_VERSION)?,
+            _saved_write: saved_write,
         })
+    }
+
+    pub fn saved_writes_paused(&self) -> Result<bool, RuntimeError> {
+        Ok(Workspace::existing(self.index_path())?.saved_writes_paused()?)
     }
 }

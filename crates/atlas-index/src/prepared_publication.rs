@@ -399,17 +399,29 @@ impl<'owner> PreparedPublication<'owner> {
         Ok(())
     }
     pub fn publish(self) -> Result<(), IndexError> {
-        let apply = |connection: &rusqlite::Connection| {
+        self.publish_inner(false)
+    }
+
+    /// Activate the first stored profiles while the published keyword snapshot
+    /// remains readable. The storage owner will reject unrelated structural work.
+    pub fn publish_first_profiles(self) -> Result<(), IndexError> {
+        self.publish_inner(true)
+    }
+
+    fn publish_inner(self, shared: bool) -> Result<(), IndexError> {
+        let admit = |connection: &rusqlite::Connection| -> Result<bool, IndexError> {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
-            let reusable = if self.rebuild.is_some() {
+            if self.rebuild.is_some() {
                 crate::writer::check_workspace_revision(connection, &self.metadata)?;
                 crate::reference_reset::clear(connection)?;
-                false
+                Ok(false)
             } else {
                 crate::writer::check_expected(connection, &self.metadata)?;
-                crate::writer::prior_compatible(connection)?
-            };
+                crate::writer::prior_compatible(connection)
+            }
+        };
+        let apply = |connection: &rusqlite::Connection, reusable: bool| {
             let native_started = std::time::Instant::now();
             let delta_started;
             {
@@ -438,7 +450,9 @@ impl<'owner> PreparedPublication<'owner> {
             }
             connection.execute("DELETE FROM pending_embedding_values", [])?;
             crate::native_values::prune(connection)?;
-            crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
+            if !shared {
+                crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
+            }
             tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,"Completed reference reconciliation");
             if self.schema >= crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION {
                 let started = std::time::Instant::now();
@@ -460,10 +474,34 @@ impl<'owner> PreparedPublication<'owner> {
             }
             Ok(())
         };
+        let ordinary = |connection: &rusqlite::Connection| apply(connection, admit(connection)?);
         if let Some(rebuild) = &self.rebuild {
-            rebuild.repair.publish(apply)
+            rebuild.repair.publish(ordinary)
+        } else if shared {
+            let tables = self
+                .metadata
+                .context
+                .search_profiles
+                .iter()
+                .map(|model| {
+                    Ok((
+                        crate::schema::native_vector_table(model)?,
+                        crate::schema::native_vector_ddl(model)?,
+                    ))
+                })
+                .collect::<Result<Vec<_>, IndexError>>()?;
+            let reusable = std::cell::Cell::new(false);
+            self.owner.publish_with_new_vector_tables(
+                self.schema,
+                &tables,
+                |connection| {
+                    reusable.set(admit(connection)?);
+                    Ok(())
+                },
+                |connection| apply(connection, reusable.get()),
+            )
         } else {
-            self.owner.publish_incremental(self.schema, apply)
+            self.owner.publish_incremental(self.schema, ordinary)
         }
     }
     fn model_key(&self, model: &SourceSearchProfileIdentity) -> Result<usize, IndexError> {

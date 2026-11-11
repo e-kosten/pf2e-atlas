@@ -45,7 +45,16 @@ export function createAtlasQueryClient() {
         });
       },
     }),
-    mutationCache: new MutationCache({ onError: reportAvailabilityFailure }),
+    mutationCache: new MutationCache({
+      onError: (error) => {
+        reportAvailabilityFailure(error);
+        if (
+          error instanceof AtlasApiError &&
+          error.appError?.code === "setup_in_progress"
+        )
+          void client.invalidateQueries({ queryKey: ["readiness"] });
+      },
+    }),
     defaultOptions: {
       queries: {
         retry: (failureCount, error) => {

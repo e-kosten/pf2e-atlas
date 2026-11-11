@@ -43,7 +43,7 @@ const explanations: Partial<Record<AppErrorCode, string>> = {
   artifact_not_ready: "Build the reference collection in Atlas setup.",
   artifact_incompatible: "Check the reference collection in Atlas setup.",
   service_busy: "Atlas is busy. Try again shortly.",
-  setup_in_progress: "Atlas is updating its reference collection. Try again shortly.",
+  setup_in_progress: "Editing is paused while Atlas prepares semantic search.",
   operation_timeout:
     "Atlas took too long to respond. Check the current values before trying again.",
 };

@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import {
   skipToken,
   useMutation,
@@ -133,9 +134,11 @@ export function useListEntryNote({
   const currentSave = active && save.variables?.draft.token === active.token;
   const saveError = currentSave ? save.error : null;
   const removed = itemWasRemoved(note.error) || itemWasRemoved(saveError);
+  const paused = useSavedWritesPaused();
   const pending = Boolean(currentSave && save.isPending);
 
   function saveNote(draft: Draft, expected: string | null) {
+    if (paused) return;
     save.mutate({
       draft,
       request: {
@@ -204,6 +207,7 @@ export function ListEntryNoteEditor({
   state: ReturnType<typeof useListEntryNote>;
   hidden?: boolean;
 }) {
+  const paused = useSavedWritesPaused();
   const editButton = useRef<HTMLButtonElement>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const reviewTitle = useRef<HTMLSpanElement>(null);
@@ -252,7 +256,7 @@ export function ListEntryNoteEditor({
           {state.detached && draft ? `Note for ${draft.title}` : "Note"}
         </Typography.Text>
         {!draft && note.data && !removed && (
-          <Button ref={editButton} type="text" onClick={state.begin}>
+          <Button ref={editButton} type="text" disabled={paused} onClick={state.begin}>
             {note.data.note ? "Edit" : "Add note"}
           </Button>
         )}
@@ -283,7 +287,7 @@ export function ListEntryNoteEditor({
             value={draft.text}
             autoSize={{ minRows: 2, maxRows: 6 }}
             disabled={pending}
-            readOnly={removed}
+            readOnly={removed || paused}
             onChange={(event) => state.change(event.target.value)}
           />
           <Space wrap>
@@ -291,6 +295,7 @@ export function ListEntryNoteEditor({
               <Button
                 ref={saveButton}
                 type="primary"
+                disabled={paused}
                 loading={pending}
                 onClick={review ? () => state.setReviewOpen(true) : state.submit}
               >

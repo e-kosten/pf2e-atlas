@@ -34,6 +34,54 @@ fn read_session_allows_local_validation_tables_but_cannot_change_saved_data() {
 }
 
 #[test]
+fn saved_write_pause_drains_writers_without_closing_reads() {
+    let (_dir, workspace) = fixture();
+    let write_guard = workspace.saved_write_guard().unwrap();
+    assert!(matches!(
+        workspace.pause_saved_writes(),
+        Err(StorageError::Busy)
+    ));
+    drop(write_guard);
+
+    let pause = workspace.pause_saved_writes().unwrap();
+    assert!(workspace.saved_writes_paused().unwrap());
+    assert!(matches!(
+        workspace.saved_write_guard(),
+        Err(StorageError::SavedWritesPaused)
+    ));
+    assert_eq!(workspace.read(1).unwrap().reference_revision().unwrap(), 0);
+
+    drop(pause);
+    assert!(!workspace.saved_writes_paused().unwrap());
+    workspace.saved_write_guard().unwrap();
+}
+
+#[test]
+fn scoped_publication_rolls_back_on_other_structural_sql() {
+    let (_dir, workspace) = fixture();
+    let owner = workspace.update_owner().unwrap();
+    let result: StorageResult<()> = owner.publish_with_new_vector_tables(
+        1,
+        &[],
+        |_| Ok(()),
+        |connection| {
+            connection.execute("UPDATE saved SET title='changed'", [])?;
+            connection.execute("DROP TABLE saved", [])?;
+            Ok(())
+        },
+    );
+    assert!(matches!(result, Err(StorageError::StructuralPublication)));
+    let read = workspace.read(1).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 0);
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+}
+
+#[test]
 fn abandoned_maintenance_requires_validated_recovery_without_new_revision() {
     let (_dir, workspace) = fixture();
     let owner = workspace.update_owner().unwrap();

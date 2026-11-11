@@ -31,10 +31,14 @@ fn asset_response(path: &str) -> Response {
     let Some(asset) = WebAssets::get(path) else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    Response::builder()
+    let mut response = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, content_type(path))
-        .header(header::CACHE_CONTROL, cache_control(path))
+        .header(header::CACHE_CONTROL, cache_control(path));
+    if path == "index.html" {
+        response = response.header(header::CONTENT_SECURITY_POLICY, "frame-src 'none'");
+    }
+    response
         .body(axum::body::Body::from(asset.data.into_owned()))
         .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response())
 }

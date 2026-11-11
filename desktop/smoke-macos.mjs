@@ -13,7 +13,7 @@ const defaultBundle = fileURLToPath(
 );
 const bundle = resolve(process.argv[2] ?? defaultBundle);
 
-for (const mode of ["normal", "retry"]) {
+for (const mode of ["normal", "retry", "preflight"]) {
   run(mode);
 }
 

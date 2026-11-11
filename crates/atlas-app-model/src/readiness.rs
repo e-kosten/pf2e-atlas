@@ -10,6 +10,9 @@ pub struct AppReadinessView {
     pub search_profiles: Vec<SearchProfileReadinessView>,
     pub status: AppReadinessStatus,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub saved_writes_paused: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub workspace_error: Option<crate::AppError>,

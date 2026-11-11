@@ -26,6 +26,10 @@ pub fn forces_retry() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "retry")
 }
 
+pub fn forces_preflight_retry() -> bool {
+    std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "preflight")
+}
+
 pub fn configure(
     builder: WebviewWindowBuilder<'_, tauri::Wry, AppHandle>,
 ) -> WebviewWindowBuilder<'_, tauri::Wry, AppHandle> {
@@ -62,7 +66,7 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     if source()?.is_none() {
         return Ok(());
     }
-    if forces_retry() {
+    if forces_retry() || forces_preflight_retry() {
         receive_link(app, FIXTURE_LINK);
     }
     let app = app.clone();
@@ -97,14 +101,15 @@ fn run(app: &AppHandle) -> Result<(), String> {
         click_primary(&window, "Set up Atlas")
     })?;
 
-    if forces_retry() {
+    if forces_retry() || forces_preflight_retry() {
         wait_for(deadline, "render failure and retry action", || {
             window
                 .ns_window()
                 .is_ok_and(|current| current == initial_window)
                 && evaluates_true(
                     &window,
-                    "document.querySelector('#details')?.textContent.includes('app view did not finish loading') === true",
+                    "document.querySelector('#details')?.textContent.includes('app view did not finish loading') === true ||
+                     document.querySelector('#details')?.textContent.includes('local service readiness check failed') === true",
                 )
                 && click_primary(&window, "Retry opening Atlas")
         })?;
@@ -117,6 +122,13 @@ fn run(app: &AppHandle) -> Result<(), String> {
                     &window,
                     r#"Boolean(document.querySelector('input[aria-label="Search records"]')?.getClientRects().length)"#,
                 )
+        })
+        .map_err(|error| {
+            let location = window.url().map(|url| url.to_string()).unwrap_or_default();
+            let opening_error = lock(&app.state::<Desktop>().primary)
+                .error()
+                .map(str::to_owned);
+            format!("{error}; location {location}; opening error {opening_error:?}")
         })?;
         let destination = window
             .url()
@@ -159,6 +171,27 @@ fn run(app: &AppHandle) -> Result<(), String> {
     if SETUP_RUNS.load(Ordering::Relaxed) != 1 || app.webview_windows().len() != 1 {
         return Err("opening the record should use one setup run and one window".into());
     }
+    wait_for(deadline, "current document setup attachment", || {
+        evaluates_true(
+            &window,
+            r#"(() => {
+                const attachment = window.__ATLAS_DESKTOP_SETUP__;
+                if (!attachment) return false;
+                sessionStorage.setItem("atlas-smoke-token", attachment.token);
+                return true;
+            })()"#,
+        )
+    })?;
+    window
+        .navigate(window.url().map_err(display)?)
+        .map_err(display)?;
+    wait_for(deadline, "new document setup attachment", || {
+        evaluates_true(
+            &window,
+            r#"Boolean(window.__ATLAS_DESKTOP_SETUP__?.token &&
+                sessionStorage.getItem("atlas-smoke-token") !== window.__ATLAS_DESKTOP_SETUP__.token)"#,
+        )
+    })?;
     window
         .eval(
             r#"void (async () => {
@@ -180,7 +213,91 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 r#"document.documentElement.dataset.atlasSmokeInspect === "denied""#,
             )
         },
-    )
+    )?;
+    window.eval(
+        r#"void (async () => {
+            const ready = await (await fetch("/api/readiness")).json();
+            const policy = (await fetch(location.href)).headers.get("content-security-policy");
+            const response = await fetch("/api/lists", {
+                method: "POST", headers: { "content-type": "application/json" },
+                body: JSON.stringify({ name: "Staged setup smoke", slug: "staged-setup-smoke", tags: [] })
+            });
+            const problem = await response.json();
+            const attachment = window.__ATLAS_DESKTOP_SETUP__;
+            let rejected = false;
+            try {
+                await window.__TAURI__.core.invoke("desktop_setup_action", {
+                    token: sessionStorage.getItem("atlas-smoke-token"),
+                    job: attachment?.setup.job, action: "cancel"
+                });
+            } catch {
+                rejected = true;
+            }
+            if (ready.saved_writes_paused === true && response.status === 409 &&
+                problem.code === "setup_in_progress" && rejected && policy?.includes("frame-src 'none'")) {
+                document.documentElement.dataset.atlasSmokePause = "verified";
+            }
+        })()"#,
+    ).map_err(display)?;
+    wait_for(
+        deadline,
+        "paused editing and rejected stale attachment",
+        || {
+            evaluates_true(
+                &window,
+                r#"document.documentElement.dataset.atlasSmokePause === "verified""#,
+            )
+        },
+    )?;
+    wait_for(deadline, "in-window setup panel", || {
+        evaluates_true(
+            &window,
+            r#"(() => {
+            const button = [...document.querySelectorAll('button')].find(
+                item => item.textContent.trim() === "Semantic setup in progress");
+            if (!button) return false;
+            button.click();
+            return true;
+        })()"#,
+        )
+    })?;
+    wait_for(deadline, "cancel setup in the product", || {
+        evaluates_true(
+            &window,
+            r#"(() => {
+            const button = [...document.querySelectorAll('[role="dialog"] button')].find(
+                item => item.textContent.trim() === "Cancel setup");
+            if (!button || button.disabled) return false;
+            button.click();
+            return true;
+        })()"#,
+        )
+    })?;
+    wait_for(deadline, "cancel releases edit admission", || {
+        evaluates_true(
+            &window,
+            r#"(() => {
+            const root = document.documentElement;
+            if (root.dataset.atlasSmokeRestored === "yes") return true;
+            if (root.dataset.atlasSmokeChecking) return false;
+            root.dataset.atlasSmokeChecking = "true";
+            void (async () => {
+                try {
+                    const readiness = await (await fetch("/api/readiness")).json();
+                    if (readiness.saved_writes_paused === true) return;
+                    const result = await fetch("/api/lists", {
+                        method: "POST", headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ name: "Staged setup smoke", slug: "staged-setup-smoke", tags: [] })
+                    });
+                    if (result.ok) root.dataset.atlasSmokeRestored = "yes";
+                } finally {
+                    delete root.dataset.atlasSmokeChecking;
+                }
+            })();
+            return false;
+        })()"#,
+        )
+    })
 }
 
 fn click_primary(window: &WebviewWindow, label: &str) -> bool {

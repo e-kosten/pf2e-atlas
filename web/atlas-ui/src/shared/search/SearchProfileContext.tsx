@@ -21,6 +21,9 @@ export type SearchProfileSelection = SearchAvailability & {
   canResetLink: boolean;
   resetLink: () => void;
   useKeywordSearch?: () => void;
+  automaticKeyword?: boolean;
+  semanticDefault?: SearchProfileId;
+  promoteKeyword?: (id: SearchProfileId) => void;
   select: (id: SearchProfileId) => void;
   defaultId: SearchProfileId | null;
   preferences: SearchPreferences;
@@ -49,7 +52,7 @@ export function useSearchProfile() {
 }
 type ProfileChoice =
   | { id: string; source: "url" | "preference" | "default" | "selection" }
-  | { id: null; source: "keyword" };
+  | { id: null; source: "keyword" | "keyword_recovery" };
 const KEYWORD_CHOICE: ProfileChoice = { id: null, source: "keyword" };
 function initialChoice(
   explicit: string | null,
@@ -108,7 +111,15 @@ export function useSearchProfileSelection(
   const id = readiness ? (resolved?.id ?? null) : null;
   const selected = profiles.find((profile) => profile.id === id);
   const single = stored.length === 1;
-  const keywordSearch = metadataReady && resolved?.source === "keyword";
+  const keywordSearch =
+    metadataReady &&
+    (resolved?.source === "keyword" || resolved?.source === "keyword_recovery");
+  const semanticDefault = metadataReady
+    ? (stored.find((item) => item.id === preferences.model && item.usable)?.id ??
+      stored.find((item) => item.id === defaultChoice(readiness).id && item.usable)
+        ?.id ??
+      stored.find((item) => item.usable)?.id)
+    : undefined;
   const canResetLink =
     metadataReady && id !== null && (!selected || !selected.stored_vectors);
   const error =
@@ -144,6 +155,9 @@ export function useSearchProfileSelection(
   return {
     id,
     keywordSearch,
+    automaticKeyword: resolved?.source === "keyword",
+    semanticDefault,
+    promoteKeyword: (id) => setChoice({ id, source: "default" }),
     // Preserve explicit link intent while inference still waits for metadata.
     pendingUrlProfile: !readiness && choice?.source === "url" ? choice.id : null,
     profiles,
@@ -164,7 +178,7 @@ export function useSearchProfileSelection(
     },
     useKeywordSearch:
       canResetLink && stored.length === 0
-        ? () => clearUrlProfile(KEYWORD_CHOICE)
+        ? () => clearUrlProfile({ id: null, source: "keyword_recovery" })
         : undefined,
     select: (next) => {
       setChoice({ id: next, source: "selection" });

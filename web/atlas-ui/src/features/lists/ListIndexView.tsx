@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { atlasRouter } from "../../app/router";
 import { useRouterState } from "@tanstack/react-router";
@@ -80,6 +81,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const paused = useSavedWritesPaused();
   const editing = useListSettingsOpening();
   const newList = useRef<HTMLButtonElement>(null);
   const selectedTags = [...state.include, ...state.exclude];
@@ -113,6 +115,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
     <EntityIndexPage
       actions={
         <Button
+          disabled={paused}
           ref={newList}
           icon={<Plus size={16} />}
           onClick={(event) => {
@@ -251,6 +254,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
             editing.begin(list.list_key, opener);
           },
           editing.preparing ? editing.ref : undefined,
+          paused,
         )}
         scroll={{ x: 880 }}
         dataSource={filteredLists}
@@ -294,6 +298,7 @@ function filterLists(
 function listIndexColumns(
   onEdit: (list: SavedListSummaryView, opener: HTMLElement) => void,
   openingKey?: string,
+  paused = false,
 ): ColumnsType<SavedListSummaryView> {
   const columns: ColumnsType<SavedListSummaryView> = [
     {
@@ -367,6 +372,7 @@ function listIndexColumns(
         <PaneIconButton
           icon={<Pencil size={15} />}
           label={`Edit ${list.name}`}
+          disabled={paused}
           aria-busy={openingKey === list.list_key}
           loading={openingKey === list.list_key ? { delay: 200 } : false}
           onClick={(event) => {

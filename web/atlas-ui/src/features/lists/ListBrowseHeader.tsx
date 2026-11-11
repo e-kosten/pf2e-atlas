@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
 import { listsDestination } from "../../app/destinations";
@@ -24,6 +25,7 @@ export function ListBrowseHeader({
   editPreparing?: boolean;
   onRetry: () => void;
 }) {
+  const paused = useSavedWritesPaused();
   const errorNotice = error ? (
     <ErrorNotice
       error={error}
@@ -57,6 +59,7 @@ export function ListBrowseHeader({
                 type="text"
                 className="list-context-secondary"
                 aria-busy={editPreparing}
+                disabled={paused}
                 loading={editPreparing ? { delay: 200 } : false}
                 onClick={(event) => {
                   event.currentTarget.focus({ preventScroll: true });
@@ -65,7 +68,7 @@ export function ListBrowseHeader({
               >
                 Edit list
               </Button>
-              <Button type="primary" onClick={onAddRecords}>
+              <Button type="primary" disabled={paused} onClick={onAddRecords}>
                 Add records
               </Button>
             </>

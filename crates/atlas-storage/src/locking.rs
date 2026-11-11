@@ -14,6 +14,15 @@ pub(crate) fn sidecar(path: &Path, suffix: &str) -> PathBuf {
 /// Lock files are stable: unlinking one would split cooperating processes across
 /// two different locks. The OS releases each open-file lock on process death.
 pub(crate) fn acquire(path: &Path, suffix: &str, exclusive: bool) -> StorageResult<File> {
+    acquire_with_wait(path, suffix, exclusive, Duration::from_millis(250))
+}
+
+pub(crate) fn acquire_with_wait(
+    path: &Path,
+    suffix: &str,
+    exclusive: bool,
+    wait: Duration,
+) -> StorageResult<File> {
     let file = OpenOptions::new()
         .create(true)
         .truncate(false)
@@ -31,7 +40,7 @@ pub(crate) fn acquire(path: &Path, suffix: &str, exclusive: bool) -> StorageResu
         };
         match result {
             Ok(()) => break,
-            Err(TryLockError::WouldBlock) if started.elapsed() < Duration::from_millis(250) => {
+            Err(TryLockError::WouldBlock) if started.elapsed() < wait => {
                 std::thread::sleep(Duration::from_millis(5));
             }
             Err(TryLockError::WouldBlock) => return Err(StorageError::Busy),

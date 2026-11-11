@@ -256,6 +256,19 @@ impl AtlasRuntime {
         setup::ensure_setup(&self.paths, options)
     }
 
+    pub fn staged_desktop_setup(
+        &self,
+        options: RuntimeSetupOptions,
+        stage: crate::DesktopSetupStage,
+        on_publish: impl FnMut(crate::SetupPublication),
+    ) -> RuntimeSetupReport {
+        setup::staged_desktop_setup(&self.paths, options, stage, on_publish)
+    }
+
+    pub fn desktop_setup_stage(&self) -> Option<crate::DesktopSetupStage> {
+        setup::eligible_desktop_stage(&self.paths).ok()
+    }
+
     /// Resolve and persist preparation intent before a manual build. Repeated
     /// model selections add to the configured set; omission never removes one.
     pub fn configure_reference_build(

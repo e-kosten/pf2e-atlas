@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { SavedEditConflictReview } from "../../shared/feedback/SavedEditConflictReview";
 import {
@@ -41,6 +42,7 @@ export function CreateEncounterModal({
   onCreated: (slug: string) => void;
 }) {
   const formId = useId();
+  const paused = useSavedWritesPaused();
   const [form] = Form.useForm<CreateEncounterForm>();
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -61,15 +63,18 @@ export function CreateEncounterModal({
       closable={!mutation.isPending}
       keyboard={!mutation.isPending}
       mask={{ closable: !mutation.isPending }}
-      onOk={() => form.submit()}
+      okButtonProps={{ disabled: paused }}
+      onOk={() => {
+        if (!paused) form.submit();
+      }}
     >
       <Form
         name={formId}
-        disabled={mutation.isPending}
+        disabled={paused || mutation.isPending}
         form={form}
         layout="vertical"
         onFinish={(v) => {
-          if (!mutation.isPending) mutation.mutate(v);
+          if (!paused && !mutation.isPending) mutation.mutate(v);
         }}
       >
         {mutation.error && (
@@ -91,7 +96,7 @@ export function EditEncounterModal({
   onDelete,
   onSave,
   onRefreshConflict,
-  disabled = false,
+  disabled: callerDisabled = false,
   pending = false,
   error,
   feedback,
@@ -110,6 +115,7 @@ export function EditEncounterModal({
   feedback?: ReactNode;
   afterClose?: () => void;
 }) {
+  const disabled = useSavedWritesPaused() || callerDisabled;
   const formId = useId();
   const hasDraft = useRef<() => boolean>(null);
   const [saveBlocked, setSaveBlocked] = useState(false);

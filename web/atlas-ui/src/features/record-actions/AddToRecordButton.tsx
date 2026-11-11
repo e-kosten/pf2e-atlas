@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoices";
 import {
   EncounterAddDifficulty,
@@ -58,6 +59,7 @@ export function AddToRecordButton({
   record?: RecordSummaryView;
   encounterOnly?: boolean;
 }) {
+  const paused = useSavedWritesPaused();
   const [open, setOpen] = useState(false);
   const [hoverHint, setHoverHint] = useState(false);
   const [focusHint, setFocusHint] = useState(false);
@@ -76,6 +78,7 @@ export function AddToRecordButton({
         onOpenChange={setHoverHint}
       >
         <PaneIconButton
+          disabled={paused}
           icon={<ListPlus size={16} />}
           label={label}
           outlined
@@ -125,6 +128,7 @@ function AddToRecordModal({
   record?: RecordSummaryView;
   onClose: () => void;
 }) {
+  const paused = useSavedWritesPaused();
   const [destinationKind, setKind] = useState<DestinationKind>("list");
   const kind = encounterOnly ? "encounter" : canAddEncounter ? destinationKind : "list";
   const [selected, setSelected] = useState<Destination | null>(null);
@@ -369,7 +373,10 @@ function AddToRecordModal({
       cancelButtonProps={{ disabled: submit.isPending }}
       okButtonProps={{
         disabled:
-          adjustmentBlocked || waitingForCreaturePreview || (!creating && !selected),
+          paused ||
+          adjustmentBlocked ||
+          waitingForCreaturePreview ||
+          (!creating && !selected),
       }}
       closable={{ disabled: submit.isPending }}
       keyboard={!submit.isPending}
@@ -385,6 +392,7 @@ function AddToRecordModal({
       }}
       onCancel={cancel}
       onOk={() => {
+        if (paused) return;
         if (creating || kind === "encounter") form.submit();
         else if (selected) run();
       }}
@@ -434,7 +442,7 @@ function AddToRecordModal({
           className="record-destination-picker__form"
           form={form}
           layout="vertical"
-          disabled={submit.isPending}
+          disabled={paused || submit.isPending}
           onFinish={({ name }) => {
             if (adjustmentBlocked || waitingForCreaturePreview) return;
             if (creating && name) run(name.trim());

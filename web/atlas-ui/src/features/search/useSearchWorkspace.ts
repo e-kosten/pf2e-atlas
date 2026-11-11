@@ -135,6 +135,7 @@ export type SearchWorkspaceState = {
   errorMessage: string | null;
   resultsFailed?: boolean;
   refresh: () => void;
+  rerunSemantic?: () => void;
 };
 type UseAtlasWorkspaceOptions = {
   enabled?: boolean;
@@ -143,6 +144,9 @@ type UseAtlasWorkspaceOptions = {
   searchProfileStored?: boolean;
   searchProfileUsable?: boolean;
   keywordSearch?: boolean;
+  automaticKeyword?: boolean;
+  semanticDefault?: string;
+  promoteKeyword?: (id: string) => void;
   includeSearchProfileInUrl?: boolean;
   searchPreferences?: SearchPreferences;
 };
@@ -162,6 +166,9 @@ export function useSearchWorkspace({
   searchProfileStored = true,
   searchProfileUsable = true,
   keywordSearch = false,
+  automaticKeyword = false,
+  semanticDefault,
+  promoteKeyword,
   includeSearchProfileInUrl = true,
   searchPreferences = DEFAULT_SEARCH_PREFERENCES,
 }: UseAtlasWorkspaceOptions): SearchWorkspaceState {
@@ -674,7 +681,11 @@ export function useSearchWorkspace({
     }
     commitSearch(next, intent);
   }
-  function commitSearch(next: SearchFormState, intent: SearchUpdateIntent) {
+  function commitSearch(
+    next: SearchFormState,
+    intent: SearchUpdateIntent,
+    rerunSemantic = false,
+  ) {
     if (next.similarSeed !== search.similarSeed)
       next = {
         ...next,
@@ -708,21 +719,33 @@ export function useSearchWorkspace({
         JSON.stringify(commonCondition(next.filter, kind.definition))
     )
       rememberKindPreference(next.filter, kind.definition);
-    dispatch({
-      type: intent === "submit" ? "search.submitted" : "search.changed",
-      search: next,
-    });
-    void atlasRouter.navigate({
-      ...searchDestination({
-        ...currentSearchLocation(),
-        selectedRecordKey,
-        query: searchStateQueryString(next, urlProfile),
-        page: 1,
-      }),
-      replace: search.similarSeed === next.similarSeed,
-      resetScroll: false,
-      state: true,
-    });
+    const model =
+      keywordSearch &&
+      next.query &&
+      !next.filterError &&
+      (rerunSemantic || (intent === "submit" && automaticKeyword))
+        ? semanticDefault
+        : undefined;
+    const commit = async () => {
+      if (model) promoteKeyword?.(model);
+      dispatch({
+        type: intent === "submit" ? "search.submitted" : "search.changed",
+        search: next,
+      });
+      await atlasRouter.navigate({
+        ...searchDestination({
+          ...currentSearchLocation(),
+          selectedRecordKey,
+          query: searchStateQueryString(next, model ?? urlProfile),
+          page: 1,
+        }),
+        replace: search.similarSeed === next.similarSeed,
+        resetScroll: false,
+        state: true,
+      });
+    };
+    if (model && promoteKeyword) void retrieval.refresh(commit);
+    else void commit();
   }
   function selectRecord(recordKey: string | null) {
     dispatch({ type: "record.selected", recordKey });
@@ -749,6 +772,17 @@ export function useSearchWorkspace({
   return {
     search,
     setSearch,
+    rerunSemantic:
+      keywordSearch &&
+      semanticDefault &&
+      promoteKeyword &&
+      search.query.trim() &&
+      !search.filterError &&
+      !retrieval.recovering &&
+      resultsQuery.data?.page.mode.kind === "text_search" &&
+      resultsQuery.data.page.mode.mode === "lexical"
+        ? () => commitSearch(search, "submit", true)
+        : undefined,
     applySettings: async (next, profile) => {
       seedPreparation.current += 1;
       setPreparingSeed(false);

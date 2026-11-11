@@ -25,6 +25,8 @@ import { searchDestination, type SearchPageInput } from "./destinations";
 import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
+import { SemanticReadyNotice } from "../shared/search/SemanticReadyNotice";
+import { SavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import { GlobalFeedbackProvider } from "../shared/feedback/GlobalFeedback";
 import { ReferenceHelpHost } from "../shared/records/ReferenceHelpHost";
 import { AddToRecordButton } from "../features/record-actions/AddToRecordButton";
@@ -131,17 +133,23 @@ function AtlasWorkspace({
   }
   const queryClient = useQueryClient();
   useEffect(() => {
-    const refreshReference = () => {
+    const refreshReference = (event: Event) => {
+      const semanticOnly = event instanceof CustomEvent && event.detail === "semantic";
       void queryClient.invalidateQueries({
         predicate: (query) =>
-          query.queryKey[0] === "readiness" || isReferenceQuery(query),
+          query.queryKey[0] === "readiness" ||
+          (!semanticOnly && isReferenceQuery(query)),
       });
     };
     window.addEventListener("atlas-reference-updated", refreshReference);
     return () =>
       window.removeEventListener("atlas-reference-updated", refreshReference);
   }, [queryClient]);
-  const readiness = useQuery({ queryKey: ["readiness"], queryFn: getReadiness });
+  const readiness = useQuery({
+    queryKey: ["readiness"],
+    queryFn: getReadiness,
+    refetchInterval: (query) => (query.state.data?.saved_writes_paused ? 1500 : false),
+  });
   const searchProfile = useSearchProfileSelection(readiness.data);
   const workspace = useSearchWorkspace({
     enabled: !routeError && section === "search",
@@ -150,6 +158,9 @@ function AtlasWorkspace({
     searchProfileStored: searchProfile.storedVectors,
     searchProfileUsable: searchProfile.usable,
     keywordSearch: searchProfile.keywordSearch,
+    automaticKeyword: searchProfile.automaticKeyword,
+    semanticDefault: searchProfile.semanticDefault,
+    promoteKeyword: searchProfile.promoteKeyword,
     searchPreferences: searchProfile.preferences,
     includeSearchProfileInUrl:
       searchProfile.profiles.filter((profile) => profile.stored_vectors).length !== 1 ||
@@ -157,55 +168,66 @@ function AtlasWorkspace({
   });
   return (
     <SearchProfileContext value={searchProfile}>
-      <ReferenceHelpHost
-        recordActions={(record) => (
-          <AddToRecordButton recordKey={record.record_key} record={record} />
-        )}
-      >
-        <LinkPickerContext value={LinkConditionPicker}>
-          <AppShell
-            activeView={routeError ? "reference" : section}
-            searchReturnDestination={
-              searchReturn
-                ? {
-                    ...searchDestination(searchReturn.route),
-                    hash: searchReturn.location.hash,
-                    state: searchReturn.location.state,
-                    resetScroll: false,
-                  }
-                : undefined
-            }
-            colorScheme={colorScheme}
-            onColorSchemeChange={onColorSchemeChange}
-            resolvedColorScheme={resolvedColorScheme}
-            readiness={readiness.data}
-            readinessError={readiness.error}
-            checkingReadiness={readiness.isFetching}
-            onCheckReadiness={() => void readiness.refetch()}
-          >
-            <>
-              <Activity
-                mode={!routeError && section === "search" ? "visible" : "hidden"}
+      <SavedWritesPaused value={readiness.data?.saved_writes_paused === true}>
+        <ReferenceHelpHost
+          recordActions={(record) => (
+            <AddToRecordButton recordKey={record.record_key} record={record} />
+          )}
+        >
+          <LinkPickerContext value={LinkConditionPicker}>
+            <AppShell
+              activeView={routeError ? "reference" : section}
+              searchReturnDestination={
+                searchReturn
+                  ? {
+                      ...searchDestination(searchReturn.route),
+                      hash: searchReturn.location.hash,
+                      state: searchReturn.location.state,
+                      resetScroll: false,
+                    }
+                  : undefined
+              }
+              colorScheme={colorScheme}
+              onColorSchemeChange={onColorSchemeChange}
+              resolvedColorScheme={resolvedColorScheme}
+              readiness={readiness.data}
+              readinessError={readiness.error}
+              checkingReadiness={readiness.isFetching}
+              onCheckReadiness={() => void readiness.refetch()}
+            >
+              <SemanticReadyNotice
+                keywordOnly={
+                  searchProfile.keywordSearch === true && !searchProfile.semanticDefault
+                }
+                ready={
+                  searchProfile.semanticDefault !== undefined &&
+                  !readiness.data?.saved_writes_paused
+                }
+                rerun={section === "search" ? workspace.rerunSemantic : undefined}
               >
-                <Suspense
-                  fallback={
-                    <main className="detail-empty">
-                      <LoadingStatus label="Loading search…" />
-                    </main>
-                  }
+                <Activity
+                  mode={!routeError && section === "search" ? "visible" : "hidden"}
                 >
-                  <SearchView
-                    workspace={workspace}
-                    historyState={searchReturn?.location.state}
-                  />
-                </Suspense>
-              </Activity>
-              {routeError ?? <Outlet />}
-              <SelectionSearch key={location.href} />
-            </>
-          </AppShell>
-        </LinkPickerContext>
-      </ReferenceHelpHost>
+                  <Suspense
+                    fallback={
+                      <main className="detail-empty">
+                        <LoadingStatus label="Loading search…" />
+                      </main>
+                    }
+                  >
+                    <SearchView
+                      workspace={workspace}
+                      historyState={searchReturn?.location.state}
+                    />
+                  </Suspense>
+                </Activity>
+                {routeError ?? <Outlet />}
+                <SelectionSearch key={location.href} />
+              </SemanticReadyNotice>
+            </AppShell>
+          </LinkPickerContext>
+        </ReferenceHelpHost>
+      </SavedWritesPaused>
     </SearchProfileContext>
   );
 }

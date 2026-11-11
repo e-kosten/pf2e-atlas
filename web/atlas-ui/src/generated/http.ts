@@ -1048,6 +1048,7 @@ export interface AppReadinessView {
   default_search_profile: SearchProfileId;
   message: string;
   reference_error?: AppError;
+  saved_writes_paused?: boolean;
   search_profiles: SearchProfileReadinessView[];
   status: AppReadinessStatus;
   workspace_error?: AppError;
