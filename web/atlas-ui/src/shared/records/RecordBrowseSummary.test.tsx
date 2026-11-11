@@ -35,6 +35,50 @@ it("uses the selected-text role instead of the primary action color", () => {
   });
 });
 
+it("shows each reviewed scenario use on the same result and scopes grouped rows", () => {
+  const record = {
+    ...summaryFixture("actors:eltha", "Advanced Eltha (9-10)/Eltha (11-12)"),
+    kind_label: "Creature",
+    level_label: "Level 11",
+    publication: "Cavern of Sundered Songs",
+    creature_display: {
+      title: "Eltha",
+      qualifiers: [],
+      uses: [
+        { id: "party-9-10", label: "Party levels 9–10 (Advanced)" },
+        { id: "party-11-12", label: "Party levels 11–12" },
+      ],
+    },
+  };
+  const props = { record, selected: false, onPreview: vi.fn() };
+  const view = render(<RecordBrowseSummary {...props} />);
+  const link = screen.getByRole("link", {
+    name: /Eltha.*Creature 11.*Party levels 9–10 \(Advanced\).*Party levels 11–12/,
+  });
+  expect(link).toHaveAttribute("href", "/records/actors:eltha");
+  expect(within(link).getByText("Party levels 9–10 (Advanced)")).toBeVisible();
+  expect(within(link).getByText("Party levels 11–12")).toBeVisible();
+  view.rerender(<RecordBrowseSummary {...props} qualifiers={["Cavern · Advanced"]} />);
+  expect(screen.getByText("Cavern · Advanced")).toBeVisible();
+  expect(screen.queryByText("Party levels 11–12")).toBeNull();
+  view.rerender(
+    <RecordBrowseSummary
+      {...props}
+      record={{
+        ...record,
+        creature_display: {
+          ...record.creature_display,
+          uses: [
+            { id: "adventure", label: record.publication },
+            record.creature_display.uses[1],
+          ],
+        },
+      }}
+    />,
+  );
+  expect(screen.getAllByText(record.publication)).toHaveLength(1);
+});
+
 it("selects the record from its plain trait badges and retains native modified links", () => {
   const onPreview = vi.fn();
   const record = {

@@ -163,7 +163,11 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   font-size: 16px;
   overflow-wrap: anywhere;
 }
-.reference-result__title > span {
+.reference-result__title .record-scenario-uses {
+  flex-basis: 100%;
+  font-size: 13px;
+}
+.reference-result__title > span:not(.record-scenario-uses) {
   color: var(--text);
   font-size: 14px;
   font-weight: 600;

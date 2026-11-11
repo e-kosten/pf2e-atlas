@@ -23,6 +23,8 @@ import { SpellRankControl } from "./SpellRankControl";
 import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
+import { RecordScenarioUses } from "./RecordScenarioUses";
+import { ValueExplanation } from "../ui/ValueExplanation";
 import type { ReactNode, Ref } from "react";
 import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
@@ -164,6 +166,7 @@ export function recordClassification(presentation: RecordPresentationView) {
 type IdentityActions = ReactNode | ((secondaryActions: ReactNode) => ReactNode);
 export function RecordIdentity({
   identity,
+  scenario,
   equipmentFamily,
   creatureFamily,
   onEquipmentFamilyNavigate,
@@ -184,6 +187,7 @@ export function RecordIdentity({
   badgeExplanations,
 }: {
   identity?: RecordSummaryView;
+  scenario?: NonNullable<RecordSummaryView["creature_display"]>;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
   onEquipmentFamilyNavigate?: () => void;
@@ -209,6 +213,12 @@ export function RecordIdentity({
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
   const hasRarity = Boolean(identity?.rarity?.label.trim());
+  const source = identity?.publication?.trim();
+  const showSource = source && !scenario?.uses.some(({ label }) => label === source);
+  const foundryTitle =
+    scenario && identity && scenario.title !== identity.title
+      ? identity.title
+      : undefined;
   const secondaryActions = referenceHelp ? (
     <RecordProvenanceAction help={referenceHelp} title={referenceTitle} />
   ) : null;
@@ -216,7 +226,7 @@ export function RecordIdentity({
     <DocumentIdentityHeader
       title={
         <>
-          {identity?.title ?? "Reference"}{" "}
+          {scenario?.title ?? identity?.title ?? "Reference"}{" "}
           {actionCost?.state === "value" && actionCost.value?.glyph && (
             <ActionCost fact={actionCost} />
           )}
@@ -285,9 +295,23 @@ export function RecordIdentity({
                 </p>
               );
             })()}
-          {identity?.publication?.trim() && (
+          {(showSource || foundryTitle) && (
             <p className="muted record-reference__source">
-              Source: <span>{identity.publication}</span>
+              {showSource && (
+                <>
+                  Source: <span>{source}</span>
+                </>
+              )}
+              {showSource && foundryTitle && <span aria-hidden="true"> · </span>}
+              {foundryTitle && (
+                <ValueExplanation
+                  label="Foundry title"
+                  title="Foundry title"
+                  content={foundryTitle}
+                >
+                  Source details
+                </ValueExplanation>
+              )}
             </p>
           )}
         </>
@@ -324,6 +348,11 @@ export function RecordIdentity({
         ) : null
       }
     >
+      {scenario && (
+        <div className="record-reference__scenario">
+          <RecordScenarioUses uses={scenario.uses} qualifiers={scenario.qualifiers} />
+        </div>
+      )}
       {(identity?.edition || hasRarity || traits.length > 0 || badgeExplanations) && (
         <div className="badge-row">
           <RecordRarity rarity={identity?.rarity ?? null} />
@@ -339,6 +368,7 @@ export function RecordIdentity({
 }
 export function RecordPresentationIdentity({
   presentation,
+  showScenarioContext = false,
   equipmentFamily,
   creatureFamily,
   onEquipmentFamilyNavigate,
@@ -355,6 +385,7 @@ export function RecordPresentationIdentity({
   actions,
 }: {
   presentation?: RecordPresentationView;
+  showScenarioContext?: boolean;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
   onEquipmentFamilyNavigate?: () => void;
@@ -375,6 +406,13 @@ export function RecordPresentationIdentity({
   actions?: IdentityActions;
 }) {
   const body = presentation?.body;
+  const creatureDisplay = presentation?.identity.creature_display;
+  const scenario =
+    showScenarioContext &&
+    !selection?.embedded_path.length &&
+    creatureDisplay?.uses.length
+      ? creatureDisplay
+      : undefined;
   const identityChanges =
     body?.kind === "spell"
       ? body.value.rank_changes?.filter((change) =>
@@ -413,6 +451,7 @@ export function RecordPresentationIdentity({
       actions={actions}
       showOwnerReturn={showOwnerReturn}
       identity={presentation?.identity}
+      scenario={scenario}
       equipmentFamily={equipmentFamily}
       creatureFamily={creatureFamily}
       onEquipmentFamilyNavigate={onEquipmentFamilyNavigate}

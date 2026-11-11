@@ -218,6 +218,17 @@
   gap: var(--space-control);
   margin-top: var(--space-control);
 }
+.record-scenario-uses {
+  display: grid;
+  gap: 2px;
+  overflow-wrap: anywhere;
+}
+.record-scenario-uses__qualifier {
+  font-weight: 600;
+}
+.record-reference__scenario {
+  font-size: 0.9rem;
+}
 .record-reference__family,
 .record-reference__source {
   margin: var(--space-control) 0 0;

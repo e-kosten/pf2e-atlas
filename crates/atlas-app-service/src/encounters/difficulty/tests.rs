@@ -608,10 +608,10 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
         detail.record.creature_display.as_ref().unwrap().title,
         "Prefect"
     );
-    assert_eq!(
-        detail.record.creature_display.as_ref().unwrap().qualifiers[1],
-        "Wayfinder Origins (Revised) · Party levels 3–4",
-    );
+    let display = detail.record.creature_display.as_ref().unwrap();
+    assert_eq!(display.qualifiers, ["Fist"]);
+    assert_eq!(display.uses[0].id, "party-3-4");
+    assert_eq!(display.uses[0].label, "Party levels 3–4");
     let results = f
         .worker
         .list_records(

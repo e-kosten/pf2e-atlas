@@ -19,37 +19,25 @@ pub(crate) fn creature_display(
     let uses: Vec<_> = display
         .scenario_uses
         .into_iter()
-        .map(|use_| {
-            let label = scenario_use_label(&use_, true).unwrap_or_else(|| use_.publication.clone());
-            (
-                use_.publication,
-                CreatureScenarioUseView {
-                    id: use_.id.into(),
-                    label,
-                },
-            )
+        .map(|use_| CreatureScenarioUseView {
+            id: use_.id.into(),
+            label: scenario_use_label(&use_, true)
+                .or_else(|| record.publication_title.as_value().cloned())
+                .unwrap_or(use_.publication),
         })
         .collect();
-    let mut qualifiers: Vec<_> = display
+    let qualifiers = display
         .label
         .as_ref()
         .and(display.qualifier)
         .map(str::to_owned)
         .into_iter()
         .collect();
-    match uses.as_slice() {
-        [(publication, single)] if publication != &single.label => {
-            qualifiers.push(format!("{publication} · {}", single.label));
-        }
-        [(_, single)] => qualifiers.push(single.label.clone()),
-        [_, _, ..] => qualifiers.push("Multiple scenario uses".into()),
-        [] => (),
-    }
     let title = display.label.or_else(|| record.name.as_value().cloned())?;
     Some(CreatureDisplayView {
         title,
         qualifiers,
-        uses: uses.into_iter().map(|(_, use_)| use_).collect(),
+        uses,
     })
 }
 
@@ -59,13 +47,20 @@ fn party_levels_label([low, high]: [u8; 2]) -> String {
 
 fn scenario_use_label(use_: &CreatureScenarioUse, include_range: bool) -> Option<String> {
     let mut labels = Vec::new();
-    if include_range && let Some(range) = use_.party_levels {
-        labels.push(party_levels_label(range));
+    let range = use_.party_levels.filter(|_| include_range);
+    if let Some(range) = range {
+        let label = party_levels_label(range);
+        labels.push(match use_.qualifier {
+            Some(qualifier) => format!("{label} ({qualifier})"),
+            None => label,
+        });
     }
     if let Some(points) = use_.minimum_challenge_points {
         labels.push(format!("{points}+ Challenge Points"));
     }
-    if let Some(qualifier) = use_.qualifier {
+    if range.is_none()
+        && let Some(qualifier) = use_.qualifier
+    {
         labels.push(qualifier.into());
     }
     (!labels.is_empty()).then(|| labels.join(" · "))
@@ -246,6 +241,26 @@ pub(crate) fn overrides(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scenario_context_labels_keep_each_qualifier_with_its_party_range() {
+        let use_ = |party_levels, qualifier, minimum_challenge_points| CreatureScenarioUse {
+            id: "use",
+            publication: "Cavern".into(),
+            party_levels,
+            minimum_challenge_points,
+            qualifier,
+        };
+        assert_eq!(
+            scenario_use_label(&use_(Some([9, 10]), Some("Advanced"), None), true).as_deref(),
+            Some("Party levels 9–10 (Advanced)"),
+        );
+        assert_eq!(
+            scenario_use_label(&use_(Some([11, 12]), None, Some(28)), true).as_deref(),
+            Some("Party levels 11–12 · 28+ Challenge Points"),
+        );
+        assert_eq!(scenario_use_label(&use_(None, None, None), true), None);
+    }
 
     #[test]
     fn party_level_groups_repeat_actors_only_across_distinct_uses() {

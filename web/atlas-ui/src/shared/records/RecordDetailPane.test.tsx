@@ -4,7 +4,7 @@ import {
   numberFact,
   summaryFixture,
 } from "../../test/fixtures";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { AtlasApiError } from "../../api/atlasApi";
 import type { RecordDetailView } from "../../generated/atlas";
 import { remasterInformationFixture } from "../../test/remasterFixtures";
@@ -159,6 +159,47 @@ describe("RecordDetailPane", () => {
     expect(screen.getByText("AC")).toBeInTheDocument();
     expect(screen.getByText("25")).toBeInTheDocument();
     expect(screen.queryByText("Source presentation")).toBeNull();
+  });
+
+  it("shows the friendly scenario heading and keeps the Foundry title in source details", async () => {
+    const detail = detailFixture("actors:eltha", "Advanced Eltha (9-10)/Eltha (11-12)");
+    const identity = {
+      ...detail.record,
+      kind: "creature",
+      kind_label: "Creature",
+      publication: "Cavern of Sundered Songs",
+      creature_display: {
+        title: "Eltha",
+        qualifiers: [],
+        uses: [
+          { id: "party-9-10", label: "Party levels 9–10 (Advanced)" },
+          { id: "party-11-12", label: "Party levels 11–12" },
+        ],
+      },
+    };
+    detail.record = identity;
+    detail.presentation = {
+      classification: "Creature 11",
+      identity,
+      body: { kind: "creature", value: actorFixture() },
+      content: [],
+      embedded: [],
+    };
+    render(
+      <RecordDetailPane
+        detail={detail}
+        loading={false}
+        onReference={vi.fn()}
+        showScenarioContext
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Eltha" })).toBeVisible();
+    expect(screen.getByText("Party levels 9–10 (Advanced)")).toBeVisible();
+    expect(screen.getByText("Party levels 11–12")).toBeVisible();
+    expect(screen.queryByText(identity.title)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Source details/ }));
+    const sourceDetails = await screen.findByRole("dialog", { name: "Foundry title" });
+    expect(within(sourceDetails).getByText(identity.title)).toBeInTheDocument();
   });
 });
 
