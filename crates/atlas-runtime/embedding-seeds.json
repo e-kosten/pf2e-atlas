@@ -1,1 +1,18 @@
-{}
+{
+  "bge-base": {
+    "tag": "embedding-seed/bge-base/v1",
+    "asset": "bge-base-seed-v1.atlas-seed.gz",
+    "file": {
+      "bytes": 464072105,
+      "sha256": "816b9871c302147df08e66f1c7bccbb5f76d6838f404671c00b47a360182c79c"
+    }
+  },
+  "embeddinggemma": {
+    "tag": "embedding-seed/embeddinggemma/v1",
+    "asset": "embeddinggemma-seed-v1.atlas-seed.gz",
+    "file": {
+      "bytes": 464309534,
+      "sha256": "7b3895c6bc23a2138dea12619024bf51d8d153cdad326e695e0392b080e508aa"
+    }
+  }
+}
