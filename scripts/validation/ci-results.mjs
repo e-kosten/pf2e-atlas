@@ -20,7 +20,6 @@ export function requireSelectedJobs(jobs) {
     "dev",
     "tooling",
     "embedding",
-  "embedding-seed-coverage",
     "windows",
     "audit",
   ]) {
@@ -40,7 +39,6 @@ export function requireSelectedJobs(jobs) {
     research: flags.research === "true",
     skill: flags.skill === "true",
     embedding: flags.embedding === "true",
-    "embedding-seed-coverage": flags["embedding-seed-coverage"] === "true",
     advisories: flags.audit === "true",
   };
   for (const [job, required] of Object.entries(expected)) {

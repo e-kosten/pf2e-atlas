@@ -197,7 +197,10 @@ setup with both public seeds and zero corpus inference on the packaged Linux x64
 CLI. The same check runs locally with
 `python3 scripts/release/check-embedding-seeds.py /path/to/atlas`.
 
-The targeted PR job and nonpublishing feature builds report known coverage gaps.
+Full-corpus coverage runs during release packaging. Ordinary PR validation can
+pass while a staged migration still needs refreshed assets. To check a change
+early, run the nonpublishing **release build check** workflow on its branch or
+run the local checker with `--advisory` to report known gaps.
 A shared nightly can publish a known gap if other checks pass. Its release notes
 name the affected profiles and show **Build embeddings locally** and
 `atlas setup --build-embeddings-locally`. That explicit choice can take an hour
