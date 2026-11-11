@@ -247,8 +247,9 @@ evidence in the source note.
 
 An override declares a base, a Weak or Elite adjustment, a reviewed use ID,
 and an exact published target. Include a source note explaining when the
-target applies and any custom mechanics. Verify both records and their usage
-conditions on a source upgrade. Test the target's source adjustment and
+target applies and any custom mechanics. When adding an override or upgrading
+the source, verify that both records belong to the same adventure and check
+their usage conditions. Test the target's source adjustment and
 effective stats, including published records whose stats already include the
 adjustment. See the [creature audit command](developer-commands.md#review-creature-families)
 for inventory and candidate discovery.

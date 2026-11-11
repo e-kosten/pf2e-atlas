@@ -6,7 +6,6 @@ key = "pfs-season-1-bestiary:7PXPcv8x3Wnc730i"
 name = "Prefect (Fist) (3-4)"
 label = "Prefect"
 qualifier = "Fist"
-publication = "Pathfinder Society Quest #9: Wayfinder Origins"
 
 [[members.uses]]
 id = "party-3-4"
@@ -17,7 +16,6 @@ key = "pfs-season-1-bestiary:UyJUEp0asfGDBvYa"
 name = "Elite Prefect (Fist) (3-4)"
 label = "Elite Prefect"
 qualifier = "Elite Fist"
-publication = "Pathfinder Society Quest #9: Wayfinder Origins"
 
 [[members.uses]]
 id = "party-3-4"
@@ -28,7 +26,6 @@ key = "pfs-season-1-bestiary:GdYMRHVctjyvOD7D"
 name = "Prefect (Fist) (5-6)"
 label = "Prefect"
 qualifier = "Fist"
-publication = "Pathfinder Society Quest #9: Wayfinder Origins"
 
 [[members.uses]]
 id = "party-5-6"
@@ -39,7 +36,6 @@ key = "pfs-season-1-bestiary:NQgsuMnXXABeebuS"
 name = "Prefect (Electrowhip) (3-4)"
 label = "Prefect"
 qualifier = "Electrowhip"
-publication = "Pathfinder Society Quest #9: Wayfinder Origins"
 
 [[members.uses]]
 id = "party-3-4"
@@ -50,7 +46,6 @@ key = "pfs-season-1-bestiary:oKACWOSiBpxgMqa4"
 name = "Prefect (Electrowhip) (5-6)"
 label = "Prefect"
 qualifier = "Electrowhip"
-publication = "Pathfinder Society Quest #9: Wayfinder Origins"
 
 [[members.uses]]
 id = "party-5-6"

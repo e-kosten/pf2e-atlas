@@ -561,7 +561,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
     let target = "pfs-season-1-bestiary:UyJUEp0asfGDBvYa";
     let f = crate::test_support::fixture_worker_with_executor(
         crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, || {
-            let npc = |id, name, level, hp| {
+            let npc = |id, name, level, hp, publication| {
                 record(
                     "pfs-season-1-bestiary",
                     "Actor",
@@ -570,7 +570,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
                         "system": {
                             "details": {
                                 "level": {"value": level},
-                                "publication": {"title": "Pathfinder Society Quest #9: Wayfinder Origins"}
+                                "publication": {"title": publication}
                             },
                             "attributes": {"hp": {"max": hp, "value": hp}}
                         }
@@ -579,8 +579,20 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
             };
             Ok(open_source_fixture(
                 vec![
-                    npc("7PXPcv8x3Wnc730i", "Prefect (Fist) (3-4)", 3, 50),
-                    npc("UyJUEp0asfGDBvYa", "Elite Prefect (Fist) (3-4)", 4, 65),
+                    npc(
+                        "7PXPcv8x3Wnc730i",
+                        "Prefect (Fist) (3-4)",
+                        3,
+                        50,
+                        "Pathfinder Society Quest #9: Wayfinder Origins (Revised)",
+                    ),
+                    npc(
+                        "UyJUEp0asfGDBvYa",
+                        "Elite Prefect (Fist) (3-4)",
+                        4,
+                        65,
+                        "Pathfinder Society Quest #9: Wayfinder Origins",
+                    ),
                 ],
                 false,
             )?)
@@ -591,7 +603,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
     assert_eq!(detail.record.title, "Prefect (Fist) (3-4)");
     assert_eq!(
         detail.record.creature_display.as_ref().unwrap().qualifiers[1],
-        "Wayfinder Origins · Party levels 3–4",
+        "Wayfinder Origins (Revised) · Party levels 3–4",
     );
     let encounter = f
         .worker

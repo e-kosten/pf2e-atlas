@@ -31,7 +31,6 @@ pub(super) struct Member {
     #[serde(default)]
     pub coordinates: Coordinates,
     pub named_base: Option<RecordKey>,
-    pub publication: Option<String>,
     #[serde(default)]
     pub uses: Vec<ScenarioUse>,
 }

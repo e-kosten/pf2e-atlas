@@ -78,13 +78,8 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
                 .label
                 .as_ref()
                 .is_some_and(|label| label.trim().is_empty())
-            || (!member.uses.is_empty()
-                && member
-                    .publication
-                    .as_ref()
-                    .is_none_or(|title| title.trim().is_empty()))
         {
-            return Err(format!("invalid title or publication for {}", member.key));
+            return Err(format!("invalid title for {}", member.key));
         }
         if let Some(base) = &member.named_base
             && (base == &member.key
@@ -127,7 +122,6 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
         if base.named_base.is_some()
             || target.named_base.is_some()
             || entry.base == entry.target
-            || base.publication != target.publication
             || entry.source_note.trim().is_empty()
             || !target.uses.iter().any(|use_| {
                 use_.party_levels == scope.party_levels

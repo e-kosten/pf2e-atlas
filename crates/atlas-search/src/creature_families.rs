@@ -76,10 +76,6 @@ fn matches(member: &Member, summary: &SourceRecordSummary) -> bool {
     member.key == summary.key
         && summary.record_kind.as_value() == Some(&RecordKind::Creature)
         && summary.name.as_value() == Some(&member.name)
-        && member
-            .publication
-            .as_ref()
-            .is_none_or(|title| summary.publication_title.as_value() == Some(title))
 }
 
 pub fn creature_display(summary: &SourceRecordSummary) -> Option<CreatureDisplay> {
@@ -242,7 +238,8 @@ impl AtlasRetrievalService {
         let Some((_, family, member)) = member_for(&base.key) else {
             return Ok(None);
         };
-        if !matches(member, base) {
+        // The scenario choice is only presented when the source identifies the adventure.
+        if !matches(member, base) || base.publication_title.as_value().is_none() {
             return Ok(None);
         }
         let Some(scope) = select_use(member, scenario_use) else {
@@ -272,6 +269,55 @@ impl AtlasRetrievalService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_missing_adventure_title_keeps_the_scenario_override_unavailable() {
+        use crate::test_support::{open_source_fixture, record};
+        use serde_json::json;
+
+        let base = RecordKey::parse("pfs-season-1-bestiary:7PXPcv8x3Wnc730i").unwrap();
+        let (retrieval, _fixture) = open_source_fixture(
+            vec![
+                record(
+                    base.pack().as_str(),
+                    "Actor",
+                    json!({
+                        "_id": base.id().as_str(), "type": "npc", "name": "Prefect (Fist) (3-4)",
+                        "system": {"details": {"level": {"value": 3}}}
+                    }),
+                ),
+                record(
+                    base.pack().as_str(),
+                    "Actor",
+                    json!({
+                        "_id": "UyJUEp0asfGDBvYa", "type": "npc", "name": "Elite Prefect (Fist) (3-4)",
+                        "system": {"details": {
+                            "level": {"value": 4},
+                            "publication": {"title": "Pathfinder Society Quest #9: Wayfinder Origins"}
+                        }}
+                    }),
+                ),
+            ],
+            false,
+        )
+        .unwrap();
+        let summary = retrieval
+            .get_records(GetRecordsRequest {
+                record_keys: &[base],
+            })
+            .unwrap()
+            .records
+            .pop()
+            .unwrap();
+        assert!(creature_display(&summary).unwrap().scenario_uses.is_empty());
+        assert!(retrieval.creature_family_for(&summary).unwrap().is_some());
+        assert_eq!(
+            retrieval
+                .creature_adjustment_override(&summary, CreatureAdjustment::Elite, None)
+                .unwrap(),
+            None,
+        );
+    }
 
     #[test]
     fn a_sole_challenge_point_use_requires_explicit_selection() {

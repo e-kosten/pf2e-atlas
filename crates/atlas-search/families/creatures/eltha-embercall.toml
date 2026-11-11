@@ -5,7 +5,6 @@ source_note = "Cavern of Sundered Songs supplies a level 11 block with separate 
 key = "pfs-season-3-bestiary:xiBVzPUwh1QI2lIs"
 name = "Eltha Embercall (9-10)"
 label = "Eltha Embercall"
-publication = "Pathfinder Society Scenario #3-15: Cavern of Sundered Songs"
 
 [[members.uses]]
 id = "party-9-10"
@@ -15,7 +14,6 @@ party_levels = [9, 10]
 key = "pfs-season-3-bestiary:3r3etd3bUOn58TH3"
 name = "Advanced Eltha Embercall (9-10)/Eltha Embercall (11-12)"
 label = "Eltha Embercall"
-publication = "Pathfinder Society Scenario #3-15: Cavern of Sundered Songs"
 
 [[members.uses]]
 id = "party-9-10"
@@ -30,7 +28,6 @@ party_levels = [11, 12]
 key = "pfs-season-3-bestiary:pYR3Ovkd9eKQQ5qE"
 name = "Eltha Embercall (11-12, 28+ CP)"
 label = "Eltha Embercall"
-publication = "Pathfinder Society Scenario #3-15: Cavern of Sundered Songs"
 
 [[members.uses]]
 id = "party-11-12-cp-28"
