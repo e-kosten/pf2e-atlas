@@ -243,9 +243,27 @@ impl CapturedBuildInputs {
         workspace: &atlas_storage::Workspace,
         schema: u32,
     ) -> Result<BuildArtifactReport, IngestError> {
+        self.build_with_seed_policy(workspace, schema, None, crate::SeedBuildPolicy::Strict)
+    }
+
+    pub fn build_with_seed_policy<'a>(
+        self,
+        workspace: &atlas_storage::Workspace,
+        schema: u32,
+        seed_loader: Option<&'a mut crate::EmbeddingSeedLoader<'a>>,
+        policy: crate::SeedBuildPolicy,
+    ) -> Result<BuildArtifactReport, IngestError> {
         let started = Instant::now();
         let (owner, scratch) = begin_build(workspace, schema, &self.options)?;
-        finish_build(workspace, schema, &owner, scratch, self, started, None)
+        finish_build(
+            workspace,
+            schema,
+            &owner,
+            scratch,
+            self,
+            started,
+            seed_loader.map_or(BuildMode::Infer, |load| BuildMode::Seeded(load, policy)),
+        )
     }
     pub(crate) fn options(&self) -> &BuildArtifactOptions {
         &self.options
@@ -272,7 +290,15 @@ pub fn build_artifact_with_revision(
     let started = Instant::now();
     let (owner, scratch) = begin_build(workspace, schema, &options)?;
     let inputs = CapturedBuildInputs::capture_with_revision(options, revision)?;
-    finish_build(workspace, schema, &owner, scratch, inputs, started, None)
+    finish_build(
+        workspace,
+        schema,
+        &owner,
+        scratch,
+        inputs,
+        started,
+        BuildMode::Infer,
+    )
 }
 
 pub fn rebuild_artifact(
@@ -300,7 +326,7 @@ pub fn rebuild_artifact(
         scratch,
         inputs,
         started,
-        Some(repair),
+        BuildMode::Repair(repair),
     )
 }
 
@@ -349,6 +375,15 @@ fn requested_configuration(
     }
 }
 
+enum BuildMode<'a> {
+    Infer,
+    Seeded(
+        &'a mut crate::EmbeddingSeedLoader<'a>,
+        crate::SeedBuildPolicy,
+    ),
+    Repair(atlas_storage::ReferenceRepair<'a>),
+}
+
 fn finish_build(
     workspace: &atlas_storage::Workspace,
     schema: u32,
@@ -356,8 +391,13 @@ fn finish_build(
     scratch: atlas_index::BuildScratch,
     inputs: CapturedBuildInputs,
     started: Instant,
-    repair: Option<atlas_storage::ReferenceRepair<'_>>,
+    mode: BuildMode<'_>,
 ) -> Result<BuildArtifactReport, IngestError> {
+    let (repair, mut seed_loader, policy) = match mode {
+        BuildMode::Infer => (None, None, crate::SeedBuildPolicy::Strict),
+        BuildMode::Seeded(load, policy) => (None, Some(load), policy),
+        BuildMode::Repair(repair) => (Some(repair), None, crate::SeedBuildPolicy::Strict),
+    };
     let rebuild = repair.is_some();
     let reuse = match &repair {
         Some(repair) => atlas_index::ReferenceReuseReader::fresh(repair),
@@ -395,15 +435,17 @@ fn finish_build(
     let product_record_count = publication.product_record_count();
     let mut profiles = Vec::new();
     for config in &options.search_profiles {
-        profiles.push(
-            crate::native_execution::NativeExecution {
-                publication: &mut publication,
-                raw_inputs: &prepared.native_inputs,
-                options: &options,
-                semantic_units: prepared.document_units,
-            }
-            .execute_profile(config)?,
-        );
+        let execution = crate::native_execution::NativeExecution {
+            publication: &mut publication,
+            raw_inputs: &prepared.native_inputs,
+            options: &options,
+            semantic_units: prepared.document_units,
+        };
+        let report = match seed_loader.as_deref_mut() {
+            Some(load) => execution.execute_seeded(config, scratch.path(), load, policy)?,
+            None => execution.execute_profile(config)?,
+        };
+        profiles.push(report);
     }
     let inferred_inputs = profiles.iter().map(|p| p.inferred_inputs).sum();
     let reused_inputs = profiles.iter().map(|p| p.reused_inputs).sum();

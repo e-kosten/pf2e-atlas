@@ -293,6 +293,28 @@ impl<'owner> PreparedPublication<'owner> {
         selected_tx.commit()?;
         Ok(output)
     }
+    /// Select authenticated seed values into private staging without checkpointing them.
+    pub fn stage_seeded(
+        &mut self,
+        model: &SourceSearchProfileIdentity,
+        selection: crate::SeedSelection<'_>,
+    ) -> Result<(), IndexError> {
+        let ordinal = self.model_key(model)?;
+        if selection.model != model {
+            return Err(invalid("seed profile differs from publication"));
+        }
+        let selected_tx = rusqlite::Transaction::new_unchecked(
+            &self.selected,
+            rusqlite::TransactionBehavior::Immediate,
+        )?;
+        for (input, bytes) in selection.values {
+            let checksum = crate::embedding_values::hash_bytes(&bytes);
+            self.remember(ordinal, &input, &checksum, Some(&bytes))?;
+        }
+        selected_tx.commit()?;
+        Ok(())
+    }
+
     pub fn stage_inferred(
         &mut self,
         model: &SourceSearchProfileIdentity,

@@ -387,6 +387,12 @@ recovery keeps admission closed. Normal setup preserves the workspace file and
 saved tables. Existing pre-release formats are rejected explicitly.
 
 Setup owns source-fetch/offline policy, pinned model preparation and readiness.
+For managed English source with the bundled manifest, setup requires a published
+corpus embedding asset for inputs that miss local reuse. It resolves each
+requested profile from a compiled tag, checksum and byte count only on its first
+miss. Explicit local-build consent allows corpus inference on misses for that
+invocation. Query-model preparation remains independent. Custom source and locale
+builds retain local inference. Check and offline runs do not fetch seed files.
 After assets are prepared, it reads the admitted reference context and chooses a
 source build or compatible metadata-only upgrade. It does not backfill projections
 just before replacing them through source ingest. Force bypasses the freshness

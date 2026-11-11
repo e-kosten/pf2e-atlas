@@ -34,3 +34,18 @@ including candidate queries against a predecessor artifact. Bump the execution
 ID when behavior is incompatible. Explicit `atlas setup` is the migration
 window for rebuilding an affected profile and may interrupt use of the app.
 See [dependency maintenance](../../development/dependencies.md).
+
+## Precomputed corpus embeddings
+
+Pin and publish corpus data independently for each model. For managed English
+setup, supply a verified asset after local reuse misses and before requiring
+explicit local inference. A private maintainer refresh reuses matching authenticated inputs from the
+previous published seed and infers only missing values. Official release
+validation uses a clean workspace and the packaged candidate to prove complete
+coverage. PR and nightly validation report only fully diagnosed gaps as
+advisory. Nightly publication carries that report with its exact checked
+archive and discloses affected models in the release notes. Product setup keeps
+local inference explicit on either channel. Retain
+the predecessor compatibility probe for changes to numerical behavior. See the
+[embedding asset contract](../artifact-contract.md#published-corpus-embedding-assets)
+and [release procedure](../../development/releases.md#refresh-precomputed-corpus-embeddings).

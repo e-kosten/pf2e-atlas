@@ -128,9 +128,10 @@ impl Launcher {
 }
 
 pub fn setup(
+    build_embeddings_locally: bool,
     progress: impl Fn(Value) + Send + 'static,
     hold: impl FnOnce(ChildStdin),
-) -> Result<(), String> {
+) -> Result<(), Value> {
     let mut command = command()?;
     command.args([
         "setup",
@@ -138,6 +139,9 @@ pub fn setup(
         "--desktop-progress",
         "--desktop-cancel-on-eof",
     ]);
+    if build_embeddings_locally {
+        command.arg("--build-embeddings-locally");
+    }
     #[cfg(debug_assertions)]
     if let Some(source) = crate::smoke::source()? {
         crate::smoke::record_setup();
@@ -178,23 +182,28 @@ pub fn setup(
         return Ok(());
     }
     let reasons = report["not_ready_reasons"].as_array();
-    let reason = reasons
-        .and_then(|reasons| {
-            reasons
-                .iter()
-                .rev()
-                .find(|reason| reason["status"] == "failed")
-                .or_else(|| {
-                    reasons
-                        .iter()
-                        .rev()
-                        .find(|reason| reason["status"] == "blocked")
-                })
-                .or_else(|| reasons.first())
-        })
+    let reason = reasons.and_then(|reasons| {
+        reasons
+            .iter()
+            .rev()
+            .find(|reason| reason["status"] == "failed")
+            .or_else(|| {
+                reasons
+                    .iter()
+                    .rev()
+                    .find(|reason| reason["status"] == "blocked")
+            })
+            .or_else(|| reasons.first())
+    });
+    let message = reason
         .and_then(|reason| reason["message"].as_str())
         .unwrap_or("Setup could not finish. Check the workspace and try again.");
-    Err(reason.into())
+    if reason.is_some_and(|reason| reason["code"] == "embedding_seed_unavailable") {
+        return Err(
+            serde_json::json!({ "code": "embedding_seed_unavailable", "message": message }),
+        );
+    }
+    Err(message.into())
 }
 
 fn decode<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, String> {

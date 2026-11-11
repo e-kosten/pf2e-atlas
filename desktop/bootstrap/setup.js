@@ -38,7 +38,22 @@ function failure(error) {
   busy = false;
   ui.activity.hidden = true;
   ui.diagnostic.hidden = false;
-  ui.details.textContent = String(error);
+  ui.details.textContent = error?.message || String(error);
+  if (error?.code === "embedding_seed_unavailable") {
+    status(
+      "Precomputed embeddings are unavailable",
+      "Try the download again, or generate embeddings on this computer. A local build can take an hour or more.",
+    );
+    action(ui.primary, "Retry download", () =>
+      work("Preparing Atlas", "Retrying the download.", "prepare"),
+    );
+    action(ui.secondary, "Build embeddings locally", () =>
+      work("Preparing Atlas", "Generating missing embeddings on this computer.", "prepare", {
+        buildEmbeddingsLocally: true,
+      }),
+    );
+    return;
+  }
   status(
     "Atlas needs your attention",
     "Try again, or check the details for the next step.",
@@ -47,7 +62,7 @@ function failure(error) {
   action(ui.secondary);
 }
 
-async function work(heading, description, command) {
+async function work(heading, description, command, args) {
   if (busy) return;
   busy = true;
   ui.diagnostic.hidden = true;
@@ -69,7 +84,7 @@ async function work(heading, description, command) {
   };
   let result;
   try {
-    result = await invoke(command);
+    result = await invoke(command, args);
   } catch (error) {
     failure(error);
     return;

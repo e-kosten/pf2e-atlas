@@ -190,6 +190,60 @@ Published release assets are treated as immutable. Fix bad published releases wi
 
 Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
 
+### Refresh precomputed corpus embeddings
+
+Official releases, including release candidates, require clean managed English
+setup with both public seeds and zero corpus inference on the packaged Linux x64
+CLI. The same check runs locally with
+`python3 scripts/release/check-embedding-seeds.py /path/to/atlas`.
+
+The targeted PR job and nonpublishing feature builds report known coverage gaps.
+A shared nightly can publish a known gap if other checks pass. Its release notes
+name the affected profiles and show **Build embeddings locally** and
+`atlas setup --build-embeddings-locally`. That explicit choice can take an hour
+or more. Users can retry a transient download or wait for a nightly with updated
+pins. An unexpected mismatch, failed download or bad checksum still blocks.
+A numerical transition needs reviewed evidence in
+`scripts/validation/embedding-seed-transitions.json`. Use the unreviewed-mismatch
+diagnostic for the two numerical identities and the candidate manifest for the
+exact pinned asset. The map is keyed by profile and each entry has `pin`, `previous` and `expected` fields. Keep the
+separate [compatibility fixture review](#publish-an-embedding-compatibility-fixture)
+applicable and remove transition evidence when updating the corresponding pin.
+
+Build and verify from the reviewed Git ref carrying the previous public pins.
+For example, use `origin/main` when it carries the desired pins.
+
+```sh
+just embedding-seed-refresh --baseline-ref origin/main --output scratch/seed-refresh
+```
+
+The command builds the candidate from the current clean checkout, downloads the
+previous seeds, and reuses compatible vectors in a disposable workspace. It
+computes missing vectors and exports only the affected profiles. Use
+`--rebuild-profile "profile=reviewed reason"` for a reviewed numerical contract
+change. The receipt records the reason and the prior pin. In a second fresh
+workspace the command checks both profiles with zero inference, using new files
+where produced and the prior assets elsewhere. It compares semantic search
+results against the producer. Review
+`result/receipt.json` and, if it exists, `result/proposed-pins.json`. A fully
+covered refresh reports an empty `replacements` object, writes the receipt and
+keeps the existing pins. A refresh with a new BGE input and full Gemma coverage
+proposes only a BGE replacement.
+After a failed run, rerun in the same output directory to reuse verified
+downloads. Completed outputs are kept for review.
+
+Once authorized, publish each replacement as a seed-only prerelease under
+`embedding-seed/<profile>/v<N>`, such as `embedding-seed/bge-base/v2`. Retain the
+old releases for previous app versions and keep latest disabled. If a proposed
+tag already exists, rerun with `--next-revision <profile>=<number>` and a new
+output directory. Verify the actual uploaded bytes and anonymous URLs before
+applying the proposed pin change to `crates/atlas-runtime/embedding-seeds.json`.
+Apply only the replacements from the proposal and keep any independently updated
+pins, since the proposal starts from the reviewed baseline ref.
+Use the literal slash tag in the pin. The final packaged check uses both
+embedded pins, and a missing vector blocks the next official release that needs
+it.
+
 ### Publish an embedding compatibility fixture
 
 The release schema cutoff pins a published schema 41 CLI archive for each
@@ -216,7 +270,9 @@ Pass `--profile bge-base` or `--profile embeddinggemma` when replacing a single
 profile's fixture. Inspect the archive contents and run the probe with
 `--bundle`, its reported `--sha256`, and a fresh output directory before
 publication. After publication is authorized, create a fixture-only draft under
-a new `embedding-baseline-v<N>` tag at the producer commit. Mark it as a
+a new `fixtures/embedding-compatibility/v<N>` tag at the producer commit.
+Continue the revision sequence from `embedding-baseline-v1` and preserve that
+published release. Mark the new release as a
 prerelease with latest disabled. Attach the verified archive to the draft and
 then publish. Download the published bytes and rerun the probe before pinning.
 

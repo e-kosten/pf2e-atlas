@@ -136,3 +136,21 @@ The report includes exact actor keys, source paths, actor and token names,
 publication, creature level, and any typed Weak or Elite adjustment. It also
 lists candidates that share a publication and token name while using different
 actor titles. Review the actual actors before writing a declaration.
+
+## Refresh published embedding assets
+
+Use `just embedding-seed-refresh --baseline-ref <reviewed-ref> --output <task-directory>`.
+The command records both commits, executable hashes, prior pins, candidate
+source and model identities, and per-profile reuse and inference counts.
+Verified replacements and proposed pins appear under `result/` after the
+second workspace passes strict setup and query comparison. The receipt also
+records coverage for runs that retain both prior assets. See the
+[release runbook](releases.md#refresh-precomputed-corpus-embeddings) for upload
+and pinning.
+
+The nightly package check writes a separate version 1 JSON receipt with
+`source_sha`, `tag`, `archive_sha256`, both `pins` and both `profiles`.
+A covered profile reports reuse and inference counts. A gap reports
+`missing_input` with its first hash or `reviewed_model_transition`.
+The publisher matches the receipt to the candidate pins and the actual
+Linux x64 CLI-only archive before it uses the result in release notes.

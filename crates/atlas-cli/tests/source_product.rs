@@ -763,6 +763,18 @@ fn setup_check_and_cache_cleanup_preserve_workspace_and_saved_state() {
     let models = f.root.join("models");
     fs::create_dir_all(&models).unwrap();
     fs::write(models.join("cached-model"), "cache").unwrap();
+    let rejected = Command::new(env!("CARGO_BIN_EXE_atlas"))
+        .args([
+            "setup",
+            "--build-embeddings-locally",
+            "--embedding-cache-path",
+        ])
+        .arg(&models)
+        .args(["clean", "--embeddings", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(rejected.status.code(), Some(2));
+    assert!(models.join("cached-model").is_file());
     for preview in [true, false] {
         let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
         command

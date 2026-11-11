@@ -183,3 +183,10 @@ release-check-tools:
 [group('development')]
 dev-tool-build:
     cd {{ quote(justfile_directory()) }} && node scripts/development/build-tool.mjs
+
+[doc('Refresh and verify corpus embeddings from a reviewed prior pin ref')]
+[group('release')]
+[positional-arguments]
+embedding-seed-refresh *args:
+    cargo build --locked --release -p atlas-cli -p atlas-dev --no-default-features
+    target/release/atlas-dev embedding-seed refresh --atlas target/release/atlas "$@"

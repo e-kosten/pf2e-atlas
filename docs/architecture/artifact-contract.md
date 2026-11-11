@@ -925,6 +925,25 @@ the model in use stops the build. Explicit index validation checks active
 digests, and explicit index rebuild verifies counts afresh. Maintenance recovery
 retains its reference-data checks without consulting the optimization proof.
 
+### Published corpus embedding assets
+
+An asset supplies one profile's published vectors to the existing build
+selection path. Its gzip stream starts with the eight-byte format identifier
+`ATLSEED1`, followed by a little-endian u32 header size and a JSON header.
+The header records the producer commit, source revision and fingerprint,
+reference preparation digest (including the bundled supplement), locale, full
+model identity, and row count.
+Each row contains a 32-byte input hash, little-endian u32 token count and
+the model's little-endian f32 vector. Input hashes are unique and strictly
+increasing. Asset revisions and format versions are independent.
+
+Setup authenticates the compressed file before parsing, checks structure and
+numerical values, and uses bounded private build scratch for lookup. The current
+prepared input's exact hash and token count must match under a compatible
+numerical contract. The build tries local reuse first. Seed values enter private
+selection and the existing atomic publication directly, so they do not create a
+durable pending cache or require a schema change.
+
 ### Native embedding storage
 
 Workspace migration 10 replaces the permanent numerical checkpoint cache, wide

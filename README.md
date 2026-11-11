@@ -41,8 +41,8 @@ atlas setup
 
 Run setup after installation, when Atlas asks you to upgrade the workspace, or
 when you want to update reference data. Setup downloads and verifies the pinned
-Pathfinder reference content and a search model, then prepares them for local
-searching. You do not need Git. Later runs reuse work already completed.
+Pathfinder reference content, precomputed embeddings, and a search model, then
+prepares them for local searching. You do not need Git. Later runs reuse work already completed.
 
 **3. Open Atlas.**
 

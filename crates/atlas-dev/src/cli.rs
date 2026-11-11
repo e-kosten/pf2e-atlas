@@ -30,6 +30,8 @@ struct Cli {
 enum Command {
     /// Publish and reuse development baselines without rebuilding source data.
     Baseline(commands::baseline::args::BaselineArgs),
+    /// Export and verify precomputed corpus embeddings for release.
+    EmbeddingSeed(commands::embedding_seed::SeedArgs),
     #[command(about = "Analyze and audit Foundry source data")]
     Source(SourceArgs),
     #[command(about = "Inspect built Atlas artifacts")]
@@ -56,6 +58,7 @@ pub(crate) fn main() -> ExitCode {
     };
     let json = match &cli.command {
         Command::Baseline(args) => args.json,
+        Command::EmbeddingSeed(_) => true,
         Command::Tags(args) => match &args.command {
             TagsCommand::Validate(options) => options.json,
         },
@@ -82,6 +85,7 @@ pub(crate) fn main() -> ExitCode {
     });
     let result = match cli.command {
         Command::Baseline(args) => commands::baseline::run(args),
+        Command::EmbeddingSeed(args) => commands::embedding_seed::run(args),
         Command::Tags(args) => match args.command {
             TagsCommand::Validate(options) => commands::tags::run_tags_validate(options),
         },

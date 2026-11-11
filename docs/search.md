@@ -149,6 +149,8 @@ to switch an open Search session.
 
 ## Try another search model
 
+Standard English setup uses precomputed embeddings for each requested model.
+Adding a model downloads its query model and any required precomputed embeddings.
 Setup prepares **BGE Base** by default. You can also try **EmbeddingGemma** to
 compare its results. Preparing another model downloads its files and processes
 your reference content, which may take a while:

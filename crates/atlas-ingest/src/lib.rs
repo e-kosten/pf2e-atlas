@@ -7,6 +7,7 @@ mod build_tests;
 mod error;
 mod index_build_input;
 mod native_execution;
+pub use native_execution::{EmbeddingSeedLoader, SeedBuildPolicy};
 #[cfg(test)]
 mod passage_benchmark;
 mod product_preparation;
@@ -29,7 +30,7 @@ pub use build::{
     CapturedBuildInputs, SourceRevision, build_artifact_with_revision, rebuild_artifact,
 };
 pub use build_model::{BuildArtifactOptions, BuildArtifactReport, ProfileBuildReport};
-pub use error::IngestError;
+pub use error::{EmbeddingCoverageGap, EmbeddingCoverageGapKind, IngestError};
 pub use report::{SourceAnalysisReport, analyze_foundry_source};
 pub use source_compatibility::validate_source_compatibility;
 pub use source_enrichment::{

@@ -19,7 +19,7 @@ atlas-search = { workspace = true, features = ["read-metrics"] }
 atlas-domain.workspace = true
 atlas-foundry-model.workspace = true
 sha2.workspace = true
-atlas-runtime.workspace = true
+atlas-runtime = { workspace = true, features = ["seed-tools"] }
 clap.workspace = true
 serde_json.workspace = true
 serde.workspace = true

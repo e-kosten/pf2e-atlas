@@ -402,7 +402,7 @@ def pinned_checks(current, previous):
     def add(profile, pin, transition):
         tag, asset, digest = (pin[key] for key in ("tag", "asset", "sha256"))
         packaged = (tag, asset, digest) == (RELEASE_TAG, RELEASE_ASSET, RELEASE_DIGEST)
-        bundle = (re.fullmatch(r"embedding-baseline-v[1-9][0-9]*", tag)
+        bundle = (re.fullmatch(r"(?:fixtures/embedding-compatibility/|embedding-baseline-)v[1-9][0-9]*", tag)
                   and asset == "embedding-compatibility-baseline.tar.gz"
                   and re.fullmatch(r"[0-9a-f]{64}", digest))
         if ((not packaged and not bundle)

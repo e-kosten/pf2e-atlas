@@ -274,6 +274,34 @@ jobs:
           if [[ "$VARIANT" == full ]]; then
             node dev-tools/release/dist/src/cli/smoke-packaged-web.js "$binary" web/atlas-ui/dist
           fi
+      - name: Verify published embedding coverage
+        if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' && matrix.variant == 'cli-only' }}
+        shell: bash
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+          PACKAGE_TAG: ${{ needs.prepare.outputs.tag }}
+          EVENT: ${{ github.event_name }}
+          SOURCE_REF: ${{ inputs.source-ref }}
+        run: |
+          set -euo pipefail
+          binary=$(find target/package-smoke -type f -name atlas -print -quit)
+          test -n "$binary"
+          args=()
+          if [[ "$NIGHTLY" == true ]]; then
+            args+=(--advisory --source-sha "$(git rev-parse HEAD)" --tag "$PACKAGE_TAG"
+              --archive target/distrib/atlas-cli-only-x86_64-unknown-linux-gnu.tar.xz
+              --report "$RUNNER_TEMP/embedding-coverage.json")
+          elif [[ -z "$SOURCE_REF" && ( "$EVENT" == workflow_dispatch || "$EVENT" == push ) ]]; then
+            args+=(--advisory)
+          fi
+          python3 scripts/release/check-embedding-seeds.py "$binary" "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Retain nightly embedding coverage evidence
+        if: ${{ inputs.nightly && matrix.target == 'x86_64-unknown-linux-gnu' && matrix.variant == 'cli-only' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: embedding-coverage-${{ needs.prepare.outputs.tag }}
+          path: ${{ runner.temp }}/embedding-coverage.json
+          if-no-files-found: error
       - name: Check packaged binary on Windows
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh

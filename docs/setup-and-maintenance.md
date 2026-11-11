@@ -13,6 +13,9 @@ atlas setup
 
 Setup prepares the reference content supported by your installed Atlas version.
 It keeps your saved lists and encounters and reuses search data where possible.
+Standard English setup downloads precomputed embeddings when it needs vectors for
+a requested search model. Atlas also downloads the model weights for searches
+when they are missing.
 Restart any running `atlas web` command after upgrading Atlas to use the new version.
 
 ## Check a setup problem
@@ -26,6 +29,12 @@ atlas setup --check
 Follow the reported action. If setup was interrupted, rerun `atlas setup` to
 resume it. You may need to wait until an update finishes before using Atlas again.
 Do not delete your workspace to resolve a setup error: it contains your saved work.
+
+If the precomputed embeddings are unavailable, retry setup. To generate the
+missing embeddings on your computer instead, run
+`atlas setup --build-embeddings-locally` with the same setup options.
+The desktop setup window also offers **Build embeddings locally**. Generating
+embeddings locally can take an hour or longer.
 
 If setup names a missing or unreadable source pack, restore that folder and rerun
 setup. For a custom source, remove its manifest declaration only when you intend
@@ -56,7 +65,7 @@ atlas setup --offline
 ```
 
 This flag controls setup's downloads. Normal local searches use the data you have
-already prepared. Offline setup cannot fetch a missing source or search model.
+already prepared. Offline setup cannot fetch missing source, query models, or precomputed embeddings.
 
 ## Data locations
 

@@ -47,6 +47,7 @@ fn configuration_failure(
         },
         search_profiles: vec![],
         build: None,
+        embedding_coverage_gap: None,
     }
 }
 fn stored_reference(
@@ -70,7 +71,21 @@ fn stored_reference(
 
 pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
+    options: RuntimeSetupOptions,
+) -> RuntimeSetupReport {
+    ensure_setup_with_seed_policy(
+        paths,
+        options,
+        &mut crate::embedding_seeds::open_published,
+        atlas_ingest::SeedBuildPolicy::Strict,
+    )
+}
+
+pub(crate) fn ensure_setup_with_seed_policy(
+    paths: &ResolvedAtlasPaths,
     mut options: RuntimeSetupOptions,
+    seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
+    seed_policy: atlas_ingest::SeedBuildPolicy,
 ) -> RuntimeSetupReport {
     // Emit progress before configuration and workspace checks, which can take
     // noticeable time on a fresh install or a large existing workspace.
@@ -122,6 +137,18 @@ pub(crate) fn ensure_setup(
     effective_paths.source_root = configuration.source_root.clone();
     let paths = &effective_paths;
     options.search_profiles = configuration.search_profiles.clone();
+    let use_seeds = managed_source
+        && !paths.source_root_explicit
+        && configuration.manifest_path.is_none()
+        && configuration.indexing_locale == "en"
+        && !options.build_embeddings_locally;
+    if seed_policy != atlas_ingest::SeedBuildPolicy::Strict && !use_seeds {
+        return configuration_failure(
+            paths,
+            &options,
+            "seed tools require the managed English source and pinned models".into(),
+        );
+    }
     let prepare_embeddings = !options.search_profiles.is_empty();
     let mut checks = Vec::new();
     let mut actions = Vec::new();
@@ -369,6 +396,7 @@ pub(crate) fn ensure_setup(
     };
     let needs_build = source_build_required || old.is_err() || !old_semantic;
     let mut build = None;
+    let mut embedding_coverage_gap = None;
     let mut build_failed = false;
     if needs_build {
         if options.check {
@@ -385,14 +413,28 @@ pub(crate) fn ensure_setup(
             ));
         } else {
             progress("build_index", "Building search index");
-            let result = (|| -> Result<BuildArtifactReport, String> {
+            let mut load = |model: &atlas_index::SourceSearchProfileIdentity,
+                            scratch: &std::path::Path| {
+                seed_source(model, scratch, options.offline)
+            };
+            let result = (|| -> Result<BuildArtifactReport, atlas_ingest::IngestError> {
                 let workspace =
-                    crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
+                    crate::initialize_workspace(&paths.index_path).map_err(|error| {
+                        atlas_ingest::IngestError::ArtifactWriteFailed(error.to_string())
+                    })?;
                 captured
                     .take()
-                    .ok_or("source inputs were not captured")?
-                    .build(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
-                    .map_err(|e| e.to_string())
+                    .ok_or_else(|| {
+                        atlas_ingest::IngestError::ArtifactWriteFailed(
+                            "source inputs were not captured".into(),
+                        )
+                    })?
+                    .build_with_seed_policy(
+                        &workspace,
+                        crate::WORKSPACE_SCHEMA_VERSION,
+                        use_seeds.then_some(&mut load),
+                        seed_policy,
+                    )
             })();
             match result {
                 Ok(r) => {
@@ -404,10 +446,23 @@ pub(crate) fn ensure_setup(
                 }
                 Err(e) => {
                     build_failed = true;
+                    let (kind, reason) = match &e {
+                        atlas_ingest::IngestError::EmbeddingCoverageGap(gap) => {
+                            embedding_coverage_gap = Some((**gap).clone());
+                            (SetupActionKind::PrepareEmbeddingSeed, e.to_string())
+                        }
+                        atlas_ingest::IngestError::EmbeddingSeedUnavailable { .. } => (
+                            SetupActionKind::PrepareEmbeddingSeed,
+                            format!(
+                                "{e}. Retry setup or use --build-embeddings-locally to generate missing embeddings."
+                            ),
+                        ),
+                        _ => (SetupActionKind::BuildIndex, e.to_string()),
+                    };
                     actions.push(SetupAction::with_reason(
-                        SetupActionKind::BuildIndex,
+                        kind,
                         SetupActionStatus::Failed,
-                        e.to_string(),
+                        reason,
                     ));
                 }
             }
@@ -529,6 +584,7 @@ pub(crate) fn ensure_setup(
             })
             .collect(),
         build,
+        embedding_coverage_gap,
     };
     tracing::info!(target:"atlas_progress", complete=true, "Setup finished");
     report

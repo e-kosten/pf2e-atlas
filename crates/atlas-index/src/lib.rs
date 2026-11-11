@@ -10,6 +10,11 @@ mod core_projection;
 #[cfg(any(test, feature = "test-support"))]
 mod core_projection_pilot;
 mod discovery;
+mod embedding_seed;
+pub use embedding_seed::{
+    EmbeddingSeed, EmbeddingSeedFile, EmbeddingSeedHeader, MAX_EMBEDDING_SEED_BYTES, SeedSelection,
+    export_embedding_seed,
+};
 mod embedding_values;
 mod native_allocation;
 mod native_token_counts;
