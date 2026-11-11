@@ -40,6 +40,9 @@ pub struct CreatureDisplayView {
     pub title: String,
     pub qualifiers: Vec<String>,
     pub uses: Vec<CreatureScenarioUseView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub scenario_context: Option<String>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

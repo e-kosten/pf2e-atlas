@@ -18,12 +18,12 @@ pub(crate) fn creature_display(
     }
     let uses: Vec<_> = display
         .scenario_uses
-        .into_iter()
+        .iter()
         .map(|use_| CreatureScenarioUseView {
             id: use_.id.into(),
-            label: scenario_use_label(&use_, true)
+            label: scenario_use_label(use_, true)
                 .or_else(|| record.publication_title.as_value().cloned())
-                .unwrap_or(use_.publication),
+                .unwrap_or_else(|| use_.publication.clone()),
         })
         .collect();
     let qualifiers = display
@@ -37,12 +37,46 @@ pub(crate) fn creature_display(
     Some(CreatureDisplayView {
         title,
         qualifiers,
+        scenario_context: scenario_context(&display.scenario_uses, &uses),
         uses,
     })
 }
 
-fn party_levels_label([low, high]: [u8; 2]) -> String {
-    format!("Party levels {low}–{high}")
+fn party_levels_label(range: [u8; 2]) -> String {
+    format!("Party levels {}", party_range_label(range))
+}
+
+fn party_range_label([low, high]: [u8; 2]) -> String {
+    format!("{low}–{high}")
+}
+
+fn scenario_context(
+    uses: &[CreatureScenarioUse],
+    labels: &[CreatureScenarioUseView],
+) -> Option<String> {
+    if labels.is_empty() {
+        return None;
+    }
+    if uses.len() > 1 && uses.iter().all(|use_| use_.party_levels.is_some()) {
+        let ranges = uses.iter().filter_map(|use_| {
+            let range = party_range_label(use_.party_levels?);
+            Some(match scenario_use_label(use_, false) {
+                Some(conditions) => format!("{range} ({conditions})"),
+                None => range,
+            })
+        });
+        return Some(format!(
+            "Party levels {}",
+            ranges.collect::<Vec<_>>().join(" · ")
+        ));
+    }
+    Some(
+        labels
+            .iter()
+            .map(|use_| use_.label.as_str())
+            .collect::<Vec<_>>()
+            .join(" · "),
+    )
 }
 
 fn scenario_use_label(use_: &CreatureScenarioUse, include_range: bool) -> Option<String> {
@@ -162,6 +196,7 @@ pub(crate) fn family_view(
                     title: record.title.clone(),
                     qualifiers: Vec::new(),
                     uses: Vec::new(),
+                    scenario_context: None,
                 });
             display.qualifiers.insert(0, qualifier);
         }
@@ -283,6 +318,18 @@ mod tests {
             Some("Party levels 11–12 · 28+ Challenge Points"),
         );
         assert_eq!(scenario_use_label(&use_(None, None, None), true), None);
+        let uses = [
+            use_(Some([9, 10]), Some("Advanced"), None),
+            use_(Some([11, 12]), None, Some(28)),
+        ];
+        let labels = uses.each_ref().map(|use_| CreatureScenarioUseView {
+            id: use_.id.into(),
+            label: scenario_use_label(use_, true).unwrap(),
+        });
+        assert_eq!(
+            scenario_context(&uses, &labels).as_deref(),
+            Some("Party levels 9–10 (Advanced) · 11–12 (28+ Challenge Points)"),
+        );
     }
 
     #[test]

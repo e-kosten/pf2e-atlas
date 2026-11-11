@@ -10,7 +10,6 @@ import { sentenceCase } from "../ui/labels";
 import type { ReactNode } from "react";
 import type { RecordSummaryView } from "../../generated/atlas";
 import { RecordRarity } from "./RecordRarity";
-import { RecordScenarioUses } from "./RecordScenarioUses";
 export function RecordBrowseSummary({
   record,
   selected,
@@ -44,15 +43,15 @@ export function RecordBrowseSummary({
       }),
     );
   const traits = record.traits.filter((trait) => trait.kind !== "rarity");
-  const scenarioUses =
-    showScenarioUses && qualifiers === undefined
-      ? record.creature_display?.uses
-      : undefined;
+  const scenario =
+    showScenarioUses && qualifiers === undefined ? record.creature_display : undefined;
   const source = record.publication ?? record.pack;
   const showSource =
     qualifiers === undefined &&
     source &&
-    !scenarioUses?.some(({ label }) => label === source);
+    !(
+      scenario?.scenario_context && scenario.uses.some(({ label }) => label === source)
+    );
   return (
     <Button
       className="reference-result__summary"
@@ -118,11 +117,10 @@ export function RecordBrowseSummary({
       <div className="reference-result__title">
         <strong>{record.creature_display?.title ?? record.title}</strong>{" "}
         <span>{classification}</span>
-        {!!scenarioUses?.length && (
-          <RecordScenarioUses
-            uses={scenarioUses}
-            qualifiers={record.creature_display?.qualifiers}
-          />
+        {scenario?.scenario_context && (
+          <span className="reference-result__scenario">
+            {scenario.scenario_context}
+          </span>
         )}
       </div>
       <div className="reference-result__metadata">
@@ -130,10 +128,9 @@ export function RecordBrowseSummary({
         <RecordEditionBadge edition={record.edition} />
         {record.unit_price_label && <span>{record.unit_price_label}</span>}
         {showSource && <span>{source}</span>}
-        {!scenarioUses?.length &&
-          (qualifiers ?? record.creature_display?.qualifiers)?.map((qualifier) => (
-            <span key={qualifier}>{qualifier}</span>
-          ))}
+        {(qualifiers ?? record.creature_display?.qualifiers)?.map((qualifier) => (
+          <span key={qualifier}>{qualifier}</span>
+        ))}
         {context && <span>{context}</span>}
       </div>
       {!!traits.length && (

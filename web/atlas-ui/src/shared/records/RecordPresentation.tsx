@@ -23,7 +23,6 @@ import { SpellRankControl } from "./SpellRankControl";
 import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
-import { RecordScenarioUses } from "./RecordScenarioUses";
 import type { ReactNode, Ref } from "react";
 import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
@@ -213,7 +212,11 @@ export function RecordIdentity({
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
   const hasRarity = Boolean(identity?.rarity?.label.trim());
   const source = identity?.publication?.trim();
-  const showSource = source && !scenario?.uses.some(({ label }) => label === source);
+  const showSource =
+    source &&
+    !(
+      scenario?.scenario_context && scenario.uses.some(({ label }) => label === source)
+    );
   const secondaryActions = referenceHelp ? (
     <RecordProvenanceAction help={referenceHelp} title={referenceTitle} />
   ) : null;
@@ -261,13 +264,10 @@ export function RecordIdentity({
               </AtlasLink>
             </p>
           )}
-          {scenario && (
-            <div className="record-reference__scenario">
-              <RecordScenarioUses
-                uses={scenario.uses}
-                qualifiers={scenario.qualifiers}
-              />
-            </div>
+          {scenario?.scenario_context && (
+            <p className="record-reference__scenario">
+              {[...scenario.qualifiers, scenario.scenario_context].join(" · ")}
+            </p>
           )}
           {creatureFamily &&
             creatureFamily.named_creatures.length > 0 &&

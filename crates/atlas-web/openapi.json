@@ -3467,6 +3467,9 @@
             },
             "type": "array"
           },
+          "scenario_context": {
+            "type": "string"
+          },
           "title": {
             "type": "string"
           },

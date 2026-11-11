@@ -2007,6 +2007,7 @@ export interface CreatureScenarioUseView {
 
 export interface CreatureDisplayView {
   qualifiers: string[];
+  scenario_context?: string;
   title: string;
   uses: CreatureScenarioUseView[];
 }

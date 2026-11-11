@@ -172,6 +172,7 @@ describe("RecordDetailPane", () => {
       creature_display: {
         title: "Eltha",
         qualifiers: [],
+        scenario_context: "Party levels 9–10 (Advanced) · 11–12",
         uses: [
           { id: "party-9-10", label: "Party levels 9–10 (Advanced)" },
           { id: "party-11-12", label: "Party levels 11–12" },
@@ -204,12 +205,11 @@ describe("RecordDetailPane", () => {
     );
     expect(screen.getByRole("heading", { name: "Eltha" })).toBeVisible();
     const family = screen.getByRole("link", { name: "Eltha" });
-    const firstUse = screen.getByText("Party levels 9–10 (Advanced)");
+    const firstUse = screen.getByText("Party levels 9–10 (Advanced) · 11–12");
     expect(firstUse).toBeVisible();
     expect(
       family.compareDocumentPosition(firstUse) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText("Party levels 11–12")).toBeVisible();
     expect(screen.getByText("Cavern of Sundered Songs")).toBeVisible();
     expect(screen.queryByText(identity.title)).toBeNull();
   });

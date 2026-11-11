@@ -41,7 +41,7 @@ export function CreatureFamilyPage({ familyId }: { familyId: string }) {
                   title={family.name}
                   classification="Creature family"
                 />
-                <div className="record-explore__task">
+                <div className="record-explore__task creature-family">
                   <h3>{family.versions.length === 1 ? "Creature" : "Variants"}</h3>
                   <FamilyMembers
                     choices={family.versions.map((record) => ({ record }))}

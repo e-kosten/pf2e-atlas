@@ -190,7 +190,13 @@
   text-wrap: pretty;
 }
 .record-reference__header
-  p:where(:not(.record-reference__source, .record-reference__family)) {
+  p:where(
+    :not(
+      .record-reference__source,
+      .record-reference__family,
+      .record-reference__scenario
+    )
+  ) {
   margin: 6px 0 0;
 }
 .record-reference__kind {
@@ -218,19 +224,8 @@
   gap: var(--space-control);
   margin-top: var(--space-control);
 }
-.record-scenario-uses {
-  display: grid;
-  gap: 2px;
-  overflow-wrap: anywhere;
-}
-.record-scenario-uses__qualifier {
-  font-weight: 600;
-}
-.record-reference__scenario {
-  margin-top: var(--space-control);
-  font-size: 0.9rem;
-}
 .record-reference__family,
+.record-reference__scenario,
 .record-reference__source {
   margin: var(--space-control) 0 0;
   font-size: 0.9rem;

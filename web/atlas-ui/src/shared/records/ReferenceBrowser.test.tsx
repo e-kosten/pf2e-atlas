@@ -132,6 +132,7 @@ it("keeps reviewed scenario details out of Search cards", () => {
     creature_display: {
       title: "Eltha",
       qualifiers: [],
+      scenario_context: "Party levels 9–10 (Advanced) · 11–12",
       uses: [
         { id: "party-9-10", label: "Party levels 9–10 (Advanced)" },
         { id: "party-11-12", label: "Party levels 11–12" },

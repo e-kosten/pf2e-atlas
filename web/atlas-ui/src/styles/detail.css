@@ -126,6 +126,16 @@
   margin-block: 0 var(--space-control);
 }
 
+.creature-family > h3 {
+  font-size: 1.125rem;
+}
+
+.creature-family .record-family__group-by label,
+.creature-family .reference-result__metadata,
+.creature-family .reference-result__title .reference-result__scenario {
+  font-size: 0.875rem;
+}
+
 .record-explore__combinations {
   margin-block-start: var(--space-group);
 }
