@@ -88,7 +88,7 @@ pub(crate) struct SetupRunOptions {
     pub(crate) check: bool,
     #[arg(
         long,
-        help = "Do not fetch source or prepare embedding model files from the network"
+        help = "Do not download source, query models, or precomputed embeddings"
     )]
     pub(crate) offline: bool,
     #[arg(
@@ -96,6 +96,11 @@ pub(crate) struct SetupRunOptions {
         help = "Rebuild the artifact even if it already satisfies the selected setup target"
     )]
     pub(crate) force_rebuild: bool,
+    #[arg(
+        long,
+        help = "Generate missing corpus embeddings locally without downloading precomputed embeddings"
+    )]
+    pub(crate) build_embeddings_locally: bool,
     #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add bge-base or embeddinggemma; repeat for both; omission preserves configured profiles (fresh default: bge-base)")]
     pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(

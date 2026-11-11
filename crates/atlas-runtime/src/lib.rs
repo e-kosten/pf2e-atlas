@@ -1,8 +1,11 @@
 #![deny(unsafe_code)]
 
+mod embedding_seeds;
 mod error;
 mod operations;
 mod paths;
+#[cfg(feature = "seed-tools")]
+pub use embedding_seeds::LocalEmbeddingSeed;
 mod profile_assets;
 mod retrieval;
 mod runtime;

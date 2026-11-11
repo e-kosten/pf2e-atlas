@@ -6,7 +6,10 @@ use atlas_embedding::{
 use atlas_index::{
     BuildFrameStream, PreparedPublication, SemanticOccurrence, SourceSearchProfileIdentity,
 };
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::Path};
+
+pub type EmbeddingSeedLoader<'a> = dyn FnMut(&SourceSearchProfileIdentity, &Path) -> Result<atlas_index::EmbeddingSeed, String>
+    + 'a;
 
 fn index(error: atlas_index::IndexError) -> IngestError {
     IngestError::ArtifactWriteFailed(error.to_string())
@@ -63,9 +66,40 @@ impl NativeExecution<'_, '_> {
             let count = runner
                 .infer(batch, |values| stage_values(publication, model, values))
                 .map_err(embedding)?;
-            Ok((count, runner.peak_output_vectors()))
+            Ok((count, 0, runner.peak_output_vectors()))
         })
     }
+    pub(crate) fn execute_seeded(
+        self,
+        config: &atlas_embedding::EmbeddingRuntimeConfig,
+        scratch: &Path,
+        load: &mut EmbeddingSeedLoader<'_>,
+    ) -> Result<crate::ProfileBuildReport, IngestError> {
+        let mut seed = None;
+        self.execute(config, true, |publication, model, batch| {
+            let seed_error = |reason| IngestError::EmbeddingSeedUnavailable {
+                profile: model.profile_id.to_string(),
+                reason,
+            };
+            if seed.is_none() {
+                seed = Some(load(model, scratch).map_err(seed_error)?);
+            }
+            let seed = seed
+                .as_mut()
+                .ok_or_else(|| seed_error("seed reader is unavailable".into()))?;
+            let inputs = batch
+                .inputs()
+                .iter()
+                .map(PreparedNativeInput::descriptor)
+                .collect::<Vec<_>>();
+            let selection = seed
+                .select(&inputs)
+                .map_err(|error| seed_error(error.to_string()))?;
+            publication.stage_seeded(model, selection).map_err(index)?;
+            Ok((0, inputs.len(), 0))
+        })
+    }
+
     fn execute(
         self,
         config: &atlas_embedding::EmbeddingRuntimeConfig,
@@ -74,7 +108,7 @@ impl NativeExecution<'_, '_> {
             &mut PreparedPublication<'_>,
             &SourceSearchProfileIdentity,
             &PreparedEmbeddingBatch,
-        ) -> Result<(usize, usize), IngestError>,
+        ) -> Result<(usize, usize, usize), IngestError>,
     ) -> Result<crate::ProfileBuildReport, IngestError> {
         let started = std::time::Instant::now();
         let Self {
@@ -105,6 +139,7 @@ impl NativeExecution<'_, '_> {
         let mut preparation_elapsed = std::time::Duration::ZERO;
         let mut selection_elapsed = std::time::Duration::ZERO;
         let mut inference_elapsed = std::time::Duration::ZERO;
+        let mut seed_elapsed = std::time::Duration::ZERO;
         let mut max_raw_batch = 0;
         let mut max_unique_batch = 0;
         let mut max_missing_batch = 0;
@@ -227,10 +262,15 @@ impl NativeExecution<'_, '_> {
                         .map_err(embedding)?
                 };
                 let inference_started = std::time::Instant::now();
-                let (count, outputs) = infer(publication, &model, &batch)?;
+                let (count, seed_hits, outputs) = infer(publication, &model, &batch)?;
                 inferred += count;
+                reused += seed_hits;
                 max_outputs = max_outputs.max(outputs);
-                inference_elapsed += inference_started.elapsed();
+                if seed_hits == 0 {
+                    inference_elapsed += inference_started.elapsed();
+                } else {
+                    seed_elapsed += inference_started.elapsed();
+                }
             }
         }
         if verify_counts {
@@ -238,7 +278,7 @@ impl NativeExecution<'_, '_> {
                 .finish_verified_native_profile(&model)
                 .map_err(index)?;
         }
-        tracing::info!(target:"atlas_build_diagnostic",profile=%model.profile_id,elapsed_ms=started.elapsed().as_secs_f64()*1000.,native_preparation_ms=preparation_elapsed.as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_unique_batch,max_raw_native_batch=max_raw_batch,max_missing_native_batch=max_missing_batch,max_native_output_vectors=max_outputs,native_preparation_inputs=consumed,witnessed_occurrences,"Completed bounded native execution");
+        tracing::info!(target:"atlas_build_diagnostic",profile=%model.profile_id,elapsed_ms=started.elapsed().as_secs_f64()*1000.,native_preparation_ms=preparation_elapsed.as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_elapsed.as_secs_f64()*1000.,seed_load_and_selection_ms=seed_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_unique_batch,max_raw_native_batch=max_raw_batch,max_missing_native_batch=max_missing_batch,max_native_output_vectors=max_outputs,native_preparation_inputs=consumed,witnessed_occurrences,"Completed bounded native execution");
         Ok(crate::ProfileBuildReport {
             profile_id: model.profile_id,
             semantic_units,
@@ -271,7 +311,7 @@ pub(crate) fn stage_fixture_values(
                 .map(|input| (input, vector.as_slice()))
                 .collect::<Vec<_>>();
             stage_values(publication, model, &values).map_err(embedding)?;
-            Ok((values.len(), 1))
+            Ok((values.len(), 0, 1))
         })?;
     }
     Ok(())

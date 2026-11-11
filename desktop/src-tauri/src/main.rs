@@ -212,7 +212,11 @@ fn on_launcher_exit(app: &AppHandle, pid: u32) {
 }
 
 #[tauri::command]
-async fn prepare(window: WebviewWindow, app: AppHandle) -> Result<String, String> {
+async fn prepare(
+    window: WebviewWindow,
+    app: AppHandle,
+    build_embeddings_locally: Option<bool>,
+) -> Result<String, serde_json::Value> {
     guard(&window)?;
     tauri::async_runtime::spawn_blocking(move || {
         let desktop = app.state::<Desktop>();
@@ -233,6 +237,7 @@ async fn prepare(window: WebviewWindow, app: AppHandle) -> Result<String, String
         }
         let progress_window = window.clone();
         let result = process::setup(
+            build_embeddings_locally.unwrap_or_default(),
             move |event| {
                 let _ = progress_window.emit("atlas-progress", event);
             },

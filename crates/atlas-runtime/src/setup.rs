@@ -70,7 +70,15 @@ fn stored_reference(
 
 pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
+    options: RuntimeSetupOptions,
+) -> RuntimeSetupReport {
+    ensure_setup_with_seeds(paths, options, &mut crate::embedding_seeds::open_published)
+}
+
+pub(crate) fn ensure_setup_with_seeds(
+    paths: &ResolvedAtlasPaths,
     mut options: RuntimeSetupOptions,
+    seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
 ) -> RuntimeSetupReport {
     // Emit progress before configuration and workspace checks, which can take
     // noticeable time on a fresh install or a large existing workspace.
@@ -385,14 +393,32 @@ pub(crate) fn ensure_setup(
             ));
         } else {
             progress("build_index", "Building search index");
-            let result = (|| -> Result<BuildArtifactReport, String> {
+            let use_seeds = managed_source
+                && !paths.source_root_explicit
+                && configuration.manifest_path.is_none()
+                && locale == "en"
+                && !options.build_embeddings_locally;
+            let mut load = |model: &atlas_index::SourceSearchProfileIdentity,
+                            scratch: &std::path::Path| {
+                seed_source(model, scratch, options.offline)
+            };
+            let result = (|| -> Result<BuildArtifactReport, atlas_ingest::IngestError> {
                 let workspace =
-                    crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
+                    crate::initialize_workspace(&paths.index_path).map_err(|error| {
+                        atlas_ingest::IngestError::ArtifactWriteFailed(error.to_string())
+                    })?;
                 captured
                     .take()
-                    .ok_or("source inputs were not captured")?
-                    .build(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
-                    .map_err(|e| e.to_string())
+                    .ok_or_else(|| {
+                        atlas_ingest::IngestError::ArtifactWriteFailed(
+                            "source inputs were not captured".into(),
+                        )
+                    })?
+                    .build_with_embedding_seeds(
+                        &workspace,
+                        crate::WORKSPACE_SCHEMA_VERSION,
+                        use_seeds.then_some(&mut load),
+                    )
             })();
             match result {
                 Ok(r) => {
@@ -404,10 +430,19 @@ pub(crate) fn ensure_setup(
                 }
                 Err(e) => {
                     build_failed = true;
+                    let (kind, reason) = match &e {
+                        atlas_ingest::IngestError::EmbeddingSeedUnavailable { .. } => (
+                            SetupActionKind::PrepareEmbeddingSeed,
+                            format!(
+                                "{e}. Retry setup or use --build-embeddings-locally to generate missing embeddings."
+                            ),
+                        ),
+                        _ => (SetupActionKind::BuildIndex, e.to_string()),
+                    };
                     actions.push(SetupAction::with_reason(
-                        SetupActionKind::BuildIndex,
+                        kind,
                         SetupActionStatus::Failed,
-                        e.to_string(),
+                        reason,
                     ));
                 }
             }

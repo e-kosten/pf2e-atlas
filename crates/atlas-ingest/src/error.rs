@@ -24,6 +24,8 @@ pub enum IngestError {
     ArtifactWriteFailed(String),
     #[error("reference updated. Could not reclaim database space: {0}")]
     SpaceReclamationFailed(String),
+    #[error("could not use precomputed embeddings for {profile}: {reason}")]
+    EmbeddingSeedUnavailable { profile: String, reason: String },
     #[error("document embedding generation failed: {0}")]
     DocumentEmbeddingFailed(String),
 }

@@ -274,6 +274,13 @@ jobs:
           if [[ "$VARIANT" == full ]]; then
             node dev-tools/release/dist/src/cli/smoke-packaged-web.js "$binary" web/atlas-ui/dist
           fi
+      - name: Verify published embedding coverage
+        if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' && matrix.variant == 'cli-only' }}
+        shell: bash
+        run: |
+          binary=$(find target/package-smoke -type f -name atlas -print -quit)
+          test -n "$binary"
+          python3 scripts/release/check-embedding-seeds.py "$binary"
       - name: Check packaged binary on Windows
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh

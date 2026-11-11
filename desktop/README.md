@@ -16,7 +16,9 @@ with its CLI in `Contents/MacOS/atlas`. This build is for local testing.
 
 Choose **Set up Atlas** when the workspace is empty. The app downloads the
 pinned reference data and prepares semantic search, then opens the workspace in
-the same window. If the view fails to open, choose **Retry opening Atlas** to
+the same window. If precomputed embeddings are unavailable, choose
+**Retry download** or **Build embeddings locally**. The local build can take an
+hour or more. If the view fails to open, choose **Retry opening Atlas** to
 use the prepared workspace. If Atlas asks you to upgrade
 a workspace, close any other Atlas sessions using that workspace and choose
 **Upgrade workspace**. Use **PF2e Atlas → Setup and Updates** when you want to

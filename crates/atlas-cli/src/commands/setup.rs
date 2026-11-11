@@ -23,6 +23,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
                 || args.run.no_embeddings
                 || args.run.offline
                 || args.run.force_rebuild
+                || args.run.build_embeddings_locally
                 || !args.run.search_profiles.is_empty()
             {
                 return invalid_setup_input(
@@ -73,6 +74,7 @@ fn run_setup_install(
         check: options.check,
         offline: options.offline,
         force_rebuild: options.force_rebuild,
+        build_embeddings_locally: options.build_embeddings_locally,
         search_profiles: options.search_profiles,
         embedding_batch_size: options.embedding_batch_size,
         locale: options.locale,
@@ -447,6 +449,9 @@ fn setup_not_ready_reasons(
 }
 
 fn setup_not_ready_code(action: &atlas_runtime::SetupAction) -> &'static str {
+    if action.kind == SetupActionKind::PrepareEmbeddingSeed {
+        return "embedding_seed_unavailable";
+    }
     match action.reason.as_deref() {
         Some("source signature changed since the artifact was built") => {
             "artifact_stale_source_signature"
@@ -532,6 +537,7 @@ fn action_kind_label(kind: &SetupActionKind) -> &'static str {
     match kind {
         SetupActionKind::FetchSource => "fetch_source",
         SetupActionKind::PrepareEmbeddingModel => "prepare_embedding_model",
+        SetupActionKind::PrepareEmbeddingSeed => "prepare_embedding_seed",
         SetupActionKind::AnalyzeSource => "analyze_source",
         SetupActionKind::BuildIndex => "build_index",
         SetupActionKind::ValidateIndex => "validate_index",

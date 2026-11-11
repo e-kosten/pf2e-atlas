@@ -190,6 +190,41 @@ Published release assets are treated as immutable. Fix bad published releases wi
 
 Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
 
+### Refresh precomputed corpus embeddings
+
+Stable and nightly packaging run clean managed English setup for both profiles
+using the packaged Linux x64 CLI. The check requires both public seed files to
+cover every required input and report zero inferred inputs. Run the same check
+locally with `python3 scripts/release/check-embedding-seeds.py /path/to/atlas`, or
+use the nonpublishing release build check to exercise the candidate on GitHub.
+An asset can serve later candidates as long as their inputs remain covered.
+
+Use a dedicated workspace with the previous compatible publication when available.
+Restore it with the previous release and its seeds if necessary. Run the candidate
+against that workspace with `atlas setup --index /path/to/producer.sqlite
+--search-profile bge-base --search-profile embeddinggemma --build-embeddings-locally`.
+Atlas reuses published vectors and infers missing ones. Export each affected
+profile with the candidate's private developer command. Build it with
+`cargo build --locked --release -p atlas-dev`.
+
+```sh
+target/release/atlas-dev embedding-seed export --index /path/to/producer.sqlite \
+  --profile bge-base --producer-commit <candidate-commit> \
+  --output bge-base-seed-v1.atlas-seed.gz
+target/release/atlas-dev embedding-seed verify --index /path/to/new-check.sqlite \
+  --seed bge-base,<sha256>,bge-base-seed-v1.atlas-seed.gz
+```
+
+The full-coverage verifier requires a new index path and the local managed source and
+model caches. Repeat `--seed` to check both profiles. Verify every new asset and
+record the compressed size and checksum. Once authorized, publish each file to a
+seed-only prerelease tag such as `bge-base-seed-v1` or
+`embeddinggemma-seed-v1`. Keep latest disabled and retain the previous releases.
+Pin the exact tag, asset name, byte count and SHA-256 in
+`crates/atlas-runtime/embedding-seeds.json`. Run the packaged coverage check
+against the public downloads before shipping. Model execution compatibility
+changes may also require updating the separate test fixture below.
+
 ### Publish an embedding compatibility fixture
 
 The release schema cutoff pins a published schema 41 CLI archive for each

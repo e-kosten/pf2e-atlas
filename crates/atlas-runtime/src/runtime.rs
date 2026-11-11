@@ -153,6 +153,22 @@ impl AtlasRuntime {
         crate::workspace::open_workspace_index(&self.paths.index_path)
     }
 
+    #[cfg(feature = "seed-tools")]
+    pub fn verify_local_embedding_seeds(
+        &self,
+        options: RuntimeSetupOptions,
+        files: &[crate::LocalEmbeddingSeed],
+    ) -> (RuntimeSetupReport, Vec<atlas_domain::SearchProfileId>) {
+        let mut loaded = Vec::new();
+        let report =
+            setup::ensure_setup_with_seeds(&self.paths, options, &mut |model, scratch, _| {
+                let seed = crate::embedding_seeds::open_local(files, model, scratch)?;
+                loaded.push(model.profile_id.clone());
+                Ok(seed)
+            });
+        (report, loaded)
+    }
+
     pub fn ensure_setup(&self, options: RuntimeSetupOptions) -> RuntimeSetupReport {
         setup::ensure_setup(&self.paths, options)
     }

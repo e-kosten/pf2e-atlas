@@ -6,6 +6,7 @@ pub struct RuntimeSetupOptions {
     pub check: bool,
     pub offline: bool,
     pub force_rebuild: bool,
+    pub build_embeddings_locally: bool,
     /// Add to the persisted requested model set; a fresh full setup uses BGE Base.
     pub search_profiles: Vec<SearchProfileId>,
     pub embedding_batch_size: usize,
@@ -27,6 +28,7 @@ impl Default for RuntimeSetupOptions {
             check: false,
             offline: false,
             force_rebuild: false,
+            build_embeddings_locally: false,
             search_profiles: Vec::new(),
             embedding_batch_size: 32,
             locale: None,
@@ -57,6 +59,7 @@ impl SetupTarget {
 pub enum SetupActionKind {
     FetchSource,
     PrepareEmbeddingModel,
+    PrepareEmbeddingSeed,
     AnalyzeSource,
     BuildIndex,
     ValidateIndex,
