@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod opening;
 mod process;
 #[cfg(debug_assertions)]
 mod smoke;
@@ -36,6 +37,7 @@ struct Desktop {
     window_id: AtomicUsize,
     quitting: AtomicBool,
     recovery: AtomicBool,
+    primary: Mutex<opening::PrimaryWindow>,
 }
 
 #[derive(Serialize)]
@@ -43,6 +45,7 @@ struct Inspection {
     probe: WorkspaceProbe,
     running: bool,
     recovery: bool,
+    opening_error: Option<String>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -52,7 +55,9 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 fn guard(window: &WebviewWindow) -> Result<(), String> {
-    if window.label() != "bootstrap" || !window.url().is_ok_and(|url| bundled_origin(&url)) {
+    if !matches!(window.label(), "bootstrap" | opening::PRIMARY)
+        || !window.url().is_ok_and(|url| bundled_origin(&url))
+    {
         return Err("This action is available in the Atlas setup window.".into());
     }
     Ok(())
@@ -63,10 +68,13 @@ fn bundled_origin(url: &Url) -> bool {
 }
 
 fn show_bootstrap(app: &AppHandle) -> tauri::Result<()> {
-    let window = if let Some(window) = app.get_webview_window("bootstrap") {
+    let label = setup_window_label(app);
+    let window = if let Some(window) = app.get_webview_window(label) {
         window
+    } else if label == opening::PRIMARY {
+        opening::build(app)?
     } else {
-        WebviewWindowBuilder::new(app, "bootstrap", WebviewUrl::App("index.html".into()))
+        WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
             .title("Atlas Setup")
             .inner_size(600.0, 520.0)
             .min_inner_size(420.0, 420.0)
@@ -75,8 +83,18 @@ fn show_bootstrap(app: &AppHandle) -> tauri::Result<()> {
     };
     window.show()?;
     window.set_focus()?;
-    let _ = window.emit("atlas-inspect", ());
+    if window.url().is_ok_and(|url| bundled_origin(&url)) {
+        let _ = window.emit("atlas-inspect", ());
+    }
     Ok(())
+}
+
+fn setup_window_label(app: &AppHandle) -> &'static str {
+    if lock(&app.state::<Desktop>().primary).is_product() {
+        "bootstrap"
+    } else {
+        opening::PRIMARY
+    }
 }
 
 fn run_on_main(
@@ -89,7 +107,7 @@ fn run_on_main(
 }
 
 fn show_error(app: &AppHandle, error: String) {
-    if let Some(window) = app.get_webview_window("bootstrap") {
+    if let Some(window) = app.get_webview_window(setup_window_label(app)) {
         let _ = window.show();
         let _ = window.emit("atlas-error", error);
     }
@@ -98,12 +116,18 @@ fn show_error(app: &AppHandle, error: String) {
 #[tauri::command]
 async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, String> {
     guard(&window)?;
+    let initial = window.label() == opening::PRIMARY;
     tauri::async_runtime::spawn_blocking(move || {
         let desktop = app.state::<Desktop>();
         Ok(Inspection {
             probe: process::probe()?,
             running: lock(&desktop.launcher).is_some(),
             recovery: desktop.recovery.load(Ordering::Acquire),
+            opening_error: if initial {
+                lock(&desktop.primary).error().map(str::to_owned)
+            } else {
+                None
+            },
         })
     })
     .await
@@ -119,13 +143,13 @@ async fn launch(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
             .operation
             .try_lock()
             .map_err(|_| "Atlas is already working.")?;
-        launch_ready(&app)
+        launch_ready(&app, &window)
     })
     .await
     .map_err(display)?
 }
 
-fn launch_ready(app: &AppHandle) -> Result<(), String> {
+fn launch_ready(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
     let desktop = app.state::<Desktop>();
     if lock(&desktop.launcher).is_none() {
         let probe = process::probe()?;
@@ -149,6 +173,9 @@ fn launch_ready(app: &AppHandle) -> Result<(), String> {
         *current = Some(launcher);
     }
     desktop.recovery.store(false, Ordering::Release);
+    if window.label() == opening::PRIMARY {
+        return opening::open(app, window);
+    }
     run_on_main(app, show_pending_or_default)
 }
 
@@ -204,9 +231,10 @@ async fn prepare(window: WebviewWindow, app: AppHandle) -> Result<String, String
             }
             process::wait_for_upgrade()?;
         }
+        let progress_window = window.clone();
         let result = process::setup(
             move |event| {
-                let _ = window.emit("atlas-progress", event);
+                let _ = progress_window.emit("atlas-progress", event);
             },
             |pipe| {
                 let mut held = lock(&desktop.setup_pipe);
@@ -220,7 +248,8 @@ async fn prepare(window: WebviewWindow, app: AppHandle) -> Result<String, String
         lock(&desktop.setup_pipe).take();
         result?;
         if upgrade || !running {
-            launch_ready(&app)?;
+            let _ = window.emit("atlas-opening", ());
+            launch_ready(&app, &window)?;
             return Ok("Your workspace is ready.".into());
         }
         run_on_main(&app, refresh_product)?;
@@ -273,8 +302,10 @@ fn show_pending_or_default(app: &AppHandle) {
             routes.push("/search".into());
         }
     }
-    for route in routes {
+    let mut routes = routes.into_iter();
+    while let Some(route) = routes.next() {
         if let Err(error) = open_product(app, &route, false) {
+            lock(&desktop.links).splice(0..0, std::iter::once(route).chain(routes));
             show_error(app, error);
             return;
         }
@@ -295,19 +326,15 @@ fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<(), St
     let url = base.join(route).map_err(display)?;
     let origin = base.origin();
     if !new_window {
-        let key = parse_record_path(url.path());
         for window in app
             .webview_windows()
             .into_values()
             .filter(|window| window.label().starts_with("atlas-"))
         {
-            if window.url().is_ok_and(|open| {
-                open.origin() == origin
-                    && (open.path() == url.path()
-                        || key.as_ref().is_some_and(|key| {
-                            parse_record_path(open.path()).as_ref() == Some(key)
-                        }))
-            }) {
+            if window
+                .url()
+                .is_ok_and(|open| same_product_route(&url, &open))
+            {
                 window.show().map_err(display)?;
                 return window.set_focus().map_err(display);
             }
@@ -342,6 +369,13 @@ fn open_external(destination: &Url) {
     }
 }
 
+fn same_product_route(expected: &Url, current: &Url) -> bool {
+    expected.origin() == current.origin()
+        && (expected.path() == current.path()
+            || parse_record_path(expected.path())
+                .is_some_and(|key| parse_record_path(current.path()).as_ref() == Some(&key)))
+}
+
 fn receive_link(app: &AppHandle, link: &str) {
     let key = match parse_record_link(link) {
         Ok(key) => key,
@@ -353,8 +387,7 @@ fn receive_link(app: &AppHandle, link: &str) {
     };
     let route = record_path(&key);
     let desktop = app.state::<Desktop>();
-    let running = lock(&desktop.launcher).is_some();
-    if running {
+    if setup_window_label(app) != opening::PRIMARY && lock(&desktop.launcher).is_some() {
         if let Err(error) = open_product(app, &route, false) {
             show_error(app, error);
         }
@@ -530,7 +563,7 @@ fn main() {
         ])
         .menu(menu)
         .on_window_event(|window, event| {
-            if window.label() == "bootstrap"
+            if window.label() == setup_window_label(window.app_handle())
                 && let tauri::WindowEvent::CloseRequested { api, .. } = event
             {
                 api.prevent_close();
@@ -539,10 +572,12 @@ fn main() {
         })
         .on_menu_event(|app, event| {
             let result = match event.id().as_ref() {
-                "setup" => show_bootstrap(app).map_err(display),
+                "setup" => opening::restore_setup_if_needed(app)
+                    .and_then(|()| show_bootstrap(app))
+                    .map_err(display),
                 "new" => {
                     let running = lock(&app.state::<Desktop>().launcher).is_some();
-                    if running {
+                    if running && setup_window_label(app) != opening::PRIMARY {
                         open_product(app, "/search", true)
                     } else {
                         show_bootstrap(app).map_err(display)
@@ -579,6 +614,9 @@ fn main() {
         .build(tauri::generate_context!());
     match result {
         Ok(app) => app.run(|app, event| match event {
+            tauri::RunEvent::ExitRequested {
+                code: None, api, ..
+            } => api.prevent_exit(),
             tauri::RunEvent::Exit => {
                 let desktop = app.state::<Desktop>();
                 desktop.quitting.store(true, Ordering::Release);
@@ -589,7 +627,9 @@ fn main() {
                 has_visible_windows: false,
                 ..
             } => {
-                if lock(&app.state::<Desktop>().launcher).is_some() {
+                if setup_window_label(app) != opening::PRIMARY
+                    && lock(&app.state::<Desktop>().launcher).is_some()
+                {
                     show_pending_or_default(app);
                 } else {
                     let _ = show_bootstrap(app);
@@ -607,6 +647,17 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn opening_keeps_record_identity_across_router_normalization() {
+        let requested = Url::parse("http://127.0.0.1:4732/search/records/actions%3Aone").unwrap();
+        let normalized = Url::parse("http://127.0.0.1:4732/records/actions:one?mode=read").unwrap();
+        let other = Url::parse("http://127.0.0.1:4732/records/actions:two").unwrap();
+        let foreign = Url::parse("http://127.0.0.1:4733/records/actions:one").unwrap();
+        assert!(same_product_route(&requested, &normalized));
+        assert!(!same_product_route(&requested, &other));
+        assert!(!same_product_route(&requested, &foreign));
+    }
 
     #[test]
     fn native_context_and_service_origins_are_distinct() {

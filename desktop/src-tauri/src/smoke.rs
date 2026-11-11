@@ -2,14 +2,46 @@
 
 use std::{
     path::PathBuf,
-    sync::mpsc,
+    sync::atomic::{AtomicUsize, Ordering},
     thread,
     time::{Duration, Instant},
 };
 
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, WebviewWindow, WebviewWindowBuilder};
 
-use crate::{bundled_origin, display, process, verified_url};
+use crate::{
+    Desktop, bundled_origin, display, lock,
+    opening::{PRIMARY, evaluates_true},
+    process, receive_link,
+};
+
+const FIXTURE_LINK: &str = "pf2e-atlas://v1/record/actions%3Aaaaaaaaaaaaaaaaa";
+static SETUP_RUNS: AtomicUsize = AtomicUsize::new(0);
+
+pub fn record_setup() {
+    SETUP_RUNS.fetch_add(1, Ordering::Relaxed);
+}
+
+pub fn forces_retry() -> bool {
+    std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "retry")
+}
+
+pub fn configure(
+    builder: WebviewWindowBuilder<'_, tauri::Wry, AppHandle>,
+) -> WebviewWindowBuilder<'_, tauri::Wry, AppHandle> {
+    if !forces_retry() {
+        return builder;
+    }
+    builder.initialization_script(
+        r#"if (location.protocol === "http:" && location.hostname === "127.0.0.1"
+            && !sessionStorage.getItem("atlas-smoke-blank")) {
+            sessionStorage.setItem("atlas-smoke-blank", "1");
+            document.addEventListener("DOMContentLoaded", () => {
+                document.getElementById("root").style.setProperty("display", "none", "important");
+            }, { once: true });
+        }"#,
+    )
+}
 
 pub fn source() -> Result<Option<PathBuf>, String> {
     if std::env::var_os("ATLAS_PILOT_SMOKE").is_none() {
@@ -29,6 +61,9 @@ pub fn source() -> Result<Option<PathBuf>, String> {
 pub fn start(app: &AppHandle) -> Result<(), String> {
     if source()?.is_none() {
         return Ok(());
+    }
+    if forces_retry() {
+        receive_link(app, FIXTURE_LINK);
     }
     let app = app.clone();
     thread::spawn(move || match run(&app) {
@@ -54,62 +89,105 @@ fn run(app: &AppHandle) -> Result<(), String> {
     {
         return Err("the smoke test requires a fresh, isolated workspace".into());
     }
-    let bootstrap = app
-        .get_webview_window("bootstrap")
+    let window = app
+        .get_webview_window(PRIMARY)
         .ok_or("setup window was not created")?;
+    let initial_window = window.ns_window().map_err(display)?;
     wait_for(deadline, "fresh setup action", || {
-        bootstrap.url().is_ok_and(|url| bundled_origin(&url))
-            && evaluate(
-                &bootstrap,
-                r#"(() => {
-                    const button = document.getElementById("primary");
-                    if (!button || button.hidden || button.disabled || button.textContent !== "Set up Atlas") return false;
-                    button.click();
-                    return true;
-                })()"#,
-            )
+        click_primary(&window, "Set up Atlas")
     })?;
 
-    let product = wait_for_value(deadline, "rendered Search view", || {
-        app.webview_windows().into_values().find(|window| {
-            window.label().starts_with("atlas-")
-                && window.is_visible().unwrap_or(false)
-                && window.url().is_ok_and(|url| {
-                    url.path() == "/search" && url.join("/").is_ok_and(|base| verified_url(base.as_str()).is_ok())
-                })
-                && evaluate(
-                    window,
+    if forces_retry() {
+        wait_for(deadline, "render failure and retry action", || {
+            window
+                .ns_window()
+                .is_ok_and(|current| current == initial_window)
+                && evaluates_true(
+                    &window,
+                    "document.querySelector('#details')?.textContent.includes('app view did not finish loading') === true",
+                )
+                && click_primary(&window, "Retry opening Atlas")
+        })?;
+    } else {
+        wait_for(deadline, "rendered Search view", || {
+            let opened = lock(&app.state::<Desktop>().primary).is_product();
+            opened
+                && window.url().is_ok_and(|url| url.path() == "/search")
+                && evaluates_true(
+                    &window,
                     r#"Boolean(document.querySelector('input[aria-label="Search records"]')?.getClientRects().length)"#,
                 )
-        })
-    })?;
-
-    let destination = product
-        .url()
-        .map_err(display)?
-        .join("/records/actions:aaaaaaaaaaaaaaaa")
-        .map_err(display)?;
-    product.navigate(destination).map_err(display)?;
+        })?;
+        let destination = window
+            .url()
+            .map_err(display)?
+            .join("/records/actions:aaaaaaaaaaaaaaaa")
+            .map_err(display)?;
+        window.navigate(destination).map_err(display)?;
+    }
+    let expected = atlas_desktop_protocol::parse_record_link(FIXTURE_LINK).map_err(display)?;
     wait_for(deadline, "rendered fixture record", || {
-        evaluate(
-            &product,
-            r#"[...document.querySelectorAll('#atlas-main h1, #atlas-main h2')].some(
+        let opened = lock(&app.state::<Desktop>().primary).is_product();
+        opened
+            && window.is_visible().unwrap_or(false)
+            && window
+                .ns_window()
+                .is_ok_and(|current| current == initial_window)
+            && window.url().is_ok_and(|url| {
+                atlas_desktop_protocol::parse_record_path(url.path()).as_ref() == Some(&expected)
+            })
+            && evaluates_true(
+                &window,
+                r#"[...document.querySelectorAll('#atlas-main h1, #atlas-main h2')].some(
                 heading => heading.textContent.trim() === "Handoff Test Action" && heading.getClientRects().length > 0
             )"#,
+            )
+    })?;
+    if SETUP_RUNS.load(Ordering::Relaxed) != 1 || app.webview_windows().len() != 1 {
+        return Err("opening the record should use one setup run and one window".into());
+    }
+    window
+        .eval(
+            r#"void (async () => {
+                try {
+                    await window.__TAURI__.core.invoke("inspect");
+                    document.documentElement.dataset.atlasSmokeInspect = "allowed";
+                } catch {
+                    document.documentElement.dataset.atlasSmokeInspect = "denied";
+                }
+            })()"#,
         )
-    })
+        .map_err(display)?;
+    wait_for(
+        deadline,
+        "setup command rejection from the product origin",
+        || {
+            evaluates_true(
+                &window,
+                r#"document.documentElement.dataset.atlasSmokeInspect === "denied""#,
+            )
+        },
+    )
 }
 
-fn evaluate(window: &WebviewWindow, script: &str) -> bool {
-    let (sender, receiver) = mpsc::channel();
-    window
-        .eval_with_callback(script, move |value| {
-            let _ = sender.send(value == "true");
-        })
-        .is_ok()
-        && receiver
-            .recv_timeout(Duration::from_millis(200))
-            .unwrap_or(false)
+fn click_primary(window: &WebviewWindow, label: &str) -> bool {
+    if !window.url().is_ok_and(|url| bundled_origin(&url)) {
+        return false;
+    }
+    let Ok(label) = serde_json::to_string(label) else {
+        return false;
+    };
+    evaluates_true(
+        window,
+        &format!(
+            r#"(() => {{
+            const button = document.getElementById("primary");
+            if (!button || button.hidden || button.disabled || button.textContent !== {label}) return false;
+            button.click();
+            return true;
+        }})()"#
+        ),
+    )
 }
 
 fn wait_for(
@@ -117,17 +195,9 @@ fn wait_for(
     stage: &str,
     mut condition: impl FnMut() -> bool,
 ) -> Result<(), String> {
-    wait_for_value(deadline, stage, || condition().then_some(()))
-}
-
-fn wait_for_value<T>(
-    deadline: Instant,
-    stage: &str,
-    mut check: impl FnMut() -> Option<T>,
-) -> Result<T, String> {
     while Instant::now() < deadline {
-        if let Some(value) = check() {
-            return Ok(value);
+        if condition() {
+            return Ok(());
         }
         thread::sleep(Duration::from_millis(50));
     }

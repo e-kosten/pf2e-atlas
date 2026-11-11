@@ -140,6 +140,7 @@ pub fn setup(
     ]);
     #[cfg(debug_assertions)]
     if let Some(source) = crate::smoke::source()? {
+        crate::smoke::record_setup();
         command.args(["--offline", "--no-embeddings", "--source"]);
         command.arg(source);
     }
