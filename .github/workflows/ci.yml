@@ -122,7 +122,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/validation/test-embedding-seed-coverage.py
           cargo build --locked --release -p atlas-cli --no-default-features
           python3 scripts/release/check-embedding-seeds.py target/release/atlas --advisory | tee -a "$GITHUB_STEP_SUMMARY"
 

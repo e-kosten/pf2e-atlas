@@ -19,7 +19,6 @@ def affects_coverage(path):
         ".github/workflows/release.yml", ".github/workflows/nightly.yml",
         "Cargo.lock", "Cargo.toml", "rust-toolchain.toml",
         "scripts/release/check-embedding-seeds.py", "scripts/validation/ci-results.mjs",
-        "scripts/validation/test-embedding-seed-coverage.py",
         "scripts/validation/embedding-stack.py", "scripts/validation/embedding-baseline.json",
     }
 

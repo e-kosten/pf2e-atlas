@@ -1095,6 +1095,152 @@ fn complete_artifact_snapshots_equal_independently_reloaded_source_models() {
     ).unwrap();
 }
 #[test]
+#[ignore = "requires both verified local embedding models; run explicitly"]
+fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles() {
+    use atlas_embedding::EmbeddingModelId::{BgeBaseEnV15, EmbeddingGemma300M};
+    use atlas_index::{EmbeddingSeed, EmbeddingSeedFile, export_embedding_seed};
+    use std::fs::File;
+
+    let fixture = Fixture::new();
+    let mut options = fixture.options();
+    options.search_profiles = [BgeBaseEnV15, EmbeddingGemma300M]
+        .into_iter()
+        .map(|model| atlas_embedding::EmbeddingRuntimeConfig::new(model, native_smoke_cache(model)))
+        .collect();
+    let revision = atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT;
+    fn build_seed_fixture<'a>(
+        options: &BuildArtifactOptions,
+        name: &str,
+        policy: SeedBuildPolicy,
+        seed_loader: Option<&'a mut EmbeddingSeedLoader<'a>>,
+    ) -> Result<BuildArtifactReport, IngestError> {
+        let mut options = options.clone();
+        options.output_path = options.source_root.join(format!("{name}.sqlite"));
+        let workspace =
+            atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
+        let revision = atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT;
+        CapturedBuildInputs::capture_with_revision(options, SourceRevision::Verified(revision))
+            .unwrap()
+            .build_with_seed_policy(
+                &workspace,
+                atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+                seed_loader,
+                policy,
+            )
+    }
+    let export = |source: &BuildArtifactReport, profile: &str, name: &str| {
+        let path = fixture.0.join(name);
+        let index = atlas_index::test_support::open_reader(&source.output_path).unwrap();
+        let identity = index
+            .context()
+            .search_profile(&atlas_domain::SearchProfileId::new(profile))
+            .unwrap();
+        let file = File::create(&path).unwrap();
+        let header = export_embedding_seed(&index, identity, revision.into(), file).unwrap();
+        let pin = EmbeddingSeedFile::measure(&File::open(&path).unwrap()).unwrap();
+        (path, pin, header.rows)
+    };
+
+    let baseline = build_seed_fixture(&options, "baseline", SeedBuildPolicy::Strict, None).unwrap();
+    let old_bge = export(&baseline, "bge-base", "old-bge.gz");
+    let path = fixture.0.join("packs/items/useful.json");
+    let document = fs::read_to_string(&path).unwrap();
+    fs::write(&path, document.replace("Full prose", "Changed full prose")).unwrap();
+    let current = build_seed_fixture(&options, "current", SeedBuildPolicy::Strict, None).unwrap();
+    let gemma = export(&current, "embeddinggemma", "gemma.gz");
+    let read = |asset: &(PathBuf, EmbeddingSeedFile, usize), scratch: &Path| {
+        EmbeddingSeed::read(File::open(&asset.0).unwrap(), &asset.1, scratch)
+            .map(Some)
+            .map_err(|error| error.to_string())
+    };
+    let mut prior = |model: &atlas_index::SourceSearchProfileIdentity, scratch: &Path| {
+        let asset = if model.profile_id.as_str() == "bge-base" {
+            &old_bge
+        } else {
+            &gemma
+        };
+        read(asset, scratch)
+    };
+    assert!(matches!(
+        build_seed_fixture(
+            &options,
+            "incomplete",
+            SeedBuildPolicy::Strict,
+            Some(&mut prior)
+        ),
+        Err(IngestError::EmbeddingSeedUnavailable { .. })
+    ));
+    let gap = build_seed_fixture(&options, "audit", SeedBuildPolicy::Audit, Some(&mut prior))
+        .unwrap_err();
+    assert!(matches!(gap, IngestError::EmbeddingCoverageGap(gap)
+        if gap.profile.as_str() == "bge-base" && matches!(gap.kind, EmbeddingCoverageGapKind::MissingInput { .. })));
+
+    let refreshed = build_seed_fixture(
+        &options,
+        "refresh",
+        SeedBuildPolicy::Refresh,
+        Some(&mut prior),
+    )
+    .unwrap();
+    assert_eq!(refreshed.inferred_inputs, 1);
+    assert_eq!(refreshed.profiles[0].inferred_inputs, 1);
+    assert_eq!(refreshed.profiles[0].reused_inputs + 1, old_bge.2);
+    assert_eq!(refreshed.profiles[1].inferred_inputs, 0);
+    assert_eq!(refreshed.profiles[1].reused_inputs, gemma.2);
+    let new_bge = export(&refreshed, "bge-base", "new-bge.gz");
+    assert_eq!(new_bge.2, old_bge.2);
+    let mut replacements = |model: &atlas_index::SourceSearchProfileIdentity, scratch: &Path| {
+        let asset = if model.profile_id.as_str() == "bge-base" {
+            &new_bge
+        } else {
+            &gemma
+        };
+        read(asset, scratch)
+    };
+    let verified = build_seed_fixture(
+        &options,
+        "proof",
+        SeedBuildPolicy::Strict,
+        Some(&mut replacements),
+    )
+    .unwrap();
+    assert_eq!(verified.inferred_inputs, 0);
+    assert_eq!(verified.reused_inputs, new_bge.2 + gemma.2);
+
+    let mut rebuild_bge =
+        |model: &atlas_index::SourceSearchProfileIdentity, scratch: &Path| match model
+            .profile_id
+            .as_str()
+        {
+            "bge-base" => Ok(None),
+            _ => read(&gemma, scratch),
+        };
+    let rebuilt = build_seed_fixture(
+        &options,
+        "rebuild-bge",
+        SeedBuildPolicy::Refresh,
+        Some(&mut rebuild_bge),
+    )
+    .unwrap();
+    assert_eq!(rebuilt.profiles[0].inferred_inputs, new_bge.2);
+    assert_eq!(rebuilt.profiles[0].reused_inputs, 0);
+    assert_eq!(rebuilt.profiles[1].inferred_inputs, 0);
+    assert_eq!(rebuilt.profiles[1].reused_inputs, gemma.2);
+
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
+    let root = atlas_domain::RecordKey::parse("items:aaaaaaaaaaaaaaaa").unwrap();
+    let identity_vector = |report: &BuildArtifactReport| {
+        atlas_index::test_support::open_reader(&report.output_path)
+            .unwrap()
+            .seed_identity_vector(&profile, &root)
+            .unwrap()
+            .unwrap()
+            .vector
+    };
+    assert_eq!(identity_vector(&baseline), identity_vector(&verified));
+}
+
+#[test]
 #[ignore = "requires verified local BGE assets; run explicitly"]
 fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     let fixture = Fixture::new();

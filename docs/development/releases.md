@@ -202,9 +202,9 @@ A shared nightly can publish a known gap if other checks pass. Its release notes
 name the affected profiles and show the existing **Build embeddings locally**
 option. An unexpected mismatch, failed download or bad checksum still blocks.
 A numerical transition needs reviewed evidence in
-`scripts/validation/embedding-seed-transitions.json`. Use the unreviewed-mismatch diagnostic for the two numerical identities and
-the candidate manifest for the exact pinned asset. The map is keyed
-by profile and each entry has `pin`, `previous` and `expected` fields. Keep the
+`scripts/validation/embedding-seed-transitions.json`. Use the unreviewed-mismatch
+diagnostic for the two numerical identities and the candidate manifest for the
+exact pinned asset. The map is keyed by profile and each entry has `pin`, `previous` and `expected` fields. Keep the
 separate [compatibility fixture review](#publish-an-embedding-compatibility-fixture)
 applicable and remove transition evidence when updating the corresponding pin.
 
@@ -218,8 +218,9 @@ The command builds the candidate from the current clean checkout, downloads the
 previous seeds, and reuses compatible vectors in a disposable workspace. It
 computes missing vectors and exports only the affected profiles. Use
 `--rebuild-profile "profile=reviewed reason"` for a reviewed numerical contract
-change. The receipt records the reason and the prior pin. In a second fresh workspace the command checks both profiles with zero
-inference, using new files where produced and the prior assets elsewhere. It
+change. The receipt records the reason and the prior pin. In a second fresh
+workspace the command checks both profiles with zero inference, using new files
+where produced and the prior assets elsewhere. It
 compares semantic search results against the producer. Review
 `result/receipt.json` and, if it exists, `result/proposed-pins.json`. A fully
 covered refresh produces a receipt and leaves the existing pins in service.
