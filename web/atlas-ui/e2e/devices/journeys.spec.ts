@@ -2362,11 +2362,14 @@ test("generation replacement recovers deliberately and adopts each successful pa
 test("a real trait member total renders a singular entry @engine", async ({ page }) => {
   const members = page.waitForResponse(
     (response) =>
-      response.url().endsWith("/api/traits/records") &&
-      response.request().postDataJSON()?.kind === "members",
+      new URL(response.url()).pathname === "/api/traits/records" &&
+      response.request().method() === "POST" &&
+      response.request().postDataJSON()?.trait_key === "trait:light",
   );
   await page.goto("/traits/trait%3Alight?search_profile=bge-base");
-  const wire = await (await members).json();
+  const response = await members;
+  expect(response.ok()).toBe(true);
+  const wire = await response.json();
   expect(wire.page.total).toBe(1);
   await expect(page.getByRole("heading", { name: "Light", exact: true })).toBeVisible();
   await expect(
