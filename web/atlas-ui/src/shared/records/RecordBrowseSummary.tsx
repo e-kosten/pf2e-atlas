@@ -115,8 +115,7 @@ export function RecordBrowseSummary({
       }}
     >
       <div className="reference-result__title">
-        <strong>{record.creature_display?.title ?? record.title}</strong>{" "}
-        <span>{classification}</span>
+        <strong>{record.title}</strong> <span>{classification}</span>
         {scenario?.scenario_context && (
           <span className="reference-result__scenario">
             {scenario.scenario_context}

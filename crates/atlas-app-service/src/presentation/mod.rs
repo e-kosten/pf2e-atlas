@@ -524,6 +524,7 @@ fn selected_identity(
         edition: crate::projection::publication_edition(query.publication_remaster().value()),
         record_key: record.key().to_string(),
         title: node_title(node),
+        source_title: None,
         kind: family.into(),
         kind_label: match family {
             _ if matches!(node, SourceNodeView::Journal(_)) => "Journal".into(),

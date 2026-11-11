@@ -41,7 +41,6 @@ export function RecordDetailPane({
   compact = false,
   showRelated = true,
   showRemasterNotice = true,
-  showScenarioContext = false,
   landing,
   onLandingReady,
   onOwnerReturn,
@@ -78,7 +77,6 @@ export function RecordDetailPane({
   compact?: boolean;
   showRelated?: boolean;
   showRemasterNotice?: boolean;
-  showScenarioContext?: boolean;
   landing?: import("../../generated/atlas").RecordNavigationView;
   onLandingReady?: (target?: HTMLElement) => void;
   onOwnerReturn?: (
@@ -118,7 +116,6 @@ export function RecordDetailPane({
                     presentation={detail?.presentation}
                     equipmentFamily={detail?.equipment_family}
                     creatureFamily={detail?.creature_family}
-                    showScenarioContext={showScenarioContext}
                     root={detail?.record}
                     selection={detail?.selected}
                     relationships={detail?.relationships}

@@ -125,12 +125,11 @@ function renderBrowser(positions?: BrowsePositions) {
 
 it("keeps reviewed scenario details out of Search cards", () => {
   const record = {
-    ...summaryFixture("actors:eltha", "Advanced Eltha (9-10)/Eltha (11-12)"),
+    ...summaryFixture("actors:eltha", "Eltha"),
     kind_label: "Creature",
     level_label: "Level 11",
     publication: "Cavern of Sundered Songs",
     creature_display: {
-      title: "Eltha",
       qualifiers: [],
       scenario_context: "Party levels 9–10 (Advanced) · 11–12",
       uses: [

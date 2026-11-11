@@ -474,7 +474,6 @@ export function ReferenceReader({
       >
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
-            showScenarioContext={showRelated}
             showRelated={showRelated}
             identityActions={showRelated && detail ? documentActions : undefined}
             detail={detail}

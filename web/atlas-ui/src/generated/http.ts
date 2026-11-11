@@ -2008,7 +2008,6 @@ export interface CreatureScenarioUseView {
 export interface CreatureDisplayView {
   qualifiers: string[];
   scenario_context?: string;
-  title: string;
   uses: CreatureScenarioUseView[];
 }
 
@@ -2055,6 +2054,7 @@ export interface RecordSummaryView {
   publication: string | null;
   rarity: ReferenceValueView | null;
   record_key: string;
+  source_title?: string;
   /** @nullable */
   source_type: string | null;
   title: string;

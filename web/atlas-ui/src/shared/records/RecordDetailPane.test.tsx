@@ -163,14 +163,14 @@ describe("RecordDetailPane", () => {
   });
 
   it("shows the friendly scenario heading and puts the reviewed uses after Family", () => {
-    const detail = detailFixture("actors:eltha", "Advanced Eltha (9-10)/Eltha (11-12)");
+    const detail = detailFixture("actors:eltha", "Eltha");
     const identity = {
       ...detail.record,
+      source_title: "Advanced Eltha (9-10)/Eltha (11-12)",
       kind: "creature",
       kind_label: "Creature",
       publication: "Cavern of Sundered Songs",
       creature_display: {
-        title: "Eltha",
         qualifiers: [],
         scenario_context: "Party levels 9–10 (Advanced) · 11–12",
         uses: [
@@ -194,15 +194,9 @@ describe("RecordDetailPane", () => {
       content: [],
       embedded: [],
     };
-    render(
-      <RecordDetailPane
-        detail={detail}
-        loading={false}
-        onReference={vi.fn()}
-        showScenarioContext
-      />,
-      { wrapper: RouterTestContext },
-    );
+    render(<RecordDetailPane detail={detail} loading={false} onReference={vi.fn()} />, {
+      wrapper: RouterTestContext,
+    });
     expect(screen.getByRole("heading", { name: "Eltha" })).toBeVisible();
     const family = screen.getByRole("link", { name: "Eltha" });
     const firstUse = screen.getByText("Party levels 9–10 (Advanced) · 11–12");
@@ -211,7 +205,7 @@ describe("RecordDetailPane", () => {
       family.compareDocumentPosition(firstUse) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(screen.getByText("Cavern of Sundered Songs")).toBeVisible();
-    expect(screen.queryByText(identity.title)).toBeNull();
+    expect(screen.queryByText(identity.source_title)).toBeNull();
   });
 });
 

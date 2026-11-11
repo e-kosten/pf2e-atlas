@@ -164,7 +164,6 @@ export function recordClassification(presentation: RecordPresentationView) {
 type IdentityActions = ReactNode | ((secondaryActions: ReactNode) => ReactNode);
 export function RecordIdentity({
   identity,
-  scenario,
   equipmentFamily,
   creatureFamily,
   onEquipmentFamilyNavigate,
@@ -185,7 +184,6 @@ export function RecordIdentity({
   badgeExplanations,
 }: {
   identity?: RecordSummaryView;
-  scenario?: NonNullable<RecordSummaryView["creature_display"]>;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
   onEquipmentFamilyNavigate?: () => void;
@@ -212,6 +210,7 @@ export function RecordIdentity({
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
   const hasRarity = Boolean(identity?.rarity?.label.trim());
   const source = identity?.publication?.trim();
+  const scenario = identity?.creature_display;
   const showSource =
     source &&
     !(
@@ -224,7 +223,7 @@ export function RecordIdentity({
     <DocumentIdentityHeader
       title={
         <>
-          {scenario?.title ?? identity?.title ?? "Reference"}{" "}
+          {identity?.title ?? "Reference"}{" "}
           {actionCost?.state === "value" && actionCost.value?.glyph && (
             <ActionCost fact={actionCost} />
           )}
@@ -352,7 +351,6 @@ export function RecordIdentity({
 }
 export function RecordPresentationIdentity({
   presentation,
-  showScenarioContext = false,
   equipmentFamily,
   creatureFamily,
   onEquipmentFamilyNavigate,
@@ -369,7 +367,6 @@ export function RecordPresentationIdentity({
   actions,
 }: {
   presentation?: RecordPresentationView;
-  showScenarioContext?: boolean;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
   onEquipmentFamilyNavigate?: () => void;
@@ -390,13 +387,6 @@ export function RecordPresentationIdentity({
   actions?: IdentityActions;
 }) {
   const body = presentation?.body;
-  const creatureDisplay = presentation?.identity.creature_display;
-  const scenario =
-    showScenarioContext &&
-    !selection?.embedded_path.length &&
-    creatureDisplay?.uses.length
-      ? creatureDisplay
-      : undefined;
   const identityChanges =
     body?.kind === "spell"
       ? body.value.rank_changes?.filter((change) =>
@@ -435,7 +425,6 @@ export function RecordPresentationIdentity({
       actions={actions}
       showOwnerReturn={showOwnerReturn}
       identity={presentation?.identity}
-      scenario={scenario}
       equipmentFamily={equipmentFamily}
       creatureFamily={creatureFamily}
       onEquipmentFamilyNavigate={onEquipmentFamilyNavigate}

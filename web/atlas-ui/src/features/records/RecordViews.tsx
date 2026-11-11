@@ -48,13 +48,7 @@ function RecordViewContent({
   route,
   detail,
 }: RecordViewProps & { detail: ReturnType<typeof useRecordDetail> }) {
-  const identity = detail.data?.presentation.identity;
-  const scenario = identity?.creature_display;
-  const title =
-    detail.data?.selected.embedded_path.length === 0 && scenario?.uses.length
-      ? scenario.title
-      : identity?.title;
-  usePageTitle(title ?? "Record");
+  usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const onReference = useReferenceRecordNavigation()!;
   const client = useQueryClient();
   const generation = detail.data?.artifact_generation;
@@ -93,7 +87,6 @@ function RecordViewContent({
       <main className="record-view">
         <DocumentPagePane layout={recordLayout(detail.data?.presentation)}>
           <RecordDetailPane
-            showScenarioContext
             sectionLanding={route.section}
             identityActions={
               <AddToRecordButton

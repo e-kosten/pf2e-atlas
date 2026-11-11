@@ -2,6 +2,25 @@ use super::*;
 use atlas_app_model::*;
 use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 
+#[test]
+fn creature_heading_uses_the_projected_title_and_scenario_guidance() {
+    let mut record = summary("Prefect (Fist)", "Creature");
+    record.source_title = Some("Prefect (Fist) (3-4)".into());
+    record.creature_display = Some(CreatureDisplayView {
+        qualifiers: vec![],
+        uses: vec![CreatureScenarioUseView {
+            id: "party-3-4".into(),
+            label: "Party levels 3–4".into(),
+        }],
+        scenario_context: Some("Party levels 3–4".into()),
+    });
+    let mut output = String::new();
+    identity(&mut output, &record);
+    assert!(output.starts_with("Prefect (Fist) — Creature"));
+    assert!(output.lines().any(|line| line == "Party levels 3–4"));
+    assert!(!output.contains("Prefect (Fist) (3-4)"));
+}
+
 // Most fact fixtures have no separately loaded owned prose.
 fn render_record(
     record: &RecordDetailView,
@@ -293,6 +312,7 @@ fn absent_number() -> NumberFactView {
 fn summary(title: &str, family: &str) -> RecordSummaryView {
     RecordSummaryView {
         creature_display: None,
+        source_title: None,
         unit_price_label: None,
         edition: None,
         record_key: "creatures:caster".into(),

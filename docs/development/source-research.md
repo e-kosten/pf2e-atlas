@@ -247,7 +247,9 @@ when to use the stat block, including party levels and Challenge Point threshold
 in the reviewed scenario uses. Set a member's `label` when the token name omits a
 distinguishing form or the default title includes scenario instructions. The actor's
 publication supplies the adventure title, and its source creature level supplies
-the level used by Search. Family pages
+the level used by Search. Atlas projects one display title for the browser and CLI.
+When that title differs from Foundry's, the record summary preserves the exact
+name in `source_title`. Family pages
 can group verified scenario uses by party level range, with each actor once
 per applicable range. Keep explanations of the relationship and scenario
 evidence in the source note.

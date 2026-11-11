@@ -3470,9 +3470,6 @@
           "scenario_context": {
             "type": "string"
           },
-          "title": {
-            "type": "string"
-          },
           "uses": {
             "items": {
               "$ref": "#/components/schemas/CreatureScenarioUseView"
@@ -3481,7 +3478,6 @@
           }
         },
         "required": [
-          "title",
           "qualifiers",
           "uses"
         ],
@@ -14475,6 +14471,9 @@
             ]
           },
           "record_key": {
+            "type": "string"
+          },
+          "source_title": {
             "type": "string"
           },
           "source_type": {

@@ -619,11 +619,12 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
     );
     let detail = f.worker.record_detail(base).unwrap();
     assert_eq!(detail.creature_overrides[0].record_key, target);
-    assert_eq!(detail.record.title, "Prefect (Fist) (3-4)");
+    assert_eq!(detail.record.title, "Prefect (Fist)");
     assert_eq!(
-        detail.record.creature_display.as_ref().unwrap().title,
-        "Prefect (Fist)"
+        detail.record.source_title.as_deref(),
+        Some("Prefect (Fist) (3-4)"),
     );
+    assert_eq!(detail.presentation.identity, detail.record);
     let display = detail.record.creature_display.as_ref().unwrap();
     assert!(display.qualifiers.is_empty());
     assert_eq!(display.uses[0].id, "party-3-4");
@@ -645,7 +646,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
                 .iter()
                 .find(|record| record.record_key == key)
                 .unwrap();
-            assert_eq!(record.creature_display.as_ref().unwrap().title, expected);
+            assert_eq!(record.title, expected);
         }
     }
     for (key, expected) in [
@@ -663,7 +664,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
             .iter()
             .find(|record| record.record_key == key)
             .unwrap();
-        assert_eq!(record.creature_display.as_ref().unwrap().title, expected);
+        assert_eq!(record.title, expected);
     }
     let encounter = f
         .worker

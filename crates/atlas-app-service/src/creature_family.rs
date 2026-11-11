@@ -13,7 +13,7 @@ pub(crate) fn creature_display(
     record: &SourceRecordSummary,
     display: CreatureDisplay,
 ) -> Option<CreatureDisplayView> {
-    if display.label.is_none() && display.qualifier.is_none() && display.scenario_uses.is_empty() {
+    if display.qualifier.is_none() && display.scenario_uses.is_empty() {
         return None;
     }
     let uses: Vec<_> = display
@@ -33,9 +33,7 @@ pub(crate) fn creature_display(
         .map(str::to_owned)
         .into_iter()
         .collect();
-    let title = display.label.or_else(|| record.name.as_value().cloned())?;
     Some(CreatureDisplayView {
-        title,
         qualifiers,
         scenario_context: scenario_context(&display.scenario_uses, &uses),
         uses,
@@ -193,7 +191,6 @@ pub(crate) fn family_view(
             let display = record
                 .creature_display
                 .get_or_insert_with(|| CreatureDisplayView {
-                    title: record.title.clone(),
                     qualifiers: Vec::new(),
                     uses: Vec::new(),
                     scenario_context: None,
