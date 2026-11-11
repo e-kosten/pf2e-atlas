@@ -1,0 +1,38 @@
+name = "Halran"
+source_note = "The Swordlord’s Challenge appendices 1 and 2 give Halran a normal and a Determined dueling block per tier. The encounter A scaling sidebars first substitute the Determined block at 12 CP for levels 1–2 and 23 CP for levels 3–4."
+
+[[members]]
+key = "pfs-season-4-bestiary:m68Zvfw17TYfoacL"
+name = "Halran (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-4-bestiary:t4trkvNuN5cQudRR"
+name = "Determined Halran (1-2)"
+
+[[members.uses]]
+id = "party-1-2-determined"
+party_levels = [1, 2]
+minimum_challenge_points = 12
+qualifier = "Determined"
+
+[[members]]
+key = "pfs-season-4-bestiary:hm3ZkeNOSM8b5KLo"
+name = "Halran (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-4-bestiary:wvH5n8xxN8rYeNeC"
+name = "Determined Halran (3-4)"
+
+[[members.uses]]
+id = "party-3-4-determined"
+party_levels = [3, 4]
+minimum_challenge_points = 23
+qualifier = "Determined"

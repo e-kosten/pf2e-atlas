@@ -1,0 +1,18 @@
+name = "Shard of Aslynn"
+source_note = "Year of Boundless Wonder provides separate 1–2 and 3–4 blocks for the same Shard, with Aslynn’s Gaze and Nightmarish Wounds in both."
+
+[[members]]
+key = "pfs-season-4-bestiary:OOwfdaGQYDknAH4e"
+name = "Shard of Aslynn (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-4-bestiary:JGbgYTBRSSf94v0U"
+name = "Shard of Aslynn (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

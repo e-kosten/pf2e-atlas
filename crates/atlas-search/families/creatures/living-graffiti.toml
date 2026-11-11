@@ -1,0 +1,18 @@
+name = "Living Graffiti"
+source_note = "Bestiary 3 supplies four materials for the same animated artwork. The blocks share Backdrop and Surface-Bound and differ in their Splatter or material-specific abilities."
+
+[[members]]
+key = "pathfinder-bestiary-3:XfHvnixZO9zVwZxC"
+name = "Living Graffiti (Blood)"
+
+[[members]]
+key = "pathfinder-bestiary-3:IyxWVWAi9BjKPxop"
+name = "Living Graffiti (Chalk)"
+
+[[members]]
+key = "pathfinder-bestiary-3:m0w5VfUTRvRcGfba"
+name = "Living Graffiti (Ink)"
+
+[[members]]
+key = "pathfinder-bestiary-3:SIE8CcEblKI9VwqO"
+name = "Living Graffiti (Oil)"

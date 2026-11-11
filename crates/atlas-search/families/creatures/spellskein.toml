@@ -1,0 +1,18 @@
+name = "Spellskein"
+source_note = "Kindled Magic supplies a general Spellskein and three ritual-created forms. The variants’ public notes tie Control Weather to a storm cloud, Consecrate to a religious symbol, and Heroes’ Feast to a teapot."
+
+[[members]]
+key = "strength-of-thousands-bestiary:TAUFXoZgSrZwQsor"
+name = "Spellskein"
+
+[[members]]
+key = "strength-of-thousands-bestiary:9bv6UWHz66TRwP4H"
+name = "Spellskein (Consecrate)"
+
+[[members]]
+key = "strength-of-thousands-bestiary:7aqbEcMv3d1ZVBEz"
+name = "Spellskein (Control Weather)"
+
+[[members]]
+key = "strength-of-thousands-bestiary:ZBG4tyw04lsISbHL"
+name = "Spellskein (Heroes' Feast)"

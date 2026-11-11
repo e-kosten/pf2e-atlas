@@ -1,0 +1,18 @@
+name = "Toxic Snapjaw"
+source_note = "Wayfinder Origins provides 3–4 and 5–6 versions of Toxic Snapjaw. Both have the Pesticide weakness ability and Jaws with Grab."
+
+[[members]]
+key = "pfs-season-1-bestiary:KcLEkekZZw9uI88I"
+name = "Toxic Snapjaw (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:a15tV7snudRPQXHO"
+name = "Toxic Snapjaw (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

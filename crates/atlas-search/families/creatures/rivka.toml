@@ -1,0 +1,22 @@
+name = "Rivka"
+source_note = "Ready? Fight! gives Rivkas different resistances and Kaiju Ray damage depending on the kaiju they fed on. Kaiju Blood identifies the five hosts."
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:k5UjbiYr87NVK7qp"
+name = "Rivka (Cimurlian)"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:zpXQHbe037haBVmD"
+name = "Rivka (Igroon)"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:56U7JoNKbci67vRE"
+name = "Rivka (Kujiba)"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:MdkbAYfKgIvtTxBO"
+name = "Rivka (Mogaru)"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:EYr9GBleLFezHqBk"
+name = "Rivka (Yorak)"

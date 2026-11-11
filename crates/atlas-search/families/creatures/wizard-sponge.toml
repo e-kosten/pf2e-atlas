@@ -1,0 +1,26 @@
+name = "Wizard Sponge"
+source_note = "Bestiary 3 describes colonies taking on properties from their surroundings. The generic record and five environment-specific blocks share Fire Healing, Suction, and Swarming Slither."
+
+[[members]]
+key = "pathfinder-bestiary-3:tdSnY3lgYJnsvB8n"
+name = "Wizard Sponge"
+
+[[members]]
+key = "pathfinder-bestiary-3:dKFzkdgTntTm8ydA"
+name = "Wizard Sponge (Crypt)"
+
+[[members]]
+key = "pathfinder-bestiary-3:sNeIVL8w7NPFtpK2"
+name = "Wizard Sponge (Fey Domain)"
+
+[[members]]
+key = "pathfinder-bestiary-3:Al5OHM0hbWcqIplK"
+name = "Wizard Sponge (Fiendish Temple)"
+
+[[members]]
+key = "pathfinder-bestiary-3:TeaF0WreNshQxbe8"
+name = "Wizard Sponge (Toxic Lair)"
+
+[[members]]
+key = "pathfinder-bestiary-3:rqNNvJO0XEVHWwbW"
+name = "Wizard Sponge (Underwater)"

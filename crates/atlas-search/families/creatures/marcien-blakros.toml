@@ -1,0 +1,18 @@
+name = "Marcien Blakros"
+source_note = "Mean Streets of Shadow Absalom supplies 7–8 and 9–10 blocks for Marcien. The separate Shadow Double records represent the creatures created by Marcien’s Shadow Doubles ability."
+
+[[members]]
+key = "pfs-season-3-bestiary:qDpKFbhWgSWEEA00"
+name = "Marcien Blakros (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-3-bestiary:8tDDIvcinSurN8BF"
+name = "Marcien Blakros (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]
