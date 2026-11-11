@@ -80,6 +80,12 @@ function FamilyMembers({
   );
   return (
     <div className="record-explore__task">
+      {family.overviews.length > 0 && (
+        <section>
+          <h3>Variant overviews</h3>
+          <FamilyRows choices={family.overviews} />
+        </section>
+      )}
       <h3>Variants</h3>
       {grouping ? (
         <>
@@ -104,12 +110,6 @@ function FamilyMembers({
         </>
       ) : (
         <FamilyRows choices={family.members} />
-      )}
-      {family.overviews.length > 0 && (
-        <section>
-          <h3>Variant overviews</h3>
-          <FamilyRows choices={family.overviews} />
-        </section>
       )}
     </div>
   );
