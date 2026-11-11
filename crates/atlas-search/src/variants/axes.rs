@@ -24,6 +24,9 @@ pub(super) fn labels(family: &Family, values: &BTreeMap<String, String>) -> Stri
 }
 
 pub(super) fn general_heading(family: &Family, general: &GeneralRecord) -> String {
+    if general.scope.is_empty() {
+        return "Variants".into();
+    }
     let mut free_axes = family
         .axes
         .iter()
@@ -43,6 +46,19 @@ pub(super) fn concrete_context<'a>(
     let siblings = ordered
         .filter(|member| member.key != seed.key)
         .collect::<Vec<_>>();
+    if family.axes.is_empty() {
+        return VariantFamilyContext::Concrete {
+            slices: vec![VariantAxisSlice {
+                heading: "Variants".into(),
+                members: siblings
+                    .into_iter()
+                    .map(|member| member.key.clone())
+                    .collect(),
+            }],
+            other_combinations: Vec::new(),
+            general,
+        };
+    }
     let mut displayed = BTreeSet::new();
     let mut slices = Vec::new();
     for axis in &family.axes {

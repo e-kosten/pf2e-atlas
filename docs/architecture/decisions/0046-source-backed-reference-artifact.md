@@ -123,12 +123,12 @@ falls back to the bounded lookup with reviewed exclusions. A family can define
 ordered axes with explicit coordinates for concrete members. Each concrete key
 belongs to one family. Explore groups siblings by varying one axis at a time and
 keeps combinations that vary several axes separately. An exact general record can
-scope to a subset of axis values. Retrieval checks that record against the same
-snapshot and derives both directions from the scope. An absent or stale general
+cover the whole family or a subset selected by axis values. Retrieval checks
+that record against the same snapshot and derives both directions from the scope. An absent or stale general
 record leaves any verified concrete slices available. CLI and audit consumers
 continue to use the flat variant outcome. The equipment family page addresses
 the same catalog by family ID and verifies its member set without an item seed.
-It projects reviewed members, axis groupings, and verified scoped overviews
+It projects reviewed members, axis groupings, and verified overviews
 without creating reference records or persisting a second catalog. Record detail
 exposes the family address in the shared header when the exact root record's
 reviewed role verifies.

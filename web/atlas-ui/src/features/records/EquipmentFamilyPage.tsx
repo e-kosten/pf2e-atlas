@@ -78,8 +78,17 @@ function FamilyMembers({
   const members = new Map(
     family.members.map((choice) => [choice.record.record_key, choice]),
   );
+  const overviewHeading = family.overviews.some((overview) => overview.qualifier)
+    ? "Variant overviews"
+    : "Overview";
   return (
     <div className="record-explore__task">
+      {family.overviews.length > 0 && (
+        <section>
+          <h3>{overviewHeading}</h3>
+          <FamilyRows choices={family.overviews} />
+        </section>
+      )}
       <h3>Variants</h3>
       {grouping ? (
         <>
@@ -104,12 +113,6 @@ function FamilyMembers({
         </>
       ) : (
         <FamilyRows choices={family.members} />
-      )}
-      {family.overviews.length > 0 && (
-        <section>
-          <h3>Variant overviews</h3>
-          <FamilyRows choices={family.overviews} />
-        </section>
       )}
     </div>
   );

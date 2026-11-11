@@ -1,5 +1,5 @@
 name = "Specialist's Ring"
-source_note = "Secrets of Magic. Each ring is dedicated to a single spell school with the same Arcana bonus and a Focus Point usable for the corresponding school spell."
+source_note = "Secrets of Magic. Each ring is dedicated to a single spell school with the same Arcana bonus and a Focus Point usable for the corresponding school spell. The unqualified record describes the shared rules for all eight school variants."
 item_type = "equipment"
 
 members = [
@@ -11,4 +11,8 @@ members = [
     { key = "equipment-srd:H44rJpMzx6JyoKoa", name = "Specialist's Ring (Illusion)", attributes = ["Illusion"] },
     { key = "equipment-srd:PjCowzEMV2aJnHkV", name = "Specialist's Ring (Necromancy)", attributes = ["Necromancy"] },
     { key = "equipment-srd:Jt3q4i2FlRPZ14VV", name = "Specialist's Ring (Transmutation)", attributes = ["Transmutation"] },
+]
+
+general_records = [
+    { key = "equipment-srd:RtQwbPiJs2FRyfNE", name = "Specialist's Ring", scope = {} },
 ]

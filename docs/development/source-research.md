@@ -207,10 +207,13 @@ For families with several independent dimensions, declare ordered `axes` and
 their options. Give each concrete member one `coordinates` value per axis.
 Use option labels for display and keep the keys and names from the exact
 Foundry records. Leave absent combinations out of `members`. For a source
-record that describes a subset of those items, add a `general_records` entry
-with its exact key, expected name, and a `scope` that fixes some of the axes.
-Each scope must cover at least one concrete member, and scopes within the
-family must cover disjoint sets. See [Potion of Resistance](../../crates/atlas-search/families/equipment/options/potion-of-resistance.toml)
+record that describes a set of variants, add a `general_records` entry with
+its exact key, expected name, and an explicit `scope`. A scope that fixes some
+axes covers the matching members. Use `scope = {}` for a record that describes
+the whole family, including families without axes. Each concrete member can
+have at most one overview, so a whole-family overview covers the family on its
+own. See [Specialist's Ring](../../crates/atlas-search/families/equipment/options/specialists-ring.toml)
+for a whole-family overview and [Potion of Resistance](../../crates/atlas-search/families/equipment/options/potion-of-resistance.toml)
 for grade-specific general records and [Alloy Orb](../../crates/atlas-search/families/equipment/options/alloy-orb.toml)
 for a family with a missing combination.
 
