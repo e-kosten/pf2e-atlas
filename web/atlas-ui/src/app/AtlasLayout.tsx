@@ -149,6 +149,7 @@ function AtlasWorkspace({
     pendingUrlProfile: searchProfile.pendingUrlProfile,
     searchProfileStored: searchProfile.storedVectors,
     searchProfileUsable: searchProfile.usable,
+    keywordSearch: searchProfile.keywordSearch,
     searchPreferences: searchProfile.preferences,
     includeSearchProfileInUrl:
       searchProfile.profiles.filter((profile) => profile.stored_vectors).length !== 1 ||

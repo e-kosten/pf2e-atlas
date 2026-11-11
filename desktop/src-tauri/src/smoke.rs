@@ -121,9 +121,22 @@ fn run(app: &AppHandle) -> Result<(), String> {
         let destination = window
             .url()
             .map_err(display)?
-            .join("/records/actions:aaaaaaaaaaaaaaaa")
+            .join("/search?q=Handoff%20Test%20Action")
             .map_err(display)?;
         window.navigate(destination).map_err(display)?;
+        wait_for(deadline, "keyword search result", || {
+            evaluates_true(
+                &window,
+                r#"(() => {
+                    const keyword = [...document.querySelectorAll('[role="status"]')]
+                        .some(status => status.textContent.trim() === "Keyword search");
+                    const row = document.querySelector('[data-record-key="actions:aaaaaaaaaaaaaaaa"]');
+                    if (!keyword || !row?.getClientRects().length) return false;
+                    row.click();
+                    return true;
+                })()"#,
+            )
+        })?;
     }
     let expected = atlas_desktop_protocol::parse_record_link(FIXTURE_LINK).map_err(display)?;
     wait_for(deadline, "rendered fixture record", || {

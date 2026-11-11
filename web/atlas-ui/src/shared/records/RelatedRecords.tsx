@@ -25,6 +25,7 @@ import {
   similarityFromPreferences,
 } from "../search/similarityState";
 import { SearchProfileNotice } from "../search/SearchProfileNotice";
+import { searchExecution } from "../search/searchExecution";
 import {
   assertSearchIdentity,
   assertSimilarityIdentity,
@@ -177,6 +178,7 @@ function QueryError({
 
 function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
   const profile = useSearchProfile();
+  const execution = searchExecution(profile, "list_records");
   const filter = linkLeaf(
     {
       direction: incoming ? "incoming" : "outgoing",
@@ -191,21 +193,21 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
       "record-reference-preview",
       filter,
       detail.artifact_generation,
-      profile.id,
+      execution.profile,
     ],
     staleTime: Infinity,
-    enabled: !profile.loading && profile.id !== null,
+    enabled: !profile.loading && execution.ready,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         {
-          search_profile: profile.id ?? undefined,
+          search_profile: execution.profile,
           criteria: { kind: "list_records", filter },
           page: { number: 1, size: 5 },
           expected_artifact_generation: detail.artifact_generation,
         },
         signal,
       );
-      assertSearchIdentity(page, profile.id, detail.artifact_generation);
+      assertSearchIdentity(page, execution.profile, detail.artifact_generation);
       return page;
     },
   });
@@ -704,7 +706,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       <ExploreSearchAction
         route={route}
         summary="Top matches"
-        disabled={needsFamily && !seedInventory.data}
+        disabled={profile.keywordSearch || (needsFamily && !seedInventory.data)}
       >
         Search similar records
       </ExploreSearchAction>
@@ -713,7 +715,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
           Similar to parent record: {detail.record.title}
         </Typography.Paragraph>
       )}
-      {!profile.storedVectors && <SearchProfileNotice />}
+      {!profile.storedVectors && <SearchProfileNotice similar />}
       {similar.isFetching && (
         <div className={similar.data ? "detail-refresh" : undefined}>
           <LoadingStatus label="Loading similar records…" />

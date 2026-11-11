@@ -88,6 +88,32 @@ it("uses the server launch default and keeps unavailable explicit choices visibl
   expect(launch.result.current.error).toContain("unavailable for text search");
 });
 
+it("keeps a keyword session stable when stored vectors become ready", async () => {
+  const ready = readinessFixture();
+  localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, "embeddinggemma");
+  const { result, rerender } = renderHook(
+    ({ readiness }: { readiness: AppReadinessView }) =>
+      useSearchProfileSelection(readiness),
+    {
+      initialProps: { readiness: { ...ready, status: "blocked", search_profiles: [] } },
+    },
+  );
+  expect(result.current.keywordSearch).toBe(false);
+  rerender({ readiness: { ...ready, search_profiles: [] } });
+  expect(result.current.keywordSearch).toBe(true);
+  expect(result.current.id).toBeNull();
+  rerender({ readiness: ready });
+  expect(result.current.keywordSearch).toBe(true);
+  expect(result.current.id).toBeNull();
+  expect(result.current.preferences.model).toBe("embeddinggemma");
+  await act(async () => result.current.resetLink());
+  expect(result.current.keywordSearch).toBe(false);
+  expect(result.current.usable).toBe(true);
+  rerender({ readiness: { ...ready, search_profiles: [] } });
+  expect(result.current.keywordSearch).toBe(true);
+  expect(result.current.error).toBeNull();
+});
+
 it("keeps live tabs independent, retains route changes, and honors explicit Back URLs", async () => {
   const firstRouter = createAtlasRouter(
     createMemoryHistory({ initialEntries: ["/search"] }),

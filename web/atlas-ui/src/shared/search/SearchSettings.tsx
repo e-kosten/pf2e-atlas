@@ -80,7 +80,7 @@ export function SearchSettings({
   seed?: SimilaritySeed | null;
   seedTitle?: string;
   generation?: string | null;
-  onApply: (search: SearchFormState, model: string) => void;
+  onApply: (search: SearchFormState, model: string | null) => void;
   disabled?: boolean;
 }) {
   const profile = useSearchProfile();
@@ -211,18 +211,21 @@ export function SearchSettings({
     (!Number.isFinite(draft.similarity.decay) ||
       draft.similarity.decay < 0 ||
       draft.similarity.decay > 1);
-  const validModel = profile.profiles.some(
-    (item) => item.id === draft?.model && item.stored_vectors,
-  );
+  const keywordSettings = profile.keywordSearch && !seed && draft?.model == null;
+  const validModel =
+    keywordSettings ||
+    profile.profiles.some((item) => item.id === draft?.model && item.stored_vectors);
   const modelLabel =
     profile.profiles.find((item) => item.id === profile.id)?.label ?? profile.id;
   const summary = [
-    modelLabel,
-    seed
-      ? similarityLabel(appliedSimilarity)
-      : ranking === "rrf"
-        ? "Rank-based ranking"
-        : "Score-based ranking",
+    profile.keywordSearch && !seed ? "Keyword search" : modelLabel,
+    profile.keywordSearch && !seed
+      ? null
+      : seed
+        ? similarityLabel(appliedSimilarity)
+        : ranking === "rrf"
+          ? "Rank-based ranking"
+          : "Score-based ranking",
     seed && appliedSimilarity.method !== "baseline"
       ? appliedSourceSections === "core"
         ? "Core sections"
@@ -274,7 +277,7 @@ export function SearchSettings({
   }
   function apply() {
     if (
-      !draft?.model ||
+      !draft ||
       !validModel ||
       invalidParts ||
       missingCore ||
@@ -305,7 +308,7 @@ export function SearchSettings({
       draft.generation === search.similarityGeneration;
     const nextPreferences = {
       ...profile.preferences,
-      model: draft.model,
+      model: draft.model ?? profile.preferences.model,
       searchContent: draft.searchContent,
       sourceSectionsByFamily:
         inventory.data &&
@@ -318,14 +321,20 @@ export function SearchSettings({
           : profile.preferences.sourceSectionsByFamily,
       matchDisplay: draft.matchDisplay,
       showSmallerWeights: draft.showSmallerWeights,
-      ...(seed ? { recordSimilarity: draft.similarity } : { ranking: draft.ranking }),
+      ...(seed
+        ? { recordSimilarity: draft.similarity }
+        : keywordSettings
+          ? {}
+          : { ranking: draft.ranking }),
     };
-    const saved = profile.applyPreferences(nextPreferences);
+    const saved = keywordSettings
+      ? profile.applyPreferences(nextPreferences, null)
+      : profile.applyPreferences(nextPreferences);
     if (!presentationOnly)
       onApply(
         {
           ...search,
-          ranking: seed ? search.ranking : draft.ranking,
+          ranking: seed || keywordSettings ? search.ranking : draft.ranking,
           searchContent: draft.searchContent,
           ...(seed
             ? {
@@ -496,8 +505,10 @@ export function SearchSettings({
                   current
                     ? {
                         ...current,
-                        model: profile.defaultId,
-                        ranking: DEFAULT_SEARCH_PREFERENCES.ranking,
+                        model: keywordSettings ? null : profile.defaultId,
+                        ranking: keywordSettings
+                          ? current.ranking
+                          : DEFAULT_SEARCH_PREFERENCES.ranking,
                         searchContent: DEFAULT_SEARCH_PREFERENCES.searchContent,
                         sourceSections: DEFAULT_SOURCE_SECTIONS,
                         matchDisplay: DEFAULT_SEARCH_PREFERENCES.matchDisplay,
@@ -523,7 +534,7 @@ export function SearchSettings({
 
         okButtonProps={{
           disabled:
-            !draft?.model ||
+            !draft ||
             !validModel ||
             invalidParts ||
             missingCore ||
@@ -871,7 +882,7 @@ export function SearchSettings({
                               </>
                             ),
                           },
-                        ]}
+                        ].filter(({ key }) => !keywordSettings || key !== "advanced")}
                       />
                     </>
                   )}

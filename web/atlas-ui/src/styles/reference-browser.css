@@ -19,6 +19,9 @@
 .search-workspace {
   overflow: clip;
 }
+.search-workspace > .search-profile-status {
+  padding-inline: var(--space-group);
+}
 html:has(:is(.atlas-app--search, .list-workspace)),
 body:has(:is(.atlas-app--search, .list-workspace)) {
   overflow: clip;
@@ -254,6 +257,8 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 @media (max-width: 991px) {
   .search-workspace:has(.reference-browser[data-reading="true"]) > .filter-toolbar,
+  .search-workspace:has(.reference-browser[data-reading="true"])
+    > .search-profile-status,
   .reference-picker__workspace:has(.reference-browser[data-reading="true"])
     > .filter-toolbar {
     display: none;

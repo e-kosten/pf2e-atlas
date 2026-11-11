@@ -53,7 +53,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let index_path = run_directory.join("artifact.sqlite");
     let mut records = corpus::records();
     records.push(reference_data::darkvision_record());
-    let mut fixture = input(records, true);
+    let keyword_only = std::env::var_os("ATLAS_BROWSER_FIXTURE_KEYWORD").as_deref()
+        == Some(std::ffi::OsStr::new("1"));
+    let mut fixture = input(records, !keyword_only);
     fixture.remaster_pairs.push(atlas_index::SourceRemasterPairInput {
         legacy: "browser-editions:legacy0000000001".parse()?,
         remaster: "browser-editions:remaster00000001".parse()?,
@@ -119,7 +121,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &glossary.notices,
     )?;
     let service = AtlasAppService::start(AtlasAppServiceOptions {
-        default_search_profile: Some(SearchProfileId::new("bge-base")),
+        default_search_profile: (!keyword_only).then(|| SearchProfileId::new("bge-base")),
         path_mode: AtlasPathMode::Global,
         source_root: Some(run_directory.join("unused-source")),
         embedding_cache_root: Some(run_directory.join("unused-models")),
@@ -127,21 +129,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
         retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
     })?;
     let readiness = service.readiness();
-    if readiness.status != AppReadinessStatus::Ready
-        || readiness.search_profiles.len() != 1
-        || !readiness.search_profiles[0].stored_vectors
-        || readiness.search_profiles[0].assets_ready
-        || readiness.search_profiles[0].usable
-    {
+    let expected_vectors = if keyword_only {
+        readiness
+            .search_profiles
+            .iter()
+            .all(|profile| !profile.stored_vectors)
+    } else {
+        matches!(readiness.search_profiles.as_slice(), [profile] if profile.stored_vectors && !profile.assets_ready && !profile.usable)
+    };
+    if readiness.status != AppReadinessStatus::Ready || !expected_vectors {
         return Err(io::Error::other(format!(
-            "unexpected structural fixture readiness: {readiness:?}"
+            "unexpected browser fixture readiness: {readiness:?}"
         ))
         .into());
     }
     println!(
-        "Atlas browser fixture listening at http://{} (state: {}; structural vectors, query models unavailable)",
+        "Atlas browser fixture listening at http://{} (state: {}; {})",
         listener.local_addr()?,
-        run_directory.display()
+        run_directory.display(),
+        if keyword_only {
+            "keyword only"
+        } else {
+            "structural vectors, query models unavailable"
+        }
     );
     axum::serve(listener, atlas_web::router(service))
         .with_graceful_shutdown(async {

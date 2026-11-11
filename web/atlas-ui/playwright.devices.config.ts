@@ -23,9 +23,12 @@ if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("ATLAS_DEVICE_PORT must be a port from 1 through 65535.");
 const fixture = browserFixture();
 const baseURL = `http://127.0.0.1:${port}`;
+const keywordOnly = process.env.ATLAS_BROWSER_FIXTURE_KEYWORD === "1";
+const keywordSpec = "keyword-search.spec.ts";
 
 export default defineConfig({
   testDir: "./e2e/devices",
+  testIgnore: keywordOnly ? undefined : keywordSpec,
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -48,6 +51,7 @@ export default defineConfig({
   projects: [
     {
       name: "desktop-chromium",
+      testMatch: keywordOnly ? keywordSpec : undefined,
       use: {
         ...devices["Desktop Chrome"],
         channel: "chromium",
@@ -58,18 +62,18 @@ export default defineConfig({
     {
       name: "phone-chromium",
       grepInvert: /@engine/,
-      testMatch: touchSpecs,
+      testMatch: keywordOnly ? keywordSpec : touchSpecs,
       use: { ...devices["Pixel 7"], channel: "chromium", colorScheme: "dark" },
     },
     {
       name: "phone-webkit",
-      testMatch: touchSpecs,
+      testMatch: keywordOnly ? keywordSpec : touchSpecs,
       use: { ...devices["iPhone 13"], colorScheme: "light", reducedMotion: "reduce" },
     },
     {
       name: "tablet-webkit",
       grepInvert: /@engine/,
-      testMatch: touchSpecs,
+      testMatch: keywordOnly ? keywordSpec : touchSpecs,
       use: { ...devices["iPad Mini"], colorScheme: "dark" },
     },
   ],

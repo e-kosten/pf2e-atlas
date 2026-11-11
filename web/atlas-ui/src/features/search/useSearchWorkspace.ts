@@ -16,6 +16,7 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
+import { searchExecution } from "../../shared/search/searchExecution";
 import { similarityPartsQueryOptions } from "../../shared/search/similarityQueries";
 import {
   useReferenceGeneration,
@@ -23,6 +24,7 @@ import {
 } from "../../shared/search/useReferenceGeneration";
 import { useReferenceQueryRetirement } from "../../shared/queries/useReferenceQueryRetirement";
 import {
+  assertKeywordSearch,
   assertSearchIdentity,
   assertSimilarityIdentity,
   assertSimilarityInventoryIdentity,
@@ -108,7 +110,7 @@ export type SearchWorkspaceState = {
   reading: ReferenceReading;
   positions: BrowsePositions;
   setSearch: (next: SearchFormState, intent?: SearchUpdateIntent) => void;
-  applySettings?: (next: SearchFormState, profile: string) => void;
+  applySettings?: (next: SearchFormState, profile: string | null) => void;
   recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
   selectRecord: (recordKey: string | null) => void;
@@ -140,6 +142,7 @@ type UseAtlasWorkspaceOptions = {
   pendingUrlProfile?: string | null;
   searchProfileStored?: boolean;
   searchProfileUsable?: boolean;
+  keywordSearch?: boolean;
   includeSearchProfileInUrl?: boolean;
   searchPreferences?: SearchPreferences;
 };
@@ -158,6 +161,7 @@ export function useSearchWorkspace({
   pendingUrlProfile = null,
   searchProfileStored = true,
   searchProfileUsable = true,
+  keywordSearch = false,
   includeSearchProfileInUrl = true,
   searchPreferences = DEFAULT_SEARCH_PREFERENCES,
 }: UseAtlasWorkspaceOptions): SearchWorkspaceState {
@@ -223,21 +227,45 @@ export function useSearchWorkspace({
   const previousUrlReading = useRef(urlReadingIdentity(initialRoute));
   const pendingUrlReading = useRef<{ incoming: string; previous: string } | null>(null);
   const searchToken = useMemo(() => encodeSearchState(search), [search]);
-  const searchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(search, searchProfile),
-    [search, searchProfile],
+  const availability = {
+    id: searchProfile,
+    storedVectors: searchProfileStored,
+    usable: searchProfileUsable,
+    keywordSearch,
+  };
+  const browseReady = searchExecution(availability, "list_records").ready;
+  const similarReady = searchExecution(availability, "similar_records").ready;
+  const {
+    profile: requestProfile,
+    mode: textMode,
+    ready: textReady,
+  } = searchExecution(availability, "text_search");
+  const searchReady = search.similarSeed
+    ? similarReady
+    : search.query.trim()
+      ? textReady
+      : browseReady;
+  const activeSearchReady = activeSearch.similarSeed
+    ? similarReady
+    : activeSearch.query.trim()
+      ? textReady
+      : browseReady;
+  const searchExecutionToken = encodeSearchExecutionState(
+    search,
+    requestProfile,
+    textMode,
   );
-  const activeSearchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(activeSearch, searchProfile),
-    [activeSearch, searchProfile],
+  const activeSearchExecutionToken = encodeSearchExecutionState(
+    activeSearch,
+    requestProfile,
+    textMode,
   );
   const canRunResultSearch =
     enabled &&
     initialRoute !== null &&
     !failedTransport &&
     !resetPending &&
-    searchProfile !== null &&
-    (activeSearch.query.trim() ? searchProfileUsable : searchProfileStored) &&
+    activeSearchReady &&
     hasExecutableSearch(activeSearch);
   const retrieval = useReferenceGeneration(
     activeSearchExecutionToken,
@@ -357,6 +385,7 @@ export function useSearchWorkspace({
     retrieval.epoch,
     generation,
     pageNumber,
+    requestProfile ?? null,
   ];
   const resultsKey = resultsKeyForGeneration(retrieval.generation);
   const resultsQuery = useQuery<{
@@ -368,7 +397,10 @@ export function useSearchWorkspace({
     enabled: canRunResultSearch && !retrieval.recovering,
     staleTime: 20000,
     placeholderData: (previous, previousQuery) =>
-      previous?.page.search_profile === searchProfile &&
+      previous &&
+      previousQuery?.queryKey[5] === (requestProfile ?? null) &&
+      (previous.page.mode.kind !== "text_search" ||
+        previous.page.mode.mode === textMode) &&
       previous.page.ranking === (activeSearch.ranking ?? "score") &&
       previousQuery?.queryKey[2] === retrieval.epoch &&
       previousQuery.queryKey[3] === retrieval.generation
@@ -381,13 +413,14 @@ export function useSearchWorkspace({
           activeSearch,
           pageNumber,
           retrieval.generation,
-          searchProfile ?? undefined,
+          requestProfile,
+          textMode,
         ),
         signal,
       );
       assertSearchIdentity(
         page,
-        searchProfile,
+        requestProfile,
         activeSearch.similarityGeneration ?? retrieval.generation,
         effectiveResultSort(activeSearch),
         activeSearch.similarSeed || activeSearch.query.trim()
@@ -401,6 +434,8 @@ export function useSearchWorkspace({
           activeSearch.sourceSections,
           activeSearch.searchContent ?? "all",
         );
+      if (textMode === "lexical" && activeSearch.query.trim())
+        assertKeywordSearch(page);
       if (
         activeSearch.query.trim() &&
         page.ranking !== (activeSearch.ranking ?? "score")
@@ -437,7 +472,7 @@ export function useSearchWorkspace({
       response.page.number !== pageNumber ||
       response.page.size !== activeSearch.pageSize ||
       response.artifact_generation !== retrieval.generation ||
-      response.search_profile !== searchProfile ||
+      (requestProfile !== undefined && response.search_profile !== requestProfile) ||
       urlCriteria(route.query ?? "") !==
         urlCriteria(searchStateQueryString(activeSearch, urlProfile)) ||
       (atlasRouter.latestLocation.search.search_profile ?? null) !== urlProfile
@@ -465,7 +500,7 @@ export function useSearchWorkspace({
     searchExecutionToken,
     activeSearch,
     pageNumber,
-    searchProfile,
+    requestProfile,
     urlProfile,
   ]);
   const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
@@ -539,29 +574,33 @@ export function useSearchWorkspace({
       search.filterWasReset ||
       failedTransport ||
       resetPending ||
-      urlProfile === null ||
+      (urlProfile === null && !keywordSearch) ||
       !currentSearchLocation()
     )
       return;
-    if (atlasRouter.latestLocation.search.search_profile === urlProfile) return;
+    if ((atlasRouter.latestLocation.search.search_profile ?? null) === urlProfile)
+      return;
     void atlasRouter.navigate({
       to: ".",
       hash: true,
-      search: (search) => ({ ...search, search_profile: urlProfile }),
+      search: (search) => ({ ...search, search_profile: urlProfile ?? undefined }),
       replace: true,
       resetScroll: false,
       state: true,
     });
-  }, [enabled, urlProfile, search.filterWasReset, failedTransport, resetPending]);
+  }, [
+    enabled,
+    urlProfile,
+    keywordSearch,
+    search.filterWasReset,
+    failedTransport,
+    resetPending,
+  ]);
 
-  const filterDiscoveryContext = useMemo(
-    () =>
-      buildFilterDiscoveryContext(
-        search,
-        searchProfile ?? undefined,
-        retrieval.generation ?? undefined,
-      ),
-    [search, searchProfile, retrieval.generation],
+  const filterDiscoveryContext = buildFilterDiscoveryContext(
+    search,
+    requestProfile,
+    retrieval.generation ?? undefined,
   );
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
@@ -760,18 +799,14 @@ export function useSearchWorkspace({
     filterEditor: filterDiscovery.filterEditor,
     refreshFilterInformation: refreshResults,
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
-    filterCountsEnabled:
-      filterDiscovery.filterCountsEnabled &&
-      searchProfile !== null &&
-      searchProfileStored,
+    filterCountsEnabled: filterDiscovery.filterCountsEnabled && browseReady,
     filterCountQueryKey: filterDiscovery.filterCountQueryKey,
     filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
     vocabularyScope: filterDiscovery.vocabularyScope,
     filterDiscoveryError: filterDiscovery.errorMessage,
     resultsLoading:
       enabled &&
-      searchProfile !== null &&
-      (search.query.trim() ? searchProfileUsable : searchProfileStored) &&
+      searchReady &&
       hasExecutableSearch(search) &&
       (resultsQuery.isLoading || searchDebouncing),
     resultsRefreshing: resultsRefreshing || preparingSeed,
