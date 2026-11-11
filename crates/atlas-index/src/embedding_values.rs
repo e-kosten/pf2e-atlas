@@ -1,9 +1,9 @@
-//! Exact registry identity and the immutable historical publication checksum helper.
+//! Exact native value checksums and fixture registry inputs.
 #[cfg(any(test, feature = "test-support"))]
-use crate::{
-    IndexError, SourceSearchProfileIdentity, read_units::vector_bytes, validation::check_vector,
-};
-#[cfg(any(test, feature = "test-support"))]
+use crate::IndexError;
+#[cfg(test)]
+use crate::SourceSearchProfileIdentity;
+#[cfg(test)]
 use rusqlite::{Connection, params};
 
 #[cfg(any(test, feature = "test-support"))]
@@ -22,7 +22,7 @@ pub(crate) fn hash_bytes(bytes: &[u8]) -> Vec<u8> {
     use sha2::{Digest, Sha256};
     Sha256::digest(bytes).to_vec()
 }
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 pub(crate) fn model_id(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
@@ -37,7 +37,7 @@ pub(crate) fn model_id(
             .query_row([identity], |r| r.get(0))?,
     )
 }
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 pub(crate) fn input_id(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
@@ -60,19 +60,5 @@ pub(crate) fn input_id(
             "native input token count mismatch".into(),
         ));
     }
-    Ok(id)
-}
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn publish_input(
-    c: &Connection,
-    model: &SourceSearchProfileIdentity,
-    hash: &str,
-    tokens: usize,
-    vector: &[f32],
-) -> Result<i64, IndexError> {
-    check_vector(vector, model.dimensions)?;
-    let id = input_id(c, model, hash, tokens)?;
-    let checksum = hash_bytes(&vector_bytes(vector));
-    c.prepare_cached("UPDATE embedding_inputs SET published_hash=?1 WHERE input_id=?2 AND published_hash IS NOT ?1")?.execute(params![checksum,id])?;
     Ok(id)
 }

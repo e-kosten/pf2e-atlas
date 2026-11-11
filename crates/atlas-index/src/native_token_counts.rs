@@ -4,9 +4,6 @@ use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 
 pub const NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION: u32 = 38;
-#[cfg(any(test, feature = "test-support"))]
-pub const NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL: &str =
-    "ALTER TABLE embedding_models ADD COLUMN published_token_count_digest BLOB;";
 
 const FORMAT: u8 = 1;
 // Changing native counting semantics with unchanged assets must invalidate this recipe.

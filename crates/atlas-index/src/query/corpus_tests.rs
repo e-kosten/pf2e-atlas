@@ -281,21 +281,8 @@ fn pinned_corpus_item_and_common_projection_oracle() {
         serde_json::from_slice(&fs::read(source.join("system.pf2e.json")).unwrap()).unwrap();
     assert_eq!(manifest["version"], "8.6.1");
     let db = Connection::open_in_memory().unwrap();
-    db.execute_batch(include_str!(
-        "../../migrations/00000000000001_create_artifact/up.sql"
-    ))
-    .unwrap();
-    db.execute_batch(crate::CONSUMABLE_FILTER_SCHEMA_SQL)
+    db.execute_batch(include_str!("../release_schema.sql"))
         .unwrap();
-    db.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)
-        .unwrap();
-    db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
-        .unwrap();
-    db.execute_batch(crate::TRAIT_SCHEMA_SQL).unwrap();
-    db.execute_batch(crate::REFERENCE_ENTRIES_SCHEMA_SQL)
-        .unwrap();
-    crate::backfill_reference_entries(&db).unwrap();
-    db.execute_batch(crate::TRAIT_MEMBERS_SCHEMA_SQL).unwrap();
     let mut families = BTreeMap::new();
     let mut counts = [0; 2];
     let mut roots = 0;

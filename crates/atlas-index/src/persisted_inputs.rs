@@ -118,48 +118,6 @@ pub(crate) fn read_attested_persisted_input(
     )?;
     Ok(Some(decoded.source))
 }
-/// Sole owner: the immutable schema20 similarity backfill. Preserve its private
-/// historical call name; all current readers use the attested entry above.
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn read_persisted_input(
-    c: &Connection,
-    context: &SourceArtifactBuildContext,
-    key: &atlas_domain::RecordKey,
-) -> Result<Option<SourceArtifactRecordInput>, IndexError> {
-    let version: u32 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    let present: bool = c.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='reference_component_digests')",
-        [],
-        |r| r.get(0),
-    )?;
-    if version > 20 || present {
-        return Err(IndexError::Invalid(
-            "unattested payload entry is restricted to historical migration20".into(),
-        ));
-    }
-    Ok(decode_persisted_input(c, context, key)?.map(|decoded| decoded.source))
-}
-/// Only schema28's historical callback can read before attestations exist. This
-/// is private migration composition, never a current reader fallback.
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn read_pre_component_digest_migration_input(
-    c: &Connection,
-    context: &SourceArtifactBuildContext,
-    key: &atlas_domain::RecordKey,
-) -> Result<Option<SourceArtifactRecordInput>, IndexError> {
-    let version: u32 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    let present: bool = c.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='reference_component_digests')",
-        [],
-        |r| r.get(0),
-    )?;
-    if version >= 29 || present {
-        return Err(IndexError::Invalid(
-            "pre-component payload decoder is restricted to historical migration28".into(),
-        ));
-    }
-    Ok(decode_persisted_input(c, context, key)?.map(|decoded| decoded.source))
-}
 struct DecodedPersistedInput {
     id: i64,
     source: SourceArtifactRecordInput,

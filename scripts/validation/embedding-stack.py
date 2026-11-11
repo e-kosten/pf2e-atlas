@@ -56,7 +56,13 @@ def selected_runners(base, manual):
     native = PACKAGES - {"text-splitter"}
     if (paths & {".gitattributes", "rust-toolchain.toml", "crates/atlas-embedding/Cargo.toml"}
             or any(path.startswith((".cargo/", "crates/atlas-sqlite-vec/")) for path in paths)
-            or paths & {BASELINE_PIN, RELEASE_PREDECESSOR_PIN}
+            or paths & {BASELINE_PIN, RELEASE_PREDECESSOR_PIN,
+                        "crates/atlas-runtime/src/release_history.rs",
+                        "crates/atlas-index/src/release_schema.sql",
+                        "crates/atlas-local-state/src/release.rs"}
+            or any(path.startswith(("crates/atlas-local-state/src/release/",
+                                    "crates/atlas-runtime/tests/fixtures/schema-41.sqlite"))
+                   for path in paths)
             or [row for row in before["packages"] if row["name"] in native]
             != [row for row in after["packages"] if row["name"] in native]
             or any(before["workspace_dependencies"].get(name) != after["workspace_dependencies"].get(name)

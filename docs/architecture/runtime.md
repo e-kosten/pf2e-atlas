@@ -294,10 +294,8 @@ cached DTO decoding. Present snapshot/provenance, cache and stored-reference
 attestations are checked before retained payloads enter reuse or metadata
 maintenance. These stable checks use stored preparation identity and remain
 independent of current query, lexical and Core policy upgrades. Codec-valid
-altered payloads cannot be accepted as new input and restamped. Private readers for
-migrations 20 and 28 preserve their versioned callback owners. The pre-component reader
-rejects schema 28 onward and any present attestation storage; current readers never
-fall back when that storage is missing.
+altered payloads cannot be accepted as new input and restamped. Readers require
+the attestation storage supplied by supported schemas.
 
 Closed per-root component digests distinguish snapshot/provenance, query rows,
 content caches, relationships, canonical sections, lexical evidence, trait

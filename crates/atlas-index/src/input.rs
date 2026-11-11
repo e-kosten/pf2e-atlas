@@ -196,7 +196,6 @@ pub struct SourceSemanticUnitInput {
 pub struct IndexBuildInput {
     pub inventory: crate::CompleteSourceInventory,
     pub traits: Vec<crate::TraitDefinition>,
-    pub trait_vectors: Vec<crate::TraitVectorInput>,
     pub records: Vec<SourceArtifactRecordInput>,
     pub packs: Vec<IndexBuildPack>,
     pub context: SourceArtifactBuildContext,

@@ -3,6 +3,7 @@ use atlas_domain::{SourceByteRange, SourcePassageAddress};
 use atlas_foundry_model::{
     SNAPSHOT_VERSION, SOURCE_CONTRACT_ID, SourceContext, admit_document_source,
 };
+pub use atlas_index::TraitDefinition;
 pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
 pub use atlas_index::{
@@ -10,7 +11,6 @@ pub use atlas_index::{
     ReferencePermissionDisposition, ReferencePreparation, ReferenceProvenance,
     ReferenceRecordMapping, reference_inventory_identity,
 };
-pub use atlas_index::{TraitDefinition, TraitSeedChunk, TraitVectorInput};
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
     source_record::{
@@ -294,7 +294,6 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
     IndexBuildInput {
         inventory,
         traits: vec![],
-        trait_vectors: vec![],
         records,
         packs,
         context,

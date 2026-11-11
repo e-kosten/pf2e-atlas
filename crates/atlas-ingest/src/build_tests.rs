@@ -1439,7 +1439,7 @@ fn actual_model_reuse_rejects_corrupted_published_input_metadata() {
     build_artifact(options.clone()).unwrap();
     atlas_index::validate_artifact(&options.output_path).unwrap();
     let db = rusqlite::Connection::open(&options.output_path).unwrap();
-    db.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(71,'kept','kept','Saved native proof','before','after'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(71,'items:aaaaaaaaaaaaaaaa',0,'Keep this note','Useful record','before','after');").unwrap();
+    db.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(71,1,'kept','kept','Saved native proof','before','after'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(71,'items:aaaaaaaaaaaaaaaa',0,'Keep this note','Useful record','before','after');").unwrap();
     let healthy = state(&db);
     let changed = db
         .execute("UPDATE embedding_inputs SET token_count=token_count+1", [])
@@ -1611,7 +1611,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
             ],
         )
         .unwrap();
-    before.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,description,created_at,updated_at) VALUES(1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,encounter_key,slug,name,note,status,created_at,updated_at,revision) VALUES(1,'encounter','encounter','Saved encounter','Keep this note','running','now','now',4);").unwrap();
+    before.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,description,created_at,updated_at) VALUES(1,1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,owner_id,encounter_key,slug,name,note,status,created_at,updated_at,revision) VALUES(1,1,'encounter','encounter','Saved encounter','Keep this note','running','now','now',4);").unwrap();
     let identity: i64 = before
         .query_row(
             "SELECT record_id FROM records WHERE key='actions:aaaaaaaaaaaaaaaa'",
@@ -2166,7 +2166,7 @@ fn complete_discovery_preserves_active_publication_when_a_declared_pack_is_missi
     assert_eq!(first.admission.quarantined_files, 1);
     assert_eq!(first.admission.exclusions[0].path, "packs/items/bad.json");
     let db = rusqlite::Connection::open(fixture.options().output_path).unwrap();
-    db.execute("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Keep','now','now')", []).unwrap();
+    db.execute("INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,'keep','keep','Keep','now','now')", []).unwrap();
     let before: (u64, String, i64) = db.query_row("SELECT reference_revision,(SELECT context_json FROM artifact_context),(SELECT record_id FROM records WHERE pack_id='macros') FROM workspace", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
     fs::rename(
         fixture.0.join("packs/macros"),
@@ -2367,7 +2367,7 @@ fn wholly_quarantined_or_unaddressable_source_preserves_active_publication_and_s
         let fixture = Fixture::new();
         build_artifact(fixture.options()).unwrap();
         let db = rusqlite::Connection::open(fixture.options().output_path).unwrap();
-        db.execute("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Keep','now','now')", []).unwrap();
+        db.execute("INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,'keep','keep','Keep','now','now')", []).unwrap();
         let before: (u64, String) = db.query_row("SELECT reference_revision,(SELECT context_json FROM artifact_context) FROM workspace", [], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
         let roots_before = db
             .prepare("SELECT record_id,key,content_hash FROM records ORDER BY key")
@@ -2508,7 +2508,7 @@ fn retired_preparation_and_predecessor_skip_unreadable_cached_dtos_before_source
         database
             .execute("UPDATE record_bodies SET snapshot=x'00'", [])
             .unwrap();
-        database.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Kept','now','now')").unwrap();
+        database.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'kept','kept','Kept','now','now')").unwrap();
         let revision: i64 = database
             .query_row("SELECT reference_revision FROM workspace", [], |r| r.get(0))
             .unwrap();

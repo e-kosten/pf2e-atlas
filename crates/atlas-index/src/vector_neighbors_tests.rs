@@ -130,14 +130,23 @@ fn retained_neighbors_do_not_bypass_incompatible_schema_admission() {
         .unwrap();
     drop(reader);
     let workspace = atlas_storage::Workspace::at(&path).unwrap();
-    let mut migrations = crate::test_support::TEST_MIGRATIONS.to_vec();
+    let history = crate::test_support::RELEASE_HISTORY;
+    let mut migrations = history.migrations.to_vec();
     migrations.push(atlas_storage::Migration {
         version: crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION + 1,
         name: "future-schema-proof",
         sql: "CREATE TABLE future_reference_policy(id INTEGER PRIMARY KEY);",
         backfill: None,
     });
-    workspace.migrate(&migrations, |_| Ok(())).unwrap();
+    workspace
+        .migrate_history(
+            atlas_storage::MigrationHistory {
+                migrations: &migrations,
+                ..history
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
     assert!(crate::test_support::open_reader(&path).is_err());
     assert!(neighbors.allocated_bytes() > 0);
 }

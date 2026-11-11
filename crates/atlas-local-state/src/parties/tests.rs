@@ -1,15 +1,11 @@
 use super::*;
-use crate::{LOCAL_STATE_SCHEMA_SQL, LocalStateError, PARTIES_SCHEMA_SQL};
+use crate::{LocalStateError, test_support::initialize_schema};
 use rusqlite::Connection;
 
 fn connection() -> Connection {
     let connection = Connection::open_in_memory().unwrap();
-    connection.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE record_identity(id INTEGER PRIMARY KEY,key TEXT UNIQUE,last_known_name TEXT,availability TEXT NOT NULL);").unwrap();
-    connection.execute_batch(LOCAL_STATE_SCHEMA_SQL).unwrap();
-    connection.execute_batch(PARTIES_SCHEMA_SQL).unwrap();
-    connection
-        .execute_batch(crate::PARTY_LEVELS_SCHEMA_SQL)
-        .unwrap();
+    connection.execute_batch("PRAGMA foreign_keys=ON").unwrap();
+    initialize_schema(&connection).unwrap();
     connection
 }
 fn member(name: &str) -> PartyMemberInput {

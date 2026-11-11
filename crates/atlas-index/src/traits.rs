@@ -1,18 +1,11 @@
 //! Persisted trait vocabulary and bounded, exact authored associations.
 use crate::{IndexError, SqliteIndexReader};
 use atlas_domain::OwnedContentLocator;
-use atlas_domain::{RecordKey, SearchProfileId, SourceRecordSummary, TraitKey};
+use atlas_domain::{RecordKey, SourceRecordSummary, TraitKey};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[cfg(any(test, feature = "test-support"))]
-pub const TRAIT_SCHEMA_SQL: &str = "
-CREATE TABLE trait_definitions(key TEXT PRIMARY KEY, definition_json TEXT NOT NULL CHECK(json_valid(definition_json)),definition_hash TEXT NOT NULL) STRICT;
-CREATE TABLE trait_vectors(trait_key TEXT NOT NULL REFERENCES trait_definitions(key) ON DELETE CASCADE,profile_id TEXT NOT NULL,input_hash TEXT NOT NULL,vector_json TEXT NOT NULL CHECK(json_valid(vector_json)),chunks_json TEXT NOT NULL CHECK(json_valid(chunks_json)),vector_hash TEXT NOT NULL,PRIMARY KEY(trait_key,profile_id)) WITHOUT ROWID,STRICT;
-CREATE TABLE trait_memberships(trait_key TEXT NOT NULL,record_key TEXT NOT NULL REFERENCES records(key) DEFERRABLE INITIALLY DEFERRED,owners_json TEXT NOT NULL CHECK(json_valid(owners_json)),source_label TEXT,PRIMARY KEY(trait_key,record_key,owners_json)) WITHOUT ROWID,STRICT;
-CREATE TABLE trait_references(trait_key TEXT NOT NULL REFERENCES trait_definitions(key) ON DELETE CASCADE,record_key TEXT NOT NULL REFERENCES records(key) DEFERRABLE INITIALLY DEFERRED,evidence TEXT NOT NULL,PRIMARY KEY(trait_key,record_key,evidence)) WITHOUT ROWID,STRICT;
-";
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TraitDefinition {
     pub key: TraitKey,
@@ -28,22 +21,6 @@ pub struct TraitDefinition {
     pub indexing_locale: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content_locale: Option<String>,
-}
-#[derive(Debug, Clone)]
-pub struct TraitVectorInput {
-    pub key: TraitKey,
-    pub profile_id: SearchProfileId,
-    pub input_hash: String,
-    pub vector: Vec<f32>,
-    pub chunks: Vec<TraitSeedChunk>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraitSeedChunk {
-    pub input: String,
-    pub input_hash: String,
-    pub token_count: usize,
-    pub address: atlas_domain::SourcePassageAddress,
-    pub vector: Vec<f32>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraitReferenceInput {
@@ -166,84 +143,6 @@ pub(crate) fn prune_trait_definitions(
     }
     Ok(())
 }
-/// Populate the genuine released trait layout for published-prefix fixtures.
-/// The migration10 write_seed/validate_seed closure below is unchanged.
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn write_historical_traits(
-    c: &Connection,
-    input: &crate::IndexBuildInput,
-) -> Result<(), IndexError> {
-    crate::test_support::fixture_native_values(input)?;
-    let mut kept = BTreeSet::new();
-    for definition in &input.traits {
-        validate_definition(definition)?;
-        let key = definition.key.to_string();
-        if !kept.insert(key.clone()) {
-            return Err(IndexError::Invalid(
-                "duplicate historical trait definition".into(),
-            ));
-        }
-        let json = serde_json::to_string(definition)?;
-        c.execute("INSERT INTO trait_definitions VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET definition_json=excluded.definition_json,definition_hash=excluded.definition_hash",params![key,json,crate::codec::sha256(json.as_bytes())])?;
-    }
-    let evidence = TraitEvidence::from_definitions(&input.traits)?;
-    for (key, record, reference) in evidence.references {
-        c.execute(
-            "INSERT INTO trait_references VALUES(?,?,?)",
-            params![key, record, reference],
-        )?;
-    }
-    for source in &input.records {
-        let mut evidence = TraitEvidence::default();
-        evidence.add_record(&source.record, input.context.audience)?;
-        write_historical_record_traits(c, source.record.key(), evidence)?;
-    }
-    c.execute_batch("DELETE FROM trait_seed_chunks; DELETE FROM trait_vectors; DELETE FROM trait_native_values;")?;
-    for seed in &input.trait_vectors {
-        let model = input.context.search_profile(&seed.profile_id)?;
-        let definition = input
-            .traits
-            .iter()
-            .find(|d| d.key == seed.key)
-            .ok_or_else(|| IndexError::Invalid("historical trait seed has no definition".into()))?;
-        validate_seed(
-            definition,
-            model,
-            &seed.input_hash,
-            &seed.vector,
-            &seed.chunks,
-        )?;
-        write_seed(c, seed, model)?;
-    }
-    let old = c
-        .prepare("SELECT key FROM trait_definitions")?
-        .query_map([], |r| r.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    for key in old {
-        if !kept.contains(&key) {
-            c.execute("DELETE FROM trait_definitions WHERE key=?", [key])?;
-        }
-    }
-    Ok(())
-}
-
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn write_historical_record_traits(
-    c: &Connection,
-    record_key: &RecordKey,
-    evidence: TraitEvidence,
-) -> Result<(), IndexError> {
-    for (value, record, owners, admitted, label) in evidence.memberships {
-        if admitted {
-            c.execute(
-                "INSERT OR REPLACE INTO trait_memberships VALUES(?,?,?,?)",
-                params![format!("trait:{value}"), record, owners, label],
-            )?;
-        }
-    }
-    write_record_trait_references(c, &record_key.to_string(), evidence.references)
-}
-
 impl SqliteIndexReader {
     pub fn trait_definition(&self, key: &TraitKey) -> Result<Option<TraitDefinition>, IndexError> {
         crate::references::read_entry(
@@ -414,98 +313,6 @@ impl SqliteIndexReader {
     }
 }
 
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn write_seed(
-    c: &Connection,
-    unit: &TraitVectorInput,
-    model: &crate::SourceSearchProfileIdentity,
-) -> Result<(), IndexError> {
-    crate::validation::check_vector(&unit.vector, model.dimensions)?;
-    if !crate::codec::checked_hash(&unit.input_hash) {
-        return Err(IndexError::Invalid("invalid trait input hash".into()));
-    }
-    let bytes = crate::read_units::vector_bytes(&unit.vector);
-    c.execute(
-        "INSERT INTO trait_vectors VALUES(?,?,?,?,?)",
-        params![
-            unit.key.to_string(),
-            unit.profile_id.as_str(),
-            unit.input_hash,
-            bytes,
-            crate::embedding_values::hash_bytes(&bytes)
-        ],
-    )?;
-    for (ordinal, chunk) in unit.chunks.iter().enumerate() {
-        let id = crate::embedding_values::publish_input(
-            c,
-            model,
-            &chunk.input_hash,
-            chunk.token_count,
-            &chunk.vector,
-        )?;
-        c.execute(
-            "INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?)",
-            params![
-                unit.key.to_string(),
-                unit.profile_id.as_str(),
-                ordinal,
-                id,
-                chunk.input,
-                serde_json::to_string(&chunk.address)?
-            ],
-        )?;
-        // A document occurrence is canonical when present. Otherwise keep one
-        // native binary value, regardless of how many traits share this input.
-        let document: bool = c.query_row(
-            "SELECT EXISTS(SELECT 1 FROM semantic_units WHERE input_id=?)",
-            [id],
-            |r| r.get(0),
-        )?;
-        if !document {
-            let bytes = crate::read_units::vector_bytes(&chunk.vector);
-            c.execute("INSERT INTO trait_native_values VALUES(?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector",params![id,bytes])?;
-        }
-    }
-    Ok(())
-}
-
-#[cfg(any(test, feature = "test-support"))]
-fn validate_definition(definition: &TraitDefinition) -> Result<(), IndexError> {
-    match (
-        &definition.prepared,
-        &definition.authored_markup,
-        &definition.description_html,
-    ) {
-        (None, None, None) => {}
-        (Some(prepared), Some(markup), Some(html)) => {
-            if prepared.key != atlas_domain::DefinitionKey::from(definition.key.clone())
-                || &prepared.html != html
-                || prepared.authored_markup_sha256 != crate::codec::sha256(markup.as_bytes())
-                || prepared.interpretation_version
-                    != atlas_record::source_content::CONTENT_INTERPRETATION_VERSION
-            {
-                return Err(IndexError::Invalid(
-                    "trait prepared-content identity mismatch".into(),
-                ));
-            }
-            atlas_record::source_content::validate_prepared_markers(html, &prepared.interactions)
-                .map_err(|e| IndexError::Invalid(e.to_string()))?;
-            atlas_record::source_content::validate_prepared_definition_reference_bindings(
-                html,
-                &prepared.key,
-                &prepared.authored_markup_sha256,
-                &prepared.references,
-            )
-            .map_err(|e| IndexError::Invalid(e.to_string()))?;
-        }
-        _ => {
-            return Err(IndexError::Invalid(
-                "incomplete trait source/preparation snapshot".into(),
-            ));
-        }
-    }
-    Ok(())
-}
 type Member = (String, String, String, bool, Option<String>);
 
 fn read_member(row: &rusqlite::Row<'_>) -> rusqlite::Result<Member> {
@@ -764,7 +571,7 @@ mod tests {
         let initial = input(true);
         let (_directory, path) = crate::foundation_tests::build(&initial);
         let c = Connection::open(&path).unwrap();
-        c.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Saved trait owner','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actors:aaaaaaaaaaaaaaaa',0,'Keep removed-owner note','Dragon Guard','now','now'); CREATE TABLE live_trait_write_audit(component TEXT NOT NULL);").unwrap();
+        c.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'kept','kept','Saved trait owner','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actors:aaaaaaaaaaaaaaaa',0,'Keep removed-owner note','Dragon Guard','now','now'); CREATE TABLE live_trait_write_audit(component TEXT NOT NULL);").unwrap();
         for table in ["trait_members", "trait_references"] {
             for (event, row) in [("INSERT", "new"), ("UPDATE", "new"), ("DELETE", "old")] {
                 c.execute_batch(&format!("CREATE TRIGGER live_{table}_{event} AFTER {event} ON {table} WHEN {row}.record_key='items:cccccccccccccccc' BEGIN INSERT INTO live_trait_write_audit VALUES('{table}'); END;")).unwrap();
@@ -1164,81 +971,4 @@ pub struct TraitReference {
     pub direction: String,
     pub occurrence_path: String,
     pub evidence: String,
-}
-
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn validate_seed(
-    definition: &TraitDefinition,
-    model: &crate::SourceSearchProfileIdentity,
-    hash: &str,
-    vector: &[f32],
-    chunks: &[TraitSeedChunk],
-) -> Result<(), IndexError> {
-    let text = format!(
-        "{}\n{}",
-        definition.label,
-        definition.prepared.as_ref().map_or("", |p| p.text.as_str())
-    );
-    let mut covered = 0;
-    for chunk in chunks {
-        let atlas_domain::SourcePassageAddress::PlainSection {
-            source_text_sha256,
-            selection_version,
-            section_ordinal,
-            label,
-            chunk_bytes,
-        } = &chunk.address
-        else {
-            return Err(IndexError::Invalid("trait seed address kind".into()));
-        };
-        let body = chunk_bytes
-            .extract(&text)
-            .map_err(|e| IndexError::Invalid(e.to_string()))?;
-        // Context may be shortened under the shared budget, but the full body must survive.
-        if source_text_sha256 != &crate::codec::sha256(text.as_bytes())
-            || selection_version != "trait-definition-centroid/v1"
-            || *section_ordinal != 0
-            || label.as_deref() != Some(definition.label.as_str())
-            || chunk_bytes.start > covered
-            || chunk_bytes.end <= covered
-            || !chunk.input.ends_with(body)
-            || chunk.input_hash != crate::codec::sha256(chunk.input.as_bytes())
-            || chunk.token_count == 0
-            || chunk.token_count > model.token_limit
-            || chunk.vector.len() != model.dimensions
-        {
-            return Err(IndexError::Invalid(
-                "trait seed input or coverage mismatch".into(),
-            ));
-        }
-        covered = chunk_bytes.end;
-    }
-    let expected_hash = crate::codec::sha256(
-        format!(
-            "trait-definition-centroid/v1:{}",
-            chunks
-                .iter()
-                .map(|c| c.input_hash.as_str())
-                .collect::<Vec<_>>()
-                .join(":")
-        )
-        .as_bytes(),
-    );
-    crate::validation::check_vector(vector, model.dimensions)?;
-    for chunk in chunks {
-        crate::validation::check_vector(&chunk.vector, model.dimensions)?;
-    }
-    let expected = atlas_embedding::normalized_centroid(
-        &chunks
-            .iter()
-            .map(|c| c.vector.as_slice())
-            .collect::<Vec<_>>(),
-    )
-    .map_err(|e| IndexError::Invalid(e.to_string()))?;
-    if covered != text.len() || expected_hash != hash || expected != vector {
-        return Err(IndexError::Invalid(
-            "trait seed aggregation or complete coverage mismatch".into(),
-        ));
-    }
-    Ok(())
 }

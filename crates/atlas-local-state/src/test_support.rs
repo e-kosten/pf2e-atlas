@@ -1,6 +1,17 @@
 use crate::*;
 use rusqlite::{Connection, TransactionBehavior};
 use std::path::{Path, PathBuf};
+pub(crate) fn initialize_schema(conn: &Connection) -> LocalStateResult<()> {
+    conn.execute_batch("CREATE TABLE record_identity(id INTEGER PRIMARY KEY,key TEXT UNIQUE,last_known_name TEXT,availability TEXT NOT NULL);")?;
+    conn.execute_batch(concat!(
+        include_str!("release/saved_lists.sql"),
+        include_str!("release/parties.sql"),
+        include_str!("release/encounters.sql"),
+        include_str!("release/schema.sql"),
+    ))?;
+    Ok(())
+}
+
 #[derive(Clone)]
 pub(crate) struct TestStore {
     path: PathBuf,
@@ -14,33 +25,7 @@ impl TestStore {
             [],
             |r| r.get::<_, bool>(0),
         )? {
-            conn.execute_batch("CREATE TABLE record_identity(id INTEGER PRIMARY KEY,key TEXT UNIQUE,last_known_name TEXT,availability TEXT NOT NULL);")?;
-            conn.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
-            conn.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
-            conn.execute_batch(ENCOUNTER_DIFFICULTY_SCHEMA_SQL)?;
-            conn.execute_batch(ABILITY_STATE_SCHEMA_SQL)?;
-            conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
-            conn.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
-            conn.execute_batch(PERSISTENT_PREPARATION_SCHEMA_SQL)?;
-            conn.execute_batch(TURN_RESOURCES_SCHEMA_SQL)?;
-            conn.execute_batch(CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL)?;
-            conn.execute_batch(ENCOUNTER_RECOVERY_SCHEMA_SQL)?;
-            conn.execute_batch(MANUAL_TRACKERS_SCHEMA_SQL)?;
-            conn.execute_batch(ENCOUNTER_CLOCK_SCHEMA_SQL)?;
-            backfill_encounter_clock(&conn).expect("fresh workspace clock backfill");
-            conn.pragma_update(None, "foreign_keys", false)?;
-            let transaction = conn.unchecked_transaction()?;
-            backfill_saved_state_integrity(&transaction)
-                .map_err(|error| LocalStateError::IncompatibleSchema(error.to_string()))?;
-            transaction.commit()?;
-            conn.pragma_update(None, "foreign_keys", true)?;
-            conn.execute_batch(TURN_RECEIPTS_SCHEMA_SQL)?;
-            conn.execute_batch(ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL)?;
-            let transaction = conn.unchecked_transaction()?;
-            backfill_saved_state_closeout(&transaction)
-                .map_err(|error| LocalStateError::IncompatibleSchema(error.to_string()))?;
-            transaction.commit()?;
-            conn.execute_batch(MANUAL_TRACKER_ORDER_SCHEMA_SQL)?;
+            initialize_schema(&conn)?;
         }
         Ok(store)
     }
@@ -481,18 +466,8 @@ mod tests {
 
     fn connection() -> LocalStateResult<Connection> {
         let connection = Connection::open_in_memory()?;
-        connection.execute_batch("PRAGMA foreign_keys=ON; CREATE TABLE record_identity(id INTEGER PRIMARY KEY,key TEXT UNIQUE,last_known_name TEXT,availability TEXT NOT NULL);")?;
-        connection.execute_batch(LOCAL_STATE_SCHEMA_SQL)?;
-        connection.execute_batch(ENCOUNTER_STATUS_SCHEMA_SQL)?;
-        connection.execute_batch(ENCOUNTER_DIFFICULTY_SCHEMA_SQL)?;
-        connection.execute_batch(ABILITY_STATE_SCHEMA_SQL)?;
-        connection.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
-        connection.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
-        connection.execute_batch(ENCOUNTER_RECOVERY_SCHEMA_SQL)?;
-        connection.execute_batch(MANUAL_TRACKERS_SCHEMA_SQL)?;
-        connection.execute_batch(MANUAL_TRACKER_ORDER_SCHEMA_SQL)?;
-        connection.execute_batch(ENCOUNTER_CLOCK_SCHEMA_SQL)?;
-        backfill_encounter_clock(&connection).expect("fresh workspace clock backfill");
+        connection.execute_batch("PRAGMA foreign_keys=ON")?;
+        initialize_schema(&connection)?;
         Ok(connection)
     }
 

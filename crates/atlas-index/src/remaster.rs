@@ -3,15 +3,6 @@ use atlas_domain::RecordKey;
 use atlas_record::remaster::RecordRemasterContext;
 use rusqlite::{Connection, params};
 use std::collections::BTreeMap;
-#[cfg(any(test, feature = "test-support"))]
-pub const REMASTER_SCHEMA_SQL: &str =
-    include_str!("../migrations/00000000000030_remaster_information/up.sql");
-#[cfg(any(test, feature = "test-support"))]
-pub const REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL: &str =
-    include_str!("../migrations/00000000000031_remove_remaster_preference/up.sql");
-#[cfg(any(test, feature = "test-support"))]
-pub const COMPACT_REMASTER_SCHEMA_SQL: &str =
-    include_str!("../migrations/00000000000032_compact_remaster_context/up.sql");
 
 pub(crate) fn publish(
     c: &Connection,

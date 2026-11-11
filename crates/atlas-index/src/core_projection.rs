@@ -7,32 +7,6 @@ use atlas_record::source_record::{
 use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeSet;
 
-#[cfg(any(test, feature = "test-support"))]
-pub const CORE_SECTIONS_SCHEMA_SQL: &str = "
-CREATE TABLE core_roots(
- record_id INTEGER PRIMARY KEY REFERENCES records ON DELETE CASCADE,
- family TEXT NOT NULL,
- modelled INTEGER NOT NULL CHECK(modelled IN (0,1)),
- fallback_reason TEXT CHECK(fallback_reason IS NULL OR fallback_reason IN ('unmodelled_kind','no_core_prose')),
- recipe TEXT NOT NULL
-) STRICT;
-CREATE TABLE core_parts(
- selector TEXT PRIMARY KEY REFERENCES similarity_parts ON DELETE CASCADE,
- record_id INTEGER NOT NULL REFERENCES core_roots ON DELETE CASCADE
-) STRICT;
-CREATE INDEX core_parts_root ON core_parts(record_id,selector);
-CREATE TABLE core_lexical_units(
- unit_id INTEGER PRIMARY KEY REFERENCES lexical_units ON DELETE CASCADE,
- record_id INTEGER NOT NULL REFERENCES core_roots ON DELETE CASCADE
-) STRICT;
-CREATE INDEX core_lexical_units_root ON core_lexical_units(record_id,unit_id);
-CREATE TABLE core_semantic_locations(
- location_id INTEGER PRIMARY KEY REFERENCES semantic_locations ON DELETE CASCADE,
- record_id INTEGER NOT NULL REFERENCES core_roots ON DELETE CASCADE
-) STRICT;
-CREATE INDEX core_semantic_locations_root ON core_semantic_locations(record_id,location_id);
-";
-
 #[derive(Debug, PartialEq, Eq)]
 pub(super) struct CoreMembership {
     pub(super) family: String,

@@ -181,7 +181,7 @@ fn owned_publication_preserves_stream_order_optional_names_macro_exclusion_and_s
         drop(read);
         if iteration == 0 {
             let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-            write.connection().execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Keep note','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actors:aaaaaaaaaaaaaaaa',0,'Retain note','Dragon Guard','now','now')").unwrap();
+            write.connection().execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'kept','kept','Keep note','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actors:aaaaaaaaaaaaaaaa',0,'Retain note','Dragon Guard','now','now')").unwrap();
             write.commit().unwrap();
             previous = Some(stable_rows(
                 workspace

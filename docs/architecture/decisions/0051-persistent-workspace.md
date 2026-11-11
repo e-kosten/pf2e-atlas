@@ -49,6 +49,10 @@ constraints and the seeded local principal. The bridge replaces the old ledger
 with the same checkpoint entry as a fresh workspace. Later migrations append
 after that checkpoint.
 
+Domain tests create the release schema directly. Runtime bridge tests use a small
+schema 41 workspace captured from the pinned release, and the platform embedding
+checks use workspaces produced by that release on each runner.
+
 Migrations drain cooperating readers and writers, back up an existing workspace
 and apply schema, backfills, validation and ledger changes in one transaction.
 The checkpoint checksum binds the baseline SQL and the versioned bridge

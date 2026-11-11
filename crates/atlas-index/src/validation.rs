@@ -57,25 +57,6 @@ fn validate_admitted_context(
     Ok((context, hash))
 }
 
-// Admission for the schema-28 reconstruction, which still has both legacy
-// tables. Keep this separate from the current reader's required physical shape.
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn validate_pre_fingerprint(c: &Connection) -> Result<(), IndexError> {
-    let (context, _) = validate_admitted_context(c)?;
-    let fields = crate::search_schema_closeout::legacy_catalog_fields(c)?;
-    if &crate::catalog_fingerprint::fingerprint_v1(fields) != crate::catalog_fingerprint::current()?
-    {
-        return Err(IndexError::Unsupported(
-            "filter catalog differs from executable bindings".into(),
-        ));
-    }
-    validate_profile_storage_from(
-        c,
-        &context,
-        "SELECT profile_id,identity_json,dimensions FROM search_profiles ORDER BY profile_id",
-    )
-}
-
 pub(crate) fn validate_catalog(c: &Connection) -> Result<(), IndexError> {
     let actual: Option<Vec<u8>> = c.query_row(
         "SELECT CASE WHEN length(query_catalog_sha256)=32 THEN query_catalog_sha256 END FROM artifact_context WHERE singleton=1",
