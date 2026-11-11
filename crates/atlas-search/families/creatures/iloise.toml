@@ -1,0 +1,18 @@
+name = "Iloise"
+source_note = "Grim Symphony supplies two party-tier blocks for Iloise. Both have Infused Items, Shock Field, and Quick Bomber."
+
+[[members]]
+key = "pfs-season-1-bestiary:zM01pTDcCS3F6z2V"
+name = "Iloise (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-1-bestiary:LMyYMgdcJqQPgGiY"
+name = "Iloise (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

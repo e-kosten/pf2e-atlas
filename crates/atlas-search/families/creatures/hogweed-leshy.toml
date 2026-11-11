@@ -1,0 +1,18 @@
+name = "Hogweed Leshy"
+source_note = "The Blooming Catastrophe supplies two party-tier blocks for Hogweed Leshy. Both have Burning Sap and Tanglebloom."
+
+[[members]]
+key = "pfs-season-1-bestiary:FG0Cc949yZ8opW8I"
+name = "Hogweed Leshy (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:RzLRzsHVjaPBKCkh"
+name = "Hogweed Leshy (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

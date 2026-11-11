@@ -1,0 +1,46 @@
+name = "Soulbound Doll"
+source_note = "Monster Core ties each doll’s extra innate spell to its soul fragment’s personality. Foundry supplies eleven personality-specific blocks."
+
+[[members]]
+key = "pathfinder-monster-core:uaKlWSKuyZmt88ol"
+name = "Soulbound Doll (Brave)"
+
+[[members]]
+key = "pathfinder-monster-core:0PNjXE892kU89LyV"
+name = "Soulbound Doll (Calm)"
+
+[[members]]
+key = "pathfinder-monster-core:meVRbBCY7LwIZq3t"
+name = "Soulbound Doll (Careful)"
+
+[[members]]
+key = "pathfinder-monster-core:bdarrRaLjNmlYvNa"
+name = "Soulbound Doll (Cruel)"
+
+[[members]]
+key = "pathfinder-monster-core:w2jByvjeZbAclGWf"
+name = "Soulbound Doll (Gentle)"
+
+[[members]]
+key = "pathfinder-monster-core:5NnKgWCNbEzbSEN8"
+name = "Soulbound Doll (Impish)"
+
+[[members]]
+key = "pathfinder-monster-core:cPRdGSSOmIIvAZVy"
+name = "Soulbound Doll (Jolly)"
+
+[[members]]
+key = "pathfinder-monster-core:6WgkWAumJDId0vuJ"
+name = "Soulbound Doll (Kind)"
+
+[[members]]
+key = "pathfinder-monster-core:rATBpWa62XUPnGZb"
+name = "Soulbound Doll (Rash)"
+
+[[members]]
+key = "pathfinder-monster-core:v3jXIOHyQqXvImbc"
+name = "Soulbound Doll (Sassy)"
+
+[[members]]
+key = "pathfinder-monster-core:59eY2OOFIuuj4f72"
+name = "Soulbound Doll (Timid)"

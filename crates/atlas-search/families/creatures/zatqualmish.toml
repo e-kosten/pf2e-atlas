@@ -1,0 +1,18 @@
+name = "Zatqualmish"
+source_note = "Shadows of the Black Sovereign supplies two party-tier blocks for Zatqualmish. Both have Run Away! and the same defense against illusions."
+
+[[members]]
+key = "pfs-season-1-bestiary:hevuaQkMCF9o5KZ2"
+name = "Zatqualmish (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:UQyvGqfFcYva3fzc"
+name = "Zatqualmish (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

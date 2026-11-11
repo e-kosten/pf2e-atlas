@@ -1,0 +1,18 @@
+name = "Leshy Crafter"
+source_note = "The Blooming Catastrophe supplies two party-tier blocks for Leshy Crafter. Both have Vitality Transfer, Claws from Below, and Leech Materials."
+
+[[members]]
+key = "pfs-season-1-bestiary:pxDyzHzkEQTz3R1K"
+name = "Leshy Crafter (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:whbIBJJxlv5oVm6c"
+name = "Leshy Crafter (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

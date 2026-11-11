@@ -1,0 +1,18 @@
+name = "Meleeka Sanvara"
+source_note = "Unforgiving Fire supplies two party-tier blocks for Meleeka Sanvara. Both have Blazing-Talon Surge, Explosive Deathdrop, and the same mastered stance."
+
+[[members]]
+key = "pfs-season-1-bestiary:1MXO3xJS50lENkHL"
+name = "Meleeka Sanvara (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:4MXoQZUrmGeuySrp"
+name = "Meleeka Sanvara (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

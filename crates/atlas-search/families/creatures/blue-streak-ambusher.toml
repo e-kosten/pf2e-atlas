@@ -1,0 +1,20 @@
+name = "Blue Streak Ambusher"
+source_note = "Lightning Strikes, Stars Fall supplies two party-tier blocks for Blue Streak Ambusher. The Blue Streak ambushers have different weapons and combat abilities in each subtier."
+
+[[members]]
+key = "pfs-season-1-bestiary:zAOgSgAqMLCrIvTl"
+name = "Blue Streak Ambushers (5-6)"
+label = "Blue Streak Ambushers"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-1-bestiary:Uhb6f4ettpS7K2Jl"
+name = "Blue Streak Ambushers (7-8)"
+label = "Blue Streak Ambushers"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
