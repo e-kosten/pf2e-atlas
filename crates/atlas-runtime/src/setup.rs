@@ -73,18 +73,10 @@ pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
     options: RuntimeSetupOptions,
 ) -> RuntimeSetupReport {
-    ensure_setup_with_seeds(paths, options, &mut crate::embedding_seeds::open_published)
-}
-
-pub(crate) fn ensure_setup_with_seeds(
-    paths: &ResolvedAtlasPaths,
-    options: RuntimeSetupOptions,
-    seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
-) -> RuntimeSetupReport {
     ensure_setup_with_seed_policy(
         paths,
         options,
-        seed_source,
+        &mut crate::embedding_seeds::open_published,
         atlas_ingest::SeedBuildPolicy::Strict,
     )
 }

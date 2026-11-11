@@ -30,6 +30,31 @@ fn rebuild_source_error(
     )
 }
 
+#[cfg(feature = "seed-tools")]
+fn completed_seed_build(report: RuntimeSetupReport) -> Result<crate::SetupBuildReport, String> {
+    use crate::SetupActionKind::{BuildIndex, ValidateIndex};
+    use crate::SetupActionStatus::{Blocked, Failed};
+
+    if !report.ready {
+        return Err(report
+            .actions
+            .into_iter()
+            .chain(report.checks)
+            .filter(|action| matches!(action.status, Failed | Blocked))
+            .filter_map(|action| {
+                let generic_block =
+                    action.status == Blocked && matches!(action.kind, BuildIndex | ValidateIndex);
+                action.reason.map(|reason| (generic_block, reason))
+            })
+            .min_by_key(|(generic_block, _)| *generic_block)
+            .map(|(_, reason)| reason)
+            .unwrap_or_else(|| "embedding setup did not become ready".into()));
+    }
+    report
+        .build
+        .ok_or_else(|| "embedding setup did not run a source build".into())
+}
+
 impl Default for AtlasRuntimeOptions {
     fn default() -> Self {
         Self {
@@ -156,17 +181,31 @@ impl AtlasRuntime {
     #[cfg(feature = "seed-tools")]
     pub fn verify_local_embedding_seeds(
         &self,
-        options: RuntimeSetupOptions,
         files: &[crate::LocalEmbeddingSeed],
-    ) -> (RuntimeSetupReport, Vec<atlas_domain::SearchProfileId>) {
+    ) -> Result<(crate::SetupBuildReport, Vec<atlas_domain::SearchProfileId>), String> {
         let mut loaded = Vec::new();
-        let report =
-            setup::ensure_setup_with_seeds(&self.paths, options, &mut |model, scratch, _| {
+        let report = setup::ensure_setup_with_seed_policy(
+            &self.paths,
+            RuntimeSetupOptions {
+                search_profiles: files.iter().map(|entry| entry.profile.clone()).collect(),
+                offline: true,
+                ..Default::default()
+            },
+            &mut |model, scratch, _| {
                 let seed = crate::embedding_seeds::open_local(files, model, scratch)?;
                 loaded.push(model.profile_id.clone());
                 Ok(Some(seed))
-            });
-        (report, loaded)
+            },
+            atlas_ingest::SeedBuildPolicy::Strict,
+        );
+        let build = completed_seed_build(report)?;
+        if build.inferred_inputs != 0 || loaded.len() != files.len() {
+            return Err(
+                "verification did not consume every supplied seed with zero corpus inference"
+                    .into(),
+            );
+        }
+        Ok((build, loaded))
     }
 
     pub fn audit_embedding_seed(
@@ -199,8 +238,8 @@ impl AtlasRuntime {
         options: RuntimeSetupOptions,
         files: &[crate::LocalEmbeddingSeed],
         rebuild: &[atlas_domain::SearchProfileId],
-    ) -> RuntimeSetupReport {
-        setup::ensure_setup_with_seed_policy(
+    ) -> Result<crate::SetupBuildReport, String> {
+        completed_seed_build(setup::ensure_setup_with_seed_policy(
             &self.paths,
             options,
             &mut |model, scratch, _| {
@@ -210,7 +249,7 @@ impl AtlasRuntime {
                 crate::embedding_seeds::open_local(files, model, scratch).map(Some)
             },
             atlas_ingest::SeedBuildPolicy::Refresh,
-        )
+        ))
     }
 
     pub fn ensure_setup(&self, options: RuntimeSetupOptions) -> RuntimeSetupReport {

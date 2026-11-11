@@ -113,32 +113,24 @@ pub fn download_embedding_seed(
     directory: &Path,
 ) -> Result<LocalEmbeddingSeed, String> {
     let result = |error: std::io::Error| error.to_string();
+    let verify = |file| pin.file.verify(file).map_err(|error| error.to_string());
     pin.file.validate().map_err(|error| error.to_string())?;
     let path = directory.join(format!("{}.atlas-seed.gz", pin.file.sha256));
     if !path.try_exists().map_err(result)? {
         let mut staged = tempfile::NamedTempFile::new_in(directory).map_err(result)?;
         download_seed(pin, profile.as_str(), staged.as_file_mut())?;
-        check_seed_file(staged.as_file(), &pin.file)?;
+        verify(staged.as_file())?;
         staged
             .persist_noclobber(&path)
             .map_err(|error| error.to_string())?;
     } else {
-        check_seed_file(&std::fs::File::open(&path).map_err(result)?, &pin.file)?;
+        verify(&std::fs::File::open(&path).map_err(result)?)?;
     }
     Ok(LocalEmbeddingSeed {
         profile,
         path,
         file: pin.file.clone(),
     })
-}
-
-#[cfg(feature = "seed-tools")]
-fn check_seed_file(file: &std::fs::File, expected: &EmbeddingSeedFile) -> Result<(), String> {
-    let measured = EmbeddingSeedFile::measure(file).map_err(|error| error.to_string())?;
-    if measured.bytes != expected.bytes || measured.sha256 != expected.sha256 {
-        return Err("download size or SHA-256 differs from the release pin".into());
-    }
-    Ok(())
 }
 
 fn safe_component(value: &str) -> bool {

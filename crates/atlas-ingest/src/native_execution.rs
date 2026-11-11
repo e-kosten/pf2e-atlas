@@ -102,26 +102,23 @@ impl NativeExecution<'_, '_> {
             if seed.is_none() {
                 let loaded = load(model, scratch).map_err(seed_error)?;
                 seed = Some(match loaded {
-                    Some(mut asset) if model.vector_compatible_with(asset.model()) => {
-                        asset
-                            .bind(model)
-                            .map_err(|error| seed_error(error.to_string()))?;
-                        Some(asset)
-                    }
-                    Some(asset)
-                        if policy == SeedBuildPolicy::Audit
-                            && asset.model().profile_id == model.profile_id =>
-                    {
-                        first_gap = Some(Gap::IncompatibleModel {
-                            previous: Box::new(asset.model().clone()),
-                            expected: Box::new(model.clone()),
-                        });
-                        None
-                    }
-                    Some(_) => {
-                        return Err(seed_error(
-                            "model execution identity differs from the requested profile".into(),
-                        ));
+                    Some(mut asset) => {
+                        if asset.try_bind(model) {
+                            Some(asset)
+                        } else if policy == SeedBuildPolicy::Audit
+                            && asset.model().profile_id == model.profile_id
+                        {
+                            first_gap = Some(Gap::IncompatibleModel {
+                                previous: Box::new(asset.model().clone()),
+                                expected: Box::new(model.clone()),
+                            });
+                            None
+                        } else {
+                            return Err(seed_error(
+                                "model execution identity differs from the requested profile"
+                                    .into(),
+                            ));
+                        }
                     }
                     None if policy == SeedBuildPolicy::Refresh => None,
                     None => return Err(seed_error("seed reader is unavailable".into())),
@@ -134,16 +131,18 @@ impl NativeExecution<'_, '_> {
                 .map(PreparedNativeInput::descriptor)
                 .collect::<Vec<_>>();
             let (reused, missing) = if let Some(Some(asset)) = &mut seed {
-                if policy == SeedBuildPolicy::Strict {
-                    let selection = asset
-                        .select(&inputs)
-                        .map_err(|error| seed_error(error.to_string()))?;
-                    publication.stage_seeded(model, selection).map_err(index)?;
-                    return Ok((0, inputs.len(), 0, seed_started.elapsed()));
-                }
                 let (selection, missing) = asset
                     .partition(&inputs)
                     .map_err(|error| seed_error(error.to_string()))?;
+                if policy == SeedBuildPolicy::Strict
+                    && let Some(&first) = missing.first()
+                {
+                    let error = atlas_index::IndexError::Operation(format!(
+                        "embedding seed is missing input {}",
+                        inputs[first].input_sha256
+                    ));
+                    return Err(seed_error(error.to_string()));
+                }
                 publication.stage_seeded(model, selection).map_err(index)?;
                 (inputs.len() - missing.len(), missing)
             } else {
@@ -160,12 +159,11 @@ impl NativeExecution<'_, '_> {
                 return Ok((0, reused, 0, seed_elapsed));
             }
             let batch = batch.into_subset(&missing).map_err(embedding)?;
-            if runner.is_none() {
-                runner = Some(NativeInferenceRunner::new(config, batch_size).map_err(embedding)?);
-            }
-            let runner = runner
-                .as_mut()
-                .ok_or_else(|| invalid("inference runner unavailable"))?;
+            let runner = match &mut runner {
+                Some(runner) => runner,
+                None => runner
+                    .insert(NativeInferenceRunner::new(config, batch_size).map_err(embedding)?),
+            };
             let inferred = runner
                 .infer(&batch, |values| stage_values(publication, model, values))
                 .map_err(embedding)?;

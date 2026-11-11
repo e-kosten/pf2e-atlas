@@ -10,7 +10,7 @@ use std::{
 
 use atlas_domain::SearchProfileId;
 use atlas_index::{EmbeddingSeedFile, export_embedding_seed};
-use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeSetupOptions};
+use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use clap::{Args, Subcommand};
 use serde_json::json;
 
@@ -180,31 +180,7 @@ fn verify(
     }
     let runtime = runtime(index, model_cache)?;
     let started = Instant::now();
-    let (report, loaded) = runtime.verify_local_embedding_seeds(
-        RuntimeSetupOptions {
-            search_profiles: files.iter().map(|entry| entry.profile.clone()).collect(),
-            offline: true,
-            ..Default::default()
-        },
-        &files,
-    );
-    if !report.ready {
-        let reason = report
-            .actions
-            .iter()
-            .rev()
-            .find_map(|action| action.reason.as_deref())
-            .unwrap_or("setup failed without a diagnostic");
-        return Err(reason.to_owned());
-    }
-    let build = report
-        .build
-        .ok_or("verification did not run a source build")?;
-    if build.inferred_inputs != 0 || loaded.len() != files.len() {
-        return Err(
-            "verification did not consume every supplied seed with zero corpus inference".into(),
-        );
-    }
+    let (build, loaded) = runtime.verify_local_embedding_seeds(&files)?;
     println!(
         "{}",
         json!({

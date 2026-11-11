@@ -33,6 +33,17 @@ impl EmbeddingSeedFile {
         Ok(())
     }
 
+    pub fn verify(&self, file: &File) -> Result<(), IndexError> {
+        self.validate()?;
+        let measured = Self::measure(file)?;
+        if measured.bytes != self.bytes || measured.sha256 != self.sha256 {
+            return Err(invalid(
+                "compressed size or SHA-256 does not match the release pin",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn measure(mut file: &File) -> Result<Self, IndexError> {
         file.rewind()?;
         let mut digest = Sha256::new();
@@ -102,13 +113,7 @@ impl EmbeddingSeed {
         expected: &EmbeddingSeedFile,
         scratch: &Path,
     ) -> Result<Self, IndexError> {
-        expected.validate()?;
-        let measured = EmbeddingSeedFile::measure(&file)?;
-        if measured.bytes != expected.bytes || measured.sha256 != expected.sha256 {
-            return Err(invalid(
-                "compressed size or SHA-256 does not match the release pin",
-            ));
-        }
+        expected.verify(&file)?;
         file.rewind()?;
         let mut input = GzDecoder::new(BufReader::new(file));
         if &read_array::<8>(&mut input)? != MAGIC {
@@ -156,28 +161,12 @@ impl EmbeddingSeed {
         &self.model
     }
 
-    pub fn bind(&mut self, model: &SourceSearchProfileIdentity) -> Result<(), IndexError> {
+    pub fn try_bind(&mut self, model: &SourceSearchProfileIdentity) -> bool {
         if !model.vector_compatible_with(&self.model) {
-            return Err(invalid(
-                "model execution identity differs from the requested profile",
-            ));
+            return false;
         }
         self.model = model.clone();
-        Ok(())
-    }
-
-    pub fn select(
-        &mut self,
-        inputs: &[NativeInputDescriptor],
-    ) -> Result<SeedSelection<'_>, IndexError> {
-        let (selection, missing) = self.partition(inputs)?;
-        if let Some(&first) = missing.first() {
-            return Err(invalid(&format!(
-                "is missing input {}",
-                inputs[first].input_sha256
-            )));
-        }
-        Ok(selection)
+        true
     }
 
     /// Collect missing positions and validate every matching input in this window.
@@ -366,19 +355,19 @@ mod tests {
         let (file, pin) = asset(model.clone(), 2, &[[1; 32], [2; 32]], &vector, &[]);
         let directory = tempfile::tempdir().unwrap();
         let mut seed = EmbeddingSeed::read(file, &pin, directory.path()).unwrap();
-        seed.bind(&model).unwrap();
+        assert!(seed.try_bind(&model));
         let mut input = NativeInputDescriptor {
             input_sha256: "02".repeat(32),
             token_count: 12,
         };
+        let (selected, missing) = seed.partition(&[input.clone()]).unwrap();
+        assert!(missing.is_empty());
         assert_eq!(
-            &seed.select(&[input.clone()]).unwrap().values[0].1,
-            &crate::read_units::vector_bytes(&vector),
+            selected.values[0].1,
+            crate::read_units::vector_bytes(&vector)
         );
         input.token_count -= 1;
-        assert!(seed.select(&[input.clone()]).is_err());
-        input.input_sha256 = "03".repeat(32);
-        assert!(seed.select(&[input]).is_err());
+        assert!(seed.partition(&[input]).is_err());
     }
 
     #[test]
@@ -388,7 +377,7 @@ mod tests {
         let (file, pin) = asset(model.clone(), 2, &[[1; 32], [2; 32]], &vector, &[]);
         let directory = tempfile::tempdir().unwrap();
         let mut seed = EmbeddingSeed::read(file, &pin, directory.path()).unwrap();
-        seed.bind(&model).unwrap();
+        assert!(seed.try_bind(&model));
         let mut descriptors = [
             NativeInputDescriptor {
                 input_sha256: "03".repeat(32),
@@ -430,7 +419,7 @@ mod tests {
         }
         let (file, pin) = asset(incompatible, 1, &[[1; 32]], &vector, &[]);
         let mut seed = EmbeddingSeed::read(file, &pin, directory.path()).unwrap();
-        assert!(seed.bind(&model).is_err());
+        assert!(!seed.try_bind(&model));
         let (file, mut pin) = asset(model.clone(), 1, &[[1; 32]], &vector, &[]);
         pin.sha256 = "0".repeat(64);
         assert!(EmbeddingSeed::read(file, &pin, directory.path()).is_err());

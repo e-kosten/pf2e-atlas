@@ -8,8 +8,8 @@ use std::{
 
 use atlas_domain::SearchProfileId;
 use atlas_runtime::{
-    EmbeddingSeedPin, LocalEmbeddingSeed, RuntimeSetupOptions, RuntimeSetupReport,
-    download_embedding_seed, parse_embedding_seed_pins,
+    EmbeddingSeedPin, LocalEmbeddingSeed, RuntimeSetupOptions, download_embedding_seed,
+    parse_embedding_seed_pins,
 };
 use clap::Args;
 use serde_json::{Value, json};
@@ -91,8 +91,8 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
         ..Default::default()
     };
     let producer_runtime = runtime(producer.clone(), None)?;
-    let built =
-        build_report(producer_runtime.refresh_embedding_seeds(options.clone(), &files, &rebuild))?;
+    let built = producer_runtime.refresh_embedding_seeds(options, &files, &rebuild)?;
+    require_profiles(&built)?;
     let mut replacements = BTreeMap::new();
     let mut proposed_pins = pins.clone();
     for profile in &built.profiles {
@@ -126,17 +126,8 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
 
     let proof = attempt.path().join("verification.sqlite");
     let verifier = runtime(proof.clone(), None)?;
-    let (report, loaded) = verifier.verify_local_embedding_seeds(
-        RuntimeSetupOptions {
-            offline: true,
-            ..options
-        },
-        &files,
-    );
-    let verified = build_report(report)?;
-    if verified.inferred_inputs != 0 || loaded.len() != PROFILES.len() {
-        return Err("strict verification did not consume both seeds with zero inference".into());
-    }
+    let (verified, _) = verifier.verify_local_embedding_seeds(&files)?;
+    require_profiles(&verified)?;
     for profile in PROFILES {
         if query(&atlas, &producer, profile)? != query(&atlas, &proof, profile)? {
             return Err(format!("semantic query results differ for {profile}"));
@@ -170,27 +161,7 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn build_report(report: RuntimeSetupReport) -> Result<atlas_runtime::SetupBuildReport, String> {
-    if !report.ready {
-        return Err(report
-            .actions
-            .iter()
-            .chain(report.checks.iter())
-            .find_map(|action| {
-                matches!(
-                    action.status,
-                    atlas_runtime::SetupActionStatus::Failed
-                        | atlas_runtime::SetupActionStatus::Blocked
-                )
-                .then_some(action.reason.as_deref())
-                .flatten()
-            })
-            .unwrap_or("embedding setup did not become ready")
-            .to_owned());
-    }
-    let build = report
-        .build
-        .ok_or("embedding setup did not build a fresh workspace")?;
+fn require_profiles(build: &atlas_runtime::SetupBuildReport) -> Result<(), String> {
     if build.profiles.len() != PROFILES.len()
         || PROFILES.iter().any(|profile| {
             !build.profiles.iter().any(|entry| {
@@ -201,7 +172,7 @@ fn build_report(report: RuntimeSetupReport) -> Result<atlas_runtime::SetupBuildR
     {
         return Err("embedding setup did not cover both profiles".into());
     }
-    Ok(build)
+    Ok(())
 }
 
 fn query(atlas: &Path, index: &Path, profile: &str) -> Result<Value, String> {
