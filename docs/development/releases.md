@@ -199,8 +199,10 @@ CLI. The same check runs locally with
 
 The targeted PR job and nonpublishing feature builds report known coverage gaps.
 A shared nightly can publish a known gap if other checks pass. Its release notes
-name the affected profiles and show the existing **Build embeddings locally**
-option. An unexpected mismatch, failed download or bad checksum still blocks.
+name the affected profiles and show **Build embeddings locally** and
+`atlas setup --build-embeddings-locally`. That explicit choice can take an hour
+or more. Users can retry a transient download or wait for a nightly with updated
+pins. An unexpected mismatch, failed download or bad checksum still blocks.
 A numerical transition needs reviewed evidence in
 `scripts/validation/embedding-seed-transitions.json`. Use the unreviewed-mismatch
 diagnostic for the two numerical identities and the candidate manifest for the
@@ -208,10 +210,11 @@ exact pinned asset. The map is keyed by profile and each entry has `pin`, `previ
 separate [compatibility fixture review](#publish-an-embedding-compatibility-fixture)
 applicable and remove transition evidence when updating the corresponding pin.
 
-Build and verify from the reviewed Git ref carrying the previous public pins:
+Build and verify from the reviewed Git ref carrying the previous public pins.
+For example, use `origin/main` when it carries the desired pins.
 
 ```sh
-just embedding-seed-refresh --baseline-ref <reviewed-ref> --output scratch/seed-refresh
+just embedding-seed-refresh --baseline-ref origin/main --output scratch/seed-refresh
 ```
 
 The command builds the candidate from the current clean checkout, downloads the
@@ -220,10 +223,12 @@ computes missing vectors and exports only the affected profiles. Use
 `--rebuild-profile "profile=reviewed reason"` for a reviewed numerical contract
 change. The receipt records the reason and the prior pin. In a second fresh
 workspace the command checks both profiles with zero inference, using new files
-where produced and the prior assets elsewhere. It
-compares semantic search results against the producer. Review
+where produced and the prior assets elsewhere. It compares semantic search
+results against the producer. Review
 `result/receipt.json` and, if it exists, `result/proposed-pins.json`. A fully
-covered refresh produces a receipt and leaves the existing pins in service.
+covered refresh reports an empty `replacements` object, writes the receipt and
+keeps the existing pins. A refresh with a new BGE input and full Gemma coverage
+proposes only a BGE replacement.
 After a failed run, rerun in the same output directory to reuse verified
 downloads. Completed outputs are kept for review.
 

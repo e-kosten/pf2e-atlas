@@ -124,7 +124,6 @@ audit or `data.proposals` for grade candidates. The command preserves workspace 
 and catalog files. See [equipment family review](source-research.md#equipment-family-review-during-a-source-upgrade)
 for the source checks that precede catalog changes.
 
-
 ## Refresh published embedding assets
 
 Use `just embedding-seed-refresh --baseline-ref <reviewed-ref> --output <task-directory>`.
@@ -135,3 +134,10 @@ second workspace passes strict setup and query comparison. The receipt also
 records coverage for runs that retain both prior assets. See the
 [release runbook](releases.md#refresh-precomputed-corpus-embeddings) for upload
 and pinning.
+
+The nightly package check writes a separate version 1 JSON receipt with
+`source_sha`, `tag`, `archive_sha256`, both `pins` and both `profiles`.
+A covered profile reports reuse and inference counts. A gap reports
+`missing_input` with its first hash or `reviewed_model_transition`.
+The publisher matches the receipt to the candidate pins and the actual
+Linux x64 CLI-only archive before it uses the result in release notes.
