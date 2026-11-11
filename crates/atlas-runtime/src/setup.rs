@@ -47,6 +47,7 @@ fn configuration_failure(
         },
         search_profiles: vec![],
         build: None,
+        embedding_coverage_gap: None,
     }
 }
 fn stored_reference(
@@ -77,8 +78,22 @@ pub(crate) fn ensure_setup(
 
 pub(crate) fn ensure_setup_with_seeds(
     paths: &ResolvedAtlasPaths,
+    options: RuntimeSetupOptions,
+    seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
+) -> RuntimeSetupReport {
+    ensure_setup_with_seed_policy(
+        paths,
+        options,
+        seed_source,
+        atlas_ingest::SeedBuildPolicy::Strict,
+    )
+}
+
+pub(crate) fn ensure_setup_with_seed_policy(
+    paths: &ResolvedAtlasPaths,
     mut options: RuntimeSetupOptions,
     seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
+    seed_policy: atlas_ingest::SeedBuildPolicy,
 ) -> RuntimeSetupReport {
     // Emit progress before configuration and workspace checks, which can take
     // noticeable time on a fresh install or a large existing workspace.
@@ -130,6 +145,18 @@ pub(crate) fn ensure_setup_with_seeds(
     effective_paths.source_root = configuration.source_root.clone();
     let paths = &effective_paths;
     options.search_profiles = configuration.search_profiles.clone();
+    let use_seeds = managed_source
+        && !paths.source_root_explicit
+        && configuration.manifest_path.is_none()
+        && configuration.indexing_locale == "en"
+        && !options.build_embeddings_locally;
+    if seed_policy != atlas_ingest::SeedBuildPolicy::Strict && !use_seeds {
+        return configuration_failure(
+            paths,
+            &options,
+            "seed tools require the managed English source and pinned models".into(),
+        );
+    }
     let prepare_embeddings = !options.search_profiles.is_empty();
     let mut checks = Vec::new();
     let mut actions = Vec::new();
@@ -377,6 +404,7 @@ pub(crate) fn ensure_setup_with_seeds(
     };
     let needs_build = source_build_required || old.is_err() || !old_semantic;
     let mut build = None;
+    let mut embedding_coverage_gap = None;
     let mut build_failed = false;
     if needs_build {
         if options.check {
@@ -393,11 +421,6 @@ pub(crate) fn ensure_setup_with_seeds(
             ));
         } else {
             progress("build_index", "Building search index");
-            let use_seeds = managed_source
-                && !paths.source_root_explicit
-                && configuration.manifest_path.is_none()
-                && locale == "en"
-                && !options.build_embeddings_locally;
             let mut load = |model: &atlas_index::SourceSearchProfileIdentity,
                             scratch: &std::path::Path| {
                 seed_source(model, scratch, options.offline)
@@ -414,10 +437,11 @@ pub(crate) fn ensure_setup_with_seeds(
                             "source inputs were not captured".into(),
                         )
                     })?
-                    .build_with_embedding_seeds(
+                    .build_with_seed_policy(
                         &workspace,
                         crate::WORKSPACE_SCHEMA_VERSION,
                         use_seeds.then_some(&mut load),
+                        seed_policy,
                     )
             })();
             match result {
@@ -431,6 +455,10 @@ pub(crate) fn ensure_setup_with_seeds(
                 Err(e) => {
                     build_failed = true;
                     let (kind, reason) = match &e {
+                        atlas_ingest::IngestError::EmbeddingCoverageGap(gap) => {
+                            embedding_coverage_gap = Some((**gap).clone());
+                            (SetupActionKind::PrepareEmbeddingSeed, e.to_string())
+                        }
                         atlas_ingest::IngestError::EmbeddingSeedUnavailable { .. } => (
                             SetupActionKind::PrepareEmbeddingSeed,
                             format!(
@@ -564,6 +592,7 @@ pub(crate) fn ensure_setup_with_seeds(
             })
             .collect(),
         build,
+        embedding_coverage_gap,
     };
     tracing::info!(target:"atlas_progress", complete=true, "Setup finished");
     report

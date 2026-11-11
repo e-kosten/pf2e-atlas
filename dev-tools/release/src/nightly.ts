@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { coverageArchive, coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
 import { validateAssets } from './validate-release-assets.js';
 import { object, readJson } from './release-data.js';
 
@@ -55,7 +56,8 @@ interface Release {
   target_commitish: string;
   draft: boolean;
   prerelease: boolean;
-  assets?: { name: string }[];
+  body?: string;
+  assets?: { name: string; digest?: string }[];
 }
 function releases(run: Run): Release[] {
   return (JSON.parse(run('gh', ['api', '--paginate', '--slurp', 'repos/{owner}/{repo}/releases?per_page=100'])) as Release[][]).flat();
@@ -86,48 +88,60 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
   return `build=true\nsha=${sha}\ntag=${tag}\n`;
 }
 
-export async function publishNightly(root: string, tag: string, sha: string, dist: string,
+export async function publishNightly(root: string, tag: string, sha: string, dist: string, coveragePath: string,
   run = commandRunner(root), validate: (directory: string) => Promise<void> = validateAssets): Promise<void> {
   const version = nightlyVersion(tag);
   if (!/^[0-9a-f]{40}$/.test(sha) || !tag.endsWith(`.g${sha.slice(0, 12)}`)) throw new Error('Nightly tag does not identify the source SHA');
   await validate(dist);
   if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== tag) throw new Error('Release manifest version mismatch');
+  const coverage = await validateNightlyCoverage(root, dist, coveragePath, tag, sha);
   const existing = releases(run);
   const release = existing.find((item) => item.tag_name === tag);
   if (release && release.target_commitish !== sha) throw new Error('Existing nightly points at another commit');
+  const notes = [
+    'Not a stable release',
+    '',
+    ...(coverage.notice ? [coverage.notice, ''] : []),
+    '<details>',
+    '<summary>Install instructions</summary>',
+    '',
+    'Install with the installer for your platform:',
+    '',
+    '**macOS / Linux**',
+    '',
+    '```sh',
+    "curl --proto '=https' --tlsv1.2 -LsSf \\",
+    `  https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/atlas-installer.sh \\`,
+    `  | sh -s -- --version ${tag}`,
+    '```',
+    '',
+    '**Windows (PowerShell)**',
+    '',
+    '```powershell',
+    `Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/atlas-installer.ps1 -OutFile atlas-installer.ps1`,
+    `./atlas-installer.ps1 -Version ${tag}`,
+    '```',
+    '',
+    'For first-time setup, see the [Quick Start](https://github.com/e-kosten/pf2e-atlas#quick-start).',
+    '',
+    '</details>',
+    '',
+    `Built from main commit ${sha}.`,
+    '',
+  ].join('\n');
   if (!release) {
-    run('gh', ['release', 'create', tag, '--target', sha, '--title', `Nightly ${version}`, '--notes',
-      [
-        'Not a stable release',
-        '',
-        '<details>',
-        '<summary>Install instructions</summary>',
-        '',
-        'Install with the installer for your platform:',
-        '',
-        '**macOS / Linux**',
-        '',
-        '```sh',
-        "curl --proto '=https' --tlsv1.2 -LsSf \\",
-        `  https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/atlas-installer.sh \\`,
-        `  | sh -s -- --version ${tag}`,
-        '```',
-        '',
-        '**Windows (PowerShell)**',
-        '',
-        '```powershell',
-        `Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/atlas-installer.ps1 -OutFile atlas-installer.ps1`,
-        `./atlas-installer.ps1 -Version ${tag}`,
-        '```',
-        '',
-        'For first-time setup, see the [Quick Start](https://github.com/e-kosten/pf2e-atlas#quick-start).',
-        '',
-        '</details>',
-        '',
-        `Built from main commit ${sha}.`,
-        '',
-      ].join('\n'),
-      '--draft', '--prerelease', '--latest=false']);
+    run('gh', ['release', 'create', tag, '--target', sha, '--title', `Nightly ${version}`,
+      '--notes', notes, '--draft', '--prerelease', '--latest=false']);
+  } else if (release.draft) {
+    run('gh', ['release', 'edit', tag, '--notes', notes]);
+  } else {
+    const remote = release.assets?.find((asset) => asset.name === coverageArchive);
+    if (remote?.digest !== `sha256:${coverage.archiveSha256}`) {
+      throw new Error('Published nightly archive differs from the validated coverage report');
+    }
+    if (coverage.notice ? !release.body?.includes(coverage.notice) : release.body?.includes(coverageHeading)) {
+      throw new Error('Published nightly notes differ from the validated coverage report');
+    }
   }
   if (!release || release.draft) {
     const assets = readdirSync(dist, { withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(dist, entry.name)).sort();

@@ -123,3 +123,15 @@ Add `--json` to get the standard JSON envelope with `data.records` for the
 audit or `data.proposals` for grade candidates. The command preserves workspace data
 and catalog files. See [equipment family review](source-research.md#equipment-family-review-during-a-source-upgrade)
 for the source checks that precede catalog changes.
+
+
+## Refresh published embedding assets
+
+Use `just embedding-seed-refresh --baseline-ref <reviewed-ref> --output <task-directory>`.
+The command records both commits, executable hashes, prior pins, candidate
+source and model identities, and per-profile reuse and inference counts.
+Verified replacements and proposed pins appear under `result/` after the
+second workspace passes strict setup and query comparison. The receipt also
+records coverage for runs that retain both prior assets. See the
+[release runbook](releases.md#refresh-precomputed-corpus-embeddings) for upload
+and pinning.

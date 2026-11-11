@@ -1,3 +1,5 @@
+mod refresh;
+
 use std::{
     fs::File,
     io::BufWriter,
@@ -20,6 +22,8 @@ pub(crate) struct SeedArgs {
 
 #[derive(Debug, Subcommand)]
 enum SeedCommand {
+    /// Prepare and verify replacements from a reviewed prior pin manifest.
+    Refresh(refresh::RefreshArgs),
     /// Export a profile from a ready, dedicated managed workspace.
     Export {
         #[arg(long)]
@@ -60,6 +64,7 @@ fn runtime(index: PathBuf, model_cache: Option<PathBuf>) -> Result<AtlasRuntime,
 
 pub(crate) fn run(args: SeedArgs) -> Result<ExitCode, String> {
     match args.command {
+        SeedCommand::Refresh(args) => refresh::run(args),
         SeedCommand::Export {
             index,
             profile,
@@ -81,8 +86,22 @@ fn export(
     producer_commit: String,
     output: &Path,
 ) -> Result<ExitCode, String> {
-    let result = |error: atlas_index::IndexError| error.to_string();
     let runtime = runtime(index, None)?;
+    let (file, header) = export_from(&runtime, profile, producer_commit, output)?;
+    println!(
+        "{}",
+        json!({ "file": file, "header": header, "path": output })
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+fn export_from(
+    runtime: &AtlasRuntime,
+    profile: &str,
+    producer_commit: String,
+    output: &Path,
+) -> Result<(EmbeddingSeedFile, atlas_index::EmbeddingSeedHeader), String> {
+    let result = |error: atlas_index::IndexError| error.to_string();
     let workspace = runtime.open_index().map_err(result)?;
     let requested = atlas_index::read_requested_reference_config(workspace.workspace_session())
         .map_err(result)?
@@ -115,11 +134,7 @@ fn export(
     staged
         .persist_noclobber(output)
         .map_err(|error| error.to_string())?;
-    println!(
-        "{}",
-        json!({ "file": file, "header": header, "path": output })
-    );
-    Ok(ExitCode::SUCCESS)
+    Ok((file, header))
 }
 
 fn verify(

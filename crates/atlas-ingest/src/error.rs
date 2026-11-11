@@ -1,5 +1,24 @@
 use thiserror::Error;
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct EmbeddingCoverageGap {
+    pub profile: atlas_domain::SearchProfileId,
+    #[serde(flatten)]
+    pub kind: EmbeddingCoverageGapKind,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum EmbeddingCoverageGapKind {
+    MissingInput {
+        first_hash: String,
+    },
+    IncompatibleModel {
+        previous: Box<atlas_index::SourceSearchProfileIdentity>,
+        expected: Box<atlas_index::SourceSearchProfileIdentity>,
+    },
+}
+
 #[derive(Debug, Error)]
 pub enum IngestError {
     #[error("source is incompatible: {0}")]
@@ -26,6 +45,8 @@ pub enum IngestError {
     SpaceReclamationFailed(String),
     #[error("could not use precomputed embeddings for {profile}: {reason}")]
     EmbeddingSeedUnavailable { profile: String, reason: String },
+    #[error("pinned embeddings do not cover {}", .0.profile)]
+    EmbeddingCoverageGap(Box<EmbeddingCoverageGap>),
     #[error("document embedding generation failed: {0}")]
     DocumentEmbeddingFailed(String),
 }

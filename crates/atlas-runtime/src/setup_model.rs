@@ -239,6 +239,7 @@ pub struct RuntimeSetupReport {
     pub paths: SetupPathsReport,
     pub search_profiles: Vec<SetupEmbeddingReport>,
     pub build: Option<SetupBuildReport>,
+    pub embedding_coverage_gap: Option<atlas_ingest::EmbeddingCoverageGap>,
 }
 
 impl RuntimeSetupReport {

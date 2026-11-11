@@ -101,10 +101,15 @@ jobs:
         with:
           name: release-build-check-${{ needs.plan.outputs.tag }}
           path: target/nightly
+      - name: Download nightly embedding coverage evidence
+        uses: actions/download-artifact@v8
+        with:
+          name: embedding-coverage-${{ needs.plan.outputs.tag }}
+          path: target/nightly-coverage
       - name: Publish and smoke-test dated release, then update channel
         env:
           GH_TOKEN: ${{ github.token }}
           NIGHTLY_TAG: ${{ needs.plan.outputs.tag }}
           SOURCE_SHA: ${{ needs.plan.outputs.sha }}
           ATLAS_REPO: ${{ github.repository }}
-        run: node dev-tools/release/dist/src/cli/nightly.js publish --tag "$NIGHTLY_TAG" --sha "$SOURCE_SHA" --dist target/nightly
+        run: node dev-tools/release/dist/src/cli/nightly.js publish --tag "$NIGHTLY_TAG" --sha "$SOURCE_SHA" --dist target/nightly --coverage target/nightly-coverage/embedding-coverage.json

@@ -12,7 +12,7 @@ mod core_projection_pilot;
 mod discovery;
 mod embedding_seed;
 pub use embedding_seed::{
-    EmbeddingSeed, EmbeddingSeedFile, MAX_EMBEDDING_SEED_BYTES, SeedSelection,
+    EmbeddingSeed, EmbeddingSeedFile, EmbeddingSeedHeader, MAX_EMBEDDING_SEED_BYTES, SeedSelection,
     export_embedding_seed,
 };
 mod embedding_values;

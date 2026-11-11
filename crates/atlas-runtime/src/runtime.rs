@@ -164,9 +164,53 @@ impl AtlasRuntime {
             setup::ensure_setup_with_seeds(&self.paths, options, &mut |model, scratch, _| {
                 let seed = crate::embedding_seeds::open_local(files, model, scratch)?;
                 loaded.push(model.profile_id.clone());
-                Ok(seed)
+                Ok(Some(seed))
             });
         (report, loaded)
+    }
+
+    pub fn audit_embedding_seed(
+        &self,
+        options: RuntimeSetupOptions,
+    ) -> Result<RuntimeSetupReport, String> {
+        if options.search_profiles.len() != 1
+            || self
+                .paths
+                .index_path
+                .try_exists()
+                .map_err(|error| error.to_string())?
+        {
+            return Err(
+                "embedding coverage audit requires exactly one profile and a fresh workspace"
+                    .into(),
+            );
+        }
+        Ok(setup::ensure_setup_with_seed_policy(
+            &self.paths,
+            options,
+            &mut crate::embedding_seeds::open_published,
+            atlas_ingest::SeedBuildPolicy::Audit,
+        ))
+    }
+
+    #[cfg(feature = "seed-tools")]
+    pub fn refresh_embedding_seeds(
+        &self,
+        options: RuntimeSetupOptions,
+        files: &[crate::LocalEmbeddingSeed],
+        rebuild: &[atlas_domain::SearchProfileId],
+    ) -> RuntimeSetupReport {
+        setup::ensure_setup_with_seed_policy(
+            &self.paths,
+            options,
+            &mut |model, scratch, _| {
+                if rebuild.contains(&model.profile_id) {
+                    return Ok(None);
+                }
+                crate::embedding_seeds::open_local(files, model, scratch).map(Some)
+            },
+            atlas_ingest::SeedBuildPolicy::Refresh,
+        )
     }
 
     pub fn ensure_setup(&self, options: RuntimeSetupOptions) -> RuntimeSetupReport {

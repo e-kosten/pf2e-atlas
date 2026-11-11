@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { coverageArchive } from '../src/embedding-coverage.js';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -7,6 +9,11 @@ import { nightlyVersion, planNightly, prepareNightly, publishNightly, type Run }
 
 const sha = 'abcdef123456' + '0'.repeat(28);
 const tag = 'v0.1.0-nightly.20261018092300.gabcdef123456';
+const archiveBytes = 'checked CLI archive';
+const archiveDigest = createHash('sha256').update(archiveBytes).digest('hex');
+const pins = Object.fromEntries(['bge-base', 'embeddinggemma'].map((profile) => [profile, {
+  tag: `embedding-seed/${profile}/v1`, asset: `${profile}.gz`, file: { sha256: 'b'.repeat(64), bytes: 1 },
+}]));
 function fixture(t: TestContext) {
   const root = mkdtempSync(path.join(tmpdir(), 'atlas-nightly-test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -15,7 +22,13 @@ function fixture(t: TestContext) {
   writeFileSync(manifest, '[package]\nname = "atlas-cli"\nversion = "0.1.0-rc.6"\n\n[dependencies.other]\nversion = "0.1.0-rc.6"\n');
   writeFileSync(lock, 'version = 4\n\n[[package]]\nname = "atlas-cli"\nversion = "0.1.0-rc.6"\n\n[[package]]\nname = "other"\nversion = "0.1.0-rc.6"\n');
   const dist = path.join(root, 'dist'); mkdirSync(dist);
-  writeFileSync(path.join(dist, 'atlas-release-manifest.json'), JSON.stringify({ version: tag }));
+  writeFileSync(path.join(dist, 'atlas-release-manifest.json'), JSON.stringify({
+    version: tag, assets: [{ name: coverageArchive, target: 'x86_64-unknown-linux-gnu', variant: 'cli-only', sha256: archiveDigest }],
+  }));
+  writeFileSync(path.join(dist, coverageArchive), archiveBytes);
+  const pinPath = path.join(root, 'crates/atlas-runtime/embedding-seeds.json');
+  mkdirSync(path.dirname(pinPath), { recursive: true });
+  writeFileSync(pinPath, JSON.stringify(pins));
   for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'SHA256SUMS']) writeFileSync(path.join(dist, name), 'fixture\n');
   return { root, manifest, lock, dist };
 }
@@ -55,8 +68,15 @@ test('scheduled skip requires the published channel to point to this exact sourc
   }
 });
 
-function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean } = {}) {
+function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean } = {}) {
   const { root, dist } = fixture(t);
+  const coverage = path.join(root, 'embedding-coverage.json');
+  const covered = { status: 'covered', inferred_inputs: 0, reused_inputs: 3 };
+  writeFileSync(coverage, JSON.stringify({
+    version: 1, source_sha: sha, tag, archive_sha256: options.badCoverage ? '0'.repeat(64) : archiveDigest,
+    pins, profiles: { 'bge-base': covered, embeddinggemma: options.gap
+      ? { status: 'gap', reason: 'missing_input', first_hash: 'a'.repeat(64) } : covered },
+  }));
   const calls: string[][] = [];
   const run: Run = (program, args) => {
     calls.push([program, ...args]);
@@ -67,7 +87,7 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
     return '';
   };
   const validate = async () => { if (options.failValidation) throw new Error('invalid assets'); };
-  return { calls, execute: () => publishNightly(root, tag, sha, dist, run, validate), root, dist, run, validate };
+  return { calls, execute: () => publishNightly(root, tag, sha, dist, coverage, run, validate), root, dist, coverage, run, validate };
 }
 
 test('channel advances only after dated publication and successful downloaded install', async (t) => {
@@ -100,16 +120,40 @@ test('validation, installation and binary-version failures preserve the channel'
 });
 
 test('retry preserves published dated assets while repairing the channel', async (t) => {
-  const { execute, calls } = publisher(t, { existing: [{ tag_name: tag, target_commitish: sha, draft: false }] });
+  const { execute, calls } = publisher(t, { existing: [{ tag_name: tag, target_commitish: sha, draft: false, assets: [{ name: coverageArchive, digest: `sha256:${archiveDigest}` }] }] });
   await execute();
   assert.ok(!calls.some((call) => ['upload', 'edit', 'create'].includes(call[2]) && call[3] === tag));
   assert.ok(calls.some((call) => call[2] === 'upload' && call[3] === 'nightly'));
 });
 
 test('source or manifest identity mismatches cannot publish', async (t) => {
-  const { root, dist, run, validate, calls } = publisher(t);
-  await assert.rejects(() => publishNightly(root, tag, '1'.repeat(40), dist, run, validate), /source SHA/);
+  const { root, dist, coverage, run, validate, calls } = publisher(t);
+  await assert.rejects(() => publishNightly(root, tag, '1'.repeat(40), dist, coverage, run, validate), /source SHA/);
   writeFileSync(path.join(dist, 'atlas-release-manifest.json'), JSON.stringify({ version: 'v9.9.9' }));
-  await assert.rejects(() => publishNightly(root, tag, sha, dist, run, validate), /manifest version/);
+  await assert.rejects(() => publishNightly(root, tag, sha, dist, coverage, run, validate), /manifest version/);
   assert.deepEqual(calls, []);
+});
+
+
+test('nightly discloses the affected profile before install instructions', async (t) => {
+  const { execute, calls } = publisher(t, { gap: true });
+  await execute();
+  const create = calls.find((call) => call[2] === 'create' && call[3] === tag);
+  assert.ok(create);
+  const notes = create[create.indexOf('--notes') + 1];
+  assert.match(notes, /\*\*EmbeddingGemma\*\*/);
+  assert.match(notes, /--build-embeddings-locally/);
+  assert.ok(notes.indexOf('Embedding coverage gap') < notes.indexOf('Install instructions'));
+});
+
+test('bad report and missing notice on a published nightly block the channel', async (t) => {
+  const invalid = publisher(t, { badCoverage: true });
+  await assert.rejects(invalid.execute, /archive differs/);
+  assert.deepEqual(invalid.calls, []);
+  const retry = publisher(t, { gap: true, existing: [{
+    tag_name: tag, target_commitish: sha, draft: false, body: 'Not a stable release',
+    assets: [{ name: coverageArchive, digest: `sha256:${archiveDigest}` }],
+  }] });
+  await assert.rejects(retry.execute, /notes differ/);
+  assert.ok(!retry.calls.some((call) => call[3] === 'nightly'));
 });

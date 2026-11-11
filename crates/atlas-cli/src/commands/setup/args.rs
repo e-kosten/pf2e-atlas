@@ -101,6 +101,8 @@ pub(crate) struct SetupRunOptions {
         help = "Generate missing corpus embeddings locally without downloading precomputed embeddings"
     )]
     pub(crate) build_embeddings_locally: bool,
+    #[arg(long, hide = true, requires = "json", conflicts_with_all = ["check", "build_embeddings_locally", "no_embeddings"])]
+    pub(crate) audit_embedding_coverage: bool,
     #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add bge-base or embeddinggemma; repeat for both; omission preserves configured profiles (fresh default: bge-base)")]
     pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(

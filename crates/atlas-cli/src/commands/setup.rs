@@ -23,6 +23,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
                 || args.run.no_embeddings
                 || args.run.offline
                 || args.run.force_rebuild
+                || args.run.audit_embedding_coverage
                 || args.run.build_embeddings_locally
                 || !args.run.search_profiles.is_empty()
             {
@@ -79,12 +80,20 @@ fn run_setup_install(
         embedding_batch_size: options.embedding_batch_size,
         locale: options.locale,
     };
-    let report = runtime.ensure_setup(setup_options);
+    let report = if options.audit_embedding_coverage {
+        runtime.audit_embedding_seed(setup_options)?
+    } else {
+        runtime.ensure_setup(setup_options)
+    };
     tracing::info!(target:"atlas_progress",complete=true,"Setup finished");
     let exit_class = report.exit_code_class();
 
     if json {
-        write_json_data(setup_json_data(&report))?;
+        let mut data = setup_json_data(&report);
+        if options.audit_embedding_coverage {
+            data.embedding_seed_pins = Some(atlas_runtime::published_embedding_seed_pins()?);
+        }
+        write_json_data(data)?;
     } else {
         print_setup_report(&report);
     }
@@ -166,6 +175,10 @@ struct SetupData {
     ready: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     not_ready_reasons: Vec<SetupNotReadyReasonData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    embedding_coverage_gap: Option<atlas_runtime::EmbeddingCoverageGap>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    embedding_seed_pins: Option<atlas_runtime::EmbeddingSeedPins>,
     path_mode: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     repo_root: Option<String>,
@@ -373,6 +386,8 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
         target: target_label(report.target),
         ready: report.ready,
         not_ready_reasons: setup_not_ready_reasons(report),
+        embedding_coverage_gap: report.embedding_coverage_gap.clone(),
+        embedding_seed_pins: None,
         path_mode: report.path_mode,
         repo_root: report.repo_root.clone(),
         offline: report.offline,

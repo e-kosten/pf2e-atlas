@@ -4,8 +4,12 @@ mod embedding_seeds;
 mod error;
 mod operations;
 mod paths;
+pub use atlas_ingest::EmbeddingCoverageGap;
+pub use embedding_seeds::{
+    EmbeddingSeedPin, EmbeddingSeedPins, parse_embedding_seed_pins, published_embedding_seed_pins,
+};
 #[cfg(feature = "seed-tools")]
-pub use embedding_seeds::LocalEmbeddingSeed;
+pub use embedding_seeds::{LocalEmbeddingSeed, download_embedding_seed};
 mod profile_assets;
 mod retrieval;
 mod runtime;

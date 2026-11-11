@@ -95,11 +95,11 @@ pub struct SeedSelection<'a> {
 }
 
 impl EmbeddingSeed {
-    /// Authenticate the compressed bytes before parsing and using any rows.
-    pub fn open(
+    /// Authenticate the compressed bytes and validate the full payload against
+    /// its declared execution contract before allowing lookups.
+    pub fn read(
         mut file: File,
         expected: &EmbeddingSeedFile,
-        model: &SourceSearchProfileIdentity,
         scratch: &Path,
     ) -> Result<Self, IndexError> {
         expected.validate()?;
@@ -122,18 +122,14 @@ impl EmbeddingSeed {
         input.read_exact(&mut header_bytes)?;
         let header: EmbeddingSeedHeader = serde_json::from_slice(&header_bytes)?;
         let vector_bytes = header.validate()?;
-        if !model.vector_compatible_with(&header.model) {
-            return Err(invalid(
-                "model execution identity differs from the requested profile",
-            ));
-        }
+        let model = header.model;
         let mut keys = Vec::with_capacity(header.rows);
         let mut output = BufWriter::new(tempfile::tempfile_in(scratch)?);
         let mut bytes = vec![0; vector_bytes];
         for _ in 0..header.rows {
             let hash = read_array(&mut input)?;
             let token_count = u32::from_le_bytes(read_array(&mut input)?) as usize;
-            NativeInput::from_hash(model, hash, token_count)?;
+            NativeInput::from_hash(&model, hash, token_count)?;
             if keys.last().is_some_and(|(prior, _)| prior >= &hash) {
                 return Err(invalid("input hashes are duplicated or out of order"));
             }
@@ -149,32 +145,66 @@ impl EmbeddingSeed {
         output.flush()?;
         let vectors = output.into_parts().0;
         Ok(Self {
-            model: model.clone(),
+            model,
             vectors,
             keys,
             vector_bytes,
         })
     }
 
+    pub fn model(&self) -> &SourceSearchProfileIdentity {
+        &self.model
+    }
+
+    pub fn bind(&mut self, model: &SourceSearchProfileIdentity) -> Result<(), IndexError> {
+        if !model.vector_compatible_with(&self.model) {
+            return Err(invalid(
+                "model execution identity differs from the requested profile",
+            ));
+        }
+        self.model = model.clone();
+        Ok(())
+    }
+
     pub fn select(
         &mut self,
         inputs: &[NativeInputDescriptor],
     ) -> Result<SeedSelection<'_>, IndexError> {
+        let (selection, missing) = self.partition(inputs)?;
+        if let Some(&first) = missing.first() {
+            return Err(invalid(&format!(
+                "is missing input {}",
+                inputs[first].input_sha256
+            )));
+        }
+        Ok(selection)
+    }
+
+    /// Collect missing positions and validate every matching input in this window.
+    pub fn partition(
+        &mut self,
+        inputs: &[NativeInputDescriptor],
+    ) -> Result<(SeedSelection<'_>, Vec<usize>), IndexError> {
         if inputs.len() > crate::NATIVE_VALUE_BATCH_LIMIT {
             return Err(invalid("selection batch exceeds the native value limit"));
         }
         let mut values = Vec::with_capacity(inputs.len());
-        for descriptor in inputs {
+        let mut missing = Vec::new();
+        for (position, descriptor) in inputs.iter().enumerate() {
             let input = NativeInput::new(&self.model, descriptor)?;
-            let bytes = self
-                .lookup(&input)?
-                .ok_or_else(|| invalid(&format!("is missing input {}", descriptor.input_sha256)))?;
-            values.push((input, bytes));
+            if let Some(bytes) = self.lookup(&input)? {
+                values.push((input, bytes));
+            } else {
+                missing.push(position);
+            }
         }
-        Ok(SeedSelection {
-            model: &self.model,
-            values,
-        })
+        Ok((
+            SeedSelection {
+                model: &self.model,
+                values,
+            },
+            missing,
+        ))
     }
 
     fn lookup(&mut self, input: &NativeInput) -> Result<Option<Vec<u8>>, IndexError> {
@@ -335,7 +365,8 @@ mod tests {
         let vector = vector(&model);
         let (file, pin) = asset(model.clone(), 2, &[[1; 32], [2; 32]], &vector, &[]);
         let directory = tempfile::tempdir().unwrap();
-        let mut seed = EmbeddingSeed::open(file, &pin, &model, directory.path()).unwrap();
+        let mut seed = EmbeddingSeed::read(file, &pin, directory.path()).unwrap();
+        seed.bind(&model).unwrap();
         let mut input = NativeInputDescriptor {
             input_sha256: "02".repeat(32),
             token_count: 12,
@@ -348,6 +379,35 @@ mod tests {
         assert!(seed.select(&[input.clone()]).is_err());
         input.input_sha256 = "03".repeat(32);
         assert!(seed.select(&[input]).is_err());
+    }
+
+    #[test]
+    fn partition_reports_absent_rows_and_checks_present_rows_after_a_miss() {
+        let model = model();
+        let vector = vector(&model);
+        let (file, pin) = asset(model.clone(), 2, &[[1; 32], [2; 32]], &vector, &[]);
+        let directory = tempfile::tempdir().unwrap();
+        let mut seed = EmbeddingSeed::read(file, &pin, directory.path()).unwrap();
+        seed.bind(&model).unwrap();
+        let mut descriptors = [
+            NativeInputDescriptor {
+                input_sha256: "03".repeat(32),
+                token_count: 12,
+            },
+            NativeInputDescriptor {
+                input_sha256: "02".repeat(32),
+                token_count: 12,
+            },
+        ];
+        let (matched, missing) = seed.partition(&descriptors).unwrap();
+        assert_eq!(missing, vec![0]);
+        assert_eq!(matched.values.len(), 1);
+        assert_eq!(
+            matched.values[0].1,
+            crate::read_units::vector_bytes(&vector)
+        );
+        descriptors[1].token_count = 13;
+        assert!(seed.partition(&descriptors).is_err());
     }
 
     #[test]
@@ -365,12 +425,14 @@ mod tests {
             asset(model.clone(), MAX_ROWS + 1, &[], &vector, &[]),
             asset(model.clone(), 1, &[[1; 32]], &invalid_vector, &[]),
             asset(model.clone(), 1, &[[1; 32]], &vector, &[0]),
-            asset(incompatible, 1, &[[1; 32]], &vector, &[]),
         ] {
-            assert!(EmbeddingSeed::open(file, &pin, &model, directory.path()).is_err());
+            assert!(EmbeddingSeed::read(file, &pin, directory.path()).is_err());
         }
+        let (file, pin) = asset(incompatible, 1, &[[1; 32]], &vector, &[]);
+        let mut seed = EmbeddingSeed::read(file, &pin, directory.path()).unwrap();
+        assert!(seed.bind(&model).is_err());
         let (file, mut pin) = asset(model.clone(), 1, &[[1; 32]], &vector, &[]);
         pin.sha256 = "0".repeat(64);
-        assert!(EmbeddingSeed::open(file, &pin, &model, directory.path()).is_err());
+        assert!(EmbeddingSeed::read(file, &pin, directory.path()).is_err());
     }
 }

@@ -243,14 +243,15 @@ impl CapturedBuildInputs {
         workspace: &atlas_storage::Workspace,
         schema: u32,
     ) -> Result<BuildArtifactReport, IngestError> {
-        self.build_with_embedding_seeds(workspace, schema, None)
+        self.build_with_seed_policy(workspace, schema, None, crate::SeedBuildPolicy::Strict)
     }
 
-    pub fn build_with_embedding_seeds<'a>(
+    pub fn build_with_seed_policy<'a>(
         self,
         workspace: &atlas_storage::Workspace,
         schema: u32,
         seed_loader: Option<&'a mut crate::EmbeddingSeedLoader<'a>>,
+        policy: crate::SeedBuildPolicy,
     ) -> Result<BuildArtifactReport, IngestError> {
         let started = Instant::now();
         let (owner, scratch) = begin_build(workspace, schema, &self.options)?;
@@ -261,7 +262,7 @@ impl CapturedBuildInputs {
             scratch,
             self,
             started,
-            seed_loader.map_or(BuildMode::Infer, BuildMode::Seeded),
+            seed_loader.map_or(BuildMode::Infer, |load| BuildMode::Seeded(load, policy)),
         )
     }
     pub(crate) fn options(&self) -> &BuildArtifactOptions {
@@ -376,7 +377,10 @@ fn requested_configuration(
 
 enum BuildMode<'a> {
     Infer,
-    Seeded(&'a mut crate::EmbeddingSeedLoader<'a>),
+    Seeded(
+        &'a mut crate::EmbeddingSeedLoader<'a>,
+        crate::SeedBuildPolicy,
+    ),
     Repair(atlas_storage::ReferenceRepair<'a>),
 }
 
@@ -389,10 +393,10 @@ fn finish_build(
     started: Instant,
     mode: BuildMode<'_>,
 ) -> Result<BuildArtifactReport, IngestError> {
-    let (repair, mut seed_loader) = match mode {
-        BuildMode::Infer => (None, None),
-        BuildMode::Seeded(load) => (None, Some(load)),
-        BuildMode::Repair(repair) => (Some(repair), None),
+    let (repair, mut seed_loader, policy) = match mode {
+        BuildMode::Infer => (None, None, crate::SeedBuildPolicy::Strict),
+        BuildMode::Seeded(load, policy) => (None, Some(load), policy),
+        BuildMode::Repair(repair) => (Some(repair), None, crate::SeedBuildPolicy::Strict),
     };
     let rebuild = repair.is_some();
     let reuse = match &repair {
@@ -438,7 +442,7 @@ fn finish_build(
             semantic_units: prepared.document_units,
         };
         let report = match seed_loader.as_deref_mut() {
-            Some(load) => execution.execute_seeded(config, scratch.path(), load)?,
+            Some(load) => execution.execute_seeded(config, scratch.path(), load, policy)?,
             None => execution.execute_profile(config)?,
         };
         profiles.push(report);
