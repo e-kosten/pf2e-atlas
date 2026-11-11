@@ -135,7 +135,8 @@ cargo run --locked -p atlas-dev -- families audit-creatures --source /absolute/p
 The report includes exact actor keys, source paths, actor and token names,
 publication, creature level, and any typed Weak or Elite adjustment. It also
 lists candidates that share a publication and token name while using different
-actor titles. Review the actual actors before writing a declaration.
+actor titles. Use the [creature family review procedure](source-research.md#creature-family-review-during-a-source-upgrade)
+to compare candidates with prior decisions and review the source evidence.
 
 ## Refresh published embedding assets
 
