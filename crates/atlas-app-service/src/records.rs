@@ -224,7 +224,7 @@ impl<'a> LoadedRecordDetail<'a> {
             })
             .collect();
         let content = r.read_attributed_content(&locators)?;
-        let summary = crate::projection::localized_summary_view(&detail.summary, r);
+        let summary = crate::projection::localized_detail_summary_view(detail, r);
         let mut presentation = crate::presentation::record_presentation(
             &detail.source,
             node,

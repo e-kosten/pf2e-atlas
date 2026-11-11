@@ -4,18 +4,18 @@ use atlas_app_model::{
     CreatureScenarioUseView, VariantFamilyView,
 };
 use atlas_domain::SourceRecordSummary;
-use atlas_search::{AtlasRetrievalService, CreatureFamilyRecords, CreatureScenarioUse};
+use atlas_search::{
+    AtlasRetrievalService, CreatureDisplay, CreatureFamilyRecords, CreatureScenarioUse,
+};
 use std::collections::BTreeMap;
 
-pub(crate) fn creature_display(record: &SourceRecordSummary) -> Option<CreatureDisplayView> {
-    let display = atlas_search::creature_display(record)?;
+pub(crate) fn creature_display(
+    record: &SourceRecordSummary,
+    display: CreatureDisplay,
+) -> Option<CreatureDisplayView> {
     if display.label.is_none() && display.qualifier.is_none() && display.scenario_uses.is_empty() {
         return None;
     }
-    let title = display
-        .label
-        .map(str::to_owned)
-        .or_else(|| record.name.as_value().cloned())?;
     let uses: Vec<_> = display
         .scenario_uses
         .into_iter()
@@ -32,6 +32,7 @@ pub(crate) fn creature_display(record: &SourceRecordSummary) -> Option<CreatureD
         .collect();
     let mut qualifiers: Vec<_> = display
         .label
+        .as_ref()
         .and(display.qualifier)
         .map(str::to_owned)
         .into_iter()
@@ -44,6 +45,7 @@ pub(crate) fn creature_display(record: &SourceRecordSummary) -> Option<CreatureD
         [_, _, ..] => qualifiers.push("Multiple scenario uses".into()),
         [] => (),
     }
+    let title = display.label.or_else(|| record.name.as_value().cloned())?;
     Some(CreatureDisplayView {
         title,
         qualifiers,
@@ -149,7 +151,7 @@ pub(crate) fn family_view(
             named_bases.insert(record.record_key.clone(), base.to_string());
             named_creatures.push(record);
         } else {
-            scenario_displays.push(atlas_search::creature_display(&member.summary));
+            scenario_displays.push(atlas_search::creature_display(&member.summary, || None));
             versions.push(record);
         }
     }
@@ -244,7 +246,6 @@ pub(crate) fn overrides(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atlas_search::CreatureDisplay;
 
     #[test]
     fn party_level_groups_repeat_actors_only_across_distinct_uses() {
@@ -259,7 +260,7 @@ mod tests {
             (
                 "multi",
                 Some(CreatureDisplay {
-                    label: Some("Eltha"),
+                    label: Some("Eltha".into()),
                     qualifier: None,
                     scenario_uses: vec![
                         use_(Some([11, 12]), Some(28)),

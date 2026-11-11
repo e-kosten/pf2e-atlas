@@ -5,6 +5,8 @@ use crate::{
     AtlasRetrievalService, FamilyGrouping, GetRecordsRequest, SearchError, VariantAxisSlice,
 };
 use atlas_domain::{RecordKey, RecordKind, SourceRecordSummary};
+use atlas_foundry_model::{ActorSourcePF2e, FoundryDocumentSource};
+use atlas_record::source_record::SourceBackedRecord;
 use std::sync::OnceLock;
 
 pub use crate::creature_catalog::CreatureAdjustment;
@@ -34,7 +36,7 @@ pub struct CreatureFamilyRecord {
 }
 
 pub struct CreatureDisplay {
-    pub label: Option<&'static str>,
+    pub label: Option<String>,
     pub qualifier: Option<&'static str>,
     pub scenario_uses: Vec<CreatureScenarioUse>,
 }
@@ -78,7 +80,10 @@ fn matches(member: &Member, summary: &SourceRecordSummary) -> bool {
         && summary.name.as_value() == Some(&member.name)
 }
 
-pub fn creature_display(summary: &SourceRecordSummary) -> Option<CreatureDisplay> {
+pub fn creature_display(
+    summary: &SourceRecordSummary,
+    load_token_name: impl FnOnce() -> Option<String>,
+) -> Option<CreatureDisplay> {
     let (_, _, member) = member_for(&summary.key)?;
     if !matches(member, summary) {
         return None;
@@ -100,11 +105,32 @@ pub fn creature_display(summary: &SourceRecordSummary) -> Option<CreatureDisplay
             })
         })
         .collect();
+    let label = member.label.clone().or_else(|| {
+        if member.uses.is_empty() {
+            return None;
+        }
+        load_token_name().or_else(|| summary.name.as_value().cloned())
+    });
     Some(CreatureDisplay {
-        label: member.label.as_deref(),
+        label,
         qualifier: member.qualifier.as_deref(),
         scenario_uses,
     })
+}
+
+pub fn creature_token_name(source: &FoundryDocumentSource) -> Option<String> {
+    let FoundryDocumentSource::Actor(actor) = source else {
+        return None;
+    };
+    let ActorSourcePF2e::NPCSource(npc) = actor.as_ref() else {
+        return None;
+    };
+    npc.prototype_token
+        .as_value()?
+        .name
+        .as_value()
+        .filter(|name| !name.trim().is_empty())
+        .cloned()
 }
 
 fn select_use<'a>(member: &'a Member, selected: Option<&str>) -> Option<&'a ScenarioUse> {
@@ -118,6 +144,20 @@ fn select_use<'a>(member: &'a Member, selected: Option<&str>) -> Option<&'a Scen
 }
 
 impl AtlasRetrievalService {
+    pub fn creature_display(
+        &self,
+        summary: &SourceRecordSummary,
+        source: Option<&SourceBackedRecord>,
+    ) -> Option<CreatureDisplay> {
+        creature_display(summary, || match source {
+            Some(source) => creature_token_name(source.source()),
+            None => {
+                let source = self.index.read_source_record(&summary.key).ok()??;
+                creature_token_name(source.source())
+            }
+        })
+    }
+
     pub fn creature_family_for(
         &self,
         summary: &SourceRecordSummary,
@@ -309,7 +349,12 @@ mod tests {
             .records
             .pop()
             .unwrap();
-        assert!(creature_display(&summary).unwrap().scenario_uses.is_empty());
+        assert!(
+            creature_display(&summary, || None)
+                .unwrap()
+                .scenario_uses
+                .is_empty()
+        );
         assert!(retrieval.creature_family_for(&summary).unwrap().is_some());
         assert_eq!(
             retrieval

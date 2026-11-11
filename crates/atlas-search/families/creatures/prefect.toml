@@ -4,7 +4,6 @@ source_note = "Wayfinder Origins publishes Fist and Electrowhip forms for both p
 [[members]]
 key = "pfs-season-1-bestiary:7PXPcv8x3Wnc730i"
 name = "Prefect (Fist) (3-4)"
-label = "Prefect"
 qualifier = "Fist"
 
 [[members.uses]]
@@ -14,7 +13,6 @@ party_levels = [3, 4]
 [[members]]
 key = "pfs-season-1-bestiary:UyJUEp0asfGDBvYa"
 name = "Elite Prefect (Fist) (3-4)"
-label = "Elite Prefect"
 qualifier = "Elite Fist"
 
 [[members.uses]]
@@ -24,7 +22,6 @@ party_levels = [3, 4]
 [[members]]
 key = "pfs-season-1-bestiary:GdYMRHVctjyvOD7D"
 name = "Prefect (Fist) (5-6)"
-label = "Prefect"
 qualifier = "Fist"
 
 [[members.uses]]
@@ -34,7 +31,6 @@ party_levels = [5, 6]
 [[members]]
 key = "pfs-season-1-bestiary:NQgsuMnXXABeebuS"
 name = "Prefect (Electrowhip) (3-4)"
-label = "Prefect"
 qualifier = "Electrowhip"
 
 [[members.uses]]
@@ -44,7 +40,6 @@ party_levels = [3, 4]
 [[members]]
 key = "pfs-season-1-bestiary:oKACWOSiBpxgMqa4"
 name = "Prefect (Electrowhip) (5-6)"
-label = "Prefect"
 qualifier = "Electrowhip"
 
 [[members.uses]]

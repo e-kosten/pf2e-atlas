@@ -561,12 +561,13 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
     let target = "pfs-season-1-bestiary:UyJUEp0asfGDBvYa";
     let f = crate::test_support::fixture_worker_with_executor(
         crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, || {
-            let npc = |id, name, level, hp, publication| {
+            let npc = |id, name, level, hp, publication, token_name| {
                 record(
                     "pfs-season-1-bestiary",
                     "Actor",
                     json!({
                         "_id": id, "name": name, "type": "npc",
+                        "prototypeToken": {"name": token_name},
                         "system": {
                             "details": {
                                 "level": {"value": level},
@@ -585,6 +586,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
                         3,
                         50,
                         "Pathfinder Society Quest #9: Wayfinder Origins (Revised)",
+                        Some("Prefect"),
                     ),
                     npc(
                         "UyJUEp0asfGDBvYa",
@@ -592,6 +594,7 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
                         4,
                         65,
                         "Pathfinder Society Quest #9: Wayfinder Origins",
+                        None,
                     ),
                 ],
                 false,
@@ -602,9 +605,33 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
     assert_eq!(detail.creature_overrides[0].record_key, target);
     assert_eq!(detail.record.title, "Prefect (Fist) (3-4)");
     assert_eq!(
+        detail.record.creature_display.as_ref().unwrap().title,
+        "Prefect"
+    );
+    assert_eq!(
         detail.record.creature_display.as_ref().unwrap().qualifiers[1],
         "Wayfinder Origins (Revised) · Party levels 3–4",
     );
+    let results = f
+        .worker
+        .list_records(
+            None,
+            SearchPageRequest {
+                number: 1,
+                size: 20,
+            },
+        )
+        .unwrap();
+    let family = f.worker.creature_family("prefect".into()).unwrap().unwrap();
+    for records in [&results.records, &family.versions] {
+        for (key, expected) in [(base, "Prefect"), (target, "Elite Prefect (Fist) (3-4)")] {
+            let record = records
+                .iter()
+                .find(|record| record.record_key == key)
+                .unwrap();
+            assert_eq!(record.creature_display.as_ref().unwrap().title, expected);
+        }
+    }
     let encounter = f
         .worker
         .create_encounter(CreateEncounterRequest {

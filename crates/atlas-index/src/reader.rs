@@ -318,11 +318,7 @@ impl SqliteIndexReader {
         developer: bool,
     ) -> Result<Option<SourceBackedRecord>, IndexError> {
         self.count_statement();
-        let row = self.session.connection().query_row(
-            "SELECT r.pack_id,r.key,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b ON b.record_id=r.record_id WHERE r.key=? AND (? OR r.document_kind<>'Macro')",
-            rusqlite::params![key.to_string(), developer],
-            |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,Vec<u8>>(4)?)),
-        ).optional()?;
+        let row = read_body_row(self.session.connection(), key, developer)?;
         row.map(|(pack, stored, version, encoding, bytes)| {
             self.decode_body(key, pack, stored, version, encoding, bytes)
         })
@@ -337,27 +333,65 @@ impl SqliteIndexReader {
         encoding: String,
         bytes: Vec<u8>,
     ) -> Result<SourceBackedRecord, IndexError> {
-        if version != i64::from(SNAPSHOT_VERSION) || encoding != "gzip6" {
-            return Err(IndexError::Unsupported(
-                "source snapshot codec identity".into(),
-            ));
-        }
-        let source = decode_snapshot(&gunzip(&bytes)?)?;
+        let record = decode_body(key, pack, stored, version, encoding, bytes)?;
         #[cfg(any(test, feature = "test-support"))]
         {
             let mut m = self.read_metrics.get();
             m.source_body_decodes += 1;
             self.read_metrics.set(m);
         }
-        let record = SourceBackedRecord::new(&pack, source)
-            .map_err(|e| IndexError::Invalid(format!("source identity {:?}", e.reason)))?;
-        if record.key() != key || stored != key.to_string() {
-            return Err(IndexError::Invalid(
-                "snapshot identity disagrees with record row".into(),
-            ));
-        }
         Ok(record)
     }
+}
+
+type BodyRow = (String, String, i64, String, Vec<u8>);
+
+fn read_body_row(
+    connection: &NativeConnection,
+    key: &RecordKey,
+    developer: bool,
+) -> Result<Option<BodyRow>, IndexError> {
+    Ok(connection.query_row(
+        "SELECT r.pack_id,r.key,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b ON b.record_id=r.record_id WHERE r.key=? AND (? OR r.document_kind<>'Macro')",
+        rusqlite::params![key.to_string(), developer],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+    ).optional()?)
+}
+
+fn decode_body(
+    key: &RecordKey,
+    pack: String,
+    stored: String,
+    version: i64,
+    encoding: String,
+    bytes: Vec<u8>,
+) -> Result<SourceBackedRecord, IndexError> {
+    if version != i64::from(SNAPSHOT_VERSION) || encoding != "gzip6" {
+        return Err(IndexError::Unsupported(
+            "source snapshot codec identity".into(),
+        ));
+    }
+    let source = decode_snapshot(&gunzip(&bytes)?)?;
+    let record = SourceBackedRecord::new(&pack, source)
+        .map_err(|e| IndexError::Invalid(format!("source identity {:?}", e.reason)))?;
+    if record.key() != key || stored != key.to_string() {
+        return Err(IndexError::Invalid(
+            "snapshot identity disagrees with record row".into(),
+        ));
+    }
+    Ok(record)
+}
+
+/// Read one checked product body in the caller's already-admitted transaction.
+pub fn read_product_source_record(
+    connection: &NativeConnection,
+    key: &RecordKey,
+) -> Result<Option<SourceBackedRecord>, IndexError> {
+    read_body_row(connection, key, false)?
+        .map(|(pack, stored, version, encoding, bytes)| {
+            decode_body(key, pack, stored, version, encoding, bytes)
+        })
+        .transpose()
 }
 const SUMMARY_SELECT: &str = "SELECT r.key,p.label AS pack_label,r.document_kind,r.source_path,r.content_hash,r.name_state,r.name,r.source_type_state,r.source_type,r.record_kind_state,r.record_kind,r.rarity_state,r.rarity,r.traits_state,(SELECT json_group_array(value) FROM (SELECT value FROM trait_members t WHERE t.record_key=r.key AND t.owners_json='[]' ORDER BY value)) AS traits_json,CASE WHEN r.source_type='spell' THEN sp.rank_state ELSE r.level_state END AS level_state,CASE WHEN r.source_type='spell' THEN sp.rank ELSE r.level END AS level,CASE WHEN r.source_type='spell' THEN sp.ritual_state ELSE 'not_applicable' END AS ritual_state,sp.ritual,r.size_state,r.size,r.publication_title_state,r.publication_title,r.publication_remaster_state,r.publication_remaster FROM records r JOIN packs p ON p.pack_id=r.pack_id LEFT JOIN spell_projection sp ON sp.root_record_id=r.record_id";
 struct SummaryRow {

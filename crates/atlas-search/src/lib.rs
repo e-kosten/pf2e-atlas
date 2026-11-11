@@ -13,7 +13,7 @@ mod creature_families;
 mod discovery;
 pub use creature_families::{
     CreatureAdjustment, CreatureDisplay, CreatureFamilyRecord, CreatureFamilyRecords,
-    CreatureScenarioUse, creature_display,
+    CreatureScenarioUse, creature_display, creature_token_name,
 };
 mod error;
 mod graph;

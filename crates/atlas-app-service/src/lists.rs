@@ -73,7 +73,10 @@ impl AtlasAppService {
                 .summaries(&keys)?
                 .into_iter()
                 .map(|record| {
-                    let mut view = crate::projection::record_summary_view(&record);
+                    let mut view = crate::projection::record_summary_view_with_display(
+                        &record,
+                        records.creature_display(&record),
+                    );
                     for badge in &mut view.traits {
                         if let Some(label) = records.trait_label(&badge.value) {
                             badge.label = label.into();
