@@ -1,7 +1,13 @@
 #![deny(unsafe_code)]
 mod bestiary_glossary;
 mod configurable_similarity;
+mod creature_catalog;
+mod creature_families;
 mod discovery;
+pub use creature_families::{
+    CreatureAdjustment, CreatureDisplay, CreatureFamilyRecord, CreatureFamilyRecords,
+    CreatureScenarioUse, creature_display,
+};
 mod error;
 mod graph;
 mod neighbor_reuse;

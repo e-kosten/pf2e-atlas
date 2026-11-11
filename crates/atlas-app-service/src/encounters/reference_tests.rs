@@ -46,6 +46,7 @@ fn addressed_condition_formula_includes_the_creatures_authored_condition_value()
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 record_ref: "actors:inherentActor001".into(),
                 quantity: 1,
                 participant_variant: None,
@@ -154,6 +155,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
                 quantity: 2,
@@ -448,6 +450,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
                 quantity: 1,
@@ -620,6 +623,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:contextActor0001".into(),
                 quantity: 1,
@@ -806,6 +810,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "actors:contextUnknown01".into(),
                 quantity: 1,

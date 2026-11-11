@@ -594,6 +594,9 @@
       "AddEncounterRecordParticipantRequest": {
         "additionalProperties": false,
         "properties": {
+          "creature_scenario": {
+            "$ref": "#/components/schemas/CreatureScenarioContext"
+          },
           "initiative": {
             "format": "int64",
             "type": [
@@ -3456,6 +3459,122 @@
         ],
         "type": "object"
       },
+      "CreatureDisplayView": {
+        "properties": {
+          "qualifiers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/CreatureScenarioUseView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "qualifiers",
+          "uses"
+        ],
+        "type": "object"
+      },
+      "CreatureFamilyView": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "named_bases": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "named_creatures": {
+            "items": {
+              "$ref": "#/components/schemas/RecordSummaryView"
+            },
+            "type": "array"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/RecordSummaryView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "versions",
+          "named_creatures",
+          "named_bases"
+        ],
+        "type": "object"
+      },
+      "CreatureOverrideView": {
+        "properties": {
+          "adjustment": {
+            "$ref": "#/components/schemas/EncounterParticipantVariantView"
+          },
+          "record_key": {
+            "type": "string"
+          },
+          "use_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "use_id",
+          "adjustment",
+          "record_key"
+        ],
+        "type": "object"
+      },
+      "CreatureScenarioContext": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_generation": {
+            "type": "string"
+          },
+          "expected": {
+            "$ref": "#/components/schemas/PreparedCreatureChoice"
+          },
+          "use_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_generation"
+        ],
+        "type": "object"
+      },
+      "CreatureScenarioUseView": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "type": "object"
+      },
       "DamageLethalityView": {
         "enum": [
           "lethal",
@@ -4798,6 +4917,9 @@
       },
       "EncounterDifficultyAddition": {
         "properties": {
+          "creature_scenario": {
+            "$ref": "#/components/schemas/CreatureScenarioContext"
+          },
           "participant_variant": {
             "oneOf": [
               {
@@ -4999,6 +5121,9 @@
             "format": "int32",
             "minimum": 0,
             "type": "integer"
+          },
+          "prepared_creature_choice": {
+            "$ref": "#/components/schemas/PreparedCreatureChoice"
           },
           "rating": {
             "type": [
@@ -11962,6 +12087,21 @@
         ],
         "type": "object"
       },
+      "PreparedCreatureChoice": {
+        "properties": {
+          "initial_adjustment": {
+            "$ref": "#/components/schemas/EncounterParticipantVariantView"
+          },
+          "record_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_key",
+          "initial_adjustment"
+        ],
+        "type": "object"
+      },
       "PreparedFieldBodyView": {
         "oneOf": [
           {
@@ -13726,6 +13866,15 @@
           "artifact_generation": {
             "type": "string"
           },
+          "creature_family": {
+            "$ref": "#/components/schemas/CreatureFamilyView"
+          },
+          "creature_overrides": {
+            "items": {
+              "$ref": "#/components/schemas/CreatureOverrideView"
+            },
+            "type": "array"
+          },
           "encounter_adjustment": {
             "$ref": "#/components/schemas/EncounterParticipantVariantView",
             "description": "Default adjustment for adding this root creature to an encounter."
@@ -14208,6 +14357,9 @@
       },
       "RecordSummaryView": {
         "properties": {
+          "creature_display": {
+            "$ref": "#/components/schemas/CreatureDisplayView"
+          },
           "edition": {
             "$ref": "#/components/schemas/RecordEditionView",
             "description": "The selected document's explicit publication era; absent when unavailable."
@@ -22667,6 +22819,60 @@
               }
             },
             "description": "Successful response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictResponse"
+                }
+              }
+            },
+            "description": "Application or browser contract conflict"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppError"
+                }
+              }
+            },
+            "description": "Atlas error"
+          }
+        }
+      }
+    },
+    "/api/families/creatures/{family_id}": {
+      "get": {
+        "operationId": "getCreatureFamily",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CreatureFamilyView"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Reviewed creature family if available"
           },
           "409": {
             "content": {

@@ -102,6 +102,7 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
             .add_encounter_record_participant(
                 &encounter.slug,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     record_ref: key.into(),
                     quantity: 1,
                     initiative: None,
@@ -166,6 +167,7 @@ fn source_effective_levels_hazard_xp_and_saved_overrides_are_projected_together(
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 record_ref: "actors:dddddddddddddddd".into(),
                 quantity: 1,
                 initiative: None,
@@ -396,6 +398,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
                     expected_revision: before.revision,
                     reference,
                     addition: Some(EncounterDifficultyAddition {
+                        creature_scenario: None,
                         record_ref: key.into(),
                         quantity: 2,
                         participant_variant: variant,
@@ -414,6 +417,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         expected_revision: before.revision,
         reference,
         addition: Some(EncounterDifficultyAddition {
+            creature_scenario: None,
             record_ref: "actors:elite00000000000".into(),
             quantity: 2,
             participant_variant: None,
@@ -451,6 +455,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 record_ref: "actors:elite00000000000".into(),
                 quantity: 2,
                 participant_variant: None,
@@ -477,6 +482,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         AppErrorCode::EncounterTurnConflict
     );
     let low_addition = EncounterDifficultyAddition {
+        creature_scenario: None,
         record_ref: "actors:low0000000000000".into(),
         quantity: 3,
         participant_variant: None,
@@ -498,6 +504,7 @@ fn add_preview_matches_committed_quantity_variants_and_hazards_without_writing()
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 record_ref: low_addition.record_ref,
                 quantity: low_addition.quantity,
                 participant_variant: None,
@@ -542,4 +549,152 @@ fn awards_are_size_adjusted_suggestions_separate_from_difficulty_budgets() {
     }
     let unknown = project(Default::default(), &[], |_| None);
     assert_eq!(unknown.xp_per_pc, None);
+}
+
+#[test]
+fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
+    use atlas_app_model::*;
+    use atlas_search::test_support::{open_source_fixture, record};
+    use serde_json::json;
+
+    let base = "pfs-season-1-bestiary:7PXPcv8x3Wnc730i";
+    let target = "pfs-season-1-bestiary:UyJUEp0asfGDBvYa";
+    let f = crate::test_support::fixture_worker_with_executor(
+        crate::executor::RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+            let npc = |id, name, level, hp| {
+                record(
+                    "pfs-season-1-bestiary",
+                    "Actor",
+                    json!({
+                        "_id": id, "name": name, "type": "npc",
+                        "system": {
+                            "details": {
+                                "level": {"value": level},
+                                "publication": {"title": "Pathfinder Society Quest #9: Wayfinder Origins"}
+                            },
+                            "attributes": {"hp": {"max": hp, "value": hp}}
+                        }
+                    }),
+                )
+            };
+            Ok(open_source_fixture(
+                vec![
+                    npc("7PXPcv8x3Wnc730i", "Prefect (Fist) (3-4)", 3, 50),
+                    npc("UyJUEp0asfGDBvYa", "Elite Prefect (Fist) (3-4)", 4, 65),
+                ],
+                false,
+            )?)
+        }),
+    );
+    let detail = f.worker.record_detail(base).unwrap();
+    assert_eq!(detail.creature_overrides[0].record_key, target);
+    assert_eq!(detail.record.title, "Prefect (Fist) (3-4)");
+    assert_eq!(
+        detail.record.creature_display.as_ref().unwrap().qualifiers[1],
+        "Wayfinder Origins · Party levels 3–4",
+    );
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Published creature override".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    let snapshot = f.worker.encounter(&encounter.slug).unwrap();
+    let reference = EncounterDifficultyReferenceInput {
+        party_level: Some(4),
+        party_size: Some(4),
+    };
+    f.worker
+        .set_encounter_difficulty(
+            &encounter.slug,
+            SetEncounterDifficultyRequest {
+                expected_revision: snapshot.revision,
+                reference,
+            },
+        )
+        .unwrap();
+    let snapshot = f.worker.encounter(&encounter.slug).unwrap();
+    let scenario = CreatureScenarioContext {
+        use_id: None,
+        artifact_generation: detail.artifact_generation,
+        expected: None,
+    };
+    let preview = |scenario: CreatureScenarioContext| {
+        f.worker
+            .preview_encounter_difficulty(
+                &encounter.slug,
+                PreviewEncounterDifficultyRequest {
+                    expected_revision: snapshot.revision,
+                    reference,
+                    addition: Some(EncounterDifficultyAddition {
+                        record_ref: base.into(),
+                        quantity: 1,
+                        participant_variant: Some(EncounterParticipantVariantView::Elite),
+                        creature_scenario: Some(scenario),
+                    }),
+                },
+            )
+            .unwrap()
+    };
+    let out_of_scope = preview(CreatureScenarioContext {
+        use_id: Some("party-5-6".into()),
+        ..scenario.clone()
+    });
+    assert_eq!(
+        out_of_scope.prepared_creature_choice.unwrap(),
+        PreparedCreatureChoice {
+            record_key: base.into(),
+            initial_adjustment: EncounterParticipantVariantView::Elite,
+        }
+    );
+    let preview = preview(scenario.clone());
+    assert_eq!(preview.total_xp, Some(40));
+    let choice = preview.prepared_creature_choice.unwrap();
+    assert_eq!(
+        choice,
+        PreparedCreatureChoice {
+            record_key: target.into(),
+            initial_adjustment: EncounterParticipantVariantView::Normal,
+        }
+    );
+    let add = |scenario| {
+        f.worker.add_encounter_record_participant(
+            &encounter.slug,
+            AddEncounterRecordParticipantRequest {
+                record_ref: base.into(),
+                quantity: 1,
+                initiative: None,
+                participant_variant: Some(EncounterParticipantVariantView::Elite),
+                creature_scenario: Some(scenario),
+            },
+        )
+    };
+    assert!(
+        add(CreatureScenarioContext {
+            expected: Some(choice.clone()),
+            use_id: Some("party-5-6".into()),
+            ..scenario.clone()
+        })
+        .is_err()
+    );
+    assert!(
+        f.worker
+            .encounter(&encounter.slug)
+            .unwrap()
+            .participants
+            .is_empty()
+    );
+    add(CreatureScenarioContext {
+        expected: Some(choice),
+        ..scenario
+    })
+    .unwrap();
+    let reopened = f.worker.encounter(&encounter.slug).unwrap();
+    assert_eq!(reopened.difficulty.total_xp, Some(40));
+    assert_eq!(reopened.difficulty.opposition[0].level, Some(4));
+    assert_eq!(reopened.participants[0].record_key.as_deref(), Some(target));
+    assert_eq!(reopened.participants[0].max_hp, Some(65));
 }

@@ -675,6 +675,9 @@ pub struct EncounterParticipantConditionView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AddEncounterRecordParticipantRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub creature_scenario: Option<CreatureScenarioContext>,
     pub record_ref: String,
     pub quantity: u32,
     /// Omitted inherits the source adjustment; a supplied choice replaces it.
@@ -682,6 +685,26 @@ pub struct AddEncounterRecordParticipantRequest {
     pub participant_variant: Option<EncounterParticipantVariantView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initiative: Option<i64>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CreatureScenarioContext {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub use_id: Option<String>,
+    pub artifact_generation: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub expected: Option<PreparedCreatureChoice>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PreparedCreatureChoice {
+    pub record_key: String,
+    pub initial_adjustment: EncounterParticipantVariantView,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

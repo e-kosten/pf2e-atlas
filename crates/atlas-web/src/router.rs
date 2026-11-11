@@ -129,6 +129,7 @@ fn documented_routes() -> OpenApiRouter<AtlasWebState> {
         .routes(routes!(crate::handlers::record_detail))
         .routes(routes!(crate::handlers::related_records))
         .routes(routes!(crate::handlers::equipment_family))
+        .routes(routes!(crate::handlers::creature_family))
         .routes(routes!(crate::handlers::roll_content))
         .routes(routes!(crate::handlers::roll_flat_check))
         .routes(routes!(crate::handlers::roll_table))

@@ -75,6 +75,7 @@ fn fixture_with_items(
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
                 quantity: 1,
                 participant_variant: None,
@@ -320,6 +321,7 @@ fn round_uses_stay_spent_until_the_owners_next_turn() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
                 quantity: 1,
                 participant_variant: None,

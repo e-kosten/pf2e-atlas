@@ -37,6 +37,7 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
         .map(|k| k.as_str().to_owned())
         .unwrap_or_else(|| record.document_kind.to_lowercase());
     RecordSummaryView {
+        creature_display: crate::creature_family::creature_display(record),
         unit_price_label: None,
         edition: publication_edition(record.publication_remaster.as_value().copied()),
         record_key: record.key.to_string(),

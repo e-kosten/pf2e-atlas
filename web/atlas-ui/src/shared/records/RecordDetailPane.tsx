@@ -115,6 +115,7 @@ export function RecordDetailPane({
                   <RecordPresentationIdentity
                     presentation={detail?.presentation}
                     equipmentFamily={detail?.equipment_family}
+                    creatureFamily={detail?.creature_family}
                     root={detail?.record}
                     selection={detail?.selected}
                     relationships={detail?.relationships}

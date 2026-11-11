@@ -598,6 +598,10 @@ function checkedSavedListDetail(value: http.SavedListDetailView): SavedListDetai
   return value;
 }
 
+export function getCreatureFamily(familyId: string, signal?: AbortSignal) {
+  return http.getCreatureFamily(familyId, { intent: "read", signal });
+}
+
 export function getEquipmentFamily(familyId: string, signal?: AbortSignal) {
   return http.getEquipmentFamily(familyId, { intent: "read", signal });
 }

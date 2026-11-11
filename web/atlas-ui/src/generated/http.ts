@@ -883,7 +883,19 @@ export const EncounterParticipantVariantView = {
   weak: 'weak',
 } as const;
 
+export interface PreparedCreatureChoice {
+  initial_adjustment: EncounterParticipantVariantView;
+  record_key: string;
+}
+
+export interface CreatureScenarioContext {
+  artifact_generation: string;
+  expected?: PreparedCreatureChoice;
+  use_id?: string;
+}
+
 export interface AddEncounterRecordParticipantRequest {
+  creature_scenario?: CreatureScenarioContext;
   /** @nullable */
   initiative?: number | null;
   participant_variant?: EncounterParticipantVariantView | null;
@@ -1988,6 +2000,67 @@ export interface CreateSavedListRequest {
   tags?: string[];
 }
 
+export interface CreatureScenarioUseView {
+  id: string;
+  label: string;
+}
+
+export interface CreatureDisplayView {
+  qualifiers: string[];
+  title: string;
+  uses: CreatureScenarioUseView[];
+}
+
+export type CreatureFamilyViewNamedBases = {[key: string]: string};
+
+/**
+ * Publication era does not imply that a record has a replacement or is unusable.
+ */
+export type RecordEditionView = typeof RecordEditionView[keyof typeof RecordEditionView];
+
+
+export const RecordEditionView = {
+  legacy: 'legacy',
+  remaster: 'remaster',
+} as const;
+
+export interface RecordSummaryView {
+  creature_display?: CreatureDisplayView;
+  /** The selected document's explicit publication era; absent when unavailable. */
+  edition?: RecordEditionView;
+  kind: string;
+  kind_label: string;
+  /** @nullable */
+  level_basis: string | null;
+  /** @nullable */
+  level_label: string | null;
+  /** @nullable */
+  pack: string | null;
+  /** @nullable */
+  publication: string | null;
+  rarity: ReferenceValueView | null;
+  record_key: string;
+  /** @nullable */
+  source_type: string | null;
+  title: string;
+  traits: RecordBadgeView[];
+  unit_price_label?: string;
+}
+
+export interface CreatureFamilyView {
+  id: string;
+  name: string;
+  named_bases: CreatureFamilyViewNamedBases;
+  named_creatures: RecordSummaryView[];
+  versions: RecordSummaryView[];
+}
+
+export interface CreatureOverrideView {
+  adjustment: EncounterParticipantVariantView;
+  record_key: string;
+  use_id: string;
+}
+
 export interface DefinitionDetailRequest {
   definition_key: string;
   /** @nullable */
@@ -2755,6 +2828,7 @@ export interface EncounterDifficultyView {
   party_size: number | null;
   /** @minimum 0 */
   pc_count: number;
+  prepared_creature_choice?: PreparedCreatureChoice;
   /** @nullable */
   rating: string | null;
   reference: EncounterDifficultyReferenceView;
@@ -3367,39 +3441,6 @@ export type RecordBodyView = {
   kind: 'content';
 };
 
-/**
- * Publication era does not imply that a record has a replacement or is unusable.
- */
-export type RecordEditionView = typeof RecordEditionView[keyof typeof RecordEditionView];
-
-
-export const RecordEditionView = {
-  legacy: 'legacy',
-  remaster: 'remaster',
-} as const;
-
-export interface RecordSummaryView {
-  /** The selected document's explicit publication era; absent when unavailable. */
-  edition?: RecordEditionView;
-  kind: string;
-  kind_label: string;
-  /** @nullable */
-  level_basis: string | null;
-  /** @nullable */
-  level_label: string | null;
-  /** @nullable */
-  pack: string | null;
-  /** @nullable */
-  publication: string | null;
-  rarity: ReferenceValueView | null;
-  record_key: string;
-  /** @nullable */
-  source_type: string | null;
-  title: string;
-  traits: RecordBadgeView[];
-  unit_price_label?: string;
-}
-
 export interface RecordGrantLinkView {
   navigation: RecordNavigationView;
   record: RecordSummaryView | null;
@@ -3587,6 +3628,7 @@ export interface EncounterDetailView {
 }
 
 export interface EncounterDifficultyAddition {
+  creature_scenario?: CreatureScenarioContext;
   participant_variant?: EncounterParticipantVariantView | null;
   /** @minimum 0 */
   quantity: number;
@@ -4663,6 +4705,8 @@ export type RelatedCategoryViewRemasterSourceContextView = {
 
 export interface RecordDetailView {
   artifact_generation: string;
+  creature_family?: CreatureFamilyView;
+  creature_overrides?: CreatureOverrideView[];
   /** Default adjustment for adding this root creature to an encounter. */
   encounter_adjustment?: EncounterParticipantVariantView;
   equipment_family?: EquipmentFamilyReferenceView;
@@ -7259,6 +7303,27 @@ export const getEncounterTurnReviewUrl = (encounterRef: string,) => {
 export const encounterTurnReview = async (encounterRef: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<EncounterTurnReviewView> => {
 
   return fetchGenerated<EncounterTurnReviewView>(getEncounterTurnReviewUrl(encounterRef),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getGetCreatureFamilyUrl = (familyId: string,) => {
+
+
+
+
+  return `/api/families/creatures/${encodeURIComponent(String(familyId))}`
+}
+
+export const getCreatureFamily = async (familyId: string, options?: Parameters<typeof fetchGenerated>[1]): Promise<CreatureFamilyView | null> => {
+
+  return fetchGenerated<CreatureFamilyView | null>(getGetCreatureFamilyUrl(familyId),
   {
     ...options,
     method: 'GET'

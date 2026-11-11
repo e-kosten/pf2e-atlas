@@ -7,6 +7,7 @@ mod contextual_references;
 mod physical_labels;
 
 mod connection_scope;
+mod creature_family;
 mod definition_values;
 mod definitions;
 mod discovery;

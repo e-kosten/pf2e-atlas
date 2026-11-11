@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 pub struct RecordSummaryView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub creature_display: Option<CreatureDisplayView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub unit_price_label: Option<String>,
     /// The selected document's explicit publication era; absent when unavailable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -31,6 +34,39 @@ pub struct RecordSummaryView {
     #[cfg_attr(feature = "openapi", schema(required))]
     pub pack: Option<String>,
 }
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatureDisplayView {
+    pub title: String,
+    pub qualifiers: Vec<String>,
+    pub uses: Vec<CreatureScenarioUseView>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatureScenarioUseView {
+    pub id: String,
+    pub label: String,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatureFamilyView {
+    pub id: String,
+    pub name: String,
+    pub versions: Vec<RecordSummaryView>,
+    pub named_creatures: Vec<RecordSummaryView>,
+    pub named_bases: std::collections::BTreeMap<String, String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatureOverrideView {
+    pub use_id: String,
+    pub adjustment: crate::EncounterParticipantVariantView,
+    pub record_key: String,
+}
+
 /// Publication era does not imply that a record has a replacement or is unusable.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -127,6 +163,12 @@ impl RecordDetailRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordDetailView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub creature_family: Option<CreatureFamilyView>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "openapi", schema(required = false))]
+    pub creature_overrides: Vec<CreatureOverrideView>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub equipment_family: Option<crate::EquipmentFamilyReferenceView>,

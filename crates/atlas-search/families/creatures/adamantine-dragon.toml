@@ -1,0 +1,32 @@
+name = "Adamantine Dragon"
+source_note = "Monster Core supplies young, adult, and ancient stat blocks, each with a separate spellcaster form."
+
+[[members]]
+key = "pathfinder-monster-core:CXoAvRxBt3bJ5IZQ"
+name = "Adamantine Dragon (Young)"
+qualifier = "Young"
+
+[[members]]
+key = "pathfinder-monster-core:YV83qiV7nEtVDPEP"
+name = "Adamantine Dragon (Young, Spellcaster)"
+qualifier = "Young · Spellcaster"
+
+[[members]]
+key = "pathfinder-monster-core:hybmXlTxljL9L1dW"
+name = "Adamantine Dragon (Adult)"
+qualifier = "Adult"
+
+[[members]]
+key = "pathfinder-monster-core:Bgfu9IQfK1DyaXmt"
+name = "Adamantine Dragon (Adult, Spellcaster)"
+qualifier = "Adult · Spellcaster"
+
+[[members]]
+key = "pathfinder-monster-core:KdUMMd6ol83JpP62"
+name = "Adamantine Dragon (Ancient)"
+qualifier = "Ancient"
+
+[[members]]
+key = "pathfinder-monster-core:ptaN3MY80GiE6PHW"
+name = "Adamantine Dragon (Ancient, Spellcaster)"
+qualifier = "Ancient · Spellcaster"

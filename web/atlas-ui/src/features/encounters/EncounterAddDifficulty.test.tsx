@@ -15,6 +15,9 @@ import type {
 } from "../../generated/atlas";
 import {
   EncounterAddDifficulty,
+  encounterPreviewBasis,
+  encounterRecordAddition,
+  type PreparedCreatureAddition,
   type EncounterRecordAddForm,
 } from "./EncounterAddDifficulty";
 const current: EncounterDifficultyView = {
@@ -271,4 +274,49 @@ it("shows a completed unavailable result instead of masking it with a retained t
     "aria-valuetext",
     expect.stringContaining("80 XP"),
   );
+});
+
+it("only attaches a prepared choice for the same encounter revision and scenario use", () => {
+  const artifact_generation = "catalog";
+  const scenario = { artifact_generation, use_id: "party-3-4" };
+  const basis = encounterPreviewBasis("encounter-1", 3);
+  const choice = {
+    record_key: "actors:published-ogre",
+    initial_adjustment: "normal" as const,
+  };
+  const prepared: PreparedCreatureAddition = {
+    basis,
+    choice,
+    request: {
+      record_ref: "actors:ogre",
+      quantity: 1,
+      participant_variant: null,
+      creature_scenario: scenario,
+    },
+  };
+  function Harness() {
+    const [form] = Form.useForm<EncounterRecordAddForm>();
+    const prepare = (current: string, useId: string) =>
+      encounterRecordAddition(
+        "actors:ogre",
+        true,
+        form,
+        { artifact_generation, use_id: useId },
+        prepared,
+        current,
+      ).creature_scenario?.expected?.record_key ?? "waiting";
+    return (
+      <Form form={form}>
+        <output aria-label="current">{prepare(basis, "party-3-4")}</output>
+        <output aria-label="other encounter">
+          {prepare(encounterPreviewBasis("encounter-2", 3), "party-3-4")}
+        </output>
+        <output aria-label="other use">{prepare(basis, "party-5-6")}</output>
+      </Form>
+    );
+  }
+  render(<Harness />);
+  expect(screen.getByLabelText("current")).toHaveTextContent(choice.record_key);
+  expect(screen.getByLabelText("other encounter")).toHaveTextContent("waiting");
+  expect(screen.getByLabelText("other use")).toHaveTextContent("waiting");
 });

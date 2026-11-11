@@ -118,7 +118,14 @@ function FamilyMembers({
   );
 }
 
-function FamilyRows({ choices }: { choices: VariantFamilyChoiceView[] }) {
+export function FamilyRows({
+  choices,
+}: {
+  choices: Array<
+    Pick<VariantFamilyChoiceView, "record"> &
+      Partial<Pick<VariantFamilyChoiceView, "qualifier">>
+  >;
+}) {
   const onReference = useReferenceRecordNavigation();
   return (
     <div className="record-explore__results" role="list">

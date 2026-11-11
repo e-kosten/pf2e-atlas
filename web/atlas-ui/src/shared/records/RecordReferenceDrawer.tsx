@@ -170,6 +170,7 @@ export function RecordReferenceDrawer({
               headingId={headingId}
               presentation={detail?.presentation}
               equipmentFamily={detail?.equipment_family}
+              creatureFamily={detail?.creature_family}
               onEquipmentFamilyNavigate={close}
               root={detail?.record}
               selection={detail?.selected}

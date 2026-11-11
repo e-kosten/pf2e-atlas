@@ -214,3 +214,25 @@ member returns the same complete, unambiguous group, the grade labels advance
 with item level, and the publication and edition agree. Each proposal includes
 the member keys and source paths. Check those records and look for missing
 siblings, same-name editions, or related accessories before adding a family file.
+
+## Creature family review during a source upgrade
+
+The creature family files in [the retrieval catalog](../../crates/atlas-search/families/creatures)
+use one stable ID per TOML file. Verify each exact actor key and expected title
+against the candidate source. A named creature declares the exact base actor
+it connects to. Shared token names can suggest a relationship, including within
+one publication, and still require review.
+
+Declare party level ranges in the actor's reviewed scenario uses. Each use
+has its own identifier and may include a Challenge Point threshold when the
+source establishes it. The actor's publication supplies the adventure title,
+and its source creature level supplies the level used by Search. Keep
+explanations of the relationship and scenario evidence in the source note.
+
+An override declares a base, a Weak or Elite adjustment, a reviewed use ID,
+and an exact published target. Include a source note explaining when the
+target applies and any custom mechanics. Verify both records and their usage
+conditions on a source upgrade. Test the target's source adjustment and
+effective stats, including published records whose stats already include the
+adjustment. See the [creature audit command](developer-commands.md#review-creature-families)
+for inventory and candidate discovery.

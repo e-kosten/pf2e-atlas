@@ -1,6 +1,10 @@
 //! Compile the maintainer-edited equipment families into one embedded payload.
 
 mod build_axes;
+mod build_creature_families;
+
+#[path = "src/creature_catalog.rs"]
+mod creature_catalog;
 
 #[path = "src/variants/catalog.rs"]
 mod catalog;
@@ -58,8 +62,8 @@ impl ExclusionSide {
 }
 
 fn main() {
-    if let Err(error) = bundle() {
-        eprintln!("equipment family catalog: {error}");
+    if let Err(error) = bundle().and_then(|()| build_creature_families::bundle()) {
+        eprintln!("family catalog: {error}");
         std::process::exit(1);
     }
 }
