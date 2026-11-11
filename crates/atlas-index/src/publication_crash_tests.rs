@@ -149,7 +149,7 @@ fn rows(c: &Connection) -> BTreeMap<String, Vec<Vec<Value>>> {
 }
 fn save_list(workspace: &Workspace) {
     let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    write.connection().execute_batch("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Saved name','before','before')").unwrap();
+    write.connection().execute_batch("INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,'keep','keep','Saved name','before','before')").unwrap();
     write.commit().unwrap();
 }
 

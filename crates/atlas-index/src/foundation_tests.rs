@@ -1404,7 +1404,7 @@ fn incremental_publication_preserves_unchanged_rows_and_saved_references() {
             |r| r.get(0),
         )
         .unwrap();
-    connection.execute("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'saved','saved','Saved','now','now')",[]).unwrap();
+    connection.execute("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'saved','saved','Saved','now','now')",[]).unwrap();
     connection.execute("INSERT INTO saved_list_items(list_id,record_key,position,record_title_snapshot,added_at,updated_at) VALUES(1,?,0,'Remembered staff','now','now')",[&removed_key]).unwrap();
     drop(connection);
     crate::test_support::publish_input(&path, &input).unwrap();

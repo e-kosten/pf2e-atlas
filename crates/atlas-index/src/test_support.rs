@@ -5,7 +5,7 @@ pub use section_preservation::native_preservation_rows;
 pub use section_preservation::reference_preservation_rows;
 
 use crate::{IndexBuildInput, IndexError, SourceSearchProfileIdentity, SqliteIndexReader};
-use atlas_storage::{Migration, Workspace};
+use atlas_storage::Workspace;
 use std::{collections::BTreeMap, path::Path};
 
 /// Explicit caller-supplied task-copy diagnostic. All projection writes roll back.
@@ -13,314 +13,26 @@ pub fn core_projection_pilot(path: &Path) -> Result<serde_json::Value, IndexErro
     crate::core_projection_pilot::run(path)
 }
 
-pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = TEST_MIGRATIONS.len() as u32;
-pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
-    Migration {
-        backfill: None,
-        version: 1,
-        name: "reference-baseline",
-        sql: crate::REFERENCE_SCHEMA_SQL,
-    },
-    Migration {
-        backfill: None,
-        version: 2,
-        name: "saved-state-baseline",
-        sql: atlas_local_state::LOCAL_STATE_SCHEMA_SQL,
-    },
-    Migration {
-        backfill: None,
-        version: 3,
-        name: "lexical-alias-rows",
-        sql: crate::LEXICAL_ALIAS_SCHEMA_SQL,
-    },
-    Migration {
-        backfill: None,
-        version: 4,
-        name: "consumable-filters",
-        sql: crate::CONSUMABLE_FILTER_SCHEMA_SQL,
-    },
-    Migration {
-        backfill: None,
-        version: 5,
-        name: "encounter-status",
-        sql: atlas_local_state::ENCOUNTER_STATUS_SCHEMA_SQL,
-    },
-    Migration {
-        backfill: None,
-        version: 6,
-        name: "hazard-participation",
-        sql: atlas_local_state::HAZARD_PARTICIPATION_SCHEMA_SQL,
-    },
-    Migration {
-        backfill: None,
-        version: 7,
-        name: "encounter-parties",
-        sql: atlas_local_state::PARTIES_SCHEMA_SQL,
-    },
-    Migration {
-        backfill: None,
-        version: 8,
-        name: "trait-vocabulary",
-        sql: crate::TRAIT_SCHEMA_SQL,
-    },
-    Migration {
-        version: 9,
-        name: "condition-system",
-        sql: atlas_local_state::CONDITION_SYSTEM_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 10,
-        name: "embedding-storage",
-        sql: crate::EMBEDDING_STORAGE_SCHEMA_SQL,
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: false,
-            id: "native-embedding-storage/v1",
-            apply: crate::backfill_embedding_storage,
-        }),
-    },
-    Migration {
-        version: 11,
-        name: "persistent-preparation",
-        sql: atlas_local_state::PERSISTENT_PREPARATION_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 12,
-        name: "turn-resources",
-        sql: atlas_local_state::TURN_RESOURCES_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 13,
-        name: "consumed-condition-applications",
-        sql: atlas_local_state::CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 14,
-        name: "party-member-levels",
-        sql: atlas_local_state::PARTY_LEVELS_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 15,
-        name: "encounter-difficulty",
-        sql: atlas_local_state::ENCOUNTER_DIFFICULTY_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 16,
-        name: "encounter-ability-state",
-        sql: atlas_local_state::ABILITY_STATE_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 17,
-        name: "stateless-strike-rolls",
-        sql: atlas_local_state::STATELESS_STRIKE_ROLLS_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 18,
-        name: "reference-numeric-filters",
-        sql: crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 19,
-        name: "physical-base-type",
-        sql: crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 20,
-        name: "similarity-parts",
-        sql: crate::SIMILARITY_SCHEMA_SQL,
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: false,
-            id: "typed-content-correspondence/v1",
-            apply: crate::backfill_similarity_parts,
-        }),
-    },
-    Migration {
-        version: 21,
-        name: "core-section-eligibility",
-        sql: crate::CORE_SECTIONS_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 22,
-        name: "encounter-recovery",
-        sql: atlas_local_state::ENCOUNTER_RECOVERY_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 23,
-        name: "manual-encounter-trackers",
-        sql: atlas_local_state::MANUAL_TRACKERS_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 24,
-        name: "encounter-round-duration",
-        sql: atlas_local_state::ENCOUNTER_CLOCK_SCHEMA_SQL,
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: false,
-            id: "encounter-clock-seconds/v1",
-            apply: atlas_local_state::backfill_encounter_clock,
-        }),
-    },
-    Migration {
-        version: 25,
-        name: "saved-state-integrity",
-        sql: "",
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: true,
-            id: "saved-state-integrity/v1",
-            apply: atlas_local_state::backfill_saved_state_integrity,
-        }),
-    },
-    Migration {
-        version: 26,
-        name: "turn-receipts",
-        sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 27,
-        name: "input-owned-native-storage",
-        sql: crate::INPUT_OWNED_STORAGE_SCHEMA_SQL,
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: false,
-            id: "input-owned-native-storage/v1",
-            apply: crate::backfill_input_owned_storage,
-        }),
-    },
-    Migration {
-        version: 28,
-        name: "canonical-selected-sections",
-        sql: crate::SELECTED_SECTIONS_SCHEMA_SQL,
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: true,
-            id: "canonical-selected-sections/v1",
-            apply: crate::backfill_selected_sections,
-        }),
-    },
-    Migration {
-        version: 29,
-        name: "reference-component-reconciliation",
-        sql: crate::COMPONENT_DIGEST_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 30,
-        name: "remaster-information",
-        sql: crate::REMASTER_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 31,
-        name: "remove-remaster-preference",
-        sql: crate::REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 32,
-        name: "compact-remaster-context",
-        sql: crate::COMPACT_REMASTER_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 33,
-        name: "reference-entries",
-        sql: crate::REFERENCE_ENTRIES_SCHEMA_SQL,
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: true,
-            id: "reference-entries/v1",
-            apply: crate::backfill_reference_entries,
-        }),
-    },
-    Migration {
-        version: 34,
-        name: "retire-trait-similarity",
-        sql: "",
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: false,
-            id: "retire-trait-similarity/v1",
-            apply: crate::retire_trait_similarity,
-        }),
-    },
-    Migration {
-        version: 35,
-        name: "encounter-command-receipts",
-        sql: atlas_local_state::ENCOUNTER_COMMAND_RECEIPTS_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 36,
-        name: "shared-trait-membership",
-        sql: crate::TRAIT_MEMBERS_SCHEMA_SQL,
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: false,
-            id: "shared-trait-membership/v1",
-            apply: crate::backfill_trait_members,
-        }),
-    },
-    Migration {
-        version: 37,
-        name: "source-condition-override-payload",
-        sql: "",
-        backfill: None,
-    },
-    Migration {
-        version: crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION,
-        name: "native-token-count-digest",
-        sql: crate::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: atlas_local_state::SAVED_STATE_CLOSEOUT_SCHEMA_VERSION,
-        name: "saved-state-closeout",
-        sql: "",
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: false,
-            id: "saved-state-closeout/v1",
-            apply: atlas_local_state::backfill_saved_state_closeout,
-        }),
-    },
-    Migration {
-        version: crate::SEARCH_SCHEMA_CLOSEOUT_VERSION,
-        name: "search-schema-closeout",
-        sql: "",
-        backfill: Some(atlas_storage::DataBackfill {
-            reconstruct_tables: true,
-            id: "search-schema-closeout/v1",
-            apply: crate::backfill_search_schema_closeout,
-        }),
-    },
-    Migration {
-        version: atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_VERSION,
-        name: "manual-tracker-order",
-        sql: atlas_local_state::MANUAL_TRACKER_ORDER_SCHEMA_SQL,
-        backfill: None,
-    },
-];
+// Compile the runtime-owned declaration for these fixtures without a runtime crate dependency.
+#[path = "../../atlas-runtime/src/release_history.rs"]
+mod release_history;
+pub(crate) use release_history::RELEASE_HISTORY;
+
+pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = RELEASE_HISTORY.target();
+
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| IndexError::Operation(e.to_string()))?;
     let workspace = Workspace::at(path)?;
-    workspace.migrate(TEST_MIGRATIONS, |_| Ok(()))?;
+    workspace.migrate_history(RELEASE_HISTORY, |_| Ok(()))?;
     Ok(workspace)
 }
 
 pub fn reference_repair(
     owner: &atlas_storage::UpdateOwner,
 ) -> Result<atlas_storage::ReferenceRepair<'_>, IndexError> {
-    let (repair, ()) = owner.begin_reference_repair(
-        atlas_storage::MigrationHistory::new(TEST_MIGRATIONS),
-        |_| Ok::<_, IndexError>(()),
-    )?;
+    let (repair, ()) =
+        owner.begin_reference_repair(RELEASE_HISTORY, |_| Ok::<_, IndexError>(()))?;
     Ok(repair)
 }
 pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexError> {

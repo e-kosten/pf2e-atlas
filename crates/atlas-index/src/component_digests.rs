@@ -568,74 +568,6 @@ mod tests {
         crate::validate_artifact(&path).unwrap();
     }
     #[test]
-    fn populated_schema27_upgrade_regenerates_unknown_components_once() {
-        use crate::test_support::*;
-        let input = crate::foundation_tests::fixture(false);
-        atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("schema27.sqlite");
-        let workspace = atlas_storage::Workspace::at(&path).unwrap();
-        workspace
-            .migrate(&TEST_MIGRATIONS[..26], |_| Ok(()))
-            .unwrap();
-        let owner = workspace.update_owner().unwrap();
-        let maintenance = owner
-            .maintenance(26, "populating actual schema26 source fixture")
-            .unwrap();
-        publish_pre_section_fixture(&maintenance, &input).unwrap();
-        drop(maintenance);
-        drop(owner);
-        workspace
-            .migrate(&TEST_MIGRATIONS[..27], |_| Ok(()))
-            .unwrap();
-        // The physical section migration has rebuilt actual selected rows. This
-        // fixture activates that independently versioned marker at schema27.
-        let write = workspace.write(27).unwrap();
-        write
-            .connection()
-            .execute(
-                "UPDATE artifact_context SET context_json=?,context_hash=?",
-                params![
-                    serde_json::to_string(&input.context).unwrap(),
-                    input.context.sha256().unwrap()
-                ],
-            )
-            .unwrap();
-        write.commit().unwrap();
-        workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
-        let c = Connection::open(&path).unwrap();
-        assert_eq!(
-            c.query_row(
-                "SELECT count(*) FROM reference_component_digests",
-                [],
-                |r| r.get::<_, usize>(0)
-            )
-            .unwrap(),
-            0
-        );
-        let before = crate::test_support::reference_preservation_rows(&c).unwrap();
-        audit(&c);
-        crate::test_support::publish_input(&path, &input).unwrap();
-        let writes:usize=c.query_row("SELECT count(*) FROM component_write_audit WHERE component<>'reference_component_digests'",[],|r|r.get(0)).unwrap();
-        assert!(
-            writes > 0,
-            "unknown components must be regenerated from supplied inputs"
-        );
-        let mut after = crate::test_support::reference_preservation_rows(&c).unwrap();
-        after.remove("component_write_audit");
-        after.insert("reference_component_digests".into(), vec![]);
-        assert_eq!(after, before);
-        crate::validate_reference(&c).unwrap();
-        c.execute("DELETE FROM component_write_audit", []).unwrap();
-        crate::test_support::publish_input(&path, &input).unwrap();
-        let writes: usize = c
-            .query_row("SELECT count(*) FROM component_write_audit", [], |r| {
-                r.get(0)
-            })
-            .unwrap();
-        assert_eq!(writes, 0, "known unchanged components must be skipped");
-    }
-    #[test]
     fn admission_diagnostic_only_change_updates_published_evidence() {
         let mut input = crate::foundation_tests::fixture(false);
         let (_dir, path) = crate::foundation_tests::build(&input);
@@ -672,7 +604,7 @@ mod retained_payload_tests {
         let input = crate::foundation_tests::fixture(false);
         let (_dir, path) = crate::foundation_tests::build(&input);
         let c = Connection::open(&path).unwrap();
-        c.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Kept maintenance notes','now','now')").unwrap();
+        c.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'kept','kept','Kept maintenance notes','now','now')").unwrap();
         let mut context = input.context.clone();
         context.query_projection_version = "authored-query/v4".into();
         let json = serde_json::to_string(&context).unwrap();
@@ -765,102 +697,6 @@ mod retained_payload_tests {
 #[cfg(test)]
 mod historical_payload_tests {
     use super::*;
-    fn bodies(c: &Connection) -> Vec<(String, String)> {
-        c.prepare("SELECT r.key,b.snapshot FROM records r JOIN record_bodies b USING(record_id) ORDER BY r.key").unwrap().query_map([],|r|Ok((r.get(0)?,crate::codec::sha256(&r.get::<_,Vec<u8>>(1)?)))).unwrap().collect::<Result<_,_>>().unwrap()
-    }
-    fn vectors(c: &Connection, table: &str, input_owned: bool) -> Vec<(i64, String)> {
-        // Compare occurrence-attributed bytes across the released and current layouts.
-        // Shared inputs must preserve every historical occurrence, not merely one row.
-        let sql = if input_owned {
-            format!(
-                "SELECT su.unit_id,v.embedding FROM semantic_units su JOIN {table} v USING(input_id) ORDER BY su.unit_id"
-            )
-        } else {
-            format!("SELECT unit_id,embedding FROM {table} ORDER BY unit_id")
-        };
-        c.prepare(&sql)
-            .unwrap()
-            .query_map([], |r| {
-                Ok((r.get(0)?, crate::codec::sha256(&r.get::<_, Vec<u8>>(1)?)))
-            })
-            .unwrap()
-            .collect::<Result<_, _>>()
-            .unwrap()
-    }
-    #[test]
-    fn populated_pre20_upgrade_preserves_occurrence_payloads_through_current_schema() {
-        use crate::test_support::*;
-        let input = crate::foundation_tests::fixture(true);
-        atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
-        let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("pre20.sqlite");
-        let workspace = atlas_storage::Workspace::at(&path).unwrap();
-        workspace
-            .migrate(&TEST_MIGRATIONS[..19], |_| Ok(()))
-            .unwrap();
-        let owner = workspace.update_owner().unwrap();
-        let maintenance = owner
-            .maintenance(19, "actual populated pre20 fixture")
-            .unwrap();
-        publish_pre_core_fixture(&maintenance, &input).unwrap();
-        drop(maintenance);
-        drop(owner);
-        let table = crate::schema::vector_table(&input.context.search_profiles[0]).unwrap();
-        let c = Connection::open(&path).unwrap();
-        c.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Kept pre20 state','now','now')").unwrap();
-        let old_bodies = bodies(&c);
-        let old_vectors = vectors(&c, &table, false);
-        assert!(!old_bodies.is_empty());
-        assert!(!old_vectors.is_empty());
-        workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
-        assert!(
-            !crate::ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION)
-                .unwrap()
-        );
-        assert_eq!(bodies(&c), old_bodies);
-        let current_table =
-            crate::schema::native_vector_table(&input.context.search_profiles[0]).unwrap();
-        assert_eq!(vectors(&c, &current_table, true), old_vectors);
-        assert_eq!(
-            c.query_row("SELECT name FROM saved_lists WHERE id=1", [], |r| r
-                .get::<_, String>(0))
-                .unwrap(),
-            "Kept pre20 state"
-        );
-        assert_eq!(
-            c.query_row(
-                "SELECT count(*) FROM reference_component_digests",
-                [],
-                |r| r.get::<_, usize>(0)
-            )
-            .unwrap(),
-            0
-        );
-        assert!(crate::test_support::open_reader(&path).is_err());
-        crate::test_support::publish_input(&path, &input).unwrap();
-        assert_eq!(bodies(&c), old_bodies);
-        // Source-backed preparation can allocate new occurrence slots. The
-        // schema-only comparison above keeps exact old IDs; recovery keeps every
-        // occurrence's numerical bytes and validates current attribution below.
-        let mut recovered_bytes = vectors(&c, &current_table, true)
-            .into_iter()
-            .map(|(_, bytes)| bytes)
-            .collect::<Vec<_>>();
-        let mut old_bytes = old_vectors
-            .into_iter()
-            .map(|(_, bytes)| bytes)
-            .collect::<Vec<_>>();
-        recovered_bytes.sort();
-        old_bytes.sort();
-        assert_eq!(recovered_bytes, old_bytes);
-        assert_eq!(
-            c.query_row("SELECT name FROM saved_lists WHERE id=1", [], |r| r
-                .get::<_, String>(0))
-                .unwrap(),
-            "Kept pre20 state"
-        );
-        crate::validate_artifact(&path).unwrap();
-    }
     #[test]
     fn current_reader_does_not_treat_missing_attestation_storage_as_historical() {
         let input = crate::foundation_tests::fixture(false);

@@ -1,34 +1,16 @@
 //! Composition of domain-owned schemas into one ordered workspace history.
-use atlas_storage::{
-    DataBackfill, Migration, MigrationHistory, MigrationPredecessor, StorageResult, Workspace,
-};
+#[cfg(any(test, feature = "test-support"))]
+use atlas_storage::Migration;
+#[cfg(test)]
+use atlas_storage::MigrationHistory;
+use atlas_storage::{StorageResult, Workspace};
 use std::path::Path;
 
 pub const WORKSPACE_SCHEMA_VERSION: u32 = RELEASE_HISTORY.target();
 
-pub(crate) const RELEASE_HISTORY: MigrationHistory<'static> = MigrationHistory {
-    migrations: &[Migration {
-        version: 42,
-        name: "release-baseline",
-        sql: concat!(
-            include_str!("../../atlas-index/src/release_schema.sql"),
-            include_str!("../../atlas-local-state/src/release/saved_lists.sql"),
-            include_str!("../../atlas-local-state/src/release/parties.sql"),
-            include_str!("../../atlas-local-state/src/release/encounters.sql"),
-            include_str!("../../atlas-local-state/src/release/schema.sql"),
-        ),
-        backfill: None,
-    }],
-    predecessor: Some(MigrationPredecessor {
-        // Schema 41 history at b17f8482d, from an executable-created workspace.
-        ledger_sha256: "063c58315d7841c8dff56ed43ddc6a9465d92e1ff9924e59f250879d9815dd85",
-        bridge: DataBackfill {
-            reconstruct_tables: true,
-            id: "release-explicit-saved-owners/v1",
-            apply: atlas_local_state::upgrade_release_owners,
-        },
-    }),
-};
+#[path = "release_history.rs"]
+mod release_history;
+pub(crate) use release_history::RELEASE_HISTORY;
 
 #[cfg(any(test, feature = "test-support"))]
 const MIGRATIONS: &[Migration] = &[

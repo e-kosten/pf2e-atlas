@@ -265,7 +265,7 @@ fn failed_publication_reopens_exact_prior_state_without_repairing_old_damage() {
         publish_input(&path, &input).unwrap();
         let workspace = initialize_workspace(&path).unwrap();
         let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        write.connection().execute_batch("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Saved name','before','before');
+        write.connection().execute_batch("INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,'keep','keep','Saved name','before','before');
             CREATE TRIGGER reject_after_activation AFTER DELETE ON pending_embedding_values BEGIN
             SELECT CASE WHEN (SELECT published_hash FROM embedding_inputs WHERE input_id=OLD.input_id) IS NOT OLD.vector_hash THEN RAISE(ABORT,'selected value was not installed before failure injection') END;
             SELECT RAISE(ABORT,'injected publication failure'); END;").unwrap();

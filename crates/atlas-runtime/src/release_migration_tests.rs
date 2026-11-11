@@ -431,3 +431,23 @@ fn ordinary_startup_refuses_a_supported_predecessor_until_explicit_setup() {
     assert!(workspace.upgrade_backup_path().is_file());
     runtime.check_workspace_if_present().unwrap();
 }
+
+#[test]
+fn domain_fixture_has_the_runtime_release_schema_and_ledger() {
+    let directory = tempfile::tempdir().unwrap();
+    let runtime = initialize_workspace(directory.path().join("runtime.sqlite")).unwrap();
+    let domain =
+        atlas_index::test_support::initialize_workspace(directory.path().join("domain.sqlite"))
+            .unwrap();
+    let runtime = runtime.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let domain = domain.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let schema = "SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name";
+    assert_eq!(
+        sql_rows(runtime.connection(), schema),
+        sql_rows(domain.connection(), schema)
+    );
+    assert_eq!(
+        sql_rows(runtime.connection(), LEDGER),
+        sql_rows(domain.connection(), LEDGER)
+    );
+}

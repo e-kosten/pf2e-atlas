@@ -71,7 +71,7 @@ fn bounded_incremental_stream_matches_fresh_after_dependency_and_membership_chan
     fixture.build("incremental");
     let path = fixture.options("incremental").output_path;
     let c = Connection::open(&path).unwrap();
-    c.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Kept notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'items:bbbbbbbbbbbbbbbb',0,'Retain target note','Target','now','now')").unwrap();
+    c.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'kept','kept','Kept notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'items:bbbbbbbbbbbbbbbb',0,'Retain target note','Target','now','now')").unwrap();
     let identity: i64 = c
         .query_row(
             "SELECT id FROM record_identity WHERE key='items:bbbbbbbbbbbbbbbb'",
@@ -268,7 +268,7 @@ fn ordinary_same_source_build_rejects_valid_but_unattested_retained_payload_chan
         fixture.build("attested");
         let options = fixture.options("attested");
         let c = Connection::open(&options.output_path).unwrap();
-        c.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Kept proof notes','now','now')").unwrap();
+        c.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'kept','kept','Kept proof notes','now','now')").unwrap();
         let revision: u64 = c
             .query_row("SELECT reference_revision FROM workspace", [], |r| r.get(0))
             .unwrap();

@@ -430,25 +430,20 @@ fn offline_projection_upgrade_recovers_authored_sense_qualifiers_and_armor_group
             .lexical_units
             .extend(crate::project_lexical_units(&selection, &[]));
     }
-    let workspace = atlas_storage::Workspace::at(&path).unwrap();
-    atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
-    workspace
-        .migrate(&TEST_MIGRATIONS[..24], |_| Ok(()))
-        .unwrap();
-    {
-        let owner = workspace.update_owner().unwrap();
-        let maintenance = owner.maintenance(24, "historical sense facts").unwrap();
-        publish_pre_section_fixture(&maintenance, &input).unwrap();
-    }
-    workspace
-        .migrate(&TEST_MIGRATIONS[..32], |_| Ok(()))
-        .unwrap();
-    crate::test_support::stage_pre_glossary_catalog(
-        &workspace,
-        &input.context.remaster_inputs_identity,
-    )
-    .unwrap();
-    let read = workspace.read(32).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    publish_input_in(&workspace, TEST_WORKSPACE_SCHEMA_VERSION, &input).unwrap();
+    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    write.connection().execute_batch(
+        "DELETE FROM actor_senses; UPDATE armor_projection SET armor_group_state='missing', armor_group=NULL;",
+    ).unwrap();
+    let mut context = input.context.clone();
+    context.query_catalog_version = 3;
+    write.connection().execute(
+        "UPDATE artifact_context SET query_catalog_sha256=zeroblob(32),context_json=?1,context_hash=?2",
+        [serde_json::to_string(&context).unwrap(), context.sha256().unwrap()],
+    ).unwrap();
+    write.commit().unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     let original_bodies = read
         .connection()
         .prepare("SELECT snapshot FROM record_bodies ORDER BY record_id")
@@ -459,10 +454,9 @@ fn offline_projection_upgrade_recovers_authored_sense_qualifiers_and_armor_group
         .unwrap();
     let revision = read.reference_revision().unwrap();
     drop(read);
-    workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
     assert!(ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(read.reference_revision().unwrap(), revision + 2);
+    assert_eq!(read.reference_revision().unwrap(), revision + 1);
     assert_eq!(
         read.connection()
             .prepare("SELECT snapshot FROM record_bodies ORDER BY record_id")
