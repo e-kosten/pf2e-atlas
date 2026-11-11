@@ -24,7 +24,6 @@ import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import { RecordScenarioUses } from "./RecordScenarioUses";
-import { ValueExplanation } from "../ui/ValueExplanation";
 import type { ReactNode, Ref } from "react";
 import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
@@ -215,10 +214,6 @@ export function RecordIdentity({
   const hasRarity = Boolean(identity?.rarity?.label.trim());
   const source = identity?.publication?.trim();
   const showSource = source && !scenario?.uses.some(({ label }) => label === source);
-  const foundryTitle =
-    scenario && identity && scenario.title !== identity.title
-      ? identity.title
-      : undefined;
   const secondaryActions = referenceHelp ? (
     <RecordProvenanceAction help={referenceHelp} title={referenceTitle} />
   ) : null;
@@ -266,6 +261,14 @@ export function RecordIdentity({
               </AtlasLink>
             </p>
           )}
+          {scenario && (
+            <div className="record-reference__scenario">
+              <RecordScenarioUses
+                uses={scenario.uses}
+                qualifiers={scenario.qualifiers}
+              />
+            </div>
+          )}
           {creatureFamily &&
             creatureFamily.named_creatures.length > 0 &&
             (() => {
@@ -295,23 +298,9 @@ export function RecordIdentity({
                 </p>
               );
             })()}
-          {(showSource || foundryTitle) && (
+          {showSource && (
             <p className="muted record-reference__source">
-              {showSource && (
-                <>
-                  Source: <span>{source}</span>
-                </>
-              )}
-              {showSource && foundryTitle && <span aria-hidden="true"> · </span>}
-              {foundryTitle && (
-                <ValueExplanation
-                  label="Foundry title"
-                  title="Foundry title"
-                  content={foundryTitle}
-                >
-                  Source details
-                </ValueExplanation>
-              )}
+              Source: <span>{source}</span>
             </p>
           )}
         </>
@@ -348,11 +337,6 @@ export function RecordIdentity({
         ) : null
       }
     >
-      {scenario && (
-        <div className="record-reference__scenario">
-          <RecordScenarioUses uses={scenario.uses} qualifiers={scenario.qualifiers} />
-        </div>
-      )}
       {(identity?.edition || hasRarity || traits.length > 0 || badgeExplanations) && (
         <div className="badge-row">
           <RecordRarity rarity={identity?.rarity ?? null} />

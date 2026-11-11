@@ -122,6 +122,33 @@ function renderBrowser(positions?: BrowsePositions) {
     </QueryClientProvider>,
   );
 }
+
+it("keeps reviewed scenario details out of Search cards", () => {
+  const record = {
+    ...summaryFixture("actors:eltha", "Advanced Eltha (9-10)/Eltha (11-12)"),
+    kind_label: "Creature",
+    level_label: "Level 11",
+    publication: "Cavern of Sundered Songs",
+    creature_display: {
+      title: "Eltha",
+      qualifiers: [],
+      uses: [
+        { id: "party-9-10", label: "Party levels 9–10 (Advanced)" },
+        { id: "party-11-12", label: "Party levels 11–12" },
+      ],
+    },
+  };
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <Harness resultRows={[{ record, matches: [], relationship_evidence: [] }]} />
+    </QueryClientProvider>,
+  );
+  const card = screen.getByRole("link", { name: /Eltha.*Creature 11/ });
+  expect(card).toHaveAttribute("href", "/records/actors:eltha");
+  expect(within(card).getByText("Cavern of Sundered Songs")).toBeVisible();
+  expect(within(card).queryByText(/Party levels/)).toBeNull();
+});
+
 beforeEach(() => {
   getDetail.mockReset();
   getAbilities.mockReset();

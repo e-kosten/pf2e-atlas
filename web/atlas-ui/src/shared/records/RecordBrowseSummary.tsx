@@ -19,6 +19,7 @@ export function RecordBrowseSummary({
   href,
   context,
   qualifiers,
+  showScenarioUses = true,
 }: {
   record: RecordSummaryView;
   selected: boolean;
@@ -27,6 +28,7 @@ export function RecordBrowseSummary({
   href?: string;
   context?: ReactNode;
   qualifiers?: string[];
+  showScenarioUses?: boolean;
 }) {
   const classification = [
     record.kind_label,
@@ -43,7 +45,9 @@ export function RecordBrowseSummary({
     );
   const traits = record.traits.filter((trait) => trait.kind !== "rarity");
   const scenarioUses =
-    qualifiers === undefined ? record.creature_display?.uses : undefined;
+    showScenarioUses && qualifiers === undefined
+      ? record.creature_display?.uses
+      : undefined;
   const source = record.publication ?? record.pack;
   const showSource =
     qualifiers === undefined &&

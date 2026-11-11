@@ -70,22 +70,30 @@ fn party_level_grouping<'a>(
     records: impl IntoIterator<Item = (&'a str, Option<atlas_search::CreatureDisplay>)>,
 ) -> Option<CreatureFamilyGroupingView> {
     let mut by_range = BTreeMap::<_, CreatureFamilyGroupView>::new();
+    let mut general = Vec::new();
+    let mut unavailable = Vec::new();
     for (key, display) in records {
-        let mut ranges = BTreeMap::<_, Vec<String>>::new();
-        if let Some(display) = &display {
-            for use_ in &display.scenario_uses {
-                let labels = ranges.entry(use_.party_levels).or_default();
-                let context = scenario_use_label(use_, false).map_or_else(
-                    || use_.publication.clone(),
-                    |label| format!("{} · {label}", use_.publication),
-                );
-                if !labels.contains(&context) {
-                    labels.push(context);
-                }
-            }
+        if display
+            .as_ref()
+            .is_some_and(|display| display.scenario_uses_unavailable)
+        {
+            unavailable.push(key.into());
+            continue;
         }
-        if ranges.is_empty() {
-            ranges.insert(None, Vec::new());
+        let Some(display) = display.filter(|display| !display.scenario_uses.is_empty()) else {
+            general.push(key.into());
+            continue;
+        };
+        let mut ranges = BTreeMap::<_, Vec<String>>::new();
+        for use_ in &display.scenario_uses {
+            let labels = ranges.entry(use_.party_levels).or_default();
+            let context = scenario_use_label(use_, false).map_or_else(
+                || use_.publication.clone(),
+                |label| format!("{} · {label}", use_.publication),
+            );
+            if !labels.contains(&context) {
+                labels.push(context);
+            }
         }
         for (range, mut labels) in ranges {
             let group = by_range
@@ -98,7 +106,7 @@ fn party_level_grouping<'a>(
                 });
             group.members.push(key.into());
             if !labels.is_empty() {
-                if let Some(qualifier) = display.as_ref().and_then(|display| display.qualifier) {
+                if let Some(qualifier) = display.qualifier {
                     labels.insert(0, qualifier.into());
                 }
                 group.qualifiers.insert(key.into(), labels);
@@ -109,10 +117,25 @@ fn party_level_grouping<'a>(
     if by_range.len() < 2 {
         return None;
     }
+    let general = (!general.is_empty()).then_some(CreatureFamilyGroupView {
+        heading: "General stat blocks".into(),
+        members: general,
+        qualifiers: BTreeMap::new(),
+    });
+    let unavailable = (!unavailable.is_empty()).then_some(CreatureFamilyGroupView {
+        heading: "Scenario context unavailable".into(),
+        members: unavailable,
+        qualifiers: BTreeMap::new(),
+    });
     Some(CreatureFamilyGroupingView {
         id: "scenario:party-levels".into(),
         label: "Party levels".into(),
-        groups: by_range.into_values().chain(unspecified).collect(),
+        groups: general
+            .into_iter()
+            .chain(by_range.into_values())
+            .chain(unspecified)
+            .chain(unavailable)
+            .collect(),
     })
 }
 
@@ -277,6 +300,7 @@ mod tests {
                 Some(CreatureDisplay {
                     label: Some("Eltha".into()),
                     qualifier: None,
+                    scenario_uses_unavailable: false,
                     scenario_uses: vec![
                         use_(Some([11, 12]), Some(28)),
                         use_(Some([9, 10]), None),
@@ -286,7 +310,16 @@ mod tests {
                     ],
                 }),
             ),
-            ("unknown", None),
+            ("general", None),
+            (
+                "unavailable",
+                Some(CreatureDisplay {
+                    label: None,
+                    qualifier: None,
+                    scenario_uses: vec![],
+                    scenario_uses_unavailable: true,
+                }),
+            ),
         ])
         .unwrap();
         let groups = group.groups;
@@ -296,20 +329,24 @@ mod tests {
                 .map(|group| group.heading.as_str())
                 .collect::<Vec<_>>(),
             [
+                "General stat blocks",
                 "Party levels 9–10",
                 "Party levels 11–12",
-                "Party range unspecified"
+                "Party range unspecified",
+                "Scenario context unavailable",
             ]
         );
-        assert_eq!(groups[0].members, ["multi"]);
+        assert_eq!(groups[0].members, ["general"]);
         assert_eq!(groups[1].members, ["multi"]);
+        assert_eq!(groups[2].members, ["multi"]);
         assert_eq!(
-            groups[1].qualifiers["multi"],
+            groups[2].qualifiers["multi"],
             [
                 "Cavern · 28+ Challenge Points",
                 "Cavern · 30+ Challenge Points"
             ]
         );
-        assert_eq!(groups[2].members, ["multi", "unknown"]);
+        assert_eq!(groups[3].members, ["multi"]);
+        assert_eq!(groups[4].members, ["unavailable"]);
     }
 }

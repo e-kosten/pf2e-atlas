@@ -21,6 +21,7 @@ export function SearchPreviewRows({
         <div role="listitem" key={row.record.record_key}>
           <ReferenceResult
             row={row}
+            showScenarioUses={false}
             selected={false}
             disabled={false}
             relationshipClauses={page.relationship_clauses}

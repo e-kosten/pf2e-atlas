@@ -227,6 +227,7 @@
   font-weight: 600;
 }
 .record-reference__scenario {
+  margin-top: var(--space-control);
   font-size: 0.9rem;
 }
 .record-reference__family,

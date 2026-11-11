@@ -596,6 +596,22 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
                         "Pathfinder Society Quest #9: Wayfinder Origins",
                         None,
                     ),
+                    npc(
+                        "f9jyVOOKEvRkvIY4",
+                        "'Zombie' Flesh Golem (3-4)",
+                        2,
+                        30,
+                        "Pathfinder Society Quest #12: Putrid Seeds",
+                        Some("'Zombie' Flesh Golem"),
+                    ),
+                    npc(
+                        "fXIJWv2uooumqZo8",
+                        "'Zombie' Flesh Golem (5-6)",
+                        4,
+                        45,
+                        "Pathfinder Society Quest #12: Putrid Seeds",
+                        None,
+                    ),
                 ],
                 false,
             )?)
@@ -606,10 +622,10 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
     assert_eq!(detail.record.title, "Prefect (Fist) (3-4)");
     assert_eq!(
         detail.record.creature_display.as_ref().unwrap().title,
-        "Prefect"
+        "Prefect (Fist)"
     );
     let display = detail.record.creature_display.as_ref().unwrap();
-    assert_eq!(display.qualifiers, ["Fist"]);
+    assert!(display.qualifiers.is_empty());
     assert_eq!(display.uses[0].id, "party-3-4");
     assert_eq!(display.uses[0].label, "Party levels 3–4");
     let results = f
@@ -624,13 +640,30 @@ fn scenario_elite_preview_and_add_preserve_the_published_stat_block() {
         .unwrap();
     let family = f.worker.creature_family("prefect".into()).unwrap().unwrap();
     for records in [&results.records, &family.versions] {
-        for (key, expected) in [(base, "Prefect"), (target, "Elite Prefect (Fist) (3-4)")] {
+        for (key, expected) in [(base, "Prefect (Fist)"), (target, "Elite Prefect (Fist)")] {
             let record = records
                 .iter()
                 .find(|record| record.record_key == key)
                 .unwrap();
             assert_eq!(record.creature_display.as_ref().unwrap().title, expected);
         }
+    }
+    for (key, expected) in [
+        (
+            "pfs-season-1-bestiary:f9jyVOOKEvRkvIY4",
+            "'Zombie' Flesh Golem",
+        ),
+        (
+            "pfs-season-1-bestiary:fXIJWv2uooumqZo8",
+            "'Zombie' Flesh Golem (5-6)",
+        ),
+    ] {
+        let record = results
+            .records
+            .iter()
+            .find(|record| record.record_key == key)
+            .unwrap();
+        assert_eq!(record.creature_display.as_ref().unwrap().title, expected);
     }
     let encounter = f
         .worker

@@ -109,6 +109,7 @@ export function ReferenceBrowser({
           <ReferenceResult
             key={row.record.record_key}
             row={row}
+            showScenarioUses={false}
             relationshipClauses={relationshipClauses}
             filter={filter}
             generation={generation}

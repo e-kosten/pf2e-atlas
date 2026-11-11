@@ -4,10 +4,11 @@ import {
   numberFact,
   summaryFixture,
 } from "../../test/fixtures";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { AtlasApiError } from "../../api/atlasApi";
 import type { RecordDetailView } from "../../generated/atlas";
 import { remasterInformationFixture } from "../../test/remasterFixtures";
+import { RouterTestContext } from "../../test/router";
 import { RecordDetailPane } from "./RecordDetailPane";
 
 describe("RecordDetailPane", () => {
@@ -161,7 +162,7 @@ describe("RecordDetailPane", () => {
     expect(screen.queryByText("Source presentation")).toBeNull();
   });
 
-  it("shows the friendly scenario heading and keeps the Foundry title in source details", async () => {
+  it("shows the friendly scenario heading and puts the reviewed uses after Family", () => {
     const detail = detailFixture("actors:eltha", "Advanced Eltha (9-10)/Eltha (11-12)");
     const identity = {
       ...detail.record,
@@ -178,6 +179,13 @@ describe("RecordDetailPane", () => {
       },
     };
     detail.record = identity;
+    detail.creature_family = {
+      id: "eltha",
+      name: "Eltha",
+      versions: [identity],
+      named_creatures: [],
+      named_bases: {},
+    };
     detail.presentation = {
       classification: "Creature 11",
       identity,
@@ -192,14 +200,18 @@ describe("RecordDetailPane", () => {
         onReference={vi.fn()}
         showScenarioContext
       />,
+      { wrapper: RouterTestContext },
     );
     expect(screen.getByRole("heading", { name: "Eltha" })).toBeVisible();
-    expect(screen.getByText("Party levels 9–10 (Advanced)")).toBeVisible();
+    const family = screen.getByRole("link", { name: "Eltha" });
+    const firstUse = screen.getByText("Party levels 9–10 (Advanced)");
+    expect(firstUse).toBeVisible();
+    expect(
+      family.compareDocumentPosition(firstUse) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("Party levels 11–12")).toBeVisible();
+    expect(screen.getByText("Cavern of Sundered Songs")).toBeVisible();
     expect(screen.queryByText(identity.title)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Source details/ }));
-    const sourceDetails = await screen.findByRole("dialog", { name: "Foundry title" });
-    expect(within(sourceDetails).getByText(identity.title)).toBeInTheDocument();
   });
 });
 
