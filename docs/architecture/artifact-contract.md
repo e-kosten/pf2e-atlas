@@ -136,7 +136,7 @@ Publication derives them with their dependent outputs and writes changed entries
 in the same transaction. Ordinary ingest trusts unchanged components; explicit
 deep audit independently reconstructs and checks present hashes. Metadata-only
 upgrades refresh existing hashes after their dependent projections change. Saved state,
-source/native recipes and historical migration callbacks retain their owners.
+source/native recipes retain their owners.
 
 The glossary workspace migration moves retained trait definitions into the single
 `reference_entries` owner. It preserves the existing trait references, membership,
@@ -181,8 +181,8 @@ The [local-state release schema](../../crates/atlas-local-state/src/release/sche
 and its three saved-owner table definitions own saved-domain DDL. The production
 paths are direct creation at schema 42 and the authenticated schema 41 bridge
 described in [ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
-Historical migration descriptions in this contract record the provenance of
-retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation
+Migrations 1–41 are retained in Git history. Their descriptions here record
+the provenance of retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation
 pragmas remain index-owned SQL. Stored data never supplies executable SQL.
 
 ## Stored families
@@ -841,14 +841,13 @@ The migration preserves saved state and does not change the source snapshot code
 
 ### Encounter status migration
 
-Workspace migration 5 adds saved-domain `hazard_disabled`, defaulting existing
-participants to false and restricting true to hazards. This local-state-owned
-migration preserves HP, conditions, resources and reference data. It is composed
-by runtime after the immutable earlier migrations.
+Workspace migration 5 added saved-domain `hazard_disabled`, defaulting existing
+participants to false and restricting true to hazards. It preserved HP,
+conditions, resources and reference data.
 
-Workspace migration 6 converts defeated hazards to disabled and prevents hazards
-from storing the creature defeated marker. It preserves HP and creature status.
-Migration 5 remains immutable because it has been applied to preview workspaces.
+Workspace migration 6 converted defeated hazards to disabled while preserving HP
+and creature status. The release schema retains the constraint that prevents
+hazards from storing the creature defeated marker.
 
 ### Encounter condition system
 

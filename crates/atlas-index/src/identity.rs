@@ -47,9 +47,7 @@ mod tests {
     fn source_reappearance_reuses_imported_and_removed_identities() {
         let connection = Connection::open_in_memory().unwrap();
         connection
-            .execute_batch(include_str!(
-                "../migrations/00000000000001_create_artifact/up.sql"
-            ))
+            .execute_batch(include_str!("release_schema.sql"))
             .unwrap();
         let key = RecordKey::parse("spells:missing").unwrap();
         connection.execute("INSERT INTO record_identity(key,last_known_name,availability) VALUES('spells:missing','Saved title','unavailable')", []).unwrap();

@@ -313,41 +313,6 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
             indexing_locale: input.context.indexing_locale.clone(),
             content_locale: None,
         });
-        let text = "Dragon\n";
-        let hash = crate::codec::sha256(text.as_bytes());
-        for model in &input.context.search_profiles {
-            let vector = input
-                .semantic_units
-                .iter()
-                .find(|unit| unit.profile_id == model.profile_id)
-                .unwrap()
-                .vector
-                .clone();
-            input.trait_vectors.push(TraitVectorInput {
-                key: key.clone(),
-                profile_id: model.profile_id.clone(),
-                input_hash: crate::codec::sha256(
-                    format!("trait-definition-centroid/v1:{hash}").as_bytes(),
-                ),
-                vector: vector.clone(),
-                chunks: vec![TraitSeedChunk {
-                    input: text.into(),
-                    input_hash: hash.clone(),
-                    token_count: 2,
-                    address: atlas_domain::SourcePassageAddress::PlainSection {
-                        source_text_sha256: hash.clone(),
-                        selection_version: "trait-definition-centroid/v1".into(),
-                        section_ordinal: 0,
-                        label: Some("Dragon".into()),
-                        chunk_bytes: atlas_domain::SourceByteRange {
-                            start: 0,
-                            end: text.len(),
-                        },
-                    },
-                    vector,
-                }],
-            });
-        }
         input
     };
     let single = profile_fixture(false);

@@ -3,8 +3,6 @@ use crate::{IndexError, PreparedRecordRef, codec::sha256};
 use rusqlite::{Connection, OptionalExtension, params, types::Value};
 use serde::{Deserialize, Serialize};
 
-#[cfg(any(test, feature = "test-support"))]
-pub const COMPONENT_DIGEST_SCHEMA_SQL: &str = include_str!("component_digests.sql");
 const RECIPE: &str = "closed-reference-components/v1";
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -322,52 +320,6 @@ pub(crate) fn validate_present(
         Ok(())
     })
 }
-/// Update only the attestations whose representation changed in the trait migration.
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn refresh_trait_migration(c: &Connection) -> Result<(), IndexError> {
-    let has_attestations: bool = c.query_row(
-        "SELECT EXISTS(SELECT 1 FROM reference_component_digests)",
-        [],
-        |row| row.get(0),
-    )?;
-    if !has_attestations {
-        return Ok(());
-    }
-    let (context, _) =
-        crate::component_upgrade::read_stored_reference_metadata(c)?.ok_or_else(|| {
-            IndexError::Invalid("trait migration has attestations without context".into())
-        })?;
-    visit_ids(c, &mut |id| {
-        let (key, label): (String, String) = c.query_row(
-            "SELECT r.key,p.label FROM records r JOIN packs p USING(pack_id) WHERE record_id=?",
-            [id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )?;
-        let key = key
-            .parse()
-            .map_err(|e| IndexError::Invalid(format!("component record key: {e}")))?;
-        let admission = crate::persisted_inputs::read_attested_source_admission(c, &context, &key)?
-            .ok_or_else(|| IndexError::Invalid("component source is absent".into()))?;
-        let source = crate::SourceArtifactRecordInput {
-            record: admission.record,
-            source_path: admission.source_path,
-            content_hash: admission.content_hash,
-            diagnostics: admission.diagnostics,
-            preparation_context_hash: String::new(),
-            content: vec![],
-            relationships: vec![],
-        };
-        let rows = crate::projections::root_rows(&source, &label, 0, &mut Default::default())?;
-        let mut evidence = crate::traits::TraitEvidence::default();
-        evidence.add_record(&source.record, context.audience)?;
-        let mut digests = ComponentDigests::read(c, id)?
-            .ok_or_else(|| IndexError::Invalid("component digest disappeared".into()))?;
-        digests.query = query_digest(&rows)?;
-        digests.trait_associations = hash(&evidence)?;
-        digests.write(c, id)
-    })
-}
-
 /// Metadata-only upgrades refresh existing attestations after rewriting their
 /// actual dependent projections. Missing metadata stays explicitly unknown.
 pub(crate) fn refresh_present(
@@ -672,26 +624,6 @@ mod retained_payload_tests {
             "Kept maintenance notes"
         );
     }
-    #[test]
-    fn historical_pre_attestation_entry_rejects_current_schema_before_decoding() {
-        let input = crate::foundation_tests::fixture(false);
-        let (_dir, path) = crate::foundation_tests::build(&input);
-        let c = Connection::open(path).unwrap();
-        c.execute("UPDATE record_bodies SET snapshot=x'00'", [])
-            .unwrap();
-        let error = crate::persisted_inputs::read_pre_component_digest_migration_input(
-            &c,
-            &input.context,
-            input.records[0].record.key(),
-        )
-        .unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("restricted to historical migration28"),
-            "{error}"
-        );
-    }
 }
 
 #[cfg(test)]
@@ -714,20 +646,6 @@ mod historical_payload_tests {
             error
                 .to_string()
                 .contains("no such table: reference_component_digests"),
-            "{error}"
-        );
-        c.execute("UPDATE record_bodies SET snapshot=x'00'", [])
-            .unwrap();
-        let error = crate::persisted_inputs::read_persisted_input(
-            &c,
-            &input.context,
-            input.records[0].record.key(),
-        )
-        .unwrap_err();
-        assert!(
-            error
-                .to_string()
-                .contains("restricted to historical migration20"),
             "{error}"
         );
     }

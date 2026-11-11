@@ -1,4 +1,4 @@
-//! Test-only logical preservation oracle for section storage migrations.
+//! Test-only logical snapshots for metadata maintenance and recovery.
 use std::collections::BTreeMap;
 
 type TableRows = Vec<Vec<rusqlite::types::Value>>;
@@ -18,15 +18,6 @@ fn normalized_section_table(
 ) -> Result<Option<(String, TableRows)>, crate::IndexError> {
     use rusqlite::types::Value as V;
     let text = |value: Option<String>| value.map(V::Text).unwrap_or(V::Null);
-    if table == "projection_allocations" {
-        let mut statement = c.prepare(
-            "SELECT record_id,seed,end_id FROM projection_allocations ORDER BY record_id",
-        )?;
-        let rows = statement
-            .query_map([], |row| Ok(vec![row.get(0)?, row.get(1)?, row.get(2)?]))?
-            .collect::<Result<Vec<_>, _>>()?;
-        return Ok(Some((table.into(), rows)));
-    }
     if table == "selected_sections" {
         let mut statement = c.prepare(&format!(
             "SELECT {} FROM selected_sections ss ORDER BY ss.selector",
@@ -142,79 +133,47 @@ pub fn native_preservation_rows(c: &rusqlite::Connection) -> Result<TableRows, c
             Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    let mut values = BTreeMap::<(i64, i64), Vec<u8>>::new();
+    let mut values = Vec::new();
     for (model_id, json) in models {
         let model: crate::SourceSearchProfileIdentity = serde_json::from_str(&json)?;
-        let current = crate::schema::native_vector_table(&model)?;
+        let table = crate::schema::native_vector_table(&model)?;
         let exists: bool = c.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?)",
-            [&current],
+            [&table],
             |row| row.get(0),
         )?;
-        let mut collected = Vec::new();
+        let start = values.len();
         if exists {
-            collected.extend(
-                c.prepare(&format!(
-                    "SELECT input_id,embedding FROM {current} ORDER BY input_id"
-                ))?
-                .query_map([], |row| {
-                    Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+            let mut rows = c.prepare(&format!(
+                "SELECT input_id,embedding FROM {table} ORDER BY input_id"
+            ))?;
+            values.extend(
+                rows.query_map([], |row| {
+                    Ok(vec![V::Integer(model_id), row.get(0)?, row.get(1)?])
                 })?
                 .collect::<Result<Vec<_>, _>>()?,
             );
-        } else {
-            let old = crate::schema::vector_table(&model)?;
-            let old_exists: bool = c.query_row(
-                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?)",
-                [&old],
-                |row| row.get(0),
-            )?;
-            if old_exists {
-                collected.extend(c.prepare(&format!("SELECT u.input_id,v.embedding FROM {old} v LEFT JOIN semantic_units u USING(unit_id) ORDER BY u.input_id"))?
-                    .query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,Vec<u8>>(1)?)))?.collect::<Result<Vec<_>,_>>()?);
-            }
-            let fallback_exists: bool = c.query_row(
-                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='trait_native_values')",
-                [],
-                |row| row.get(0),
-            )?;
-            if fallback_exists {
-                collected.extend(c.prepare("SELECT t.input_id,t.vector FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE i.model_id=? ORDER BY t.input_id")?
-                .query_map([model_id],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,Vec<u8>>(1)?)))?.collect::<Result<Vec<_>,_>>()?);
-            }
-        }
-        for (input, bytes) in collected {
-            if let Some(old) = values.insert((model_id, input), bytes.clone())
-                && old != bytes
-            {
-                return Err(crate::IndexError::Invalid(
-                    "preservation fixture has conflicting values for one native input".into(),
-                ));
-            }
         }
         let expected: usize = c.query_row(
             "SELECT count(*) FROM embedding_inputs WHERE model_id=? AND published_hash IS NOT NULL",
             [model_id],
             |row| row.get(0),
         )?;
-        if values.keys().filter(|key| key.0 == model_id).count() != expected {
+        if values.len() - start != expected {
             return Err(crate::IndexError::Invalid(
                 "preservation fixture native registry/value coverage differs".into(),
             ));
         }
     }
-    Ok(values
-        .into_iter()
-        .map(|((model, input), bytes)| vec![V::Integer(model), V::Integer(input), V::Blob(bytes)])
-        .collect())
+    Ok(values)
 }
 
 pub fn reference_preservation_rows(
     c: &rusqlite::Connection,
 ) -> Result<BTreeMap<String, Vec<Vec<rusqlite::types::Value>>>, crate::IndexError> {
-    let families=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE '%USING vec0%' AND (name GLOB 'semantic_vectors_*' OR name GLOB 'native_vectors_*') ORDER BY name")?
+    let families=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE '%USING vec0%' AND name GLOB 'native_vectors_*' ORDER BY name")?
         .query_map([],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
-    let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations','reference_update_jobs','trait_native_values') ORDER BY name")?
+    let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name")?
         .query_map([],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
     let mut output = BTreeMap::new();
     output.insert("native_values".into(), native_preservation_rows(c)?);
@@ -276,32 +235,6 @@ mod tests {
     use rusqlite::types::Value;
 
     #[test]
-    fn allocation_retirement_oracle_keeps_record_identity_and_exact_bounds() {
-        let c = rusqlite::Connection::open_in_memory().unwrap();
-        c.execute_batch("CREATE TABLE embedding_models(model_id INTEGER PRIMARY KEY,identity_json TEXT NOT NULL);
-            CREATE TABLE projection_allocations(record_id INTEGER PRIMARY KEY,seed INTEGER,end_id INTEGER,input_hash TEXT);
-            INSERT INTO projection_allocations VALUES(77,10,20,'old-digest');").unwrap();
-        let before = reference_preservation_rows(&c).unwrap();
-        c.execute_batch("ALTER TABLE projection_allocations DROP COLUMN input_hash")
-            .unwrap();
-        assert_eq!(reference_preservation_rows(&c).unwrap(), before);
-        for mutation in [
-            "UPDATE projection_allocations SET record_id=78",
-            "UPDATE projection_allocations SET seed=11",
-            "UPDATE projection_allocations SET end_id=21",
-        ] {
-            c.execute_batch("BEGIN").unwrap();
-            c.execute_batch(mutation).unwrap();
-            assert_ne!(
-                reference_preservation_rows(&c).unwrap(),
-                before,
-                "{mutation}"
-            );
-            c.execute_batch("ROLLBACK").unwrap();
-        }
-    }
-
-    #[test]
     fn logical_oracle_excludes_only_discovered_vec0_counters_and_keeps_saved_high_water() {
         atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
         let c = rusqlite::Connection::open_in_memory().unwrap();
@@ -311,13 +244,13 @@ mod tests {
              INSERT INTO saved_lists DEFAULT VALUES;
              CREATE TABLE native_vectors_decoy_rowids(id INTEGER PRIMARY KEY AUTOINCREMENT);
              INSERT INTO native_vectors_decoy_rowids DEFAULT VALUES;
-             CREATE VIRTUAL TABLE semantic_vectors_oracle USING vec0(
-                 unit_id INTEGER PRIMARY KEY,embedding FLOAT[2] distance_metric=cosine);",
+             CREATE VIRTUAL TABLE native_vectors_oracle USING vec0(
+                 input_id INTEGER PRIMARY KEY,embedding FLOAT[2] distance_metric=cosine);",
         )
         .unwrap();
         let bytes = crate::read_units::vector_bytes(&[1.0, 0.0]);
         c.execute(
-            "INSERT INTO semantic_vectors_oracle(unit_id,embedding) VALUES(7,?)",
+            "INSERT INTO native_vectors_oracle(input_id,embedding) VALUES(7,?)",
             [&bytes],
         )
         .unwrap();
@@ -333,7 +266,7 @@ mod tests {
             ]
         );
         c.execute_batch(
-            "DROP TABLE semantic_vectors_oracle;
+            "DROP TABLE native_vectors_oracle;
              CREATE VIRTUAL TABLE native_vectors_oracle USING vec0(
                  input_id INTEGER PRIMARY KEY,embedding FLOAT[2] distance_metric=cosine);",
         )

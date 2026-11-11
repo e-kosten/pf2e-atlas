@@ -180,7 +180,6 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
         )
         .unwrap(),
         traits: vec![],
-        trait_vectors: vec![],
         context: context(records.len(), semantic),
         records,
         packs: vec![
@@ -1123,30 +1122,6 @@ fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
             .any(|w| w.exact_label && w.unit_kind == SourceLexicalUnitKind::Heading)
     );
 }
-#[test]
-fn migration_round_trip_matches_canonical_ddl() {
-    let c = Connection::open_in_memory().unwrap();
-    c.execute_batch(include_str!(
-        "../migrations/00000000000001_create_artifact/up.sql"
-    ))
-    .unwrap();
-    let ordinary:usize=c.query_row("SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'lexical_fts%'",[],|r|r.get(0)).unwrap();
-    assert_eq!(ordinary, 41);
-    c.execute_batch(include_str!(
-        "../migrations/00000000000001_create_artifact/down.sql"
-    ))
-    .unwrap();
-    assert_eq!(
-        c.query_row(
-            "SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
-            [],
-            |r| r.get::<_, usize>(0)
-        )
-        .unwrap(),
-        0
-    );
-}
-
 #[test]
 fn relationships_keep_source_owner_and_validate_owned_targets() {
     use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};

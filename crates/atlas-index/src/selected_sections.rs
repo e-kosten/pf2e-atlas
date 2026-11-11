@@ -9,13 +9,7 @@ use atlas_record::source_record::{
 };
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
-#[cfg(any(test, feature = "test-support"))]
-mod migration;
-#[cfg(any(test, feature = "test-support"))]
-pub use migration::backfill_selected_sections;
 pub const SELECTED_SECTIONS_RECIPE: &str = "canonical-selected-sections/v1";
-#[cfg(any(test, feature = "test-support"))]
-pub const SELECTED_SECTIONS_SCHEMA_SQL: &str = include_str!("selected_sections/schema.sql");
 pub(crate) const COLUMNS: &str = "ss.section_id,ss.record_id,ss.selector,ss.owners_json,ss.field_path,ss.section_ordinal,ss.body_hash,ss.address_kind,ss.prepared_html_sha256,ss.selection_version,ss.section_label,ss.byte_length,ss.role,ss.owner_label,ss.recipe";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

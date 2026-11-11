@@ -91,20 +91,11 @@ pub(crate) fn source_preparation_is_current(context: &SourceArtifactBuildContext
 }
 
 pub fn classify_reference_upgrade(c: &Connection) -> Result<ReferenceUpgrade, IndexError> {
-    Ok(upgrade_plan(c, false)?.0)
-}
-
-// Schema 28 runs before the catalog fingerprint and model foreign key exist.
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn classify_pre_fingerprint_upgrade(
-    c: &Connection,
-) -> Result<ReferenceUpgrade, IndexError> {
-    Ok(upgrade_plan(c, true)?.0)
+    Ok(upgrade_plan(c)?.0)
 }
 
 fn upgrade_plan(
     c: &Connection,
-    pre_fingerprint: bool,
 ) -> Result<(ReferenceUpgrade, Option<SourceArtifactBuildContext>), IndexError> {
     let Some(original) = read_stored_reference_context(c)? else {
         return Ok((ReferenceUpgrade::Current, None));
@@ -204,8 +195,7 @@ fn upgrade_plan(
     if source_changed {
         return Ok((ReferenceUpgrade::SourcePreparation, None));
     }
-    if !pre_fingerprint
-        && original.query_catalog_version == current_catalog
+    if original.query_catalog_version == current_catalog
         && (query_changed || lexical_changed || core_changed || sections_changed)
     {
         crate::validation::validate_catalog(c)?;
@@ -222,17 +212,12 @@ fn upgrade_plan(
     if sections_changed {
         return Ok((ReferenceUpgrade::SectionProjections, Some(target)));
     }
-    #[cfg(any(test, feature = "test-support"))]
-    if pre_fingerprint {
-        crate::validation::validate_pre_fingerprint(c)?;
-        return Ok((ReferenceUpgrade::Current, None));
-    }
     crate::validation::validate_open(c)?;
     Ok((ReferenceUpgrade::Current, None))
 }
 
 fn upgrade_context(c: &Connection) -> Result<Option<SourceArtifactBuildContext>, IndexError> {
-    Ok(upgrade_plan(c, false)?.1)
+    Ok(upgrade_plan(c)?.1)
 }
 
 /// Called by runtime before admitting product sessions. A newer executable may

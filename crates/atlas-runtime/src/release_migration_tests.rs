@@ -62,13 +62,16 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
          INSERT INTO party_members(member_key,party_key,position,name,level)
          VALUES('member','party',0,'Retained member',2);
          INSERT INTO encounters(id,owner_id,encounter_key,slug,name,status,created_at,updated_at)
-         VALUES(28,2,'encounter','same','Retained encounter','draft','before','before');
+         VALUES(28,7,'encounter','same','Retained encounter','draft','before','before');
          INSERT INTO encounter_participants(
              id,encounter_id,participant_key,participant_kind,position,display_name,
              initiative_order,created_at,updated_at)
          VALUES(39,28,'participant','pc',1,'Retained participant',1,'before','before');
          INSERT INTO encounter_manual_trackers(participant_key,tracker_key,payload_json,position)
-         VALUES('participant','tracker','{"version":1,"payload":{"label":"Retained tracker"}}',1);
+         VALUES('participant','tracker','{"version":1,"payload":{"tracker_key":"tracker","name":"Retained tracker","duration":{"amount":1,"unit":"rounds","timing":{"participant_key":"participant","event":"start"}},"progress":{"unit":"rounds","remaining":1}}}',1);
+         INSERT INTO encounter_participant_conditions(id,participant_id,name,created_at,updated_at)
+         VALUES(4096,39,'Deleted before upgrade','before','before');
+         DELETE FROM encounter_participant_conditions WHERE id=4096;
          INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,receipt_json)
          VALUES(28,'event','request','{}','{"version":1,"payload":{"encounter_key":"encounter","request_id":"request","added_condition_ids":[],"outcomes":[],"pending":[]}}');
          INSERT INTO encounter_boundary_claims(encounter_id,participant_key,round_number,kind,scope_key,request_id)
@@ -120,6 +123,7 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
         "SELECT * FROM encounter_manual_trackers",
         "SELECT * FROM encounter_command_receipts",
         "SELECT * FROM encounter_boundary_claims",
+        "SELECT * FROM sqlite_sequence ORDER BY name",
         "SELECT * FROM pending_embedding_values",
         "SELECT * FROM embedding_inputs ORDER BY input_id",
         "SELECT * FROM embedding_models ORDER BY model_id",
@@ -136,6 +140,22 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
     let c = current.connection();
     assert_eq!(facts.map(|sql| sql_rows(c, sql)), before);
     assert_eq!(occurrence_vector_bits(c), vectors);
+    let state = atlas_local_state::LocalStateRead::for_local(&current).unwrap();
+    let encounter = state
+        .encounters()
+        .get_with_participants("encounter")
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        encounter.participants[0].manual_trackers[0].name,
+        "Retained tracker"
+    );
+    let receipt = state
+        .encounters()
+        .condition_event_receipt("encounter", "request", &serde_json::json!({}))
+        .unwrap()
+        .unwrap();
+    assert_eq!(receipt.request_id, "request");
     assert_eq!(
         sql_rows(historical_backup(&workspace).connection(), LEDGER),
         old_ledger
@@ -144,7 +164,16 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
     let fresh_read = fresh.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let fresh_c = fresh_read.connection();
     assert_eq!(sql_rows(c, LEDGER), sql_rows(fresh_c, LEDGER));
-    assert_eq!(sql_rows(c, LEDGER).len(), 1);
+    assert_eq!(
+        sql_rows(c, LEDGER),
+        vec![vec![
+            rusqlite::types::Value::Integer(42),
+            rusqlite::types::Value::Text("release-baseline".into()),
+            rusqlite::types::Value::Text(
+                "5e0abae6ea6364eeb0408bab544fdafb2f1e25ecc6d341908a6cedb69928009e".into()
+            ),
+        ]]
+    );
 
     let schema = r#"SELECT type,name,tbl_name,
         replace(replace(sql,'CREATE TABLE "','CREATE TABLE '),'" (',' (')
@@ -153,6 +182,15 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
     assert!(sql_rows(c, "PRAGMA foreign_key_check").is_empty());
     drop(current);
     drop(fresh_read);
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let condition_id: i64 = write.connection().query_row(
+        "INSERT INTO encounter_participant_conditions(participant_id,name,created_at,updated_at)
+         VALUES(39,'After upgrade','after','after') RETURNING id",
+        [],
+        |row| row.get(0),
+    ).unwrap();
+    assert!(condition_id > 4096);
+    write.commit().unwrap();
     for workspace in [&workspace, &fresh] {
         let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         for sql in [

@@ -245,7 +245,7 @@ pub fn prepare_publication_in<'owner>(
     input: &IndexBuildInput,
 ) -> Result<crate::PreparedPublication<'owner>, IndexError> {
     let mut publication = fixture_publication(owner, schema, scratch, input)?;
-    for value in collect_fixture_native_values(input, false)? {
+    for value in fixture_native_values(input)? {
         let selected =
             publication.select_native(value.model, std::slice::from_ref(&value.input))?;
         if selected == [crate::NativeValueSelection::Missing] {
@@ -265,7 +265,7 @@ pub(crate) fn prepare_publication_with_inferred_values<'owner>(
     input: &IndexBuildInput,
 ) -> Result<crate::PreparedPublication<'owner>, IndexError> {
     let mut publication = fixture_publication(owner, schema, scratch, input)?;
-    for value in collect_fixture_native_values(input, false)? {
+    for value in fixture_native_values(input)? {
         publication.stage_inferred(value.model, &[(&value.input, value.vector)])?;
     }
     Ok(publication)
@@ -283,176 +283,6 @@ pub(crate) fn fixture_publication<'owner>(
     drop(read);
     let metadata = spool_input_in(scratch, input, expected)?;
     crate::PreparedPublication::new_in(owner, schema, scratch, metadata)
-}
-
-fn publish_schema20_catalog(
-    connection: &rusqlite::Connection,
-    context: &mut crate::SourceArtifactBuildContext,
-) -> Result<(), IndexError> {
-    use crate::historical_similarity_admission::{
-        SCHEMA20_QUERY_CATALOG_VERSION, schema20_catalog,
-    };
-    context.query_catalog_version = SCHEMA20_QUERY_CATALOG_VERSION;
-    connection.execute("DELETE FROM query_field_catalog", [])?;
-    for (field, definition) in schema20_catalog()? {
-        connection.execute(
-            "INSERT INTO query_field_catalog(field,definition_json) VALUES(?,?)",
-            rusqlite::params![field, definition],
-        )?;
-    }
-    Ok(())
-}
-
-/// Populate the actual schema-19/20 reference shape for section-upgrade tests.
-/// Runtime owns its migration prefix; this fixture never rewinds a ledger or saved schema.
-pub fn publish_pre_core_fixture(
-    maintenance: &atlas_storage::MaintenanceSession<'_>,
-    input: &IndexBuildInput,
-) -> Result<(), IndexError> {
-    maintenance.publish(|connection| {
-        let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if !matches!(version, 19 | 20) {
-            return Err(IndexError::Invalid(
-                "pre-Core fixtures require an actual schema-19 or schema-20 workspace".into(),
-            ));
-        }
-        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-        let ids = crate::historical_publication::records(connection, input)?;
-        crate::historical_publication::search_units(connection, input, &ids)?;
-        crate::traits::write_historical_traits(connection, input)?;
-        if version == 20 {
-            crate::similarity_projection::write_similarity_parts(connection, input)?;
-        }
-        let mut context = input.context.clone();
-        if version == 19 {
-            publish_schema20_catalog(connection, &mut context)?;
-        }
-        context.core_sections_recipe.clear();
-        context.selected_sections_recipe.clear();
-        context.remaster_inputs_identity.clear();
-        connection.execute(
-            "UPDATE artifact_context SET context_hash=?,context_json=?",
-            rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
-        )?;
-        if connection.prepare("PRAGMA foreign_key_check")?.exists([])? {
-            return Err(IndexError::Invalid(
-                "invalid pre-Core fixture references".into(),
-            ));
-        }
-        Ok(())
-    })
-}
-
-/// Publish the real schema-21 through schema-26 reference shape before sections.
-pub fn publish_pre_section_fixture(
-    maintenance: &atlas_storage::MaintenanceSession<'_>,
-    input: &IndexBuildInput,
-) -> Result<(), IndexError> {
-    maintenance.publish(|connection| {
-        let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if !(21..=26).contains(&version) {
-            return Err(IndexError::Invalid(
-                "pre-section fixtures require an actual schema-21 through schema-26 workspace"
-                    .into(),
-            ));
-        }
-        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-        let ids = crate::historical_publication::records(connection, input)?;
-        crate::historical_publication::search_units(connection, input, &ids)?;
-        crate::traits::write_historical_traits(connection, input)?;
-        crate::similarity_projection::write_similarity_parts(connection, input)?;
-        crate::historical_core_projection::write_core_sections(connection, input)?;
-        let mut context = input.context.clone();
-        context.selected_sections_recipe.clear();
-        context.remaster_inputs_identity.clear();
-        connection.execute(
-            "UPDATE artifact_context SET context_hash=?,context_json=?",
-            rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
-        )?;
-        if connection.prepare("PRAGMA foreign_key_check")?.exists([])? {
-            return Err(IndexError::Invalid(
-                "invalid historical section fixture references".into(),
-            ));
-        }
-        Ok(())
-    })
-}
-
-/// Stage the schema-32 catalog for a fixture with no remaster declarations.
-pub fn stage_pre_glossary_catalog(
-    workspace: &Workspace,
-    remaster_inputs_identity: &str,
-) -> Result<(), IndexError> {
-    let write = workspace.write(32)?;
-    let c = write.connection();
-    let mut context = crate::read_stored_reference_context(c)?
-        .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
-    context.remaster_inputs_identity = remaster_inputs_identity.into();
-    context.query_catalog_version = 9;
-    c.execute(
-        "UPDATE artifact_context SET context_hash=?,context_json=?",
-        rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
-    )?;
-    c.execute_batch(
-        "DELETE FROM query_field_catalog WHERE field IN
-        ('actions','senses[].acuity','senses[].range','armor.group','embedded.equipment[].armor.group');",
-    )?;
-    write.commit()?;
-    Ok(())
-}
-
-/// Seed only the record component of a deliberately historical schema fixture.
-/// This does not produce a current readable artifact: ordinary publication must
-/// use `publish_input` after the complete migration ledger is applied.
-pub fn publish_historical_record_fixture(
-    maintenance: &atlas_storage::MaintenanceSession<'_>,
-    input: &IndexBuildInput,
-) -> Result<(), IndexError> {
-    if !input.traits.is_empty() || !input.trait_vectors.is_empty() {
-        return Err(IndexError::Invalid(
-            "historical record fixtures cannot publish trait vocabulary".into(),
-        ));
-    }
-    maintenance.publish(|connection| {
-        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-        // Build with current production projection code, then retain only the
-        // historical physical shape under test. No legacy runtime writer.
-        connection.execute_batch(crate::TRAIT_SCHEMA_SQL)?;
-        connection.execute_batch(crate::EMBEDDING_STORAGE_SCHEMA_SQL)?;
-        let tables = ["actor_projection", "physical_projection", "weapon_projection", "armor_projection", "shield_projection"];
-        let columns = |table: &str| -> Result<Vec<String>, IndexError> {
-            let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
-            Ok(statement.query_map([], |row| row.get(1))?.collect::<Result<Vec<_>, _>>()?)
-        };
-        let historical_columns = tables.iter().map(|table| columns(table)).collect::<Result<Vec<_>, _>>()?;
-        connection.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)?;
-        connection.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)?;
-        let ids=crate::historical_publication::records(connection,input)?;
-        crate::historical_publication::search_units(connection,input,&ids)?;
-        // Modern projection columns are fixture scaffolding, not part of the
-        // historical schema exercised by the embedding conversion/rollback.
-        for (table, historical) in tables.iter().zip(historical_columns) {
-            for column in columns(table)?.into_iter().rev().filter(|column| !historical.contains(column)) {
-                connection.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN {column}"))?;
-            }
-        }
-        let mut context=input.context.clone();context.selected_sections_recipe.clear();
-        context.remaster_inputs_identity.clear();context.core_sections_recipe.clear();
-        publish_schema20_catalog(connection, &mut context)?;
-        connection.execute("UPDATE artifact_context SET context_hash=?,context_json=?",rusqlite::params![context.sha256()?,serde_json::to_string(&context)?])?;
-        connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
-DROP TABLE semantic_units;
-ALTER TABLE legacy_semantic_units RENAME TO semantic_units;
-CREATE INDEX semantic_units_root ON semantic_units(record_id,profile_id,unit_id);
-CREATE INDEX semantic_units_input_hash ON semantic_units(input_hash,unit_id);
-CREATE UNIQUE INDEX semantic_identity_root ON semantic_units(record_id,profile_id) WHERE unit_kind='identity';
-CREATE INDEX semantic_reuse_input ON semantic_units(profile_id,input_hash,input_token_count);
-DROP TABLE trait_seed_chunks; DROP TABLE trait_vectors; DROP TABLE legacy_trait_vectors;
-DROP TABLE trait_memberships; DROP TABLE trait_references; DROP TABLE trait_definitions;
-DROP TABLE pending_embedding_values; DROP TABLE trait_native_values;
-DROP TABLE embedding_inputs; DROP TABLE embedding_models; DROP TABLE semantic_locations;")?;
-        Ok(())
-    })
 }
 
 pub fn set_content_interpretation_version(
@@ -521,20 +351,6 @@ fn set_preparation_policy(
     Ok(())
 }
 
-/// Exact schema-2/9 checkpoint fixture; not a runtime compatibility path.
-pub fn stage_historical_embedding_fixture(
-    session: &atlas_storage::WriteSession,
-    job: &str,
-    reuse_key: &str,
-    model: &crate::SourceSearchProfileIdentity,
-    input: &atlas_embedding::PreparedNativeInput,
-    vector: &[f32],
-) -> Result<(), IndexError> {
-    let bytes = crate::read_units::vector_bytes(vector);
-    session.connection().execute("INSERT INTO embedding_checkpoints VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(reuse_key) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![reuse_key,serde_json::to_string(model)?,input.input_sha256,input.token_count,model.dimensions,bytes,crate::codec::sha256(&bytes),job])?;
-    Ok(())
-}
-
 /// Deliberately encode a codec-valid altered retained snapshot for corruption
 /// fixtures. Callers leave the source bytes and prior component proof unchanged.
 pub fn altered_snapshot_for_fixture(
@@ -571,26 +387,6 @@ pub fn alter_retained_html_for_fixture(
     Ok(())
 }
 
-/// Deliberately populate a historical/unknown-membership checkpoint. This fixture
-/// path is absent from product builds; current execution must register and stage.
-pub fn stage_historical_pending_native_fixture(
-    session: &atlas_storage::WriteSession,
-    job: &str,
-    model: &crate::SourceSearchProfileIdentity,
-    input: &atlas_embedding::NativeInputDescriptor,
-    vector: &[f32],
-) -> Result<(), IndexError> {
-    crate::validation::check_vector(vector, model.dimensions)?;
-    let id = crate::embedding_values::input_id(
-        session.connection(),
-        model,
-        &input.input_sha256,
-        input.token_count,
-    )?;
-    let bytes = crate::read_units::vector_bytes(vector);
-    session.connection().execute("INSERT INTO pending_embedding_values VALUES(?,?,?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![id,bytes,crate::embedding_values::hash_bytes(&bytes),job])?;
-    Ok(())
-}
 #[derive(Debug)]
 pub(crate) struct FixtureNativeValue<'a> {
     pub model: &'a SourceSearchProfileIdentity,
@@ -600,13 +396,6 @@ pub(crate) struct FixtureNativeValue<'a> {
 
 pub(crate) fn fixture_native_values<'a>(
     input: &'a IndexBuildInput,
-) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
-    collect_fixture_native_values(input, true)
-}
-
-fn collect_fixture_native_values<'a>(
-    input: &'a IndexBuildInput,
-    historical_traits: bool,
 ) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
     use atlas_embedding::NativeInputDescriptor;
     let mut selected = BTreeMap::<(String, String), FixtureNativeValue<'a>>::new();
@@ -659,32 +448,6 @@ fn collect_fixture_native_values<'a>(
             unit.input_token_count,
             &unit.vector,
         )?;
-    }
-    if historical_traits {
-        for seed in &input.trait_vectors {
-            for chunk in &seed.chunks {
-                accept(
-                    &seed.profile_id,
-                    &chunk.input_hash,
-                    chunk.token_count,
-                    &chunk.vector,
-                )?;
-            }
-        }
-        for seed in &input.trait_vectors {
-            let definition = input
-                .traits
-                .iter()
-                .find(|definition| definition.key == seed.key)
-                .ok_or_else(|| IndexError::Invalid("trait seed has no definition".into()))?;
-            crate::traits::validate_seed(
-                definition,
-                input.context.search_profile(&seed.profile_id)?,
-                &seed.input_hash,
-                &seed.vector,
-                &seed.chunks,
-            )?;
-        }
     }
     Ok(selected.into_values().collect())
 }

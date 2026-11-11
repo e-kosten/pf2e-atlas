@@ -12,26 +12,8 @@ fn available<T: std::fmt::Debug>(outcome: atlas_domain::QueryFacetOutcome<T>) ->
 
 pub(super) fn database() -> Connection {
     let db = Connection::open_in_memory().unwrap();
-    db.execute_batch(include_str!(
-        "../../migrations/00000000000001_create_artifact/up.sql"
-    ))
-    .unwrap();
-    db.execute_batch(crate::CONSUMABLE_FILTER_SCHEMA_SQL)
+    db.execute_batch(include_str!("../release_schema.sql"))
         .unwrap();
-    db.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)
-        .unwrap();
-    db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
-        .unwrap();
-    db.execute_batch(crate::REMASTER_SCHEMA_SQL).unwrap();
-    db.execute_batch(crate::REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL)
-        .unwrap();
-    db.execute_batch(crate::COMPACT_REMASTER_SCHEMA_SQL)
-        .unwrap();
-    db.execute_batch(crate::TRAIT_SCHEMA_SQL).unwrap();
-    db.execute_batch(crate::REFERENCE_ENTRIES_SCHEMA_SQL)
-        .unwrap();
-    crate::backfill_reference_entries(&db).unwrap();
-    db.execute_batch(crate::TRAIT_MEMBERS_SCHEMA_SQL).unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db
@@ -372,8 +354,6 @@ fn catalog_is_complete_unique_and_uses_generated_absent_choices() {
 #[test]
 fn every_catalog_binding_executes_against_actual_schema() {
     let db = database();
-    db.execute_batch(crate::SELECTED_SECTIONS_SCHEMA_SQL)
-        .unwrap();
     root(&db, 1, "npc", "common");
     row(
         &db,

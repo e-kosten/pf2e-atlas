@@ -4,32 +4,16 @@ pub use source_admission::{CompleteSourceInventory, SourceAdmissionSummary, Sour
 mod artifact_instance;
 mod catalog_fingerprint;
 mod codec;
-#[cfg(any(test, feature = "test-support"))]
-mod search_schema_closeout;
-#[cfg(any(test, feature = "test-support"))]
-pub use search_schema_closeout::{SEARCH_SCHEMA_CLOSEOUT_VERSION, backfill_search_schema_closeout};
 mod component_digests;
 mod component_upgrade;
-#[cfg(any(test, feature = "test-support"))]
-pub use component_digests::COMPONENT_DIGEST_SCHEMA_SQL;
 mod core_projection;
 #[cfg(any(test, feature = "test-support"))]
 mod core_projection_pilot;
-#[cfg(any(test, feature = "test-support"))]
-pub use core_projection::CORE_SECTIONS_SCHEMA_SQL;
 mod discovery;
-#[cfg(any(test, feature = "test-support"))]
-mod embedding_storage_migration;
 mod embedding_values;
 mod native_allocation;
-#[cfg(any(test, feature = "test-support"))]
-mod native_storage_migration;
 mod native_token_counts;
 mod native_values;
-#[cfg(any(test, feature = "test-support"))]
-pub use native_storage_migration::{INPUT_OWNED_STORAGE_SCHEMA_SQL, backfill_input_owned_storage};
-#[cfg(any(test, feature = "test-support"))]
-pub use native_token_counts::NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_SQL;
 pub use native_token_counts::{
     NATIVE_TOKEN_COUNT_DIGEST_SCHEMA_VERSION, VerifiedNativeTokenCounts,
 };
@@ -43,32 +27,16 @@ pub use passage_layouts::read_reusable_passage_layouts;
 pub use reuse_reader::{
     ReferenceReuseReader, ReusableSourceIdentity, SOURCE_REUSE_BATCH_LIMIT, visit_persisted_inputs,
 };
-#[cfg(any(test, feature = "test-support"))]
-mod historical_core_projection;
-#[cfg(any(test, feature = "test-support"))]
-mod historical_locations;
-#[cfg(any(test, feature = "test-support"))]
-mod historical_publication;
-#[cfg(any(test, feature = "test-support"))]
-mod historical_similarity_admission;
 mod maintenance_recovery;
 mod selected_sections;
 mod semantic_locations;
-pub use selected_sections::SELECTED_SECTIONS_RECIPE;
-#[cfg(any(test, feature = "test-support"))]
-pub use selected_sections::{SELECTED_SECTIONS_SCHEMA_SQL, backfill_selected_sections};
-#[cfg(any(test, feature = "test-support"))]
-mod similarity_projection;
-#[cfg(any(test, feature = "test-support"))]
-pub use similarity_projection::{SIMILARITY_SCHEMA_SQL, backfill_similarity_parts};
-#[cfg(any(test, feature = "test-support"))]
-mod vector_allocation;
 pub use component_upgrade::{
     ReferenceUpgrade, classify_reference_upgrade, ensure_reference_projections,
     read_stored_reference_context,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use persisted_inputs::collect_persisted_inputs_for_fixture;
+pub use selected_sections::SELECTED_SECTIONS_RECIPE;
 mod requested_config;
 pub use requested_config::{
     RequestedReferenceConfig, read_requested_reference_config, write_requested_reference_config,
@@ -132,8 +100,6 @@ pub use discovery::{
     QueryCountsRequest, QueryFacetContext, QueryValueCountsRequest, QueryValuesRequest,
     QueryVocabularyRequest, facet_base_query, validate_value_counts, validate_value_discovery,
 };
-#[cfg(any(test, feature = "test-support"))]
-pub use embedding_storage_migration::{EMBEDDING_STORAGE_SCHEMA_SQL, backfill_embedding_storage};
 pub use error::IndexError;
 pub use input::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, EXPECTED_SOURCE_KIND,
@@ -164,11 +130,6 @@ pub use reader::{
 };
 pub use reader::{read_product_summaries, record_projection_context};
 #[cfg(any(test, feature = "test-support"))]
-pub use schema::{
-    CONSUMABLE_FILTER_SCHEMA_SQL, PHYSICAL_BASE_TYPE_SCHEMA_SQL,
-    REFERENCE_NUMERIC_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL,
-};
-#[cfg(any(test, feature = "test-support"))]
 pub use validation::validate_artifact;
 pub use validation::{
     ArtifactValidationReport, validate_reference, validate_reference_with_token_count_digests,
@@ -176,29 +137,15 @@ pub use validation::{
 
 mod lexical_projection;
 pub use lexical_projection::project_lexical_units;
-#[cfg(any(test, feature = "test-support"))]
-pub use schema::LEXICAL_ALIAS_SCHEMA_SQL;
 
 mod owned_abilities;
 #[cfg(test)]
 mod reference_coverage_tests;
 pub use owned_abilities::{OwnedAbilityCatalog, OwnedAbilityEvidence, OwnedAbilityTarget};
-#[cfg(any(test, feature = "test-support"))]
-mod reference_migration;
 #[cfg(test)]
 mod reference_tests;
 mod references;
-#[cfg(any(test, feature = "test-support"))]
-mod trait_similarity_retirement;
-#[cfg(any(test, feature = "test-support"))]
-pub use trait_similarity_retirement::retire_trait_similarity;
-#[cfg(any(test, feature = "test-support"))]
-mod trait_members_upgrade;
-#[cfg(any(test, feature = "test-support"))]
-pub use trait_members_upgrade::{TRAIT_MEMBERS_SCHEMA_SQL, backfill_trait_members};
 mod traits;
-#[cfg(any(test, feature = "test-support"))]
-pub use reference_migration::{REFERENCE_ENTRIES_SCHEMA_SQL, backfill_reference_entries};
 pub use references::{
     ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
     ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice, ReferencePermission,
@@ -206,12 +153,7 @@ pub use references::{
     ReferencePublication, ReferenceRecordMapping, ReferenceSourceLocation, ReferenceSummary,
     ReferenceSummaryBacking, reference_inventory_identity, reference_pack_applies,
 };
-#[cfg(any(test, feature = "test-support"))]
-pub use traits::TRAIT_SCHEMA_SQL;
-pub use traits::{
-    TraitDefinition, TraitMembership, TraitReference, TraitReferenceInput, TraitSeedChunk,
-    TraitVectorInput,
-};
+pub use traits::{TraitDefinition, TraitMembership, TraitReference, TraitReferenceInput};
 
 mod relationship_query;
 pub use relationship_query::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};
@@ -226,7 +168,3 @@ mod embedding_values_tests;
 mod publication_crash_tests;
 
 mod remaster;
-#[cfg(any(test, feature = "test-support"))]
-pub use remaster::{
-    COMPACT_REMASTER_SCHEMA_SQL, REMASTER_SCHEMA_SQL, REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
-};

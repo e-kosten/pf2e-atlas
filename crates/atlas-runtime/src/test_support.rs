@@ -23,14 +23,6 @@ pub fn open_reader(
     Ok(atlas_index::SqliteIndexReader::from_session(session)?)
 }
 
-/// Initialize exactly the published schema-10 embedding-storage prefix. This
-/// isolated historical probe never admits current product reference sessions.
-pub fn initialize_historical_embedding_storage_probe(
-    path: impl AsRef<std::path::Path>,
-) -> atlas_storage::StorageResult<atlas_storage::Workspace> {
-    crate::workspace::initialize_historical_embedding_storage_probe(path)
-}
-
 /// Literal model identity and ordered occurrence bytes for fixture equality.
 #[cfg(test)]
 #[derive(Debug, PartialEq, Eq)]
@@ -39,21 +31,13 @@ pub(crate) struct OccurrenceVectorSnapshot {
     rows: Vec<(i64, Vec<u8>)>,
 }
 
-/// Compare attributed numerical values across actual published storage layouts.
+/// Compare attributed numerical values in admitted workspaces.
 /// This fixture oracle expands input-owned rows back to the retained occurrence IDs.
 #[cfg(test)]
 pub(crate) fn occurrence_vector_bits(
     connection: &rusqlite::Connection,
 ) -> Vec<OccurrenceVectorSnapshot> {
-    let has_model_slot: bool = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('search_profiles') WHERE name='model_id')",
-        [], |row| row.get(0),
-    ).unwrap();
-    let query = if has_model_slot {
-        "SELECT p.profile_id,m.identity_json FROM search_profiles p JOIN embedding_models m USING(model_id) ORDER BY p.profile_id"
-    } else {
-        "SELECT profile_id,identity_json FROM search_profiles ORDER BY profile_id"
-    };
+    let query = "SELECT p.profile_id,m.identity_json FROM search_profiles p JOIN embedding_models m USING(model_id) ORDER BY p.profile_id";
     let profiles = connection
         .prepare(query)
         .unwrap()
@@ -67,15 +51,7 @@ pub(crate) fn occurrence_vector_bits(
         let identity: atlas_index::SourceSearchProfileIdentity = serde_json::from_str(&json).unwrap();
         let digest = atlas_search::test_support::hash(&serde_json::to_vec(&identity).unwrap());
         let native = format!("native_vectors_{digest}");
-        let current: bool = connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?)",
-            [&native], |row| row.get(0),
-        ).unwrap();
-        let sql = if current {
-            format!("SELECT u.unit_id,v.embedding FROM semantic_units u LEFT JOIN {native} v USING(input_id) WHERE u.profile_id=? ORDER BY u.unit_id")
-        } else {
-            format!("SELECT v.unit_id,v.embedding FROM semantic_vectors_{digest} v JOIN semantic_units u USING(unit_id) WHERE u.profile_id=? ORDER BY v.unit_id")
-        };
+        let sql = format!("SELECT u.unit_id,v.embedding FROM semantic_units u LEFT JOIN {native} v USING(input_id) WHERE u.profile_id=? ORDER BY u.unit_id");
         let rows = connection.prepare(&sql).unwrap()
             .query_map([profile], |row| Ok((row.get(0)?,row.get(1)?))).unwrap()
             .collect::<Result<Vec<_>,_>>().unwrap();

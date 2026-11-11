@@ -120,6 +120,21 @@ class Routing(unittest.TestCase):
         self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
 
 
+    def test_release_schema_changes_run_all_four_targets(self):
+        for name in ("atlas-runtime/src/release_history.rs",
+                     "atlas-index/src/release_schema.sql",
+                     "atlas-local-state/src/release.rs",
+                     "atlas-local-state/src/release/encounters.sql",
+                     "atlas-runtime/tests/fixtures/schema-41.sqlite.gz"):
+            with self.subTest(name=name):
+                path = self.root / "crates" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"fixture change")
+                self.git("add", str(path))
+                self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+                self.git("rm", "-f", str(path))
+
+
 class PinTransition(unittest.TestCase):
     def test_exact_schema_cutover_keeps_execution_ids_and_retires_old_fixture(self):
         old = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_29_PIN"])
