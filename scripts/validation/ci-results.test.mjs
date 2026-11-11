@@ -17,7 +17,6 @@ const names = [
   "research",
   "skill",
   "embedding",
-  "embedding-seed-coverage",
   "advisories",
 ];
 const flags = [
@@ -31,7 +30,6 @@ const flags = [
   "dev",
   "tooling",
   "embedding",
-  "embedding-seed-coverage",
   "windows",
   "audit",
 ];
@@ -77,7 +75,6 @@ test("UI and browser-only changes keep real-app browser gates without full Rust"
       "research",
       "skill",
       "embedding",
-  "embedding-seed-coverage",
       "advisories",
     ])
       jobs[name].result = "skipped";
@@ -129,7 +126,6 @@ test("core Rust changes require browser prerequisites, but CLI-only Rust does no
       "research",
       "skill",
       "embedding",
-  "embedding-seed-coverage",
       "advisories",
     ])
       jobs[name].result = "skipped";

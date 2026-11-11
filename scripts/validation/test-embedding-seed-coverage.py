@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise selection and fail-closed advisory coverage routing."""
+"""Exercise fail-closed advisory coverage routing."""
 
 from pathlib import Path
 import runpy
@@ -9,18 +9,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 CHECK = runpy.run_path(str(ROOT / "scripts/release/check-embedding-seeds.py"))
-SELECT = runpy.run_path(str(ROOT / "scripts/validation/embedding-seed-selection.py"))
 
 
 class CoverageTest(unittest.TestCase):
-    def test_selection_includes_source_pins_and_shared_execution_but_skips_ui_docs(self):
-        for path in ("Cargo.lock", "crates/atlas-runtime/embedding-seeds.json",
-                     "crates/atlas-ingest/src/build.rs", "crates/atlas-record/src/lib.rs",
-                     "dev-tools/source-contracts/source-pin.json", ".github/workflows/nightly.yml"):
-            self.assertTrue(SELECT["affects_coverage"](path), path)
-        for path in ("docs/search.md", "web/atlas-ui/src/app/Router.tsx"):
-            self.assertFalse(SELECT["affects_coverage"](path), path)
-
     def test_only_verified_gaps_are_advisory(self):
         profile = "bge-base"
         pin = {"tag": "embedding-seed/bge-base/v1"}

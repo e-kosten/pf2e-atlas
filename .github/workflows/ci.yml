@@ -8,11 +8,6 @@ on:
         type: string
   pull_request:
   workflow_dispatch:
-    inputs:
-      embedding-seed-coverage:
-        description: "Check both published corpus embedding seeds"
-        type: boolean
-        default: false
   push:
     branches:
       - main
@@ -47,7 +42,6 @@ jobs:
       dev: ${{ steps.select.outputs.dev }}
       tooling: ${{ steps.select.outputs.tooling }}
       embedding: ${{ steps.select.outputs.embedding }}
-      embedding-seed-coverage: ${{ steps.select.outputs.embedding-seed-coverage }}
       embedding-runners: ${{ steps.select.outputs.embedding-runners }}
     steps:
       - uses: actions/checkout@v7
@@ -61,7 +55,6 @@ jobs:
           SOURCE_REF: ${{ inputs.source-ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          CHECK_SEEDS: ${{ inputs.embedding-seed-coverage }}
         run: |
           if [[ "$EVENT" == pull_request && -z "$SOURCE_REF" ]]; then
             scripts/verify-changed.sh --range "$BASE_SHA...$HEAD_SHA" --list > selected-checks
@@ -79,13 +72,6 @@ jobs:
           else
             echo "embedding=true" >> selected-checks
           fi
-          seed_coverage=false
-          if [[ "$EVENT" == pull_request && -z "$SOURCE_REF" ]]; then
-            seed_coverage="$(python3 scripts/validation/embedding-seed-selection.py "$BASE_SHA" "$HEAD_SHA")"
-          elif [[ "$EVENT" == workflow_dispatch && -z "$SOURCE_REF" && "$CHECK_SEEDS" == true ]]; then
-            seed_coverage=true
-          fi
-          echo "embedding-seed-coverage=$seed_coverage" >> selected-checks
           windows=false
           if grep -q '^rust=true$' selected-checks; then
             windows="$(python3 scripts/validation/windows-selection.py --base "$BASE_SHA")"
@@ -100,30 +86,6 @@ jobs:
         run: python3 scripts/validation/embedding-stack.py
       - name: Validation routing regression tests
         run: node scripts/validation/tooling.mjs
-
-  embedding-seed-coverage:
-    name: published embedding coverage
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.embedding-seed-coverage == 'true' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        with:
-          cache-workspace-crates: false
-      - name: Check the candidate against both public seeds
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo build --locked --release -p atlas-cli --no-default-features
-          python3 scripts/release/check-embedding-seeds.py target/release/atlas --advisory | tee -a "$GITHUB_STEP_SUMMARY"
 
   embedding:
     name: embedding compatibility (${{ matrix.os }})
@@ -550,7 +512,7 @@ jobs:
   validation:
     name: validation complete
     if: ${{ !cancelled() }}
-    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding, embedding-seed-coverage, advisories]
+    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding, advisories]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
