@@ -51,7 +51,6 @@ pub struct StaticSearchContext {
     #[serde(default)]
     pub incomplete: bool,
     pub list_ref: Option<String>,
-    pub trait_key: Option<String>,
     pub connection_scope: Option<Box<SearchConnectionScope>>,
     pub expected_artifact_generation: Option<String>,
 }
@@ -94,11 +93,6 @@ pub enum SearchCriteria {
         #[serde(default)]
         search_content: Option<atlas_domain::SearchContentScope>,
     },
-    TraitReferences {
-        trait_key: String,
-        query: Option<String>,
-        filter: Option<QueryPredicate>,
-    },
     ListRecords {
         filter: Option<QueryPredicate>,
     },
@@ -116,10 +110,6 @@ pub enum SearchCriteria {
 pub enum SearchModeSummary {
     SimilarRecords {
         seed: Box<RecordSummaryView>,
-    },
-    TraitReferences {
-        trait_key: String,
-        title: String,
     },
     ListRecords,
     TextSearch {
@@ -277,7 +267,14 @@ mod connection_contract_tests {
         let encoded = serde_json::to_value(&context).unwrap();
         assert_eq!(encoded["filter"], serde_json::Value::Null);
         assert_eq!(context, serde_json::from_value(encoded.clone()).unwrap());
-        for field in ["query", "criteria", "ranking", "page", "search_profile"] {
+        for field in [
+            "query",
+            "criteria",
+            "ranking",
+            "page",
+            "search_profile",
+            "trait_key",
+        ] {
             let mut invalid = encoded.clone();
             invalid[field] = serde_json::Value::Null;
             assert!(

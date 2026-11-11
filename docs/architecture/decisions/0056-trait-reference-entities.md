@@ -3,7 +3,9 @@
 Status: accepted; implemented in [PR93](https://github.com/e-kosten/pf2e-atlas/pull/93).
 The trait-only vocabulary/storage scope is amended by
 [ADR0068](0068-contextual-reference-definitions.md); specialized trait identity,
-membership, references and semantic-seed behavior remain active.
+membership and reference publication remain active. [ADR0069](0069-trait-reading-and-membership.md)
+retires the dedicated browser association tab and Search workflow. The original
+Search and semantic-seed design is recorded below.
 Date: 2026-10-20
 
 Schema 34 retired the trait-seeded Similar workflow and its numerical storage.

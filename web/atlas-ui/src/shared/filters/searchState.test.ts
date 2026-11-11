@@ -436,30 +436,6 @@ it("carries complete relationship constraints in browse and saved-list discovery
   });
 });
 
-describe("trait search handoffs", () => {
-  it("keeps trait references scoped when adding keywords and filters", () => {
-    const state = {
-      ...DEFAULT_SEARCH_STATE,
-      traitReferenceSeed: "trait:consumable",
-      query: "potion",
-      filter: { kind: "boolean_constant", value: false } as const,
-    };
-    const decoded = decodeSearchStateFromParams(
-      new URLSearchParams(searchStateQueryString(state)),
-    );
-    expect(hasExecutableSearch(decoded)).toBe(true);
-    expect(buildSearchRequest(decoded, 1).criteria).toEqual({
-      kind: "trait_references",
-      trait_key: "trait:consumable",
-      query: "potion",
-      filter: expect.objectContaining(state.filter),
-    });
-    expect(encodeSearchExecutionState(state)).not.toEqual(
-      encodeSearchExecutionState({ ...state, traitReferenceSeed: null }),
-    );
-  });
-});
-
 describe("Core search content and source preset state", () => {
   const preferences = {
     ...DEFAULT_SEARCH_PREFERENCES,
@@ -538,17 +514,12 @@ describe("Core search content and source preset state", () => {
       decodeSearchStateFromParams(new URLSearchParams(query)).filterError,
     ).toBeTruthy();
   });
-  it("keeps inactive preferences out of browse and exact-reference requests", () => {
+  it("keeps inactive preferences out of browse requests", () => {
     const browse = { ...DEFAULT_SEARCH_STATE, searchContent: "core" as const };
     expect(buildSearchRequest(browse, 1).criteria).toEqual({
       kind: "list_records",
       filter: null,
     });
-    const reference = { ...browse, traitReferenceSeed: "trait:fire", query: "dragon" };
-    expect(buildSearchRequest(reference, 1).criteria).not.toHaveProperty(
-      "search_content",
-    );
-    expect(buildFilterDiscoveryContext(reference)).not.toHaveProperty("search_content");
     expect(buildFilterDiscoveryContext({ ...browse, query: "dragon" })).toHaveProperty(
       "search_content",
       "core",

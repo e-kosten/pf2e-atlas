@@ -2802,7 +2802,7 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
   await expect(page).toHaveURL(/\/traits\/trait:agile$/);
   await expect(page.getByRole("heading", { name: "Agile", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("tab", { name: "With this trait", exact: true }),
+    page.getByRole("heading", { name: "With this trait", exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("tab", { name: "Similar", exact: true })).toHaveCount(0);
 

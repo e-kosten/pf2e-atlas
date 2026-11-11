@@ -695,7 +695,6 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
         searchContent,
         sourceSections,
         similarityGeneration: undefined,
-        traitReferenceSeed: null,
       },
       profile.id ?? profile.pendingUrlProfile,
     ),

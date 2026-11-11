@@ -390,8 +390,7 @@ export function useSearchWorkspace({
         searchProfile,
         activeSearch.similarityGeneration ?? retrieval.generation,
         effectiveResultSort(activeSearch),
-        !activeSearch.traitReferenceSeed &&
-          (activeSearch.similarSeed || activeSearch.query.trim())
+        activeSearch.similarSeed || activeSearch.query.trim()
           ? (activeSearch.searchContent ?? "all")
           : undefined,
       );
@@ -763,7 +762,6 @@ export function useSearchWorkspace({
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
     filterCountsEnabled:
       filterDiscovery.filterCountsEnabled &&
-      !search.traitReferenceSeed &&
       searchProfile !== null &&
       searchProfileStored,
     filterCountQueryKey: filterDiscovery.filterCountQueryKey,

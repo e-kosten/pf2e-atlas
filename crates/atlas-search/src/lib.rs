@@ -72,7 +72,7 @@ mod fusion;
 mod traits;
 pub use traits::{
     ReferenceSourceLocation, TraitAssociationRequest, TraitDefinition, TraitMembership,
-    TraitMembershipResult, TraitReference, TraitReferenceResult,
+    TraitMembershipResult,
 };
 
 pub use atlas_index::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};

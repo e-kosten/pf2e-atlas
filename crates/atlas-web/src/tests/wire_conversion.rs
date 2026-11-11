@@ -178,7 +178,6 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         "/api/traits/records",
         Some(json!({
             "trait_key":"trait:fire",
-            "kind":"members",
             "page":{"number":1,"size":25},
             "expected_artifact_generation":generation
         })),

@@ -105,22 +105,6 @@ fn resolve(
         intersect(&mut keys, list_keys);
     }
     let retrieval = workspace.retrieval_mut();
-    if let Some(trait_key) = &parent.trait_key {
-        let trait_key = trait_key
-            .parse()
-            .map_err(|error: atlas_domain::TraitKeyParseError| {
-                AppServiceError::invalid_request(error.to_string())
-            })?;
-        if retrieval.trait_definition(&trait_key)?.is_none() {
-            return Err(AppServiceError::invalid_request(
-                "Trait definition not found",
-            ));
-        }
-        intersect(
-            &mut keys,
-            retrieval.trait_reference_record_keys(&trait_key)?,
-        );
-    }
     let broad = |reason| ResolvedConnectionScope {
         keys: None,
         view: ConnectionScopeView::AllEntries { reason },

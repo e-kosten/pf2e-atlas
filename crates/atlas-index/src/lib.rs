@@ -153,7 +153,7 @@ pub use references::{
     ReferencePublication, ReferenceRecordMapping, ReferenceSourceLocation, ReferenceSummary,
     ReferenceSummaryBacking, reference_inventory_identity, reference_pack_applies,
 };
-pub use traits::{TraitDefinition, TraitMembership, TraitReference, TraitReferenceInput};
+pub use traits::{TraitDefinition, TraitMembership};
 
 mod relationship_query;
 pub use relationship_query::{RelationshipOccurrencePage, RelationshipOccurrencePageRequest};

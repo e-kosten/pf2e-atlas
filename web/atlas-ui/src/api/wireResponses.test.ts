@@ -36,11 +36,8 @@ function respond(value: unknown) {
 }
 const traitRequest = {
   trait_key: "trait:fire",
-  kind: "members" as const,
   page: { number: 1, size: 25 },
   expected_artifact_generation: "fixture-generation",
-  search_profile: null,
-  ranking: null,
 };
 const actorKey = "actors:cccccccccccccccc";
 const detailRequest = {

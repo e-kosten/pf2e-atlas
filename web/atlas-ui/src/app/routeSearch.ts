@@ -164,20 +164,12 @@ export function canonicalRouteSearch(
     if (q) result.q = q;
     if (isSearch) {
       const similar = singleton(search, "similar")?.trim();
-      const traitRefs = singleton(search, "trait_refs")?.trim();
       if (similar) result.similar = similar;
-      if (traitRefs) result.trait_refs = traitRefs;
     }
     for (const key of ["filter", "relationships"] as const) {
       const value = filterTransport(search, key);
       if (value !== undefined) result[key] = value;
     }
-  }
-  if (kind === "trait") {
-    const tab = singleton(search, "tab");
-    if (tab !== undefined && !["members", "references", "similar"].includes(tab))
-      throw new RouteSearchError("tab");
-    if (tab === "references") result.tab = tab;
   }
   if (isSearch || isList || kind === "trait") {
     const sort = search.sort;

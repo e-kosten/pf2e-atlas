@@ -6,7 +6,7 @@ import {
   useFilterUrlRecovery,
 } from "../../shared/filters/useFilterUrlRecovery";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button, Tag } from "antd";
+import { Alert, Button } from "antd";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
@@ -96,40 +96,21 @@ export function SearchView({
               : undefined
           }
           searchRowEnd={
-            <>
-              {workspace.search.traitReferenceSeed && (
-                <Tag
-                  closable
-                  onClose={() =>
-                    workspace.setSearch({
-                      ...workspace.search,
-                      traitReferenceSeed: null,
-                    })
-                  }
-                >
-                  Trait references:{" "}
-                  {mode?.kind === "trait_references" &&
-                  mode.trait_key === workspace.search.traitReferenceSeed
-                    ? mode.title
-                    : "Loading trait…"}
-                </Tag>
-              )}
-              <SearchSettings
-                search={workspace.search}
-                seedTitle={seedTitle}
-                seed={
-                  workspace.search.similarSeed
-                    ? { kind: "record", record_key: workspace.search.similarSeed }
-                    : null
-                }
-                generation={workspace.resultPage?.artifact_generation}
-                onApply={(next, model) =>
-                  workspace.applySettings
-                    ? workspace.applySettings(next, model)
-                    : workspace.setSearch(next)
-                }
-              />
-            </>
+            <SearchSettings
+              search={workspace.search}
+              seedTitle={seedTitle}
+              seed={
+                workspace.search.similarSeed
+                  ? { kind: "record", record_key: workspace.search.similarSeed }
+                  : null
+              }
+              generation={workspace.resultPage?.artifact_generation}
+              onApply={(next, model) =>
+                workspace.applySettings
+                  ? workspace.applySettings(next, model)
+                  : workspace.setSearch(next)
+              }
+            />
           }
         />
         <SearchProfileNotice />

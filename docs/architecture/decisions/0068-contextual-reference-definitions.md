@@ -1,8 +1,9 @@
 # ADR0068: Source-backed contextual reference definitions
 
 Status: accepted; amends the trait-only vocabulary/storage scope of
-[ADR0056](0056-trait-reference-entities.md). Its specialized trait filtering and
-semantic-seed policies remain active.
+[ADR0056](0056-trait-reference-entities.md).
+[ADR0069](0069-trait-reading-and-membership.md) describes current trait reading
+and membership.
 Date: 2026-11-05
 
 Amended 2026-11-06. Existing glossary records use ordinary record presentation.
@@ -56,9 +57,11 @@ legacy trait behavior remain available for conflicting packs.
 
 ## Trait references and owned abilities
 
-The existing trait reference relation supplies visible incoming and outgoing
-associations. Prepared content retains authored links and their precise addresses.
-Ordinary record relationships retain their existing store.
+The trait reference relation retains visible incoming and outgoing evidence
+for publication and validation. Prepared definition content supplies authored
+inline links and their precise addresses independently of that relation.
+[ADR0069](0069-trait-reading-and-membership.md) retires the dedicated trait
+reference browser views. Ordinary record relationships use their own store.
 
 The record-owned parser collects authored localization keys in owned action
 fields. A verified mapping can resolve a key to a real record. Missing or
@@ -95,7 +98,7 @@ Physical schema version does not establish new glossary coverage. Missing
 record and trait reads. Explicit setup prepares the additional definitions and
 records their separate recipe, combined input identity and selected-key inventory.
 Startup leaves new glossary preparation to explicit setup. Retained and complete
-coverage both use the existing visible trait reference relation. New namespaces
+coverage both retain the visible trait reference relation for validation. New namespaces
 use the prepared entries or existing records for reading. Existing record and
 trait numerical policies retain their owners.
 
@@ -179,9 +182,9 @@ definition key. Full-page reading resolves that key through
 the existing definition-detail service and uses its property actions only when
 the returned actual destination matches the requested record selection. Standalone
 definitions with readable content have direct typed destinations; metadata-only
-entries remain filterable without a reading destination. Traits keep their URLs and
-specialized membership, reference and Similar workflows. These routes add no
-glossary browser or duplicate record page. Native modified links and the Drawer's
+entries remain filterable without a reading destination. Traits keep their URLs,
+prepared inline links and membership. These routes add no glossary browser or
+duplicate record page. Native modified links and the Drawer's
 Open full page action retain the same checked destination and reading purpose.
 
 Prepared backing alone does not establish readability. Canonical content must
@@ -193,9 +196,8 @@ metadata projections use the same content-presence policy.
 Glossary Drawers show the useful definition body and ordinary publication
 attribution. Technical extraction provenance stays in its canonical diagnostic/data
 owner; it is not reading content. Related-record exploration belongs on the
-standalone page using the existing trait association presentation. Existing trait
-association and Similar policies are unchanged; other definitions gain no automatic
-Similar capability.
+standalone page. Trait pages show membership as described in
+[ADR0069](0069-trait-reading-and-membership.md).
 
 Related actions consume the Rust-supplied canonical predicate. The existing field
 editor owns discovery and configuration, including acuity and range on a single

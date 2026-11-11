@@ -16218,41 +16218,6 @@
               },
               "kind": {
                 "enum": [
-                  "trait_references"
-                ],
-                "type": "string"
-              },
-              "query": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "trait_key": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "trait_key",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "properties": {
-              "filter": {
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/QueryPredicateInputSchema"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "kind": {
-                "enum": [
                   "list_records"
                 ],
                 "type": "string"
@@ -16357,28 +16322,6 @@
             },
             "required": [
               "seed",
-              "kind"
-            ],
-            "type": "object"
-          },
-          {
-            "properties": {
-              "kind": {
-                "enum": [
-                  "trait_references"
-                ],
-                "type": "string"
-              },
-              "title": {
-                "type": "string"
-              },
-              "trait_key": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "trait_key",
-              "title",
               "kind"
             ],
             "type": "object"
@@ -18408,12 +18351,6 @@
               "string",
               "null"
             ]
-          },
-          "trait_key": {
-            "type": [
-              "string",
-              "null"
-            ]
           }
         },
         "type": "object"
@@ -18696,13 +18633,6 @@
         ],
         "type": "object"
       },
-      "TraitAssociationKind": {
-        "enum": [
-          "members",
-          "references"
-        ],
-        "type": "string"
-      },
       "TraitDetailRequest": {
         "additionalProperties": false,
         "properties": {
@@ -18780,9 +18710,6 @@
           "record": {
             "$ref": "#/components/schemas/RecordSummaryView"
           },
-          "reference_direction": {
-            "type": "string"
-          },
           "source_label": {
             "type": [
               "string",
@@ -18802,9 +18729,6 @@
           "artifact_generation": {
             "type": "string"
           },
-          "kind": {
-            "$ref": "#/components/schemas/TraitAssociationKind"
-          },
           "page": {
             "$ref": "#/components/schemas/SearchPageView"
           },
@@ -18821,7 +18745,6 @@
         "required": [
           "artifact_generation",
           "trait_key",
-          "kind",
           "rows",
           "page"
         ],
@@ -18833,9 +18756,6 @@
           "expected_artifact_generation": {
             "type": "string"
           },
-          "kind": {
-            "$ref": "#/components/schemas/TraitAssociationKind"
-          },
           "page": {
             "$ref": "#/components/schemas/SearchPageRequest"
           },
@@ -18845,7 +18765,6 @@
         },
         "required": [
           "trait_key",
-          "kind",
           "page",
           "expected_artifact_generation"
         ],

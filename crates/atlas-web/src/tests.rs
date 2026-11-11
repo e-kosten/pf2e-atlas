@@ -754,38 +754,13 @@ async fn stateless_search_route_carries_criteria_and_generation_and_rejects_stal
 }
 
 #[tokio::test]
-async fn search_page_keeps_trait_reference_scope_and_rejects_retired_trait_seed() {
-    let fixture = Fixture::new();
-    for criteria in [
-        json!({"kind":"similar_traits","seed_trait_key":"trait:fire","filter":null}),
-        json!({"kind":"trait_references","trait_key":"trait:fire","query":null,"filter":null}),
-    ] {
-        let (status, body) = fixture
-            .json(
-                Method::POST,
-                "/api/search/page",
-                Some(json!({"criteria":criteria,"page":{"number":1,"size":25}})),
-            )
-            .await;
-        if criteria["kind"] == "similar_traits" {
-            assert!(status.is_client_error(), "{status}: {body}");
-            assert_eq!(body["code"], "invalid_request");
-            continue;
-        }
-        assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["mode"]["kind"], criteria["kind"]);
-        assert_eq!(body["mode"]["trait_key"], "trait:fire");
-        assert_eq!(body["mode"]["title"], "Fire");
-    }
-}
-
-#[tokio::test]
 async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
     let fixture = Fixture::new();
     for criteria in [
         json!({"kind":"text_search","query":"Record","mode":"unknown"}),
         json!({"kind":"list_records","filter":null,"search_content":"core"}),
-        json!({"kind":"trait_references","trait_key":"trait:fire","query":null,"filter":null,"search_content":"core"}),
+        json!({"kind":"trait_references","trait_key":"trait:fire","query":null,"filter":null}),
+        json!({"kind":"similar_traits","seed_trait_key":"trait:fire","filter":null}),
         json!({"kind":"text_search","query":"fire","filter":null,"mode":"lexical","source_sections":"core"}),
     ] {
         let (status, body) = fixture
@@ -795,6 +770,29 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
                 Some(json!({"criteria":criteria,"page":{"number":1,"size":25}})),
             )
             .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert_eq!(body["code"], "invalid_request");
+    }
+    for (path, payload) in [
+        (
+            "/api/search/page",
+            json!({
+                "criteria":{"kind":"list_records"},
+                "page":{"number":1,"size":25},
+                "connection_scope":{"parent":{"trait_key":"trait:fire"},"direction":"incoming","include_contents":true}
+            }),
+        ),
+        (
+            "/api/traits/records",
+            json!({
+                "trait_key":"trait:fire",
+                "kind":"references",
+                "page":{"number":1,"size":25},
+                "expected_artifact_generation":fixture.service.readiness().artifact_generation.unwrap()
+            }),
+        ),
+    ] {
+        let (status, body) = fixture.json(Method::POST, path, Some(payload)).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
         assert_eq!(body["code"], "invalid_request");
     }

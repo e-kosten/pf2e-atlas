@@ -218,7 +218,6 @@ mod tests {
     fn content_scope_is_search_only_and_legacy_links_keep_omitted_scope() {
         for value in [
             json!({"kind":"list_records","filter":null,"search_content":"core"}),
-            json!({"kind":"trait_references","trait_key":"trait:fire","query":null,"filter":null,"search_content":"core"}),
             json!({"kind":"text_search","query":"fire","filter":null,"mode":"hybrid","source_sections":"core"}),
         ] {
             assert!(serde_json::from_value::<crate::SearchCriteria>(value).is_err());

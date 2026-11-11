@@ -1216,7 +1216,7 @@ it("normalizes both reference checks while sending only the selected strike and 
   });
 });
 
-it("rejects trait responses from another identity, artifact generation or Similar profile", async () => {
+it("rejects trait responses from another identity or artifact generation", async () => {
   respond({ trait_key: "trait:deadly-d12" });
   await expect(
     getTraitDetail({
@@ -1226,13 +1226,11 @@ it("rejects trait responses from another identity, artifact generation or Simila
   ).rejects.toThrow("does not match");
   const request = {
     trait_key: "trait:agile",
-    kind: "members" as const,
     expected_artifact_generation: "current",
     page: { number: 1, size: 20 },
   };
   respond({
     trait_key: "trait:agile",
-    kind: "members",
     artifact_generation: "old",
   });
   await expect(getTraitRecords(request)).rejects.toMatchObject({

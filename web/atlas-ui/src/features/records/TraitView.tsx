@@ -4,15 +4,11 @@ import { LinkNotFound } from "../../app/InvalidUrl";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { traitDestination, searchDestination } from "../../app/destinations";
+import { searchDestination } from "../../app/destinations";
 import type { TraitPageInput } from "../../app/destinations";
-import { navigateDestination } from "../../app/navigation";
-import { canonicalRouteSearch } from "../../app/routeSearch";
-import { parseSearchParams } from "../../app/urlState";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Button, Empty, Tabs } from "antd";
-import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { Button } from "antd";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTraitRecords } from "../../api/atlasApi";
 import type {
   TraitDetailView,
@@ -31,9 +27,6 @@ import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import {
   DEFAULT_SEARCH_STATE,
   searchStateQueryString,
-  decodeResultSort,
-  encodeResultSort,
-  type SearchFormState,
 } from "../../shared/filters/searchState";
 import {
   isArtifactGenerationChanged,
@@ -97,13 +90,12 @@ function TraitViewContent({ route }: { route: TraitPageInput }) {
                     classification="Trait"
                   />
                   <TraitDefinition detail={query.data} onReference={onReference} />
-                  <TraitAssociations
+                  <TraitMembers
                     key={JSON.stringify([
                       query.data.trait_key,
                       query.data.artifact_generation,
                     ])}
                     detail={query.data}
-                    route={route}
                     onReload={() => void reload()}
                     onReference={onReference}
                   />
@@ -120,132 +112,18 @@ function TraitViewContent({ route }: { route: TraitPageInput }) {
     </>
   );
 }
-type TraitAssociation = "members" | "references";
-
-function TraitAssociations({
+function TraitMembers({
   detail,
-  route,
   onReload,
   onReference,
 }: {
   detail: TraitDetailView;
-  route: TraitPageInput;
   onReload: () => void;
   onReference: RecordReferenceHandler;
 }) {
-  const [state, setState] = useState(() => traitAssociationState(route.query));
-  const availability = useQueries({
-    queries: (["members", "references"] as const).map((kind) => {
-      const request: TraitRecordsRequest = {
-        trait_key: detail.trait_key,
-        kind,
-        page: { number: 1, size: 5 },
-        expected_artifact_generation: detail.artifact_generation,
-      };
-      return {
-        meta: referenceQueryMeta,
-        queryKey: ["trait-records", request],
-        queryFn: ({ signal }: { signal: AbortSignal }) =>
-          getTraitRecords(request, signal),
-        staleTime: Infinity,
-        retryOnMount: false,
-      };
-    }),
-  });
-  const previousQuery = useRef(route.query);
-  useEffect(() => {
-    if (previousQuery.current === route.query) return;
-    previousQuery.current = route.query;
-    setState(traitAssociationState(route.query));
-  }, [route.query]);
-  function update(kind: TraitAssociation, search = state.search) {
-    const params = new URLSearchParams();
-    const explicitProfile = canonicalRouteSearch(
-      "trait",
-      parseSearchParams(route.query ?? ""),
-    ).search_profile;
-    if (typeof explicitProfile === "string")
-      params.set("search_profile", explicitProfile);
-    if (kind !== "members") params.set("tab", kind);
-    encodeResultSort(params, search.sort);
-    const query = params.size ? "?" + params.toString() : undefined;
-    previousQuery.current = query;
-    setState({ kind, search });
-    navigateDestination(traitDestination({ ...route, query }));
-  }
-  const items = [
-    { key: "members", label: "With this trait" },
-    { key: "references", label: "References" },
-  ] as const;
-  const visibleItems = items.filter(
-    (_, index) => !availability[index].data || availability[index].data.rows.length > 0,
-  );
-  if (availability.some((query) => query.isPending))
-    return <LoadingStatus label="Loading connections…" />;
-  if (!visibleItems.length) return null;
-  return (
-    <section className="record-explore" aria-label="Explore trait">
-      <Tabs
-        activeKey={
-          visibleItems.some((item) => item.key === state.kind)
-            ? state.kind
-            : visibleItems[0].key
-        }
-        animated={false}
-        destroyOnHidden
-        onChange={(value) => update(value as TraitAssociation)}
-        items={visibleItems.map((item) => ({
-          ...item,
-          children: (
-            <TraitAssociatedRecords
-              key={JSON.stringify([item.key, detail.artifact_generation])}
-              detail={detail}
-              kind={item.key}
-              search={state.search}
-              onReload={onReload}
-              onReference={onReference}
-            />
-          ),
-        }))}
-      />
-    </section>
-  );
-}
-
-function traitAssociationState(query: string | undefined): {
-  kind: TraitAssociation;
-  search: SearchFormState;
-} {
-  const params = new URLSearchParams(query);
-  const tab = params.get("tab");
-  const { sort, sortError } = decodeResultSort(params, "search", true);
-  return {
-    kind: tab === "references" ? tab : "members",
-    search: {
-      ...DEFAULT_SEARCH_STATE,
-      sort,
-      filterError: sortError,
-    },
-  };
-}
-type TraitRecordsProps = {
-  detail: TraitDetailView;
-  onReference: RecordReferenceHandler;
-  kind: TraitAssociation;
-  onReload: () => void;
-  search: SearchFormState;
-};
-function TraitAssociatedRecords({
-  detail,
-  kind,
-  onReload,
-  search,
-  onReference,
-}: TraitRecordsProps) {
   const profile = useSearchProfile();
   const request: TraitRecordsRequest = {
     trait_key: detail.trait_key,
-    kind,
     page: { number: 1, size: 5 },
     expected_artifact_generation: detail.artifact_generation,
   };
@@ -258,6 +136,9 @@ function TraitAssociatedRecords({
   });
   const changed = isArtifactGenerationChanged(query.error);
   const data = changed ? undefined : query.data;
+  if (query.isPending) return <LoadingStatus label="Loading records…" />;
+  if (data?.rows.length === 0) return null;
+
   const memberSearch = searchDestination({
     query: searchStateQueryString(
       {
@@ -272,37 +153,22 @@ function TraitAssociatedRecords({
       profile.id,
     ),
   });
-  const fullSearch =
-    kind === "members"
-      ? memberSearch
-      : searchDestination({
-          query: searchStateQueryString(
-            {
-              ...search,
-              query: "",
-              similarSeed: null,
-              traitReferenceSeed: detail.trait_key,
-              sort: undefined,
-            },
-            profile.id,
-          ),
-        });
   return (
     <section
-      aria-label={kind === "members" ? "Records with this trait" : "Trait references"}
+      className="record-explore record-explore__task"
+      aria-label="Records with this trait"
       aria-busy={query.isFetching}
     >
+      <h3>With this trait</h3>
       <ExploreSearchAction
-        route={fullSearch}
+        route={memberSearch}
         summary={
           data
             ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1 ? "entry" : "entries"}`
             : undefined
         }
       >
-        {kind === "members"
-          ? "Search records with this trait"
-          : "Search trait references"}
+        Search records with this trait
       </ExploreSearchAction>
       {query.error && (
         <ErrorNotice
@@ -324,53 +190,31 @@ function TraitAssociatedRecords({
           <LoadingStatus label="Updating associated records…" />
         </div>
       )}
-      {query.isLoading && <LoadingStatus label="Loading records…" />}
       {data && (
-        <>
-          {!data.rows.length ? (
-            <Empty
-              description={
-                kind === "members"
-                  ? "No records carry this trait"
-                  : "No source-backed references"
-              }
-            />
-          ) : (
-            <div className="record-explore__results" role="list">
-              {data.rows.map((row, index) => (
-                <div role="listitem" key={JSON.stringify([row.navigation, index])}>
-                  <ReferenceResult
-                    row={{
-                      record: row.record,
-                      matches: [],
-                      relationship_evidence: [],
-                    }}
-                    selected={false}
-                    disabled={false}
-                    navigation={row.navigation}
-                    context={[
-                      kind === "members" &&
-                      row.source_label &&
-                      row.navigation.embedded_path.length
-                        ? `Trait on ${row.source_label}`
-                        : row.source_label,
-                      row.reference_direction === "incoming"
-                        ? "References this trait"
-                        : row.reference_direction === "outgoing"
-                          ? "Referenced in definition"
-                          : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    onPreview={(anchor) =>
-                      onReference(row.navigation.record_key, anchor, row.navigation)
-                    }
-                  />
-                </div>
-              ))}
+        <div className="record-explore__results" role="list">
+          {data.rows.map((row, index) => (
+            <div role="listitem" key={JSON.stringify([row.navigation, index])}>
+              <ReferenceResult
+                row={{
+                  record: row.record,
+                  matches: [],
+                  relationship_evidence: [],
+                }}
+                selected={false}
+                disabled={false}
+                navigation={row.navigation}
+                context={
+                  row.source_label && row.navigation.embedded_path.length
+                    ? `Trait on ${row.source_label}`
+                    : (row.source_label ?? undefined)
+                }
+                onPreview={(anchor) =>
+                  onReference(row.navigation.record_key, anchor, row.navigation)
+                }
+              />
             </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
     </section>
   );

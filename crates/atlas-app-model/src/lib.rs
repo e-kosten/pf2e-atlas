@@ -82,8 +82,7 @@ pub use definitions::{
     ReferenceValueView,
 };
 pub use traits::{
-    TraitAssociationKind, TraitDetailRequest, TraitDetailView, TraitRecordView, TraitRecordsPage,
-    TraitRecordsRequest,
+    TraitDetailRequest, TraitDetailView, TraitRecordView, TraitRecordsPage, TraitRecordsRequest,
 };
 mod table_roll;
 pub use table_roll::{RollTableRequest, TableRollView};
