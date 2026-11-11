@@ -52,6 +52,9 @@
   flex-shrink: 0;
   background: var(--panel);
 }
+.list-browse-header .workspace-context-bar__main {
+  align-items: center;
+}
 .list-browse-header__parent-link {
   display: inline-flex;
   align-items: center;

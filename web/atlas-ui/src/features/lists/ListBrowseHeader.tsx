@@ -35,7 +35,7 @@ export function ListBrowseHeader({
     <div className="list-browse-header">
       <WorkspaceContextBar
         title={list?.name}
-        leading={
+        parentLink={
           <Typography.Link
             className="list-browse-header__parent-link"
             href="/lists"
