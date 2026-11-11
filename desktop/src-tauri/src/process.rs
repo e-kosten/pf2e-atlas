@@ -131,13 +131,20 @@ pub fn setup(
     progress: impl Fn(Value) + Send + 'static,
     hold: impl FnOnce(ChildStdin),
 ) -> Result<(), String> {
-    let mut child = command()?
-        .args([
-            "setup",
-            "--json",
-            "--desktop-progress",
-            "--desktop-cancel-on-eof",
-        ])
+    let mut command = command()?;
+    command.args([
+        "setup",
+        "--json",
+        "--desktop-progress",
+        "--desktop-cancel-on-eof",
+    ]);
+    #[cfg(debug_assertions)]
+    if let Some(source) = crate::smoke::source()? {
+        crate::smoke::record_setup();
+        command.args(["--offline", "--no-embeddings", "--source"]);
+        command.arg(source);
+    }
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -87,12 +87,18 @@ const launch = () =>
   work("Opening Atlas", "Connecting to the local Atlas workspace.", "launch");
 
 function show(inspection, auto) {
-  const { probe, running, recovery } = inspection;
+  const { probe, running, recovery, opening_error: openingError } = inspection;
   ui.diagnostic.hidden = true;
   action(ui.primary);
   action(ui.secondary);
   const setup = (heading, copy) => () => work(heading, copy, "prepare");
   const usable = probe.status === "ready" || probe.status === "browsable";
+  if (usable && openingError) {
+    failure(openingError);
+    status("Atlas couldn’t open", "Your workspace is ready. Try opening Atlas again.");
+    action(ui.primary, "Retry opening Atlas", launch);
+    return;
+  }
   if (usable && !running && !recovery && auto) {
     void launch();
     return;
@@ -196,6 +202,14 @@ async function init() {
     }
   });
   await listen("atlas-error", ({ payload }) => failure(payload));
+  await listen("atlas-opening", () => {
+    if (!busy) return;
+    ui.cancel.hidden = true;
+    status("Opening Atlas", "Connecting to the local Atlas workspace.");
+    ui.phase.textContent = "Opening your workspace";
+    ui.count.hidden = true;
+    ui.progress.removeAttribute("value");
+  });
   await listen("atlas-inspect", () => refresh(true));
   ui["terminal-form"].onsubmit = async (event) => {
     event.preventDefault();

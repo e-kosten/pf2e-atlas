@@ -99,11 +99,16 @@ versioned endpoint and workspace identity to the host. Foreground
 same origin and API as the browser, with native setup commands reserved for
 the bundled setup WebView.
 
-The setup WebView reads a versioned, source-free readiness report and invokes
+The bundled setup page reads a versioned, source-free readiness report and invokes
 the existing CLI setup path after an explicit user action. Progress comes from
 runtime events, and the runtime continues to own setup exclusion, workspace
-maintenance and published state. The desktop host owns window recovery and
-preserves existing views when it reconnects. After a successful reference
+maintenance and published state. The primary desktop window navigates from
+bundled setup to the verified service and waits for the product shell to render.
+The host retains the requested destination and returns to setup with a retry
+action if the initial render fails. Retry uses the published workspace.
+Setup permissions apply to the bundled origin in either window. Once the product
+is mounted, the separate setup and recovery surface preserves active views and
+drafts. After a successful reference
 update, a data-free event tells the current product views to refresh readiness
 and reference queries in place.
 
