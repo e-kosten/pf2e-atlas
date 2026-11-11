@@ -904,6 +904,7 @@ pub(crate) fn manual_presentation(
         grants: None,
         classification: "PC".into(),
         identity: RecordSummaryView {
+            creature_display: None,
             unit_price_label: None,
             edition: None,
             record_key: participant.participant_key.clone(),

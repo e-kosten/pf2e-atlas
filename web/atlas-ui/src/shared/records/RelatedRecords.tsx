@@ -53,6 +53,7 @@ import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { relationshipSearchRoute } from "./relationshipSearch";
 import { ExploreSearchAction } from "./ExploreSearchAction";
+import { CreatureScenarioChoices } from "./CreatureScenarioChoices";
 import { useRecordExploreLocation } from "./recordExploreLocation";
 
 type ExploreProps = {
@@ -90,7 +91,15 @@ export function RelatedRecords(props: ExploreProps) {
     !!related.error ||
     graph?.kind === "error" ||
     graph?.kind === "unavailable";
-  const versions = related.data?.show_versions;
+  const creatureFamily = props.detail.creature_family;
+  const currentCreature = props.detail.record.record_key;
+  const namedCreature = creatureFamily?.named_creatures.some(
+    (record) => record.record_key === currentCreature,
+  );
+  const creatureVersions =
+    !namedCreature &&
+    creatureFamily?.versions.some((record) => record.record_key !== currentCreature);
+  const versions = creatureVersions || related.data?.show_versions;
   useEffect(() => {
     if (
       mode === "explore" &&
@@ -124,7 +133,7 @@ export function RelatedRecords(props: ExploreProps) {
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
   ];
-  const waitingForDefault = active === undefined && related.isPending;
+  const waitingForDefault = active === undefined && related.isPending && !versions;
   return (
     <section className="record-explore" aria-label="Explore record">
       {waitingForDefault ? (
@@ -492,6 +501,16 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
   const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
   const family = related.data?.family_context;
+  const creatureFamily = detail.creature_family;
+  const current = detail.record.record_key;
+  const named = creatureFamily?.named_creatures.some(
+    (record) => record.record_key === current,
+  );
+  const creatureVersions = named
+    ? []
+    : (creatureFamily?.versions.filter((record) => record.record_key !== current) ??
+      []);
+
   const verified = variants?.kind === "content" && variants.content.verified;
   const variantLabels = new Map(
     verified && variants.kind === "content"
@@ -518,7 +537,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           reloadLabel={reloadLabel}
         />
       )}
-      {!family && variants?.kind === "error" ? (
+      {!family && !creatureVersions.length && variants?.kind === "error" ? (
         <ErrorNotice
           error={variants.error}
           compact
@@ -529,7 +548,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
             </Button>
           }
         />
-      ) : !family && variants?.kind === "unavailable" ? (
+      ) : !family && !creatureVersions.length && variants?.kind === "unavailable" ? (
         <Typography.Paragraph type="secondary">{variants.reason}</Typography.Paragraph>
       ) : null}
       {relationships && (
@@ -548,6 +567,19 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         referenceActions={compareReferences}
         showExplanations={false}
       />
+      {creatureVersions.length > 0 && detail.creature_family?.version_context && (
+        <>
+          <CreatureScenarioChoices detail={detail} />
+          <FamilyVersions
+            family={detail.creature_family.version_context}
+            choices={creatureVersions.map((record) => ({ record }))}
+            onReference={(recordKey) =>
+              navigateDestination(recordDestination({ recordKey }))
+            }
+            onCompare={(target) => setComparison({ target, open: true })}
+          />
+        </>
+      )}
       {family ? (
         <FamilyVersions
           family={family}
@@ -559,6 +591,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           onCompare={(target) => setComparison({ target, open: true })}
         />
       ) : (
+        creatureVersions.length === 0 &&
         choices.length > 0 && (
           <section>
             <h3>{verified ? "Variants" : "Possible variants"}</h3>
@@ -589,6 +622,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         )
       )}
       {!family &&
+        !detail.creature_family &&
         relationships?.kind === "empty" &&
         variants?.kind === "empty" &&
         (!related.data?.source_remaster_context ||

@@ -292,6 +292,7 @@ fn absent_number() -> NumberFactView {
 }
 fn summary(title: &str, family: &str) -> RecordSummaryView {
     RecordSummaryView {
+        creature_display: None,
         unit_price_label: None,
         edition: None,
         record_key: "creatures:caster".into(),
@@ -329,6 +330,8 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
+        creature_family: None,
+        creature_overrides: Vec::new(),
         equipment_family: None,
         remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
         source_remaster_context: None,

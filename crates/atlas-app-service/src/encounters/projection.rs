@@ -31,7 +31,7 @@ pub(super) fn encounter_detail_view(
         prepare_participant_records(retrieval, &participants)?;
     let mut presentations = BTreeMap::new();
     for (key, record) in &records_by_key {
-        let summary = crate::projection::localized_summary_view(&record.detail.summary, retrieval);
+        let summary = crate::projection::localized_detail_summary_view(&record.detail, retrieval);
         let node = atlas_record::source_record::SourceQueryView::new(
             record.detail.source.source(),
             record.detail.source.key().pack().as_str(),

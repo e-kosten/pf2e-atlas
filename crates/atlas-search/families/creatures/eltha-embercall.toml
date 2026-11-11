@@ -1,0 +1,32 @@
+name = "Eltha Embercall"
+source_note = "Cavern of Sundered Songs supplies a level 11 block with separate Advanced (9–10) and 11–12 uses. The level 12 block is explicitly marked 11–12, 28+ CP."
+
+[[members]]
+key = "pfs-season-3-bestiary:xiBVzPUwh1QI2lIs"
+name = "Eltha Embercall (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]
+
+[[members]]
+key = "pfs-season-3-bestiary:3r3etd3bUOn58TH3"
+name = "Advanced Eltha Embercall (9-10)/Eltha Embercall (11-12)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]
+qualifier = "Advanced"
+
+[[members.uses]]
+id = "party-11-12"
+party_levels = [11, 12]
+
+[[members]]
+key = "pfs-season-3-bestiary:pYR3Ovkd9eKQQ5qE"
+name = "Eltha Embercall (11-12, 28+ CP)"
+
+[[members.uses]]
+id = "party-11-12-cp-28"
+party_levels = [11, 12]
+minimum_challenge_points = 28

@@ -62,6 +62,7 @@ pub(crate) fn main() -> ExitCode {
         Command::Similarity(args) => args.json(),
         Command::Families(args) => match &args.command {
             FamiliesCommand::Audit(options) => options.json,
+            FamiliesCommand::AuditCreatures(options) => options.json,
         },
         Command::Source(args) => match &args.command {
             SourceCommand::Load(options) => options.json,
@@ -87,6 +88,7 @@ pub(crate) fn main() -> ExitCode {
         Command::Similarity(args) => commands::similarity::run(args),
         Command::Families(args) => match args.command {
             FamiliesCommand::Audit(options) => commands::families::run(options),
+            FamiliesCommand::AuditCreatures(options) => commands::families::creatures::run(options),
         },
         Command::Source(args) => match args.command {
             SourceCommand::Load(options) => commands::source::run_source_load(options),

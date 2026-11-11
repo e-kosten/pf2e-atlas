@@ -111,3 +111,48 @@ pub(super) fn prepare(
         note: None,
     })
 }
+
+/// The selected published stat block carries its own default adjustment.
+pub(super) fn published_replacement(
+    retrieval: &atlas_search::AtlasRetrievalService,
+    record: &SourceRecordDetail,
+    adjustment: Option<EncounterParticipantVariantView>,
+    scenario: Option<&atlas_app_model::CreatureScenarioContext>,
+) -> AppServiceResult<Option<SourceRecordDetail>> {
+    if let Some(scenario) = scenario {
+        let generation = retrieval.artifact_generation()?;
+        if scenario.artifact_generation != generation {
+            return Err(AppServiceError::artifact_generation_changed(
+                &scenario.artifact_generation,
+                &generation,
+                atlas_app_model::AppRecoverableAction::ReloadRecord,
+            ));
+        }
+    }
+    let adjustment = match adjustment {
+        Some(EncounterParticipantVariantView::Weak) => atlas_search::CreatureAdjustment::Weak,
+        Some(EncounterParticipantVariantView::Elite) => atlas_search::CreatureAdjustment::Elite,
+        _ => return Ok(None),
+    };
+    let use_id = scenario.and_then(|scenario| scenario.use_id.as_deref());
+    let Some(key) = retrieval.creature_adjustment_override(&record.summary, adjustment, use_id)?
+    else {
+        return Ok(None);
+    };
+    Ok(retrieval.get_record(atlas_search::GetRecordRequest {
+        record_key: &key,
+        selected_content: &[],
+    })?)
+}
+
+pub(super) fn prepared_choice(
+    participant: &AddEncounterParticipant,
+) -> Option<atlas_app_model::PreparedCreatureChoice> {
+    let record_key = participant.record_key.as_ref()?.to_string();
+    let initial_adjustment =
+        super::projection::participant_variant_view(participant.participant_variant);
+    Some(atlas_app_model::PreparedCreatureChoice {
+        record_key,
+        initial_adjustment,
+    })
+}

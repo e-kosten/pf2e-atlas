@@ -79,8 +79,21 @@ fn read_preview(
                     })?,
             ),
         };
-        let prepared =
-            super::super::record_addition::prepare(record, addition.participant_variant)?;
+        let replacement = super::super::record_addition::published_replacement(
+            session.retrieval_mut(),
+            record,
+            addition.participant_variant,
+            addition.creature_scenario.as_ref(),
+        )?;
+        let (record, variant) = match replacement.as_ref() {
+            Some(record) => (record, None),
+            None => (&*record, addition.participant_variant),
+        };
+        let prepared = super::super::record_addition::prepare(record, variant)?;
+        if addition.creature_scenario.is_some() {
+            view.prepared_creature_choice =
+                super::super::record_addition::prepared_choice(&prepared);
+        }
         let source = atlas_record::source_record::SourceQueryView::new(
             record.source.source(),
             record.source.key().pack().as_str(),
@@ -151,6 +164,7 @@ mod tests {
                 .add_encounter_record_participant(
                     &encounter.encounter_key,
                     AddEncounterRecordParticipantRequest {
+                        creature_scenario: None,
                         record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
                         quantity: 1,
                         initiative: None,
@@ -168,6 +182,7 @@ mod tests {
                 party_size: Some(4),
             },
             addition: Some(EncounterDifficultyAddition {
+                creature_scenario: None,
                 record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
                 quantity: 1,
                 participant_variant: Some(EncounterParticipantVariantView::Weak),

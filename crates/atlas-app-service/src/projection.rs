@@ -31,12 +31,21 @@ pub(crate) fn publication_edition(
 }
 
 pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
+    record_summary_view_with_display(record, atlas_search::creature_display(record, || None))
+}
+
+pub(crate) fn record_summary_view_with_display(
+    record: &SourceRecordSummary,
+    display: Option<atlas_search::CreatureDisplay>,
+) -> RecordSummaryView {
     let kind = record
         .record_kind
         .as_value()
         .map(|k| k.as_str().to_owned())
         .unwrap_or_else(|| record.document_kind.to_lowercase());
     RecordSummaryView {
+        creature_display: display
+            .and_then(|display| crate::creature_family::creature_display(record, display)),
         unit_price_label: None,
         edition: publication_edition(record.publication_remaster.as_value().copied()),
         record_key: record.key.to_string(),
@@ -428,7 +437,26 @@ pub(crate) fn localized_summary_view(
     record: &SourceRecordSummary,
     retrieval: &atlas_search::AtlasRetrievalService,
 ) -> RecordSummaryView {
-    let mut view = record_summary_view(record);
+    localized_summary_view_with_display(record, retrieval, retrieval.creature_display(record, None))
+}
+
+pub(crate) fn localized_detail_summary_view(
+    detail: &atlas_search::SourceRecordDetail,
+    retrieval: &atlas_search::AtlasRetrievalService,
+) -> RecordSummaryView {
+    localized_summary_view_with_display(
+        &detail.summary,
+        retrieval,
+        retrieval.creature_display(&detail.summary, Some(&detail.source)),
+    )
+}
+
+fn localized_summary_view_with_display(
+    record: &SourceRecordSummary,
+    retrieval: &atlas_search::AtlasRetrievalService,
+    display: Option<atlas_search::CreatureDisplay>,
+) -> RecordSummaryView {
+    let mut view = record_summary_view_with_display(record, display);
     for badge in &mut view.traits {
         if let Some(label) = retrieval.trait_label(&badge.value) {
             badge.label = label.into();

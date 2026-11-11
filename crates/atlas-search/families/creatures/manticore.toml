@@ -1,0 +1,12 @@
+name = "Manticore"
+source_note = "Monster Core publishes two level 6 Manticore stat blocks with different tail Strikes."
+
+[[members]]
+key = "pathfinder-monster-core:k89Kw65a4Ip2ZSGA"
+name = "Manticore (Scorpion Tail)"
+qualifier = "Scorpion Tail"
+
+[[members]]
+key = "pathfinder-monster-core:ZeUxgpNi5AXr9pX6"
+name = "Manticore (Quill Tail)"
+qualifier = "Quill Tail"

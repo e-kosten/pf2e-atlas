@@ -29,6 +29,8 @@ import type { EncounterDifficultyProps } from "./EncounterDifficulty";
 import {
   EncounterAddDifficulty,
   encounterRecordAddition,
+  encounterPreviewBasis,
+  type PreparedCreatureAddition,
   type EncounterRecordAddForm as AddRecordForm,
 } from "./EncounterAddDifficulty";
 
@@ -120,11 +122,35 @@ export function EncounterRosterPane({
   const [pcOpen, setPcOpen] = useState(false);
   const [candidate, setCandidate] = useState<PickerSelection | null>(null);
   const selectedRecordKey = candidate?.record.record_key ?? null;
+  const [preparedCreature, setPreparedCreature] =
+    useState<PreparedCreatureAddition | null>(null);
+  const scenario = candidate?.detail.record.creature_display?.uses.length
+    ? { artifact_generation: candidate.detail.artifact_generation }
+    : undefined;
   const selectedIsCreature = candidate?.record.kind === "creature";
   const defaultAdjustment = selectedIsCreature
     ? candidate?.detail.encounter_adjustment
     : undefined;
   const [recordForm] = Form.useForm<AddRecordForm>();
+  Form.useWatch("quantity", recordForm);
+  Form.useWatch("adjustment", recordForm);
+  const previewBasis = difficulty
+    ? encounterPreviewBasis(difficulty.encounterKey, difficulty.revision)
+    : undefined;
+  const waitingForCreaturePreview = Boolean(
+    recordOpen &&
+    difficulty &&
+    scenario &&
+    selectedRecordKey &&
+    !encounterRecordAddition(
+      selectedRecordKey,
+      selectedIsCreature,
+      recordForm,
+      scenario,
+      preparedCreature,
+      previewBasis,
+    ).creature_scenario?.expected,
+  );
   const [pcForm] = Form.useForm<AddPcForm>();
   useEffect(() => {
     if (disabled) return;
@@ -141,12 +167,15 @@ export function EncounterRosterPane({
     }
   }, [disabled, committedAdd, committedPc, recordForm, pcForm, defaultAdjustment]);
   const addRecord = async () => {
-    if (disabled || !candidate) return;
-    const { record_ref, quantity, participant_variant } = encounterRecordAddition(
-      candidate.record.record_key,
-      selectedIsCreature,
-      recordForm,
-    );
+    if (disabled || waitingForCreaturePreview || !candidate) return;
+    const { record_ref, quantity, participant_variant, creature_scenario } =
+      encounterRecordAddition(
+        candidate.record.record_key,
+        selectedIsCreature,
+        recordForm,
+        scenario,
+        preparedCreature,
+      );
     const receipt = `Added ${quantity} × ${candidate.record.title}.`;
     setCommittedAdd(null);
     setAdded("");
@@ -154,6 +183,7 @@ export function EncounterRosterPane({
       const saved = await onAddRecord({
         record_ref,
         quantity,
+        ...(creature_scenario ? { creature_scenario } : {}),
         ...(participant_variant === null ? {} : { participant_variant }),
       });
       if (saved) {
@@ -433,7 +463,10 @@ export function EncounterRosterPane({
         emptyResults="No creatures or hazards"
         form={recordForm}
         disabled={disabled}
-        okButtonProps={{ disabled: disabled || !selectedRecordKey, loading: disabled }}
+        okButtonProps={{
+          disabled: disabled || waitingForCreaturePreview || !selectedRecordKey,
+          loading: disabled,
+        }}
         onCancel={() => setRecordOpen(false)}
         onFinish={() => void addRecord()}
         onSelectionChange={(selection) => {
@@ -465,6 +498,8 @@ export function EncounterRosterPane({
               form={recordForm}
               selectedRecordKey={selectedRecordKey}
               creature={selectedIsCreature}
+              scenario={scenario}
+              onPreparedCreature={setPreparedCreature}
               recordName={candidate?.record.title ?? ""}
               disabled={disabled}
             />

@@ -74,6 +74,17 @@ impl<'a> ExactRecordRead<'a> {
         }
         Ok(records)
     }
+
+    pub fn creature_display(
+        &self,
+        summary: &atlas_domain::SourceRecordSummary,
+    ) -> Option<atlas_search::CreatureDisplay> {
+        atlas_search::creature_display(summary, || {
+            let source =
+                atlas_index::read_product_source_record(self.connection, &summary.key).ok()??;
+            atlas_search::creature_token_name(source.source())
+        })
+    }
 }
 
 pub struct WorkspaceWrite {

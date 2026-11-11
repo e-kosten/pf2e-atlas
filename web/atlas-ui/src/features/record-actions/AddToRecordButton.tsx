@@ -1,6 +1,9 @@
+import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoices";
 import {
   EncounterAddDifficulty,
   encounterRecordAddition,
+  encounterPreviewBasis,
+  type PreparedCreatureAddition,
   type EncounterRecordAddForm,
 } from "../encounters/EncounterAddDifficulty";
 import { EncounterRecordAdjustment } from "../encounters/EncounterRecordAdjustment";
@@ -170,6 +173,33 @@ function AddToRecordModal({
       open && kind === "encounter" && creature ? recordKey : null,
     ),
   );
+  const { useId } = useCreatureScenario(recordKey);
+  const [preparedCreature, setPreparedCreature] =
+    useState<PreparedCreatureAddition | null>(null);
+  const scenario = detail.data?.record.creature_display?.uses.length
+    ? {
+        artifact_generation: detail.data.artifact_generation,
+        ...(useId === undefined ? {} : { use_id: useId }),
+      }
+    : undefined;
+  Form.useWatch("quantity", form);
+  Form.useWatch("adjustment", form);
+  const previewBasis =
+    encounterKey && encounter.data
+      ? encounterPreviewBasis(encounterKey, encounter.data.revision)
+      : undefined;
+  const waitingForCreaturePreview = Boolean(
+    encounterKey &&
+    scenario &&
+    !encounterRecordAddition(
+      recordKey,
+      creature,
+      form,
+      scenario,
+      preparedCreature,
+      previewBasis,
+    ).creature_scenario?.expected,
+  );
   const resolvedAdjustment =
     detail.data?.record.record_key === recordKey
       ? detail.data.encounter_adjustment
@@ -246,6 +276,9 @@ function AddToRecordModal({
         recordKey,
         creature,
         form,
+        scenario,
+        preparedCreature,
+        previewBasis,
       );
       const receipt = await addEncounterRecordParticipant(destination.key, {
         ...addition,
@@ -334,7 +367,10 @@ function AddToRecordModal({
       maskTransitionName=""
       confirmLoading={submit.isPending}
       cancelButtonProps={{ disabled: submit.isPending }}
-      okButtonProps={{ disabled: adjustmentBlocked || (!creating && !selected) }}
+      okButtonProps={{
+        disabled:
+          adjustmentBlocked || waitingForCreaturePreview || (!creating && !selected),
+      }}
       closable={{ disabled: submit.isPending }}
       keyboard={!submit.isPending}
       mask={{ closable: !submit.isPending }}
@@ -400,7 +436,7 @@ function AddToRecordModal({
           layout="vertical"
           disabled={submit.isPending}
           onFinish={({ name }) => {
-            if (adjustmentBlocked) return;
+            if (adjustmentBlocked || waitingForCreaturePreview) return;
             if (creating && name) run(name.trim());
             else if (selected) run();
           }}
@@ -513,6 +549,8 @@ function AddToRecordModal({
             form={form}
             selectedRecordKey={recordKey}
             creature={creature}
+            scenario={scenario}
+            onPreparedCreature={setPreparedCreature}
             recordName={record?.title ?? recordKey}
             disabled={submit.isPending || adjustmentBlocked}
           />

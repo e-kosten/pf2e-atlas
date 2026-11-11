@@ -21,11 +21,13 @@ export function ReferenceResult({
   onRefreshResults,
   actions,
   context,
+  qualifiers,
   navigation,
 }: {
   row: SearchResultRow;
   actions?: ReactNode;
   context?: ReactNode;
+  qualifiers?: string[];
   navigation?: RecordNavigationView;
   relationshipClauses?: RelationshipClauseSummaryView[];
   filter?: import("../../generated/atlas").QueryPredicate | null;
@@ -80,6 +82,7 @@ export function ReferenceResult({
         disabled={disabled}
         onPreview={onPreview}
         context={context}
+        qualifiers={qualifiers}
         href={
           navigation
             ? destinationHref(

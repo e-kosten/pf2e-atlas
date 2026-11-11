@@ -20,6 +20,7 @@ import { Route as SearchIndexRouteImport } from './routes/search.index'
 import { Route as TraitsTraitKeyRouteImport } from './routes/traits.$traitKey'
 import { Route as EncountersSlugIndexRouteImport } from './routes/encounters.$slug.index'
 import { Route as EncountersSlugEditRouteImport } from './routes/encounters.$slug.edit'
+import { Route as FamiliesCreaturesFamilyIdRouteImport } from './routes/families.creatures.$familyId'
 import { Route as FamiliesEquipmentFamilyIdRouteImport } from './routes/families.equipment.$familyId'
 import { Route as ListsSlugIndexRouteImport } from './routes/lists.$slug.index'
 import { Route as ListsSlugEditRouteImport } from './routes/lists.$slug.edit'
@@ -82,6 +83,12 @@ const EncountersSlugEditRoute = EncountersSlugEditRouteImport.update({
   path: '/encounters/$slug/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FamiliesCreaturesFamilyIdRoute =
+  FamiliesCreaturesFamilyIdRouteImport.update({
+    id: '/families/creatures/$familyId',
+    path: '/families/creatures/$familyId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const FamiliesEquipmentFamilyIdRoute =
   FamiliesEquipmentFamilyIdRouteImport.update({
     id: '/families/equipment/$familyId',
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/lists/': typeof ListsIndexRoute
   '/search/': typeof SearchIndexRoute
   '/encounters/$slug/edit': typeof EncountersSlugEditRoute
+  '/families/creatures/$familyId': typeof FamiliesCreaturesFamilyIdRoute
   '/families/equipment/$familyId': typeof FamiliesEquipmentFamilyIdRoute
   '/lists/$slug/edit': typeof ListsSlugEditRoute
   '/search/records/$recordKey': typeof SearchRecordsRecordKeyRoute
@@ -138,6 +146,7 @@ export interface FileRoutesByTo {
   '/lists': typeof ListsIndexRoute
   '/search': typeof SearchIndexRoute
   '/encounters/$slug/edit': typeof EncountersSlugEditRoute
+  '/families/creatures/$familyId': typeof FamiliesCreaturesFamilyIdRoute
   '/families/equipment/$familyId': typeof FamiliesEquipmentFamilyIdRoute
   '/lists/$slug/edit': typeof ListsSlugEditRoute
   '/search/records/$recordKey': typeof SearchRecordsRecordKeyRoute
@@ -157,6 +166,7 @@ export interface FileRoutesById {
   '/lists/': typeof ListsIndexRoute
   '/search/': typeof SearchIndexRoute
   '/encounters/$slug/edit': typeof EncountersSlugEditRoute
+  '/families/creatures/$familyId': typeof FamiliesCreaturesFamilyIdRoute
   '/families/equipment/$familyId': typeof FamiliesEquipmentFamilyIdRoute
   '/lists/$slug/edit': typeof ListsSlugEditRoute
   '/search/records/$recordKey': typeof SearchRecordsRecordKeyRoute
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/lists/'
     | '/search/'
     | '/encounters/$slug/edit'
+    | '/families/creatures/$familyId'
     | '/families/equipment/$familyId'
     | '/lists/$slug/edit'
     | '/search/records/$recordKey'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/lists'
     | '/search'
     | '/encounters/$slug/edit'
+    | '/families/creatures/$familyId'
     | '/families/equipment/$familyId'
     | '/lists/$slug/edit'
     | '/search/records/$recordKey'
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
     | '/lists/'
     | '/search/'
     | '/encounters/$slug/edit'
+    | '/families/creatures/$familyId'
     | '/families/equipment/$familyId'
     | '/lists/$slug/edit'
     | '/search/records/$recordKey'
@@ -231,6 +244,7 @@ export interface RootRouteChildren {
   ListsIndexRoute: typeof ListsIndexRoute
   SearchIndexRoute: typeof SearchIndexRoute
   EncountersSlugEditRoute: typeof EncountersSlugEditRoute
+  FamiliesCreaturesFamilyIdRoute: typeof FamiliesCreaturesFamilyIdRoute
   FamiliesEquipmentFamilyIdRoute: typeof FamiliesEquipmentFamilyIdRoute
   SearchRecordsRecordKeyRoute: typeof SearchRecordsRecordKeyRoute
   EncountersSlugIndexRoute: typeof EncountersSlugIndexRoute
@@ -315,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EncountersSlugEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/families/creatures/$familyId': {
+      id: '/families/creatures/$familyId'
+      path: '/families/creatures/$familyId'
+      fullPath: '/families/creatures/$familyId'
+      preLoaderRoute: typeof FamiliesCreaturesFamilyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/families/equipment/$familyId': {
       id: '/families/equipment/$familyId'
       path: '/families/equipment/$familyId'
@@ -380,6 +401,7 @@ const rootRouteChildren: RootRouteChildren = {
   ListsIndexRoute: ListsIndexRoute,
   SearchIndexRoute: SearchIndexRoute,
   EncountersSlugEditRoute: EncountersSlugEditRoute,
+  FamiliesCreaturesFamilyIdRoute: FamiliesCreaturesFamilyIdRoute,
   FamiliesEquipmentFamilyIdRoute: FamiliesEquipmentFamilyIdRoute,
   SearchRecordsRecordKeyRoute: SearchRecordsRecordKeyRoute,
   EncountersSlugIndexRoute: EncountersSlugIndexRoute,

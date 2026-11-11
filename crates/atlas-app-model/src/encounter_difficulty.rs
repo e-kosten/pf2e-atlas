@@ -32,6 +32,9 @@ pub struct PreviewEncounterDifficultyRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterDifficultyAddition {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub creature_scenario: Option<crate::CreatureScenarioContext>,
     pub record_ref: String,
     pub quantity: u32,
     pub participant_variant: Option<crate::EncounterParticipantVariantView>,
@@ -39,6 +42,9 @@ pub struct EncounterDifficultyAddition {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EncounterDifficultyView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub prepared_creature_choice: Option<crate::PreparedCreatureChoice>,
     pub rules: Vec<EncounterDifficultyRuleView>,
     pub reference: EncounterDifficultyReferenceView,
     #[cfg_attr(feature = "openapi", schema(required))]

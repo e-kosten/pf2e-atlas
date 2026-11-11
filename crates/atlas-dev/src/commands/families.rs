@@ -1,5 +1,6 @@
 //! Contributor reports over the same variant lookup used by Explore.
 
+pub(crate) mod creatures;
 mod proposals;
 
 use atlas_cli_support::{CliPathMode, write_json_data};
@@ -26,6 +27,8 @@ pub(crate) struct FamiliesArgs {
 pub(crate) enum FamiliesCommand {
     /// Audit equipment variants in a development workspace.
     Audit(AuditOptions),
+    /// Find creature family candidates in a Foundry source checkout.
+    AuditCreatures(creatures::CreatureAuditOptions),
 }
 
 #[derive(Debug, Args)]

@@ -116,6 +116,7 @@ pub(super) fn project<'a>(
         })
         .collect::<Vec<_>>();
     let mut view = EncounterDifficultyView {
+        prepared_creature_choice: None,
         rules: rule_references(),
         reference: EncounterDifficultyReferenceView {
             party_level: reference.party_level,

@@ -80,6 +80,13 @@ export function equipmentFamilyDestination(familyId: string) {
   });
 }
 
+export function creatureFamilyDestination(familyId: string) {
+  return linkOptions({
+    to: "/families/creatures/$familyId",
+    params: { familyId },
+  });
+}
+
 export function recordDestination(input: RecordPageInput) {
   return linkOptions({
     to: "/records/$recordKey",

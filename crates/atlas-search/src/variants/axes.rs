@@ -1,26 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
-
+use crate::family_axis_projection as projection;
 use atlas_domain::SourceRecordSummary;
 
 use super::catalog::{Family, GeneralRecord, Member};
 use super::{VariantAxisSlice, VariantFamilyContext};
 
 pub(super) fn qualifier(family: &Family, member: &Member) -> String {
-    labels(family, &member.coordinates)
-}
-
-pub(super) fn labels(family: &Family, values: &BTreeMap<String, String>) -> String {
-    family
-        .axes
-        .iter()
-        .flat_map(|axis| {
-            axis.options
-                .iter()
-                .find(|option| values.get(&axis.id) == Some(&option.id))
-        })
-        .map(|option| option.label.as_str())
-        .collect::<Vec<_>>()
-        .join(", ")
+    projection::labels(&family.axes, &member.coordinates)
 }
 
 pub(super) fn general_heading(family: &Family, general: &GeneralRecord) -> String {
@@ -59,37 +44,12 @@ pub(super) fn concrete_context<'a>(
             general,
         };
     }
-    let mut displayed = BTreeSet::new();
-    let mut slices = Vec::new();
-    for axis in &family.axes {
-        let mut members = Vec::new();
-        for option in &axis.options {
-            if option.id == seed.coordinates[&axis.id] {
-                continue;
-            }
-            if let Some(member) = siblings.iter().find(|member| {
-                member.coordinates[&axis.id] == option.id
-                    && seed
-                        .coordinates
-                        .iter()
-                        .all(|(id, value)| id == &axis.id || member.coordinates[id] == *value)
-            }) {
-                displayed.insert(&member.key);
-                members.push(member.key.clone());
-            }
-        }
-        if !members.is_empty() {
-            slices.push(VariantAxisSlice {
-                heading: format!("Other {}", axis.label.to_lowercase()),
-                members,
-            });
-        }
-    }
-    let other_combinations = siblings
+    let members = siblings
         .iter()
-        .filter(|member| !displayed.contains(&member.key))
-        .map(|member| member.key.clone())
-        .collect();
+        .map(|member| (&member.key, &member.coordinates))
+        .collect::<Vec<_>>();
+    let (slices, other_combinations) =
+        projection::siblings(&family.axes, &seed.coordinates, &members);
     VariantFamilyContext::Concrete {
         slices,
         other_combinations,
