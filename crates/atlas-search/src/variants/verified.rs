@@ -76,10 +76,7 @@ pub(super) fn verified_group(
             }),
         });
     }
-    let context = if include_family
-        && !family.axes.is_empty()
-        && let FamilySeed::Concrete(concrete_seed) = selection
-    {
+    let context = if include_family && let FamilySeed::Concrete(concrete_seed) = selection {
         let general = match family
             .general_records
             .iter()
@@ -88,12 +85,14 @@ pub(super) fn verified_group(
             Some(entry) => read_general(retrieval, family, entry)?,
             None => None,
         };
-        Some(axes::concrete_context(
-            family,
-            concrete_seed,
-            reviewed.iter().map(|(member, _)| *member),
-            general,
-        ))
+        (!family.axes.is_empty() || general.is_some()).then(|| {
+            axes::concrete_context(
+                family,
+                concrete_seed,
+                reviewed.iter().map(|(member, _)| *member),
+                general,
+            )
+        })
     } else {
         None
     };
@@ -610,7 +609,34 @@ mod tests {
 
         let mut family = parse();
         family.general_records[0].scope.clear();
-        invalid(family, "invalid general record scope");
+        invalid(family, "overlapping general record scopes");
+
+        let mut family = parse();
+        family.general_records.truncate(1);
+        family.general_records[0].scope.clear();
+        assert!(crate::variants::build_axes::validate(&family).is_ok());
+        assert_eq!(
+            axes::general_heading(&family, &family.general_records[0]),
+            "Variants"
+        );
+
+        let ring = &catalog().unwrap().families["specialists-ring"];
+        let mut ring: Family = serde_json::from_value(serde_json::to_value(ring).unwrap()).unwrap();
+        assert!(crate::variants::build_axes::validate(&ring).is_ok());
+        let mut duplicate = serde_json::to_value(&ring.general_records[0]).unwrap();
+        duplicate["key"] = json!("equipment-srd:xxxxxxxxxxxxxxxx");
+        ring.general_records
+            .push(serde_json::from_value(duplicate.clone()).unwrap());
+        invalid(ring, "overlapping general record scopes");
+
+        duplicate.as_object_mut().unwrap().remove("scope");
+        let error = serde_json::from_value::<GeneralRecord>(duplicate)
+            .err()
+            .unwrap();
+        assert!(
+            error.to_string().contains("missing field `scope`"),
+            "{error}"
+        );
 
         let mut family = parse();
         family.general_records[0].scope = family.members[0].coordinates.clone();
@@ -625,6 +651,101 @@ mod tests {
             .members
             .retain(|member| member.coordinates["grade"] != "lesser");
         invalid(family, "covers no concrete members");
+    }
+
+    #[test]
+    fn whole_family_overview_links_exact_records_and_keeps_flat_variants_visible() {
+        let family = &catalog().unwrap().families["specialists-ring"];
+        let overview = &family.general_records[0];
+        let seed = &family.members[0];
+        let expected: Vec<_> = family
+            .members
+            .iter()
+            .map(|member| member.key.clone())
+            .collect();
+        assert_eq!(expected.len(), 8);
+        let explore = |retrieval: &AtlasRetrievalService, record_key: &RecordKey| {
+            retrieval
+                .variant_exploration(VariantGroupRequest { record_key })
+                .unwrap()
+        };
+        for overview_name in [Some(overview.name.as_str()), Some("Renamed ring"), None] {
+            let mut records: Vec<_> = family
+                .members
+                .iter()
+                .map(|member| fixture(family, member, &member.name, Some(10)))
+                .collect();
+            records.extend(overview_name.map(|name| {
+                test_support::record(
+                    "equipment-srd",
+                    "Item",
+                    json!({
+                        "_id": overview.key.id().as_str(),
+                        "type": family.item_type,
+                        "name": name,
+                        "system": {}
+                    }),
+                )
+            }));
+            let (retrieval, _artifact) = test_support::open_source_fixture(records, false).unwrap();
+            let EquipmentFamilyOutcome::Content(page) =
+                retrieval.equipment_family("specialists-ring").unwrap()
+            else {
+                panic!("expected the verified ring family");
+            };
+            let member_keys = |members: &[VariantFamilyChoice]| {
+                members
+                    .iter()
+                    .map(|member| member.summary.key.clone())
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(member_keys(&page.members), expected);
+            assert!(page.groupings.is_empty());
+            assert_eq!(
+                reference(&retrieval, &seed.key).unwrap().id,
+                "specialists-ring"
+            );
+            let concrete = explore(&retrieval, &seed.key);
+            assert!(matches!(
+                concrete.variants,
+                VariantGroupOutcome::Content(group) if group.verified && group.variants.len() == 8
+            ));
+            let generic = explore(&retrieval, &overview.key);
+            if overview_name == Some(overview.name.as_str()) {
+                assert_eq!(page.overviews.len(), 1);
+                assert_eq!(page.overviews[0].summary.key, overview.key);
+                assert!(page.overviews[0].qualifier.is_empty());
+                assert_eq!(
+                    reference(&retrieval, &overview.key).unwrap().id,
+                    "specialists-ring"
+                );
+                assert!(matches!(generic.variants, VariantGroupOutcome::Empty));
+                let Some(VariantFamilyContext::General { heading, members }) = generic.family
+                else {
+                    panic!("expected the overview's concrete variants");
+                };
+                assert_eq!(heading, "Variants");
+                assert_eq!(member_keys(&members), expected);
+                let Some(VariantFamilyContext::Concrete {
+                    slices,
+                    other_combinations,
+                    general,
+                }) = concrete.family
+                else {
+                    panic!("expected the visible sibling slice and overview link");
+                };
+                assert_eq!(slices.len(), 1);
+                assert_eq!(slices[0].heading, "Variants");
+                assert_eq!(slices[0].members, expected[1..]);
+                assert!(other_combinations.is_empty());
+                assert_eq!(general.unwrap().key, overview.key);
+            } else {
+                assert!(page.overviews.is_empty());
+                assert!(reference(&retrieval, &overview.key).is_none());
+                assert!(generic.family.is_none());
+                assert!(concrete.family.is_none());
+            }
+        }
     }
 
     #[test]

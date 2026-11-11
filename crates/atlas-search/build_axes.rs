@@ -12,18 +12,7 @@ fn valid_id(id: &str) -> bool {
 }
 
 pub(super) fn validate(family: &Family) -> Result<(), String> {
-    if family.axes.is_empty() {
-        if !family.general_records.is_empty()
-            || family
-                .members
-                .iter()
-                .any(|member| !member.coordinates.is_empty())
-        {
-            return Err("coordinates and general records require declared axes".into());
-        }
-        return Ok(());
-    }
-    if !(2..=8).contains(&family.axes.len()) {
+    if !family.axes.is_empty() && !(2..=8).contains(&family.axes.len()) {
         return Err("an axes family must declare 2 to 8 axes".into());
     }
 
@@ -59,12 +48,16 @@ pub(super) fn validate(family: &Family) -> Result<(), String> {
 
     let mut combinations = BTreeSet::new();
     for member in &family.members {
-        if member.coordinates.len() != axes.len()
-            || !valid_values(&member.coordinates)
-            || !member.attributes.is_empty()
-            || member.fit.is_some()
-            || !combinations.insert(&member.coordinates)
-        {
+        let invalid = if axes.is_empty() {
+            !member.coordinates.is_empty()
+        } else {
+            member.coordinates.len() != axes.len()
+                || !valid_values(&member.coordinates)
+                || !member.attributes.is_empty()
+                || member.fit.is_some()
+                || !combinations.insert(&member.coordinates)
+        };
+        if invalid {
             return Err(format!(
                 "invalid or duplicate axis coordinates for {}",
                 member.key
@@ -76,8 +69,7 @@ pub(super) fn validate(family: &Family) -> Result<(), String> {
     for general in &family.general_records {
         if general.key.pack().as_str() != "equipment-srd"
             || general.name.trim().is_empty()
-            || general.scope.is_empty()
-            || general.scope.len() >= axes.len()
+            || (!general.scope.is_empty() && general.scope.len() >= axes.len())
             || !valid_values(&general.scope)
         {
             return Err(format!("invalid general record scope for {}", general.key));
