@@ -1,0 +1,18 @@
+name = "Hand Of Urxehl"
+source_note = "Breaking The Storm: Parting Clouds supplies 2 party-tier stat blocks for Hand Of Urxehl. Each retains Dominating Will and Thrash About."
+
+[[members]]
+key = "pfs-season-2-bestiary:1Mn1KhwyL6gU4TRl"
+name = "Hand Of Urxehl (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-2-bestiary:ib1c9CIOEXxnEfQG"
+name = "Hand Of Urxehl (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]

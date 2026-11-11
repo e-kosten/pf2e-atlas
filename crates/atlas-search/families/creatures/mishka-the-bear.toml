@@ -1,0 +1,18 @@
+name = "Mishka The Bear"
+source_note = "A Frosty Mug supplies 2 party-tier stat blocks for Mishka The Bear. Each retains Mirror Beam and Rolling Thunder Trample."
+
+[[members]]
+key = "pfs-season-2-bestiary:Z6qNXxgTgIz4rH2C"
+name = "Mishka The Bear (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:c4KECFBOIXqAagwm"
+name = "Mishka The Bear (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

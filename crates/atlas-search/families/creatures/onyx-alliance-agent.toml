@@ -1,0 +1,18 @@
+name = "Onyx Alliance Agent"
+source_note = "The Blackros Deception supplies 2 party-tier stat blocks for Onyx Alliance Agent. Each retains Canny Reversal and Mirror Image."
+
+[[members]]
+key = "pfs-season-2-bestiary:hSUo6Y5Cc26Eckd7"
+name = "Onyx Alliance Agent (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:ZpSLUDoO0WmxwLCG"
+name = "Onyx Alliance Agent (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

@@ -1,0 +1,18 @@
+name = "Revinus's Guards"
+source_note = "The East Hill Haunting supplies 2 party-tier stat blocks for Revinus's Guards. Each retains the Big Thwunk Strike."
+
+[[members]]
+key = "pfs-season-3-bestiary:mQmcKIgTUn3xMClx"
+name = "Revinus's Guards (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:ALH2skuaXvEy6NHW"
+name = "Revinus's Guards (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

@@ -1,0 +1,18 @@
+name = "Transformed Narcela"
+source_note = "Prisoners of the Electric Castle supplies 2 party-tier stat blocks for Transformed Narcela. Each retains Hold the Heart and Scream of Spite."
+
+[[members]]
+key = "pfs-season-4-bestiary:8DKm9pmBJdgsA4MQ"
+name = "Transformed Narcela (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-4-bestiary:FHOgTGMrt9342ZbI"
+name = "Transformed Narcela (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]

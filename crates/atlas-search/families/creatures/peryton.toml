@@ -1,0 +1,14 @@
+name = "Peryton"
+source_note = "Guardian’s Covenant supplies Arctic, Heretical, and Rifle Mutation perytons. Each keeps Heart Ripper and Mimic Shadow."
+
+[[members]]
+key = "pfs-season-3-bestiary:wqJDAf89wSAdG0qy"
+name = "Peryton (Arctic)"
+
+[[members]]
+key = "pfs-season-3-bestiary:ffzfTw9KfaJopkCx"
+name = "Peryton (Heretical)"
+
+[[members]]
+key = "pfs-season-3-bestiary:WpdOwEpoWwxrBUpF"
+name = "Peryton (Rifle Mutation)"

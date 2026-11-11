@@ -1,0 +1,18 @@
+name = "Valgomorus"
+source_note = "Citadel of Corruption supplies 2 party-tier stat blocks for Valgomorus. Each retains Drain Life and Flash of Insight."
+
+[[members]]
+key = "pfs-season-2-bestiary:X0HPqlpqFHqmB9Ni"
+name = "Valgomorus (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-2-bestiary:aqfexx59fbDiR7RH"
+name = "Valgomorus (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

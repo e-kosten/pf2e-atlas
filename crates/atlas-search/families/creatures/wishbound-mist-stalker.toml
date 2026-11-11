@@ -1,0 +1,18 @@
+name = "Wishbound Mist Stalker"
+source_note = "Freedom for Wishes supplies 2 party-tier stat blocks for Wishbound Mist Stalker. Each retains Mist Cloud and Solidify Mist."
+
+[[members]]
+key = "pfs-season-2-bestiary:wt2bOysQCOVDRGJu"
+name = "Wishbound Mist Stalker (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:NMD2wE4GLfoS41IB"
+name = "Wishbound Mist Stalker (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

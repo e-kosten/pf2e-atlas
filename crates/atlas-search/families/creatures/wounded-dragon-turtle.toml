@@ -1,0 +1,18 @@
+name = "Wounded Dragon Turtle"
+source_note = "The Crashing Wave supplies 2 party-tier stat blocks for Wounded Dragon Turtle. Each retains Breath Weapon and Shell Block."
+
+[[members]]
+key = "pfs-season-2-bestiary:SHmxvGZAPxkttd06"
+name = "Wounded Dragon Turtle (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-2-bestiary:E0ShG9xKRN88vUdP"
+name = "Wounded Dragon Turtle (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

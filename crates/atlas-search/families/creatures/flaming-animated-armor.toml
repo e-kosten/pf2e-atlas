@@ -1,0 +1,38 @@
+name = "Flaming Animated Armor"
+source_note = "Guardian’s Covenant supplies four 1–2 blocks with different armaments or attack effects. Each keeps the same Construct Armor hardness, and the loadout names distinguish the actors."
+
+[[members]]
+key = "pfs-season-3-bestiary:9RI0biNpRaZBU1de"
+name = "Flaming Animated Armor (Ashgrip) (1-2)"
+label = "Flaming Animated Armor (Ashgrip)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:dYcDARPuNmLlGNuG"
+name = "Flaming Animated Armor (Firecutter) (1-2)"
+label = "Flaming Animated Armor (Firecutter)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:4paPYhdN4HHT3Orz"
+name = "Flaming Animated Armor (Holy Hand) (1-2)"
+label = "Flaming Animated Armor (Holy Hand)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:PhnmHglnmoiIb3Al"
+name = "Flaming Animated Armor (Leadroar) (1-2)"
+label = "Flaming Animated Armor (Leadroar)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]

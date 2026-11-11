@@ -1,0 +1,14 @@
+name = "Karumzek Priest"
+source_note = "Singer, Stalker, Skinsaw Man supplies three level 15 Karumzek priests. They share their prepared spells and carry different rank 7 wands, as named in their titles."
+
+[[members]]
+key = "curtain-call-bestiary:BgPshRvqaBvy4ulr"
+name = "Karumzek Priest (Dispel Magic)"
+
+[[members]]
+key = "curtain-call-bestiary:9qFTRSaEYnrYDVHH"
+name = "Karumzek Priest (Divine Immolation)"
+
+[[members]]
+key = "curtain-call-bestiary:REOHdavtL7k20KQc"
+name = "Karumzek Priest (Eclipse Burst)"

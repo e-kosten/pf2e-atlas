@@ -1,0 +1,18 @@
+name = "Scorched Earth Orc (Sharpshooter)"
+source_note = "In Burning Dawn supplies 2 party-tier stat blocks for Scorched Earth Orc (Sharpshooter). Each retains Tethered Shot and Sneak Attack."
+
+[[members]]
+key = "pfs-season-2-bestiary:fHDBl7jIleuzmOM2"
+name = "Scorched Earth Orc (Sharpshooter) (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:0ATZwmS2yxbheza4"
+name = "Scorched Earth Orc (Sharpshooter) (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

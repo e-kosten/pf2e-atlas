@@ -1,0 +1,18 @@
+name = "Burning Sun Orc"
+source_note = "In Burning Dawn supplies 2 party-tier stat blocks for Burning Sun Orc. Each retains Ferocity and the Scimitar Strike."
+
+[[members]]
+key = "pfs-season-2-bestiary:RO4UAvgak0jAo2We"
+name = "Burning Sun Orc (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:RmcCPvmrAeSTx3BR"
+name = "Burning Sun Orc (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

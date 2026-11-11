@@ -1,0 +1,10 @@
+name = "Cinder Rat"
+source_note = "Guardian’s Covenant supplies the Ashgrip and Leadroar cinder rats. Ashgrip has Grab and Constrict, and Leadroar has a Breath Weapon."
+
+[[members]]
+key = "pfs-season-3-bestiary:S9v8OCktGEL0k6sC"
+name = "Cinder Rat (Ashgrip)"
+
+[[members]]
+key = "pfs-season-3-bestiary:ATBFj4El0uLXDrjb"
+name = "Cinder Rat (Leadroar)"

@@ -1,0 +1,18 @@
+name = "Animated Knickknack"
+source_note = "Inheritor's Rite supplies 2 party-tier stat blocks for Animated Knickknack. Each retains Construct Armor and Slam."
+
+[[members]]
+key = "pfs-season-3-bestiary:2N2Nj4W9kWn2fU6P"
+name = "Animated Knickknack (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:RmgJ2iZ20AKxZZjQ"
+name = "Animated Knickknack (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

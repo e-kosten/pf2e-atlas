@@ -1,0 +1,18 @@
+name = "Chops"
+source_note = "Revolution on the Riverside supplies 2 party-tier stat blocks for Chops. Each retains the Heavy Crossbow Strike and Attack of Opportunity."
+
+[[members]]
+key = "pfs-season-1-bestiary:jEjUHCcGcGinFqOU"
+name = "Chops (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:E2ExOJ9KFfGpw2H3"
+name = "Chops (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

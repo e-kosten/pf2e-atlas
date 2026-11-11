@@ -1,0 +1,18 @@
+name = "Mother Forsythe"
+source_note = "An Agent's Obligation supplies 2 party-tier stat blocks for Mother Forsythe. Each retains Evil Eye and Maiden’s Mending."
+
+[[members]]
+key = "pfs-season-2-bestiary:XZOpmROxLS1bnApy"
+name = "Mother Forsythe (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-2-bestiary:8OAeFPKcZGpFDTsv"
+name = "Mother Forsythe (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

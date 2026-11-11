@@ -1,0 +1,18 @@
+name = "Storm Bear"
+source_note = "Balancing the Scales supplies 2 party-tier stat blocks for Storm Bear. Each retains Consume Lightning and Thunderous Roar."
+
+[[members]]
+key = "pfs-season-2-bestiary:xW5IhEbAhQneniT2"
+name = "Storm Bear (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-2-bestiary:QQ93gOZxsfTdTSn2"
+name = "Storm Bear (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

@@ -1,0 +1,18 @@
+name = "Mercenary Wizard"
+source_note = "A Gilded Test supplies 2 party-tier stat blocks for Mercenary Wizard. Each retains Force Bolt and the Mace Strike."
+
+[[members]]
+key = "pfs-season-2-bestiary:c4t6aDgo7pdMI7yN"
+name = "Mercenary Wizard (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-2-bestiary:P8fk8icXxlR6VVcm"
+name = "Mercenary Wizard (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

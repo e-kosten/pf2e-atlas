@@ -1,0 +1,18 @@
+name = "Demoniac Spirit"
+source_note = "Breaking The Storm: Parting Clouds supplies 2 party-tier stat blocks for Demoniac Spirit. Each retains Abyssal Spite and Ritual Transformation."
+
+[[members]]
+key = "pfs-season-2-bestiary:E0V3aKLWuXyWrY8C"
+name = "Demoniac Spirit (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-2-bestiary:EK8DKarizcVrLG5E"
+name = "Demoniac Spirit (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]

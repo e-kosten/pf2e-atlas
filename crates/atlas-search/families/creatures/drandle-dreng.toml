@@ -1,0 +1,18 @@
+name = "Drandle Dreng"
+source_note = "Breaking the Storm: Excising Ruination supplies 2 party-tier stat blocks for Drandle Dreng. Each retains Sidestep and Skirmish Strike."
+
+[[members]]
+key = "pfs-season-2-bestiary:mFfhFprmaQr9rYC1"
+name = "Drandle Dreng (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-2-bestiary:TXHl1KvScSce9bQV"
+name = "Drandle Dreng (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]

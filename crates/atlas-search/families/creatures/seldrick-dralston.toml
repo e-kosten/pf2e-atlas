@@ -1,0 +1,18 @@
+name = "Seldrick Dralston"
+source_note = "Return to the Grave supplies 2 party-tier stat blocks for Seldrick Dralston. Each retains Denounce Heretic and Field of Undeath."
+
+[[members]]
+key = "pfs-season-4-bestiary:oEq4kZIpZ77jD5Pu"
+name = "Seldrick Dralston (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-4-bestiary:sMgRhArIc1GsFifq"
+name = "Seldrick Dralston (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

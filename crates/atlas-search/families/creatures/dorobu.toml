@@ -1,0 +1,18 @@
+name = "Dorobu"
+source_note = "Lost on the Spirit Road supplies 2 party-tier stat blocks for Dorobu. Each retains Bite and Wild Claws Strikes."
+
+[[members]]
+key = "pfs-season-1-bestiary:CPDWLOHl0ODbMplt"
+name = "Dorobu (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:AbFKkDIHUwx2EnR5"
+name = "Dorobu (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

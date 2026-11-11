@@ -1,0 +1,18 @@
+name = "Mephit Swarm"
+source_note = "Freedom for Wishes supplies 2 party-tier stat blocks for Mephit Swarm. Each retains Breath Weapon and Swarming Claws."
+
+[[members]]
+key = "pfs-season-2-bestiary:51GRDiQOAA9CP3h3"
+name = "Mephit Swarm (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:X951Ow3nHOvBFaFg"
+name = "Mephit Swarm (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

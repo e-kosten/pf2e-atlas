@@ -1,0 +1,18 @@
+name = "Iverri"
+source_note = "A Dirge for Sarkoris supplies 2 party-tier stat blocks for Iverri. Each retains Blight Dependent and Parasitic Bond."
+
+[[members]]
+key = "pfs-season-2-bestiary:z5YeacI4avkX3etA"
+name = "Iverri (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-2-bestiary:nu3o0lcRZ6Bk57pA"
+name = "Iverri (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
