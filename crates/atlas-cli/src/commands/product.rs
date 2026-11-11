@@ -77,15 +77,17 @@ pub(crate) fn match_preview_text(preview: &atlas_app_model::MatchPreviewView) ->
 pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow]) {
     for r in records {
         print_summary(&r.record);
+        let meaningful_label = |label: &&str| {
+            *label != r.record.title
+                && Some(*label) != r.record.source_title.as_deref()
+                && !label.trim().is_empty()
+        };
         if let Some((witness, preview)) = r
             .matches
             .iter()
             .find_map(|witness| witness.preview.as_ref().map(|preview| (witness, preview)))
         {
-            let label = witness
-                .label
-                .as_deref()
-                .filter(|label| *label != r.record.title && !label.trim().is_empty());
+            let label = witness.label.as_deref().filter(meaningful_label);
             let prefix = label.map(|label| format!("{label}: ")).unwrap_or_default();
             println!("  {prefix}{}", match_preview_text(preview));
         } else if !r
@@ -96,7 +98,7 @@ pub(crate) fn print_search_matches(records: &[atlas_app_model::SearchResultRow])
                 .matches
                 .iter()
                 .find_map(|w| w.label.as_deref())
-                .filter(|label| *label != r.record.title && !label.trim().is_empty())
+                .filter(meaningful_label)
         {
             println!("  Matched: {label}");
         }

@@ -909,6 +909,7 @@ pub(crate) fn manual_presentation(
             edition: None,
             record_key: participant.participant_key.clone(),
             title: participant.display_name.clone(),
+            source_title: None,
             kind: "pc".into(),
             kind_label: "PC".into(),
             source_type: None,

@@ -22,12 +22,14 @@ export function ReferenceResult({
   actions,
   context,
   qualifiers,
+  showScenarioUses,
   navigation,
 }: {
   row: SearchResultRow;
   actions?: ReactNode;
   context?: ReactNode;
   qualifiers?: string[];
+  showScenarioUses?: boolean;
   navigation?: RecordNavigationView;
   relationshipClauses?: RelationshipClauseSummaryView[];
   filter?: import("../../generated/atlas").QueryPredicate | null;
@@ -83,6 +85,7 @@ export function ReferenceResult({
         onPreview={onPreview}
         context={context}
         qualifiers={qualifiers}
+        showScenarioUses={showScenarioUses}
         href={
           navigation
             ? destinationHref(

@@ -209,6 +209,13 @@ export function RecordIdentity({
 }) {
   const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
   const hasRarity = Boolean(identity?.rarity?.label.trim());
+  const source = identity?.publication?.trim();
+  const scenario = identity?.creature_display;
+  const showSource =
+    source &&
+    !(
+      scenario?.scenario_context && scenario.uses.some(({ label }) => label === source)
+    );
   const secondaryActions = referenceHelp ? (
     <RecordProvenanceAction help={referenceHelp} title={referenceTitle} />
   ) : null;
@@ -256,6 +263,11 @@ export function RecordIdentity({
               </AtlasLink>
             </p>
           )}
+          {scenario?.scenario_context && (
+            <p className="record-reference__scenario">
+              {[...scenario.qualifiers, scenario.scenario_context].join(" · ")}
+            </p>
+          )}
           {creatureFamily &&
             creatureFamily.named_creatures.length > 0 &&
             (() => {
@@ -285,9 +297,9 @@ export function RecordIdentity({
                 </p>
               );
             })()}
-          {identity?.publication?.trim() && (
+          {showSource && (
             <p className="muted record-reference__source">
-              Source: <span>{identity.publication}</span>
+              Source: <span>{source}</span>
             </p>
           )}
         </>

@@ -30,8 +30,9 @@ pub(crate) fn publication_edition(
     })
 }
 
-pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
-    record_summary_view_with_display(record, atlas_search::creature_display(record, || None))
+#[cfg(test)]
+fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
+    record_summary_view_with_display(record, None)
 }
 
 pub(crate) fn record_summary_view_with_display(
@@ -43,17 +44,22 @@ pub(crate) fn record_summary_view_with_display(
         .as_value()
         .map(|k| k.as_str().to_owned())
         .unwrap_or_else(|| record.document_kind.to_lowercase());
+    let source_title = record.name.as_value().cloned();
+    let (title, source_title) = match display.as_ref().and_then(|display| display.label.as_ref()) {
+        Some(label) => (label.clone(), source_title.filter(|name| name != label)),
+        None => (
+            source_title.unwrap_or_else(|| "Unnamed record".into()),
+            None,
+        ),
+    };
     RecordSummaryView {
         creature_display: display
             .and_then(|display| crate::creature_family::creature_display(record, display)),
         unit_price_label: None,
         edition: publication_edition(record.publication_remaster.as_value().copied()),
         record_key: record.key.to_string(),
-        title: record
-            .name
-            .as_value()
-            .cloned()
-            .unwrap_or_else(|| "Unnamed record".into()),
+        title,
+        source_title,
         kind_label: if record.document_kind == "JournalEntry" {
             "Journal".into()
         } else if kind == "spell" && record.spell_ritual.as_value() == Some(&true) {

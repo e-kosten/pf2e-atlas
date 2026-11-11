@@ -3467,7 +3467,7 @@
             },
             "type": "array"
           },
-          "title": {
+          "scenario_context": {
             "type": "string"
           },
           "uses": {
@@ -3478,7 +3478,6 @@
           }
         },
         "required": [
-          "title",
           "qualifiers",
           "uses"
         ],
@@ -14472,6 +14471,9 @@
             ]
           },
           "record_key": {
+            "type": "string"
+          },
+          "source_title": {
             "type": "string"
           },
           "source_type": {

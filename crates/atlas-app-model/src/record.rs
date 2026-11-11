@@ -18,6 +18,9 @@ pub struct RecordSummaryView {
     pub edition: Option<RecordEditionView>,
     pub record_key: String,
     pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub source_title: Option<String>,
     pub kind: String,
     pub kind_label: String,
     #[cfg_attr(feature = "openapi", schema(required))]
@@ -37,9 +40,11 @@ pub struct RecordSummaryView {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CreatureDisplayView {
-    pub title: String,
     pub qualifiers: Vec<String>,
     pub uses: Vec<CreatureScenarioUseView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub scenario_context: Option<String>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

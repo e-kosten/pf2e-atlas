@@ -190,7 +190,13 @@
   text-wrap: pretty;
 }
 .record-reference__header
-  p:where(:not(.record-reference__source, .record-reference__family)) {
+  p:where(
+    :not(
+      .record-reference__source,
+      .record-reference__family,
+      .record-reference__scenario
+    )
+  ) {
   margin: 6px 0 0;
 }
 .record-reference__kind {
@@ -219,6 +225,7 @@
   margin-top: var(--space-control);
 }
 .record-reference__family,
+.record-reference__scenario,
 .record-reference__source {
   margin: var(--space-control) 0 0;
   font-size: 0.9rem;

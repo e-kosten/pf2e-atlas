@@ -94,6 +94,36 @@ it("groups identity facts in the Drawer header without repeating the title or sh
   expect(screen.getByText(/Requirements: a healer's toolkit/)).toBeVisible();
 });
 
+it("shows the projected creature title and scenario guidance in the Drawer", () => {
+  const detail = detailFixture("actors:prefect", "Prefect (Fist)");
+  detail.record = {
+    ...detail.record,
+    source_title: "Prefect (Fist) (3-4)",
+    creature_display: {
+      qualifiers: [],
+      uses: [{ id: "party-3-4", label: "Party levels 3–4" }],
+      scenario_context: "Party levels 3–4",
+    },
+  };
+  detail.presentation.identity = detail.record;
+  render(
+    <RecordReferenceDrawer
+      destination={{ kind: "record", navigation: detail.selected }}
+      anchor={null}
+      detail={detail}
+      loading={false}
+      onClose={vi.fn()}
+      onReference={vi.fn()}
+    />,
+    { wrapper },
+  );
+  const heading = screen.getByRole("heading", { name: "Prefect (Fist)" });
+  expect(
+    within(heading.closest("header")!).getByText("Party levels 3–4"),
+  ).toBeVisible();
+  expect(screen.queryByText("Prefect (Fist) (3-4)")).toBeNull();
+});
+
 it("retains the focused heading when an initially pending document arrives", async () => {
   const props = {
     anchor: null,

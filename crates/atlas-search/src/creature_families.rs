@@ -39,6 +39,7 @@ pub struct CreatureDisplay {
     pub label: Option<String>,
     pub qualifier: Option<&'static str>,
     pub scenario_uses: Vec<CreatureScenarioUse>,
+    pub scenario_uses_unavailable: bool,
 }
 
 pub struct CreatureScenarioUse {
@@ -115,6 +116,8 @@ pub fn creature_display(
         label,
         qualifier: member.qualifier.as_deref(),
         scenario_uses,
+        scenario_uses_unavailable: !member.uses.is_empty()
+            && summary.publication_title.as_value().is_none(),
     })
 }
 

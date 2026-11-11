@@ -8,6 +8,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { AtlasApiError } from "../../api/atlasApi";
 import type { RecordDetailView } from "../../generated/atlas";
 import { remasterInformationFixture } from "../../test/remasterFixtures";
+import { RouterTestContext } from "../../test/router";
 import { RecordDetailPane } from "./RecordDetailPane";
 
 describe("RecordDetailPane", () => {
@@ -159,6 +160,52 @@ describe("RecordDetailPane", () => {
     expect(screen.getByText("AC")).toBeInTheDocument();
     expect(screen.getByText("25")).toBeInTheDocument();
     expect(screen.queryByText("Source presentation")).toBeNull();
+  });
+
+  it("shows the friendly scenario heading and puts the reviewed uses after Family", () => {
+    const detail = detailFixture("actors:eltha", "Eltha");
+    const identity = {
+      ...detail.record,
+      source_title: "Advanced Eltha (9-10)/Eltha (11-12)",
+      kind: "creature",
+      kind_label: "Creature",
+      publication: "Cavern of Sundered Songs",
+      creature_display: {
+        qualifiers: [],
+        scenario_context: "Party levels 9–10 (Advanced) · 11–12",
+        uses: [
+          { id: "party-9-10", label: "Party levels 9–10 (Advanced)" },
+          { id: "party-11-12", label: "Party levels 11–12" },
+        ],
+      },
+    };
+    detail.record = identity;
+    detail.creature_family = {
+      id: "eltha",
+      name: "Eltha",
+      versions: [identity],
+      named_creatures: [],
+      named_bases: {},
+    };
+    detail.presentation = {
+      classification: "Creature 11",
+      identity,
+      body: { kind: "creature", value: actorFixture() },
+      content: [],
+      embedded: [],
+    };
+    render(<RecordDetailPane detail={detail} loading={false} onReference={vi.fn()} />, {
+      wrapper: RouterTestContext,
+    });
+    expect(screen.getByRole("heading", { name: "Eltha" })).toBeVisible();
+    const family = screen.getByRole("link", { name: "Eltha" });
+    const firstUse = screen.getByText("Party levels 9–10 (Advanced) · 11–12");
+    expect(firstUse).toBeVisible();
+    expect(
+      family.compareDocumentPosition(firstUse) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText("Cavern of Sundered Songs")).toBeVisible();
+    expect(screen.queryByText(identity.source_title)).toBeNull();
   });
 });
 

@@ -463,8 +463,19 @@ pub(super) fn identity(out: &mut String, identity: &RecordSummaryView) {
             },
         );
     }
+    if let Some(context) = identity
+        .creature_display
+        .as_ref()
+        .and_then(|display| display.scenario_context.as_deref())
+    {
+        line(out, context);
+    }
     if let Some(publication) = &identity.publication
         && !publication.trim().is_empty()
+        && !identity.creature_display.as_ref().is_some_and(|display| {
+            display.scenario_context.is_some()
+                && display.uses.iter().any(|use_| &use_.label == publication)
+        })
     {
         line(out, format!("Source: {publication}"));
     }

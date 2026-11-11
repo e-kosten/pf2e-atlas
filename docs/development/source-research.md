@@ -241,9 +241,15 @@ Declare party level ranges in the actor's reviewed scenario uses. Each use
 has its own identifier and may include a Challenge Point threshold when the
 source establishes it. For actors with reviewed scenario uses, Atlas displays
 the Foundry token name when available, with the actor title as a fallback.
-Set a member's `label` only when the display needs a different title. The actor's
+Keep descriptors that identify the creature or its form in the display title,
+such as **Prefect (Fist)** and **Prefect (Electrowhip)**. Put instructions about
+when to use the stat block, including party levels and Challenge Point thresholds,
+in the reviewed scenario uses. Set a member's `label` when the token name omits a
+distinguishing form or the default title includes scenario instructions. The actor's
 publication supplies the adventure title, and its source creature level supplies
-the level used by Search. Family pages
+the level used by Search. Atlas projects one display title for the browser and CLI.
+When that title differs from Foundry's, the record summary preserves the exact
+name in `source_title`. Family pages
 can group verified scenario uses by party level range, with each actor once
 per applicable range. Keep explanations of the relationship and scenario
 evidence in the source note.

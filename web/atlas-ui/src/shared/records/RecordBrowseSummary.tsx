@@ -18,6 +18,7 @@ export function RecordBrowseSummary({
   href,
   context,
   qualifiers,
+  showScenarioUses = true,
 }: {
   record: RecordSummaryView;
   selected: boolean;
@@ -26,6 +27,7 @@ export function RecordBrowseSummary({
   href?: string;
   context?: ReactNode;
   qualifiers?: string[];
+  showScenarioUses?: boolean;
 }) {
   const classification = [
     record.kind_label,
@@ -41,6 +43,15 @@ export function RecordBrowseSummary({
       }),
     );
   const traits = record.traits.filter((trait) => trait.kind !== "rarity");
+  const scenario =
+    showScenarioUses && qualifiers === undefined ? record.creature_display : undefined;
+  const source = record.publication ?? record.pack;
+  const showSource =
+    qualifiers === undefined &&
+    source &&
+    !(
+      scenario?.scenario_context && scenario.uses.some(({ label }) => label === source)
+    );
   return (
     <Button
       className="reference-result__summary"
@@ -104,16 +115,18 @@ export function RecordBrowseSummary({
       }}
     >
       <div className="reference-result__title">
-        <strong>{record.creature_display?.title ?? record.title}</strong>
-        <span>{classification}</span>
+        <strong>{record.title}</strong> <span>{classification}</span>
+        {scenario?.scenario_context && (
+          <span className="reference-result__scenario">
+            {scenario.scenario_context}
+          </span>
+        )}
       </div>
       <div className="reference-result__metadata">
         <RecordRarity rarity={record.rarity} />
         <RecordEditionBadge edition={record.edition} />
         {record.unit_price_label && <span>{record.unit_price_label}</span>}
-        {qualifiers === undefined && record.creature_display?.uses.length !== 1 && (
-          <span>{record.publication ?? record.pack}</span>
-        )}
+        {showSource && <span>{source}</span>}
         {(qualifiers ?? record.creature_display?.qualifiers)?.map((qualifier) => (
           <span key={qualifier}>{qualifier}</span>
         ))}
