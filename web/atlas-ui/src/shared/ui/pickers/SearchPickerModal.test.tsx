@@ -421,16 +421,16 @@ it("shows loading without pagination, then completed empty for a queryless picke
   );
   renderPicker();
   await waitFor(() =>
-    expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible(),
+    expect(screen.getByRole("status", { name: "Loading records…" })).toBeVisible(),
   );
-  expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
+  expect(screen.queryByRole("group", { name: "Result pages" })).toBeNull();
   expect(screen.queryByText("No matching records")).toBeNull();
   await act(async () =>
     finish({ ...result(), rows: [], page: { ...result().page, count: 0, total: 0 } }),
   );
   expect(await screen.findByText("No matching records")).toBeVisible();
   expect(screen.queryByText("Search for a record")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
+  expect(screen.queryByRole("group", { name: "Result pages" })).toBeNull();
 });
 
 it("clears the candidate from the shared toolbar while retaining the Add form draft", async () => {

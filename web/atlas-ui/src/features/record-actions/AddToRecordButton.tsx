@@ -75,7 +75,7 @@ export function AddToRecordButton({
         <PaneIconButton
           icon={<ListPlus size={16} />}
           label={label}
-          outlined={!encounterOnly}
+          outlined
           tooltip={false}
           title=""
           // Modal returns focus during its close lifecycle. Keep that focus hint

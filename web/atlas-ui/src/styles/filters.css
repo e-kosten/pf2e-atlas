@@ -606,6 +606,11 @@
   font-size: inherit;
   white-space: normal;
 }
+.common-choice-operand__chip
+  > :is(.applied-filter-chip__include, .applied-filter-chip__exclude) {
+  margin-inline-end: var(--space-micro);
+}
+
 .common-choice-operand__chip-label {
   min-width: 0;
   white-space: normal;
@@ -721,4 +726,102 @@
     > .ruleGroup-header > [data-filter-remove]:is(:hover, :focus-visible)
   )::before {
   opacity: 1;
+}
+
+.pane-filter-controls {
+  border-bottom: 1px solid var(--line);
+}
+
+.pane-filter-anchor {
+  display: grid;
+  gap: var(--space-micro);
+  margin-inline: var(--browse-pane-inset);
+  padding-block: var(--space-control) var(--space-micro);
+}
+
+.pane-filter-trigger {
+  flex: none;
+}
+
+.pane-filter-trigger[data-applied="true"] {
+  border-color: var(--selection-border);
+  background: var(--selection-bg);
+}
+
+.pane-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-control);
+  padding: var(--space-group);
+  outline-offset: -2px;
+  max-height: var(--pane-filter-available-height, none);
+}
+
+.pane-filter-panel h3 {
+  margin: 0;
+  font-size: inherit;
+}
+
+.pane-filter-panel__body {
+  display: grid;
+  gap: var(--space-control);
+  min-height: 0;
+  max-height: 24rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.pane-filter-panel .common-filters {
+  display: grid;
+  gap: var(--space-control);
+}
+
+.pane-filter-panel .filter-controls__tools {
+  display: grid;
+  gap: var(--space-control);
+}
+
+.pane-filter-panel .common-filter {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 1fr) minmax(0, 2fr);
+  align-items: start;
+  gap: var(--space-control);
+  min-width: 0;
+}
+
+.pane-filter-panel .common-filter-heading {
+  min-height: var(--control-height);
+  align-items: center;
+}
+
+.pane-filter-panel .filter-range {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
+}
+
+.pane-filter-panel .filter-controls__pending {
+  display: grid;
+  gap: var(--space-control);
+}
+
+.pane-filter-panel__actions {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-control);
+}
+
+.pane-filter-inline .pane-filter-panel {
+  padding-inline: var(--browse-pane-inset);
+}
+
+.pane-filter-inline .pane-filter-panel__body {
+  max-height: min(32dvh, 20rem);
+}
+
+@media (max-height: 440px) {
+  .pane-filter-inline .pane-filter-panel__body {
+    max-height: 20dvh;
+  }
 }

@@ -1,3 +1,5 @@
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
+import { FilterControls } from "../../shared/filters/FilterPanel";
 import type { ReorderPlacement } from "../../generated/atlas";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { Alert, Grid } from "antd";
@@ -289,6 +291,21 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
     onSuccess: async (view) =>
       invalidateSavedListQueries(queryClient, [route.slug, view.slug, view.list_key]),
   });
+  const narrowed = Boolean(listSearchQuery(filters) || buildFilter(filters));
+  const pendingCount =
+    filterToken !== encodeSearchExecutionState(filters) ||
+    list.isFetching ||
+    list.isPlaceholderData;
+  const resultCount =
+    filters.filterError || list.error || listView?.reference_error
+      ? "Count unavailable"
+      : pendingCount || !listView
+        ? "Updating records…"
+        : narrowed
+          ? `${listView.items.length.toLocaleString()} of ${listView.list.item_count.toLocaleString()} records`
+          : listView.list.item_count === 1
+            ? "1 record"
+            : `${listView.list.item_count.toLocaleString()} records`;
   const canReorder =
     effectiveResultSort(filters, "saved_list").kind === "saved_order" &&
     effectiveResultSort(activeFilters, "saved_list").kind === "saved_order" &&
@@ -305,19 +322,6 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
         <ListBrowseHeader
           error={list.error}
           onRetry={() => void list.refetch()}
-          filterState={{
-            search: filters,
-            setSearch: changeFilters,
-            filterEditor: filterDiscovery.filterEditor,
-            refreshFilterInformation: filterDiscovery.refreshFilterInformation,
-            filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
-            filterCountsEnabled: filterDiscovery.filterCountsEnabled,
-            filterCountQueryKey: filterDiscovery.filterCountQueryKey,
-            filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
-            vocabularyScope: filterDiscovery.vocabularyScope,
-            filterDiscoveryLoading: filterDiscovery.loading,
-            filterDiscoveryError: filterDiscovery.errorMessage,
-          }}
           list={listView?.list}
           loading={listLoading}
           onAddRecords={() => setAddOpen(true)}
@@ -359,6 +363,17 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
         {narrow && entryNote.detached && <ListEntryNoteEditor state={entryNote} />}
         <BrowseReader
           reading={addressableReading}
+          recordActions={(record) =>
+            record.record_key === route.selectedRecordKey &&
+            record.kind === "creature" ? (
+              <AddToRecordButton
+                key={record.record_key}
+                recordKey={record.record_key}
+                record={record}
+                encounterOnly
+              />
+            ) : null
+          }
           onClearSelection={() => {
             entryNote.finish();
             selection.cancel();
@@ -374,7 +389,11 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
               state: true,
             });
           }}
-          readerStatus={!narrow && <ReferenceSelectionStatus selection={selection} />}
+          readerStatus={
+            !narrow && hasReferenceSelectionStatus(selection.current) ? (
+              <ReferenceSelectionStatus selection={selection} />
+            ) : undefined
+          }
           selectedRecordKey={route.selectedRecordKey}
           readerFooter={
             entryNote.entry && !(narrow && entryNote.detached) ? (
@@ -384,23 +403,46 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
           resultsLabel="Saved records"
           resultsIdentity={listView?.items}
           resultsLoading={listLoading || list.isFetching}
-          resultsHeader={
-            <div className="result-pane-header">
-              {narrow && hasReferenceSelectionStatus(selection.current) ? (
-                <ReferenceSelectionStatus selection={selection} />
-              ) : (
-                <span>
-                  {listView
-                    ? `${listView.items.length.toLocaleString()} saved records`
-                    : "Saved records"}
-                </span>
-              )}
-              <ResultSortControl
-                search={filters}
-                surface="saved_list"
-                setSearch={changeFilters}
+          renderResultsPaneHeader={(actions) =>
+            listView && (
+              <FilterControls
+                filterState={{
+                  search: filters,
+                  setSearch: changeFilters,
+                  filterEditor: filterDiscovery.filterEditor,
+                  refreshFilterInformation: filterDiscovery.refreshFilterInformation,
+                  filterApplicabilityCurrent:
+                    filterDiscovery.filterApplicabilityCurrent,
+                  filterCountsEnabled: filterDiscovery.filterCountsEnabled,
+                  filterCountQueryKey: filterDiscovery.filterCountQueryKey,
+                  filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
+                  vocabularyScope: filterDiscovery.vocabularyScope,
+                  filterDiscoveryLoading: filterDiscovery.loading,
+                  filterDiscoveryError: filterDiscovery.errorMessage,
+                }}
+                pane={{
+                  narrow,
+                  summary: (
+                    <div className="list-results-summary">
+                      {narrow && hasReferenceSelectionStatus(selection.current) ? (
+                        <ReferenceSelectionStatus selection={selection} />
+                      ) : (
+                        <span className="list-results-count" role="status">
+                          {resultCount}
+                        </span>
+                      )}
+                      <ResultSortControl
+                        compact
+                        search={filters}
+                        surface="saved_list"
+                        setSearch={changeFilters}
+                      />
+                      {actions}
+                    </div>
+                  ),
+                }}
               />
-            </div>
+            )
           }
         >
           <ListItemsPane
@@ -415,7 +457,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
             items={listView?.items ?? []}
             loading={listLoading || list.isFetching}
             unavailable={Boolean(list.error && !listView)}
-            filtered={Boolean(filters.query.trim() || buildFilter(filters))}
+            filtered={narrowed}
             removingKey={removeItem.isPending ? removeItem.variables : null}
             selectedRecordKey={route.selectedRecordKey}
             itemHref={(recordKey) =>

@@ -536,9 +536,16 @@ describe("list views", () => {
     );
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Saved records" })).toBeInTheDocument();
+    const filters = screen.getByRole("button", { name: /^Filters$/ });
+    expect(filters).toHaveAttribute("aria-expanded", "false");
     expect(
-      screen.getByRole("button", { name: "Advanced filters" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Advanced filters" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(filters);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Advanced filters" })).toBeVisible(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() =>
       expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
         "research",
@@ -1033,7 +1040,7 @@ describe("list views", () => {
     ).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Cancel selection" }));
     expect(screen.queryByText("Could not load Test Action 1")).not.toBeInTheDocument();
-    expect(screen.getByText("1 saved records")).toBeVisible();
+    expect(screen.getByText("1 record")).toBeVisible();
   });
 
   it("retains the current preview and note draft when selection fails, then retries in place", async () => {
@@ -1195,7 +1202,7 @@ describe("list views", () => {
     fireEvent.click(await screen.findByRole("link", { name: "Nested Rule" }));
     await screen.findByRole("heading", { name: "Nested Rule" });
     expect(document.title).toBe(listTitle);
-    const input = screen.getByRole("searchbox", { name: "Search records" });
+    const input = screen.getByRole("searchbox", { name: "Search this list" });
     fireEvent.change(input, { target: { value: "no matching records" } });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
     expect(
@@ -1232,7 +1239,7 @@ describe("list views", () => {
         expect.any(AbortSignal),
       ),
     );
-    const search = await screen.findByRole("searchbox", { name: "Search records" });
+    const search = await screen.findByRole("searchbox", { name: "Search this list" });
     fireEvent.change(search, {
       target: { value: "Test Action 2" },
     });
@@ -1323,7 +1330,7 @@ describe("list views", () => {
             })),
           },
     );
-    const search = screen.getByRole("searchbox", { name: "Search records" });
+    const search = screen.getByRole("searchbox", { name: "Search this list" });
     fireEvent.change(search, { target: { value: "New search" } });
     fireEvent.keyDown(search, { key: "Enter", code: "Enter" });
     expect(

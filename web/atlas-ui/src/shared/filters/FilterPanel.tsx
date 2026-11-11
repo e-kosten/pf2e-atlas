@@ -1,3 +1,4 @@
+import { FilterDisclosure } from "./FilterDisclosure";
 import { FilterFieldSelect } from "./FilterFieldSelect";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
@@ -78,6 +79,7 @@ import {
 import {
   chipLinkClauses,
   clearAllFilters,
+  countAppliedFilterConditions,
   hasAdvancedFilterConditions,
   type CommonCondition,
   type FilterPanelState,
@@ -144,11 +146,13 @@ export function FilterControls({
   similarSearch,
   additionalFilters,
   children,
+  pane,
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
   includeLinks?: boolean;
   layout?: "panel" | "toolbar";
+  pane?: { narrow: boolean; summary: ReactNode };
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
   similarSearch?: SimilarSearchCriterion;
@@ -357,6 +361,7 @@ export function FilterControls({
         }
         onChange={prepared.change}
         workspace={countWorkspace}
+        allowRecordLinks={!!pane}
       />
     ) : null;
   const commonLayout = layout === "panel" ? "panel" : "toolbar";
@@ -368,6 +373,8 @@ export function FilterControls({
     ) : null;
   const searchEntry = includeSearch && (
     <SearchEntry
+      label={pane ? "Search this list" : undefined}
+      placeholder={pane ? "Search this list…" : undefined}
       inputRef={searchInputRef}
       query={search.query}
       similar={similarSearch}
@@ -383,14 +390,45 @@ export function FilterControls({
       }
     />
   );
+  const commonFields = fields
+    .filter((field) => editor?.common_field_ids.includes(field.definition.id))
+    .map((field) => field.definition);
   const advancedApplied =
     editor &&
-    hasAdvancedFilterConditions(
-      search.filter,
-      fields
-        .filter((field) => editor.common_field_ids.includes(field.definition.id))
-        .map((field) => field.definition),
-    );
+    (hasAdvancedFilterConditions(search.filter, commonFields) ||
+      (pane && countLinkConditions(search.filter) > 0));
+  const canClear = Boolean(
+    search.filter ||
+    search.filterError ||
+    prepared.error ||
+    prepared.query?.rules.length,
+  );
+  function clear() {
+    prepared.clear();
+    setDraftRevision((revision) => revision + 1);
+    setSearch(clearAllFilters(search));
+    advancedTrigger.current?.focus();
+  }
+  const feedback = (
+    <>
+      {!advanced && prepared.error && inlineError}
+      {workspace.filterDiscoveryError && (
+        <ErrorNotice
+          error={workspace.filterDiscoveryError}
+          title="Filter information could not be loaded"
+          description={workspace.filterDiscoveryError}
+          action={
+            pane &&
+            workspace.refreshFilterInformation && (
+              <Button onClick={() => void workspace.refreshFilterInformation?.()}>
+                Retry filters
+              </Button>
+            )
+          }
+        />
+      )}
+    </>
+  );
   const criteria = (
     <>
       <div className="filter-controls__tools">
@@ -413,6 +451,7 @@ export function FilterControls({
                 key={id + ":" + draftRevision}
                 field={field}
                 layout={commonLayout}
+                compactPane={!!pane}
                 selectionContainer={
                   commonLayout === "toolbar" ? selectionContainer : undefined
                 }
@@ -446,7 +485,7 @@ export function FilterControls({
             ) : null;
           })}
         </div>
-        {includeLinks && (
+        {includeLinks && !pane && (
           <Button
             ref={linksTrigger}
             onClick={() => {
@@ -493,20 +532,12 @@ export function FilterControls({
               Advanced
             </Button>
           </Tooltip>
-          {(search.filter ||
-            search.filterError ||
-            prepared.error ||
-            (prepared.query?.rules.length ?? 0) > 0) && (
+          {!pane && canClear && (
             <Tooltip title="Clear filters" trigger={["hover", "focus"]}>
               <Button
                 icon={<ClearOutlined aria-hidden="true" />}
                 aria-label="Clear filters"
-                onClick={() => {
-                  prepared.clear();
-                  setDraftRevision((revision) => revision + 1);
-                  setSearch(clearAllFilters(search));
-                  advancedTrigger.current?.focus();
-                }}
+                onClick={clear}
               />
             </Tooltip>
           )}
@@ -521,43 +552,68 @@ export function FilterControls({
           className="filter-controls__common-selections"
           ref={setSelectionContainer}
         />
-        <LinkFilterControls
-          filter={search.filter}
-          title={linkTitle}
-          limit={editor?.limits.relationship_leaves}
-          onEdit={(leaf, opener) =>
-            openPicker(
-              leaf.relationship,
-              leaf.clause_id!,
-              (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
-              { opener },
-            )
-          }
-          onRemove={(leaf) => {
-            const trigger = linksTrigger.current ?? advancedTrigger.current;
-            restoreOverlayFocus(
-              trigger,
-              trigger?.ownerDocument.activeElement as HTMLElement | null,
-            );
-            latestEditor.current.editLink(leaf, null);
-          }}
-        />
+        {!pane && (
+          <LinkFilterControls
+            filter={search.filter}
+            title={linkTitle}
+            limit={editor?.limits.relationship_leaves}
+            onEdit={(leaf, opener) =>
+              openPicker(
+                leaf.relationship,
+                leaf.clause_id!,
+                (next, excluded) => latestEditor.current.editLink(leaf, next, excluded),
+                { opener },
+              )
+            }
+            onRemove={(leaf) => {
+              const trigger = linksTrigger.current ?? advancedTrigger.current;
+              restoreOverlayFocus(
+                trigger,
+                trigger?.ownerDocument.activeElement as HTMLElement | null,
+              );
+              latestEditor.current.editLink(leaf, null);
+            }}
+          />
+        )}
       </div>
     </>
   );
   return (
     <LinkEditingContext value={linkEditing}>
-      <aside className={layout === "panel" ? "filter-panel" : "filter-toolbar"}>
+      <aside
+        className={
+          pane
+            ? "pane-filter-controls"
+            : layout === "panel"
+              ? "filter-panel"
+              : "filter-toolbar"
+        }
+      >
         {children}
-        <div className="filter-controls__chrome">
-          {includeSearch && (
-            <PrimaryToolbar className="filter-controls__search-row">
-              {searchEntry}
-              {searchRowEnd}
-            </PrimaryToolbar>
-          )}
-          <div className="filter-controls__criteria">{criteria}</div>
-        </div>
+        {pane ? (
+          <FilterDisclosure
+            narrow={pane.narrow}
+            searchEntry={searchEntry}
+            summary={pane.summary}
+            count={countAppliedFilterConditions(search.filter, commonFields)}
+            childOverlayOpen={advanced || Boolean(picker?.open)}
+            clear={clear}
+            canClear={canClear}
+          >
+            {criteria}
+            {feedback}
+          </FilterDisclosure>
+        ) : (
+          <div className="filter-controls__chrome">
+            {includeSearch && (
+              <PrimaryToolbar className="filter-controls__search-row">
+                {searchEntry}
+                {searchRowEnd}
+              </PrimaryToolbar>
+            )}
+            <div className="filter-controls__criteria">{criteria}</div>
+          </div>
+        )}
         <Drawer
           title="Advanced filters"
           rootClassName="advanced-filter-drawer-root"
@@ -590,14 +646,7 @@ export function FilterControls({
             {inlineError}
           </AdvancedFilterSurface>
         </Drawer>
-        {!advanced && prepared.error && inlineError}
-        {workspace.filterDiscoveryError && (
-          <ErrorNotice
-            error={workspace.filterDiscoveryError}
-            title="Filter information could not be loaded"
-            description={workspace.filterDiscoveryError}
-          />
-        )}
+        {!pane && feedback}
       </aside>
       {Picker && picker && !picker.advanced && (
         <LinkPicker {...picker} key={picker.key} />
@@ -615,11 +664,13 @@ function CommonFilter({
   workspace,
   onAdvanced,
   layout,
+  compactPane,
   selectionContainer,
 }: {
   field: FilterEditorFieldView;
   selectionContainer?: HTMLElement | null;
   layout: "panel" | "toolbar";
+  compactPane: boolean;
   condition: CommonCondition;
   range: [string, string] | null;
   onRangeChange: (range: [string, string]) => void;
@@ -639,7 +690,7 @@ function CommonFilter({
       {layout === "panel" && (
         <div className="common-filter-heading">
           <Typography.Text strong>{field.label}</Typography.Text>
-          {condition.status === "editable" && (
+          {!compactPane && condition.status === "editable" && (
             <Button
               type="text"
               size="small"
@@ -664,6 +715,7 @@ function CommonFilter({
             field={field}
             range={range ?? ["", ""]}
             onChange={onRangeChange}
+            compact={compactPane}
           />
         ) : (
           <Popover
@@ -703,6 +755,7 @@ function CommonFilter({
         <CommonChoicePicker
           selectionContainer={selectionContainer}
           field={field}
+          inlineSelections={compactPane}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
           countContext={workspace.filterDiscoveryContext}
@@ -872,6 +925,7 @@ type BuilderContext = {
   scope: string | null;
   narrowFields: boolean;
   relatedTarget: boolean;
+  allowRecordLinks: boolean;
   workspace: FilterPanelState;
   addCondition: (path: number[], fieldId: string) => void;
   pendingConditionRef: RefObject<string | null>;
@@ -885,6 +939,7 @@ function StructuredBuilder({
   scope = null,
   useApplicability = false,
   relatedTarget = false,
+  allowRecordLinks = false,
   workspace,
 }: {
   editor: FilterEditorView;
@@ -893,6 +948,7 @@ function StructuredBuilder({
   scope?: string | null;
   useApplicability?: boolean;
   relatedTarget?: boolean;
+  allowRecordLinks?: boolean;
   workspace: FilterPanelState;
 }) {
   const pendingConditionRef = useRef<string | null>(null);
@@ -971,6 +1027,7 @@ function StructuredBuilder({
             scope,
             narrowFields: useApplicability && isPositiveConjunction(query, visible),
             relatedTarget,
+            allowRecordLinks,
             workspace,
             pendingConditionRef,
             addCondition: (path, fieldId) => {
@@ -1179,7 +1236,11 @@ function filterFieldGroups(
     scope,
     narrowFields,
     relatedTarget,
-  }: Pick<BuilderContext, "editor" | "scope" | "narrowFields" | "relatedTarget">,
+    allowRecordLinks,
+  }: Pick<
+    BuilderContext,
+    "editor" | "scope" | "narrowFields" | "relatedTarget" | "allowRecordLinks"
+  >,
   addingCondition: boolean,
   currentField?: string,
 ): {
@@ -1251,7 +1312,7 @@ function filterFieldGroups(
                 searchText:
                   "Related entries contains abilities spells equipment links to linked from",
               },
-              ...(currentField === LINK_CONDITION
+              ...(allowRecordLinks || currentField === LINK_CONDITION
                 ? [
                     {
                       value: LINK_CONDITION,
@@ -1281,13 +1342,13 @@ function filterFieldGroups(
   ];
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
-  const { editor, scope, narrowFields, relatedTarget } =
+  const { editor, scope, narrowFields, relatedTarget, allowRecordLinks } =
     props.context as BuilderContext;
   const editing = useContext(RuleEditContext);
   const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
   const addingCondition = !props.value || props.value === "~";
   const groups = filterFieldGroups(
-    { editor, scope, narrowFields, relatedTarget },
+    { editor, scope, narrowFields, relatedTarget, allowRecordLinks },
     addingCondition,
     props.value,
   );
@@ -1592,7 +1653,12 @@ function BuilderValueEditor(props: ValueEditorProps) {
     return (
       <div className="filter-rule-value">
         <Button
-          disabled={props.disabled}
+          disabled={
+            props.disabled ||
+            (!editing.rule.value?.selection &&
+              countOtherLinkRules(query, editing.rule.id) >=
+                editor.limits.relationship_leaves)
+          }
           onClick={(event) =>
             links?.open(
               editing.rule,

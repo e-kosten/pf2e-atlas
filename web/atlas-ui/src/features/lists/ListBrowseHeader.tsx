@@ -1,17 +1,14 @@
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
 import { listsDestination } from "../../app/destinations";
-import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
-import { Button, Typography } from "antd";
+import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
+import { Button, Popover, Tag, Typography } from "antd";
+import { useRef, useState } from "react";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
-import { ArrowLeft, Pencil, Plus } from "lucide-react";
-import { ListTagSummary } from "./ListTagSummary";
+import { ArrowLeft } from "lucide-react";
 import type { SavedListSummaryView } from "../../generated/atlas";
-import { FilterControls } from "../../shared/filters/FilterPanel";
-import type { FilterPanelState } from "../../shared/filters/filterControls";
 export function ListBrowseHeader({
   error,
-  filterState,
   list,
   loading,
   onAddRecords,
@@ -20,7 +17,6 @@ export function ListBrowseHeader({
   onRetry,
 }: {
   error?: Error | null;
-  filterState: FilterPanelState;
   list: SavedListSummaryView | undefined;
   loading: boolean;
   onAddRecords: () => void;
@@ -36,39 +32,30 @@ export function ListBrowseHeader({
     />
   ) : null;
   return (
-    <section className="list-browse-header">
-      <div className="list-browse-header__parent">
-        <Typography.Link
-          className="list-browse-header__parent-link"
-          href="/lists"
-          onClick={(event) => {
-            if (!isPrimaryActivation(event)) return;
-            event.preventDefault();
-            navigateDestination(listsDestination());
-          }}
-        >
-          <ArrowLeft size={14} aria-hidden="true" />
-          Saved lists
-        </Typography.Link>
-      </div>
-      {errorNotice}
-      {loading && !list ? (
-        <LoadingStatus className="list-browse-header__identity" label="Loading list…" />
-      ) : !list ? (
-        <div className="list-browse-header__identity">
-          {!errorNotice && "List not found"}
-        </div>
-      ) : (
-        <>
-          <div className="list-browse-header__identity">
-            <h2>{list.name}</h2>
-            <PrimaryToolbar className="list-browse-header__actions">
-              <Button type="primary" icon={<Plus size={16} />} onClick={onAddRecords}>
-                Add records
-              </Button>
+    <div className="list-browse-header">
+      <WorkspaceContextBar
+        title={list?.name}
+        parentLink={
+          <Typography.Link
+            className="list-browse-header__parent-link"
+            href="/lists"
+            onClick={(event) => {
+              if (!isPrimaryActivation(event)) return;
+              event.preventDefault();
+              navigateDestination(listsDestination());
+            }}
+          >
+            <ArrowLeft size={14} aria-hidden="true" />
+            Saved lists
+          </Typography.Link>
+        }
+        actions={
+          list && (
+            <>
+              {(list.description || list.tags.length > 0) && <ListAbout list={list} />}
               <Button
-                icon={<Pencil size={16} />}
-                aria-label="Edit list"
+                type="text"
+                className="list-context-secondary"
                 aria-busy={editPreparing}
                 loading={editPreparing ? { delay: 200 } : false}
                 onClick={(event) => {
@@ -78,28 +65,71 @@ export function ListBrowseHeader({
               >
                 Edit list
               </Button>
-            </PrimaryToolbar>
-          </div>
-          {(list.description || list.tags.length > 0) && (
-            <div className="list-browse-header__metadata">
-              {list.description && (
-                <Typography.Paragraph
-                  className="list-browse-header__description-text"
-                  ellipsis={{
-                    rows: 2,
-                    expandable: "collapsible",
-                    symbol: (expanded) => (expanded ? "Read less" : "Read more"),
-                  }}
-                >
-                  {list.description}
-                </Typography.Paragraph>
-              )}
-              <ListTagSummary tags={list.tags} lines={2} />
+              <Button type="primary" onClick={onAddRecords}>
+                Add records
+              </Button>
+            </>
+          )
+        }
+      />
+      {errorNotice}
+      {loading && !list && <LoadingStatus label="Loading list…" />}
+      {!loading && !list && !errorNotice && <div>List not found</div>}
+    </div>
+  );
+}
+
+function ListAbout({ list }: { list: SavedListSummaryView }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  function handleEscape(event: React.KeyboardEvent) {
+    if (!open || event.key !== "Escape" || event.defaultPrevented) return;
+    event.preventDefault();
+    setOpen(false);
+    trigger.current?.focus({ preventScroll: true });
+  }
+  return (
+    <Popover
+      trigger="click"
+      placement="bottomRight"
+      open={open}
+      onOpenChange={setOpen}
+      afterOpenChange={(visible) => {
+        if (visible && document.activeElement === trigger.current)
+          panel.current?.focus({ preventScroll: true });
+      }}
+      title="About"
+      content={
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape closes the focused disclosure.
+        <div
+          className="list-about"
+          role="dialog"
+          aria-label="About"
+          tabIndex={-1}
+          ref={panel}
+          onKeyDown={handleEscape}
+        >
+          {list.description && <p>{list.description}</p>}
+          {list.tags.length > 0 && (
+            <div className="list-about__tags" role="group" aria-label="List tags">
+              {list.tags.map((tag) => (
+                <Tag key={tag}>{tag}</Tag>
+              ))}
             </div>
           )}
-          <FilterControls filterState={filterState} includeSearch layout="toolbar" />
-        </>
-      )}
-    </section>
+        </div>
+      }
+    >
+      <Button
+        ref={trigger}
+        type="text"
+        className="list-context-secondary"
+        aria-expanded={open}
+        onKeyDown={handleEscape}
+      >
+        About
+      </Button>
+    </Popover>
   );
 }

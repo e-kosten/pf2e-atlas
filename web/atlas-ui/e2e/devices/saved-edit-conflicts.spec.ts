@@ -83,9 +83,9 @@ test("reorder in the same list view preserves an open note draft and both saves"
     await page.keyboard.press("Space", { delay: 20 });
     await expect(handle).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("status")).toContainText(
-      `was moved over droppable area ${second}`,
-    );
+    await expect(
+      page.getByRole("status").filter({ hasText: "was moved over droppable area" }),
+    ).toContainText(`was moved over droppable area ${second}`);
     await page.keyboard.press("Space");
     await expect
       .poll(async () => {

@@ -317,12 +317,16 @@ for the selected result. Linked documents use RecordReferenceDrawer. Keep match 
 and membership/order/unresolved snapshots in lists. Do not fabricate search DTOs
 to reuse a layout or copy the browsing interaction into another feature.
 
-List identity, metadata and scoped filters belong above the items and reader,
-rather than in a permanent third pane. Use a labelled Saved lists parent link,
-not a duplicate title switcher. Keep the description summary and tags in one
-readable metadata column; only long descriptions need Read more. Index tags use
-one compact line and detail tags use up to two, followed by the actual hidden
-count when needed. Full tags remain available in the native popup. The index owns
+Saved-list and encounter detail use `WorkspaceContextBar` for their title,
+surface, divider and spacing. Each feature supplies its own actions. Saved
+lists keep the labelled Saved lists parent link and Add records in this bar,
+with description and full tags available under About. The list pane
+owns two compact rows above its scrolling items: search and Filters, then the
+result count and current sort. The Filters disclosure uses the shared filter
+editor, shows the committed structured-condition count and clears criteria while
+keeping the text query and order. Selected choices appear inside their fields,
+and record links are created and edited in Advanced. Add to encounter belongs
+with the selected creature’s record actions. The index owns
 list-name and local include/exclude tag filters and preserves its position on return. Reuse
 `ChoicePicker` for the interaction without manufacturing backend filter metadata.
 On narrow screens, show results or the reader and preserve the initiating row's focus and position on return.
@@ -729,11 +733,11 @@ desktop; DOM presence and focus assertions do not establish visible geometry.
 
 BrowseReader uses one shared BrowsePaneHeader composition for wide and narrow
 results. Its explicit workspace background, insets, control sizes and centered
-vertical alignment remain the same across that breakpoint. On desktop it spans
-the split. Results controls and reader navigation/status share its naturally wrapping row;
-the reader starts directly with its document, without a Preview label or a
-separately measured header. Both panes retain independent scrolling below the
-shared toolbar. On narrow layouts, the visible pane owns its header and the
+vertical alignment remain consistent across that breakpoint. The desktop Search
+toolbar spans the split and groups results controls with reader navigation and
+status. Saved-list results put both rows inside their own pane. The saved-list
+reader starts with its document and uses a local action or status row when
+needed. Both panes retain independent scrolling. On narrow layouts, the visible pane owns its header and the
 reader keeps the Results return control. The browse host supplies a trailing
 Clear selection icon when its feature provides a clear callback. Search and
 saved lists clear their selected URL; record pickers clear the candidate while

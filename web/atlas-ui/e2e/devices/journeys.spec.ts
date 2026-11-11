@@ -461,7 +461,7 @@ test("focused titles and list text filters follow their primary page", async ({
       page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
     ).toBeVisible();
     await page.goto(`/lists/${slug}`);
-    const input = page.getByRole("searchbox", { name: "Search records" });
+    const input = page.getByRole("searchbox", { name: "Search this list" });
     await expect(page.locator(".list-member__drag-handle")).toHaveCount(2);
     await expect(page.getByRole("combobox", { name: "Search model" })).toHaveCount(0);
     await input.fill("zzzz-no-saved-entry");
@@ -540,9 +540,9 @@ test("list drops retain order and geometry through delayed writes and refreshes"
       await page.keyboard.press("Space", { delay: 20 });
       await expect(source).toHaveAttribute("aria-pressed", "true");
       await page.keyboard.press("ArrowDown");
-      await expect(page.getByRole("status")).toContainText(
-        `was moved over droppable area ${keys[1]}`,
-      );
+      await expect(
+        page.getByRole("status").filter({ hasText: "was moved over droppable area" }),
+      ).toContainText(`was moved over droppable area ${keys[1]}`);
       await page.keyboard.press("Space");
     } else {
       const from = (await source.boundingBox())!;
@@ -574,9 +574,9 @@ test("list drops retain order and geometry through delayed writes and refreshes"
     await page.keyboard.press("Space", { delay: 20 });
     await expect(movedHandle).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("ArrowUp");
-    await expect(page.getByRole("status")).toContainText(
-      `was moved over droppable area ${keys[1]}`,
-    );
+    await expect(
+      page.getByRole("status").filter({ hasText: "was moved over droppable area" }),
+    ).toContainText(`was moved over droppable area ${keys[1]}`);
     await page.keyboard.press("Space");
     await expect.poll(() => writes).toBe(2);
     await expect(movedHandle).toBeEnabled();
@@ -868,7 +868,10 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     await activate(editor.getByRole("button", { name: "Save", exact: true }), info);
     await expect(editor).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`/lists/${list.slug}$`));
+    const about = page.getByRole("button", { name: "About" });
+    await activate(about, info);
     await expect(page.getByText(description, { exact: true })).toBeVisible();
+    await activate(about, info);
     await activate(
       page.getByRole("button", { name: "Add records", exact: true }),
       info,

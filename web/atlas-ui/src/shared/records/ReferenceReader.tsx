@@ -40,8 +40,13 @@ type ReferenceReaderProps = {
   returnToSelectionLabel?: string;
   showRelated?: boolean;
   retryLabel?: string;
-  renderLayout?: (actions: ReactNode, reader: ReactNode) => ReactNode;
+  renderLayout?: (
+    actions: ReactNode,
+    reader: ReactNode,
+    hasActions: boolean,
+  ) => ReactNode;
   selectionActions?: ReactNode;
+  selectionActionsInIdentity?: boolean;
 };
 
 export function ReferenceReader({
@@ -60,6 +65,7 @@ export function ReferenceReader({
   retryLabel,
   renderLayout,
   selectionActions,
+  selectionActionsInIdentity = false,
 }: ReferenceReaderProps) {
   const preview = useRecordPreview();
   const { mode, tab } = useRecordExploreLocation();
@@ -374,6 +380,25 @@ export function ReferenceReader({
         tab,
       })
     : null;
+  const inIdentity = selectionActionsInIdentity && detail && showRelated;
+  const canReturnToSelection = Boolean(
+    selectedRecordKey &&
+    reading.request &&
+    (recordReadingIdentity(
+      reading.request.navigation.record_key,
+      reading.request.navigation,
+    ) !== recordReadingIdentity(selectedRecordKey) ||
+      reading.request.match ||
+      reading.request.landing),
+  );
+  const hasActions = Boolean(
+    onResults ||
+    status ||
+    reading.canGoBack ||
+    canReturnToSelection ||
+    (!showRelated && (fullRoute || (detail && recordActions))) ||
+    (!inIdentity && selectionActions),
+  );
   const documentActions = (
     <Space wrap size={4}>
       {detail && recordActions?.(detail.record)}
@@ -390,6 +415,7 @@ export function ReferenceReader({
           }}
         />
       )}
+      {inIdentity && selectionActions}
     </Space>
   );
   const header = (
@@ -416,25 +442,18 @@ export function ReferenceReader({
             Back
           </Button>
         )}
-        {selectedRecordKey &&
-          reading.request &&
-          (recordReadingIdentity(
-            reading.request.navigation.record_key,
-            reading.request.navigation,
-          ) !== recordReadingIdentity(selectedRecordKey) ||
-            reading.request.match ||
-            reading.request.landing) && (
-            <Button
-              onClick={() => {
-                rememberPosition();
-                reading.select({ navigation: rootNavigation(selectedRecordKey) });
-              }}
-            >
-              {returnToSelectionLabel}
-            </Button>
-          )}
+        {canReturnToSelection && selectedRecordKey && (
+          <Button
+            onClick={() => {
+              rememberPosition();
+              reading.select({ navigation: rootNavigation(selectedRecordKey) });
+            }}
+          >
+            {returnToSelectionLabel}
+          </Button>
+        )}
         {!showRelated && documentActions}
-        {selectionActions}
+        {!inIdentity && selectionActions}
       </Space>
     </>
   );
@@ -498,7 +517,7 @@ export function ReferenceReader({
       onReference={onReference}
       generation={detail?.artifact_generation}
     >
-      {renderLayout ? renderLayout(header, reader) : reader}
+      {renderLayout ? renderLayout(header, reader, hasActions) : reader}
     </ReferenceHelpProvider>
   );
 }

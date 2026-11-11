@@ -17,6 +17,7 @@ export function SearchEntry({
   onSearch,
   disabled,
   label = "Search records",
+  placeholder = "Name or description…",
   similar,
   inputRef,
 }: {
@@ -24,6 +25,7 @@ export function SearchEntry({
   onSearch: (query: string) => void;
   disabled?: boolean;
   label?: string;
+  placeholder?: string;
   similar?: SimilarSearchCriterion;
   inputRef?: RefObject<InputRef | null>;
 }) {
@@ -97,7 +99,7 @@ export function SearchEntry({
       ref={input}
       className="reference-search-entry"
       aria-label={label}
-      placeholder="Name or description…"
+      placeholder={placeholder}
       autoComplete="off"
       disabled={disabled}
       value={value}

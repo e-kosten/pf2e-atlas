@@ -293,3 +293,38 @@ export function hasAdvancedFilterConditions(
   }
   return chipConjuncts(remaining).some((node) => node.kind !== "relationship");
 }
+
+/** Count committed conditions, preserving the editor's paired numeric ranges. */
+export function countAppliedFilterConditions(
+  predicate: QueryPredicate | null,
+  commonFields: QueryFieldDefinition[],
+): number {
+  if (!predicate) return 0;
+  if (predicate.kind === "not")
+    return countAppliedFilterConditions(predicate.predicate, commonFields);
+  if (predicate.kind === "any_of")
+    return predicate.children.reduce(
+      (total, child) => total + countAppliedFilterConditions(child, commonFields),
+      0,
+    );
+  if (predicate.kind !== "all_of") return 1;
+  const rangeBounds = new Set<QueryPredicate>();
+  for (const field of commonFields) {
+    if (field.field_type !== "number") continue;
+    const condition = commonCondition(predicate, field);
+    if (condition.clause?.kind === "all_of") {
+      for (const bound of condition.clause.children) rangeBounds.add(bound);
+    }
+  }
+  return (
+    rangeBounds.size / 2 +
+    chipConjuncts(predicate).reduce(
+      (total, child) =>
+        total +
+        (rangeBounds.has(child)
+          ? 0
+          : countAppliedFilterConditions(child, commonFields)),
+      0,
+    )
+  );
+}

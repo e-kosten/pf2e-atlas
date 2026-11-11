@@ -25,6 +25,7 @@ export type ChoiceOption = { value: string; label: string };
 /** Shared include/exclude interaction; callers own vocabulary and filter semantics. */
 export function ChoicePicker({
   label,
+  inlineSelections = false,
   id,
   choices,
   selected,
@@ -47,6 +48,7 @@ export function ChoicePicker({
   selectionContainer,
 }: {
   label: string;
+  inlineSelections?: boolean;
   id: string;
   choices: ChoiceOption[];
   selected: string[];
@@ -355,11 +357,13 @@ export function ChoicePicker({
     removeSelection(event, () => change(value, "neutral"));
   }
   const removeName = (value: string) =>
-    "Remove selected " + selectedLabel(value) + " from " + label;
+    `Remove ${inlineSelections ? (stateOf(value) === "exclude" ? "excluded" : "included") : "selected"} ${selectedLabel(value)} from ${label}`;
   const clearValue = valueEditing?.scalar ? selected[0] : undefined;
-  const hasClear = selected.length > 0;
-  const showChips = valueEditing && !valueEditing.scalar && selected.length > 0;
-  const anchor = valueEditing ? (
+  const inField = Boolean(valueEditing) || inlineSelections;
+  const triggerText = valueEditing?.triggerText ?? "Any";
+  const hasClear = Boolean(valueEditing) && selected.length > 0;
+  const showChips = inField && !valueEditing?.scalar && selected.length > 0;
+  const anchor = inField ? (
     <div
       className="common-choice-operand"
       data-has-clear={hasClear || undefined}
@@ -388,9 +392,9 @@ export function ChoicePicker({
         {!showChips && (
           <span
             className="common-choice-operand__value"
-            title={clearValue !== undefined ? valueEditing.triggerText : undefined}
+            title={clearValue !== undefined ? triggerText : undefined}
           >
-            {valueEditing.triggerText}
+            {triggerText}
           </span>
         )}
         <DownOutlined className="common-choice-operand__chevron" aria-hidden="true" />
@@ -427,6 +431,18 @@ export function ChoicePicker({
               closeIcon={<CloseOutlined aria-label={removeName(value)} />}
               onClose={(event) => removeValue(event, value)}
             >
+              {inlineSelections && (
+                <span
+                  className={
+                    stateOf(value) === "exclude"
+                      ? "applied-filter-chip__exclude"
+                      : "applied-filter-chip__include"
+                  }
+                  aria-hidden="true"
+                >
+                  {stateOf(value) === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
+                </span>
+              )}
               <span className="common-choice-operand__chip-label">
                 {selectedLabel(value)}
               </span>
@@ -434,7 +450,7 @@ export function ChoicePicker({
           ))}
         </div>
       )}
-      {hasClear && (
+      {hasClear && valueEditing && (
         <button
           type="button"
           className="common-choice-operand__clear"
@@ -461,7 +477,7 @@ export function ChoicePicker({
     </Button>
   );
   const selections =
-    !valueEditing && selected.length > 0 ? (
+    !inField && selected.length > 0 ? (
       <div
         className="common-choice-selections"
         aria-label={"Selected " + label.toLowerCase()}
