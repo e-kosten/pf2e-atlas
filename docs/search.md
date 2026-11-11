@@ -139,6 +139,14 @@ Saved lists and encounters keep the record you selected and follow updates to
 that record. A replacement link offers navigation to another entry; it does not
 change a saved selection.
 
+## Search before embeddings are ready
+
+If the reference collection is ready and has no stored embeddings, Atlas shows
+**Keyword search** in Search and the record picker. You can search by text,
+apply filters, and open records. Similar records become available after Atlas
+has stored embeddings. When the model is ready, choose **Use semantic search**
+to switch an open Search session.
+
 ## Try another search model
 
 Setup prepares **BGE Base** by default. You can also try **EmbeddingGemma** to

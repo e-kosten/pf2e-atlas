@@ -26,7 +26,9 @@ import { useReferenceQueryRetirement } from "../../queries/useReferenceQueryReti
 import { SearchSettings } from "../../search/SearchSettings";
 import { similarityFromPreferences } from "../../search/similarityState";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
+import { searchExecution } from "../../search/searchExecution";
 import {
+  assertKeywordSearch,
   assertSearchIdentity,
   sameSearchPageContext,
   assertSimilarityIdentity,
@@ -123,12 +125,14 @@ export function SearchPickerModal<FormValues>({
   const [search, setSearch] = useState<SearchFormState>(() => ({
     ...DEFAULT_SEARCH_STATE,
     ranking: profile.preferences.ranking,
+    searchContent: profile.preferences.searchContent,
   }));
   const [paging, setPaging] = useState({ profile: profile.id, number: 1 });
   const pageNumber = paging.profile === profile.id ? paging.number : 1;
   if (paging.profile !== profile.id) setPaging({ profile: profile.id, number: 1 });
   const setPageNumber = (number: number) => setPaging({ profile: profile.id, number });
   const base = buildRequest(search.query);
+  const execution = searchExecution(profile, base.criteria.kind);
   const filter =
     base.criteria.filter && search.filter
       ? { kind: "all_of" as const, children: [base.criteria.filter, search.filter] }
@@ -136,7 +140,7 @@ export function SearchPickerModal<FormValues>({
   const request: SearchResultsRequest = {
     ...base,
     ...(search.sort ? { sort: search.sort } : {}),
-    search_profile: profile.id ?? undefined,
+    search_profile: execution.profile,
     ranking: search.ranking ?? profile.preferences.ranking,
     criteria:
       base.criteria.kind === "similar_records"
@@ -148,13 +152,18 @@ export function SearchPickerModal<FormValues>({
               base.criteria.similarity ??
               similarityFromPreferences(profile.preferences.recordSimilarity),
           }
-        : { ...base.criteria, filter },
+        : base.criteria.kind === "text_search"
+          ? {
+              ...base.criteria,
+              filter,
+              mode: execution.mode === "lexical" ? "lexical" : base.criteria.mode,
+              search_content: search.searchContent ?? base.criteria.search_content,
+            }
+          : { ...base.criteria, filter },
     page: { number: pageNumber, size: search.pageSize },
   };
   const requestToken = JSON.stringify(request);
-  const profileReady =
-    profile.id !== null &&
-    (request.criteria.kind === "text_search" ? profile.usable : profile.storedVectors);
+  const profileReady = execution.ready;
   const retrieval = useReferenceGeneration(requestToken, open && profileReady);
   const resetGeneration = retrieval.reset;
   useLayoutEffect(() => {
@@ -191,7 +200,7 @@ export function SearchPickerModal<FormValues>({
       );
       assertSearchIdentity(
         page,
-        profile.id,
+        execution.profile,
         search.similarityGeneration ?? retrieval.generation,
         effectiveResultSort({
           sort: request.sort ?? undefined,
@@ -204,6 +213,11 @@ export function SearchPickerModal<FormValues>({
       );
       if (request.criteria.kind === "similar_records")
         assertSimilarityIdentity(page, request.criteria.similarity ?? undefined);
+      if (
+        request.criteria.kind === "text_search" &&
+        request.criteria.mode === "lexical"
+      )
+        assertKeywordSearch(page);
       retrieval.adopt(ticket, page.artifact_generation, {
         queryKey: resultsKeyForGeneration(page.artifact_generation),
         data: page,
@@ -279,7 +293,7 @@ export function SearchPickerModal<FormValues>({
   const context = {
     ...buildFilterDiscoveryContext(
       { ...search, filter },
-      profile.id ?? undefined,
+      execution.profile,
       retrieval.generation ?? undefined,
     ),
     connection_scope: request.connection_scope,
@@ -319,6 +333,7 @@ export function SearchPickerModal<FormValues>({
     setSearch({
       ...DEFAULT_SEARCH_STATE,
       ranking: profile.preferences.ranking,
+      searchContent: profile.preferences.searchContent,
     });
     setPageNumber(1);
     reading.inspect(null);
@@ -462,7 +477,11 @@ export function SearchPickerModal<FormValues>({
                       : null
                   }
                   generation={retrieval.generation}
-                  disabled={disabled}
+                  disabled={
+                    disabled ||
+                    (profile.keywordSearch &&
+                      request.criteria.kind === "similar_records")
+                  }
                   onApply={applySettings}
                 />
               }
@@ -494,7 +513,10 @@ export function SearchPickerModal<FormValues>({
               {searchHeader?.(guidanceScope)}
             </FilterControls>
             <div className="reference-picker__feedback">
-              <SearchProfileNotice />
+              <SearchProfileNotice
+                similar={request.criteria.kind === "similar_records"}
+                showKeyword
+              />
               {recordResults.error && (
                 <ErrorNotice
                   error={recordResults.error}

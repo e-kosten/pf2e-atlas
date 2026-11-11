@@ -53,6 +53,7 @@ export function buildSearchRequest(
   number: number,
   expected_artifact_generation: string | null = null,
   search_profile?: string,
+  textMode: "hybrid" | "lexical" = "hybrid",
 ): SearchResultsRequest {
   if (state.filterWasReset)
     throw new Error("This search link must be reset before requesting results");
@@ -88,7 +89,7 @@ export function buildSearchRequest(
           kind: "text_search",
           query: state.query.trim(),
           filter: state.filter,
-          mode: "hybrid",
+          mode: textMode,
           search_content: state.searchContent ?? "all",
         }
       : { kind: "list_records", filter: state.filter },
@@ -132,10 +133,12 @@ export function encodeSearchState(state: SearchFormState): string {
 export function encodeSearchExecutionState(
   state: SearchFormState,
   search_profile?: string | null,
+  textMode?: "hybrid" | "lexical",
 ): string {
   return encodeURIComponent(
     JSON.stringify({
       search_profile,
+      textMode: state.query.trim() ? textMode : undefined,
       ranking: state.ranking ?? "score",
       similarity: state.similarSeed ? state.similarity : undefined,
       searchContent:

@@ -2,12 +2,18 @@ import { AtlasApiError } from "../../api/atlasApi";
 import type {
   ResultSort,
   SearchResultsRequest,
+  SearchResultsPage,
   SimilarityOptions,
   SimilaritySourceSections,
   SearchContentScope,
   SimilaritySeed,
   SimilarityPartsView,
 } from "../../generated/atlas";
+
+export function assertKeywordSearch(page: SearchResultsPage) {
+  if (page.mode.kind !== "text_search" || page.mode.mode !== "lexical")
+    throw new Error("The search response did not use keyword search");
+}
 
 /** Ordering and paging may retain a labelled prior page; eligibility and source identity may not. */
 export function sameSearchPageContext(

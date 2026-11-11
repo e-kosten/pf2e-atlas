@@ -11,6 +11,7 @@ import {
 } from "../queries/referenceQueries";
 import { useSearchProfile } from "../search/SearchProfileContext";
 import { SearchProfileNotice } from "../search/SearchProfileNotice";
+import { searchExecution } from "../search/searchExecution";
 import { assertSearchIdentity } from "../search/searchIdentity";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { ExploreSearchAction } from "./ExploreSearchAction";
@@ -32,9 +33,15 @@ export function DefinitionAssociations({
   onReload: () => void;
 }) {
   const profile = useSearchProfile();
+  const execution = searchExecution(profile, "list_records");
   const availability = useQueries({
     queries: actions.map((action) =>
-      associationPreviewQueryOptions(action, generation, profile.id, profile.loading),
+      associationPreviewQueryOptions(
+        action,
+        generation,
+        execution.profile,
+        execution.ready,
+      ),
     ),
   });
   const visible = actions
@@ -140,8 +147,8 @@ function DefinitionAssociatedRecords({
 function associationPreviewQueryOptions(
   action: SearchAction,
   generation: string,
-  profileId: string | null,
-  profileLoading: boolean,
+  profileId: string | undefined,
+  ready: boolean,
 ) {
   return queryOptions({
     meta: referenceQueryMeta,
@@ -153,11 +160,11 @@ function associationPreviewQueryOptions(
     ],
     staleTime: Infinity,
     retryOnMount: false,
-    enabled: !profileLoading && profileId !== null,
+    enabled: ready,
     queryFn: async ({ signal }) => {
       const page = await searchPage(
         {
-          search_profile: profileId ?? undefined,
+          search_profile: profileId,
           criteria: { kind: "list_records", filter: action.predicate },
           page: { number: 1, size: 5 },
           expected_artifact_generation: generation,
