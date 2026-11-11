@@ -178,7 +178,7 @@ class PinTransition(unittest.TestCase):
             "tag": "embedding-baseline-v1", "asset": "embedding-compatibility-baseline.tar.gz",
             "sha256": "a" * 64, "execution_policy": "current",
         }
-        restored = {**pin, "tag": "embedding-baseline-v2"}
+        restored = {**pin, "tag": "fixtures/embedding-compatibility/v2"}
         checks = PROBE["pinned_checks"]({"bge-base": restored}, {"bge-base": pin})
         self.assertEqual(checks, {
             (restored["tag"], pin["asset"], pin["sha256"]): {"bge-base": ("current", None)},

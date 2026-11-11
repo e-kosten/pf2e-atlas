@@ -57,9 +57,7 @@ pub(crate) fn open_published(
         .get(model.profile_id.as_str())
         .ok_or_else(|| "this Atlas build has no published asset for the profile".to_owned())?;
     pin.file.validate().map_err(|error| error.to_string())?;
-    if !safe_component(&pin.tag) || !safe_component(&pin.asset) {
-        return Err("invalid release tag or asset name".into());
-    }
+    let url = release_url(&pin.tag, &pin.asset)?;
     tracing::info!(target:"atlas_progress", phase="fetch_embedding_seed", profile=%model.profile_id,
         "Downloading precomputed embeddings for {}", model.profile_id);
     let agent: ureq::Agent = ureq::Agent::config_builder()
@@ -68,7 +66,6 @@ pub(crate) fn open_published(
         .timeout_global(Some(Duration::from_secs(3600)))
         .build()
         .into();
-    let url = format!("{RELEASE}/{}/{}", pin.tag, pin.asset);
     let mut response = agent
         .get(&url)
         .header("Accept-Encoding", "identity")
@@ -91,4 +88,51 @@ fn safe_component(value: &str) -> bool {
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
         && !matches!(value, "." | "..")
+}
+
+fn release_url(tag: &str, asset: &str) -> Result<String, String> {
+    if tag.len() > 128 || !tag.split('/').all(safe_component) || !safe_component(asset) {
+        return Err("invalid release tag or asset name".into());
+    }
+    // GitHub's download route treats the tag as one path segment.
+    let tag = tag.replace('/', "%2F");
+    Ok(format!("{RELEASE}/{tag}/{asset}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn release_download_encodes_the_tag_as_one_path_segment() {
+        assert_eq!(
+            release_url(
+                "embedding-seed/bge-base/v1",
+                "bge-base-seed-v1.atlas-seed.gz"
+            )
+            .unwrap(),
+            format!("{RELEASE}/embedding-seed%2Fbge-base%2Fv1/bge-base-seed-v1.atlas-seed.gz"),
+        );
+        assert_eq!(
+            release_url("legacy-v1", "seed.gz").unwrap(),
+            format!("{RELEASE}/legacy-v1/seed.gz"),
+        );
+    }
+
+    #[test]
+    fn release_download_rejects_unsafe_tag_segments_and_asset_names() {
+        for tag in [
+            "",
+            "/leading",
+            "trailing/",
+            "two//parts",
+            "prefix/../v1",
+            "prefix/./v1",
+            "prefix%2Fv1",
+            "v1?x",
+        ] {
+            assert!(release_url(tag, "seed.gz").is_err(), "{tag}");
+        }
+        assert!(release_url("embedding-seed/bge-base/v1", "dir/seed.gz").is_err());
+    }
 }

@@ -218,9 +218,11 @@ target/release/atlas-dev embedding-seed verify --index /path/to/new-check.sqlite
 The full-coverage verifier requires a new index path and the local managed source and
 model caches. Repeat `--seed` to check both profiles. Verify every new asset and
 record the compressed size and checksum. Once authorized, publish each file to a
-seed-only prerelease tag such as `bge-base-seed-v1` or
-`embeddinggemma-seed-v1`. Keep latest disabled and retain the previous releases.
-Pin the exact tag, asset name, byte count and SHA-256 in
+seed-only prerelease using `embedding-seed/<profile>/v<N>`, for example
+`embedding-seed/bge-base/v1` or `embedding-seed/embeddinggemma/v1`. Advance each
+profile independently. Keep latest disabled and retain the previous releases.
+Store the literal slash tag in the pin. Atlas encodes the slashes in the
+download URL. Pin the exact tag, asset name, byte count and SHA-256 in
 `crates/atlas-runtime/embedding-seeds.json`. Run the packaged coverage check
 against the public downloads before shipping. Model execution compatibility
 changes may also require updating the separate test fixture below.
@@ -251,7 +253,9 @@ Pass `--profile bge-base` or `--profile embeddinggemma` when replacing a single
 profile's fixture. Inspect the archive contents and run the probe with
 `--bundle`, its reported `--sha256`, and a fresh output directory before
 publication. After publication is authorized, create a fixture-only draft under
-a new `embedding-baseline-v<N>` tag at the producer commit. Mark it as a
+a new `fixtures/embedding-compatibility/v<N>` tag at the producer commit.
+Continue the revision sequence from `embedding-baseline-v1` and preserve that
+published release. Mark the new release as a
 prerelease with latest disabled. Attach the verified archive to the draft and
 then publish. Download the published bytes and rerun the probe before pinning.
 
