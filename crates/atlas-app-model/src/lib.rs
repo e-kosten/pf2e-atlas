@@ -147,7 +147,7 @@ pub use encounter::{
     AdvanceEncounterTurnRequest, ApplyEncounterHpActionRequest, ApplyEncounterSpellActionRequest,
     ConditionActionView, ConditionDurationUnit, ConditionDurationView, ConditionExtraActionView,
     ConditionScopeView, ConditionTimingView, ConditionTurnEvent, CreateEncounterRequest,
-    DeleteEncounterView, EncounterConditionApplicabilityView,
+    CreatureScenarioContext, DeleteEncounterView, EncounterConditionApplicabilityView,
     EncounterConditionAutomationLevelView, EncounterConditionCatalogView,
     EncounterConditionCategoryView, EncounterConditionDefinitionView,
     EncounterConditionEligibilityView, EncounterCreateView, EncounterDetailView, EncounterHpAction,
@@ -158,7 +158,7 @@ pub use encounter::{
     EncounterSpellAction, EncounterSpellRankView, EncounterSpellResourceScope,
     EncounterSpellResourceView, EncounterSpellView, EncounterSpellcastingView, EncounterStatusView,
     EncounterSummaryView, EncounterTurnBoundaryView, EncounterTurnReminderView,
-    EncounterTurnReviewView, InherentConditionView, InherentConditionsView,
+    EncounterTurnReviewView, InherentConditionView, InherentConditionsView, PreparedCreatureChoice,
     ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
     RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
     StatModifierTypeView, StatModifierView, UpdateEncounterParticipantConditionRequest,
@@ -223,11 +223,12 @@ pub use presentation::{
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
-    ContentLocationView, EffectReferenceLabelView, RecordAddress, RecordBadgeView,
-    RecordDetailRequest, RecordDetailView, RecordEditionView, RecordNavigationView,
-    RecordRefResolutionView, RecordReferenceDestinationView, RecordRelationshipView,
-    RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSelection,
-    RecordSummaryView,
+    ContentLocationView, CreatureDisplayView, CreatureFamilyGroupView, CreatureFamilyGroupingView,
+    CreatureFamilyView, CreatureOverrideView, CreatureScenarioUseView, EffectReferenceLabelView,
+    RecordAddress, RecordBadgeView, RecordDetailRequest, RecordDetailView, RecordEditionView,
+    RecordNavigationView, RecordRefResolutionView, RecordReferenceDestinationView,
+    RecordRelationshipView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
+    RecordSelection, RecordSummaryView,
 };
 pub use search::{
     ConnectionScopeUnavailableReason, ConnectionScopeView, MatchPreviewView,

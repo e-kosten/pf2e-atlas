@@ -184,10 +184,8 @@ Use `{ records = [...] }` when the rule applies to specific records. Put the
 exact Foundry name beside each listed key as a comment and give every entry a
 `source_note` that explains why the sides should stay separate.
 
-For families with several independent dimensions, declare ordered `axes` and
-their options. Give each concrete member one `coordinates` value per axis.
-Use option labels for display and keep the keys and names from the exact
-Foundry records. Leave absent combinations out of `members`. For a source
+Use [shared family axes](#shared-family-axes) when equipment varies along
+several independent dimensions. For a source
 record that describes a set of variants, add a `general_records` entry with
 its exact key, expected name, and an explicit `scope`. A scope that fixes some
 axes covers the matching members. Use `scope = {}` for a record that describes
@@ -214,3 +212,47 @@ member returns the same complete, unambiguous group, the grade labels advance
 with item level, and the publication and edition agree. Each proposal includes
 the member keys and source paths. Check those records and look for missing
 siblings, same-name editions, or related accessories before adding a family file.
+
+## Shared family axes
+
+For families with several independent dimensions, declare ordered `axes` and
+their options. Give each concrete member one `coordinates` value per axis.
+Use option labels for display and keep the keys and names from the exact
+Foundry records. Leave absent combinations out of `members`. Both catalogs
+use this declaration. Axes and options appear in file order. Family pages offer **All variants** alongside
+the grouped views, using the same verified member list. The first grouping
+opens by default. Set `all_variants_by_default = true` to open the flat list.
+
+The optional `alternatives_label` sets the heading for siblings that differ
+along just one axis in Explore. [Adamantine Dragon](../../crates/atlas-search/families/creatures/adamantine-dragon.toml)
+uses it for age and form. Add coordinates to concrete variants only.
+Equipment overviews have their own `scope`. Named creature relationships
+have their own `named_base`.
+
+## Creature family review during a source upgrade
+
+The creature family files in [the retrieval catalog](../../crates/atlas-search/families/creatures)
+use one stable ID per TOML file. Verify each exact actor key and expected title
+against the candidate source. A named creature declares the exact base actor
+it connects to. Shared token names can suggest a relationship, including within
+one publication, and still require review.
+
+Declare party level ranges in the actor's reviewed scenario uses. Each use
+has its own identifier and may include a Challenge Point threshold when the
+source establishes it. For actors with reviewed scenario uses, Atlas displays
+the Foundry token name when available, with the actor title as a fallback.
+Set a member's `label` only when the display needs a different title. The actor's
+publication supplies the adventure title, and its source creature level supplies
+the level used by Search. Family pages
+can group verified scenario uses by party level range, with each actor once
+per applicable range. Keep explanations of the relationship and scenario
+evidence in the source note.
+
+An override declares a base, a Weak or Elite adjustment, a reviewed use ID,
+and an exact published target. Include a source note explaining when the
+target applies and any custom mechanics. When adding an override or upgrading
+the source, verify that both records belong to the same adventure and check
+their usage conditions. Test the target's source adjustment and
+effective stats, including published records whose stats already include the
+adjustment. See the [creature audit command](developer-commands.md#review-creature-families)
+for inventory and candidate discovery.

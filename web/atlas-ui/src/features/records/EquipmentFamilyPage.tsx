@@ -1,21 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Select } from "antd";
-import { useId, useState } from "react";
+import { Alert, Button } from "antd";
 import { AtlasApiError, getEquipmentFamily } from "../../api/atlasApi";
 import { LinkNotFound } from "../../app/InvalidUrl";
-import type {
-  EquipmentFamilyView,
-  VariantFamilyChoiceView,
-} from "../../generated/atlas";
+import type { EquipmentFamilyView } from "../../generated/atlas";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
-import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
-import { ReferenceResult } from "../../shared/records/ReferenceResult";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
+import { FamilyMembers, FamilyRows } from "./FamilyMembers";
 
 export function EquipmentFamilyPage({ familyId }: { familyId: string }) {
   const query = useQuery({
@@ -49,7 +44,7 @@ export function EquipmentFamilyPage({ familyId }: { familyId: string }) {
                   classification="Equipment family"
                 />
                 {family.kind === "content" ? (
-                  <FamilyMembers family={family} />
+                  <EquipmentMembers family={family} />
                 ) : (
                   <Alert
                     type="warning"
@@ -66,18 +61,11 @@ export function EquipmentFamilyPage({ familyId }: { familyId: string }) {
   );
 }
 
-function FamilyMembers({
+function EquipmentMembers({
   family,
 }: {
   family: Extract<EquipmentFamilyView, { kind: "content" }>;
 }) {
-  const [axis, setAxis] = useState(family.groupings[0]?.id);
-  const selector = useId();
-  const grouping =
-    family.groupings.find((group) => group.id === axis) ?? family.groupings[0];
-  const members = new Map(
-    family.members.map((choice) => [choice.record.record_key, choice]),
-  );
   const overviewHeading = family.overviews.some((overview) => overview.qualifier)
     ? "Variant overviews"
     : "Overview";
@@ -90,49 +78,11 @@ function FamilyMembers({
         </section>
       )}
       <h3>Variants</h3>
-      {grouping ? (
-        <>
-          <div className="equipment-family__group-by">
-            <label htmlFor={selector}>Group by</label>
-            <Select
-              id={selector}
-              popupMatchSelectWidth={false}
-              value={grouping.id}
-              onChange={setAxis}
-              options={family.groupings.map(({ id, label }) => ({ value: id, label }))}
-            />
-          </div>
-          {grouping.groups.map((group) => (
-            <section className="equipment-family__group" key={group.members[0]}>
-              <h4>{group.heading}</h4>
-              <FamilyRows
-                choices={group.members.flatMap((key) => members.get(key) ?? [])}
-              />
-            </section>
-          ))}
-        </>
-      ) : (
-        <FamilyRows choices={family.members} />
-      )}
-    </div>
-  );
-}
-
-function FamilyRows({ choices }: { choices: VariantFamilyChoiceView[] }) {
-  const onReference = useReferenceRecordNavigation();
-  return (
-    <div className="record-explore__results" role="list">
-      {choices.map(({ record, qualifier }) => (
-        <div key={record.record_key} role="listitem">
-          <ReferenceResult
-            row={{ record, matches: [], relationship_evidence: [] }}
-            selected={false}
-            disabled={false}
-            context={qualifier}
-            onPreview={(anchor) => onReference?.(record.record_key, anchor)}
-          />
-        </div>
-      ))}
+      <FamilyMembers
+        choices={family.members}
+        groupings={family.groupings}
+        allVariantsByDefault={family.all_variants_by_default}
+      />
     </div>
   );
 }

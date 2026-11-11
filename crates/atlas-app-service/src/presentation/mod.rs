@@ -519,6 +519,7 @@ fn selected_identity(
     };
     let family = node.source_type().value().unwrap_or(node.document_kind());
     RecordSummaryView {
+        creature_display: None,
         unit_price_label: None,
         edition: crate::projection::publication_edition(query.publication_remaster().value()),
         record_key: record.key().to_string(),

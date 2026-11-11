@@ -1,0 +1,46 @@
+name = "Adamantine Dragon"
+source_note = "Monster Core supplies young, adult, and ancient stat blocks, each with a separate spellcaster form."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Age", alternatives_label = "Other ages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-monster-core:CXoAvRxBt3bJ5IZQ"
+name = "Adamantine Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:YV83qiV7nEtVDPEP"
+name = "Adamantine Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:hybmXlTxljL9L1dW"
+name = "Adamantine Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:Bgfu9IQfK1DyaXmt"
+name = "Adamantine Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:KdUMMd6ol83JpP62"
+name = "Adamantine Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:ptaN3MY80GiE6PHW"
+name = "Adamantine Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }

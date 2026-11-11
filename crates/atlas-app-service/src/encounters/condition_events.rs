@@ -1288,6 +1288,7 @@ mod lifecycle_event_tests {
             .add_encounter_record_participant(
                 &key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     record_ref: "actors:testCreature1000".into(),
                     quantity: 1,
                     initiative: None,

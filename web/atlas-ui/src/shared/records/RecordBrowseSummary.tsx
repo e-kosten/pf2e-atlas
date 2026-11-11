@@ -17,6 +17,7 @@ export function RecordBrowseSummary({
   onPreview,
   href,
   context,
+  qualifiers,
 }: {
   record: RecordSummaryView;
   selected: boolean;
@@ -24,6 +25,7 @@ export function RecordBrowseSummary({
   onPreview: (anchor: HTMLElement) => void;
   href?: string;
   context?: ReactNode;
+  qualifiers?: string[];
 }) {
   const classification = [
     record.kind_label,
@@ -102,14 +104,19 @@ export function RecordBrowseSummary({
       }}
     >
       <div className="reference-result__title">
-        <strong>{record.title}</strong>
+        <strong>{record.creature_display?.title ?? record.title}</strong>
         <span>{classification}</span>
       </div>
       <div className="reference-result__metadata">
         <RecordRarity rarity={record.rarity} />
         <RecordEditionBadge edition={record.edition} />
         {record.unit_price_label && <span>{record.unit_price_label}</span>}
-        <span>{record.publication ?? record.pack}</span>
+        {qualifiers === undefined && record.creature_display?.uses.length !== 1 && (
+          <span>{record.publication ?? record.pack}</span>
+        )}
+        {(qualifiers ?? record.creature_display?.qualifiers)?.map((qualifier) => (
+          <span key={qualifier}>{qualifier}</span>
+        ))}
         {context && <span>{context}</span>}
       </div>
       {!!traits.length && (

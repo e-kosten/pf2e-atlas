@@ -543,6 +543,7 @@ fn hp_receipt_does_not_depend_on_postcommit_reference_hydration() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -585,6 +586,7 @@ fn derived_maximum_reuses_existing_deficit_policy() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -676,6 +678,7 @@ fn same_value_exact_current_correction_marks_derived_hp_edited() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -856,6 +859,7 @@ fn omitted_atomic_fields_preserve_derived_provenance_and_supplied_same_values_ma
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,

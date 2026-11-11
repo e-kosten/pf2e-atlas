@@ -587,6 +587,7 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: ACTOR.into(),
                 quantity: 1,

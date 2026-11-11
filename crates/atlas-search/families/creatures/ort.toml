@@ -1,0 +1,11 @@
+name = "Ort"
+source_note = "Hellbreakers publishes Elite Ort with an explicit elite adjustment and adds Fiendish Order. Keep the adventure stat block separate from the Monster Core Ort and the generic Elite overlay."
+
+[[members]]
+key = "pathfinder-monster-core:kohQQtOfhwxbzWZB"
+name = "Ort"
+
+[[members]]
+key = "hellbreakers-bestiary:fqBgGIySy1qFjzgK"
+name = "Elite Ort"
+qualifier = "Hellbreakers"

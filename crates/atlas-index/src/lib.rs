@@ -133,7 +133,7 @@ pub use reader::{
     SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
     SqliteIndexReader,
 };
-pub use reader::{read_product_summaries, record_projection_context};
+pub use reader::{read_product_source_record, read_product_summaries, record_projection_context};
 #[cfg(any(test, feature = "test-support"))]
 pub use validation::validate_artifact;
 pub use validation::{

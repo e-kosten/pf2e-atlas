@@ -124,6 +124,19 @@ audit or `data.proposals` for grade candidates. The command preserves workspace 
 and catalog files. See [equipment family review](source-research.md#equipment-family-review-during-a-source-upgrade)
 for the source checks that precede catalog changes.
 
+## Review creature families
+
+Run the creature audit against the checked-out PF2e source revision.
+
+```sh
+cargo run --locked -p atlas-dev -- families audit-creatures --source /absolute/path/to/pf2e --json
+```
+
+The report includes exact actor keys, source paths, actor and token names,
+publication, creature level, and any typed Weak or Elite adjustment. It also
+lists candidates that share a publication and token name while using different
+actor titles. Review the actual actors before writing a declaration.
+
 ## Refresh published embedding assets
 
 Use `just embedding-seed-refresh --baseline-ref <reviewed-ref> --output <task-directory>`.

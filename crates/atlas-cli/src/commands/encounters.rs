@@ -271,6 +271,7 @@ pub(crate) fn run(args: EncountersArgs) -> Result<ExitCode, String> {
             let view = view!(service.add_encounter_record_participant(
                 &encounter,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     record_ref: record,
                     quantity,
                     participant_variant: adjustment.map(|value| match value {

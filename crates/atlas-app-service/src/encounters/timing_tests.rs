@@ -644,6 +644,7 @@ fn expired_rounds_do_not_disable_modeled_condition_effects() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,

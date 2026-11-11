@@ -3,6 +3,7 @@ import type { AppReadinessView, SearchProfileId } from "../../generated/atlas";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { searchParam } from "../../app/urlState";
 import { currentSearchLocation } from "../../app/searchLocation";
+import type { SearchAvailability } from "./searchExecution";
 import {
   DEFAULT_SEARCH_PREFERENCES,
   LEGACY_SEARCH_PROFILE_KEY,
@@ -12,20 +13,21 @@ import {
 } from "./searchPreferences";
 export const SEARCH_PROFILE_PREFERENCE_KEY = LEGACY_SEARCH_PROFILE_KEY;
 export const SEARCH_PROFILE_PARAM = "search_profile";
-export type SearchProfileSelection = {
-  id: SearchProfileId | null;
+export type SearchProfileSelection = SearchAvailability & {
   pendingUrlProfile: string | null;
   profiles: AppReadinessView["search_profiles"];
-  storedVectors: boolean;
-  usable: boolean;
   loading: boolean;
   error: string | null;
   canResetLink: boolean;
   resetLink: () => void;
+  useKeywordSearch?: () => void;
   select: (id: SearchProfileId) => void;
   defaultId: SearchProfileId | null;
   preferences: SearchPreferences;
-  applyPreferences: (preferences: SearchPreferences) => boolean;
+  applyPreferences: (
+    preferences: SearchPreferences,
+    selectedModel?: string | null,
+  ) => boolean;
 };
 export const SearchProfileContext = createContext<SearchProfileSelection>({
   id: null,
@@ -45,10 +47,10 @@ export const SearchProfileContext = createContext<SearchProfileSelection>({
 export function useSearchProfile() {
   return useContext(SearchProfileContext);
 }
-type ProfileChoice = {
-  id: string;
-  source: "url" | "preference" | "default" | "selection";
-};
+type ProfileChoice =
+  | { id: string; source: "url" | "preference" | "default" | "selection" }
+  | { id: null; source: "keyword" };
+const KEYWORD_CHOICE: ProfileChoice = { id: null, source: "keyword" };
 function initialChoice(
   explicit: string | null,
   preference: string | null,
@@ -58,6 +60,7 @@ function initialChoice(
 }
 function defaultChoice(readiness: AppReadinessView): ProfileChoice {
   const stored = readiness.search_profiles.filter((profile) => profile.stored_vectors);
+  if (stored.length === 0) return KEYWORD_CHOICE;
   const server = stored.find(
     (profile) => profile.id === readiness.default_search_profile && profile.usable,
   );
@@ -81,13 +84,17 @@ export function useSearchProfileSelection(
   const explicitProfile = useRouterState({
     select: (state) => searchParam(state.location.search, SEARCH_PROFILE_PARAM),
   });
-  const preferred = readiness?.search_profiles.find(
-    (profile) => profile.id === choice?.id,
-  );
+  const profiles = readiness?.search_profiles ?? [];
+  const stored = profiles.filter((profile) => profile.stored_vectors);
+  const preferred = stored.find((profile) => profile.id === choice?.id);
+  const metadataReady = readiness?.status === "ready";
   // A preference is only a launch default. Explicit links never silently fall back.
   const resolved =
-    readiness && (choice === null || choice.source === "preference")
-      ? choice && preferred?.stored_vectors && preferred.usable
+    metadataReady &&
+    (choice === null ||
+      choice.source === "preference" ||
+      (choice.source === "default" && stored.length === 0))
+      ? choice && preferred?.usable
         ? { id: choice.id, source: "default" as const }
         : defaultChoice(readiness)
       : choice;
@@ -98,27 +105,45 @@ export function useSearchProfileSelection(
     if (explicitProfile !== undefined && choice?.id !== explicitProfile)
       setChoice({ id: explicitProfile, source: "url" });
   }
-  const id = readiness ? resolved!.id : null;
-  const profiles = readiness?.search_profiles ?? [];
+  const id = readiness ? (resolved?.id ?? null) : null;
   const selected = profiles.find((profile) => profile.id === id);
-  const single = profiles.filter((profile) => profile.stored_vectors).length === 1;
-  const metadataReady = readiness?.status === "ready";
+  const single = stored.length === 1;
+  const keywordSearch = metadataReady && resolved?.source === "keyword";
   const canResetLink =
     metadataReady && id !== null && (!selected || !selected.stored_vectors);
   const error =
     !metadataReady || id === null
       ? null
       : canResetLink
-        ? single
-          ? "This search link is unavailable for this collection. Reset the search link to continue."
-          : `Search model “${selected?.label ?? id}” is not stored in this collection. Choose an available search model.`
+        ? stored.length === 0
+          ? "This search link needs a semantic index. You can continue with keyword search."
+          : single
+            ? "This search link is unavailable for this collection. Reset the search link to continue."
+            : `Search model “${selected?.label ?? id}” is not stored in this collection. Choose an available search model.`
         : !selected!.usable
           ? single
             ? "Text search is unavailable for this collection. Check setup to continue. Similar records remain available."
             : `Search model “${selected!.label}” is unavailable for text search. Choose another model or check setup. Stored similar records remain available.`
           : null;
+  function clearUrlProfile(next: ProfileChoice) {
+    setChoice(next);
+    void router.navigate({
+      to: ".",
+      hash: true,
+      search: (search) => {
+        const next = { ...search };
+        delete next[SEARCH_PROFILE_PARAM];
+        delete next.page;
+        return next;
+      },
+      replace: true,
+      resetScroll: false,
+      state: true,
+    });
+  }
   return {
     id,
+    keywordSearch,
     // Preserve explicit link intent while inference still waits for metadata.
     pendingUrlProfile: !readiness && choice?.source === "url" ? choice.id : null,
     profiles,
@@ -129,28 +154,18 @@ export function useSearchProfileSelection(
     canResetLink,
     defaultId: readiness ? defaultChoice(readiness).id : null,
     preferences,
-    applyPreferences: (next) => {
+    applyPreferences: (next, selectedModel = next.model) => {
       setPreferences(next);
-      if (next.model !== null) setChoice({ id: next.model, source: "selection" });
+      if (selectedModel !== null) setChoice({ id: selectedModel, source: "selection" });
       return writeSearchPreferences(next);
     },
     resetLink: () => {
-      if (!readiness) return;
-      setChoice(defaultChoice(readiness));
-      void router.navigate({
-        to: ".",
-        hash: true,
-        search: (search) => {
-          const next = { ...search };
-          delete next[SEARCH_PROFILE_PARAM];
-          delete next.page;
-          return next;
-        },
-        replace: true,
-        resetScroll: false,
-        state: true,
-      });
+      if (metadataReady) clearUrlProfile(defaultChoice(readiness));
     },
+    useKeywordSearch:
+      canResetLink && stored.length === 0
+        ? () => clearUrlProfile(KEYWORD_CHOICE)
+        : undefined,
     select: (next) => {
       setChoice({ id: next, source: "selection" });
       const updated = { ...preferences, model: next };

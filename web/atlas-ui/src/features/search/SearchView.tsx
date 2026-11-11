@@ -52,9 +52,11 @@ export function SearchView({
       : undefined;
   const similarTitle =
     seedTitle ??
-    (workspace.resultsFailed || workspace.errorMessage
-      ? "Record unavailable"
-      : "Loading record…");
+    (profile.keywordSearch && workspace.search.similarSeed
+      ? "Similar search unavailable"
+      : workspace.resultsFailed || workspace.errorMessage
+        ? "Record unavailable"
+        : "Loading record…");
   return (
     <ReferenceHelpHost generation={workspace.filterEditor?.artifact_generation}>
       <main className="search-workspace">
@@ -105,6 +107,7 @@ export function SearchView({
                   : null
               }
               generation={workspace.resultPage?.artifact_generation}
+              disabled={profile.keywordSearch && Boolean(workspace.search.similarSeed)}
               onApply={(next, model) =>
                 workspace.applySettings
                   ? workspace.applySettings(next, model)
@@ -113,7 +116,10 @@ export function SearchView({
             />
           }
         />
-        <SearchProfileNotice />
+        <SearchProfileNotice
+          similar={Boolean(workspace.search.similarSeed)}
+          showKeyword
+        />
         {workspace.errorMessage && (
           <ErrorNotice
             error={workspace.errorMessage}

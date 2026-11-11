@@ -1,6 +1,14 @@
 //! Compile the maintainer-edited equipment families into one embedded payload.
 
 mod build_axes;
+mod build_creature_families;
+#[path = "src/family_axes.rs"]
+mod family_axes;
+#[path = "src/family_axes/validation.rs"]
+mod family_axis_validation;
+
+#[path = "src/creature_catalog.rs"]
+mod creature_catalog;
 
 #[path = "src/variants/catalog.rs"]
 mod catalog;
@@ -58,8 +66,8 @@ impl ExclusionSide {
 }
 
 fn main() {
-    if let Err(error) = bundle() {
-        eprintln!("equipment family catalog: {error}");
+    if let Err(error) = bundle().and_then(|()| build_creature_families::bundle()) {
+        eprintln!("family catalog: {error}");
         std::process::exit(1);
     }
 }
@@ -69,6 +77,8 @@ fn bundle() -> Result<(), Box<dyn Error>> {
     let exclusions_path = root.join("exclusions.toml");
     println!("cargo:rerun-if-changed=src/variants/catalog.rs");
     println!("cargo:rerun-if-changed=build_axes.rs");
+    println!("cargo:rerun-if-changed=src/family_axes.rs");
+    println!("cargo:rerun-if-changed=src/family_axes/validation.rs");
     println!("cargo:rerun-if-changed={}", root.display());
     let mut paths = Vec::new();
     family_files(root, &mut paths)?;

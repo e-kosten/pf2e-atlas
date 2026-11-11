@@ -360,6 +360,13 @@ jobs:
       - name: Install device browsers
         timeout-minutes: 3
         run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
+      - name: Keyword search without embeddings
+        if: matrix.shard == 1
+        timeout-minutes: 3
+        working-directory: web/atlas-ui
+        env:
+          ATLAS_BROWSER_FIXTURE_KEYWORD: "1"
+        run: npm exec -- playwright test --config playwright.devices.config.ts --project=desktop-chromium --project=phone-webkit
       - name: Responsive browser acceptance
         timeout-minutes: 25
         working-directory: web/atlas-ui

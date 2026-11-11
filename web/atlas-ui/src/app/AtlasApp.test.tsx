@@ -770,6 +770,78 @@ describe("AtlasApp routing", () => {
     expect(within(settings).queryByText("Embedding model")).toBeNull();
   });
 
+  it("recovers an explicit model link with keyword results and keeps the filters and reader", async () => {
+    apiMocks.getReadiness.mockResolvedValue({
+      ...readinessFixture(),
+      search_profiles: [],
+    });
+    const filter = encodeFilterUrl({ kind: "in", field: "kind", values: ["spell"] });
+    history.replaceState(
+      null,
+      "",
+      `/search/records/spell:heal?q=heal&filter=${encodeURIComponent(filter)}&search_profile=bge-base`,
+    );
+    apiMocks.searchPage.mockResolvedValue({
+      ...searchResultsPage(["spell:heal"]),
+      mode: { kind: "text_search", query: "heal", mode: "lexical" },
+    });
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    const recovery = await screen.findByRole("button", { name: "Use keyword search" });
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+    fireEvent.click(recovery);
+
+    expect(await screen.findByText("Keyword search", { exact: true })).toBeVisible();
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    const request = apiMocks.searchPage.mock.calls[0][0];
+    expect(request.search_profile).toBeUndefined();
+    expect(request.criteria).toMatchObject({
+      kind: "text_search",
+      query: "heal",
+      mode: "lexical",
+      filter: { field: "kind", values: ["spell"] },
+    });
+    expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+    expect(window.location.pathname).toBe("/search/records/spell:heal");
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("filter")).toBe(filter);
+    expect(params.get("search_profile")).toBeNull();
+  });
+
+  it("drops a generated model parameter when a refreshed collection has no vectors", async () => {
+    history.replaceState(null, "", "/search?q=heal");
+    apiMocks.searchPage.mockImplementation(
+      async ({ criteria }: SearchResultsRequest) => ({
+        ...searchResultsPage(),
+        mode: criteria,
+      }),
+    );
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    await waitFor(() =>
+      expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
+        "bge-base",
+      ),
+    );
+    apiMocks.getReadiness.mockResolvedValue({
+      ...readinessFixture(),
+      search_profiles: [],
+    });
+    act(() => window.dispatchEvent(new Event("atlas-reference-updated")));
+
+    expect(await screen.findByText("Keyword search", { exact: true })).toBeVisible();
+    await waitFor(() => {
+      expect(new URLSearchParams(window.location.search).has("search_profile")).toBe(
+        false,
+      );
+      expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          search_profile: undefined,
+          criteria: expect.objectContaining({ query: "heal", mode: "lexical" }),
+        }),
+        expect.any(AbortSignal),
+      );
+    });
+  });
+
   it("uses ordinary availability copy when the sole stored profile lacks text-search assets", async () => {
     const readiness = readinessFixture();
     readiness.search_profiles = [

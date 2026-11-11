@@ -1,5 +1,6 @@
 //! Shared contract for the authored catalog and its bundled payload.
 
+use crate::family_axes::{Axis, Coordinates};
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -33,6 +34,8 @@ pub(super) struct Family {
     #[serde(default)]
     pub(super) axes: Vec<Axis>,
     #[serde(default)]
+    pub(super) all_variants_by_default: bool,
+    #[serde(default)]
     pub(super) general_records: Vec<GeneralRecord>,
     #[serde(default)]
     pub(super) order_by_level: bool,
@@ -48,22 +51,7 @@ pub(super) struct Member {
     pub(super) attributes: Vec<String>,
     pub(super) fit: Option<Fit>,
     #[serde(default)]
-    pub(super) coordinates: BTreeMap<String, String>,
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct Axis {
-    pub(super) id: String,
-    pub(super) label: String,
-    pub(super) options: Vec<AxisOption>,
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct AxisOption {
-    pub(super) id: String,
-    pub(super) label: String,
+    pub(super) coordinates: Coordinates,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -71,7 +59,7 @@ pub(super) struct AxisOption {
 pub(super) struct GeneralRecord {
     pub(super) key: RecordKey,
     pub(super) name: String,
-    pub(super) scope: BTreeMap<String, String>,
+    pub(super) scope: Coordinates,
 }
 
 impl GeneralRecord {

@@ -99,6 +99,9 @@ function readingSearch(search: AtlasSearchParams): AtlasSearchParams {
     const focus = encodeReadingAddress("", landing, true);
     if (focus !== undefined) result.focus = focus;
   }
+  const scenario = singleton(search, "scenario_use");
+  if (scenario && /^[^~]+~[a-z0-9-]{1,128}$/.test(scenario))
+    result.scenario_use = scenario;
   const view = readingView(search);
   const definition = definitionReading(search);
   if (definition.definitionKey) result.definition_key = definition.definitionKey;

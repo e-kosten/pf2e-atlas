@@ -5,8 +5,10 @@ import { Button, Form, theme } from "antd";
 import type { FormInstance } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import type {
+  CreatureScenarioContext,
   EncounterDifficultyAddition,
   EncounterParticipantVariantView,
+  PreparedCreatureChoice,
 } from "../../generated/atlas";
 import {
   difficultySummary,
@@ -19,13 +21,26 @@ export type EncounterRecordAddForm = {
   adjustment?: EncounterParticipantVariantView;
 };
 
+export type PreparedCreatureAddition = {
+  request: EncounterDifficultyAddition;
+  choice: PreparedCreatureChoice;
+  basis: string;
+};
+
+export function encounterPreviewBasis(encounterKey: string, revision: number) {
+  return JSON.stringify([encounterKey, revision]);
+}
+
 export function encounterRecordAddition(
   recordKey: string,
   creature: boolean,
   form: FormInstance<EncounterRecordAddForm>,
+  scenario?: CreatureScenarioContext,
+  prepared?: PreparedCreatureAddition | null,
+  basis?: string,
 ): EncounterDifficultyAddition {
   const quantity = form.getFieldValue("quantity");
-  return {
+  const addition: EncounterDifficultyAddition = {
     record_ref: recordKey,
     quantity: quantity === undefined ? 1 : (quantity ?? Number.NaN),
     participant_variant:
@@ -33,6 +48,21 @@ export function encounterRecordAddition(
         ? (form.getFieldValue("adjustment") ?? null)
         : null,
   };
+  if (scenario) {
+    const expected = prepared?.request;
+    const matches =
+      prepared?.basis === basis &&
+      expected?.record_ref === recordKey &&
+      expected.quantity === addition.quantity &&
+      expected.participant_variant === addition.participant_variant &&
+      expected.creature_scenario?.use_id === scenario.use_id &&
+      expected.creature_scenario?.artifact_generation === scenario.artifact_generation;
+    addition.creature_scenario = {
+      ...scenario,
+      ...(matches && prepared ? { expected: prepared.choice } : {}),
+    };
+  }
+  return addition;
 }
 
 /** Footer-only projection: no reference editor and no speculative saved participants. */
@@ -46,6 +76,8 @@ export function EncounterAddDifficulty({
   selectedRecordKey,
   creature,
   recordName,
+  scenario: creatureScenario,
+  onPreparedCreature,
   disabled,
 }: Pick<
   EncounterDifficultyProps,
@@ -60,6 +92,8 @@ export function EncounterAddDifficulty({
   selectedRecordKey: string | null;
   creature: boolean;
   recordName: string;
+  scenario?: CreatureScenarioContext;
+  onPreparedCreature?: (prepared: PreparedCreatureAddition | null) => void;
 }) {
   const { token } = theme.useToken();
   // Subscribe to field edits, then read the same form snapshot as submission.
@@ -71,6 +105,8 @@ export function EncounterAddDifficulty({
   const recordRef = fields?.record_ref;
   const quantity = fields?.quantity;
   const variant = fields?.participant_variant;
+  const useId = creatureScenario?.use_id;
+  const scenarioGeneration = creatureScenario?.artifact_generation;
   const addition = useMemo<EncounterDifficultyAddition | null>(
     () =>
       recordRef && quantity !== undefined
@@ -78,9 +114,17 @@ export function EncounterAddDifficulty({
             record_ref: recordRef,
             quantity,
             participant_variant: variant ?? null,
+            ...(scenarioGeneration
+              ? {
+                  creature_scenario: {
+                    artifact_generation: scenarioGeneration,
+                    ...(useId === undefined ? {} : { use_id: useId }),
+                  },
+                }
+              : {}),
           }
         : null,
-    [recordRef, quantity, variant],
+    [recordRef, quantity, variant, scenarioGeneration, useId],
   );
   const valid =
     addition !== null &&
@@ -133,6 +177,15 @@ export function EncounterAddDifficulty({
     data: typeof preview.data;
   }>();
   const received = valid && settled ? preview.data : undefined;
+  const preparedBasis = encounterPreviewBasis(encounterKey, revision);
+  useEffect(() => {
+    const choice = received?.value.prepared_creature_choice;
+    onPreparedCreature?.(
+      received?.addition && choice
+        ? { request: received.addition, choice, basis: preparedBasis }
+        : null,
+    );
+  }, [onPreparedCreature, preparedBasis, received]);
   if (received && (retained?.identity !== identity || retained.data !== received))
     setRetained({ identity, data: received });
   const shown = selectedRecordKey

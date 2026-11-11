@@ -164,6 +164,7 @@ mod tests {
             .add_encounter_record_participant(
                 &encounter.encounter_key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     participant_variant: None,
                     record_ref: "Test Creature 1".into(),
                     quantity: 2,

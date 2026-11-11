@@ -1,0 +1,27 @@
+name = "Sea Devil"
+source_note = "The Bestiary publishes Scout, Brute, and Baron together. Star-Crossed Voyages and The Crashing Wave supply further Sea Devil roles."
+
+[[members]]
+key = "pathfinder-bestiary:PXru127aJljwKhSy"
+name = "Sea Devil Scout"
+qualifier = "Scout"
+
+[[members]]
+key = "pathfinder-bestiary:UrviURGu5o9LkhxN"
+name = "Sea Devil Brute"
+qualifier = "Brute"
+
+[[members]]
+key = "pathfinder-bestiary:HFbZ580RDOG6Rxz2"
+name = "Sea Devil Baron"
+qualifier = "Baron"
+
+[[members]]
+key = "pfs-season-1-bestiary:LKdTBOV9LUiFrKOU"
+name = "Sea Devil Invader"
+qualifier = "Invader"
+
+[[members]]
+key = "pfs-season-2-bestiary:mot8pWHD6YEj08Js"
+name = "Sea Devil Impaler"
+qualifier = "Impaler"

@@ -6,6 +6,7 @@ import {
 } from "../../shared/filters/searchState";
 import { useFilterDiscovery } from "../../shared/filters/useFilterDiscovery";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
+import { searchExecution } from "../../shared/search/searchExecution";
 
 const LIST_SEARCH_REQUEST_DEBOUNCE_MS = 300;
 
@@ -15,6 +16,7 @@ export function useSavedListFilterDiscovery(
   enabled = true,
 ) {
   const profile = useSearchProfile();
+  const execution = searchExecution(profile, "list_records");
   const filterToken = useMemo(
     () => encodeSearchExecutionState({ ...filters, sort: undefined }),
     [filters],
@@ -22,9 +24,9 @@ export function useSavedListFilterDiscovery(
   const context = useMemo(
     () => ({
       ...buildSavedListFilterDiscoveryContext(listRef, filters),
-      search_profile: profile.id ?? undefined,
+      search_profile: execution.profile,
     }),
-    [listRef, filters, profile.id],
+    [listRef, filters, execution.profile],
   );
   const discovery = useFilterDiscovery({
     context,
@@ -34,7 +36,7 @@ export function useSavedListFilterDiscovery(
   });
   return {
     ...discovery,
-    filterCountsEnabled: enabled && profile.id !== null && profile.storedVectors,
+    filterCountsEnabled: enabled && execution.ready,
   };
 }
 

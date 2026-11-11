@@ -339,22 +339,49 @@ impl AtlasAppService {
     ) -> AppServiceResult<EncounterMutationView> {
         let encounter_ref = encounter_ref.to_owned();
         let record_ref = request.record_ref.clone();
-        let (receipt, record, baseline, revision) = self.with_workspace(
+        let expected = request
+            .creature_scenario
+            .as_ref()
+            .and_then(|scenario| scenario.expected.clone());
+        let (receipt, record, baseline, variant, revision) = self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
                 let receipt =
                     encounter_receipt(&session.local_state()?.encounters(), &encounter_ref)?;
-                let record = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
+                let base = resolve_record_ref(session.retrieval_mut(), &record_ref)?;
+                let replacement = super::record_addition::published_replacement(
+                    session.retrieval_mut(),
+                    &base,
+                    request.participant_variant,
+                    request.creature_scenario.as_ref(),
+                )?;
+                let (record, variant) = match replacement {
+                    Some(record) => (record, None),
+                    None => (base, request.participant_variant),
+                };
                 let baseline = super::hydration::source_baseline(
                     &record.source,
                     session.retrieval_mut(),
                     None,
                 )?;
-                Ok((receipt, record, baseline, session.reference_revision()?))
+                Ok((
+                    receipt,
+                    record,
+                    baseline,
+                    variant,
+                    session.reference_revision()?,
+                ))
             },
         )?;
         super::record_addition::validate_quantity(request.quantity)?;
-        let template = super::record_addition::prepare(&record, request.participant_variant)?;
+        let template = super::record_addition::prepare(&record, variant)?;
+        if let Some(expected) = expected
+            && super::record_addition::prepared_choice(&template).as_ref() != Some(&expected)
+        {
+            return Err(crate::AppServiceError::invalid_request(
+                "The creature version changed. Refresh the encounter preview before adding it.",
+            ));
+        }
         let participants = (0..request.quantity)
             .map(|index| {
                 let mut participant = template.clone();

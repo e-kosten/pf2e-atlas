@@ -18,6 +18,7 @@ fn encounter_index_counts_saved_participants_without_reference_reads() {
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 2,
@@ -185,6 +186,7 @@ fn quantity_add_returns_receipt_when_any_postcommit_retrieval_would_fail() {
         .add_encounter_record_participant(
             &encounter.slug,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 3,
@@ -237,6 +239,7 @@ fn derived_edit_receipt_and_stale_guard_do_not_run_postcommit_hydration() {
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -334,6 +337,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
             .add_encounter_record_participant(
                 &encounter.encounter_key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     participant_variant: None,
                     record_ref: "Test Action 1".into(),
                     quantity: 2,
@@ -356,6 +360,7 @@ fn invalid_source_and_failed_derivation_leave_local_state_unchanged() {
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -421,6 +426,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -874,6 +880,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 3,
@@ -929,6 +936,7 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Hazard 1".into(),
                 quantity: 1,
@@ -1055,6 +1063,7 @@ fn strike_status_penalties_preserve_strongest_and_suppressed_explanations_in_bot
             .add_encounter_record_participant(
                 &e.encounter_key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     participant_variant: None,
                     record_ref: "Test Creature 1".into(),
                     quantity: 1,
@@ -1194,6 +1203,7 @@ fn encounter_projection_keeps_semantic_statistics_and_authored_context() {
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -1301,6 +1311,7 @@ fn alternate_skill_value_includes_weak_and_condition_adjustments() {
         .add_encounter_record_participant(
             &key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: Some(EncounterParticipantVariantView::Weak),
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -1382,6 +1393,7 @@ fn derived_capacity_changes_clamp_valid_damage_at_zero_and_preserve_manual_outli
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -1531,6 +1543,7 @@ fn derived_hp_follows_pristine_variant_then_preserves_damage_and_explicit_capaci
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -1697,6 +1710,7 @@ fn same_value_hp_edit_is_preserved_and_manual_hp_is_never_clamped() {
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -1829,6 +1843,7 @@ fn inherited_elite_applies_once_and_unrecognized_adjustment_defaults_to_normal()
             .add_encounter_record_participant(
                 &e.encounter_key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     participant_variant: None,
                     record_ref: name.into(),
                     quantity: 1,
@@ -1917,6 +1932,7 @@ fn conditions_stack_known_penalties_and_preserve_unapplied_context() {
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -2028,6 +2044,7 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
                 .add_encounter_record_participant(
                     &encounter.encounter_key,
                     AddEncounterRecordParticipantRequest {
+                        creature_scenario: None,
                         participant_variant: None,
                         record_ref: format!("Speed {baseline}"),
                         quantity: 3,
@@ -2136,6 +2153,7 @@ fn artifact_rebuild_does_not_reinitialize_capacity_or_current_hp() {
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -2208,6 +2226,7 @@ fn hazard_uses_authored_hp_hardness_and_stealth_without_npc_adjustments() {
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Hazard 1".into(),
                 quantity: 1,
@@ -2346,6 +2365,7 @@ fn omitted_adjustment_under_known_attributes_defaults_local_hp_without_rewriting
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Ghoul".into(),
                 quantity: 1,
@@ -2448,6 +2468,7 @@ fn custom_condition_note_stays_on_its_exact_row_once() {
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -2594,6 +2615,7 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
         .add_encounter_record_participant(
             &encounter.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 participant_variant: None,
                 record_ref: "Test Creature 1".into(),
                 quantity: 1,
@@ -2913,6 +2935,7 @@ fn disabled_hazard_preserves_state_and_next_turn_continues_from_its_position() {
             .add_encounter_record_participant(
                 &key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     participant_variant: None,
                     record_ref: reference.into(),
                     quantity: 1,
@@ -3195,6 +3218,7 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
             .add_encounter_record_participant(
                 &e.encounter_key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     record_ref: name.into(),
                     quantity: 2,
                     initiative: Some(17),
@@ -3234,6 +3258,7 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
             .add_encounter_record_participant(
                 &e.encounter_key,
                 AddEncounterRecordParticipantRequest {
+                    creature_scenario: None,
                     record_ref: "Trap".into(),
                     quantity: 2,
                     initiative: None,
@@ -3253,6 +3278,7 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         .add_encounter_record_participant(
             &e.encounter_key,
             AddEncounterRecordParticipantRequest {
+                creature_scenario: None,
                 record_ref: "Trap".into(),
                 quantity: 1,
                 initiative: None,

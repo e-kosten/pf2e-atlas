@@ -224,7 +224,7 @@ impl<'a> LoadedRecordDetail<'a> {
             })
             .collect();
         let content = r.read_attributed_content(&locators)?;
-        let summary = crate::projection::localized_summary_view(&detail.summary, r);
+        let summary = crate::projection::localized_detail_summary_view(detail, r);
         let mut presentation = crate::presentation::record_presentation(
             &detail.source,
             node,
@@ -384,7 +384,24 @@ impl<'a> LoadedRecordDetail<'a> {
         } else {
             None
         };
+        let creature_family = if request.address.owners.is_empty() {
+            r.creature_family_for(&detail.summary)?
+                .map(|family| crate::creature_family::family_view(r, family))
+        } else {
+            None
+        };
+        let creature_overrides = if creature_family.is_some() {
+            crate::creature_family::overrides(
+                r,
+                &detail.summary,
+                summary.creature_display.as_ref(),
+            )?
+        } else {
+            Vec::new()
+        };
         let mut view = RecordDetailView {
+            creature_family,
+            creature_overrides,
             equipment_family,
             remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
             source_remaster_context: None,
