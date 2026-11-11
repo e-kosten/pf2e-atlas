@@ -12,6 +12,9 @@ pub enum EquipmentFamilyView {
         name: String,
         members: Vec<VariantFamilyChoiceView>,
         groupings: Vec<EquipmentFamilyGroupingView>,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        #[cfg_attr(feature = "openapi", schema(required = false))]
+        all_variants_by_default: bool,
         overviews: Vec<VariantFamilyChoiceView>,
     },
 }

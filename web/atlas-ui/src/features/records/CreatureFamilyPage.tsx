@@ -9,7 +9,7 @@ import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHea
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
-import { FamilyRows } from "./EquipmentFamilyPage";
+import { FamilyMembers, FamilyRows } from "./FamilyMembers";
 
 export function CreatureFamilyPage({ familyId }: { familyId: string }) {
   const query = useQuery({
@@ -43,7 +43,11 @@ export function CreatureFamilyPage({ familyId }: { familyId: string }) {
                 />
                 <div className="record-explore__task">
                   <h3>{family.versions.length === 1 ? "Creature" : "Variants"}</h3>
-                  <FamilyRows choices={family.versions.map((record) => ({ record }))} />
+                  <FamilyMembers
+                    choices={family.versions.map((record) => ({ record }))}
+                    groupings={family.groupings ?? []}
+                    allVariantsByDefault={family.all_variants_by_default}
+                  />
                   {family.named_creatures.length > 0 && (
                     <>
                       <h3>Named creatures</h3>

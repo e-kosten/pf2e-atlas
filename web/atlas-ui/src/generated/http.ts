@@ -2011,6 +2011,20 @@ export interface CreatureDisplayView {
   uses: CreatureScenarioUseView[];
 }
 
+export type CreatureFamilyGroupViewQualifiers = {[key: string]: string[]};
+
+export interface CreatureFamilyGroupView {
+  heading: string;
+  members: string[];
+  qualifiers?: CreatureFamilyGroupViewQualifiers;
+}
+
+export interface CreatureFamilyGroupingView {
+  groups: CreatureFamilyGroupView[];
+  id: string;
+  label: string;
+}
+
 export type CreatureFamilyViewNamedBases = {[key: string]: string};
 
 /**
@@ -2047,11 +2061,35 @@ export interface RecordSummaryView {
   unit_price_label?: string;
 }
 
+export interface VariantAxisSliceView {
+  heading: string;
+  members: string[];
+}
+
+export interface VariantFamilyChoiceView {
+  qualifier: string;
+  record: RecordSummaryView;
+}
+
+export type VariantFamilyView = {
+  general?: RecordSummaryView;
+  kind: 'concrete';
+  other_combinations: string[];
+  slices: VariantAxisSliceView[];
+} | {
+  heading: string;
+  kind: 'general';
+  members: VariantFamilyChoiceView[];
+};
+
 export interface CreatureFamilyView {
+  all_variants_by_default?: boolean;
+  groupings?: CreatureFamilyGroupingView[];
   id: string;
   name: string;
   named_bases: CreatureFamilyViewNamedBases;
   named_creatures: RecordSummaryView[];
+  version_context?: VariantFamilyView;
   versions: RecordSummaryView[];
 }
 
@@ -3915,11 +3953,6 @@ export interface EncounterTurnReviewView {
   reminders: EncounterTurnReminderView[];
 }
 
-export interface VariantAxisSliceView {
-  heading: string;
-  members: string[];
-}
-
 export interface EquipmentFamilyGroupingView {
   groups: VariantAxisSliceView[];
   id: string;
@@ -3931,15 +3964,11 @@ export interface EquipmentFamilyReferenceView {
   name: string;
 }
 
-export interface VariantFamilyChoiceView {
-  qualifier: string;
-  record: RecordSummaryView;
-}
-
 export type EquipmentFamilyView = {
   kind: 'unavailable';
   name: string;
 } | {
+  all_variants_by_default?: boolean;
   groupings: EquipmentFamilyGroupingView[];
   kind: 'content';
   members: VariantFamilyChoiceView[];
@@ -4791,17 +4820,6 @@ export interface RelatedRecordsRequest {
   artifact_generation: string;
   selection: RecordNavigationViewInputSchema;
 }
-
-export type VariantFamilyView = {
-  general?: RecordSummaryView;
-  kind: 'concrete';
-  other_combinations: string[];
-  slices: VariantAxisSliceView[];
-} | {
-  heading: string;
-  kind: 'general';
-  members: VariantFamilyChoiceView[];
-};
 
 export interface RelatedRecordsView {
   artifact_generation: string;

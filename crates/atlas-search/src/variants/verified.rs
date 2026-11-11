@@ -7,9 +7,9 @@ use std::sync::LazyLock;
 
 use super::catalog::{Catalog, Family, Fit, GeneralRecord, Member, valid_family_id};
 use super::{
-    Compatibility, EquipmentFamily, EquipmentFamilyGrouping, EquipmentFamilyOutcome,
-    EquipmentFamilyReference, VariantAxisSlice, VariantFamilyChoice, VariantFamilyContext,
-    VariantGroupResult, VariantSuggestionEvidence, axes, compatibility,
+    Compatibility, EquipmentFamily, EquipmentFamilyOutcome, EquipmentFamilyReference,
+    VariantFamilyChoice, VariantFamilyContext, VariantGroupResult, VariantSuggestionEvidence, axes,
+    compatibility,
 };
 
 static CATALOG: LazyLock<Result<Catalog, serde_json::Error>> = LazyLock::new(|| {
@@ -282,33 +282,15 @@ pub(super) fn equipment_family(
             name: family.name.clone(),
         });
     };
-    let groupings = family
-        .axes
+    let coordinates = reviewed
         .iter()
-        .map(|axis| EquipmentFamilyGrouping {
-            id: axis.id.clone(),
-            label: axis.label.clone(),
-            groups: axis
-                .options
-                .iter()
-                .filter_map(|option| {
-                    let members: Vec<_> = reviewed
-                        .iter()
-                        .filter(|(member, _)| member.coordinates[&axis.id] == option.id)
-                        .map(|(member, _)| member.key.clone())
-                        .collect();
-                    (!members.is_empty()).then(|| VariantAxisSlice {
-                        heading: option.label.clone(),
-                        members,
-                    })
-                })
-                .collect(),
-        })
-        .collect();
+        .map(|(member, _)| (&member.key, &member.coordinates))
+        .collect::<Vec<_>>();
+    let groupings = crate::family_axis_projection::groupings(&family.axes, &coordinates);
     let mut overviews = Vec::new();
     for entry in &family.general_records {
         if let Some(summary) = read_general(retrieval, family, entry)? {
-            let qualifier = axes::labels(family, &entry.scope);
+            let qualifier = crate::family_axis_projection::labels(&family.axes, &entry.scope);
             overviews.push(VariantFamilyChoice {
                 summary: *summary,
                 qualifier,
@@ -322,6 +304,7 @@ pub(super) fn equipment_family(
             .map(|(member, summary)| member_choice(family, member, summary))
             .collect(),
         groupings,
+        all_variants_by_default: family.all_variants_by_default,
         overviews,
     }))
 }

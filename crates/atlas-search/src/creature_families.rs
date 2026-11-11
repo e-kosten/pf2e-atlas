@@ -1,5 +1,9 @@
 use crate::creature_catalog::{CreatureCatalog, CreatureFamily, Member, ScenarioUse};
-use crate::{AtlasRetrievalService, GetRecordsRequest, SearchError};
+use crate::family_axes::Coordinates;
+use crate::family_axis_projection;
+use crate::{
+    AtlasRetrievalService, FamilyGrouping, GetRecordsRequest, SearchError, VariantAxisSlice,
+};
 use atlas_domain::{RecordKey, RecordKind, SourceRecordSummary};
 use std::sync::OnceLock;
 
@@ -10,13 +14,23 @@ pub struct CreatureFamilyRecords {
     pub id: &'static str,
     pub name: &'static str,
     pub members: Vec<CreatureFamilyRecord>,
+    pub groupings: Vec<FamilyGrouping>,
+    pub all_variants_by_default: bool,
+    pub version_slices: Option<CreatureVersionSlices>,
+}
+
+#[derive(Debug)]
+pub struct CreatureVersionSlices {
+    pub slices: Vec<VariantAxisSlice>,
+    pub other_combinations: Vec<RecordKey>,
 }
 
 #[derive(Debug)]
 pub struct CreatureFamilyRecord {
     pub summary: SourceRecordSummary,
     pub named_base: Option<&'static RecordKey>,
-    pub qualifier: Option<&'static str>,
+    pub qualifier: Option<String>,
+    coordinates: &'static Coordinates,
 }
 
 pub struct CreatureDisplay {
@@ -118,25 +132,28 @@ impl AtlasRetrievalService {
         if !matches(member, summary) {
             return Ok(None);
         }
-        Ok(self.read_creature_family(id, family)?.filter(|family| {
-            family
-                .members
-                .iter()
-                .any(|member| member.summary.key == summary.key)
-        }))
+        Ok(self
+            .read_creature_family(id, family, Some(&summary.key))?
+            .filter(|family| {
+                family
+                    .members
+                    .iter()
+                    .any(|member| member.summary.key == summary.key)
+            }))
     }
 
     pub fn creature_family(&self, id: &str) -> Result<Option<CreatureFamilyRecords>, SearchError> {
         let Some((id, family)) = catalog().and_then(|catalog| catalog.get_key_value(id)) else {
             return Ok(None);
         };
-        self.read_creature_family(id, family)
+        self.read_creature_family(id, family, None)
     }
 
     fn read_creature_family(
         &self,
         id: &'static str,
         family: &'static CreatureFamily,
+        seed: Option<&RecordKey>,
     ) -> Result<Option<CreatureFamilyRecords>, SearchError> {
         let keys: Vec<_> = family
             .members
@@ -155,7 +172,15 @@ impl AtlasRetrievalService {
                 Some(CreatureFamilyRecord {
                     summary,
                     named_base: member.named_base.as_ref(),
-                    qualifier: member.qualifier.as_deref(),
+                    qualifier: if member.coordinates.is_empty() {
+                        member.qualifier.clone()
+                    } else {
+                        Some(family_axis_projection::labels(
+                            &family.axes,
+                            &member.coordinates,
+                        ))
+                    },
+                    coordinates: &member.coordinates,
                 })
             })
             .collect();
@@ -172,10 +197,39 @@ impl AtlasRetrievalService {
         if members.len() < 2 || members.iter().all(|member| member.named_base.is_some()) {
             return Ok(None);
         }
+        let concrete = members
+            .iter()
+            .filter(|member| member.named_base.is_none())
+            .map(|member| (&member.summary.key, member.coordinates))
+            .collect::<Vec<_>>();
+        let groupings = family_axis_projection::groupings(&family.axes, &concrete);
+        let version_slices = seed.filter(|_| concrete.len() > 1).and_then(|seed| {
+            let index = concrete.iter().position(|(key, _)| *key == seed)?;
+            let mut siblings = concrete;
+            let (_, coordinates) = siblings.remove(index);
+            let (slices, other_combinations) = if family.axes.is_empty() {
+                (
+                    vec![VariantAxisSlice {
+                        heading: "Variants".into(),
+                        members: siblings.into_iter().map(|(key, _)| key.clone()).collect(),
+                    }],
+                    Vec::new(),
+                )
+            } else {
+                family_axis_projection::siblings(&family.axes, coordinates, &siblings)
+            };
+            Some(CreatureVersionSlices {
+                slices,
+                other_combinations,
+            })
+        });
         Ok(Some(CreatureFamilyRecords {
             id,
             name: &family.name,
             members,
+            groupings,
+            all_variants_by_default: family.all_variants_by_default,
+            version_slices,
         }))
     }
 
@@ -232,5 +286,91 @@ mod tests {
                 .minimum_challenge_points,
             Some(28),
         );
+    }
+
+    #[test]
+    fn adamantine_dragon_groups_and_slices_only_verified_records() {
+        use crate::test_support::{open_source_fixture, record};
+        use serde_json::json;
+
+        let family = &catalog().unwrap()["adamantine-dragon"];
+        let seed = &family.members[3].key;
+        let build = |renamed: bool| {
+            let records = family
+                .members
+                .iter()
+                .enumerate()
+                .map(|(index, member)| {
+                    let name = if renamed && index == 4 {
+                        "Renamed dragon"
+                    } else {
+                        &member.name
+                    };
+                    record(
+                        member.key.pack().as_str(),
+                        "Actor",
+                        json!({
+                            "_id": member.key.id().as_str(), "type": "npc", "name": name,
+                            "system": {"details": {"level": {"value": 13}}}
+                        }),
+                    )
+                })
+                .collect();
+            open_source_fixture(records, false).unwrap()
+        };
+        let (retrieval, _fixture) = build(false);
+        let group = retrieval
+            .creature_family("adamantine-dragon")
+            .unwrap()
+            .unwrap();
+        assert!(group.all_variants_by_default);
+        let expected = |indexes: &[usize]| {
+            indexes
+                .iter()
+                .map(|i| family.members[*i].key.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            group
+                .groupings
+                .iter()
+                .map(|grouping| grouping.label.as_str())
+                .collect::<Vec<_>>(),
+            ["Age", "Form"]
+        );
+        assert_eq!(group.groupings[0].groups[1].members, expected(&[2, 3]));
+        assert_eq!(group.groupings[1].groups[1].members, expected(&[1, 3, 5]));
+        assert_eq!(
+            group
+                .members
+                .iter()
+                .map(|member| member.summary.key.clone())
+                .collect::<Vec<_>>(),
+            expected(&[0, 1, 2, 3, 4, 5])
+        );
+        let check_slices = |retrieval: &AtlasRetrievalService, others: &[usize]| {
+            let summary = retrieval
+                .get_records(GetRecordsRequest {
+                    record_keys: std::slice::from_ref(seed),
+                })
+                .unwrap()
+                .records
+                .pop()
+                .unwrap();
+            let slices = retrieval
+                .creature_family_for(&summary)
+                .unwrap()
+                .unwrap()
+                .version_slices
+                .unwrap();
+            assert_eq!(slices.slices[0].heading, "Other ages");
+            assert_eq!(slices.slices[0].members, expected(&[1, 5]));
+            assert_eq!(slices.slices[1].heading, "Other forms");
+            assert_eq!(slices.slices[1].members, expected(&[2]));
+            assert_eq!(slices.other_combinations, expected(others));
+        };
+        check_slices(&retrieval, &[0, 4]);
+        let (partial, _fixture) = build(true);
+        check_slices(&partial, &[0]);
     }
 }

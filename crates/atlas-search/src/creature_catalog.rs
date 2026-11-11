@@ -1,5 +1,6 @@
 //! Shared contract for the reviewed creature declarations and bundled catalog.
 
+use crate::family_axes::{Axis, Coordinates};
 use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -13,6 +14,10 @@ pub(super) struct CreatureFamily {
     pub source_note: String,
     pub members: Vec<Member>,
     #[serde(default)]
+    pub axes: Vec<Axis>,
+    #[serde(default)]
+    pub all_variants_by_default: bool,
+    #[serde(default)]
     pub overrides: Vec<AdjustmentOverride>,
 }
 
@@ -23,6 +28,8 @@ pub(super) struct Member {
     pub name: String,
     pub label: Option<String>,
     pub qualifier: Option<String>,
+    #[serde(default)]
+    pub coordinates: Coordinates,
     pub named_base: Option<RecordKey>,
     pub publication: Option<String>,
     #[serde(default)]

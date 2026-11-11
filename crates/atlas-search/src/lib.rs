@@ -2,6 +2,13 @@
 mod bestiary_glossary;
 mod configurable_similarity;
 mod creature_catalog;
+mod family_axes;
+#[path = "family_axes/projection.rs"]
+mod family_axis_projection;
+#[cfg(test)]
+#[path = "family_axes/validation.rs"]
+mod family_axis_validation;
+pub use family_axis_projection::FamilyGrouping;
 mod creature_families;
 mod discovery;
 pub use creature_families::{
@@ -68,9 +75,9 @@ pub use text::{
     TextSearchResult,
 };
 pub use variants::{
-    EquipmentFamily, EquipmentFamilyGrouping, EquipmentFamilyOutcome, EquipmentFamilyReference,
-    VariantAxisSlice, VariantExploration, VariantFamilyChoice, VariantFamilyContext,
-    VariantGroupOutcome, VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
+    EquipmentFamily, EquipmentFamilyOutcome, EquipmentFamilyReference, VariantAxisSlice,
+    VariantExploration, VariantFamilyChoice, VariantFamilyContext, VariantGroupOutcome,
+    VariantGroupRequest, VariantGroupResult, VariantSuggestionEvidence,
 };
 
 mod fusion;

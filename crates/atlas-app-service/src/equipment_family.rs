@@ -21,6 +21,7 @@ impl AtlasAppService {
                 }
                 EquipmentFamilyOutcome::Content(family) => Ok(EquipmentFamilyView::Content {
                     name: family.name,
+                    all_variants_by_default: family.all_variants_by_default,
                     members: family
                         .members
                         .into_iter()

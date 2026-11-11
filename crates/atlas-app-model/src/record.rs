@@ -57,6 +57,33 @@ pub struct CreatureFamilyView {
     pub versions: Vec<RecordSummaryView>,
     pub named_creatures: Vec<RecordSummaryView>,
     pub named_bases: std::collections::BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "openapi", schema(required = false))]
+    pub groupings: Vec<CreatureFamilyGroupingView>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[cfg_attr(feature = "openapi", schema(required = false))]
+    pub all_variants_by_default: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub version_context: Option<crate::VariantFamilyView>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatureFamilyGroupingView {
+    pub id: String,
+    pub label: String,
+    pub groups: Vec<CreatureFamilyGroupView>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatureFamilyGroupView {
+    pub heading: String,
+    pub members: Vec<String>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    #[cfg_attr(feature = "openapi", schema(required = false))]
+    pub qualifiers: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

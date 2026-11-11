@@ -537,7 +537,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           reloadLabel={reloadLabel}
         />
       )}
-      {!family && variants?.kind === "error" ? (
+      {!family && !creatureVersions.length && variants?.kind === "error" ? (
         <ErrorNotice
           error={variants.error}
           compact
@@ -548,7 +548,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
             </Button>
           }
         />
-      ) : !family && variants?.kind === "unavailable" ? (
+      ) : !family && !creatureVersions.length && variants?.kind === "unavailable" ? (
         <Typography.Paragraph type="secondary">{variants.reason}</Typography.Paragraph>
       ) : null}
       {relationships && (
@@ -567,28 +567,17 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         referenceActions={compareReferences}
         showExplanations={false}
       />
-      {creatureVersions.length > 0 && (
+      {creatureVersions.length > 0 && detail.creature_family?.version_context && (
         <>
           <CreatureScenarioChoices detail={detail} />
-          <section>
-            <h3>Variants</h3>
-            <div className="record-explore__results" role="list">
-              {creatureVersions.map((record) => (
-                <VersionCard
-                  key={record.record_key}
-                  record={record}
-                  onReference={() =>
-                    navigateDestination(
-                      recordDestination({ recordKey: record.record_key }),
-                    )
-                  }
-                  onCompare={() =>
-                    setComparison({ target: record.record_key, open: true })
-                  }
-                />
-              ))}
-            </div>
-          </section>
+          <FamilyVersions
+            family={detail.creature_family.version_context}
+            choices={creatureVersions.map((record) => ({ record }))}
+            onReference={(recordKey) =>
+              navigateDestination(recordDestination({ recordKey }))
+            }
+            onCompare={(target) => setComparison({ target, open: true })}
+          />
         </>
       )}
       {family ? (

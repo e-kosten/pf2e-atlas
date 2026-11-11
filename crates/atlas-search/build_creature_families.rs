@@ -52,12 +52,27 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
     {
         return Err("a family needs a name, a source note and at least two members".into());
     }
+    crate::family_axis_validation::ValidatedAxes::new(&family.axes)?.validate_members(
+        family
+            .members
+            .iter()
+            .filter(|member| member.named_base.is_none())
+            .map(|member| (&member.key, &member.coordinates)),
+    )?;
     let members: BTreeMap<_, _> = family
         .members
         .iter()
         .map(|member| (&member.key, member))
         .collect();
     for member in &family.members {
+        if (member.named_base.is_some() && !member.coordinates.is_empty())
+            || (!member.coordinates.is_empty() && member.qualifier.is_some())
+        {
+            return Err(format!(
+                "invalid axis coordinates or qualifier for {}",
+                member.key
+            ));
+        }
         if member.name.trim().is_empty()
             || member
                 .label

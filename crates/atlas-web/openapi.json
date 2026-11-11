@@ -3484,8 +3484,69 @@
         ],
         "type": "object"
       },
+      "CreatureFamilyGroupView": {
+        "properties": {
+          "heading": {
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "qualifiers": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "heading",
+          "members"
+        ],
+        "type": "object"
+      },
+      "CreatureFamilyGroupingView": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/CreatureFamilyGroupView"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "groups"
+        ],
+        "type": "object"
+      },
       "CreatureFamilyView": {
         "properties": {
+          "all_variants_by_default": {
+            "type": "boolean"
+          },
+          "groupings": {
+            "items": {
+              "$ref": "#/components/schemas/CreatureFamilyGroupingView"
+            },
+            "type": "array"
+          },
           "id": {
             "type": "string"
           },
@@ -3506,6 +3567,9 @@
               "$ref": "#/components/schemas/RecordSummaryView"
             },
             "type": "array"
+          },
+          "version_context": {
+            "$ref": "#/components/schemas/VariantFamilyView"
           },
           "versions": {
             "items": {
@@ -7041,6 +7105,9 @@
           },
           {
             "properties": {
+              "all_variants_by_default": {
+                "type": "boolean"
+              },
               "groupings": {
                 "items": {
                   "$ref": "#/components/schemas/EquipmentFamilyGroupingView"

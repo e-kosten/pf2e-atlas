@@ -5,6 +5,7 @@ mod build_axes;
 mod catalog;
 mod verified;
 
+use crate::family_axis_projection::FamilyGrouping;
 use atlas_domain::{RecordKey, SourceRecordSummary};
 pub struct VariantGroupRequest<'a> {
     pub record_key: &'a RecordKey,
@@ -53,14 +54,9 @@ pub enum EquipmentFamilyOutcome {
 pub struct EquipmentFamily {
     pub name: String,
     pub members: Vec<VariantFamilyChoice>,
-    pub groupings: Vec<EquipmentFamilyGrouping>,
+    pub groupings: Vec<FamilyGrouping>,
+    pub all_variants_by_default: bool,
     pub overviews: Vec<VariantFamilyChoice>,
-}
-
-pub struct EquipmentFamilyGrouping {
-    pub id: String,
-    pub label: String,
-    pub groups: Vec<VariantAxisSlice>,
 }
 
 pub enum VariantFamilyContext {
@@ -75,6 +71,7 @@ pub enum VariantFamilyContext {
     },
 }
 
+#[derive(Debug)]
 pub struct VariantAxisSlice {
     pub heading: String,
     pub members: Vec<RecordKey>,

@@ -111,18 +111,18 @@
   --browse-pane-inset: var(--space-group);
 }
 
-.equipment-family__group-by {
+.record-family__group-by {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-control);
 }
 
-.equipment-family__group {
+.record-family__group {
   margin-block-start: var(--space-group);
 }
 
-.equipment-family__group > h4 {
+.record-family__group > h4 {
   margin-block: 0 var(--space-control);
 }
 
