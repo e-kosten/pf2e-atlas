@@ -166,16 +166,6 @@ before assigning a tier to the unsuffixed Hesla.
 - Hesla, The Broken Ember (`pfs-season-6-bestiary:EWutX9eW7tYLpors`)
 - Hesla, The Broken Ember (11-12) (`pfs-season-6-bestiary:k6VFoe5R52PbVZJB`)
 
-**Cross-publication variants.** The *Hands of the Devil* encounter actors change
-the Barbazu's equipment. Compare them with the Bestiary base before declaring the
-family and deciding how it should appear. Use the result to test cross-publication
-discovery.
-
-- Torture Chamber Barbazu (`abomination-vaults-bestiary:4bznEiwsJvInwZwA`)
-- Drill Field Barbazu (`abomination-vaults-bestiary:A4MusxxoLxwMVZua`)
-- Hellforge Barbazu (`abomination-vaults-bestiary:vX4SBXIICKfrM4pF`)
-- Barbazu (`pathfinder-bestiary:FIoRPHaHdYUPVKdT`)
-
 **Grouping by ability across party tiers.** [Fleshforge Construct](creatures/fleshforge-construct.toml)
 groups by party level and names the ability in each title. Each of the six
 abilities appears on a Dreg and a Prototype. Review whether to offer an

@@ -1,0 +1,57 @@
+name = "Diabolic Dragon"
+source_note = "Monster Core supplies the young, adult, and ancient stat blocks. Draconic Codex supplies the archdragon. Each stage has standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-monster-core:ADjEac8U6pNoPq6J"
+name = "Diabolic Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:sUqSb1cvpotAFf0K"
+name = "Diabolic Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:CPzquDOPnlHyIoVF"
+name = "Diabolic Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:hXl3HV5uuCD1KJjU"
+name = "Diabolic Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:mz7ZO0g4begL6EGH"
+name = "Diabolic Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:ylhweChE6bNwf7Q2"
+name = "Diabolic Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:QwB5R6L0izKv8Caj"
+name = "Diabolic Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:b3ej6PYdzRvtCIa1"
+name = "Diabolic Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }
