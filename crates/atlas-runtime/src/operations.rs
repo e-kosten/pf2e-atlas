@@ -171,7 +171,7 @@ impl AtlasRuntime {
         index: atlas_index::SqliteIndexReader,
         prepared: Option<PreparedQueryEmbedding>,
     ) -> Result<WorkspaceRead, RuntimeError> {
-        let default_profile = self.resolve_default_search_profile(index.context())?;
+        let default_profile = self.resolve_default_search_profile(&index)?;
         Ok(WorkspaceRead {
             retrieval: AtlasRetrievalService::from_index(index, default_profile, prepared)?
                 .with_native_neighbor_reuse(std::sync::Arc::clone(&self.native_neighbor_reuse)),

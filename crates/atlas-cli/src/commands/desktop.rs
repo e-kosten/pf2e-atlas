@@ -63,6 +63,20 @@ pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
     .map_err(|error| error.to_string())?;
     if args.reference_status {
         let status = runtime.desktop_reference_status()?;
+        let readiness = runtime.search_profile_readiness(&status.published_profiles);
+        let models = atlas_embedding::SEARCH_PROFILES
+            .iter()
+            .map(|profile| {
+                let id = profile.profile_id();
+                let ready = readiness.iter().find(|ready| ready.id == id);
+                atlas_desktop_protocol::SearchModelStatus {
+                    id,
+                    label: profile.label.into(),
+                    installed: ready.is_some(),
+                    usable: ready.is_some_and(|ready| ready.usable),
+                }
+            })
+            .collect();
         atlas_cli_support::write_json_data(ReferenceStatus {
             version: VERSION,
             workspace: status.workspace,
@@ -72,6 +86,10 @@ pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
             target_version: status.target_version.into(),
             managed: status.managed,
             offer: status.offer,
+            model_offer: status.model_offer,
+            can_change_models: status.can_change_models,
+            preferred: status.preferred,
+            models,
         })?;
         return Ok(ExitCode::SUCCESS);
     }

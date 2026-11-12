@@ -23,6 +23,17 @@ pub(crate) struct SetupArgs {
         conflicts_with = "desktop_stage"
     )]
     pub(crate) desktop_reference_offer: Option<String>,
+    #[arg(long, hide = true, requires = "desktop_reference_offer")]
+    pub(crate) desktop_model_selection: Option<String>,
+    #[arg(long, hide = true, requires = "desktop_model_selection")]
+    pub(crate) desktop_set_default: bool,
+    #[arg(
+        long,
+        hide = true,
+        requires = "desktop_cancel_on_eof",
+        conflicts_with_all = ["desktop_stage", "desktop_reference_offer"]
+    )]
+    pub(crate) desktop_upgrade_workspace: bool,
     #[command(flatten)]
     pub(crate) paths: SetupPathOptions,
     #[command(flatten)]

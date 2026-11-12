@@ -1,6 +1,7 @@
 //! Reference maintenance admitted by the bundled desktop command.
+use atlas_domain::SearchProfileId;
 use atlas_foundry_model::generated::{REFERENCE_SOURCE_COMMIT, REFERENCE_SOURCE_VERSION};
-use atlas_index::RequestedReferenceConfig;
+use atlas_index::{RequestedReferenceConfig, SourceSearchProfileIdentity, WorkspaceModelChange};
 use atlas_storage::{StorageError, UpdateOwner, Workspace};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
@@ -36,6 +37,36 @@ pub(crate) fn fixture(paths: &ResolvedAtlasPaths) -> bool {
     false
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct DesktopModelSelection {
+    pub profiles: Vec<SearchProfileId>,
+    pub preferred: Option<SearchProfileId>,
+}
+
+impl DesktopModelSelection {
+    fn validate(&self) -> Result<(), String> {
+        if self.profiles.windows(2).any(|pair| pair[0] >= pair[1])
+            || self
+                .profiles
+                .iter()
+                .any(|id| atlas_embedding::search_profile(id).is_err())
+            || self
+                .preferred
+                .as_ref()
+                .is_some_and(|id| !self.profiles.contains(id))
+        {
+            return Err("Select supported search models and an installed default.".into());
+        }
+        Ok(())
+    }
+
+    fn retry_offer(&self, offer: &str) -> String {
+        let encoded = serde_json::to_vec(&(offer, self))
+            .expect("search model selection contains only strings");
+        format!("{:x}", Sha256::digest(encoded))
+    }
+}
+
 pub struct DesktopReferenceStatus {
     pub workspace: PathBuf,
     pub generation: String,
@@ -44,6 +75,10 @@ pub struct DesktopReferenceStatus {
     pub target_version: &'static str,
     pub managed: bool,
     pub offer: Option<String>,
+    pub model_offer: Option<String>,
+    pub can_change_models: bool,
+    pub preferred: Option<SearchProfileId>,
+    pub published_profiles: Vec<SourceSearchProfileIdentity>,
 }
 
 pub enum DesktopReferenceOutcome {
@@ -59,18 +94,29 @@ pub enum DesktopReferenceOutcome {
 }
 
 #[derive(Debug)]
-pub(crate) enum RefreshError {
+pub enum DesktopRefreshError {
     Busy,
     Other(String),
 }
 
-impl From<String> for RefreshError {
+impl std::fmt::Display for DesktopRefreshError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Busy => {
+                formatter.write_str("workspace is busy; retry after the current operation finishes")
+            }
+            Self::Other(message) => formatter.write_str(message),
+        }
+    }
+}
+
+impl From<String> for DesktopRefreshError {
     fn from(message: String) -> Self {
         Self::Other(message)
     }
 }
 
-impl From<StorageError> for RefreshError {
+impl From<StorageError> for DesktopRefreshError {
     fn from(error: StorageError) -> Self {
         if error.is_contention() {
             Self::Busy
@@ -80,7 +126,7 @@ impl From<StorageError> for RefreshError {
     }
 }
 
-impl From<atlas_index::IndexError> for RefreshError {
+impl From<atlas_index::IndexError> for DesktopRefreshError {
     fn from(error: atlas_index::IndexError) -> Self {
         match error {
             atlas_index::IndexError::Storage(error) => error.into(),
@@ -100,6 +146,8 @@ pub(crate) struct Refresh {
     pub generation: String,
     pub configuration: RequestedReferenceConfig,
     file_identity: Option<(u64, u64)>,
+    pub models: Option<WorkspaceModelChange>,
+    model_offer: Option<String>,
 }
 
 pub(crate) fn inspect(paths: &ResolvedAtlasPaths) -> Result<DesktopReferenceStatus, String> {
@@ -167,6 +215,33 @@ fn snapshot(paths: &ResolvedAtlasPaths, workspace: &Workspace) -> Result<Snapsho
         })
         .transpose()
         .map_err(|e| e.to_string())?;
+    let preferred =
+        atlas_index::preferred_search_profile(read.connection()).map_err(|e| e.to_string())?;
+    let model_offer = (paths.mode == ResolvedPathMode::Global
+        && upgrade == atlas_index::ReferenceUpgrade::Current
+        && !config
+            .as_ref()
+            .is_some_and(|config| crate::setup::can_resume_desktop_stage(paths, config, &context)))
+    .then(|| {
+        serde_json::to_vec(&(
+            workspace.path(),
+            file_identity,
+            &generation,
+            &config,
+            &preferred,
+        ))
+        .map(|bytes| format!("{:x}", Sha256::digest(bytes)))
+    })
+    .transpose()
+    .map_err(|e| e.to_string())?;
+    let can_change_models = model_offer.is_some()
+        && managed
+        && revision.as_deref() == Some(REFERENCE_SOURCE_COMMIT)
+        && crate::setup_freshness::has_current_reference_preparation(&context)
+        && config.as_ref().is_some_and(|config| {
+            config.source_root == paths.managed_source_root
+                && config.indexing_locale == context.indexing_locale
+        });
     if workspace_file_identity(paths, workspace)? != file_identity {
         return Err(workspace_changed());
     }
@@ -179,6 +254,10 @@ fn snapshot(paths: &ResolvedAtlasPaths, workspace: &Workspace) -> Result<Snapsho
             target_version: REFERENCE_SOURCE_VERSION,
             managed,
             offer,
+            model_offer,
+            can_change_models,
+            preferred,
+            published_profiles: context.search_profiles,
         },
         configuration: config,
         file_identity,
@@ -190,7 +269,7 @@ impl Refresh {
         paths: &ResolvedAtlasPaths,
         workspace: &Workspace,
         offer: &str,
-    ) -> Result<Self, RefreshError> {
+    ) -> Result<Self, DesktopRefreshError> {
         let check = || -> Result<Snapshot, String> {
             let current = snapshot(paths, workspace)?;
             if current.status.offer.as_deref() != Some(offer) {
@@ -223,19 +302,82 @@ impl Refresh {
             generation: admitted.status.generation,
             configuration,
             file_identity: admitted.file_identity,
+            models: None,
+            model_offer: None,
+        })
+    }
+
+    pub(crate) fn admit_models(
+        paths: &ResolvedAtlasPaths,
+        workspace: &Workspace,
+        offer: &str,
+        selection: &DesktopModelSelection,
+        local: bool,
+    ) -> Result<Self, DesktopRefreshError> {
+        selection.validate()?;
+        let _owner = workspace.update_owner()?;
+        let admitted = snapshot(paths, workspace)?;
+        let base = admitted
+            .status
+            .model_offer
+            .filter(|base| {
+                if local {
+                    selection.retry_offer(base) == offer
+                } else {
+                    base == offer
+                }
+            })
+            .ok_or_else(workspace_changed)?;
+        if !admitted.status.can_change_models {
+            return Err(
+                "Update reference data before changing the installed search models."
+                    .to_owned()
+                    .into(),
+            );
+        }
+        if installed_ids(&admitted.status.published_profiles) == selection.profiles {
+            return Err("The selected search models are already installed."
+                .to_owned()
+                .into());
+        }
+        let previous = admitted.configuration.ok_or_else(workspace_changed)?;
+        let mut configuration = previous.clone();
+        configuration
+            .search_profiles
+            .clone_from(&selection.profiles);
+        Ok(Self {
+            workspace: workspace.clone(),
+            generation: admitted.status.generation,
+            configuration: configuration.clone(),
+            file_identity: admitted.file_identity,
+            models: Some(WorkspaceModelChange {
+                previous_configuration: previous,
+                previous_preference: admitted.status.preferred,
+                configuration,
+                preference: selection.preferred.clone(),
+            }),
+            model_offer: Some(base),
         })
     }
 
     pub(crate) fn publication_owner(
         &self,
         paths: &ResolvedAtlasPaths,
-    ) -> Result<UpdateOwner, RefreshError> {
+    ) -> Result<UpdateOwner, DesktopRefreshError> {
         self.check_location(paths)?;
         let owner = self.workspace.update_owner()?;
         let current = snapshot(paths, &self.workspace)?;
+        let expected_config = self
+            .models
+            .as_ref()
+            .map_or(&self.configuration, |models| &models.previous_configuration);
         if current.status.generation != self.generation
-            || current.configuration.as_ref() != Some(&self.configuration)
+            || current.configuration.as_ref() != Some(expected_config)
             || current.file_identity != self.file_identity
+            || self
+                .model_offer
+                .as_ref()
+                .is_some_and(|offer| current.status.model_offer.as_ref() != Some(offer))
         {
             return Err(workspace_changed().into());
         }
@@ -251,6 +393,19 @@ impl Refresh {
 
     pub(crate) fn retry_offer(&self, paths: &ResolvedAtlasPaths) -> Option<String> {
         let current = snapshot(paths, &self.workspace).ok()?;
+        if let Some(models) = &self.models {
+            let base = self.model_offer.as_ref()?;
+            if current.status.model_offer.as_ref() != Some(base) {
+                return None;
+            }
+            return Some(
+                DesktopModelSelection {
+                    profiles: models.configuration.search_profiles.clone(),
+                    preferred: models.preference.clone(),
+                }
+                .retry_offer(base),
+            );
+        }
         if current.status.generation == self.generation
             && current.configuration.as_ref() == Some(&self.configuration)
             && current.file_identity == self.file_identity
@@ -259,6 +414,67 @@ impl Refresh {
         }
         None
     }
+}
+
+fn installed_ids(profiles: &[SourceSearchProfileIdentity]) -> Vec<SearchProfileId> {
+    let mut ids: Vec<_> = profiles
+        .iter()
+        .map(|profile| profile.profile_id.clone())
+        .collect();
+    ids.sort();
+    ids
+}
+
+pub(crate) fn set_default(
+    runtime: &crate::AtlasRuntime,
+    paths: &ResolvedAtlasPaths,
+    offer: &str,
+    selection: &DesktopModelSelection,
+) -> Result<(), DesktopRefreshError> {
+    selection.validate()?;
+    let workspace = Workspace::existing(&paths.index_path)?;
+    let _setup = workspace.setup_guard()?;
+    let _owner = workspace.update_owner()?;
+    let admitted = snapshot(paths, &workspace)?;
+    if admitted.status.model_offer.as_deref() != Some(offer)
+        || installed_ids(&admitted.status.published_profiles) != selection.profiles
+    {
+        return Err(workspace_changed().into());
+    }
+    if let Some(preference) = &selection.preferred
+        && !runtime
+            .search_profile_readiness(&admitted.status.published_profiles)
+            .iter()
+            .any(|profile| profile.usable && &profile.id == preference)
+    {
+        return Err("The selected default needs a usable search model."
+            .to_owned()
+            .into());
+    }
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION)?;
+    let c = write.connection();
+    let key: String = c
+        .query_row(
+            "SELECT workspace_key FROM workspace WHERE id=1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let revision = write.reference_revision().map_err(|e| e.to_string())?;
+    let generation = format!("{key}:{revision}");
+    if workspace_file_identity(paths, &workspace)? != admitted.file_identity
+        || generation != admitted.status.generation
+        || atlas_index::preferred_search_profile(c).map_err(|e| e.to_string())?
+            != admitted.status.preferred
+        || atlas_index::read_requested_reference_config_for_write(&write)
+            .map_err(|e| e.to_string())?
+            != admitted.configuration
+    {
+        return Err(workspace_changed().into());
+    }
+    atlas_index::set_preferred_search_profile(c, selection.preferred.as_ref())
+        .map_err(|e| e.to_string())?;
+    Ok(write.commit()?)
 }
 
 fn workspace_changed() -> String {
@@ -349,6 +565,39 @@ mod tests {
     }
 
     #[test]
+    fn default_only_requires_current_offer_and_reuses_setup_contention() {
+        let (home, paths, workspace) = fixture(REFERENCE_SOURCE_COMMIT);
+        let runtime = crate::AtlasRuntime::resolve(crate::AtlasRuntimeOptions {
+            overrides: crate::AtlasPathOverrides {
+                index_path: Some(workspace.path().into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .unwrap();
+        let before = inspect(&paths).unwrap();
+        let offer = before.model_offer.as_deref().unwrap();
+        let automatic = DesktopModelSelection {
+            profiles: vec![],
+            preferred: None,
+        };
+        {
+            let _setup = workspace.setup_guard().unwrap();
+            assert!(matches!(
+                set_default(&runtime, &paths, offer, &automatic),
+                Err(DesktopRefreshError::Busy)
+            ));
+        }
+        {
+            let _pause = workspace.pause_saved_writes().unwrap();
+            set_default(&runtime, &paths, offer, &automatic).unwrap();
+        }
+        assert_eq!(inspect(&paths).unwrap().generation, before.generation);
+        write_config(&workspace, home.path().join("changed-source"));
+        assert!(set_default(&runtime, &paths, offer, &automatic).is_err());
+    }
+
+    #[test]
     fn rejects_an_offer_after_requested_source_changes() {
         let (home, paths, workspace) = fixture(REFERENCE_SOURCE_COMMIT);
         let before = inspect(&paths).unwrap();
@@ -398,6 +647,7 @@ mod tests {
                 &paths,
                 Default::default(),
                 before.offer.as_deref().unwrap(),
+                None,
                 |event| outcome = Some(event),
             );
             assert!(!report.ready);

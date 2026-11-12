@@ -294,6 +294,7 @@ impl CapturedBuildInputs {
         schema: u32,
         seed_loader: Option<&'a mut crate::EmbeddingSeedLoader<'a>>,
         check_destination: &'a dyn Fn() -> Result<(), atlas_index::IndexError>,
+        models: Option<&'a atlas_index::WorkspaceModelChange>,
     ) -> Result<BuildArtifactReport, IngestError> {
         if workspace.path() != owner.path()
             || atlas_storage::Workspace::existing(&self.options.output_path)?.path() != owner.path()
@@ -310,7 +311,7 @@ impl CapturedBuildInputs {
             scratch,
             &self,
             Instant::now(),
-            BuildMode::ReferenceRefresh(seed_loader, check_destination),
+            BuildMode::ReferenceRefresh(seed_loader, check_destination, models),
         )
     }
 
@@ -474,6 +475,7 @@ enum BuildMode<'a> {
     ReferenceRefresh(
         Option<&'a mut crate::EmbeddingSeedLoader<'a>>,
         &'a dyn Fn() -> Result<(), atlas_index::IndexError>,
+        Option<&'a atlas_index::WorkspaceModelChange>,
     ),
 }
 
@@ -492,12 +494,16 @@ fn finish_build(
     );
     let activate = matches!(mode, BuildMode::SemanticStage(_));
     let check_destination = match &mode {
-        BuildMode::ReferenceRefresh(_, check) => Some(*check),
+        BuildMode::ReferenceRefresh(_, check, _) => Some(*check),
+        _ => None,
+    };
+    let model_change = match &mode {
+        BuildMode::ReferenceRefresh(_, _, models) => *models,
         _ => None,
     };
     let (repair, mut seed_loader, policy) = match mode {
         BuildMode::Infer | BuildMode::KeywordStage => (None, None, crate::SeedBuildPolicy::Strict),
-        BuildMode::SemanticStage(load) | BuildMode::ReferenceRefresh(load, _) => {
+        BuildMode::SemanticStage(load) | BuildMode::ReferenceRefresh(load, _, _) => {
             (None, load, crate::SeedBuildPolicy::Strict)
         }
         BuildMode::Seeded(load, policy) => (None, Some(load), policy),
@@ -573,6 +579,10 @@ fn finish_build(
     progress("write_artifact", "Saving and checking search index");
     if activate {
         publication.publish_first_profiles().map_err(index_error)?;
+    } else if let Some(models) = model_change {
+        publication
+            .publish_model_change(models)
+            .map_err(|error| publication_error(error, true))?;
     } else {
         publication
             .publish()

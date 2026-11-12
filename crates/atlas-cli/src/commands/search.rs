@@ -25,7 +25,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         }
         return Ok(ExitCode::SUCCESS);
     }
-    let mode: RetrievalModeView = o.retrieval.into();
+    let mode: RetrievalModeView = o.retrieval.unwrap_or(args::CliRetrievalMode::Hybrid).into();
     let use_embeddings = o.query.is_some() && mode != RetrievalModeView::Lexical;
     #[cfg(feature = "web")]
     let runtime = use_embeddings
@@ -54,6 +54,18 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     }) {
         Ok(service) => service,
         Err(error) => return report_app_error(error, o.json),
+    };
+    let mode = if o.query.is_some() && o.retrieval.is_none() && o.search_profile.is_none() {
+        let readiness = service.readiness();
+        if readiness.status == atlas_app_model::AppReadinessStatus::Ready
+            && readiness.search_profiles.is_empty()
+        {
+            RetrievalModeView::Lexical
+        } else {
+            mode
+        }
+    } else {
+        mode
     };
     let filter = match resolve_filter(&o.filter_options, &service) {
         Ok(filter) => filter,

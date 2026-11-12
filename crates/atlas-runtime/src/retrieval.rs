@@ -8,18 +8,17 @@ pub struct SearchProfileReadiness {
     pub usable: bool,
 }
 impl AtlasRuntime {
-    pub fn resolve_default_search_profile(
+    pub(crate) fn resolve_default_search_profile(
         &self,
-        context: &atlas_index::SourceArtifactBuildContext,
+        index: &atlas_index::SqliteIndexReader,
     ) -> Result<atlas_domain::SearchProfileId, SearchError> {
-        if let Some(id) = &self.default_profile {
-            context.search_profile(id)?;
-            return Ok(id.clone());
-        }
-        Ok(match context.search_profiles.as_slice() {
-            [profile] => profile.profile_id.clone(),
-            _ => atlas_domain::SearchProfileId::new(atlas_embedding::DEFAULT_SEARCH_PROFILE),
-        })
+        let preference =
+            atlas_index::preferred_search_profile(index.workspace_session().connection())?;
+        Ok(self
+            .default_profile
+            .clone()
+            .or_else(|| preference.filter(|id| index.context().search_profile(id).is_ok()))
+            .unwrap_or_else(|| automatic_search_profile(index.context())))
     }
     /// Check stored contracts and verified assets without constructing native sessions.
     pub fn search_profile_readiness(
@@ -57,7 +56,7 @@ impl AtlasRuntime {
             index
                 .require_vectors()
                 .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
-            self.resolve_default_search_profile(index.context())?
+            self.resolve_default_search_profile(&index)?
         };
         self.inference
             .preload(&profile)
@@ -77,11 +76,25 @@ impl AtlasRuntime {
             index
                 .require_vectors()
                 .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
-            let profile = requested
-                .cloned()
-                .unwrap_or(self.resolve_default_search_profile(index.context())?);
-            index.context().search_profile(&profile)?.clone()
+            let id = match requested {
+                Some(id) => id.clone(),
+                None => self.resolve_default_search_profile(&index)?,
+            };
+            index
+                .context()
+                .search_profile(&id)
+                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?
+                .clone()
         };
         atlas_search::PreparedQueryEmbedding::prepare(&self.inference, profile, text)
+    }
+}
+
+pub(crate) fn automatic_search_profile(
+    context: &atlas_index::SourceArtifactBuildContext,
+) -> atlas_domain::SearchProfileId {
+    match context.search_profiles.as_slice() {
+        [profile] => profile.profile_id.clone(),
+        _ => atlas_domain::SearchProfileId::new(atlas_embedding::DEFAULT_SEARCH_PROFILE),
     }
 }

@@ -2,6 +2,7 @@
 #![deny(unsafe_code)]
 
 use atlas_domain::RecordKey;
+pub use atlas_domain::SearchProfileId;
 use percent_encoding::{AsciiSet, CONTROLS, percent_decode_str, utf8_percent_encode};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -62,6 +63,21 @@ pub struct SetupPublication {
     pub semantic: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModelSelection {
+    pub profiles: Vec<SearchProfileId>,
+    pub preferred: Option<SearchProfileId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchModelStatus {
+    pub id: SearchProfileId,
+    pub label: String,
+    pub installed: bool,
+    pub usable: bool,
+}
+
 /// Private, read-only metadata for the desktop setup drawer.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReferenceStatus {
@@ -73,6 +89,10 @@ pub struct ReferenceStatus {
     pub target_version: String,
     pub managed: bool,
     pub offer: Option<String>,
+    pub model_offer: Option<String>,
+    pub can_change_models: bool,
+    pub preferred: Option<SearchProfileId>,
+    pub models: Vec<SearchModelStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

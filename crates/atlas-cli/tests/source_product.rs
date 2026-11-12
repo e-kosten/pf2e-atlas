@@ -840,6 +840,26 @@ fn setup_check_and_cache_cleanup_preserve_workspace_and_saved_state() {
     }
 }
 #[test]
+fn keyword_only_cli_defaults_to_fts_and_rejects_explicit_semantic_requests() {
+    let fixture = Fixture::new();
+    let search = fixture.data(&["search", "Treat Wounds", "--json"]);
+    assert_eq!(search["mode"]["mode"], "lexical");
+    assert!(!search["rows"].as_array().unwrap().is_empty());
+    for options in [["--retrieval", "hybrid"], ["--search-profile", "bge-base"]] {
+        let result = fixture.command(
+            &["search", "Treat Wounds", "--json", options[0], options[1]],
+            false,
+        );
+        assert!(!result.status.success());
+        let envelope: Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_eq!(
+            envelope["error"]["code"], "vector_readiness_required",
+            "{envelope}"
+        );
+    }
+}
+
+#[test]
 fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
     let f = Fixture::new();
     let o = f.command(
@@ -853,6 +873,11 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
             .contains("filter_invalid")
     );
     let db = rusqlite::Connection::open(&f.index).unwrap();
+    let migration_count: u64 = db
+        .query_row("SELECT count(*) FROM schema_migrations", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
     db.pragma_update(None, "user_version", 0).unwrap();
     drop(db);
     let o = f.command(&["index", "check", "--no-embeddings", "--json"], false);
@@ -882,7 +907,7 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
         db.query_row("SELECT count(*) FROM schema_migrations", [], |r| r
             .get::<_, u64>(0))
             .unwrap(),
-        1
+        migration_count
     );
 }
 

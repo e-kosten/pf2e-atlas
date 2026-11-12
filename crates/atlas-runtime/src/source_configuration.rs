@@ -74,6 +74,7 @@ fn resolve(
     } else {
         None
     };
+    let fresh = existing.is_none();
     let mut config = existing.unwrap_or_else(|| RequestedReferenceConfig {
         source_root: paths.source_root.clone(),
         manifest_path: None,
@@ -108,7 +109,7 @@ fn resolve(
             config.search_profiles.push(profile.clone());
         }
     }
-    if config.search_profiles.is_empty() && options.target.requires_embeddings() {
+    if fresh && config.search_profiles.is_empty() && options.target.requires_embeddings() {
         config.search_profiles.push(SearchProfileId::new(
             atlas_embedding::DEFAULT_SEARCH_PROFILE,
         ));

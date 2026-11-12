@@ -33,7 +33,7 @@ pub(crate) struct SearchOptions {
         help = "Hybrid text ranking: score fusion or reciprocal rank fusion (rrf)"
     )]
     pub(crate) ranking: atlas_domain::SearchRanking,
-    #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Stored search profile: bge-base or embeddinggemma; default: sole stored profile, or bge-base when both exist")]
+    #[arg(long,value_parser=crate::cli::args::parse_search_profile,help="Stored search profile: bge-base or embeddinggemma; default: workspace preference, then the automatic profile")]
     pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
     #[arg(help = "Text query; omit to browse eligible records alphabetically")]
     pub(crate) query: Option<String>,
@@ -45,8 +45,12 @@ pub(crate) struct SearchOptions {
     pub(crate) page: u32,
     #[command(flatten)]
     pub(crate) filter_options: FilterOptions,
-    #[arg(long, value_enum, default_value_t = CliRetrievalMode::Hybrid, help = "Text retrieval; fts needs no model weights; ignored when browsing without a query")]
-    pub(crate) retrieval: CliRetrievalMode,
+    #[arg(
+        long,
+        value_enum,
+        help = "Text retrieval; defaults to hybrid with semantic models or fts on a keyword-only workspace"
+    )]
+    pub(crate) retrieval: Option<CliRetrievalMode>,
     #[arg(long, help = "Override the embedding model cache root")]
     pub(crate) embedding_cache_path: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
