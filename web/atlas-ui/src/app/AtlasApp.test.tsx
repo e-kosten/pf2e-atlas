@@ -405,7 +405,8 @@ describe("AtlasApp routing", () => {
           expect.any(AbortSignal),
         ),
       );
-      expect(screen.getByRole("heading", { name: "heal" })).toBeVisible();
+      expect(location.pathname).toBe("/search/records/spell:heal");
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
     },
   );
 
