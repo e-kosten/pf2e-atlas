@@ -23,6 +23,10 @@ eligibility and enclosing picker scopes. The private trait-records endpoint
 serves membership.
 
 Prepared definition content supplies inline links through the shared reader.
-The existing artifact still publishes and validates trait occurrence evidence
-as described in [ADR0068](0068-contextual-reference-definitions.md). This change
-requires no workspace migration or source preparation.
+Schema 43 removes the stored trait-reference relation. Publication and deep
+validation check visible resolved links directly against the admitted record
+universe, including owned targets. The versioned trait-association digest
+attests only exact membership rows. Upgrade authenticates retained snapshots
+and verifies their memberships before replacing each existing compatible
+digest. Membership, definition provenance and the authored inline links remain
+available through the ordinary product paths.

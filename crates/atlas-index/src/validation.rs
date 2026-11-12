@@ -123,7 +123,8 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     // No source bodies or prose survive this first pass; later edge checks use
     // that same source-owner resolver instead of decoding a target per edge.
     let mut reference_index = atlas_record::source_record::SourceReferenceIndex::default();
-    let (abilities, mut trait_evidence) = crate::references::audit_catalog(c, &context)?;
+    let abilities = crate::references::audit_catalog(c, &context)?;
+    let mut trait_evidence = crate::traits::TraitEvidence::default();
     let total_roots = count(c, "records")?;
     {
         let mut cursor = root_query.query([])?;

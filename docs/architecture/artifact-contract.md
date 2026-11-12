@@ -170,7 +170,7 @@ authority. Truncated or structurally invalid consumed data fails publication.
 
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
-a consistent backup before structural changes, and transaction-scoped validation.
+a saved-state recovery archive before structural changes, and transaction-scoped validation.
 Saved-domain and reference migrations share the same ledger and transaction.
 Atlas executes and hashes migration SQL with LF line endings and authenticates
 the ledger against that single checksum.
@@ -179,7 +179,7 @@ The current reference DDL lives in
 [the index release schema](../../crates/atlas-index/src/release_schema.sql).
 The [local-state release schema](../../crates/atlas-local-state/src/release/schema.sql)
 and its three saved-owner table definitions own saved-domain DDL. The production
-paths are direct creation at schema 42 and the authenticated schema 41 bridge
+paths are direct creation at schema 43 and the authenticated schema 42 upgrade
 described in [ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
 Migrations 1–41 are retained in Git history. Their descriptions here record
 the provenance of retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation
@@ -207,7 +207,7 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Query catalog | Executable Rust definitions own the public fields. `artifact_context.query_catalog_sha256` binds the published catalog version to the exact definitions. |
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
 | Contextual definitions | `reference_entries`: one canonical vocabulary/source-rule owner with typed key, readable label, finite availability, checked prepared body or record pointer, source/locale/publication evidence, separate body and label grants. Record pointers contain no copied body or vector. `reference_notices` retains deduplicated required notice text and hashes. |
-| Trait references and owned abilities | `trait_references` retains visible trait associations. `owned_ability_evidence` records the reading target, declaration presence and matching general ability keys for an exact owner. |
+| Trait membership and owned abilities | `trait_members` retains exact membership, lookup eligibility and source labels. Prepared trait definitions retain inline links. `owned_ability_evidence` records the reading target, declaration presence and matching general ability keys for an exact owner. |
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Remaster context | `verified_aliases`, `remaster_pairs`, `record_remaster_context`: lookup aliases, explicit counterparts and compact per-record relationship/journal context. |

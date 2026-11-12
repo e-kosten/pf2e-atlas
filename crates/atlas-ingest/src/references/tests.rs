@@ -238,17 +238,6 @@ fn captured_pack_system_controls_only_new_associations_and_restores_on_omission(
                 .len(),
             1
         );
-        let connection = Connection::open_with_flags(
-            &fixture.database,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-        )
-        .unwrap();
-        let incoming: bool = connection.query_row(
-            "SELECT EXISTS(SELECT 1 FROM trait_references WHERE trait_key='trait:agile' AND record_key=?1 AND json_extract(evidence,'$.direction')='incoming')",
-            [observer.to_string()],
-            |row| row.get(0),
-        ).unwrap();
-        assert!(incoming);
         let preparation = reader.context().reference_preparation.as_ref().unwrap();
         assert_eq!(preparation.source_package.as_deref(), Some("pf2e"));
         assert_eq!(

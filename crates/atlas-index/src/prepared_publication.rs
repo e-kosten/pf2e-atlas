@@ -423,18 +423,42 @@ impl<'owner> PreparedPublication<'owner> {
         Ok(())
     }
     pub fn publish(self) -> Result<(), IndexError> {
-        self.publish_inner(false)
+        self.publish_inner(false, None)
     }
 
     /// Activate the first stored profiles while the published keyword snapshot
     /// remains readable. The storage owner will reject unrelated structural work.
     pub fn publish_first_profiles(self) -> Result<(), IndexError> {
-        self.publish_inner(true)
+        self.publish_inner(true, None)
     }
 
-    fn publish_inner(self, shared: bool) -> Result<(), IndexError> {
+    pub fn publish_model_change(
+        self,
+        change: &crate::WorkspaceModelChange,
+    ) -> Result<(), IndexError> {
+        if self
+            .metadata
+            .context
+            .canonical_profiles()?
+            .iter()
+            .map(|profile| &profile.profile_id)
+            .ne(change.configuration.search_profiles.iter())
+        {
+            return Err(invalid("model selection differs from prepared publication"));
+        }
+        self.publish_inner(false, Some(change))
+    }
+
+    fn publish_inner(
+        self,
+        shared: bool,
+        models: Option<&crate::WorkspaceModelChange>,
+    ) -> Result<(), IndexError> {
         let admit = |connection: &rusqlite::Connection| -> Result<bool, IndexError> {
             self.check_location()?;
+            if let Some(models) = models {
+                models.check(connection)?;
+            }
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
             if self.rebuild.is_some() {
@@ -496,6 +520,11 @@ impl<'owner> PreparedPublication<'owner> {
             if let Some(rebuild) = &self.rebuild {
                 crate::validate_reference_with_token_count_digests(connection)?;
                 crate::requested_config::write_configuration(connection, &rebuild.configuration)?;
+            }
+            if let Some(models) = models {
+                models.commit(connection)?;
+            } else if self.schema >= crate::WORKSPACE_SETTINGS_SCHEMA_VERSION {
+                crate::workspace_settings::retain_published_preference(connection)?;
             }
             self.check_location()
         };

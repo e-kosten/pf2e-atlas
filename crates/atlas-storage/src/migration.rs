@@ -55,25 +55,26 @@ impl Migration {
     }
 }
 
-/// A released history accepted only as the predecessor of a new baseline.
+/// Immutable checksum inputs from a retired baseline cutover.
 #[derive(Clone, Copy)]
-pub struct MigrationPredecessor {
+pub struct BaselineProvenance {
     pub ledger_sha256: &'static str,
-    pub bridge: DataBackfill,
+    pub reconstruct_tables: bool,
+    pub bridge_id: &'static str,
 }
 
-/// Executable-owned baseline, appended migrations, and optional cutover.
+/// Executable-owned baseline and appended migrations.
 #[derive(Clone, Copy)]
 pub struct MigrationHistory<'a> {
     pub migrations: &'a [Migration],
-    pub predecessor: Option<MigrationPredecessor>,
+    pub baseline_provenance: Option<BaselineProvenance>,
 }
 
 impl<'a> MigrationHistory<'a> {
     pub const fn new(migrations: &'a [Migration]) -> Self {
         Self {
             migrations,
-            predecessor: None,
+            baseline_provenance: None,
         }
     }
 
@@ -93,7 +94,7 @@ impl<'a> MigrationHistory<'a> {
     pub(crate) fn validate(self) -> StorageResult<()> {
         let first = self.first();
         if first == 0
-            || (first > 1) != self.predecessor.is_some()
+            || (first > 1) != self.baseline_provenance.is_some()
             || self
                 .migrations
                 .iter()
@@ -109,14 +110,12 @@ impl<'a> MigrationHistory<'a> {
         Ok(())
     }
 
-    fn predecessor_at(self, version: u32) -> Option<MigrationPredecessor> {
-        self.predecessor
-            .filter(|_| version.checked_add(1) == Some(self.first()))
-    }
-
     fn checksum(self, migration: &Migration) -> String {
         let checksum = migration.checksum();
-        let Some(predecessor) = self.predecessor_at(migration.version - 1) else {
+        let Some(provenance) = self
+            .baseline_provenance
+            .filter(|_| migration.version == self.first())
+        else {
             return checksum;
         };
         let mut hash = Sha256::new();
@@ -124,26 +123,11 @@ impl<'a> MigrationHistory<'a> {
         hash.update(APPLICATION_ID.to_be_bytes());
         hash.update(HEADER.as_bytes());
         hash.update(checksum.as_bytes());
-        hash.update(predecessor.ledger_sha256.as_bytes());
-        hash.update([u8::from(predecessor.bridge.reconstruct_tables)]);
-        hash.update(predecessor.bridge.id.as_bytes());
+        hash.update(provenance.ledger_sha256.as_bytes());
+        hash.update([u8::from(provenance.reconstruct_tables)]);
+        hash.update(provenance.bridge_id.as_bytes());
         format!("{hash:x}", hash = hash.finalize())
     }
-}
-
-type LedgerRow = (u32, String, String);
-
-fn ledger_sha256(rows: &[LedgerRow]) -> String {
-    let mut hash = Sha256::new();
-    hash.update(b"atlas-predecessor-ledger/v1\0");
-    for (version, name, checksum) in rows {
-        hash.update(version.to_be_bytes());
-        for field in [name, checksum] {
-            hash.update((field.len() as u64).to_be_bytes());
-            hash.update(field.as_bytes());
-        }
-    }
-    format!("{hash:x}", hash = hash.finalize())
 }
 
 const HEADER: &str = "
@@ -169,6 +153,21 @@ impl Workspace {
     pub fn migrate_history(
         &self,
         history: MigrationHistory<'_>,
+        validate: impl FnOnce(&Connection) -> StorageResult<()>,
+    ) -> StorageResult<()> {
+        self.migrate_history_with_capture(
+            history,
+            |snapshot| backup::write(snapshot, &self.upgrade_backup_path(), Destination::Replace),
+            validate,
+        )
+    }
+
+    /// Capture recovery data from the authenticated, read-only pre-upgrade
+    /// snapshot while holding exclusive access and update admission.
+    pub fn migrate_history_with_capture(
+        &self,
+        history: MigrationHistory<'_>,
+        capture: impl FnOnce(&Connection) -> StorageResult<()>,
         validate: impl FnOnce(&Connection) -> StorageResult<()>,
     ) -> StorageResult<()> {
         history.validate()?;
@@ -201,31 +200,30 @@ impl Workspace {
         let workspace_key: Option<String> = if fresh {
             None
         } else {
-            let key = connection.query_row(
-                "SELECT workspace_key FROM workspace WHERE id=1",
-                [],
-                |r| r.get(0),
-            )?;
-            // Keep an interrupted maintenance marker until domain recovery.
-            backup::write(
-                &connection,
-                &self.upgrade_backup_path(),
-                Destination::Replace,
-            )?;
+            let reader = self.connect(false, false)?;
+            let snapshot = Transaction::new_unchecked(&reader, TransactionBehavior::Deferred)?;
+            if inspect_history(&snapshot, history)? != (false, current) {
+                return Err(StorageError::Migration(
+                    "workspace history changed before upgrade capture".into(),
+                ));
+            }
+            let key =
+                snapshot.query_row("SELECT workspace_key FROM workspace WHERE id=1", [], |r| {
+                    r.get(0)
+                })?;
+            capture(&snapshot)?;
             Some(key)
         };
         connection.execute_batch("PRAGMA journal_mode=WAL;")?;
-        let predecessor = history.predecessor_at(current);
         let pending = history
             .migrations
             .iter()
             .filter(|migration| migration.version > current);
-        let reconstruction = predecessor.is_some_and(|entry| entry.bridge.reconstruct_tables)
-            || pending.clone().any(|migration| {
-                migration
-                    .backfill
-                    .is_some_and(|backfill| backfill.reconstruct_tables)
-            });
+        let reconstruction = pending.clone().any(|migration| {
+            migration
+                .backfill
+                .is_some_and(|backfill| backfill.reconstruct_tables)
+        });
         if reconstruction {
             connection.pragma_update(None, "foreign_keys", false)?;
         }
@@ -253,16 +251,10 @@ impl Workspace {
                 transaction.execute_batch(HEADER)?;
                 transaction.pragma_update(None, "application_id", APPLICATION_ID)?;
             }
-            if let Some(predecessor) = predecessor {
-                (predecessor.bridge.apply)(&transaction)?;
-                transaction.execute("DELETE FROM schema_migrations", [])?;
-            }
             for migration in pending {
-                if predecessor.is_none() || migration.version != history.first() {
-                    transaction.execute_batch(&migration.canonical_sql())?;
-                    if let Some(backfill) = migration.backfill {
-                        (backfill.apply)(&transaction)?;
-                    }
+                transaction.execute_batch(&migration.canonical_sql())?;
+                if let Some(backfill) = migration.backfill {
+                    (backfill.apply)(&transaction)?;
                 }
                 transaction.execute(
                     "INSERT INTO schema_migrations(version,name,checksum) VALUES(?,?,?)",
@@ -327,10 +319,10 @@ pub(crate) fn inspect_history(
         });
     }
     if !fresh {
-        if current < history.first() - 1 && history.predecessor.is_some() {
+        if current < history.first() {
             return Err(StorageError::Unsupported(format!(
-                "workspace schema {current} must be upgraded to schema {} with a pre-squash Atlas build first",
-                history.first() - 1
+                "workspace schema {current} must be upgraded to schema {} with an Atlas build that supports that schema first",
+                history.first()
             )));
         }
         let mut statement = connection
@@ -344,16 +336,6 @@ pub(crate) fn inspect_history(
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
-        if let Some(predecessor) = history.predecessor_at(current) {
-            if ledger.len() != current as usize
-                || ledger_sha256(&ledger) != predecessor.ledger_sha256
-            {
-                return Err(StorageError::Migration(format!(
-                    "schema {current} migration ledger differs from the supported release predecessor"
-                )));
-            }
-            return Ok((false, current));
-        }
         let applied = history
             .migrations
             .iter()

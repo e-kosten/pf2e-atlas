@@ -3,8 +3,8 @@ use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, Works
 use clap::{Args, Subcommand};
 use std::{
     fs::File,
-    io::{self, BufReader, BufWriter, IsTerminal, Write},
-    path::{Path, PathBuf},
+    io::{self, BufReader, IsTerminal, Write},
+    path::PathBuf,
     process::ExitCode,
 };
 
@@ -46,7 +46,7 @@ pub(crate) fn run(args: WorkspaceArgs) -> Result<ExitCode, String> {
     match args.command {
         WorkspaceCommand::Export { file } => {
             let archive = runtime.capture_workspace_archive()?;
-            publish(&file, &archive)?;
+            archive.export(&file)?;
             println!("Exported workspace archive to {}", file.display());
         }
         WorkspaceCommand::Restore {
@@ -90,35 +90,4 @@ pub(crate) fn run(args: WorkspaceArgs) -> Result<ExitCode, String> {
         }
     }
     Ok(ExitCode::SUCCESS)
-}
-
-fn publish(path: &Path, archive: &WorkspaceArchive) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
-    let mut staged = tempfile::NamedTempFile::new_in(parent)
-        .map_err(|error| format!("Cannot stage {}: {error}", path.display()))?;
-    {
-        let mut output = BufWriter::new(staged.as_file_mut());
-        archive.write(&mut output)?;
-        output.flush().map_err(|error| error.to_string())?;
-    }
-    staged
-        .as_file()
-        .sync_all()
-        .map_err(|error| error.to_string())?;
-    staged
-        .persist_noclobber(path)
-        .map_err(|error| format!("Cannot publish {}: {}", path.display(), error.error))?;
-    #[cfg(unix)]
-    File::open(parent)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|error| {
-            format!(
-                "Archive {} was published but directory sync failed: {error}",
-                path.display()
-            )
-        })?;
-    Ok(())
 }

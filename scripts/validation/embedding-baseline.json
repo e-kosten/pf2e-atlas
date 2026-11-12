@@ -1,14 +1,14 @@
 {
   "bge-base": {
-    "tag": "v0.1.0-nightly.20261109050726.g787c00b3b26e",
+    "tag": "v0.1.0-nightly.20261112173917.g449cf4c9315c",
     "asset": "cli-only-release",
-    "sha256": "6cc6cae16566251cf6e3937d786a2672071aff40ee34f6a7ead4fd6bacddc7f5",
+    "sha256": "113c7ea605bbc77962f53a1f250c14d9acec351cc714e15babe3c9d22798bcd6",
     "execution_policy": "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4"
   },
   "embeddinggemma": {
-    "tag": "v0.1.0-nightly.20261109050726.g787c00b3b26e",
+    "tag": "v0.1.0-nightly.20261112173917.g449cf4c9315c",
     "asset": "cli-only-release",
-    "sha256": "6cc6cae16566251cf6e3937d786a2672071aff40ee34f6a7ead4fd6bacddc7f5",
+    "sha256": "113c7ea605bbc77962f53a1f250c14d9acec351cc714e15babe3c9d22798bcd6",
     "execution_policy": "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4"
   }
 }

@@ -34,7 +34,7 @@ pub fn read_requested_reference_config_for_write(
     read_configuration(session.connection())
 }
 
-fn read_configuration(
+pub fn read_configuration(
     connection: &rusqlite::Connection,
 ) -> Result<Option<RequestedReferenceConfig>, IndexError> {
     let json: Option<String> = connection

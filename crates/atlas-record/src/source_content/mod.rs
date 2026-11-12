@@ -50,8 +50,7 @@ pub use text_projection::plain_text as prepared_plain_text;
 
 mod definition_references;
 pub use definition_references::{
-    AuthoredLocalizationOccurrence, TraitLocalizationReference, authored_localization_occurrences,
-    trait_localization_references,
+    AuthoredLocalizationOccurrence, authored_localization_occurrences,
 };
 
 mod inclusion;

@@ -22,17 +22,6 @@ pub struct TraitDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content_locale: Option<String>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct TraitReferenceInput {
-    pub source_label: Option<String>,
-    pub owners: Vec<OwnedContentLocator>,
-    pub field: Option<String>,
-    pub direction: String,
-    pub occurrence_path: String,
-    pub key: TraitKey,
-    pub record: RecordKey,
-    pub evidence: String,
-}
 #[derive(Debug, Clone)]
 pub struct TraitMembership {
     pub source_label: Option<String>,
@@ -50,35 +39,15 @@ fn write_trait_definition(
         return Err(IndexError::Invalid("duplicate trait definition".into()));
     }
     let entry = crate::ReferenceEntry::from_trait(definition)?;
-    crate::references::write_reference_entry(c, &entry, None)?;
-    let evidence = TraitEvidence::from_definitions(std::slice::from_ref(definition))?;
-    let mut old=c.prepare("SELECT record_key,evidence FROM trait_references WHERE trait_key=? AND json_extract(evidence,'$.direction')='outgoing'")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
-    for (trait_key, record, reference) in evidence.references {
-        if !old.remove(&(record.clone(), reference.clone())) {
-            c.execute(
-                "INSERT INTO trait_references VALUES(?,?,?)",
-                params![trait_key, record, reference],
-            )?;
-        }
-    }
-    for (record, reference) in old {
-        c.execute(
-            "DELETE FROM trait_references WHERE trait_key=? AND record_key=? AND evidence=?",
-            params![key, record, reference],
-        )?;
-    }
-    Ok(())
+    crate::references::write_reference_entry(c, &entry, None)
 }
+
 pub(crate) fn write_record_trait_relations(
     c: &Connection,
     record: &RecordKey,
     evidence: TraitEvidence,
 ) -> Result<(), IndexError> {
-    let key = record.to_string();
-    let current = c
-        .prepare_cached("SELECT value,record_key,owners_json,lookup_member,source_label FROM trait_members WHERE record_key=?")?
-        .query_map([&key], read_member)?
-        .collect::<Result<BTreeSet<_>, _>>()?;
+    let current = read_record_memberships(c, record)?;
     for (value, record, owners, lookup_member, label) in evidence.memberships.difference(&current) {
         c.execute(
             "INSERT INTO trait_members VALUES(?,?,?,?,?)
@@ -94,31 +63,58 @@ pub(crate) fn write_record_trait_relations(
             params![value, record, owners, lookup_member, label],
         )?;
     }
-    write_record_trait_references(c, &key, evidence.references)
+    Ok(())
 }
 
-fn write_record_trait_references(
+fn read_record_memberships(
     c: &Connection,
-    key: &str,
-    desired: Vec<(String, String, String)>,
+    record: &RecordKey,
+) -> Result<BTreeSet<Member>, IndexError> {
+    Ok(c.prepare_cached("SELECT value,record_key,owners_json,lookup_member,source_label FROM trait_members WHERE record_key=?")?
+        .query_map([record.to_string()], read_member)?
+        .collect::<Result<_, _>>()?)
+}
+
+pub(crate) fn validate_definition_targets(
+    c: &Connection,
+    definition: &TraitDefinition,
 ) -> Result<(), IndexError> {
-    let mut references=c.prepare("SELECT trait_key,record_key,evidence FROM trait_references WHERE record_key=? AND json_extract(evidence,'$.direction')='incoming'")?.query_map([key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
-    for row in desired {
-        if !references.remove(&row) {
-            c.execute(
-                "INSERT INTO trait_references VALUES(?,?,?)",
-                params![row.0, row.1, row.2],
-            )?;
+    use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
+
+    let Some(prepared) = &definition.prepared else {
+        return Ok(());
+    };
+    for occurrence in prepared
+        .references
+        .iter()
+        .filter(|reference| reference.visible)
+    {
+        let ContentReferenceResolution::Resolved(target) = &occurrence.resolution else {
+            continue;
+        };
+        let exists = match target {
+            ContentReferenceTarget::Record { key } => c.query_row(
+                "SELECT EXISTS(SELECT 1 FROM records WHERE key=? AND document_kind<>'Macro')",
+                [key.to_string()],
+                |row| row.get(0),
+            )?,
+            ContentReferenceTarget::OwnedNode { key, owners } => {
+                !owners.is_empty()
+                    && crate::read_product_source_record(c, key)?
+                        .is_some_and(|record| record.node_at(owners).is_some())
+            }
+            ContentReferenceTarget::Url { .. } => true,
+        };
+        if !exists {
+            return Err(IndexError::Invalid(format!(
+                "resolved inline target of {} is absent",
+                definition.key
+            )));
         }
-    }
-    for row in references {
-        c.execute(
-            "DELETE FROM trait_references WHERE trait_key=? AND record_key=? AND evidence=?",
-            params![row.0, row.1, row.2],
-        )?;
     }
     Ok(())
 }
+
 pub(crate) fn write_trait_definitions(
     c: &Connection,
     input: &crate::PublicationSpool,
@@ -237,72 +233,28 @@ fn read_member(row: &rusqlite::Row<'_>) -> rusqlite::Result<Member> {
     ))
 }
 
-#[derive(Default, Serialize)]
+#[derive(Default)]
 pub(crate) struct TraitEvidence {
     memberships: BTreeSet<Member>,
-    references: Vec<(String, String, String)>,
 }
 
 impl TraitEvidence {
-    fn from_definitions(definitions: &[TraitDefinition]) -> Result<Self, IndexError> {
-        let mut evidence = Self::default();
-        for definition in definitions {
-            evidence.add_definition(definition)?;
-        }
-        Ok(evidence)
-    }
-    pub(crate) fn add_published_definition(
-        &mut self,
-        entry: &crate::ReferenceEntry,
-        context: &crate::SourceArtifactBuildContext,
-    ) -> Result<(), IndexError> {
-        let definition = entry.trait_view()?;
-        if definition.indexing_locale != context.indexing_locale
-            || definition.source_revision != context.source_revision
-        {
-            return Err(IndexError::Invalid(
-                "trait publication provenance mismatch".into(),
-            ));
-        }
-        self.add_definition(&definition)
+    pub(crate) fn digest(&self) -> Result<String, IndexError> {
+        Ok(crate::codec::sha256(&serde_json::to_vec(&(
+            "trait-memberships/v1",
+            &self.memberships,
+        ))?))
     }
 
-    fn add_definition(&mut self, definition: &TraitDefinition) -> Result<(), IndexError> {
-        use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
-        if let Some(prepared) = &definition.prepared {
-            for occurrence in &prepared.references {
-                if !occurrence.visible {
-                    continue;
-                }
-                let ContentReferenceResolution::Resolved(target) = &occurrence.resolution else {
-                    continue;
-                };
-                let (record, owners) = match target {
-                    ContentReferenceTarget::Record { key } => (key.clone(), vec![]),
-                    ContentReferenceTarget::OwnedNode { key, owners } => {
-                        (key.clone(), owners.clone())
-                    }
-                    ContentReferenceTarget::Url { .. } => continue,
-                };
-                self.add_reference(TraitReferenceInput {
-                    source_label: if owners.is_empty() {
-                        None
-                    } else {
-                        occurrence.label.target_name.clone()
-                    },
-                    key: definition.key.clone(),
-                    record,
-                    owners,
-                    field: None,
-                    direction: "outgoing".into(),
-                    occurrence_path: occurrence.path.clone(),
-                    evidence: format!(
-                        "{}:{}",
-                        definition.description_key.as_deref().unwrap_or(""),
-                        occurrence.authored_target
-                    ),
-                })?;
-            }
+    pub(crate) fn validate_record(
+        &self,
+        c: &Connection,
+        key: &RecordKey,
+    ) -> Result<(), IndexError> {
+        if read_record_memberships(c, key)? != self.memberships {
+            return Err(IndexError::Invalid(format!(
+                "trait memberships differ from retained snapshot for {key}"
+            )));
         }
         Ok(())
     }
@@ -325,55 +277,10 @@ impl TraitEvidence {
                 },
             ));
         }
-        for occurrence in
-            atlas_record::source_record::trait_record_localization_references(record, audience)
-        {
-            if occurrence.visible {
-                self.add_reference(TraitReferenceInput {
-                    source_label: if occurrence.locator.owners.is_empty() {
-                        None
-                    } else {
-                        record
-                            .node_at(&occurrence.locator.owners)
-                            .and_then(|node| node.name().value().cloned())
-                    },
-                    key: occurrence.trait_key,
-                    record: occurrence.locator.record,
-                    owners: occurrence.locator.owners,
-                    field: Some(occurrence.locator.field),
-                    direction: "incoming".into(),
-                    occurrence_path: occurrence.path,
-                    evidence: occurrence.localization_key,
-                })?;
-            }
-        }
         Ok(())
     }
 
-    fn add_reference(&mut self, reference: TraitReferenceInput) -> Result<(), IndexError> {
-        self.references.push((
-            reference.key.to_string(),
-            reference.record.to_string(),
-            serde_json::to_string(&reference)?,
-        ));
-        Ok(())
-    }
     pub(crate) fn validate(self, c: &Connection) -> Result<(), IndexError> {
-        let actual = c
-            .prepare("SELECT trait_key,record_key,evidence FROM trait_references")?
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                ))
-            })?
-            .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
-        if actual != self.references.into_iter().collect::<BTreeSet<_>>() {
-            return Err(IndexError::Invalid(
-                "trait reference evidence differs from checked source".into(),
-            ));
-        }
         let actual = c
             .prepare(
                 "SELECT value,record_key,owners_json,lookup_member,source_label FROM trait_members",
@@ -431,7 +338,7 @@ mod tests {
         }
     }
     #[test]
-    fn removed_roots_prune_trait_edges_and_reappear_without_touching_live_associations() {
+    fn removed_roots_prune_memberships_without_touching_live_associations() {
         use atlas_record::source_content::prepare_reference_definition;
         use atlas_record::source_record::SourceReferenceIndex;
         fn input(keep_removed: bool) -> crate::IndexBuildInput {
@@ -484,10 +391,8 @@ mod tests {
         let (_directory, path) = crate::foundation_tests::build(&initial);
         let c = Connection::open(&path).unwrap();
         c.execute_batch("INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at) VALUES(1,1,'kept','kept','Saved trait owner','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actors:aaaaaaaaaaaaaaaa',0,'Keep removed-owner note','Dragon Guard','now','now'); CREATE TABLE live_trait_write_audit(component TEXT NOT NULL);").unwrap();
-        for table in ["trait_members", "trait_references"] {
-            for (event, row) in [("INSERT", "new"), ("UPDATE", "new"), ("DELETE", "old")] {
-                c.execute_batch(&format!("CREATE TRIGGER live_{table}_{event} AFTER {event} ON {table} WHEN {row}.record_key='items:cccccccccccccccc' BEGIN INSERT INTO live_trait_write_audit VALUES('{table}'); END;")).unwrap();
-            }
+        for (event, row) in [("INSERT", "new"), ("UPDATE", "new"), ("DELETE", "old")] {
+            c.execute_batch(&format!("CREATE TRIGGER live_trait_members_{event} AFTER {event} ON trait_members WHEN {row}.record_key='items:cccccccccccccccc' BEGIN INSERT INTO live_trait_write_audit VALUES('trait_members'); END;")).unwrap();
         }
         let identity: i64 = c
             .query_row(
@@ -499,12 +404,9 @@ mod tests {
         let revision: u64 = c
             .query_row("SELECT reference_revision FROM workspace", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(c.query_row("SELECT count(*) FROM trait_references WHERE record_key IN ('actors:aaaaaaaaaaaaaaaa','items:bbbbbbbbbbbbbbbb')",[],|r|r.get::<_,usize>(0)).unwrap(),2,"fixture needs outgoing and incoming removed-root edges");
         let reduced = input(false);
         crate::test_support::publish_input(&path, &reduced).unwrap();
-        for table in ["trait_members", "trait_references"] {
-            assert_eq!(c.query_row(&format!("SELECT count(*) FROM {table} WHERE record_key IN ('actors:aaaaaaaaaaaaaaaa','items:bbbbbbbbbbbbbbbb')"),[],|r|r.get::<_,usize>(0)).unwrap(),0,"{table}");
-        }
+        assert_eq!(c.query_row("SELECT count(*) FROM trait_members WHERE record_key IN ('actors:aaaaaaaaaaaaaaaa','items:bbbbbbbbbbbbbbbb')",[],|r|r.get::<_,usize>(0)).unwrap(),0);
         assert_eq!(
             c.query_row(
                 "SELECT availability FROM record_identity WHERE id=?",
@@ -513,15 +415,6 @@ mod tests {
             )
             .unwrap(),
             "unavailable"
-        );
-        assert_eq!(
-            c.query_row(
-                "SELECT count(*) FROM trait_references WHERE record_key='items:cccccccccccccccc'",
-                [],
-                |r| r.get::<_, usize>(0)
-            )
-            .unwrap(),
-            1
         );
         assert_eq!(
             c.query_row(
@@ -560,7 +453,6 @@ mod tests {
             .unwrap(),
             "available"
         );
-        assert_eq!(c.query_row("SELECT count(*) FROM trait_references WHERE record_key IN ('actors:aaaaaaaaaaaaaaaa','items:bbbbbbbbbbbbbbbb')",[],|r|r.get::<_,usize>(0)).unwrap(),2);
         assert_eq!(
             c.query_row(
                 "SELECT note FROM saved_list_items WHERE list_id=1",
@@ -585,23 +477,18 @@ mod tests {
             0,
             "live associations were rewritten"
         );
-        for sql in [
-            "SELECT value,record_key,owners_json,source_label FROM trait_members WHERE record_key=?",
-            "SELECT trait_key,record_key,evidence FROM trait_references WHERE record_key=? AND json_extract(evidence,'$.direction')='incoming'",
-        ] {
-            let plan = c
-                .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
-                .unwrap()
-                .query_map(["items:cccccccccccccccc"], |r| r.get::<_, String>(3))
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            assert!(
-                plan.iter()
-                    .any(|step| step.contains("SEARCH") && step.contains("record_key=?")),
-                "root-key lookup must use a useful index: {plan:?}"
-            );
-        }
+        let plan = c
+            .prepare("EXPLAIN QUERY PLAN SELECT value,record_key,owners_json,source_label FROM trait_members WHERE record_key=?")
+            .unwrap()
+            .query_map(["items:cccccccccccccccc"], |r| r.get::<_, String>(3))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(
+            plan.iter()
+                .any(|step| step.contains("SEARCH") && step.contains("record_key=?")),
+            "root-key lookup must use a useful index: {plan:?}"
+        );
         crate::validate_artifact(&path).unwrap();
     }
     #[test]
@@ -620,61 +507,7 @@ mod tests {
         );
     }
     #[test]
-    fn trait_reference_validation_rejects_missing_and_extra_occurrences() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("workspace.sqlite");
-        let mut input = crate::foundation_tests::fixture(false);
-        input.records[1] = crate::foundation_tests::record(
-            "items",
-            "Item",
-            json!({"_id":"bbbbbbbbbbbbbbbb","name":"Dragon Staff","type":"weapon","system":{"description":{"value":"@Localize[PF2E.TraitAgile]"}}}),
-        );
-        input.traits.push(definition(&input, "agile"));
-        refresh_fixture(&mut input);
-        crate::test_support::publish_input(&path, &input).unwrap();
-        let workspace = crate::test_support::initialize_workspace(&path).unwrap();
-        {
-            let write = workspace
-                .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
-                .unwrap();
-            assert_eq!(
-                write
-                    .connection()
-                    .execute("DELETE FROM trait_references", [])
-                    .unwrap(),
-                1
-            );
-            assert!(crate::validate_reference(write.connection()).is_err());
-        }
-        {
-            let write = workspace
-                .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
-                .unwrap();
-            write.connection().execute("INSERT INTO trait_references VALUES('trait:agile','items:bbbbbbbbbbbbbbbb','invented')",[]).unwrap();
-            assert!(crate::validate_reference(write.connection()).is_err());
-        }
-        {
-            let write = workspace
-                .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
-                .unwrap();
-            assert_eq!(
-                write
-                    .connection()
-                    .execute("UPDATE trait_references SET evidence=' ' || evidence", [],)
-                    .unwrap(),
-                1
-            );
-            let error = crate::validate_reference(write.connection()).unwrap_err();
-            assert!(
-                error
-                    .to_string()
-                    .contains("trait reference evidence differs"),
-                "{error}"
-            );
-        }
-    }
-    #[test]
-    fn definition_origin_references_are_validated_with_record_evidence() {
+    fn visible_definition_link_rejects_a_removed_publication_target() {
         use atlas_record::source_content::{
             ContentReferenceTarget, ResolvedContentReference, prepare_reference_definition,
         };
@@ -704,27 +537,22 @@ mod tests {
         definition.prepared = Some(prepared);
         input.traits.push(definition);
         let (_directory, path) = crate::foundation_tests::build(&input);
-        let connection = Connection::open(&path).unwrap();
-        let (record, direction): (String, String) = connection
-            .query_row(
-                "SELECT record_key,json_extract(evidence,'$.direction') FROM trait_references",
-                [],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .unwrap();
-        assert_eq!(record, "items:bbbbbbbbbbbbbbbb");
-        assert_eq!(direction, "outgoing");
         crate::validate_artifact(&path).unwrap();
-        connection
-            .execute("DELETE FROM trait_references", [])
-            .unwrap();
-        let error = crate::validate_reference(&connection).unwrap_err();
+        let mut reduced = input;
+        reduced
+            .records
+            .retain(|record| record.record.key() != &target);
+        refresh_fixture(&mut reduced);
+        let error = crate::test_support::publish_input(&path, &reduced).unwrap_err();
         assert!(
             error
                 .to_string()
-                .contains("trait reference evidence differs"),
+                .contains("resolved inline target of trait:agile is absent"),
             "{error}"
         );
+        crate::validate_artifact(&path).unwrap();
+        let reader = crate::test_support::open_reader(&path).unwrap();
+        assert!(reader.read_summaries(&[target]).unwrap().records.len() == 1);
     }
     #[test]
     fn trait_unknown_policy_cannot_be_relabelled_during_projection_upgrade() {
@@ -845,16 +673,6 @@ mod tests {
                 .0
                 .is_empty()
         );
-        let reference_count: usize = reader
-            .native()
-            .unwrap()
-            .query_row(
-                "SELECT count(*) FROM trait_references WHERE trait_key=?1",
-                [key.to_string()],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(reference_count, 0);
     }
     #[test]
     fn legacy_context_without_trait_policy_requires_source_preparation() {

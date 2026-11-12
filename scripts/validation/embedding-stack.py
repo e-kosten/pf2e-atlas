@@ -17,7 +17,7 @@ PACKAGES = {
 
 
 BASELINE_PIN = "scripts/validation/embedding-baseline.json"
-RELEASE_PREDECESSOR_PIN = "scripts/validation/schema-41-predecessor.json"
+RELEASE_PREDECESSOR_PIN = "scripts/validation/schema-42-predecessor.json"
 FULL_MATRIX = ["ubuntu-24.04", "ubuntu-24.04-arm", "macos-26", "windows-2022"]
 
 
@@ -59,9 +59,9 @@ def selected_runners(base, manual):
             or paths & {BASELINE_PIN, RELEASE_PREDECESSOR_PIN,
                         "crates/atlas-runtime/src/release_history.rs",
                         "crates/atlas-index/src/release_schema.sql",
-                        "crates/atlas-local-state/src/release.rs"}
+                        "crates/atlas-runtime/src/workspace_settings.sql"}
             or any(path.startswith(("crates/atlas-local-state/src/release/",
-                                    "crates/atlas-runtime/tests/fixtures/schema-41.sqlite"))
+                                    "crates/atlas-runtime/tests/fixtures/schema-42.sqlite"))
                    for path in paths)
             or [row for row in before["packages"] if row["name"] in native]
             != [row for row in after["packages"] if row["name"] in native]

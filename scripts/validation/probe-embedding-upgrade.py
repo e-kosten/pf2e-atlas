@@ -24,10 +24,10 @@ SCORE_TOLERANCE = 2e-5
 PIN_PATH = "scripts/validation/embedding-baseline.json"
 
 SOURCE_FIXTURE = "crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types"
-RELEASE_PIN = "scripts/validation/schema-41-predecessor.json"
-RELEASE_TAG = "v0.1.0-nightly.20261109050726.g787c00b3b26e"
+RELEASE_PIN = "scripts/validation/schema-42-predecessor.json"
+RELEASE_TAG = "v0.1.0-nightly.20261112173917.g449cf4c9315c"
 RELEASE_ASSET = "cli-only-release"
-RELEASE_DIGEST = "6cc6cae16566251cf6e3937d786a2672071aff40ee34f6a7ead4fd6bacddc7f5"
+RELEASE_DIGEST = "113c7ea605bbc77962f53a1f250c14d9acec351cc714e15babe3c9d22798bcd6"
 SCHEMA_29_PIN = {
     "tag": "embedding-baseline-v1",
     "asset": "embedding-compatibility-baseline.tar.gz",
@@ -35,6 +35,12 @@ SCHEMA_29_PIN = {
     "execution_policy": "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4",
 }
 SCHEMA_41_PIN = {
+    **SCHEMA_29_PIN,
+    "tag": "v0.1.0-nightly.20261109050726.g787c00b3b26e",
+    "asset": RELEASE_ASSET,
+    "sha256": "6cc6cae16566251cf6e3937d786a2672071aff40ee34f6a7ead4fd6bacddc7f5",
+}
+SCHEMA_42_PIN = {
     **SCHEMA_29_PIN, "tag": RELEASE_TAG, "asset": RELEASE_ASSET, "sha256": RELEASE_DIGEST,
 }
 
@@ -397,7 +403,7 @@ def pinned_checks(current, previous):
     checks = {}
     # The workspace cutoff replaces only the exact old pair of pins. All other
     # fixture or execution-policy changes continue through the ordinary guard.
-    cutoff = previous == dict.fromkeys(PROFILES, SCHEMA_29_PIN) and current == dict.fromkeys(PROFILES, SCHEMA_41_PIN)
+    cutoff = previous == dict.fromkeys(PROFILES, SCHEMA_41_PIN) and current == dict.fromkeys(PROFILES, SCHEMA_42_PIN)
 
     def add(profile, pin, transition):
         tag, asset, digest = (pin[key] for key in ("tag", "asset", "sha256"))
@@ -406,7 +412,7 @@ def pinned_checks(current, previous):
                   and asset == "embedding-compatibility-baseline.tar.gz"
                   and re.fullmatch(r"[0-9a-f]{64}", digest))
         if ((not packaged and not bundle)
-                or (packaged and pin["execution_policy"] != SCHEMA_41_PIN["execution_policy"])
+                or (packaged and pin["execution_policy"] != SCHEMA_42_PIN["execution_policy"])
                 or transition == pin["execution_policy"]):
             raise RuntimeError(f"Invalid baseline pin for {profile}")
         checks.setdefault((tag, asset, digest), {})[profile] = (pin["execution_policy"], transition)
@@ -465,10 +471,10 @@ def extract_release_executable(archive, destination):
 def capture_release_predecessor(repository, download_env, cache, evidence, profiles):
     receipt = ROOT / RELEASE_PIN
     if hashlib.sha256(receipt.read_bytes().replace(b"\r\n", b"\n")).hexdigest() != RELEASE_DIGEST:
-        raise RuntimeError("Schema 41 producer receipt differs from the cutover pin")
+        raise RuntimeError("Schema 42 producer receipt differs from the cutover pin")
     release = json.loads(receipt.read_text(encoding="utf-8"))
-    if release["tag"] != RELEASE_TAG or release["schema"] != 41 or tuple(release["queries"]) != QUERIES:
-        raise RuntimeError("Schema 41 producer or query recipes differ from the cutover")
+    if release["tag"] != RELEASE_TAG or release["schema"] != 42 or tuple(release["queries"]) != QUERIES:
+        raise RuntimeError("Schema 42 producer or query recipes differ from the cutover")
     target = release_target()
     pin = release["assets"][target]
     archive = evidence / pin["asset"]
@@ -478,12 +484,12 @@ def capture_release_predecessor(repository, download_env, cache, evidence, profi
         env=download_env, check=True, timeout=120,
     )
     if sha256(archive) != pin["sha256"]:
-        raise RuntimeError("Schema 41 producer archive SHA-256 mismatch")
+        raise RuntimeError("Schema 42 producer archive SHA-256 mismatch")
     baseline = evidence / ("atlas.exe" if archive.suffix == ".zip" else "atlas")
     extract_release_executable(archive, baseline)
     version = subprocess.check_output([str(baseline), "--version"], text=True, timeout=20).strip()
     if version != f"atlas {RELEASE_TAG[1:]}":
-        raise RuntimeError("Unexpected version in the schema 41 producer archive")
+        raise RuntimeError("Unexpected version in the schema 42 producer archive")
 
     tree = subprocess.check_output(
         ["git", "rev-parse", f"{release['commit']}:{SOURCE_FIXTURE}"], cwd=ROOT, text=True,
@@ -500,8 +506,8 @@ def capture_release_predecessor(repository, download_env, cache, evidence, profi
         "commit": release["commit"], "target": target, "build": RELEASE_TAG,
     }, fixture_dir / SOURCE_FIXTURE)
     index = evidence / "predecessor.sqlite"
-    if workspace_schema(index) != 41 or predecessor_ledger(index) != release["ledger_sha256"]:
-        raise RuntimeError("Pinned producer did not create the authenticated schema 41 predecessor")
+    if workspace_schema(index) != 42 or predecessor_ledger(index) != release["ledger_sha256"]:
+        raise RuntimeError("Pinned producer did not create the authenticated schema 42 predecessor")
     return manifest
 
 

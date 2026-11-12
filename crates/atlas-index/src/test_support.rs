@@ -4,6 +4,7 @@ mod section_preservation;
 pub use section_preservation::native_preservation_rows;
 pub use section_preservation::reference_preservation_rows;
 
+use crate::migrate_trait_membership_digests;
 use crate::{IndexBuildInput, IndexError, SourceSearchProfileIdentity, SqliteIndexReader};
 use atlas_storage::Workspace;
 use std::{collections::BTreeMap, path::Path};

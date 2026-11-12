@@ -123,9 +123,9 @@ class Routing(unittest.TestCase):
     def test_release_schema_changes_run_all_four_targets(self):
         for name in ("atlas-runtime/src/release_history.rs",
                      "atlas-index/src/release_schema.sql",
-                     "atlas-local-state/src/release.rs",
+                     "atlas-runtime/src/workspace_settings.sql",
                      "atlas-local-state/src/release/encounters.sql",
-                     "atlas-runtime/tests/fixtures/schema-41.sqlite.gz"):
+                     "atlas-runtime/tests/fixtures/schema-42.sqlite.gz"):
             with self.subTest(name=name):
                 path = self.root / "crates" / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,8 +137,8 @@ class Routing(unittest.TestCase):
 
 class PinTransition(unittest.TestCase):
     def test_exact_schema_cutover_keeps_execution_ids_and_retires_old_fixture(self):
-        old = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_29_PIN"])
-        current = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_41_PIN"])
+        old = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_41_PIN"])
+        current = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_42_PIN"])
         checks = PROBE["pinned_checks"](current, old)
         self.assertEqual(len(checks), 1)
         self.assertEqual(next(iter(checks)), (
@@ -150,7 +150,7 @@ class PinTransition(unittest.TestCase):
 
     def test_packaged_pin_still_requires_reviewed_id_for_future_replacement(self):
         profile = "bge-base"
-        old = PROBE["SCHEMA_41_PIN"]
+        old = PROBE["SCHEMA_42_PIN"]
         new = {**PROBE["SCHEMA_29_PIN"], "tag": "embedding-baseline-v2",
                "sha256": "b" * 64, "execution_policy": "next"}
         with self.assertRaisesRegex(RuntimeError, "approved ID transition"):

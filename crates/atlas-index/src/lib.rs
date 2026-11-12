@@ -5,6 +5,7 @@ mod artifact_instance;
 mod catalog_fingerprint;
 mod codec;
 mod component_digests;
+pub use component_digests::migrate_trait_membership_digests;
 mod component_upgrade;
 mod core_projection;
 #[cfg(any(test, feature = "test-support"))]
@@ -44,9 +45,10 @@ pub use persisted_inputs::collect_persisted_inputs_for_fixture;
 pub use selected_sections::SELECTED_SECTIONS_RECIPE;
 mod requested_config;
 pub use requested_config::{
-    RequestedReferenceConfig, clear_requested_reference_config, read_requested_reference_config,
-    read_requested_reference_config_for_write, validate_requested_reference_config,
-    write_requested_reference_config,
+    RequestedReferenceConfig, clear_requested_reference_config,
+    read_configuration as read_requested_reference_config_snapshot,
+    read_requested_reference_config, read_requested_reference_config_for_write,
+    validate_requested_reference_config, write_requested_reference_config,
 };
 mod build_scratch;
 mod build_spool;
@@ -175,3 +177,9 @@ mod embedding_values_tests;
 mod publication_crash_tests;
 
 mod remaster;
+
+mod workspace_settings;
+pub use workspace_settings::{
+    WORKSPACE_SETTINGS_SCHEMA_VERSION, WorkspaceModelChange, preferred_search_profile,
+    set_preferred_search_profile,
+};

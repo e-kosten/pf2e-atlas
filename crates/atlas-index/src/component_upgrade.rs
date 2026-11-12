@@ -94,24 +94,35 @@ pub fn classify_reference_upgrade(c: &Connection) -> Result<ReferenceUpgrade, In
     Ok(upgrade_plan(c)?.0)
 }
 
+// This predecessor is replaced from source and has no decoder in this build.
+pub(crate) fn uses_retired_snapshot_contract(context: &SourceArtifactBuildContext) -> bool {
+    context.snapshot_version == 1
+        && context.source_contract
+            == "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8"
+}
+
+pub(crate) fn check_snapshot_contract(
+    context: &SourceArtifactBuildContext,
+) -> Result<(), IndexError> {
+    if !uses_retired_snapshot_contract(context)
+        && (context.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
+            || context.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID)
+    {
+        return Err(IndexError::Unsupported(
+            "stored source snapshot contract is unsupported".into(),
+        ));
+    }
+    Ok(())
+}
+
 fn upgrade_plan(
     c: &Connection,
 ) -> Result<(ReferenceUpgrade, Option<SourceArtifactBuildContext>), IndexError> {
     let Some(original) = read_stored_reference_context(c)? else {
         return Ok((ReferenceUpgrade::Current, None));
     };
-    // This predecessor is replaced from source, never decoded by the new model.
-    let replace_source = original.snapshot_version == 1
-        && original.source_contract
-            == "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8";
-    if !replace_source
-        && (original.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
-            || original.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID)
-    {
-        return Err(IndexError::Unsupported(
-            "stored source snapshot contract is unsupported".into(),
-        ));
-    }
+    check_snapshot_contract(&original)?;
+    let replace_source = uses_retired_snapshot_contract(&original);
     let current_catalog = crate::query::QUERY_CAPABILITY_VERSION;
     if original.query_catalog_version == 0 || original.query_catalog_version > current_catalog {
         return Err(IndexError::Unsupported(

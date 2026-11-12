@@ -249,8 +249,8 @@ it.
 
 ### Publish an embedding compatibility fixture
 
-The release schema cutoff pins a published schema 41 CLI archive for each
-release target in `scripts/validation/schema-41-predecessor.json`. CI verifies
+The release schema cutoff pins a published schema 42 CLI archive for each
+release target in `scripts/validation/schema-42-predecessor.json`. CI verifies
 the archive, frozen source fixture and ledger, then generates a disposable
 predecessor on that target. Both profile execution policies carry forward.
 
