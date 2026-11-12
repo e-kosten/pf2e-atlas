@@ -360,18 +360,16 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     wait_for(deadline, "second window attachment", || {
         evaluates_true(&second, "Boolean(window.__ATLAS_DESKTOP_SETUP__?.token)")
     })?;
-    let second_for_menu = second.clone();
-    crate::run_on_main(app, move |app| {
-        let _ = second_for_menu.set_focus();
-        let _ = crate::show_workspace_setup(app);
-    })?;
     wait_for(
         deadline,
-        "native menu opens drawer in the current window",
-        || text_visible(&second, "Cancel setup"),
+        "setup gear opens drawer in the second window",
+        || click_product_button(&second, "Setup and Updates", false),
     )?;
+    wait_for(deadline, "running job appears in the second drawer", || {
+        text_visible(&second, "Cancel setup")
+    })?;
     if app.webview_windows().len() != 2 {
-        return Err("setup menu opened an extra window".into());
+        return Err("opening setup created an extra window".into());
     }
     wait_for(deadline, "cancel the job from the second window", || {
         click_product_button(&second, "Cancel setup", true)
@@ -429,14 +427,34 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
             )
         },
     )?;
-    let second_for_menu = second.clone();
-    crate::run_on_main(app, move |app| {
-        let _ = second_for_menu.set_focus();
+    // With one product window, exercise the app-menu handler without racing
+    // macOS focus changes caused by the user or another application.
+    crate::run_on_main(app, move |_| {
+        let _ = second.close();
+    })?;
+    wait_for(deadline, "one product window remains", || {
+        app.webview_windows().len() == 1
+    })?;
+    wait_for(deadline, "close the original setup drawer", || {
+        click_product_button(&window, "Close", true)
+    })?;
+    wait_for(deadline, "original drawer closes", || {
+        evaluates_true(
+            &window,
+            r#"!Array.from(document.querySelectorAll('[role="dialog"]')).some(el => el.getClientRects().length)"#,
+        )
+    })?;
+    crate::run_on_main(app, |app| {
         let _ = crate::show_workspace_setup(app);
     })?;
-    wait_for(deadline, "reopen the drawer with the last result", || {
-        text_visible(&second, "Reference data updated.")
-    })?;
+    wait_for(
+        deadline,
+        "native menu reopens the drawer with the last result",
+        || text_visible(&window, "Reference data updated."),
+    )?;
+    if app.webview_windows().len() != 1 {
+        return Err("setup menu opened an extra window".into());
+    }
     Ok(())
 }
 

@@ -814,15 +814,21 @@ fn all_required_model_assets_are_verified_without_inference_or_download() {
     let paths = paths(dir.path());
     source(&paths);
     assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
-    let report = crate::setup::ensure_setup(
-        &paths,
-        RuntimeSetupOptions {
-            target: SetupTarget::Full,
-            check: true,
-            offline: true,
-            ..Default::default()
-        },
-    );
+    let check = RuntimeSetupOptions {
+        target: SetupTarget::Full,
+        check: true,
+        offline: true,
+        ..Default::default()
+    };
+    let keyword = crate::setup::ensure_setup(&paths, check.clone());
+    assert!(keyword.ready);
+    assert!(keyword.search_profiles.is_empty());
+
+    let explicit = RuntimeSetupOptions {
+        search_profiles: vec![atlas_domain::SearchProfileId::new("bge-base")],
+        ..check
+    };
+    let report = crate::setup::ensure_setup(&paths, explicit.clone());
     assert_eq!(report.search_profiles[0].missing_files.len(), 5);
     assert!(!report.ready);
     let config = EmbeddingRuntimeConfig::new(
@@ -833,15 +839,7 @@ fn all_required_model_assets_are_verified_without_inference_or_download() {
         fs::create_dir_all(asset.local_path.parent().unwrap()).unwrap();
         fs::write(asset.local_path, b"corrupted cached bytes").unwrap();
     }
-    let report = crate::setup::ensure_setup(
-        &paths,
-        RuntimeSetupOptions {
-            target: SetupTarget::Full,
-            check: true,
-            offline: true,
-            ..Default::default()
-        },
-    );
+    let report = crate::setup::ensure_setup(&paths, explicit);
     assert!(report.search_profiles[0].missing_files.is_empty());
     assert!(
         !report.search_profiles[0].ready,
