@@ -269,8 +269,12 @@ async fn prepare(
         }
         let progress_window = window.clone();
         let result = process::setup(
-            process::SetupMode::Ordinary,
-            build_embeddings_locally.unwrap_or_default(),
+            if upgrade {
+                process::SetupMode::UpgradeWorkspace
+            } else {
+                process::SetupMode::Ordinary
+            },
+            !upgrade && build_embeddings_locally.unwrap_or_default(),
             move |event| {
                 let _ = progress_window.emit("atlas-progress", event);
             },
@@ -286,6 +290,14 @@ async fn prepare(
         );
         lock(&desktop.setup_pipe).take();
         result?;
+        if upgrade
+            && !matches!(
+                process::probe()?.status,
+                WorkspaceStatus::Ready | WorkspaceStatus::Browsable
+            )
+        {
+            return Ok("Workspace format upgraded.".into());
+        }
         if upgrade || !running {
             let _ = window.emit("atlas-opening", ());
             launch_ready(&app, &window)?;

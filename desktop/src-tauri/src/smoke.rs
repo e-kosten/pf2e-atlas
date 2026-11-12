@@ -264,7 +264,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
             &window,
             r#"(() => {
             const button = [...document.querySelectorAll('button')].find(
-                item => item.textContent.trim() === "Setup and Updates");
+                item => item.getAttribute("aria-label") === "Setup and Updates");
             if (!button) return false;
             button.click();
             return true;
@@ -326,6 +326,18 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         .ok_or("primary window unavailable")?;
     wait_for(deadline, "permanent setup toolbar entry", || {
         click_product_button(&window, "Setup and Updates", false)
+    })?;
+    wait_for(deadline, "terminal access action", || {
+        click_product_button(&window, "Enable terminal command", true)
+    })?;
+    let linked = home.join(".local/bin/atlas");
+    wait_for(deadline, "bundled terminal command linked", || {
+        linked
+            .read_link()
+            .is_ok_and(|path| process::bundled_cli().is_ok_and(|cli| path == cli))
+    })?;
+    wait_for(deadline, "idempotent terminal link action", || {
+        click_product_button(&window, "Enable terminal command", true)
     })?;
     wait_for(deadline, "reference action", || {
         click_product_button(&window, "Check and repair reference data", true)

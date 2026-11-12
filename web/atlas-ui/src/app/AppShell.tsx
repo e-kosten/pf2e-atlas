@@ -181,7 +181,6 @@ export function AppShell({
           theme={resolvedColorScheme}
         />
         <Space className="topbar__actions" size="small">
-          <DesktopSetupPanel />
           <Popover
             trigger="click"
             open={themeOpen}
@@ -230,6 +229,7 @@ export function AppShell({
               />
             </Tooltip>
           </Popover>
+          <DesktopSetupPanel />
         </Space>
       </header>
       {readiness?.saved_writes_paused && (

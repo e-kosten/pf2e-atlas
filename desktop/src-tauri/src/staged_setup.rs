@@ -5,8 +5,8 @@ use std::{
 };
 
 use atlas_desktop_protocol::{
-    LauncherReady, ReferenceRefreshOutcome, ReferenceRefreshResult, ReferenceStatus,
-    SetupPublication, SetupStage,
+    LauncherReady, ModelSelection, ReferenceRefreshOutcome, ReferenceRefreshResult,
+    ReferenceStatus, SetupPublication, SetupStage,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -42,6 +42,9 @@ struct SetupState {
     local_build: bool,
     can_resume: bool,
     reference_job: bool,
+    model_job: bool,
+    #[serde(skip)]
+    model_retry: Option<(String, ModelSelection)>,
     #[serde(skip)]
     reference: Option<ReferenceStatus>,
     #[serde(skip)]
@@ -49,7 +52,7 @@ struct SetupState {
     #[serde(skip)]
     reference_request: usize,
     #[serde(skip)]
-    pending_refresh: Option<ReferenceStatus>,
+    pending_refresh: Option<PendingRefresh>,
     #[serde(skip)]
     reference_retry_offer: Option<String>,
 }
@@ -171,6 +174,10 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
             "targetVersion": reference.target_version,
             "managed": reference.managed,
             "available": reference.offer.is_some(),
+            "modelsAvailable": reference.model_offer.is_some(),
+            "canChangeModels": reference.can_change_models,
+            "models": reference.models,
+            "preferred": reference.preferred,
         })
     });
     let detail = serde_json::json!({
@@ -256,6 +263,27 @@ fn load_reference(app: &AppHandle, force: bool) {
     });
 }
 
+#[derive(Clone)]
+struct PendingRefresh {
+    before: ReferenceStatus,
+    models: Option<ModelSelection>,
+}
+
+fn installed_models(status: &ReferenceStatus) -> Vec<atlas_desktop_protocol::SearchProfileId> {
+    let mut profiles: Vec<_> = status
+        .models
+        .iter()
+        .filter(|model| model.installed)
+        .map(|model| model.id.clone())
+        .collect();
+    profiles.sort();
+    profiles
+}
+
+fn matches_selection(status: &ReferenceStatus, selection: &ModelSelection) -> bool {
+    installed_models(status) == selection.profiles && status.preferred == selection.preferred
+}
+
 fn same_workspace(before: &ReferenceStatus, after: &ReferenceStatus) -> bool {
     before.workspace == after.workspace
         && before.generation.rsplit_once(':').map(|(key, _)| key)
@@ -283,13 +311,24 @@ fn store_reference(
             return;
         }
         let changed = status.as_ref().and_then(|status| {
-            state.pending_refresh.take().map(|before| {
-                if !same_workspace(&before, status) {
+            state.pending_refresh.take().map(|pending| {
+                let before = &pending.before;
+                if !same_workspace(before, status) {
                     state.message = None;
                     state.local_build = false;
                     state.reference_job = false;
                     false
                 } else {
+                    if pending
+                        .models
+                        .as_ref()
+                        .is_some_and(|selection| matches_selection(status, selection))
+                    {
+                        state.message = Some("Atlas is using the selected search models.".into());
+                        state.status = Status::Idle;
+                        state.model_retry = None;
+                        state.reference_retry_offer = None;
+                    }
                     before.generation != status.generation
                 }
             })
@@ -297,7 +336,7 @@ fn store_reference(
         if changed == Some(true) {
             state.local_build = false;
         }
-        if state.reference_job {
+        if state.reference_job && !state.model_job {
             state.local_build = state.reference_retry_offer.as_ref().is_some_and(|offer| {
                 status.as_ref().and_then(|status| status.offer.as_ref()) == Some(offer)
             });
@@ -310,6 +349,16 @@ fn store_reference(
                         .into(),
                 );
             }
+        }
+        if state.model_job && state.model_retry.is_some() && status.is_some() {
+            state.local_build = status.as_ref().is_some_and(|current| {
+                current.can_change_models
+                    && state.reference_retry_offer.is_some()
+                    && state
+                        .model_retry
+                        .as_ref()
+                        .is_some_and(|(base, _)| current.model_offer.as_ref() == Some(base))
+            });
         }
         state.reference = status;
         state.reference_loading = false;
@@ -357,10 +406,11 @@ enum Start {
         job: usize,
         sequence: usize,
         action: SetupAction,
+        selection: Option<ModelSelection>,
     },
 }
 
-fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceStatus>, String> {
+fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceJob>, String> {
     let desktop = app.state::<Desktop>();
     let _operation = desktop
         .operation
@@ -387,6 +437,7 @@ fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceStatus>, Strin
             job,
             sequence,
             action,
+            selection,
         } => {
             if job != state.job
                 || sequence != state.sequence
@@ -395,22 +446,48 @@ fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceStatus>, Strin
             {
                 return Err(stale());
             }
-            let reference = state
-                .reference
-                .as_ref()
-                .filter(|reference| reference.offer.is_some())
-                .ok_or_else(stale)?;
+            let reference = state.reference.as_ref().ok_or_else(stale)?;
+            let mut models = None;
             let pending = reference.revision.as_deref() != Some(&reference.target);
-            match action {
-                SetupAction::ApplyReference if pending => {}
-                SetupAction::CheckReference if !pending => {}
-                SetupAction::BuildLocally
-                    if state.reference_job
-                        && state.local_build
-                        && state.reference_retry_offer == reference.offer => {}
-                _ => return Err(stale()),
+            let offer = match action {
+                SetupAction::ApplyReference if pending => reference.offer.clone(),
+                SetupAction::CheckReference if !pending => reference.offer.clone(),
+                SetupAction::BuildLocally if state.local_build && state.reference_job => {
+                    if state.model_job {
+                        models = state
+                            .model_retry
+                            .clone()
+                            .map(|(_, selection)| (selection, false));
+                        state
+                            .reference_retry_offer
+                            .clone()
+                            .filter(|_| models.is_some())
+                    } else {
+                        state
+                            .reference_retry_offer
+                            .clone()
+                            .filter(|offer| Some(offer) == reference.offer.as_ref())
+                    }
+                }
+                SetupAction::ApplyModels => {
+                    let selection = selection.ok_or_else(stale)?;
+                    let default_only = selection.profiles == installed_models(reference);
+                    if !default_only && !reference.can_change_models {
+                        return Err(
+                            "Update reference data before changing installed search models.".into(),
+                        );
+                    }
+                    models = Some((selection, default_only));
+                    reference.model_offer.clone()
+                }
+                _ => None,
             }
-            Some(reference.clone())
+            .ok_or_else(stale)?;
+            Some(ReferenceJob {
+                before: reference.clone(),
+                offer,
+                models,
+            })
         }
     };
     if desktop.quitting.load(Ordering::Acquire) {
@@ -423,6 +500,7 @@ fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceStatus>, Strin
         sequence: state.sequence + 1,
         status: Status::Running,
         reference_job: reference.is_some(),
+        model_job: reference.as_ref().is_some_and(|job| job.models.is_some()),
         reference: state.reference.take(),
         reference_loading: state.reference_loading,
         reference_request: state.reference_request,
@@ -443,9 +521,15 @@ pub fn from_bootstrap(
     Ok("Your workspace is ready.".into())
 }
 
+struct ReferenceJob {
+    before: ReferenceStatus,
+    offer: String,
+    models: Option<(ModelSelection, bool)>,
+}
+
 enum Job {
     Staged(SetupStage),
-    Reference(ReferenceStatus),
+    Reference(ReferenceJob),
 }
 
 fn run(
@@ -482,12 +566,12 @@ fn run(
     let progress_window = bootstrap.clone();
     let mode = match &job {
         Job::Staged(stage) => process::SetupMode::Staged(*stage),
-        Job::Reference(reference) => process::SetupMode::Reference(
-            reference
-                .offer
-                .as_deref()
-                .ok_or("Reference setup is unavailable.")?,
-        ),
+        Job::Reference(job) => match &job.models {
+            Some((selection, default_only)) => {
+                process::SetupMode::Models(&job.offer, selection, *default_only)
+            }
+            None => process::SetupMode::Reference(&job.offer),
+        },
     };
     let result = process::setup(
         mode,
@@ -585,10 +669,17 @@ fn run(
 
 fn finish_reference(
     app: &AppHandle,
-    before: ReferenceStatus,
+    job: ReferenceJob,
     result: &Result<(), Value>,
     receipt: Option<ReferenceRefreshResult>,
 ) {
+    let ReferenceJob { before, models, .. } = job;
+    let current_status = process::reference_status().ok();
+    let models_committed = models.as_ref().is_some_and(|(selection, _)| {
+        current_status.as_ref().is_some_and(|current| {
+            same_workspace(&before, current) && matches_selection(current, selection)
+        })
+    });
     let desktop = app.state::<Desktop>();
     let (launcher, request) = {
         let current = lock(&desktop.launcher);
@@ -614,7 +705,12 @@ fn finish_reference(
                 !cancelled
             }
         });
+        let failure_message = result.as_ref().err().and_then(|value| value.as_str());
         let message = match &outcome {
+            _ if models_committed => "Atlas is using the selected search models.",
+            None if models.is_some() && !cancelled => failure_message.unwrap_or(
+                "Atlas could not confirm the model change. Check the current settings and try again.",
+            ),
             Some(ReferenceRefreshOutcome::Ready { updated: true, .. }) => "Reference data updated.",
             Some(ReferenceRefreshOutcome::Ready {
                 model_repaired: true,
@@ -635,15 +731,28 @@ fn finish_reference(
                 "Reference setup could not finish. Check the current reference status and try again."
             }
         };
-        state.status =
-            if matches!(outcome, Some(ReferenceRefreshOutcome::Ready { .. })) || cancelled {
-                Status::Idle
-            } else {
-                Status::Failed
-            };
+        state.status = if models_committed
+            || matches!(outcome, Some(ReferenceRefreshOutcome::Ready { .. }))
+            || cancelled
+        {
+            Status::Idle
+        } else {
+            Status::Failed
+        };
         state.progress = None;
         state.message = Some(message.into());
         state.local_build = false;
+        state.model_retry = if matches!(
+            &outcome,
+            Some(ReferenceRefreshOutcome::SeedUnavailable { .. })
+        ) {
+            before
+                .model_offer
+                .clone()
+                .zip(models.as_ref().map(|(selection, _)| selection.clone()))
+        } else {
+            None
+        };
         state.reference_retry_offer = match outcome {
             Some(ReferenceRefreshOutcome::SeedUnavailable { retry_offer }) => Some(retry_offer),
             _ => None,
@@ -651,13 +760,16 @@ fn finish_reference(
         state.reference = None;
         state.reference_loading = launcher.is_some();
         state.reference_request += 1;
-        state.pending_refresh = Some(before);
+        state.pending_refresh = Some(PendingRefresh {
+            before,
+            models: models.map(|(selection, _)| selection),
+        });
         state.sequence += 1;
         (launcher, state.reference_request)
     };
     broadcast(app);
     if let Some(launcher) = launcher {
-        store_reference(app, &launcher, request, process::reference_status().ok());
+        store_reference(app, &launcher, request, current_status);
     }
 }
 
@@ -722,6 +834,8 @@ pub enum SetupAction {
     ApplyReference,
     CheckReference,
     ReadReferenceStatus,
+    ApplyModels,
+    EnableTerminal,
     AcknowledgeOpen,
 }
 
@@ -733,7 +847,8 @@ pub fn desktop_setup_action(
     action: SetupAction,
     sequence: Option<usize>,
     open_request: Option<usize>,
-) -> Result<(), String> {
+    model_selection: Option<ModelSelection>,
+) -> Result<Option<String>, String> {
     let app = window.app_handle().clone();
     let desktop = app.state::<Desktop>();
     let instance = lock(&desktop.launcher)
@@ -758,27 +873,38 @@ pub fn desktop_setup_action(
                 load_reference(&app, true);
                 broadcast(&app);
             }
-            return Ok(());
+            return Ok(None);
         }
     }
     if matches!(action, SetupAction::Cancel) {
-        return cancel(&app, Some(job));
+        return cancel(&app, Some(job)).map(|()| None);
     }
     if matches!(action, SetupAction::ReadReferenceStatus) {
         load_reference(&app, true);
         broadcast(&app);
-        return Ok(());
+        return Ok(None);
+    }
+    if matches!(action, SetupAction::EnableTerminal) {
+        let state = lock(&desktop.staged_setup.state);
+        if state.job != job || Some(state.sequence) != sequence {
+            return Err("This setup action belongs to an earlier Atlas view.".into());
+        }
+        drop(state);
+        let home = process::home()?.canonicalize().map_err(display)?;
+        return crate::link_cli(&home, &home.join(".local/bin"), &process::bundled_cli()?)
+            .map(Some);
     }
     let local = matches!(action, SetupAction::BuildLocally);
     let reference = matches!(
         action,
-        SetupAction::ApplyReference | SetupAction::CheckReference
+        SetupAction::ApplyReference | SetupAction::CheckReference | SetupAction::ApplyModels
     ) || (local && lock(&desktop.staged_setup.state).reference_job);
     let start = if reference {
         Start::Reference {
             job,
             sequence: sequence.ok_or("Reference setup state changed.")?,
             action,
+            selection: model_selection,
         }
     } else {
         Start::Resume { job, local }
@@ -787,5 +913,5 @@ pub fn desktop_setup_action(
     tauri::async_runtime::spawn_blocking(move || {
         let _ = run(app, None, job, local);
     });
-    Ok(())
+    Ok(None)
 }

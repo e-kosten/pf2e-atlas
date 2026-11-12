@@ -933,11 +933,12 @@ describe("AtlasApp routing", () => {
     expect(params.get("search_profile")).toBeNull();
   });
 
-  it("drops a generated model parameter when a refreshed collection has no vectors", async () => {
+  it("keeps a removed model result until the user submits another search", async () => {
     history.replaceState(null, "", "/search?q=heal");
     apiMocks.searchPage.mockImplementation(
-      async ({ criteria }: SearchResultsRequest) => ({
-        ...searchResultsPage(),
+      async ({ criteria, expected_artifact_generation }: SearchResultsRequest) => ({
+        ...searchResultsPage(["spell:heal"]),
+        artifact_generation: expected_artifact_generation ?? "generation-a",
         mode: criteria,
       }),
     );
@@ -947,12 +948,26 @@ describe("AtlasApp routing", () => {
         "bge-base",
       ),
     );
+    const row = await screen.findByText("heal", { exact: true });
+    expect(row).toBeVisible();
     apiMocks.getReadiness.mockResolvedValue({
       ...readinessFixture(),
       search_profiles: [],
+      artifact_generation: "generation-b",
     });
     act(() => window.dispatchEvent(new Event("atlas-reference-updated")));
 
+    expect(
+      await screen.findByText(
+        "This search link needs a semantic index. You can continue with keyword search.",
+      ),
+    ).toBeVisible();
+    expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
+      "bge-base",
+    );
+    expect(row).toBeVisible();
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
     expect(await screen.findByText("Keyword search", { exact: true })).toBeVisible();
     await waitFor(() => {
       expect(new URLSearchParams(window.location.search).has("search_profile")).toBe(
@@ -961,6 +976,7 @@ describe("AtlasApp routing", () => {
       expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
         expect.objectContaining({
           search_profile: undefined,
+          expected_artifact_generation: "generation-b",
           criteria: expect.objectContaining({ query: "heal", mode: "lexical" }),
         }),
         expect.any(AbortSignal),

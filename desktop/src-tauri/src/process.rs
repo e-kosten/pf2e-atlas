@@ -144,8 +144,10 @@ impl Launcher {
 
 pub enum SetupMode<'a> {
     Ordinary,
+    UpgradeWorkspace,
     Staged(SetupStage),
     Reference(&'a str),
+    Models(&'a str, &'a atlas_desktop_protocol::ModelSelection, bool),
 }
 
 pub enum SetupEvent {
@@ -176,6 +178,19 @@ pub fn setup(
             },
         ]),
         SetupMode::Reference(offer) => command.args(["--desktop-reference-offer", offer]),
+        SetupMode::Models(offer, selection, default_only) => {
+            if default_only {
+                command.arg("--desktop-set-default");
+            }
+            command
+                .args([
+                    "--desktop-reference-offer",
+                    offer,
+                    "--desktop-model-selection",
+                ])
+                .arg(serde_json::to_string(selection).map_err(display)?)
+        }
+        SetupMode::UpgradeWorkspace => command.arg("--desktop-upgrade-workspace"),
         SetupMode::Ordinary => &mut command,
     };
     if build_embeddings_locally {
@@ -186,7 +201,7 @@ pub fn setup(
         crate::smoke::record_setup();
     }
     #[cfg(debug_assertions)]
-    if !matches!(mode, SetupMode::Reference(_))
+    if matches!(mode, SetupMode::Ordinary | SetupMode::Staged(_))
         && let Some(source) = crate::smoke::source()?
     {
         crate::smoke::record_setup();
