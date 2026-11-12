@@ -171,6 +171,9 @@ export function RecordReferenceDrawer({
               presentation={detail?.presentation}
               equipmentFamily={detail?.equipment_family}
               creatureFamily={detail?.creature_family}
+              canonicalRecord={detail?.canonical_record}
+              alternatePublications={detail?.alternate_publications}
+              onCanonicalNavigate={onReference}
               onEquipmentFamilyNavigate={close}
               root={detail?.record}
               selection={detail?.selected}

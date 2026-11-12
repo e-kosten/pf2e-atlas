@@ -138,6 +138,11 @@ lists candidates that share a publication and token name while using different
 actor titles. Use the [creature family review procedure](source-research.md#creature-family-review-during-a-source-upgrade)
 to compare candidates with prior decisions and review the source evidence.
 
+Add `--duplicates` to report possible same-edition copies across publications.
+With `--json`, each group includes the source paths and raw source hashes for
+review. See [verified creature copies](source-research.md#review-verified-creature-copies)
+for the evidence required to activate a pair.
+
 ## Refresh published embedding assets
 
 Use `just embedding-seed-refresh --baseline-ref <reviewed-ref> --output <task-directory>`.

@@ -101,8 +101,8 @@ impl AtlasAppService {
                         text: text.as_deref(),
                         scope: keys
                             .as_deref()
-                            .map(RecordScope::Keys)
-                            .unwrap_or(RecordScope::All),
+                            .map(RecordScope::exact)
+                            .unwrap_or(RecordScope::catalog(None)),
 
                         filter: filter.as_ref(),
                     },
@@ -135,8 +135,8 @@ impl AtlasAppService {
                         text: text.as_deref(),
                         scope: keys
                             .as_deref()
-                            .map(RecordScope::Keys)
-                            .unwrap_or(RecordScope::All),
+                            .map(RecordScope::exact)
+                            .unwrap_or(RecordScope::catalog(None)),
 
                         filter: filter.as_ref(),
                     },
@@ -188,8 +188,8 @@ impl AtlasAppService {
                             text: text.as_deref(),
                             scope: keys
                                 .as_deref()
-                                .map(RecordScope::Keys)
-                                .unwrap_or(RecordScope::All),
+                                .map(RecordScope::exact)
+                                .unwrap_or(RecordScope::catalog(None)),
 
                             filter: filter.as_ref(),
                         },
@@ -276,8 +276,8 @@ impl AtlasAppService {
                     text: text.as_deref(),
                     scope: keys
                         .as_deref()
-                        .map(RecordScope::Keys)
-                        .unwrap_or(RecordScope::All),
+                        .map(RecordScope::exact)
+                        .unwrap_or(RecordScope::catalog(None)),
 
                     filter: filter.as_ref(),
                 },
@@ -307,7 +307,7 @@ fn editor_values(
                 content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: None,
                 text: None,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
 
                 filter,
             },
@@ -447,8 +447,8 @@ pub(crate) fn scoped_list_keys(
 }
 fn scope(keys: &Option<Vec<RecordKey>>) -> RecordScope<'_> {
     keys.as_deref()
-        .map(RecordScope::Keys)
-        .unwrap_or(RecordScope::All)
+        .map(RecordScope::exact)
+        .unwrap_or(RecordScope::catalog(None))
 }
 
 fn required_facet<T>(outcome: QueryFacetOutcome<T>) -> AppServiceResult<T> {

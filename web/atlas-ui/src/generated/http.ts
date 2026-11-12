@@ -1409,6 +1409,11 @@ export interface ArmyReferenceView {
   weaknesses: FactViewVecIwrEntryView;
 }
 
+export interface CanonicalRecordView {
+  record_key: string;
+  title: string;
+}
+
 export interface CheckDetailsView {
   traits: RecordBadgeView[];
 }
@@ -4733,7 +4738,9 @@ export type RelatedCategoryViewRemasterSourceContextView = {
 };
 
 export interface RecordDetailView {
+  alternate_publications?: string[];
   artifact_generation: string;
+  canonical_record?: CanonicalRecordView;
   creature_family?: CreatureFamilyView;
   creature_overrides?: CreatureOverrideView[];
   /** Default adjustment for adding this root creature to an encounter. */

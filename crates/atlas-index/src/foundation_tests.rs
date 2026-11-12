@@ -84,6 +84,7 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        verified_duplicate_sha256: None,
         reference_preparation: None,
         selected_sections_recipe: crate::SELECTED_SECTIONS_RECIPE.into(),
 
@@ -205,6 +206,7 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
         aliases: vec![],
         remaster_context: vec![],
         remaster_pairs: vec![],
+        verified_duplicates: vec![],
         lexical_units: vec![],
         semantic_units: vec![],
     };
@@ -504,6 +506,7 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     let query = parse_where("kind == 'spell'").unwrap();
     let hits = reader
         .vector_candidates(crate::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &atlas_domain::SearchProfileId::new("bge-base"),
             vector: &input.semantic_units[0].vector,
             query: &query,
@@ -529,6 +532,7 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let scoped = reader
         .vector_candidates(crate::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &atlas_domain::SearchProfileId::new("bge-base"),
             vector: &input.semantic_units[0].vector,
             query: &all,
@@ -542,6 +546,7 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     assert!(
         reader
             .vector_candidates(crate::SourceVectorCandidateRequest {
+                discovery_scope: Default::default(),
                 profile: &atlas_domain::SearchProfileId::new("bge-base"),
                 vector: &input.semantic_units[0].vector,
                 query: &all,
@@ -1097,6 +1102,7 @@ fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let hits = reader
         .vector_candidates(crate::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &atlas_domain::SearchProfileId::new("bge-base"),
             vector: &input.semantic_units[0].vector,
             query: &all,

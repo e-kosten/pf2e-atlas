@@ -89,7 +89,7 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
         false,
     )];
     let links = link_filter(None, &constraints);
-    let scope = RecordScope::All;
+    let scope = RecordScope::catalog(None);
     let result = service
         .list_records(
             ListRecordsRequest::new(Some(&links), SearchPage::new(1, 100).unwrap())
@@ -136,7 +136,7 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
     text.filter = Some(&filter);
     assert_eq!(service.search_text(text).unwrap().page.total, 1);
     let scoped_keys = vec![key("items", "0000000000000124")];
-    let scoped = RecordScope::Keys(&scoped_keys);
+    let scoped = RecordScope::exact(&scoped_keys);
     assert_eq!(
         service
             .list_records(
@@ -517,7 +517,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
     });
     assert_eq!(
         service
-            .connected_record_keys(Some(&positive), RecordScope::All, Incoming, true)
+            .connected_record_keys(Some(&positive), RecordScope::catalog(None), Incoming, true)
             .unwrap(),
         [key("items", other)]
     );
@@ -531,7 +531,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
     });
     assert_eq!(
         service
-            .connected_record_keys(Some(&negative), RecordScope::All, Incoming, true)
+            .connected_record_keys(Some(&negative), RecordScope::catalog(None), Incoming, true)
             .unwrap(),
         [key("items", target)]
     );
@@ -539,7 +539,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
         service
             .connected_record_keys(
                 None,
-                RecordScope::Keys(std::slice::from_ref(&source)),
+                RecordScope::exact(std::slice::from_ref(&source)),
                 Incoming,
                 false
             )
@@ -550,7 +550,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
         service
             .connected_record_keys(
                 None,
-                RecordScope::Keys(std::slice::from_ref(&actor)),
+                RecordScope::exact(std::slice::from_ref(&actor)),
                 Incoming,
                 false
             )
@@ -561,7 +561,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
         service
             .connected_record_keys(
                 None,
-                RecordScope::Keys(std::slice::from_ref(&actor)),
+                RecordScope::exact(std::slice::from_ref(&actor)),
                 Incoming,
                 true
             )
@@ -572,7 +572,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
         service
             .connected_record_keys(
                 None,
-                RecordScope::Keys(&[key("items", other)]),
+                RecordScope::exact(&[key("items", other)]),
                 Outgoing,
                 true
             )
@@ -583,7 +583,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
         service
             .connected_record_keys(
                 None,
-                RecordScope::Keys(&[key("items", other)]),
+                RecordScope::exact(&[key("items", other)]),
                 Outgoing,
                 false
             )
@@ -594,7 +594,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
         service
             .connected_record_keys(
                 None,
-                RecordScope::Keys(&[key("items", target)]),
+                RecordScope::exact(&[key("items", target)]),
                 Outgoing,
                 false
             )
@@ -603,7 +603,7 @@ fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
     );
     assert!(
         service
-            .connected_record_keys(None, RecordScope::Keys(&[]), Incoming, true)
+            .connected_record_keys(None, RecordScope::exact(&[]), Incoming, true)
             .unwrap()
             .is_empty()
     );
@@ -621,7 +621,7 @@ fn large_key_scopes_do_not_exceed_sqlite_parameter_limits() {
         service
             .list_records(ListRecordsRequest {
                 filter: None,
-                scope: RecordScope::Keys(&keys),
+                scope: RecordScope::exact(&keys),
                 page: SearchPage::first(10).unwrap(),
                 sort: atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,

@@ -288,6 +288,8 @@ pub struct PublicationSpool {
     pub lexical: BuildFrameStream<SourceLexicalUnitInput>,
     pub semantic: BuildFrameStream<SemanticOccurrence>,
     pub aliases: BuildFrameStream<SourceAliasInput>,
+    pub(crate) verified_duplicates: Vec<crate::VerifiedDuplicateInput>,
+    pub duplicate_diagnostics: Vec<(atlas_domain::RecordKey, SourceArtifactDiagnostic)>,
     pub remaster_context: BuildFrameStream<atlas_record::remaster::RecordRemasterContext>,
     pub remaster_pairs: BuildFrameStream<SourceRemasterPairInput>,
     pub traits: BuildFrameStream<TraitDefinition>,
@@ -319,6 +321,8 @@ impl PublicationSpool {
             lexical: BuildFrameStream::new_in(scratch)?,
             semantic: BuildFrameStream::new_in(scratch)?,
             aliases: BuildFrameStream::new_in(scratch)?,
+            verified_duplicates: Vec::new(),
+            duplicate_diagnostics: Vec::new(),
             remaster_context: BuildFrameStream::new_in(scratch)?,
             remaster_pairs: BuildFrameStream::new_in(scratch)?,
             traits: BuildFrameStream::new_in(scratch)?,
@@ -329,6 +333,15 @@ impl PublicationSpool {
     }
     pub fn context(&self) -> &SourceArtifactBuildContext {
         &self.context
+    }
+    pub fn set_verified_duplicates(
+        &mut self,
+        pairs: Vec<crate::VerifiedDuplicateInput>,
+    ) -> Result<(), IndexError> {
+        self.context.verified_duplicate_sha256 =
+            crate::verified_duplicates::inventory_identity(&pairs)?;
+        self.verified_duplicates = pairs;
+        Ok(())
     }
     pub fn packs(&self) -> &[IndexBuildPack] {
         &self.packs

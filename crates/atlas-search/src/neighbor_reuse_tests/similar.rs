@@ -23,7 +23,7 @@ fn record_request(key: &RecordKey) -> SimilarRecordRequest<'_> {
         search_profile: None,
         record_key: key,
         filter: None,
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
         page: SearchPage::first(10).unwrap(),
     }
 }
@@ -183,7 +183,7 @@ fn explicit_and_empty_similar_key_scopes_bypass_retention() {
             let service = open_native(&artifact.path(), Some(&store), "bge-base");
             let cold = open_native(&artifact.path(), None, "bge-base");
             let request = || SimilarRecordRequest {
-                scope: RecordScope::Keys(scope),
+                scope: RecordScope::exact(scope),
                 ..record_request(&seed)
             };
             let actual = service.similar_records(request()).unwrap().unwrap();
@@ -276,7 +276,7 @@ fn advanced_similar_keeps_its_distinct_candidate_path_with_an_empty_or_warm_stor
                     content_scope: SearchContentScope::All,
                     search_profile: None,
                     filter: None,
-                    scope: RecordScope::All,
+                    scope: RecordScope::catalog(None),
                     page: SearchPage::first(10).unwrap(),
                     sort: ResultSort::Relevance {},
 

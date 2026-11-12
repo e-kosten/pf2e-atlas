@@ -55,12 +55,12 @@ impl SqliteIndexReader {
         crate::validation::check_vector(request.vector, model.dimensions)?;
         self.require_vectors()?;
         // Compile even an empty successful window, preserving request failures.
-        let (mut eligible, mut eligibility_params) =
-            crate::read_units::eligible_sql(request.query, request.keys)?;
-        if let Some(exclude) = request.exclude {
-            eligible.push_str(&format!(" AND r.key<>?{}", eligibility_params.len() + 1));
-            eligibility_params.push(Value::Text(exclude.to_string()));
-        }
+        let (eligible, eligibility_params) = crate::verified_duplicates::eligible_sql(
+            request.query,
+            request.keys,
+            request.discovery_scope,
+            request.exclude,
+        )?;
         if neighbors.neighbors.len() > request.limit {
             return Err(IndexError::Invalid(
                 "retained neighbors exceed their native window".into(),

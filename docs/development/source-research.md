@@ -278,3 +278,24 @@ the source, verify that both records belong to the same adventure and check
 their usage conditions. Test the target's source adjustment and
 effective stats, including published records whose stats already include the
 adjustment.
+
+## Review verified creature copies
+
+Use the [creature audit with `--duplicates`](developer-commands.md#review-creature-families)
+to find same-edition actors with matching authored content across publications.
+Compare the complete actor rules and descriptions, then read the encounter and
+its scaling guidance in the publication that uses the copy.
+
+When the copy adds no rules or usage guidance specific to the stat block,
+record the canonical and copy keys, exact titles, raw source hashes, edition,
+and a source note in the
+[reviewed duplicate catalog](../../crates/atlas-ingest/verified-duplicates/creatures.json).
+During a source upgrade, investigate an inactive declaration before updating
+either hash. A changed encounter rule can keep a copy visible even when its
+actor rules still match the reference book.
+
+The Eloko in *Echoes of Desperation* uses the published Eloko stat block.
+Quickling in *The King in Thorns* has a scenario-specific HP adjustment.
+Skulk in *Guardian's Covenant* remains a candidate pending review of the
+published encounter. [ADR0070](../architecture/decisions/0070-verified-source-duplicates.md)
+describes how reviewed pairs affect discovery.

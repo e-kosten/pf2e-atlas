@@ -18,7 +18,7 @@ fn request<'a>(
         content_scope: SearchContentScope::All,
         search_profile: None,
         filter: None,
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
         page: SearchPage::first(50).unwrap(),
         sort: atlas_domain::ResultSort::Relevance {},
 
@@ -472,7 +472,7 @@ fn record_text_context_is_unavailable_for_all_facets_without_inference() {
             content_scope,
             search_profile: None,
             text: Some("Fireball"),
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
 
             filter: None,
         };
@@ -528,7 +528,7 @@ fn record_text_context_is_unavailable_for_all_facets_without_inference() {
                 content_scope: SearchContentScope::Core,
                 search_profile: None,
                 text: None,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
 
                 filter: None,
             },
@@ -940,7 +940,7 @@ fn facet_clause_errors_and_unavailability_preserve_precedence_with_text() {
             content_scope: SearchContentScope::All,
             search_profile: None,
             text,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             filter: Some(&filter),
         };
         let counts = DiscoverFilterCountsRequest {

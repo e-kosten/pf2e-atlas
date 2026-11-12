@@ -794,6 +794,7 @@ fn grouped_trait_counts_exclude_the_selected_root_clause_and_keep_eligible_roots
         clause_id: Some("selected-trait".into()),
         query: validate_query(&predicate).unwrap(),
         context: QueryFacetContext {
+            discovery_scope: Default::default(),
             eligible_keys: Some(
                 [1, 2, 4]
                     .map(|id| format!("test:{id:016}").parse().unwrap())
@@ -1040,6 +1041,7 @@ fn child_facets_preserve_remaining_same_child_conditions_and_count_roots_once() 
     let vocabulary = crate::discovery::field_vocabulary(
         &db,
         &crate::QueryVocabularyRequest {
+            discovery_scope: Default::default(),
             field: request.field.clone(),
             eligible_keys: Some(vec!["test:0000000000000001".parse().unwrap()]),
             text: None,
@@ -1281,6 +1283,7 @@ fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
     }
     remaster_relationship(&db, 1, 2);
     let mut request = QueryVocabularyRequest {
+        discovery_scope: Default::default(),
         field: "traits".into(),
         eligible_keys: None,
         text: Some("f".into()),
@@ -1773,6 +1776,7 @@ fn reference_numeric_filters_use_authored_root_and_embedded_values() {
         let vocabulary = crate::discovery::field_vocabulary(
             &db,
             &crate::discovery::QueryVocabularyRequest {
+                discovery_scope: Default::default(),
                 field: field.into(),
                 eligible_keys: None,
                 text: Some(query_text.into()),
@@ -1793,6 +1797,7 @@ fn reference_numeric_filters_use_authored_root_and_embedded_values() {
                     clause_id: None,
                     query: parse_where("true").unwrap(),
                     context: crate::discovery::QueryFacetContext {
+                        discovery_scope: Default::default(),
                         eligible_keys: None,
                     },
                     text: Some(query_text.into()),

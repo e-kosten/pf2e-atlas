@@ -88,6 +88,7 @@ impl AtlasRetrievalService {
                 query,
                 context: QueryFacetContext {
                     eligible_keys: request.context.scope.keys().map(<[_]>::to_vec),
+                    discovery_scope: request.context.scope.discovery_scope(),
                 },
                 values: request.values.to_vec(),
             })?)
@@ -121,6 +122,7 @@ impl AtlasRetrievalService {
                 query,
                 QueryFacetContext {
                     eligible_keys: context.scope.keys().map(<[_]>::to_vec),
+                    discovery_scope: context.scope.discovery_scope(),
                 },
             ),
         })
@@ -182,6 +184,7 @@ impl AtlasRetrievalService {
         Ok(self.index.field_vocabulary(&QueryVocabularyRequest {
             field: request.field.to_owned(),
             eligible_keys: request.scope.keys().map(<[_]>::to_vec),
+            discovery_scope: request.scope.discovery_scope(),
             text: request.text.map(str::to_owned),
             offset: request.offset,
             limit: request.limit,

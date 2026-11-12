@@ -2,6 +2,65 @@ use super::*;
 use rusqlite::Connection;
 use std::fs;
 
+#[test]
+fn changed_or_missing_duplicate_source_deactivates_its_alias() {
+    use crate::verified_duplicates::{DuplicateReview, SourceFacts, prepare};
+    use serde_json::json;
+
+    let fixture = SourceFixture::new();
+    let mut build = prepare_fixture(&fixture.options("duplicate")).unwrap();
+    let canonical: RecordKey = "bestiary:aaaaaaaaaaaaaaaa".parse().unwrap();
+    let duplicate: RecordKey = "scenario:bbbbbbbbbbbbbbbb".parse().unwrap();
+    let canonical_hash = "a".repeat(64);
+    let duplicate_hash = "b".repeat(64);
+    let reviews = || -> Vec<DuplicateReview> {
+        serde_json::from_value(json!([{
+            "canonical": {"key": canonical, "name": "Creature", "sha256": canonical_hash},
+            "duplicate": {"key": duplicate, "name": "Creature (Scenario)", "sha256": duplicate_hash},
+            "remaster": false,
+            "source_note": "The scenario uses the bestiary creature as printed."
+        }])).unwrap()
+    };
+    let mut active = BTreeSet::from([duplicate.clone(), canonical.clone()]);
+    let mut facts = BTreeMap::from([
+        (
+            duplicate.clone(),
+            SourceFacts {
+                name: "Creature (Scenario)".into(),
+                sha256: duplicate_hash.clone(),
+                remaster: Some(false),
+                npc: true,
+            },
+        ),
+        (
+            canonical.clone(),
+            SourceFacts {
+                name: "Creature".into(),
+                sha256: canonical_hash.clone(),
+                remaster: Some(false),
+                npc: true,
+            },
+        ),
+    ]);
+    let mut aliases = Vec::new();
+    prepare(reviews(), &facts, &active, &mut build.spool, &mut aliases).unwrap();
+    assert_eq!(aliases[0].record, canonical);
+    assert!(build.spool.context().verified_duplicate_sha256.is_some());
+
+    facts.get_mut(&duplicate).unwrap().sha256.clear();
+    aliases.clear();
+    prepare(reviews(), &facts, &active, &mut build.spool, &mut aliases).unwrap();
+    assert!(aliases.is_empty());
+    assert!(build.spool.context().verified_duplicate_sha256.is_none());
+    assert_eq!(build.spool.duplicate_diagnostics[0].0, duplicate);
+
+    active.remove(&duplicate);
+    prepare(reviews(), &facts, &active, &mut build.spool, &mut aliases).unwrap();
+    assert!(aliases.is_empty());
+    assert!(build.spool.context().verified_duplicate_sha256.is_none());
+    assert_eq!(build.spool.duplicate_diagnostics[1].0, canonical);
+}
+
 struct SourceFixture(tempfile::TempDir);
 impl SourceFixture {
     fn new() -> Self {

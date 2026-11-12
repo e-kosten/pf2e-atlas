@@ -40,8 +40,9 @@ transaction.
 
 ### Release schema and migration admission
 
-Fresh workspaces install schema 42 directly from the domain DDL. Existing
-workspaces below 42 enter through one bridge. Storage verifies the Atlas
+Fresh workspaces install the schema 42 checkpoint from the domain DDL and
+apply the subsequent migrations. Existing workspaces below 42 enter through
+one bridge. Storage verifies the Atlas
 application ID, schema 41 and the fingerprint of all 41 ordered ledger entries
 before admitting it. The bridge reconstructs saved lists, parties and encounters
 with explicit owner IDs. It preserves their rows, child rows, ownership

@@ -44,6 +44,7 @@ pub(crate) fn clear(connection: &Connection) -> Result<(), IndexError> {
          DELETE FROM record_remaster_context;
          DELETE FROM remaster_pairs;
          DELETE FROM verified_aliases;
+         DELETE FROM verified_duplicate_records;
          DELETE FROM reference_component_digests;
          DELETE FROM relationship_occurrences;
          DELETE FROM developer_diagnostics;

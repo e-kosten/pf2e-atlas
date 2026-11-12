@@ -122,7 +122,7 @@ fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
                     options: &variant.options,
                     search_profile: Some(&profile),
                     filter: None,
-                    scope: RecordScope::Keys(&keys),
+                    scope: RecordScope::exact(&keys),
                     page: SearchPage::default(),
                     sort: ResultSort::Relevance {},
 
@@ -303,7 +303,7 @@ fn direct_oracle_finds_a_winner_absent_from_every_bounded_knn_lane() {
             options: &options,
             search_profile: Some(&profile),
             filter: None,
-            scope: RecordScope::Keys(&keys),
+            scope: RecordScope::exact(&keys),
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
 
@@ -520,7 +520,7 @@ fn exact_custom_identity_is_scored_and_versioned_instead_of_silently_dropped() {
                 content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: Some(&profile),
                 filter: None,
-                scope: RecordScope::Keys(&keys),
+                scope: RecordScope::exact(&keys),
                 page: Default::default(),
                 sort: ResultSort::Relevance {},
 

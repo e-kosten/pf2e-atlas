@@ -67,7 +67,7 @@ fn relationship_counts_cover_complete_set_numeric_stats_self_exclusion_and_key_s
         false,
     )];
     let links = link_filter(None, &constraints);
-    let scope = RecordScope::All;
+    let scope = RecordScope::catalog(None);
     assert_eq!(
         option_counts(
             &mut service,
@@ -151,7 +151,7 @@ fn relationship_counts_cover_complete_set_numeric_stats_self_exclusion_and_key_s
         key("items", "0000000000000124"),
         key("items", "unlinked00000000"),
     ];
-    let scoped = RecordScope::Keys(&keys);
+    let scoped = RecordScope::exact(&keys);
     assert_eq!(
         option_counts(
             &mut service,
@@ -166,7 +166,7 @@ fn relationship_counts_cover_complete_set_numeric_stats_self_exclusion_and_key_s
     assert_eq!(
         option_counts(
             &mut service,
-            RecordScope::Keys(&[]),
+            RecordScope::exact(&[]),
             Some(&links),
             "source.type",
             None,
@@ -186,7 +186,7 @@ fn relationship_counts_cover_complete_set_numeric_stats_self_exclusion_and_key_s
     assert_eq!(
         option_counts(
             &mut service,
-            RecordScope::All,
+            RecordScope::catalog(None),
             Some(&link_filter(None, &both)),
             "source.type",
             None,
@@ -297,7 +297,7 @@ fn relationship_counts_keep_exact_direction_owner_and_contents_scope() {
     ] {
         let constraints = [criterion(direction, selected, owners, include)];
         let links = link_filter(None, &constraints);
-        let scope = RecordScope::All;
+        let scope = RecordScope::catalog(None);
         assert_eq!(
             option_counts(
                 &mut service,
@@ -356,7 +356,7 @@ fn relationship_scoped_facets_keep_same_child_witness_and_parameter_bindings() {
         vec![],
         true,
     )];
-    let scope = RecordScope::All;
+    let scope = RecordScope::catalog(None);
     let filter:QueryPredicate=serde_json::from_value(json!({"kind":"exists","collection":"embedded.spells","scope_id":"spells","predicate":{"kind":"all_of","children":[{"clause_id":"rank-choice","kind":"compare","field":"spell.rank","op":"gte","value":3},{"clause_id":"tradition-choice","kind":"set_match","field":"spell.traditions","op":"includes","values":["arcane"]}]}})).unwrap();
     let filter = link_filter(Some(&filter), &constraints);
     assert_eq!(
@@ -443,7 +443,7 @@ fn relationship_option_counts_keep_independently_matching_relationship_roots() {
     assert_eq!(
         option_counts(
             &mut service,
-            RecordScope::All,
+            RecordScope::catalog(None),
             Some(&links),
             "source.type",
             None,

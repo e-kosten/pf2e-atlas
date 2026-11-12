@@ -350,6 +350,8 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
+        canonical_record: None,
+        alternate_publications: Vec::new(),
         creature_family: None,
         creature_overrides: Vec::new(),
         equipment_family: None,

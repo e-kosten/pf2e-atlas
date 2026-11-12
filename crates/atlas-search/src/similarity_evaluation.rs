@@ -1,6 +1,6 @@
 //! Maintained exact scoring over an explicitly declared candidate universe.
 //!
-//! Unlike RecordScope::Keys on a product search, this path performs no KNN and
+//! Unlike RecordScope::exact on a product search, this path performs no KNN and
 //! visits every eligible key. Candidate vectors are streamed in bounded batches;
 //! passage maxima are reused across decay variants, never across role masks.
 use crate::{AtlasRetrievalService, SearchError, SimilarityPartScore, SimilarityRoleScore};

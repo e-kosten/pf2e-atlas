@@ -68,6 +68,7 @@ pub(crate) fn build_context(
     let (expected_entry_count, entry_keys_sha256) =
         atlas_index::reference_inventory_identity(reference_keys).map_err(index_error)?;
     let context = SourceArtifactBuildContext {
+        verified_duplicate_sha256: None,
         selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
         admission: None,
         reference_preparation: Some(atlas_index::ReferencePreparation {
@@ -202,6 +203,8 @@ impl CapturedBuildInputs {
                 options.locale.as_str(),
                 package,
                 pack_systems.as_str(),
+                crate::verified_duplicates::CATALOG,
+                crate::verified_duplicates::RECIPE,
             ] {
                 hash.update((value.len() as u64).to_be_bytes());
                 hash.update(value.as_bytes());

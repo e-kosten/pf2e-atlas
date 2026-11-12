@@ -14,7 +14,7 @@ use atlas_index::{
     ReferenceReuseReader, SourceArtifactDiagnostic,
 };
 use atlas_record::source_record::{
-    SourceBackedRecord, SourceContentOutcome, SourceContentStatus, SourceNodeView,
+    SourceBackedRecord, SourceContentOutcome, SourceContentStatus, SourceNodeView, SourceQueryView,
     SourceReferenceContribution, SourceReferenceIndex, SourceRelationshipOccurrence,
     prepare_record_content, resolve_source_relationships, select_record_search,
     source_owned_document_count, source_record_key,
@@ -156,6 +156,12 @@ pub(crate) fn prepare(
     scratch: &std::path::Path,
 ) -> Result<PreparedSourceBuild, IngestError> {
     let options = inputs.options();
+    let duplicate_reviews = crate::verified_duplicates::catalog()?;
+    let duplicate_keys: BTreeSet<_> = duplicate_reviews
+        .iter()
+        .flat_map(|review| review.keys())
+        .collect();
+    let mut duplicate_facts = BTreeMap::new();
     let capture = inputs.source();
     capture.require_complete_packs()?;
     let catalog = LocalizationCatalog::load_captured(
@@ -378,6 +384,24 @@ pub(crate) fn prepare(
                             let snapshot = String::from_utf8(snapshot)
                                 .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
                             let node = SourceNodeView::from(record.source());
+                            if duplicate_keys.contains(&key)
+                                && let Some(name) = node.name().value()
+                            {
+                                let query = SourceQueryView::new(
+                                    record.source(),
+                                    &pack.pack_id,
+                                    &pack.label,
+                                );
+                                duplicate_facts.insert(
+                                    key.clone(),
+                                    crate::verified_duplicates::SourceFacts {
+                                        name: name.clone(),
+                                        sha256: hash.clone(),
+                                        remaster: query.publication_remaster().value(),
+                                        npc: node.source_type().value() == Some("npc"),
+                                    },
+                                );
+                            }
                             if node.document_kind() != "Macro" {
                                 observation.alias_name = node.name().value().cloned();
                             }
@@ -505,7 +529,7 @@ pub(crate) fn prepare(
     // record at a time; their content is deliberately prepared again in the final
     // slice. Shared search selection still runs exactly once per active root.
     let mut admitted_reader = admitted.cursor().map_err(index)?;
-    let (aliases, pairs, contexts) = crate::source_aliases::extract_prepared_aliases(
+    let (mut aliases, pairs, contexts) = crate::source_aliases::extract_prepared_aliases(
         &names,
         &families,
         &mut |visitor| {
@@ -529,6 +553,14 @@ pub(crate) fn prepare(
         &options.source_root,
         capture,
     )?;
+    crate::verified_duplicates::prepare(
+        duplicate_reviews,
+        &duplicate_facts,
+        &active,
+        &mut spool,
+        &mut aliases,
+    )
+    .map_err(index)?;
     let mut by_record = BTreeMap::<RecordKey, Vec<String>>::new();
     for alias in aliases {
         by_record

@@ -46,8 +46,8 @@ counts; JSON output includes excluded file paths and reasons under
 
 ### Upgrade an older prerelease workspace
 
-The release upgrades an existing SQLite workspace from schema 41. If setup
-reports an older schema, [back up your workspace](#back-up-and-restore-your-workspace)
+The release upgrades existing SQLite workspaces at schema 41 or 42. If setup
+reports a schema older than 41, [back up your workspace](#back-up-and-restore-your-workspace)
 first. Run `atlas setup` on that workspace with the
 [schema 41 prerelease](https://github.com/e-kosten/pf2e-atlas/releases/tag/v0.1.0-nightly.20261109050726.g787c00b3b26e).
 Once it succeeds, switch to the current Atlas and run setup again. Atlas keeps

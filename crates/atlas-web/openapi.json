@@ -1131,6 +1131,21 @@
         ],
         "type": "object"
       },
+      "CanonicalRecordView": {
+        "properties": {
+          "record_key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_key",
+          "title"
+        ],
+        "type": "object"
+      },
       "CastingEntryContextView": {
         "properties": {
           "parent": {
@@ -13932,8 +13947,17 @@
       },
       "RecordDetailView": {
         "properties": {
+          "alternate_publications": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "artifact_generation": {
             "type": "string"
+          },
+          "canonical_record": {
+            "$ref": "#/components/schemas/CanonicalRecordView"
           },
           "creature_family": {
             "$ref": "#/components/schemas/CreatureFamilyView"

@@ -399,7 +399,28 @@ impl<'a> LoadedRecordDetail<'a> {
         } else {
             Vec::new()
         };
+        let (canonical_record, alternate_publications) = if whole_document
+            && request.address.owners.is_empty()
+            && detail.summary.record_kind.as_value() == Some(&atlas_domain::RecordKind::Creature)
+        {
+            if let Some(canonical) = r.verified_canonical_record(&key)? {
+                let canonical = crate::projection::localized_summary_view(&canonical, r);
+                (
+                    Some(atlas_app_model::CanonicalRecordView {
+                        record_key: canonical.record_key,
+                        title: canonical.title,
+                    }),
+                    Vec::new(),
+                )
+            } else {
+                (None, r.verified_alternate_publications(&key)?)
+            }
+        } else {
+            (None, Vec::new())
+        };
         let mut view = RecordDetailView {
+            canonical_record,
+            alternate_publications,
             creature_family,
             creature_overrides,
             equipment_family,

@@ -474,6 +474,7 @@ impl crate::AtlasRetrievalService {
         for (vector, role) in queries {
             request.check()?;
             let input = atlas_index::SourceSimilarityCandidateRequest {
+                discovery_scope: request.scope.discovery_scope(),
                 profile: &profile,
                 vector: &vector,
                 query: &predicate,

@@ -1296,6 +1296,7 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     for root in [original, other] {
         let hits = reader
             .vector_candidates(atlas_index::SourceVectorCandidateRequest {
+                discovery_scope: Default::default(),
                 profile: &profile,
                 vector: &vector,
                 query: &all,
