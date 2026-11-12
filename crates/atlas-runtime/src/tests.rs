@@ -886,6 +886,24 @@ fn stored_vector_runtime_needs_no_query_model_but_full_mode_does() {
             .kind(),
         atlas_search::SearchErrorKind::EmbeddingUnavailable
     );
+    let stale_override = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("embeddinggemma")),
+        overrides: AtlasPathOverrides {
+            index_path: Some(runtime.index_path().into()),
+            embedding_cache_root: Some(runtime.embedding_cache_root().into()),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(stale_override.read_workspace(None).is_ok());
+    assert_eq!(
+        stale_override
+            .warm_default_search_profile()
+            .unwrap_err()
+            .kind(),
+        atlas_search::SearchErrorKind::VectorReadinessRequired
+    );
     let reader = runtime.open_index().unwrap();
     let metadata = runtime.search_profile_readiness(&reader.context().search_profiles);
     assert_eq!(metadata.len(), 1);

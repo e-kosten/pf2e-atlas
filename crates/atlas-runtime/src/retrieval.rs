@@ -51,15 +51,9 @@ impl AtlasRuntime {
     }
     /// Warm the active profile without retaining a database snapshot during model load.
     pub fn warm_default_search_profile(&self) -> Result<(), SearchError> {
-        let profile = {
-            let index = self.open_index()?;
-            index
-                .require_vectors()
-                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
-            self.resolve_default_search_profile(&index)?
-        };
+        let profile = self.query_profile(None)?;
         self.inference
-            .preload(&profile)
+            .preload(&profile.profile_id)
             .map_err(SearchError::query_embedding)?;
         Ok(())
     }
@@ -71,22 +65,27 @@ impl AtlasRuntime {
         requested: Option<&atlas_domain::SearchProfileId>,
         text: &str,
     ) -> Result<atlas_search::PreparedQueryEmbedding, SearchError> {
-        let profile = {
-            let index = self.open_index()?;
-            index
-                .require_vectors()
-                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
-            let id = match requested {
-                Some(id) => id.clone(),
-                None => self.resolve_default_search_profile(&index)?,
-            };
-            index
-                .context()
-                .search_profile(&id)
-                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?
-                .clone()
-        };
+        let profile = self.query_profile(requested)?;
         atlas_search::PreparedQueryEmbedding::prepare(&self.inference, profile, text)
+    }
+
+    fn query_profile(
+        &self,
+        requested: Option<&atlas_domain::SearchProfileId>,
+    ) -> Result<atlas_index::SourceSearchProfileIdentity, SearchError> {
+        let index = self.open_index()?;
+        index
+            .require_vectors()
+            .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
+        let id = match requested {
+            Some(id) => id.clone(),
+            None => self.resolve_default_search_profile(&index)?,
+        };
+        index
+            .context()
+            .search_profile(&id)
+            .cloned()
+            .map_err(|error| SearchError::vector_readiness_required(error.to_string()))
     }
 }
 
