@@ -14,12 +14,20 @@ pub(crate) struct SetupArgs {
     pub(crate) desktop_progress: bool,
     #[arg(long, hide = true, requires = "desktop_progress")]
     pub(crate) desktop_cancel_on_eof: bool,
+    #[arg(long, hide = true, value_enum, requires = "desktop_cancel_on_eof")]
+    pub(crate) desktop_stage: Option<DesktopStage>,
     #[command(flatten)]
     pub(crate) paths: SetupPathOptions,
     #[command(flatten)]
     pub(crate) run: SetupRunOptions,
     #[command(subcommand)]
     pub(crate) command: Option<SetupCommand>,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub(crate) enum DesktopStage {
+    FirstRun,
+    Resume,
 }
 
 #[derive(Debug, Subcommand)]

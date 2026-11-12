@@ -254,17 +254,59 @@ impl CapturedBuildInputs {
         policy: crate::SeedBuildPolicy,
     ) -> Result<BuildArtifactReport, IngestError> {
         let started = Instant::now();
-        let (owner, scratch) = begin_build(workspace, schema, &self.options)?;
+        let (owner, scratch) = begin_build(workspace, schema, &self.options, None)?;
         finish_build(
+            workspace,
+            schema,
+            &owner,
+            scratch,
+            &self,
+            started,
+            seed_loader.map_or(BuildMode::Infer, |load| BuildMode::Seeded(load, policy)),
+        )
+    }
+    pub fn build_keyword_stage(
+        &mut self,
+        workspace: &atlas_storage::Workspace,
+        schema: u32,
+    ) -> Result<BuildArtifactReport, IngestError> {
+        let started = Instant::now();
+        let (owner, scratch) = begin_build(workspace, schema, &self.options, Some(0))?;
+        let desired_profiles = std::mem::take(&mut self.options.search_profiles);
+        let report = finish_build(
             workspace,
             schema,
             &owner,
             scratch,
             self,
             started,
-            seed_loader.map_or(BuildMode::Infer, |load| BuildMode::Seeded(load, policy)),
+            BuildMode::KeywordStage,
+        );
+        self.options.search_profiles = desired_profiles;
+        report
+    }
+
+    pub fn build_semantic_stage<'a>(
+        self,
+        workspace: &atlas_storage::Workspace,
+        schema: u32,
+        expected_revision: u64,
+        seed_loader: Option<&'a mut crate::EmbeddingSeedLoader<'a>>,
+    ) -> Result<BuildArtifactReport, IngestError> {
+        let started = Instant::now();
+        let (owner, scratch) =
+            begin_build(workspace, schema, &self.options, Some(expected_revision))?;
+        finish_build(
+            workspace,
+            schema,
+            &owner,
+            scratch,
+            &self,
+            started,
+            BuildMode::SemanticStage(seed_loader),
         )
     }
+
     pub(crate) fn options(&self) -> &BuildArtifactOptions {
         &self.options
     }
@@ -288,14 +330,14 @@ pub fn build_artifact_with_revision(
     revision: SourceRevision<'_>,
 ) -> Result<BuildArtifactReport, IngestError> {
     let started = Instant::now();
-    let (owner, scratch) = begin_build(workspace, schema, &options)?;
+    let (owner, scratch) = begin_build(workspace, schema, &options, None)?;
     let inputs = CapturedBuildInputs::capture_with_revision(options, revision)?;
     finish_build(
         workspace,
         schema,
         &owner,
         scratch,
-        inputs,
+        &inputs,
         started,
         BuildMode::Infer,
     )
@@ -324,7 +366,7 @@ pub fn rebuild_artifact(
         schema,
         owner,
         scratch,
-        inputs,
+        &inputs,
         started,
         BuildMode::Repair(repair),
     )
@@ -334,6 +376,7 @@ fn begin_build(
     workspace: &atlas_storage::Workspace,
     schema: u32,
     options: &BuildArtifactOptions,
+    expected_revision: Option<u64>,
 ) -> Result<(atlas_storage::UpdateOwner, atlas_index::BuildScratch), IngestError> {
     if atlas_storage::Workspace::at(&options.output_path)?.path() != workspace.path() {
         return Err(IngestError::ArtifactWriteFailed(
@@ -341,6 +384,22 @@ fn begin_build(
         ));
     }
     let update_owner = workspace.update_owner()?;
+    if let Some(expected) = expected_revision {
+        let read = workspace.read(schema)?;
+        if read.reference_revision()? != expected {
+            return Err(IngestError::ArtifactWriteFailed(
+                "reference data changed before staged setup could publish".into(),
+            ));
+        }
+        let stored = atlas_index::read_requested_reference_config(&read).map_err(index_error)?;
+        if stored.as_ref() != Some(&requested_configuration(options)) {
+            return Err(IngestError::ArtifactWriteFailed(
+                "requested source configuration changed before staged setup could publish".into(),
+            ));
+        }
+        let scratch = atlas_index::BuildScratch::new(&update_owner).map_err(index_error)?;
+        return Ok((update_owner, scratch));
+    }
     let scratch = atlas_index::BuildScratch::new(&update_owner).map_err(index_error)?;
     atlas_index::recover_reference_publication(&update_owner, schema)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
@@ -382,6 +441,8 @@ enum BuildMode<'a> {
         crate::SeedBuildPolicy,
     ),
     Repair(atlas_storage::ReferenceRepair<'a>),
+    KeywordStage,
+    SemanticStage(Option<&'a mut crate::EmbeddingSeedLoader<'a>>),
 }
 
 fn finish_build(
@@ -389,12 +450,15 @@ fn finish_build(
     schema: u32,
     update_owner: &atlas_storage::UpdateOwner,
     scratch: atlas_index::BuildScratch,
-    inputs: CapturedBuildInputs,
+    inputs: &CapturedBuildInputs,
     started: Instant,
     mode: BuildMode<'_>,
 ) -> Result<BuildArtifactReport, IngestError> {
+    let staged = matches!(mode, BuildMode::KeywordStage | BuildMode::SemanticStage(_));
+    let activate = matches!(mode, BuildMode::SemanticStage(_));
     let (repair, mut seed_loader, policy) = match mode {
-        BuildMode::Infer => (None, None, crate::SeedBuildPolicy::Strict),
+        BuildMode::Infer | BuildMode::KeywordStage => (None, None, crate::SeedBuildPolicy::Strict),
+        BuildMode::SemanticStage(load) => (None, load, crate::SeedBuildPolicy::Strict),
         BuildMode::Seeded(load, policy) => (None, Some(load), policy),
         BuildMode::Repair(repair) => (Some(repair), None, crate::SeedBuildPolicy::Strict),
     };
@@ -404,11 +468,8 @@ fn finish_build(
         None => atlas_index::ReferenceReuseReader::new(workspace, schema).map_err(index_error)?,
     };
     let phase_started = Instant::now();
-    let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
-    let CapturedBuildInputs {
-        options, capture, ..
-    } = inputs;
-    drop(capture);
+    let prepared = crate::product_preparation::prepare(inputs, &reuse, scratch.path())?;
+    let options = &inputs.options;
     tracing::info!(target:"atlas_build_diagnostic",stage="source_preparation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
     tracing::info!(target:"atlas_build_diagnostic",reused_sections=prepared.reused_sections,"Prepared shared passage layouts");
     let record_count = prepared.spool.record_count();
@@ -421,7 +482,7 @@ fn finish_build(
             repair,
             scratch.path(),
             prepared.spool,
-            requested_configuration(&options),
+            requested_configuration(options),
         )
     } else {
         atlas_index::PreparedPublication::new_in(
@@ -438,7 +499,7 @@ fn finish_build(
         let execution = crate::native_execution::NativeExecution {
             publication: &mut publication,
             raw_inputs: &prepared.native_inputs,
-            options: &options,
+            options,
             semantic_units: prepared.document_units,
         };
         let report = match seed_loader.as_deref_mut() {
@@ -461,9 +522,13 @@ fn finish_build(
     drop(prepared.native_inputs);
     let phase_started = Instant::now();
     progress("write_artifact", "Saving and checking search index");
-    publication.publish().map_err(index_error)?;
+    if activate {
+        publication.publish_first_profiles().map_err(index_error)?;
+    } else {
+        publication.publish().map_err(index_error)?;
+    }
     tracing::info!(target:"atlas_build_diagnostic",stage="exclusive_publication",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
-    if !rebuild {
+    if !rebuild && !staged {
         let phase_started = Instant::now();
         let reclaimed = update_owner
             .reclaim_space(schema)
@@ -473,7 +538,7 @@ fn finish_build(
     Ok(BuildArtifactReport {
         admission,
         profiles,
-        output_path: options.output_path,
+        output_path: options.output_path.clone(),
         pack_count,
         record_count,
         product_record_count,

@@ -55,6 +55,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .title("PF2e Atlas")
         .inner_size(1210.0, 830.0)
         .min_inner_size(480.0, 440.0)
+        .on_page_load(crate::staged_setup::page_load)
         .on_navigation(move |url| {
             let desktop = handle.state::<Desktop>();
             let (allowed, product) = {
@@ -94,6 +95,9 @@ pub fn open(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
         .or_else(|| lock(&desktop.links).first().cloned())
         .unwrap_or_else(|| "/search".into());
     let target = base.join(&route).map_err(display)?;
+    desktop
+        .staged_setup
+        .attach_window(app, PRIMARY, &base, &instance)?;
     let origin = target.origin();
     let bundled = window.url().map_err(display)?;
     *lock(&desktop.primary) = PrimaryWindow::Opening(origin.clone());
@@ -139,6 +143,32 @@ pub fn restore_setup_if_needed(app: &AppHandle) -> tauri::Result<()> {
         window.navigate(bundled)?;
     }
     Ok(())
+}
+
+pub fn retry_before_navigation(app: &AppHandle, window: &WebviewWindow, error: &str) {
+    let Ok(bundled) = window.url() else { return };
+    if !bundled_origin(&bundled) {
+        return;
+    }
+    let desktop = app.state::<Desktop>();
+    let route = lock(&desktop.links)
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "/search".into());
+    {
+        let mut primary = lock(&desktop.primary);
+        if !matches!(*primary, PrimaryWindow::Setup) {
+            return;
+        }
+        *primary = PrimaryWindow::Retry {
+            route,
+            error: error.to_owned(),
+            bundled: bundled.clone(),
+        };
+    }
+    // Restart the bundled page so it can offer Retry while the original
+    // prepare invocation still owns and drains the semantic child.
+    let _ = window.navigate(bundled);
 }
 
 fn wait_until_rendered(

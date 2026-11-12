@@ -6,6 +6,8 @@ pub enum StorageError {
     Missing(std::path::PathBuf),
     #[error("workspace is busy; retry after the current operation finishes")]
     Busy,
+    #[error("Editing is paused while Atlas prepares semantic search.")]
+    SavedWritesPaused,
     #[error("reference publication requires exclusive workspace admission")]
     StructuralPublication,
     #[error("workspace maintenance is incomplete: {0}")]

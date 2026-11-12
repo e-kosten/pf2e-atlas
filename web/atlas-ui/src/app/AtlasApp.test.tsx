@@ -332,6 +332,84 @@ describe("AtlasApp routing", () => {
     expect(location.pathname).toBe("/search");
   });
 
+  it.each(["rerun", "submit"] as const)(
+    "keeps keyword results when semantic search becomes ready until %s",
+    async (action) => {
+      const ready = readinessFixture();
+      apiMocks.getReadiness.mockResolvedValue({
+        ...ready,
+        search_profiles: [],
+        saved_writes_paused: true,
+      });
+      apiMocks.searchPage.mockImplementation(
+        async ({ criteria }: SearchResultsRequest) => ({
+          ...searchResultsPage(["spell:heal"]),
+          mode: criteria,
+        }),
+      );
+      history.replaceState(null, "", "/search/records/spell:heal?q=heal");
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      expect(await screen.findByText("Keyword search", { exact: true })).toBeVisible();
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+      const input = screen.getByRole("searchbox", { name: "Search records" });
+      fireEvent.change(input, { target: { value: "draft" } });
+      const searches = apiMocks.searchPage.mock.calls.length;
+
+      apiMocks.getReadiness.mockResolvedValue({
+        ...ready,
+        search_profiles: [ready.search_profiles[0]],
+        saved_writes_paused: true,
+      });
+      fireEvent(
+        window,
+        new CustomEvent("atlas-reference-updated", { detail: "semantic" }),
+      );
+      expect(await screen.findByText("Keyword results", { exact: true })).toBeVisible();
+      expect(
+        screen.queryByText("Semantic search is ready", { exact: true }),
+      ).toBeNull();
+
+      apiMocks.getReadiness.mockResolvedValue({
+        ...ready,
+        search_profiles: [ready.search_profiles[0]],
+      });
+      fireEvent(
+        window,
+        new CustomEvent("atlas-reference-updated", { detail: "semantic" }),
+      );
+      const notice = await screen.findByText("Semantic search is ready", {
+        exact: true,
+      });
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(searches);
+      expect(input).toHaveValue("draft");
+      expect(screen.getByRole("heading", { name: "heal" })).toBeVisible();
+
+      if (action === "rerun") {
+        fireEvent.click(
+          within(notice.closest('[role="status"]') as HTMLElement).getByRole("button", {
+            name: "Rerun this search",
+          }),
+        );
+      } else {
+        fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+      }
+      await waitFor(() =>
+        expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            search_profile: "bge-base",
+            criteria: expect.objectContaining({
+              mode: "hybrid",
+              query: action === "rerun" ? "heal" : "draft",
+            }),
+          }),
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(location.pathname).toBe("/search/records/spell:heal");
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+    },
+  );
+
   it("waits for metadata before searching and gives the URL priority over preference and launch default", async () => {
     history.replaceState(null, "", "/search?q=heal&search_profile=embeddinggemma");
     localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, "bge-base");

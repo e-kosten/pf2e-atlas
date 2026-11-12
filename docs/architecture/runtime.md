@@ -404,6 +404,18 @@ A workspace-scoped setup lock covers configuration through completion and
 excludes setup cleanup for the same workspace. Managed service ownership excludes
 a required format upgrade until its foreground launchers exit. Data-only setup
 uses ordinary publication admission and can coexist with the service.
+
+Managed macOS first-run setup uses the same setup guard across two commits.
+The first publishes records and keyword search from the captured source.
+The second activates requested semantic profiles against that committed
+revision and configuration. An explicit resume rechecks the source against
+the committed reference before publication. During either staged job, a
+workspace file lock pauses saved-state writes across desktop, web and CLI.
+The semantic transaction permits the first-time creation of the requested
+vec0 tables while readers remain admitted. Unexpected structural statements
+abort the transaction. Existing snapshots retain the keyword publication
+until they reopen, and a cancelled job leaves the last committed stage intact.
+
 Fresh semantic setup selects BGE Base. Cache packages use model-ID/revision
 directories; missing or corrupt files are repaired through verified temporary
 download and rename. Old package revisions remain untouched.

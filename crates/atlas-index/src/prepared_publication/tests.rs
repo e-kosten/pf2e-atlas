@@ -1277,3 +1277,49 @@ fn token_count_digest_failure_rolls_back_reference_publication() {
         before
     );
 }
+
+#[test]
+fn first_vector_publication_keeps_a_keyword_snapshot_readable() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("staged.sqlite");
+    let lexical = crate::foundation_tests::fixture(false);
+    publish_input(&path, &lexical).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let semantic = crate::foundation_tests::fixture(true);
+    let publication = prepare_publication_with_inferred_values(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &semantic,
+    )
+    .unwrap();
+    let keyword = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let keyword_revision = keyword.reference_revision().unwrap();
+
+    publication.publish_first_profiles().unwrap();
+
+    assert_eq!(keyword.reference_revision().unwrap(), keyword_revision);
+    assert!(
+        crate::read_stored_reference_context(keyword.connection())
+            .unwrap()
+            .unwrap()
+            .search_profiles
+            .is_empty()
+    );
+    crate::validate_reference(keyword.connection()).unwrap();
+    let committed = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(
+        committed.reference_revision().unwrap(),
+        keyword_revision + 1
+    );
+    assert_eq!(
+        crate::read_stored_reference_context(committed.connection())
+            .unwrap()
+            .unwrap()
+            .search_profiles,
+        semantic.context.search_profiles
+    );
+    crate::validate_reference(committed.connection()).unwrap();
+}

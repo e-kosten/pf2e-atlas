@@ -1,5 +1,20 @@
 use atlas_domain::SearchProfileId;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DesktopSetupStage {
+    FirstRun,
+    Resume,
+    #[doc(hidden)]
+    Fixture,
+}
+
+#[derive(Debug)]
+pub struct SetupPublication {
+    pub workspace: std::path::PathBuf,
+    pub generation: String,
+    pub semantic: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct RuntimeSetupOptions {
     pub target: SetupTarget,

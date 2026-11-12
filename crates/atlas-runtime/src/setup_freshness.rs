@@ -29,14 +29,21 @@ pub(crate) fn source_is_fresh(
     let fingerprint = inputs.fingerprint();
     fingerprint.value == context.source_fingerprint
         && fingerprint.file_count == context.source_file_count
+        && has_current_reference_preparation(context)
         && context
             .reference_preparation
             .as_ref()
-            .is_some_and(|preparation| {
-                preparation.recipe == atlas_ingest::REFERENCE_PREPARATION_RECIPE
-                    && preparation.input_hash == inputs.reference_inputs_identity()
-                    && preparation.coverage == atlas_index::ReferenceCoverage::Complete
-            })
+            .is_some_and(|preparation| preparation.input_hash == inputs.reference_inputs_identity())
+}
+
+pub(crate) fn has_current_reference_preparation(context: &SourceArtifactBuildContext) -> bool {
+    context
+        .reference_preparation
+        .as_ref()
+        .is_some_and(|preparation| {
+            preparation.recipe == atlas_ingest::REFERENCE_PREPARATION_RECIPE
+                && preparation.coverage == atlas_index::ReferenceCoverage::Complete
+        })
 }
 
 #[cfg(test)]

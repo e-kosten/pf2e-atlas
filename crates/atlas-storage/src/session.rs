@@ -2,6 +2,7 @@ use crate::{StorageResult, Workspace};
 use crate::{locking::acquire, workspace::validate};
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::fs::File;
+use std::sync::{Arc, atomic::AtomicBool};
 
 /// Read-only connection and snapshot shared by domain readers for one operation.
 /// Transaction-local set of record keys populated by a domain owner.
@@ -103,6 +104,11 @@ pub struct UpdateOwner {
     pub(crate) _lock: File,
 }
 
+struct SharedPublication<'a> {
+    denied: Arc<AtomicBool>,
+    vector_tables: &'a [(String, String)],
+}
+
 /// Authority to replace generated reference data at one authenticated revision.
 /// The update owner stays held while preparation runs outside SQLite.
 pub struct ReferenceRepair<'a> {
@@ -138,7 +144,7 @@ impl<'a> ReferenceRepair<'a> {
         E: From<crate::StorageError>,
     {
         self.owner
-            .publish_transaction(self.schema(), None, Some(self), apply)
+            .publish_transaction(self.schema(), None, Some(self), |_| Ok(()), apply)
     }
 
     fn check_expected(&self, connection: &Connection) -> StorageResult<()> {
@@ -160,6 +166,41 @@ impl<'a> ReferenceRepair<'a> {
             ));
         }
         Ok(())
+    }
+}
+
+fn vector_creation_action(table: &str, context: &rusqlite::hooks::AuthContext<'_>) -> bool {
+    use rusqlite::hooks::AuthAction;
+    if context.database_name != Some("main") {
+        return false;
+    }
+    // sqlite-vec 0.1.9 creates these objects for one 768-dimensional vector
+    // column. The authorizer is scoped to one statement from the index owner.
+    match context.action {
+        AuthAction::CreateVtable {
+            table_name,
+            module_name,
+        } => table_name == table && module_name == "vec0",
+        AuthAction::CreateTable { table_name } => {
+            table_name == "sqlite_sequence"
+                || matches!(
+                    table_name.strip_prefix(table),
+                    Some("_info" | "_chunks" | "_rowids" | "_vector_chunks00")
+                )
+        }
+        AuthAction::CreateIndex {
+            index_name,
+            table_name,
+        } => {
+            matches!(
+                table_name.strip_prefix(table),
+                Some("_info" | "_vector_chunks00")
+            ) && index_name
+                .strip_prefix("sqlite_autoindex_")
+                .and_then(|name| name.strip_suffix("_1"))
+                == Some(table_name)
+        }
+        _ => false,
     }
 }
 
@@ -245,7 +286,7 @@ impl UpdateOwner {
     where
         E: From<crate::StorageError>,
     {
-        self.publish_transaction(schema, None, None, apply)
+        self.publish_transaction(schema, None, None, |_| Ok(()), apply)
     }
 
     /// Allow old committed snapshots during data-only publication. SQLite rejects
@@ -264,30 +305,68 @@ impl UpdateOwner {
             atomic::{AtomicBool, Ordering},
         };
         let structural = Arc::new(AtomicBool::new(false));
-        let result = self.publish_transaction(schema, Some(Arc::clone(&structural)), None, &apply);
+        let result = self.publish_transaction(
+            schema,
+            Some(SharedPublication {
+                denied: Arc::clone(&structural),
+                vector_tables: &[],
+            }),
+            None,
+            |_| Ok(()),
+            &apply,
+        );
         if structural.load(Ordering::Relaxed) {
-            self.publish_transaction(schema, None, None, apply)
+            self.publish_transaction(schema, None, None, |_| Ok(()), apply)
         } else {
             result
         }
     }
 
+    /// Publish while readers remain admitted. Only the generated first-time
+    /// vec0 creation statements and their extension-owned objects may change
+    /// the main schema; unexpected DDL never triggers exclusive replay.
+    pub fn publish_with_new_vector_tables<T, E>(
+        &self,
+        schema: u32,
+        tables: &[(String, String)],
+        validate_previous: impl FnOnce(&Connection) -> Result<(), E>,
+        apply: impl FnOnce(&Connection) -> Result<T, E>,
+    ) -> Result<T, E>
+    where
+        E: From<crate::StorageError>,
+    {
+        self.publish_transaction(
+            schema,
+            Some(SharedPublication {
+                denied: Arc::default(),
+                vector_tables: tables,
+            }),
+            None,
+            validate_previous,
+            apply,
+        )
+    }
+
     fn publish_transaction<T, E>(
         &self,
         schema: u32,
-        structural: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>,
+        shared: Option<SharedPublication<'_>>,
         repair: Option<&ReferenceRepair<'_>>,
+        validate_previous: impl FnOnce(&Connection) -> Result<(), E>,
         apply: impl FnOnce(&Connection) -> Result<T, E>,
     ) -> Result<T, E>
     where
         E: From<crate::StorageError>,
     {
         use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
-        use std::sync::atomic::Ordering;
+        use std::sync::{Arc, Mutex, atomic::Ordering};
 
-        let _admission = acquire(&self.workspace.path, ".access.lock", structural.is_none())?;
+        let creating_vector = Arc::new(Mutex::new(None::<String>));
+        let _admission = acquire(&self.workspace.path, ".access.lock", shared.is_none())?;
         let mut connection = self.workspace.connect(true, false)?;
-        if let Some(denied) = structural.clone() {
+        if let Some(shared) = &shared {
+            let denied = Arc::clone(&shared.denied);
+            let creating_vector = Arc::clone(&creating_vector);
             connection
                 .authorizer(Some(move |context: AuthContext<'_>| {
                     let structure = match context.action {
@@ -307,7 +386,13 @@ impl UpdateOwner {
                         | AuthAction::Unknown { .. } => true,
                         _ => false,
                     };
-                    if structure {
+                    if structure
+                        && !creating_vector
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .as_deref()
+                            .is_some_and(|table| vector_creation_action(table, &context))
+                    {
                         denied.store(true, Ordering::Relaxed);
                         Authorization::Deny
                     } else {
@@ -325,10 +410,38 @@ impl UpdateOwner {
         if let Some(repair) = repair {
             repair.check_expected(&transaction)?;
         }
-        let value = apply(&transaction)?;
-        if structural.is_some_and(|denied| denied.load(Ordering::Relaxed)) {
+        let result = (|| {
+            validate_previous(&transaction)?;
+            for (table, ddl) in shared
+                .as_ref()
+                .map_or(&[][..], |shared| shared.vector_tables)
+            {
+                let exists: bool = transaction
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?1)",
+                        [table],
+                        |row| row.get(0),
+                    )
+                    .map_err(crate::StorageError::from)?;
+                if exists {
+                    continue;
+                }
+                *creating_vector
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(table.clone());
+                let created = transaction.execute(ddl, []);
+                creating_vector
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take();
+                created.map_err(crate::StorageError::from)?;
+            }
+            apply(&transaction)
+        })();
+        if shared.is_some_and(|shared| shared.denied.load(Ordering::Relaxed)) {
             return Err(crate::StorageError::StructuralPublication.into());
         }
+        let value = result?;
         let advance = if repair.is_some() {
             "UPDATE workspace SET reference_revision=reference_revision+1,maintenance=NULL WHERE id=1"
         } else {

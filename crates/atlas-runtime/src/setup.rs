@@ -1,5 +1,7 @@
 //! Explicit setup is the sole runtime path allowed to inspect or acquire the managed source snapshot.
-use crate::setup_freshness::{capture_build_inputs, source_is_fresh};
+use crate::setup_freshness::{
+    capture_build_inputs, has_current_reference_preparation, source_is_fresh,
+};
 use crate::workspace::open_workspace_index;
 use crate::{ResolvedAtlasPaths, setup_model::*};
 use atlas_embedding::{
@@ -81,11 +83,123 @@ pub(crate) fn ensure_setup(
     )
 }
 
+pub(crate) fn eligible_desktop_stage(
+    paths: &ResolvedAtlasPaths,
+) -> Result<DesktopSetupStage, String> {
+    desktop_stage(paths).map(|(stage, _)| stage)
+}
+
+fn desktop_stage(
+    paths: &ResolvedAtlasPaths,
+) -> Result<
+    (
+        DesktopSetupStage,
+        Option<atlas_index::RequestedReferenceConfig>,
+    ),
+    String,
+> {
+    if paths.mode != crate::ResolvedPathMode::Global || paths.source_root_explicit {
+        return Err("staged setup requires the managed Atlas workspace".into());
+    }
+    let workspace = match atlas_storage::Workspace::existing(&paths.index_path) {
+        Ok(workspace) => workspace,
+        Err(atlas_storage::StorageError::Missing(_)) => {
+            return Ok((DesktopSetupStage::FirstRun, None));
+        }
+        Err(error) => return Err(error.to_string()),
+    };
+    crate::workspace::register_extensions().map_err(|error| error.to_string())?;
+    let read = workspace
+        .read(crate::WORKSPACE_SCHEMA_VERSION)
+        .map_err(|error| error.to_string())?;
+    let config =
+        atlas_index::read_requested_reference_config(&read).map_err(|error| error.to_string())?;
+    if config.as_ref().is_some_and(|config| {
+        config.source_root != paths.managed_source_root
+            || config.manifest_path.is_some()
+            || config.indexing_locale != "en"
+    }) {
+        return Err("reference configuration changed; update reference data explicitly".into());
+    }
+    let revision = read
+        .reference_revision()
+        .map_err(|error| error.to_string())?;
+    let context = atlas_index::read_stored_reference_context(read.connection())
+        .map_err(|error| error.to_string())?;
+    match context {
+        None if revision == 0 => Ok((DesktopSetupStage::FirstRun, None)),
+        Some(context)
+            if context.search_profiles.is_empty()
+                && context.indexing_locale == "en"
+                && has_current_reference_preparation(&context)
+                && context.source_revision.as_deref()
+                    == Some(atlas_foundry_model::generated::REFERENCE_SOURCE_COMMIT)
+                && config
+                    .as_ref()
+                    .is_some_and(|config| !config.search_profiles.is_empty()) =>
+        {
+            Ok((DesktopSetupStage::Resume, config))
+        }
+        _ => Err("the workspace does not need staged semantic setup".into()),
+    }
+}
+
+fn report_publication(
+    paths: &ResolvedAtlasPaths,
+    semantic: bool,
+    expected_revision: u64,
+    on_publish: &mut dyn FnMut(SetupPublication),
+) -> Result<u64, String> {
+    let index = open_workspace_index(&paths.index_path).map_err(|error| error.to_string())?;
+    let instance = index.artifact_instance();
+    let revision = instance.reference_revision();
+    if revision != expected_revision || index.context().search_profiles.is_empty() == semantic {
+        return Err("reference publication changed during setup; reopen Atlas".into());
+    }
+    let generation = instance.generation();
+    let workspace = paths
+        .index_path
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    drop(index);
+    on_publish(SetupPublication {
+        workspace,
+        generation,
+        semantic,
+    });
+    Ok(revision)
+}
+
+pub(crate) fn staged_desktop_setup(
+    paths: &ResolvedAtlasPaths,
+    options: RuntimeSetupOptions,
+    stage: DesktopSetupStage,
+    mut on_publish: impl FnMut(SetupPublication),
+) -> RuntimeSetupReport {
+    run_setup(
+        paths,
+        options,
+        &mut crate::embedding_seeds::open_published,
+        atlas_ingest::SeedBuildPolicy::Strict,
+        Some((stage, &mut on_publish)),
+    )
+}
+
 pub(crate) fn ensure_setup_with_seed_policy(
+    paths: &ResolvedAtlasPaths,
+    options: RuntimeSetupOptions,
+    seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
+    seed_policy: atlas_ingest::SeedBuildPolicy,
+) -> RuntimeSetupReport {
+    run_setup(paths, options, seed_source, seed_policy, None)
+}
+
+fn run_setup(
     paths: &ResolvedAtlasPaths,
     mut options: RuntimeSetupOptions,
     seed_source: &mut crate::embedding_seeds::SeedSource<'_>,
     seed_policy: atlas_ingest::SeedBuildPolicy,
+    mut staged: Option<(DesktopSetupStage, &mut dyn FnMut(SetupPublication))>,
 ) -> RuntimeSetupReport {
     // Emit progress before configuration and workspace checks, which can take
     // noticeable time on a fresh install or a large existing workspace.
@@ -102,6 +216,49 @@ pub(crate) fn ensure_setup_with_seed_policy(
             }
             Err(error) => return configuration_failure(paths, &options, error.to_string()),
         }
+    };
+    let mut resume_config = None;
+    let _pause = if let Some((stage, _)) = &staged {
+        if options.check
+            || options.force_rebuild
+            || !options.target.requires_embeddings()
+            || options.locale.is_some()
+            || !options.search_profiles.is_empty()
+        {
+            return configuration_failure(paths, &options, "invalid staged setup options".into());
+        }
+        if *stage == DesktopSetupStage::Fixture {
+            if !options.offline || !paths.source_root_explicit || paths.index_path.exists() {
+                return configuration_failure(
+                    paths,
+                    &options,
+                    "staged fixture requires fresh offline setup".into(),
+                );
+            }
+        } else {
+            match desktop_stage(paths) {
+                Ok((eligible, config)) if eligible == *stage => resume_config = config,
+                Ok(_) => {
+                    return configuration_failure(
+                        paths,
+                        &options,
+                        "workspace setup stage changed; reopen Atlas".into(),
+                    );
+                }
+                Err(error) => return configuration_failure(paths, &options, error),
+            }
+        }
+        match atlas_storage::Workspace::at(&paths.index_path)
+            .and_then(|workspace| workspace.pause_saved_writes())
+        {
+            Ok(guard) => {
+                progress("saved_writes_paused", "Preparing search");
+                Some(guard)
+            }
+            Err(error) => return configuration_failure(paths, &options, error.to_string()),
+        }
+    } else {
+        None
     };
     let _upgrade = if !options.check && paths.index_path.is_file() {
         let workspace = match atlas_storage::Workspace::existing(&paths.index_path) {
@@ -127,11 +284,12 @@ pub(crate) fn ensure_setup_with_seed_policy(
     } else {
         None
     };
-    let configuration =
-        match crate::source_configuration::resolve_setup_configuration(paths, &options) {
-            Ok(configuration) => configuration,
-            Err(error) => return configuration_failure(paths, &options, error),
-        };
+    let configuration = match resume_config.map(Ok).unwrap_or_else(|| {
+        crate::source_configuration::resolve_setup_configuration(paths, &options)
+    }) {
+        Ok(configuration) => configuration,
+        Err(error) => return configuration_failure(paths, &options, error),
+    };
     let managed_source = configuration.source_root == paths.managed_source_root;
     let mut effective_paths = paths.clone();
     effective_paths.source_root = configuration.source_root.clone();
@@ -175,14 +333,6 @@ pub(crate) fn ensure_setup_with_seed_policy(
             reason,
         ));
     }
-    let profile_assets = crate::profile_assets::ProfileAssets::default();
-    let mut model_ready = prepare_embeddings
-        && profile_error.is_none()
-        && configurations.iter().all(|c| {
-            profile_assets.ready(&atlas_embedding::profile_for_model(c.model).profile_id(), c)
-        })
-        && atlas_embedding::TextEmbeddingTokenizer::load_baseline(&paths.embedding_cache_root)
-            .is_ok();
     let mut source_issue = None;
     let mut captured = None;
     if !source_ready && managed_source && profile_error.is_none() {
@@ -265,6 +415,50 @@ pub(crate) fn ensure_setup_with_seed_policy(
             }
         }
     }
+    let staged_revision = if let Some((stage, on_publish)) = &mut staged {
+        let result = (|| -> Result<u64, String> {
+            let inputs = captured.as_mut().ok_or_else(|| {
+                source_issue
+                    .clone()
+                    .unwrap_or_else(|| "reference source is unavailable".into())
+            })?;
+            let workspace = atlas_storage::Workspace::existing(&paths.index_path)
+                .map_err(|error| error.to_string())?;
+            if matches!(
+                stage,
+                DesktopSetupStage::FirstRun | DesktopSetupStage::Fixture
+            ) {
+                progress("build_keyword_index", "Building keyword search index");
+                inputs
+                    .build_keyword_stage(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+                    .map_err(|error| error.to_string())?;
+                report_publication(paths, false, 1, *on_publish)
+            } else {
+                let index =
+                    open_workspace_index(&paths.index_path).map_err(|error| error.to_string())?;
+                if !index.context().search_profiles.is_empty()
+                    || !source_is_fresh(inputs, index.context())
+                {
+                    return Err("reference data changed; update reference data explicitly".into());
+                }
+                Ok(index.artifact_instance().reference_revision())
+            }
+        })();
+        match result {
+            Ok(revision) => Some(revision),
+            Err(error) => return configuration_failure(paths, &options, error),
+        }
+    } else {
+        None
+    };
+    let profile_assets = crate::profile_assets::ProfileAssets::default();
+    let mut model_ready = prepare_embeddings
+        && profile_error.is_none()
+        && configurations.iter().all(|c| {
+            profile_assets.ready(&atlas_embedding::profile_for_model(c.model).profile_id(), c)
+        })
+        && atlas_embedding::TextEmbeddingTokenizer::load_baseline(&paths.embedding_cache_root)
+            .is_ok();
     if source_ready && prepare_embeddings && !model_ready && profile_error.is_none() {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
@@ -418,23 +612,31 @@ pub(crate) fn ensure_setup_with_seed_policy(
                 seed_source(model, scratch, options.offline)
             };
             let result = (|| -> Result<BuildArtifactReport, atlas_ingest::IngestError> {
-                let workspace =
-                    crate::initialize_workspace(&paths.index_path).map_err(|error| {
-                        atlas_ingest::IngestError::ArtifactWriteFailed(error.to_string())
-                    })?;
-                captured
-                    .take()
-                    .ok_or_else(|| {
-                        atlas_ingest::IngestError::ArtifactWriteFailed(
-                            "source inputs were not captured".into(),
-                        )
-                    })?
-                    .build_with_seed_policy(
+                let inputs = captured.take().ok_or_else(|| {
+                    atlas_ingest::IngestError::ArtifactWriteFailed(
+                        "source inputs were not captured".into(),
+                    )
+                })?;
+                if let Some(revision) = staged_revision {
+                    let workspace = atlas_storage::Workspace::existing(&paths.index_path)?;
+                    inputs.build_semantic_stage(
+                        &workspace,
+                        crate::WORKSPACE_SCHEMA_VERSION,
+                        revision,
+                        use_seeds.then_some(&mut load),
+                    )
+                } else {
+                    let workspace =
+                        crate::initialize_workspace(&paths.index_path).map_err(|error| {
+                            atlas_ingest::IngestError::ArtifactWriteFailed(error.to_string())
+                        })?;
+                    inputs.build_with_seed_policy(
                         &workspace,
                         crate::WORKSPACE_SCHEMA_VERSION,
                         use_seeds.then_some(&mut load),
                         seed_policy,
                     )
+                }
             })();
             match result {
                 Ok(r) => {
@@ -473,7 +675,7 @@ pub(crate) fn ensure_setup_with_seed_policy(
             SetupActionStatus::Skipped,
         ));
     }
-    if !options.check && !build_failed && build.is_none() {
+    if staged.is_none() && !options.check && !build_failed && build.is_none() {
         let reclaimed = (|| -> Result<(), String> {
             let workspace =
                 crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
@@ -507,6 +709,12 @@ pub(crate) fn ensure_setup_with_seed_policy(
                     .iter()
                     .all(|id| index.context().search_profile(id).is_ok())
             });
+    if semantic_ready
+        && let (Some(revision), Some((_, on_publish))) = (staged_revision, staged)
+        && let Err(error) = report_publication(paths, true, revision + 1, on_publish)
+    {
+        return configuration_failure(paths, &options, error);
+    }
     checks.push(match &current{Ok(_)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Done,"cheap executable schema/catalog check; full snapshot validation is a separate operation"),Err(e)=>SetupAction::with_reason(SetupActionKind::ValidateIndex,SetupActionStatus::Blocked,e.to_string())});
     let readiness = |ready: bool, required: bool, reason: &str| {
         if ready {

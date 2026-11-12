@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
@@ -143,7 +144,9 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
     participants: encounter.data?.participants ?? [],
     mutations,
   });
+  const paused = useSavedWritesPaused();
   const mutationDisabled =
+    paused ||
     mutations.pending ||
     !!mutations.refreshError ||
     !!encounter.error ||

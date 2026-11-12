@@ -831,6 +831,9 @@
           "reference_error": {
             "$ref": "#/components/schemas/AppError"
           },
+          "saved_writes_paused": {
+            "type": "boolean"
+          },
           "search_profiles": {
             "items": {
               "$ref": "#/components/schemas/SearchProfileReadinessView"

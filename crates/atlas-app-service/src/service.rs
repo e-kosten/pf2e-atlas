@@ -103,6 +103,11 @@ impl AtlasAppService {
                 |error| error.message.clone(),
             );
         AppReadinessView {
+            saved_writes_paused: self
+                .runtime
+                .saved_writes_paused()
+                .ok()
+                .filter(|paused| *paused),
             workspace_error,
             reference_error,
             default_search_profile: metadata

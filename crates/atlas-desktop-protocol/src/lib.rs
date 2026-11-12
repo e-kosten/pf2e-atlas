@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub const VERSION: u32 = 1;
+pub const SETUP_EVENT_VERSION: u32 = 1;
 pub const BUNDLE_ID: &str = "com.ekosten.pf2e-atlas";
 const LINK_PREFIX: &str = "pf2e-atlas://v1/record/";
 const KEY_ENCODING: &AsciiSet = &CONTROLS
@@ -41,6 +42,23 @@ pub struct WorkspaceProbe {
     pub workspace: PathBuf,
     pub status: WorkspaceStatus,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stage: Option<SetupStage>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetupStage {
+    FirstRun,
+    Resume,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetupPublication {
+    pub setup_event_version: u32,
+    pub workspace: PathBuf,
+    pub generation: String,
+    pub semantic: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

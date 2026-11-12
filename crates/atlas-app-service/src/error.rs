@@ -70,6 +70,7 @@ impl From<atlas_runtime::RuntimeError> for AppServiceError {
                 return Self::service_busy(error.to_string());
             }
             RuntimeErrorKind::WorkspaceMissing => AppErrorCode::SetupRequired,
+            RuntimeErrorKind::SavedWritesPaused => AppErrorCode::SetupInProgress,
             RuntimeErrorKind::WorkspaceAccess => AppErrorCode::WorkspaceAccessFailed,
             RuntimeErrorKind::WorkspaceMaintenance => AppErrorCode::WorkspaceMaintenanceRequired,
             RuntimeErrorKind::WorkspaceIncompatible

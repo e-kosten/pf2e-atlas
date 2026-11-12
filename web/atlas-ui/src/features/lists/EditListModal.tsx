@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Input, Select, Space } from "antd";
 import { Trash2 } from "lucide-react";
@@ -235,7 +236,7 @@ function ListEditor({
   }
 
   const pending = update.isPending || deleteListMutation.isPending;
-  const disabled = pending || !!readError;
+  const disabled = useSavedWritesPaused() || pending || !!readError;
   const close = (slug = saved?.slug) => {
     setEdits({});
     setReview(undefined);

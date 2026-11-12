@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Form } from "antd";
@@ -21,6 +22,7 @@ export function ListRecordPicker({
   open: boolean;
   onClose: () => void;
 }) {
+  const paused = useSavedWritesPaused();
   const [form] = Form.useForm();
   const client = useQueryClient();
   const [candidate, setCandidate] = useState<string | null>(null);
@@ -54,7 +56,13 @@ export function ListRecordPicker({
     onClose();
   }
   async function submit() {
-    if (!candidate || !list || submitting.current || receipt?.record === candidate)
+    if (
+      paused ||
+      !candidate ||
+      !list ||
+      submitting.current ||
+      receipt?.record === candidate
+    )
       return;
     submitting.current = true;
     setReceipt(null);
@@ -87,7 +95,7 @@ export function ListRecordPicker({
       }
       okButtonProps={{
         loading: add.isPending,
-        disabled: !list || receipt?.record === candidate,
+        disabled: paused || !list || receipt?.record === candidate,
       }}
     >
       {receipt && <span role="status">{receipt.message}</span>}

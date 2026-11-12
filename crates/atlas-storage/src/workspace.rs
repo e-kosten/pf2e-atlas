@@ -1,4 +1,4 @@
-use crate::locking::acquire;
+use crate::locking::{acquire, acquire_with_wait};
 use crate::{ReadSession, StorageError, StorageResult, UpdateOwner, WriteSession};
 use rusqlite::{Connection, OpenFlags};
 use std::{
@@ -161,6 +161,29 @@ impl Workspace {
     /// Serialize mutating setup and cleanup without holding database admission.
     pub fn setup_guard(&self) -> StorageResult<std::fs::File> {
         acquire(&self.path, ".setup.lock", true)
+    }
+
+    /// Drain already admitted saved writes before starting browse-only setup.
+    pub fn pause_saved_writes(&self) -> StorageResult<std::fs::File> {
+        acquire(&self.path, ".saved-write.lock", true)
+    }
+
+    /// Hold before opening the SQLite write session and until it closes.
+    pub fn saved_write_guard(&self) -> StorageResult<std::fs::File> {
+        acquire_with_wait(&self.path, ".saved-write.lock", false, Duration::ZERO).map_err(|error| {
+            match error {
+                StorageError::Busy => StorageError::SavedWritesPaused,
+                error => error,
+            }
+        })
+    }
+
+    pub fn saved_writes_paused(&self) -> StorageResult<bool> {
+        match self.saved_write_guard() {
+            Ok(_) => Ok(false),
+            Err(StorageError::SavedWritesPaused) => Ok(true),
+            Err(error) => Err(error),
+        }
     }
 
     /// Serializes source/config/model publishers without holding a SQLite lock.

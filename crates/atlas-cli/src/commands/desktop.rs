@@ -125,6 +125,15 @@ pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
         workspace,
         status,
         message,
+        stage: runtime.desktop_setup_stage().and_then(|stage| match stage {
+            atlas_runtime::DesktopSetupStage::FirstRun => {
+                Some(atlas_desktop_protocol::SetupStage::FirstRun)
+            }
+            atlas_runtime::DesktopSetupStage::Resume => {
+                Some(atlas_desktop_protocol::SetupStage::Resume)
+            }
+            atlas_runtime::DesktopSetupStage::Fixture => None,
+        }),
     })?;
     Ok(ExitCode::SUCCESS)
 }

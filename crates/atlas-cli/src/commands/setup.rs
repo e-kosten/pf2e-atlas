@@ -13,10 +13,37 @@ use atlas_cli_support::{write_json_data, write_json_error};
 
 pub(crate) mod args;
 
-use args::{SetupArgs, SetupCleanOptions, SetupCommand, SetupPathOptions, SetupRunOptions};
+use args::{
+    DesktopStage, SetupArgs, SetupCleanOptions, SetupCommand, SetupPathOptions, SetupRunOptions,
+};
 
 pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
     let json = args.paths.json;
+    let fixture = cfg!(debug_assertions)
+        && matches!(args.desktop_stage, Some(DesktopStage::FirstRun))
+        && std::env::var_os("ATLAS_PILOT_SMOKE")
+            .is_some_and(|mode| mode == "normal" || mode == "retry" || mode == "preflight")
+        && std::env::var_os("ATLAS_PILOT_HOME")
+            .filter(|home| std::env::var_os("HOME").as_ref() == Some(home))
+            .is_some_and(|home| {
+                args.paths.source.as_ref() == Some(&std::path::PathBuf::from(home).join("source"))
+            });
+    if args.desktop_stage.is_some() && !cfg!(feature = "web") {
+        return invalid_setup_input(
+            json,
+            "staged desktop setup requires the bundled Atlas command".into(),
+        );
+    }
+    if args.desktop_stage.is_some()
+        && (args.command.is_some()
+            || (args.paths.source.is_some() && !fixture)
+            || args.paths.index.is_some()
+            || args.paths.embedding_cache_path.is_some()
+            || args.run.audit_embedding_coverage
+            || (args.run.offline && !fixture))
+    {
+        return invalid_setup_input(json, "invalid staged desktop setup options".into());
+    }
     match args.command {
         Some(SetupCommand::Clean(options)) => {
             if args.run.check
@@ -43,7 +70,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
                 Ok(runtime) => runtime,
                 Err(message) => return invalid_setup_input(json, message),
             };
-            run_setup_install(runtime, args.run, json)
+            run_setup_install(runtime, args.run, args.desktop_stage, fixture, json)
         }
     }
 }
@@ -64,6 +91,8 @@ fn setup_runtime(options: SetupPathOptions) -> Result<AtlasRuntime, String> {
 fn run_setup_install(
     runtime: AtlasRuntime,
     options: SetupRunOptions,
+    desktop_stage: Option<DesktopStage>,
+    fixture: bool,
     json: bool,
 ) -> Result<ExitCode, String> {
     let setup_options = RuntimeSetupOptions {
@@ -80,11 +109,44 @@ fn run_setup_install(
         embedding_batch_size: options.embedding_batch_size,
         locale: options.locale,
     };
-    let report = if options.audit_embedding_coverage {
+    let report = if let Some(stage) = desktop_stage {
+        let stage = match stage {
+            DesktopStage::FirstRun if fixture => atlas_runtime::DesktopSetupStage::Fixture,
+            DesktopStage::FirstRun => atlas_runtime::DesktopSetupStage::FirstRun,
+            DesktopStage::Resume => atlas_runtime::DesktopSetupStage::Resume,
+        };
+        runtime.staged_desktop_setup(setup_options, stage, |publication| {
+            #[cfg(feature = "web")]
+            {
+                let event = atlas_desktop_protocol::SetupPublication {
+                    setup_event_version: atlas_desktop_protocol::SETUP_EVENT_VERSION,
+                    workspace: publication.workspace,
+                    generation: publication.generation,
+                    semantic: publication.semantic,
+                };
+                if let Ok(json) = serde_json::to_string(&event) {
+                    eprintln!("{json}");
+                }
+                // The packaged smoke test exercises the real first commit and
+                // cancels through the product while the semantic stage is held.
+                if fixture && !event.semantic {
+                    loop {
+                        std::thread::park();
+                    }
+                }
+            }
+            #[cfg(not(feature = "web"))]
+            let _ = publication;
+        })
+    } else if options.audit_embedding_coverage {
         runtime.audit_embedding_seed(setup_options)?
     } else {
         runtime.ensure_setup(setup_options)
     };
+    #[cfg(feature = "web")]
+    if desktop_stage.is_some() && report.ready {
+        super::web::managed::notify_semantic_publication(&runtime);
+    }
     tracing::info!(target:"atlas_progress",complete=true,"Setup finished");
     let exit_class = report.exit_code_class();
 

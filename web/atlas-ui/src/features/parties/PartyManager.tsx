@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ export function PartyManager({
   onClose: () => void;
   initialCreate?: boolean;
 }) {
+  const paused = useSavedWritesPaused();
   const parties = useParties();
   const client = useQueryClient();
   const [closing, setClosing] = useState(false);
@@ -65,7 +67,7 @@ export function PartyManager({
             </Button>
             <Button
               type="primary"
-              disabled={remove.isPending}
+              disabled={paused || remove.isPending}
               onClick={(event) => {
                 event.currentTarget.focus();
                 setEditor("new");
@@ -123,7 +125,7 @@ export function PartyManager({
                     textAlign: "start",
                     justifyContent: "start",
                   }}
-                  disabled={remove.isPending}
+                  disabled={paused || remove.isPending}
                   onClick={(event) => {
                     event.currentTarget.focus();
                     setEditor(party);
@@ -143,7 +145,7 @@ export function PartyManager({
               width: 84,
               render: (_value, party) => (
                 <DangerActionButton
-                  disabled={remove.isPending}
+                  disabled={paused || remove.isPending}
                   aria-label={`Delete ${party.name}`}
                   confirmTitle={`Delete ${party.name}?`}
                   confirmContent="PCs already added to encounters will remain."
@@ -173,6 +175,7 @@ type PartyLevelMode = "shared" | "individual";
 type PartyEditorValues = CreatePartyRequest & { sharedLevel?: number | null };
 
 function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => void }) {
+  const paused = useSavedWritesPaused();
   const [form] = Form.useForm<PartyEditorValues>();
   const initialMembers = party?.members ?? [];
   const uniformLevels = initialMembers.every(
@@ -248,7 +251,10 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
       afterClose={onClose}
       title={party ? "Edit Party" : "New Party"}
       okText="Save"
-      onOk={() => form.submit()}
+      okButtonProps={{ disabled: paused }}
+      onOk={() => {
+        if (!paused) form.submit();
+      }}
       onCancel={() => setClosing(true)}
       confirmLoading={save.isPending}
       cancelButtonProps={{ disabled: save.isPending }}
@@ -260,7 +266,7 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
         name={id}
         layout="vertical"
         form={form}
-        disabled={save.isPending}
+        disabled={paused || save.isPending}
         initialValues={{
           ...(party ?? { name: "", members: [] }),
           sharedLevel: uniformLevels ? initialMembers[0]?.level : undefined,

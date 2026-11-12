@@ -5,7 +5,8 @@ import { useSearchProfile } from "./SearchProfileContext";
 export function SearchProfileNotice({
   similar = false,
   showKeyword = false,
-}: { similar?: boolean; showKeyword?: boolean } = {}) {
+  rerunSemantic,
+}: { similar?: boolean; showKeyword?: boolean; rerunSemantic?: () => void } = {}) {
   const profile = useSearchProfile();
   const defaultModel = profile.profiles.find((model) => model.id === profile.defaultId);
   const canSwitch =
@@ -24,13 +25,21 @@ export function SearchProfileNotice({
         : "Similar records need a semantic index."
       : null);
   if (!error)
-    return showKeyword && profile.keywordSearch ? (
-      <Space className="search-profile-status">
-        <Typography.Text type="secondary" role="status">
-          Keyword search
-        </Typography.Text>
-        {switchButton}
-      </Space>
+    return showKeyword ? (
+      <>
+        {profile.keywordSearch && (
+          <Space className="search-profile-status">
+            <Typography.Text type="secondary" role="status">
+              {rerunSemantic ? "Keyword results" : "Keyword search"}
+            </Typography.Text>
+            {rerunSemantic && (
+              <Button type="link" onClick={rerunSemantic}>
+                Rerun this search
+              </Button>
+            )}
+          </Space>
+        )}
+      </>
     ) : null;
   return (
     <ErrorNotice

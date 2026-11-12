@@ -6,7 +6,9 @@ use std::{
     time::Duration,
 };
 
-use atlas_desktop_protocol::{LauncherReady, VERSION, WorkspaceProbe};
+use atlas_desktop_protocol::{
+    LauncherReady, SetupPublication, SetupStage, VERSION, WorkspaceProbe,
+};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -128,8 +130,10 @@ impl Launcher {
 }
 
 pub fn setup(
+    stage: Option<SetupStage>,
     build_embeddings_locally: bool,
     progress: impl Fn(Value) + Send + 'static,
+    published: impl Fn(SetupPublication) + Send + 'static,
     hold: impl FnOnce(ChildStdin),
 ) -> Result<(), Value> {
     let mut command = command()?;
@@ -139,13 +143,22 @@ pub fn setup(
         "--desktop-progress",
         "--desktop-cancel-on-eof",
     ]);
+    if let Some(stage) = stage {
+        command.args([
+            "--desktop-stage",
+            match stage {
+                SetupStage::FirstRun => "first-run",
+                SetupStage::Resume => "resume",
+            },
+        ]);
+    }
     if build_embeddings_locally {
         command.arg("--build-embeddings-locally");
     }
     #[cfg(debug_assertions)]
     if let Some(source) = crate::smoke::source()? {
         crate::smoke::record_setup();
-        command.args(["--offline", "--no-embeddings", "--source"]);
+        command.args(["--offline", "--source"]);
         command.arg(source);
     }
     let mut child = command
@@ -169,6 +182,10 @@ pub fn setup(
                 && event["version"] == VERSION
             {
                 progress(event);
+            } else if let Ok(event) = serde_json::from_str::<SetupPublication>(&line)
+                && event.setup_event_version == atlas_desktop_protocol::SETUP_EVENT_VERSION
+            {
+                published(event);
             }
         }
     });

@@ -4,6 +4,7 @@ mod opening;
 mod process;
 #[cfg(debug_assertions)]
 mod smoke;
+mod staged_setup;
 
 use std::{
     path::{Path, PathBuf},
@@ -30,6 +31,7 @@ use url::Url;
 #[derive(Default)]
 struct Desktop {
     operation: Mutex<()>,
+    staged_setup: staged_setup::StagedSetup,
     launcher: Mutex<Option<Launcher>>,
     setup_pipe: Mutex<Option<std::process::ChildStdin>>,
     cancel_requested: AtomicBool,
@@ -149,7 +151,7 @@ async fn launch(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
     .map_err(display)?
 }
 
-fn launch_ready(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
+fn start_launcher(app: &AppHandle) -> Result<(), String> {
     let desktop = app.state::<Desktop>();
     if lock(&desktop.launcher).is_none() {
         let probe = process::probe()?;
@@ -171,8 +173,16 @@ fn launch_ready(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
             return Err("The Atlas launcher closed while opening the workspace.".into());
         }
         *current = Some(launcher);
+        if probe.stage == Some(atlas_desktop_protocol::SetupStage::Resume) {
+            desktop.staged_setup.offer_resume();
+        }
     }
     desktop.recovery.store(false, Ordering::Release);
+    Ok(())
+}
+
+fn launch_ready(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
+    start_launcher(app)?;
     if window.label() == opening::PRIMARY {
         return opening::open(app, window);
     }
@@ -195,6 +205,15 @@ fn verified_url(endpoint: &str) -> Result<Url, String> {
     Ok(url)
 }
 
+fn local_http() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .proxy(None)
+        .max_redirects(0)
+        .timeout_global(Some(std::time::Duration::from_secs(3)))
+        .build()
+        .into()
+}
+
 fn on_launcher_exit(app: &AppHandle, pid: u32) {
     let desktop = app.state::<Desktop>();
     let mut launcher = lock(&desktop.launcher);
@@ -202,6 +221,7 @@ fn on_launcher_exit(app: &AppHandle, pid: u32) {
         return;
     }
     launcher.take();
+    desktop.staged_setup.clear_documents();
     desktop.recovery.store(true, Ordering::Release);
     drop(launcher);
     if !desktop.quitting.load(Ordering::Acquire) {
@@ -219,11 +239,23 @@ async fn prepare(
 ) -> Result<String, serde_json::Value> {
     guard(&window)?;
     tauri::async_runtime::spawn_blocking(move || {
+        let staged = process::probe()?.stage;
+        if let Some(stage) = staged {
+            return staged_setup::from_bootstrap(
+                app,
+                window,
+                stage,
+                build_embeddings_locally.unwrap_or_default(),
+            );
+        }
         let desktop = app.state::<Desktop>();
         let _operation = desktop
             .operation
             .try_lock()
             .map_err(|_| "Atlas is already working.")?;
+        if desktop.staged_setup.active() {
+            return Err("Atlas setup is already running.".into());
+        }
         desktop.cancel_requested.store(false, Ordering::Release);
         let probe = process::probe()?;
         let upgrade = probe.status == WorkspaceStatus::UpgradeRequired;
@@ -237,10 +269,12 @@ async fn prepare(
         }
         let progress_window = window.clone();
         let result = process::setup(
+            None,
             build_embeddings_locally.unwrap_or_default(),
             move |event| {
                 let _ = progress_window.emit("atlas-progress", event);
             },
+            |_| {},
             |pipe| {
                 let mut held = lock(&desktop.setup_pipe);
                 if !desktop.cancel_requested.load(Ordering::Acquire)
@@ -257,7 +291,7 @@ async fn prepare(
             launch_ready(&app, &window)?;
             return Ok("Your workspace is ready.".into());
         }
-        run_on_main(&app, refresh_product)?;
+        run_on_main(&app, |app| refresh_product(app, false))?;
         Ok("Reference data is up to date.".into())
     })
     .await
@@ -268,12 +302,15 @@ async fn prepare(
 fn cancel_setup(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
     guard(&window)?;
     let desktop = app.state::<Desktop>();
+    if desktop.staged_setup.active() {
+        return staged_setup::cancel(&app, None);
+    }
     desktop.cancel_requested.store(true, Ordering::Release);
     lock(&desktop.setup_pipe).take();
     Ok(())
 }
 
-fn refresh_product(app: &AppHandle) {
+fn refresh_product(app: &AppHandle, semantic_only: bool) {
     let desktop = app.state::<Desktop>();
     let origin = lock(&desktop.launcher)
         .as_ref()
@@ -283,7 +320,10 @@ fn refresh_product(app: &AppHandle) {
         if window.label().starts_with("atlas-")
             && window.url().is_ok_and(|url| Some(url.origin()) == origin)
         {
-            let _ = window.eval("window.dispatchEvent(new Event('atlas-reference-updated'))");
+            let detail = if semantic_only { "'semantic'" } else { "null" };
+            let _ = window.eval(format!(
+                "window.dispatchEvent(new CustomEvent('atlas-reference-updated', {{ detail: {detail} }}))"
+            ));
         }
     }
 }
@@ -292,13 +332,18 @@ fn show_pending_or_default(app: &AppHandle) {
     let desktop = app.state::<Desktop>();
     let mut routes = std::mem::take(&mut *lock(&desktop.links));
     if routes.is_empty() {
-        let origin = lock(&desktop.launcher)
-            .as_ref()
-            .and_then(|launcher| verified_url(&launcher.ready.endpoint).ok())
-            .map(|endpoint| endpoint.origin());
+        let service = lock(&desktop.launcher).as_ref().and_then(|launcher| {
+            let ready = &launcher.ready;
+            Some((
+                verified_url(&ready.endpoint).ok()?.origin(),
+                ready.instance.clone(),
+            ))
+        });
         let existing = app.webview_windows().into_values().find(|window| {
-            window.label().starts_with("atlas-")
-                && window.url().is_ok_and(|url| Some(url.origin()) == origin)
+            service.as_ref().is_some_and(|(origin, instance)| {
+                desktop.staged_setup.attached_to(window.label(), instance)
+                    && window.url().is_ok_and(|url| &url.origin() == origin)
+            })
         });
         if let Some(window) = existing {
             let _ = window.show();
@@ -322,12 +367,14 @@ fn show_pending_or_default(app: &AppHandle) {
 
 fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<(), String> {
     let desktop = app.state::<Desktop>();
-    let base = lock(&desktop.launcher)
-        .as_ref()
-        .ok_or("Start the Atlas workspace first.")
-        .and_then(|launcher| {
-            verified_url(&launcher.ready.endpoint).map_err(|_| "Invalid Atlas address.")
-        })?;
+    let (base, instance) = {
+        let current = lock(&desktop.launcher);
+        let ready = &current
+            .as_ref()
+            .ok_or("Start the Atlas workspace first.")?
+            .ready;
+        (verified_url(&ready.endpoint)?, ready.instance.clone())
+    };
     let url = base.join(route).map_err(display)?;
     let origin = base.origin();
     if !new_window {
@@ -336,9 +383,10 @@ fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<(), St
             .into_values()
             .filter(|window| window.label().starts_with("atlas-"))
         {
-            if window
-                .url()
-                .is_ok_and(|open| same_product_route(&url, &open))
+            if desktop.staged_setup.attached_to(window.label(), &instance)
+                && window
+                    .url()
+                    .is_ok_and(|open| same_product_route(&url, &open))
             {
                 window.show().map_err(display)?;
                 return window.set_focus().map_err(display);
@@ -346,7 +394,12 @@ fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<(), St
         }
     }
     let id = desktop.window_id.fetch_add(1, Ordering::Relaxed);
-    WebviewWindowBuilder::new(app, format!("atlas-{id}"), WebviewUrl::External(url))
+    let label = format!("atlas-{id}");
+    desktop
+        .staged_setup
+        .attach_window(app, &label, &base, &instance)?;
+    WebviewWindowBuilder::new(app, label, WebviewUrl::External(url))
+        .on_page_load(staged_setup::page_load)
         .title("PF2e Atlas")
         .inner_size(1210.0, 830.0)
         .min_inner_size(480.0, 440.0)
@@ -425,13 +478,7 @@ fn copy_record(app: &AppHandle) -> Result<(), String> {
     let handle = app.clone();
     std::thread::spawn(move || {
         let result = (|| -> Result<(), String> {
-            let agent: ureq::Agent = ureq::Agent::config_builder()
-                .proxy(None)
-                .max_redirects(0)
-                .timeout_global(Some(std::time::Duration::from_secs(3)))
-                .build()
-                .into();
-            let record: serde_json::Value = agent
+            let record: serde_json::Value = local_http()
                 .get(api.as_str())
                 .header("x-atlas-api-contract", &ready.api_contract)
                 .call()
@@ -564,7 +611,8 @@ fn main() {
             launch,
             prepare,
             cancel_setup,
-            enable_cli
+            enable_cli,
+            staged_setup::desktop_setup_action
         ])
         .menu(menu)
         .on_window_event(|window, event| {

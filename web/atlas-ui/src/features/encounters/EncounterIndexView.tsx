@@ -1,3 +1,4 @@
+import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasLink } from "../../app/AtlasLink";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
@@ -32,6 +33,7 @@ type EncounterIndexViewProps = {
 };
 export function EncounterIndexView(_props: EncounterIndexViewProps) {
   usePageTitle("Encounters");
+  const paused = useSavedWritesPaused();
   const queryClient = useQueryClient();
   const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -70,6 +72,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             Parties
           </Button>
           <Button
+            disabled={paused}
             ref={newEncounter}
             icon={<Plus size={16} />}
             onClick={() => setCreateOpen(true)}
@@ -173,7 +176,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             if (editing.ref === encounter.encounter_key) editing.abandon();
             return deleteMutation.mutateAsync(encounter);
           },
-          deleteMutation.isPending,
+          paused || deleteMutation.isPending,
           editing.preparing ? editing.ref : undefined,
         )}
         scroll={{ x: 800 }}

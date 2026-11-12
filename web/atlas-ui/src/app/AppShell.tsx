@@ -1,3 +1,4 @@
+import { DesktopSetupPanel } from "./DesktopSetupPanel";
 import { Link, useRouter, type LinkOptions } from "@tanstack/react-router";
 import { AtlasLink } from "./AtlasLink";
 import {
@@ -180,6 +181,7 @@ export function AppShell({
           theme={resolvedColorScheme}
         />
         <Space className="topbar__actions" size="small">
+          <DesktopSetupPanel />
           <Popover
             trigger="click"
             open={themeOpen}
@@ -230,6 +232,14 @@ export function AppShell({
           </Popover>
         </Space>
       </header>
+      {readiness?.saved_writes_paused && (
+        <Alert
+          banner
+          type="info"
+          role="status"
+          title="Preparing semantic search. Editing will be available when setup finishes."
+        />
+      )}
       <GlobalFeedback>
         {compatibilityFailure && (
           <Alert

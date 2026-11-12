@@ -119,6 +119,7 @@ export function SearchView({
         <SearchProfileNotice
           similar={Boolean(workspace.search.similarSeed)}
           showKeyword
+          rerunSemantic={workspace.rerunSemantic}
         />
         {workspace.errorMessage && (
           <ErrorNotice

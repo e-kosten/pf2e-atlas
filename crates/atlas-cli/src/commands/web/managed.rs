@@ -28,6 +28,7 @@ const HTTP_PROOF: u8 = 0;
 const CONTROL_PROOF: u8 = 1;
 const FOREGROUND_LEASE: u8 = 2;
 const SEARCH_LEASE: u8 = 3;
+const SEMANTIC_PUBLICATION: u8 = 4;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct Settings {
@@ -197,6 +198,25 @@ pub(crate) fn search(
             Err(error.into())
         }
     })())
+}
+
+pub(crate) fn notify_semantic_publication(runtime: &AtlasRuntime) {
+    let Some(endpoint) = discover(runtime) else {
+        return;
+    };
+    let Ok(control) = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    else {
+        return;
+    };
+    control.block_on(async {
+        let _ = timeout(
+            Duration::from_millis(500),
+            attach(&endpoint, SEMANTIC_PUBLICATION),
+        )
+        .await;
+    });
 }
 
 fn settings(runtime: &AtlasRuntime) -> Settings {
@@ -400,11 +420,19 @@ async fn serve(
         retrieval_mode: AppServiceRetrievalMode::FullPool,
     })
     .map_err(|error| error.into_app_error().message)?;
+    let model_ready = Arc::new(Notify::new());
     let warmup = service.clone();
-    tokio::task::spawn_blocking(move || match warmup.warm_default_search_profile() {
-        Ok(()) => tracing::info!(target: "atlas_cli", "Atlas search model is warm"),
-        Err(error) => {
-            tracing::info!(target: "atlas_cli", %error, "Atlas search model warmup skipped")
+    let warm_signal = model_ready.clone();
+    let warm_task = tokio::spawn(async move {
+        loop {
+            warm_signal.notified().await;
+            let service = warmup.clone();
+            let _ = tokio::task::spawn_blocking(move || {
+                match service.warm_default_search_profile() {
+                    Ok(()) => tracing::info!(target: "atlas_cli", "Atlas search model is warm"),
+                    Err(error) => tracing::info!(target: "atlas_cli", %error, "Atlas search model warmup skipped"),
+                }
+            }).await;
         }
     });
     let url = endpoint.url();
@@ -461,7 +489,8 @@ async fn serve(
             })
             .await
     });
-    let control_result = own_service(control, endpoint.secret).await;
+    let control_result = own_service(control, endpoint.secret, model_ready).await;
+    warm_task.abort();
     let _ = stop.send(());
     if timeout(DRAIN, &mut server).await.is_err() {
         server.abort();
@@ -470,7 +499,11 @@ async fn serve(
     control_result.map_err(|error| error.to_string())
 }
 
-async fn own_service(listener: TcpListener, secret: [u8; 32]) -> io::Result<()> {
+async fn own_service(
+    listener: TcpListener,
+    secret: [u8; 32],
+    model_ready: Arc<Notify>,
+) -> io::Result<()> {
     let owners = Arc::new(Mutex::new(Owners::default()));
     let changed = Arc::new(Notify::new());
     let mut connections = JoinSet::new();
@@ -492,7 +525,7 @@ async fn own_service(listener: TcpListener, secret: [u8; 32]) -> io::Result<()> 
             _ = connections.join_next(), if !connections.is_empty() => {}
             result = listener.accept(), if connections.len() < 32 => {
                 let (stream, _) = result?;
-                connections.spawn(own_connection(stream, secret, owners.clone(), changed.clone()));
+                connections.spawn(own_connection(stream, secret, owners.clone(), changed.clone(), model_ready.clone()));
             }
         }
     }
@@ -504,6 +537,7 @@ async fn own_connection(
     secret: [u8; 32],
     owners: Arc<Mutex<Owners>>,
     changed: Arc<Notify>,
+    model_ready: Arc<Notify>,
 ) {
     let authenticated = timeout(Duration::from_secs(1), async {
         let mut client_challenge = [0; 32];
@@ -517,7 +551,7 @@ async fn own_connection(
         let mut response = [0; 64];
         stream.read_exact(&mut response).await?;
         Ok::<_, io::Error>(
-            (matches!(role, FOREGROUND_LEASE | SEARCH_LEASE)
+            (matches!(role, FOREGROUND_LEASE | SEARCH_LEASE | SEMANTIC_PUBLICATION)
                 && response == proof(&secret, role, &challenge).as_bytes())
             .then_some(role),
         )
@@ -526,6 +560,19 @@ async fn own_connection(
     let Ok(Ok(Some(role))) = authenticated else {
         return;
     };
+    if role == SEMANTIC_PUBLICATION {
+        let active = {
+            let state = owners
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            state.foreground > 0 && !state.draining
+        };
+        if active {
+            model_ready.notify_one();
+            let _ = stream.write_u8(1).await;
+        }
+        return;
+    }
     {
         let mut state = owners
             .lock()
@@ -535,6 +582,9 @@ async fn own_connection(
         }
         state.count += 1;
         if role == FOREGROUND_LEASE {
+            if state.foreground == 0 {
+                model_ready.notify_one();
+            }
             state.foreground += 1;
             state.ever_attached = true;
         }

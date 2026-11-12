@@ -97,6 +97,7 @@ pub enum RuntimeErrorKind {
     WorkspaceMissing,
     WorkspaceAccess,
     WorkspaceBusy,
+    SavedWritesPaused,
     WorkspaceMaintenance,
     WorkspaceIncompatible,
     WorkspaceUpgradeRequired,
@@ -139,6 +140,7 @@ impl From<atlas_storage::StorageError> for RuntimeError {
     fn from(error: atlas_storage::StorageError) -> Self {
         let kind = match &error {
             atlas_storage::StorageError::Missing(_) => RuntimeErrorKind::WorkspaceMissing,
+            atlas_storage::StorageError::SavedWritesPaused => RuntimeErrorKind::SavedWritesPaused,
             error if error.is_contention() => RuntimeErrorKind::WorkspaceBusy,
             error if error.is_access_failure() => RuntimeErrorKind::WorkspaceAccess,
             atlas_storage::StorageError::Maintenance(_) => RuntimeErrorKind::WorkspaceMaintenance,

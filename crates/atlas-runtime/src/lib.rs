@@ -28,10 +28,11 @@ pub use paths::{AtlasPathMode, AtlasPathOverrides, ResolvedAtlasPaths, ResolvedP
 pub use retrieval::SearchProfileReadiness;
 pub use runtime::{AtlasRuntime, AtlasRuntimeOptions};
 pub use setup_model::{
-    RuntimeSetupCleanOptions, RuntimeSetupCleanReport, RuntimeSetupOptions, RuntimeSetupReport,
-    SetupAction, SetupActionKind, SetupActionStatus, SetupBuildReport, SetupCleanTarget,
-    SetupCleanTargetKind, SetupCleanTargetStatus, SetupEmbeddingReport, SetupExitClass,
-    SetupPathsReport, SetupReadiness, SetupReadinessItem, SetupReadinessStatus, SetupTarget,
+    DesktopSetupStage, RuntimeSetupCleanOptions, RuntimeSetupCleanReport, RuntimeSetupOptions,
+    RuntimeSetupReport, SetupAction, SetupActionKind, SetupActionStatus, SetupBuildReport,
+    SetupCleanTarget, SetupCleanTargetKind, SetupCleanTargetStatus, SetupEmbeddingReport,
+    SetupExitClass, SetupPathsReport, SetupPublication, SetupReadiness, SetupReadinessItem,
+    SetupReadinessStatus, SetupTarget,
 };
 pub use workspace::{WORKSPACE_SCHEMA_VERSION, initialize_workspace};
 
