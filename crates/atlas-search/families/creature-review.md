@@ -93,6 +93,28 @@ how to link it to the summoner. [Lelzeshin](creatures/lelzeshin.toml) and
 
 ### Published adjustments and scaling
 
+**Cosmic Amoeba and Hound Echo.** Stranded on Yesterday’s Tide uses
+different blocks by encounter and party tier. Foundry stores typed Weak
+adjustments on otherwise partly unadjusted stats. Verify the effective
+levels, defenses, strike dice, and ability DCs against encounters B–D before
+adding scoped overrides.
+
+- Cosmic Amoeba (`pfs-season-5-bestiary:Mmsmoh7tpsnLZWrI`)
+- Weak Cosmic Amoeba (`pfs-season-5-bestiary:c93xz68jVyaTiAI5`)
+- Hound Echo (`pfs-season-5-bestiary:JGtNz1mLf5rsvJWC`)
+- Weak Hound Echo (`pfs-season-5-bestiary:JKduEdHCeBVIYcdd`)
+- Cacophonous Hound Echo (`pfs-season-5-bestiary:vvZktgY1C8Eabs3w`)
+- Weak Cacophonous Hound Echo (`pfs-season-5-bestiary:Hysy3I3yiYsUZHxY`)
+
+**Congealed Magic.** Lost and Forgotten supplies ordinary and Concentrated
+blocks with typed Elite counterparts. Check the encounter’s scaling conditions
+and effective stats before declaring the party uses and overrides.
+
+- Congealed Magic (`pfs-season-6-bestiary:gjeL6QJBoniPAm4M`)
+- Elite Congealed Magic (`pfs-season-6-bestiary:XMtgZP2i1lttMf15`)
+- Concentrated Congealed Magic (`pfs-season-6-bestiary:agYSQuaxGkFQVBus`)
+- Elite Concentrated Congealed Magic (`pfs-season-6-bestiary:tiPPgdHWXNWE7LKF`)
+
 **Commodore Sticky Fingers.** Student Exchange has an ordinary actor outside the token group and Elite versions of both the ordinary and Lively blocks. Check the published conditions for choosing Lively and Elite and compare the effective stats.
 
 - Commodore Sticky Fingers (`pfs-season-5-bestiary:76sfB4T9gkJjAJOS`)
@@ -149,12 +171,6 @@ how to link it to the summoner. [Lelzeshin](creatures/lelzeshin.toml) and
 - Iron Ring Bosun (`pfs-season-3-bestiary:FmZ8bz1ItIzxuu1D`)
 - Vaggas the Bosun (`pfs-season-3-bestiary:RZ8sWKkogng0IU8M`)
 
-**Wasp Swarm.** Guardian’s Covenant supplies Arctic and Heretical forms and a block marked PFS 3-13. Check how the adventure uses that scenario copy and how it relates to the generic Wasp Swarm before choosing membership and titles.
-
-- Wasp Swarm (Arctic) (`pfs-season-3-bestiary:xShj7KlFATzm397y`)
-- Wasp Swarm (Heretical) (`pfs-season-3-bestiary:JZtLQye4QlfFjrYT`)
-- Wasp Swarm (PFS 3-13) (`pfs-season-3-bestiary:dCljcVK6RAc0Y8Z7`)
-
 ## Discovery and grouping gaps
 
 **Missing token names.** The [Spellskein](creatures/spellskein.toml) and
@@ -170,12 +186,3 @@ before assigning a tier to the unsuffixed Hesla.
 groups by party level and names the ability in each title. Each of the six
 abilities appears on a Dreg and a Prototype. Review whether to offer an
 ability grouping across both forms.
-
-**Nathatel’s undead stat blocks.** [Nathatel](creatures/nathatel.toml)
-covers all four encounter G tiers, including the unsuffixed 1–2 actor. The
-adventure also supplies two stat blocks for undead Nathatel in a later
-encounter. The unsuffixed undead actor has no token name. Review how the undead
-form relates to the living actor alongside other missing-token cases.
-
-- Undead Nathatel (`pfs-season-4-bestiary:C9gWLpxJr4QKxP64`)
-- Undead Nathatel (7-8) (`pfs-season-4-bestiary:nr6qCJkCLNAZh5ED`)

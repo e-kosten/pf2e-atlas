@@ -1,0 +1,57 @@
+name = "Underworld Dragon"
+source_note = "Draconic Codex supplies young, adult, ancient, and archdragon stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "lost-omens-bestiary:dr20tOnX7F7sIXF9"
+name = "Underworld Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:ked8eClr3mWdIZoJ"
+name = "Underworld Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:QbKEJtqThE5q9XCl"
+name = "Underworld Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:L4a9tb4s7FmwWi6J"
+name = "Underworld Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:jqcAeid4jcx9Lrjc"
+name = "Underworld Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:cdvuNbNQ1sPCjG9S"
+name = "Underworld Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:KNIERp5VGv97HBTN"
+name = "Underworld Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:aDOyh30fmXFrh2xN"
+name = "Underworld Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

@@ -1,0 +1,57 @@
+name = "Mocking Dragon"
+source_note = "Draconic Codex supplies young, adult, ancient, and archdragon stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "lost-omens-bestiary:rc2BbhcVloC7MG58"
+name = "Mocking Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:wXFiZs2AzMFSjuhQ"
+name = "Mocking Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:3sbe5lTQfIZkPquh"
+name = "Mocking Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:u8PpzOhWk02TnymJ"
+name = "Mocking Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:DSxF9af8K2xWvTbn"
+name = "Mocking Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:HpJhZGoGl9AnQMwY"
+name = "Mocking Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:wvSovDtrb9JSXlQp"
+name = "Mocking Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:9nlzGyizQI7E5fwg"
+name = "Mocking Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

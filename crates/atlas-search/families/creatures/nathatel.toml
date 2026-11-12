@@ -1,5 +1,5 @@
 name = "Nathatel"
-source_note = "Blessings of the Forest, encounter G (pp. 21–22), lists four party-tier stat blocks for Nathatel. Foundry’s unsuffixed level 2 block is the 1–2 version. The later encounter with the undead Nathatel has separate stat blocks."
+source_note = "Blessings of the Forest uses four living Nathatel stat blocks in encounter G (pp. 21–22). Foundry’s unsuffixed level 2 block is the 1–2 version. Cathedral Event 5 uses the undead stat blocks for party levels 5–6 and 7–8 (pp. 71, 85)."
 
 [[members]]
 key = "pfs-season-4-bestiary:oqHSst4QRsoFZMXk"
@@ -28,6 +28,22 @@ party_levels = [5, 6]
 [[members]]
 key = "pfs-season-4-bestiary:IbC54Tp90MApKMXn"
 name = "Nathatel (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-4-bestiary:C9gWLpxJr4QKxP64"
+name = "Undead Nathatel"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-4-bestiary:nr6qCJkCLNAZh5ED"
+name = "Undead Nathatel (7-8)"
 
 [[members.uses]]
 id = "party-7-8"

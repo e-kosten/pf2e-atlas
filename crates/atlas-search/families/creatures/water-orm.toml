@@ -1,0 +1,11 @@
+name = "Water Orm"
+source_note = "Bastion of Blasphemies links Voldrak to the Monster Core 2 Water Orm and describes how the Bastardhall curse changed this named lake monster."
+
+[[members]]
+key = "pathfinder-monster-core-2:ZdQfNuQQjytFzuyd"
+name = "Water Orm"
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:ZNSDataoZlnuv8eP"
+name = "Voldrak"
+named_base = "pathfinder-monster-core-2:ZdQfNuQQjytFzuyd"

@@ -1,0 +1,57 @@
+name = "Oath Dragon"
+source_note = "Draconic Codex supplies young, adult, ancient, and archdragon stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "lost-omens-bestiary:6K4chQTwgPmgCbP2"
+name = "Oath Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:JWf2vU4btXbxrHhI"
+name = "Oath Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:uEFJO70QbqWtSWBy"
+name = "Oath Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:2N2f6ENAUP8ep1oC"
+name = "Oath Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:Jj1jy7fA2Dl0MT3w"
+name = "Oath Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:UXx886cUGrj2UXix"
+name = "Oath Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:Qq49apE3HQlBbLPn"
+name = "Oath Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:ycIgpWAACBPtg1zV"
+name = "Oath Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

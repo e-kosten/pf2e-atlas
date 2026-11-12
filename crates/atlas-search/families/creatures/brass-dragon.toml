@@ -1,0 +1,46 @@
+name = "Brass Dragon"
+source_note = "Bestiary supplies young, adult, and ancient stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Age", alternatives_label = "Other ages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-bestiary:uA0cv4OT5mQnym0V"
+name = "Brass Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:fcE9PgnC82e9haL5"
+name = "Brass Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:JnOgG1xfWleFGNt9"
+name = "Brass Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:F99r7jcWX5YZB8xw"
+name = "Brass Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:bSjF2lCgchtp2ocS"
+name = "Brass Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:kbZ3t5HhHRJJ4AMn"
+name = "Brass Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }

@@ -1,0 +1,30 @@
+name = "Tooth Fairy"
+source_note = "The Dacilane Academy’s Show Must Go On identifies Plaguetooth as a named variant of the Monster Core tooth fairy. The Finale uses the standard Plaguetooth at levels 1–2 and the Mischievous block at levels 3–4 or at specified Challenge Point bands in the lower tier (pp. 13, 18, 23)."
+
+[[members]]
+key = "pathfinder-monster-core:q95mjOkL678a1Wnt"
+name = "Tooth Fairy"
+
+[[members]]
+key = "pfs-season-6-bestiary:VwytDjcbWViZhMxX"
+name = "Plaguetooth"
+named_base = "pathfinder-monster-core:q95mjOkL678a1Wnt"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+qualifier = "except at 10–11 or 14–15 Challenge Points"
+
+[[members]]
+key = "pfs-season-6-bestiary:M4NSaP7zb8ABBYA0"
+name = "Mischievous Plaguetooth"
+named_base = "pathfinder-monster-core:q95mjOkL678a1Wnt"
+
+[[members.uses]]
+id = "party-1-2-scaling"
+party_levels = [1, 2]
+qualifier = "10–11 or 14–15 Challenge Points"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

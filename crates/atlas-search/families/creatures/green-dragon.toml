@@ -1,0 +1,46 @@
+name = "Green Dragon"
+source_note = "Bestiary supplies young, adult, and ancient stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Age", alternatives_label = "Other ages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-bestiary:xZQIChzzIYbNIEoT"
+name = "Green Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:5XtCOknYJuEl4SfD"
+name = "Green Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:zXi6UhZ0mXWpKk4A"
+name = "Green Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:JKG3m8pFISF48Sfr"
+name = "Green Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:0FGz2eXm0SB04sJW"
+name = "Green Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:p2ECLKUzZ0GhFg22"
+name = "Green Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }

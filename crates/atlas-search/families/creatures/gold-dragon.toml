@@ -1,0 +1,46 @@
+name = "Gold Dragon"
+source_note = "Bestiary supplies young, adult, and ancient stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Age", alternatives_label = "Other ages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-bestiary:DolNTN9s2p79N8Cy"
+name = "Gold Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:9xdl2PpfMEfJWhSO"
+name = "Gold Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:aAiuQvMGPN9QXwKY"
+name = "Gold Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:NgCKGq28Qvt6ZOSr"
+name = "Gold Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:nWiibOE9wVSlTdkx"
+name = "Gold Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:VEnjCj4geJBzTgBJ"
+name = "Gold Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }

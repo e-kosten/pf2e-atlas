@@ -1,0 +1,19 @@
+name = "Wasp Swarm"
+source_note = "Monster Core has a Large wasp swarm. Guardian’s Covenant supplies three Medium blocks. The Arctic swarm has cold immunity and fire weakness. The Heretical swarm has the unholy trait and holy weakness."
+
+[[members]]
+key = "pathfinder-monster-core:h7je8nkscJQ2Ac8j"
+name = "Wasp Swarm"
+
+[[members]]
+key = "pfs-season-3-bestiary:dCljcVK6RAc0Y8Z7"
+name = "Wasp Swarm (PFS 3-13)"
+label = "Wasp Swarm (Medium)"
+
+[[members]]
+key = "pfs-season-3-bestiary:xShj7KlFATzm397y"
+name = "Wasp Swarm (Arctic)"
+
+[[members]]
+key = "pfs-season-3-bestiary:JZtLQye4QlfFjrYT"
+name = "Wasp Swarm (Heretical)"
