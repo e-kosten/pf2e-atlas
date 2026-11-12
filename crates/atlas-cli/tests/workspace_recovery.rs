@@ -103,8 +103,14 @@ fn major_minor_admission_and_conflicting_configuration_leave_no_partial_restore(
     let input = temp.path().join("archive.json");
     let workspace = initialize_workspace(&db).unwrap();
     let mut archive = fixture();
-    archive["version"] = "2.0".into();
-    write_archive(&input, &archive);
+    write_archive(
+        &input,
+        &serde_json::json!({
+            "format": "pf2e-atlas-workspace",
+            "version": "2.0",
+            "future_saved_state": {}
+        }),
+    );
     failure(
         workspace_command(&db, "restore", &input, &[]),
         "Unsupported workspace archive version 2.0",

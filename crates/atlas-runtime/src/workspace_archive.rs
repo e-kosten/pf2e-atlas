@@ -10,6 +10,7 @@ use atlas_index::{
 use atlas_local_state::workspace_recovery::{SavedWorkspace, ValidatedWorkspace, check_empty};
 use atlas_storage::ReadSession;
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 use std::{
     io::{Read, Write},
     path::PathBuf,
@@ -18,12 +19,20 @@ use std::{
 const FORMAT: &str = "pf2e-atlas-workspace";
 const VERSION: &str = "1.0";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct WorkspaceArchive {
     format: String,
     version: String,
     saved: SavedWorkspace,
     reference_config: Option<ReferenceConfig>,
+}
+
+#[derive(Deserialize)]
+struct ArchiveEnvelope {
+    format: String,
+    version: String,
+    saved: Option<Box<RawValue>>,
+    reference_config: Option<Box<RawValue>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -113,9 +122,7 @@ impl WorkspaceArchive {
     }
 
     pub fn read(input: impl Read) -> Result<ValidatedArchive, String> {
-        let archive: Self = serde_json::from_reader(input).map_err(|error| {
-            format!("Invalid workspace archive or unsupported saved value: {error}")
-        })?;
+        let archive: ArchiveEnvelope = serde_json::from_reader(input).map_err(archive_error)?;
         if archive.format != FORMAT {
             return Err(format!(
                 "Unsupported workspace archive format {}",
@@ -123,15 +130,30 @@ impl WorkspaceArchive {
             ));
         }
         validate_version(&archive.version)?;
-        let config = archive.reference_config.map(RequestedReferenceConfig::from);
+        let saved = archive
+            .saved
+            .ok_or("Workspace archive is missing saved state")?;
+        let saved: SavedWorkspace = serde_json::from_str(saved.get()).map_err(archive_error)?;
+        let config = archive
+            .reference_config
+            .map(|value| {
+                serde_json::from_str::<ReferenceConfig>(value.get())
+                    .map(RequestedReferenceConfig::from)
+            })
+            .transpose()
+            .map_err(archive_error)?;
         if let Some(config) = &config {
             validate_requested_reference_config(config).map_err(message)?;
         }
         Ok(ValidatedArchive {
-            saved: archive.saved.validate().map_err(message)?,
+            saved: saved.validate().map_err(message)?,
             config,
         })
     }
+}
+
+fn archive_error(error: serde_json::Error) -> String {
+    format!("Invalid workspace archive or unsupported saved value: {error}")
 }
 
 fn validate_version(version: &str) -> Result<(), String> {
