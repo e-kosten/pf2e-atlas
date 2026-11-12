@@ -3,7 +3,7 @@ mod collections;
 
 use crate::encounters::portability::workspace::{RecoveryEncounter, ValidatedEncounter};
 use crate::{LocalStateError, LocalStateResult};
-use atlas_storage::{ReadSession, WriteSession};
+use atlas_storage::WriteSession;
 use collections::{List, Party};
 use rusqlite::{Connection, OptionalExtension, Params, Row, params};
 use serde::{Deserialize, Serialize};
@@ -39,8 +39,7 @@ pub struct ValidatedWorkspace {
 
 impl SavedWorkspace {
     /// Capture every owner from an already admitted read snapshot.
-    pub fn capture(session: &ReadSession) -> LocalStateResult<Self> {
-        let db = session.connection();
+    pub fn capture(db: &Connection) -> LocalStateResult<Self> {
         let owners = rows(
             db,
             "SELECT id,principal_key,name FROM principals ORDER BY principal_key",

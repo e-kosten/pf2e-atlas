@@ -6,7 +6,7 @@ use std::{
 use atlas_app_model::{AppErrorCode, AppReadinessStatus};
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
 use atlas_desktop_protocol::{
-    BUNDLE_ID, VERSION, WorkspaceProbe, WorkspaceStatus, parse_record_link,
+    BUNDLE_ID, ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus, parse_record_link,
 };
 use atlas_runtime::{
     AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeErrorKind, Workspace,
@@ -47,6 +47,8 @@ pub(crate) struct ProbeArgs {
     embedding_cache_path: Option<PathBuf>,
     #[arg(long)]
     wait_for_service: bool,
+    #[arg(long, hide = true, conflicts_with = "wait_for_service")]
+    reference_status: bool,
 }
 
 pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
@@ -59,6 +61,38 @@ pub(crate) fn probe(args: ProbeArgs) -> Result<ExitCode, String> {
         ..Default::default()
     })
     .map_err(|error| error.to_string())?;
+    if args.reference_status {
+        let status = runtime.desktop_reference_status()?;
+        let readiness = runtime.search_profile_readiness(&status.published_profiles);
+        let models = atlas_embedding::SEARCH_PROFILES
+            .iter()
+            .map(|profile| {
+                let id = profile.profile_id();
+                let ready = readiness.iter().find(|ready| ready.id == id);
+                atlas_desktop_protocol::SearchModelStatus {
+                    id,
+                    label: profile.label.into(),
+                    installed: ready.is_some(),
+                    usable: ready.is_some_and(|ready| ready.usable),
+                }
+            })
+            .collect();
+        atlas_cli_support::write_json_data(ReferenceStatus {
+            version: VERSION,
+            workspace: status.workspace,
+            generation: status.generation,
+            revision: status.revision,
+            target: status.target.into(),
+            target_version: status.target_version.into(),
+            managed: status.managed,
+            offer: status.offer,
+            model_offer: status.model_offer,
+            can_change_models: status.can_change_models,
+            preferred: status.preferred,
+            models,
+        })?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let workspace = Workspace::existing(runtime.index_path())
         .map(|workspace| workspace.path().to_owned())
         .unwrap_or_else(|_| runtime.index_path().to_owned());

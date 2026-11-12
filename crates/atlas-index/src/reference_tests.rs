@@ -454,6 +454,30 @@ fn offline_projection_upgrade_recovers_authored_sense_qualifiers_and_armor_group
         .unwrap();
     let revision = read.reference_revision().unwrap();
     drop(read);
+    let owner = workspace.update_owner().unwrap();
+    let checks = std::cell::Cell::new(0);
+    let interrupted =
+        refresh_reference_projections(&workspace, &owner, TEST_WORKSPACE_SCHEMA_VERSION, || {
+            checks.set(checks.get() + 1);
+            if checks.get() == 1 {
+                Ok(())
+            } else {
+                Err(IndexError::Operation(
+                    "workspace moved before commit".into(),
+                ))
+            }
+        });
+    assert!(
+        matches!(interrupted, Err(IndexError::Operation(message)) if message == "workspace moved before commit")
+    );
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(
+        classify_reference_upgrade(read.connection()).unwrap(),
+        ReferenceUpgrade::QueryProjections,
+    );
+    drop(read);
+    drop(owner);
     assert!(ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(read.reference_revision().unwrap(), revision + 1);

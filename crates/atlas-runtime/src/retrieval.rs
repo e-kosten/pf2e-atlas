@@ -8,18 +8,17 @@ pub struct SearchProfileReadiness {
     pub usable: bool,
 }
 impl AtlasRuntime {
-    pub fn resolve_default_search_profile(
+    pub(crate) fn resolve_default_search_profile(
         &self,
-        context: &atlas_index::SourceArtifactBuildContext,
+        index: &atlas_index::SqliteIndexReader,
     ) -> Result<atlas_domain::SearchProfileId, SearchError> {
-        if let Some(id) = &self.default_profile {
-            context.search_profile(id)?;
-            return Ok(id.clone());
-        }
-        Ok(match context.search_profiles.as_slice() {
-            [profile] => profile.profile_id.clone(),
-            _ => atlas_domain::SearchProfileId::new(atlas_embedding::DEFAULT_SEARCH_PROFILE),
-        })
+        let preference =
+            atlas_index::preferred_search_profile(index.workspace_session().connection())?;
+        Ok(self
+            .default_profile
+            .clone()
+            .or_else(|| preference.filter(|id| index.context().search_profile(id).is_ok()))
+            .unwrap_or_else(|| automatic_search_profile(index.context())))
     }
     /// Check stored contracts and verified assets without constructing native sessions.
     pub fn search_profile_readiness(
@@ -52,15 +51,9 @@ impl AtlasRuntime {
     }
     /// Warm the active profile without retaining a database snapshot during model load.
     pub fn warm_default_search_profile(&self) -> Result<(), SearchError> {
-        let profile = {
-            let index = self.open_index()?;
-            index
-                .require_vectors()
-                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
-            self.resolve_default_search_profile(index.context())?
-        };
+        let profile = self.query_profile(None)?;
         self.inference
-            .preload(&profile)
+            .preload(&profile.profile_id)
             .map_err(SearchError::query_embedding)?;
         Ok(())
     }
@@ -72,16 +65,35 @@ impl AtlasRuntime {
         requested: Option<&atlas_domain::SearchProfileId>,
         text: &str,
     ) -> Result<atlas_search::PreparedQueryEmbedding, SearchError> {
-        let profile = {
-            let index = self.open_index()?;
-            index
-                .require_vectors()
-                .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
-            let profile = requested
-                .cloned()
-                .unwrap_or(self.resolve_default_search_profile(index.context())?);
-            index.context().search_profile(&profile)?.clone()
-        };
+        let profile = self.query_profile(requested)?;
         atlas_search::PreparedQueryEmbedding::prepare(&self.inference, profile, text)
+    }
+
+    fn query_profile(
+        &self,
+        requested: Option<&atlas_domain::SearchProfileId>,
+    ) -> Result<atlas_index::SourceSearchProfileIdentity, SearchError> {
+        let index = self.open_index()?;
+        index
+            .require_vectors()
+            .map_err(|error| SearchError::vector_readiness_required(error.to_string()))?;
+        let id = match requested {
+            Some(id) => id.clone(),
+            None => self.resolve_default_search_profile(&index)?,
+        };
+        index
+            .context()
+            .search_profile(&id)
+            .cloned()
+            .map_err(|error| SearchError::vector_readiness_required(error.to_string()))
+    }
+}
+
+pub(crate) fn automatic_search_profile(
+    context: &atlas_index::SourceArtifactBuildContext,
+) -> atlas_domain::SearchProfileId {
+    match context.search_profiles.as_slice() {
+        [profile] => profile.profile_id.clone(),
+        _ => atlas_domain::SearchProfileId::new(atlas_embedding::DEFAULT_SEARCH_PROFILE),
     }
 }

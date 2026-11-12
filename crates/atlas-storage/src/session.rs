@@ -385,7 +385,11 @@ impl UpdateOwner {
         use std::sync::{Arc, Mutex, atomic::Ordering};
 
         let creating_vector = Arc::new(Mutex::new(None::<String>));
-        let _admission = acquire(&self.workspace.path, ".access.lock", shared.is_none())?;
+        let exclusive = shared.is_none();
+        let admission = acquire(&self.workspace.path, ".access.lock", exclusive)?;
+        if exclusive {
+            tracing::info!(target: "atlas_progress", phase = "exclusive_publication", "Finalizing search index");
+        }
         let mut connection = self.workspace.connect(true, false)?;
         if let Some(shared) = &shared {
             let denied = Arc::clone(&shared.denied);
@@ -475,6 +479,11 @@ impl UpdateOwner {
             .map_err(crate::StorageError::from)?;
         tracing::info!(target: "atlas_build_diagnostic", stage = "publication_before_commit", "Committing reference update");
         transaction.commit().map_err(crate::StorageError::from)?;
+        drop(connection);
+        drop(admission);
+        if exclusive {
+            tracing::info!(target: "atlas_progress", phase = "exclusive_publication_complete", "Search index saved");
+        }
         tracing::info!(target: "atlas_build_diagnostic", stage = "publication_after_commit", "Committed reference update");
         Ok(value)
     }

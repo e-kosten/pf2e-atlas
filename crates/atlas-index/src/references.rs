@@ -810,7 +810,7 @@ pub(crate) fn write_entries(
 pub(crate) fn audit_catalog(
     c: &Connection,
     context: &crate::SourceArtifactBuildContext,
-) -> Result<(crate::OwnedAbilityCatalog, crate::traits::TraitEvidence), IndexError> {
+) -> Result<crate::OwnedAbilityCatalog, IndexError> {
     let preparation = context.reference_preparation.as_ref();
     if let Some(preparation) = preparation
         && (preparation.recipe.is_empty() || !crate::codec::checked_hash(&preparation.input_hash))
@@ -821,7 +821,6 @@ pub(crate) fn audit_catalog(
     }
     let mut keys = Vec::new();
     let mut catalog = crate::OwnedAbilityCatalog::default();
-    let mut traits = crate::traits::TraitEvidence::default();
     let mut statement = c.prepare(
         "SELECT key,definition_json,definition_hash FROM reference_entries ORDER BY key",
     )?;
@@ -833,7 +832,15 @@ pub(crate) fn audit_catalog(
         let entry = decode_entry(&key, &json, &hash)?;
         validate_entry(c, &entry, preparation)?;
         if entry.key.namespace() == DefinitionNamespace::Trait {
-            traits.add_published_definition(&entry, context)?;
+            let definition = entry.trait_view()?;
+            if definition.indexing_locale != context.indexing_locale
+                || definition.source_revision != context.source_revision
+            {
+                return Err(IndexError::Invalid(
+                    "trait publication provenance mismatch".into(),
+                ));
+            }
+            crate::traits::validate_definition_targets(c, &definition)?;
         }
         keys.push(key);
         catalog.add_entry(&entry);
@@ -843,7 +850,7 @@ pub(crate) fn audit_catalog(
     for row in notices.query_map([], read_notice_row)? {
         validate_notice(&row?)?;
     }
-    Ok((catalog, traits))
+    Ok(catalog)
 }
 
 fn read_notice_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ReferenceNotice> {

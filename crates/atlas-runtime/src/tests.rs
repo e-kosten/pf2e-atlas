@@ -814,15 +814,21 @@ fn all_required_model_assets_are_verified_without_inference_or_download() {
     let paths = paths(dir.path());
     source(&paths);
     assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
-    let report = crate::setup::ensure_setup(
-        &paths,
-        RuntimeSetupOptions {
-            target: SetupTarget::Full,
-            check: true,
-            offline: true,
-            ..Default::default()
-        },
-    );
+    let check = RuntimeSetupOptions {
+        target: SetupTarget::Full,
+        check: true,
+        offline: true,
+        ..Default::default()
+    };
+    let keyword = crate::setup::ensure_setup(&paths, check.clone());
+    assert!(keyword.ready);
+    assert!(keyword.search_profiles.is_empty());
+
+    let explicit = RuntimeSetupOptions {
+        search_profiles: vec![atlas_domain::SearchProfileId::new("bge-base")],
+        ..check
+    };
+    let report = crate::setup::ensure_setup(&paths, explicit.clone());
     assert_eq!(report.search_profiles[0].missing_files.len(), 5);
     assert!(!report.ready);
     let config = EmbeddingRuntimeConfig::new(
@@ -833,15 +839,7 @@ fn all_required_model_assets_are_verified_without_inference_or_download() {
         fs::create_dir_all(asset.local_path.parent().unwrap()).unwrap();
         fs::write(asset.local_path, b"corrupted cached bytes").unwrap();
     }
-    let report = crate::setup::ensure_setup(
-        &paths,
-        RuntimeSetupOptions {
-            target: SetupTarget::Full,
-            check: true,
-            offline: true,
-            ..Default::default()
-        },
-    );
+    let report = crate::setup::ensure_setup(&paths, explicit);
     assert!(report.search_profiles[0].missing_files.is_empty());
     assert!(
         !report.search_profiles[0].ready,
@@ -887,6 +885,24 @@ fn stored_vector_runtime_needs_no_query_model_but_full_mode_does() {
             .expect("missing model assets must prevent query inference")
             .kind(),
         atlas_search::SearchErrorKind::EmbeddingUnavailable
+    );
+    let stale_override = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(atlas_domain::SearchProfileId::new("embeddinggemma")),
+        overrides: AtlasPathOverrides {
+            index_path: Some(runtime.index_path().into()),
+            embedding_cache_root: Some(runtime.embedding_cache_root().into()),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(stale_override.read_workspace(None).is_ok());
+    assert_eq!(
+        stale_override
+            .warm_default_search_profile()
+            .unwrap_err()
+            .kind(),
+        atlas_search::SearchErrorKind::VectorReadinessRequired
     );
     let reader = runtime.open_index().unwrap();
     let metadata = runtime.search_profile_readiness(&reader.context().search_profiles);
@@ -970,36 +986,61 @@ fn unsupported_runtime_default_fails_without_opening_assets_or_artifacts() {
 }
 
 #[test]
-fn omitted_default_resolves_stored_manifest_and_explicit_missing_still_errors() {
-    let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions::default()).unwrap();
+fn search_default_uses_workspace_preference_and_explicit_override_on_the_admitted_snapshot() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
     let base = atlas_domain::SearchProfileId::new("bge-base");
     let gemma = atlas_domain::SearchProfileId::new("embeddinggemma");
-    let mut input = atlas_search::test_support::input_with_both_profiles(vec![]);
-    assert_eq!(
-        runtime
-            .resolve_default_search_profile(&input.context)
-            .unwrap(),
-        base
-    );
-    input
-        .context
-        .search_profiles
-        .retain(|p| p.profile_id == gemma);
-    assert_eq!(
-        runtime
-            .resolve_default_search_profile(&input.context)
-            .unwrap(),
-        gemma
-    );
-    let explicit = AtlasRuntime::resolve(AtlasRuntimeOptions {
-        default_search_profile: Some(base),
+    let options = AtlasRuntimeOptions {
+        overrides: AtlasPathOverrides {
+            index_path: Some(paths.index_path.clone()),
+            ..Default::default()
+        },
         ..Default::default()
+    };
+    let runtime = AtlasRuntime::resolve(options.clone()).unwrap();
+    let input = atlas_search::test_support::input_with_both_profiles(vec![
+        atlas_search::test_support::record(
+            "items",
+            "Item",
+            serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Wand","type":"equipment"}),
+        ),
+    ]);
+    let workspace = crate::initialize_workspace(&paths.index_path).unwrap();
+    atlas_index::test_support::publish_input_in(
+        &workspace,
+        crate::WORKSPACE_SCHEMA_VERSION,
+        &input,
+    )
+    .unwrap();
+
+    let first = runtime.read_workspace(None).unwrap();
+    assert_eq!(first.retrieval().default_search_profile(), &base);
+    let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+    let revision = write.reference_revision().unwrap();
+    atlas_index::set_preferred_search_profile(write.connection(), Some(&gemma)).unwrap();
+    write.commit().unwrap();
+    let next = runtime.read_workspace(None).unwrap();
+    assert_eq!(first.retrieval().default_search_profile(), &base);
+    assert_eq!(next.retrieval().default_search_profile(), &gemma);
+    assert_eq!(
+        next.retrieval().artifact_instance().reference_revision(),
+        revision
+    );
+    drop((first, next));
+
+    let explicit = AtlasRuntime::resolve(AtlasRuntimeOptions {
+        default_search_profile: Some(base.clone()),
+        ..options
     })
     .unwrap();
-    assert!(
+    assert_eq!(
         explicit
-            .resolve_default_search_profile(&input.context)
-            .is_err()
+            .read_workspace(None)
+            .unwrap()
+            .retrieval()
+            .default_search_profile(),
+        &base
     );
 }
 

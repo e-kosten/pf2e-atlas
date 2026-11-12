@@ -1,4 +1,5 @@
 //! Composition of domain-owned schemas into one ordered workspace history.
+use atlas_index::migrate_trait_membership_digests;
 #[cfg(test)]
 use atlas_storage::{Migration, MigrationHistory};
 use atlas_storage::{StorageResult, Workspace};
@@ -15,7 +16,11 @@ pub(crate) use release_history::RELEASE_HISTORY;
 pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> {
     register_extensions()?;
     let workspace = Workspace::at(path)?;
-    workspace.migrate_history(RELEASE_HISTORY, |_| Ok(()))?;
+    workspace.migrate_history_with_capture(
+        RELEASE_HISTORY,
+        |snapshot| crate::workspace_archive::capture_upgrade_archive(&workspace, snapshot),
+        |_| Ok(()),
+    )?;
     Ok(workspace)
 }
 
@@ -78,14 +83,6 @@ mod saved_state_integrity_tests;
 #[cfg(test)]
 #[path = "release_migration_tests.rs"]
 mod release_migration_tests;
-
-#[cfg(test)]
-fn historical_backup(workspace: &Workspace) -> atlas_storage::ReadSession {
-    Workspace::existing(&workspace.upgrade_backup_path())
-        .unwrap()
-        .read(41)
-        .unwrap()
-}
 
 #[cfg(test)]
 mod tests {

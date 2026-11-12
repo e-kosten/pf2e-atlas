@@ -6,8 +6,6 @@ mod error;
 mod parties;
 pub use parties::{PartiesRead, PartiesWrite, Party, PartyMember, PartyMemberInput};
 mod references;
-mod release;
-pub use release::upgrade_release_owners;
 mod saved_lists;
 mod slug;
 mod store;

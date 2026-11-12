@@ -18,7 +18,7 @@ Choose **Set up Atlas** when the workspace is empty. The app downloads the
 pinned reference data and opens the workspace in the same window as soon as
 the keyword index is ready. You can browse and search while Atlas prepares
 semantic search. Saves are paused across Atlas sessions during setup and resume
-when setup ends. Open **Semantic setup in progress** to see progress or cancel.
+when setup ends. Open **Setup and Updates** in the toolbar to see progress or cancel.
 If you cancel after keyword search is ready, use **Resume semantic setup** to
 continue later. If precomputed embeddings are unavailable, choose
 **Retry download** or **Build embeddings locally**. The local build can take an
@@ -27,11 +27,16 @@ it by default. Use **Rerun this search** to apply it to the current keyword resu
 If the view fails to open, choose **Retry opening Atlas** to
 use the prepared workspace. If Atlas asks you to upgrade
 a workspace, close any other Atlas sessions using that workspace and choose
-**Upgrade workspace**. Use **PF2e Atlas → Setup and Updates** when you want to
-refresh reference data or prepare semantic search for a browse-only workspace.
-After a refresh, close Setup and Updates to return to your open Atlas views.
-If the reference data changed while Search was open, use **Refresh results**
-when prompted to read from the new version.
+**Upgrade workspace**.
+
+The toolbar and **PF2e Atlas → Setup and Updates** open the same drawer.
+Each Atlas build pins a Foundry PF2e revision. After installing a build with
+a different pin, confirm **Apply bundled reference data** to prepare that
+build's reference data. Use **Check and repair reference data** to check the
+current pin and prepare any missing assets. Atlas keeps your selected record
+and drafts open. If the reference data changed while Search was open, use
+**Refresh results** when prompted to read from the new version. For a custom
+source, use the Atlas CLI to maintain its reference data.
 
 Use **File → New Window** to open another view. All windows share the local
 workspace and service with a compatible `atlas web` session. Closing a
@@ -43,7 +48,7 @@ editor to get a linked record name, or into a plain-text field to get the
 `pf2e-atlas://v1/record/…` URL. A link continues to open its exact record even
 if the local service moves to a different port.
 
-For shell or agent use, **Setup and Updates → Terminal and agent access** can
+For shell or agent use, **PF2e Atlas → Terminal and Agent Access** can
 add the bundled command to a bin folder you choose. If that folder is already
 on your shell's PATH, check that `command -v atlas` resolves to the path shown
 by the app. The command continues to work when the app is closed. Use
@@ -75,4 +80,6 @@ one local fixture record. It verifies setup opens Search in the same native
 window. It also forces a failed render and a failed readiness check to verify
 that retry opens the requested record in that window. Each case runs offline and
 pauses after the keyword commit, then cancels through the product panel and
-verifies that editing is available again. Embedding generation is skipped.
+verifies that editing is available again. A separate managed-source fixture
+checks toolbar and menu access, shared cancellation, a no-op check and a
+publication observed in two windows. Embedding generation is skipped.

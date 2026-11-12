@@ -306,9 +306,11 @@ export function SearchSettings({
       draft.similarity.candidateParts === appliedPreferences.candidateParts &&
       JSON.stringify(draft.parts) === JSON.stringify(appliedParts) &&
       draft.generation === search.similarityGeneration;
+    const changedModel =
+      keywordSettings || draft.model === profile.id ? null : draft.model;
     const nextPreferences = {
       ...profile.preferences,
-      model: draft.model ?? profile.preferences.model,
+      model: changedModel ?? profile.preferences.model,
       searchContent: draft.searchContent,
       sourceSectionsByFamily:
         inventory.data &&
@@ -327,9 +329,10 @@ export function SearchSettings({
           ? {}
           : { ranking: draft.ranking }),
     };
-    const saved = keywordSettings
-      ? profile.applyPreferences(nextPreferences, null)
-      : profile.applyPreferences(nextPreferences);
+    const saved =
+      changedModel === null
+        ? profile.applyPreferences(nextPreferences)
+        : profile.applyPreferences(nextPreferences, changedModel);
     if (!presentationOnly)
       onApply(
         {

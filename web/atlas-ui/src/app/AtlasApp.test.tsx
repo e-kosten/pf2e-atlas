@@ -332,6 +332,54 @@ describe("AtlasApp routing", () => {
     expect(location.pathname).toBe("/search");
   });
 
+  it("keeps the selected record and draft when reference data updates through the drawer", async () => {
+    const host = window as Window & {
+      __ATLAS_DESKTOP_SETUP__?: object;
+      __TAURI__?: object;
+    };
+    const invoke = vi.fn().mockResolvedValue(undefined);
+    host.__TAURI__ = { core: { invoke } };
+    host.__ATLAS_DESKTOP_SETUP__ = {
+      token: "desktop",
+      setup: { job: 0, sequence: 1, status: "idle" },
+      reference: {
+        revision: "current",
+        target: "current",
+        targetVersion: "8.6.1",
+        managed: true,
+        available: true,
+      },
+    };
+    try {
+      history.replaceState(null, "", "/search/records/spell:heal?q=heal");
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+      const input = screen.getByRole("searchbox", { name: "Search records" });
+      fireEvent.change(input, { target: { value: "Unsubmitted draft" } });
+      fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+      const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+      const repair = await within(drawer).findByRole("button", {
+        name: "Check and repair reference data",
+      });
+      await waitFor(() => expect(repair).toBeEnabled());
+      fireEvent.click(repair);
+      expect(invoke).toHaveBeenLastCalledWith(
+        "desktop_setup_action",
+        expect.objectContaining({ action: "check_reference" }),
+      );
+      fireEvent(window, new CustomEvent("atlas-reference-updated"));
+      fireEvent.click(within(drawer).getByRole("button", { name: "Close" }));
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+      expect(location.pathname).toBe("/search/records/spell:heal");
+      expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+        "Unsubmitted draft",
+      );
+    } finally {
+      delete host.__ATLAS_DESKTOP_SETUP__;
+      delete host.__TAURI__;
+    }
+  });
+
   it.each(["rerun", "submit"] as const)(
     "keeps keyword results when semantic search becomes ready until %s",
     async (action) => {
@@ -885,11 +933,12 @@ describe("AtlasApp routing", () => {
     expect(params.get("search_profile")).toBeNull();
   });
 
-  it("drops a generated model parameter when a refreshed collection has no vectors", async () => {
+  it("keeps a removed model result until the user submits another search", async () => {
     history.replaceState(null, "", "/search?q=heal");
     apiMocks.searchPage.mockImplementation(
-      async ({ criteria }: SearchResultsRequest) => ({
-        ...searchResultsPage(),
+      async ({ criteria, expected_artifact_generation }: SearchResultsRequest) => ({
+        ...searchResultsPage(["spell:heal"]),
+        artifact_generation: expected_artifact_generation ?? "generation-a",
         mode: criteria,
       }),
     );
@@ -899,12 +948,26 @@ describe("AtlasApp routing", () => {
         "bge-base",
       ),
     );
+    const row = await screen.findByText("heal", { exact: true });
+    expect(row).toBeVisible();
     apiMocks.getReadiness.mockResolvedValue({
       ...readinessFixture(),
       search_profiles: [],
+      artifact_generation: "generation-b",
     });
     act(() => window.dispatchEvent(new Event("atlas-reference-updated")));
 
+    expect(
+      await screen.findByText(
+        "This search link needs a semantic index. You can continue with keyword search.",
+      ),
+    ).toBeVisible();
+    expect(new URLSearchParams(window.location.search).get("search_profile")).toBe(
+      "bge-base",
+    );
+    expect(row).toBeVisible();
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
     expect(await screen.findByText("Keyword search", { exact: true })).toBeVisible();
     await waitFor(() => {
       expect(new URLSearchParams(window.location.search).has("search_profile")).toBe(
@@ -913,6 +976,7 @@ describe("AtlasApp routing", () => {
       expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
         expect.objectContaining({
           search_profile: undefined,
+          expected_artifact_generation: "generation-b",
           criteria: expect.objectContaining({ query: "heal", mode: "lexical" }),
         }),
         expect.any(AbortSignal),

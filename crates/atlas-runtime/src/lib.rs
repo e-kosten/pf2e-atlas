@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod desktop_reference;
 mod embedding_seeds;
 mod error;
 mod operations;
@@ -25,6 +26,9 @@ mod workspace;
 mod workspace_archive;
 pub use workspace_archive::{RestorePreflight, ValidatedArchive, WorkspaceArchive};
 
+pub use desktop_reference::{
+    DesktopModelSelection, DesktopReferenceOutcome, DesktopReferenceStatus, DesktopRefreshError,
+};
 pub use error::{RuntimeError, RuntimeErrorKind, RuntimePathTarget, RuntimePlatform};
 pub use paths::{AtlasPathMode, AtlasPathOverrides, ResolvedAtlasPaths, ResolvedPathMode};
 pub use retrieval::SearchProfileReadiness;

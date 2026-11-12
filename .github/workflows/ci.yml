@@ -96,7 +96,8 @@ jobs:
       matrix:
         os: ${{ fromJSON(needs.changes.outputs.embedding-runners) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # The Apple Silicon runner needs extra time for the cold model sessions in the release fixture.
+    timeout-minutes: ${{ matrix.os == 'macos-26' && 60 || 45 }}
     steps:
       - uses: actions/checkout@v7
         with:

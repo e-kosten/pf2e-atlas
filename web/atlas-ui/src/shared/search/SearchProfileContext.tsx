@@ -13,6 +13,10 @@ import {
 } from "./searchPreferences";
 export const SEARCH_PROFILE_PREFERENCE_KEY = LEGACY_SEARCH_PROFILE_KEY;
 export const SEARCH_PROFILE_PARAM = "search_profile";
+export type WorkspaceSearchDefault = {
+  id: SearchProfileId | null;
+  generation?: string;
+};
 export type SearchProfileSelection = SearchAvailability & {
   pendingUrlProfile: string | null;
   profiles: AppReadinessView["search_profiles"];
@@ -23,6 +27,8 @@ export type SearchProfileSelection = SearchAvailability & {
   useKeywordSearch?: () => void;
   automaticKeyword?: boolean;
   semanticDefault?: SearchProfileId;
+  resolveWorkspaceDefault?: () => Promise<WorkspaceSearchDefault | undefined>;
+  adoptWorkspaceDefault?: (id: SearchProfileId | null) => void;
   promoteKeyword?: (id: SearchProfileId) => void;
   select: (id: SearchProfileId) => void;
   defaultId: SearchProfileId | null;
@@ -75,6 +81,7 @@ function defaultChoice(readiness: AppReadinessView): ProfileChoice {
 /** AtlasApp owns this tab's choice; storage is consulted only on initial launch. */
 export function useSearchProfileSelection(
   readiness: AppReadinessView | undefined,
+  refreshReadiness?: () => Promise<AppReadinessView>,
 ): SearchProfileSelection {
   const router = useRouter();
   const [preferences, setPreferences] = useState(readSearchPreferences);
@@ -93,12 +100,9 @@ export function useSearchProfileSelection(
   const metadataReady = readiness?.status === "ready";
   // A preference is only a launch default. Explicit links never silently fall back.
   const resolved =
-    metadataReady &&
-    (choice === null ||
-      choice.source === "preference" ||
-      (choice.source === "default" && stored.length === 0))
+    metadataReady && (choice === null || choice.source === "preference")
       ? choice && preferred?.usable
-        ? { id: choice.id, source: "default" as const }
+        ? { id: choice.id, source: "selection" as const }
         : defaultChoice(readiness)
       : choice;
   if (resolved !== choice) setChoice(resolved);
@@ -152,11 +156,38 @@ export function useSearchProfileSelection(
       state: true,
     });
   }
+  const followsWorkspace =
+    resolved?.source === "default" || resolved?.source === "keyword";
+  async function resolveWorkspaceDefault() {
+    let deadline: ReturnType<typeof window.setTimeout> | undefined;
+    try {
+      const latest = await Promise.race([
+        refreshReadiness?.(),
+        new Promise<undefined>((resolve) => {
+          deadline = window.setTimeout(resolve, 1500);
+        }),
+      ]);
+      if (latest?.status === "ready")
+        return {
+          id: defaultChoice(latest).id,
+          generation: latest.artifact_generation ?? undefined,
+        };
+    } catch {
+      // Use the current choice if readiness cannot be refreshed.
+    } finally {
+      window.clearTimeout(deadline);
+    }
+    return undefined;
+  }
   return {
     id,
     keywordSearch,
     automaticKeyword: resolved?.source === "keyword",
     semanticDefault,
+    resolveWorkspaceDefault:
+      followsWorkspace && refreshReadiness ? resolveWorkspaceDefault : undefined,
+    adoptWorkspaceDefault: (id) =>
+      setChoice(id === null ? KEYWORD_CHOICE : { id, source: "default" }),
     promoteKeyword: (id) => setChoice({ id, source: "default" }),
     // Preserve explicit link intent while inference still waits for metadata.
     pendingUrlProfile: !readiness && choice?.source === "url" ? choice.id : null,
@@ -168,9 +199,9 @@ export function useSearchProfileSelection(
     canResetLink,
     defaultId: readiness ? defaultChoice(readiness).id : null,
     preferences,
-    applyPreferences: (next, selectedModel = next.model) => {
+    applyPreferences: (next, selectedModel) => {
       setPreferences(next);
-      if (selectedModel !== null) setChoice({ id: selectedModel, source: "selection" });
+      if (selectedModel != null) setChoice({ id: selectedModel, source: "selection" });
       return writeSearchPreferences(next);
     },
     resetLink: () => {

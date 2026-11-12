@@ -485,9 +485,9 @@ Formatting checks read files in the working tree; whitespace checks read the sta
 ## Database changes
 
 The [artifact contract](../architecture/artifact-contract.md) links to the domain
-DDL for the current release checkpoint. Runtime composes the ledger and the
-schema 41 bridge. Storage executes upgrades with checksums, backup and atomic
-validation. Append migrations above the released checkpoint and keep tests for
+DDL for the current release checkpoint. Runtime composes the ledger and
+captures a saved-state archive under storage’s exclusive migration admission.
+Storage executes the SQL and backfills in one validated transaction. Append migrations above the released checkpoint and keep tests for
 failed-upgrade rollback and saved-state preservation. Query-only changes can use
 the supported DTO-based projection backfill. Physical schema changes alone do
 not require source admission or inference.

@@ -1,473 +1,307 @@
 use super::*;
 use crate::test_support::{occurrence_vector_bits, sql_rows};
+use crate::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, WorkspaceArchive};
 use flate2::read::GzDecoder;
-use sha2::{Digest, Sha256};
 use std::io::Read;
 
 const LEDGER: &str = "SELECT version,name,checksum FROM schema_migrations ORDER BY version";
+const BASELINE_CHECKSUM: &str = "5e0abae6ea6364eeb0408bab544fdafb2f1e25ecc6d341908a6cedb69928009e";
+const TRAITS: &str = "SELECT * FROM trait_members ORDER BY value,record_key,owners_json";
+const PROOFS: &str = "SELECT record_id,recipe,json_remove(digests_json,'$.trait_associations') FROM reference_component_digests ORDER BY record_id";
 
-fn predecessor(path: &Path) -> Workspace {
+fn load_fixture(path: &Path, bytes: &[u8]) -> Workspace {
     register_extensions().unwrap();
-    let mut bytes = Vec::new();
-    GzDecoder::new(&include_bytes!("../tests/fixtures/schema-41.sqlite.gz")[..])
-        .read_to_end(&mut bytes)
-        .unwrap();
-    assert_eq!(
-        format!("{:x}", Sha256::digest(&bytes)),
-        "84adbe9e2c8c46f916b7a5f05945708d992c1d697d10e2c9aa66df38d9a918be"
+    let mut data = Vec::new();
+    GzDecoder::new(bytes).read_to_end(&mut data).unwrap();
+    std::fs::write(path, data).unwrap();
+    Workspace::existing(path).unwrap()
+}
+
+fn schema_42(path: &Path) -> Workspace {
+    let workspace = load_fixture(
+        path,
+        include_bytes!("../tests/fixtures/schema-42.sqlite.gz"),
     );
-    std::fs::write(path, bytes).unwrap();
-    let workspace = Workspace::existing(path).unwrap();
     assert_eq!(
         workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
-        41
+        42
     );
     workspace
 }
 
-#[test]
-fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation() {
-    let directory = tempfile::tempdir().unwrap();
-    let workspace = predecessor(&directory.path().join("old.sqlite"));
-    let input = atlas_search::test_support::input_with_both_profiles(vec![
-        atlas_search::test_support::record(
-            "actors",
-            "Actor",
-            serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Goblin","type":"npc"}),
-        ),
-    ]);
-    {
-        let owner = workspace.update_owner().unwrap();
-        let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
-        let mut publication =
-            atlas_index::test_support::prepare_publication_in(&owner, 41, scratch.path(), &input)
-                .unwrap();
-        for model in &input.context.search_profiles {
-            publication.finish_verified_native_profile(model).unwrap();
-        }
-        publication.publish().unwrap();
-    }
-    let write = workspace.write(41).unwrap();
-    write
-        .connection()
-        .execute_batch(
-            r#"UPDATE principals SET id=7 WHERE principal_key='local';
-         INSERT INTO principals VALUES(2,'other','Other');
-         INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at)
-         VALUES(17,2,'list','same','Retained list','before','before');
-         INSERT INTO saved_list_tags(list_id,tag,created_at) VALUES(17,'retained','before');
-         INSERT INTO saved_list_items(list_id,record_key,position,record_title_snapshot,added_at,updated_at)
-         SELECT 17,key,0,last_known_name,'before','before' FROM record_identity;
-         INSERT INTO parties(party_key,owner_id,name) VALUES('party',2,'Retained party');
-         INSERT INTO party_members(member_key,party_key,position,name,level)
-         VALUES('member','party',0,'Retained member',2);
-         INSERT INTO encounters(id,owner_id,encounter_key,slug,name,status,created_at,updated_at)
-         VALUES(28,7,'encounter','same','Retained encounter','draft','before','before');
-         INSERT INTO encounter_participants(
-             id,encounter_id,participant_key,participant_kind,position,display_name,
-             initiative_order,created_at,updated_at)
-         VALUES(39,28,'participant','pc',1,'Retained participant',1,'before','before');
-         INSERT INTO encounter_manual_trackers(participant_key,tracker_key,payload_json,position)
-         VALUES('participant','tracker','{"version":1,"payload":{"tracker_key":"tracker","name":"Retained tracker","duration":{"amount":1,"unit":"rounds","timing":{"participant_key":"participant","event":"start"}},"progress":{"unit":"rounds","remaining":1}}}',1);
-         INSERT INTO encounter_participant_conditions(id,participant_id,name,created_at,updated_at)
-         VALUES(4096,39,'Deleted before upgrade','before','before');
-         DELETE FROM encounter_participant_conditions WHERE id=4096;
-         INSERT INTO encounter_command_receipts(encounter_id,family,request_id,intent_json,receipt_json)
-         VALUES(28,'event','request','{}','{"version":1,"payload":{"encounter_key":"encounter","request_id":"request","added_condition_ids":[],"outcomes":[],"pending":[]}}');
-         INSERT INTO encounter_boundary_claims(encounter_id,participant_key,round_number,kind,scope_key,request_id)
-         VALUES(28,'participant',1,'turn_end','retained','request');"#,
-        )
-        .unwrap();
-    let c = write.connection();
-    let pending_vector = input.semantic_units[0]
-        .vector
-        .iter()
-        .flat_map(|value| value.to_le_bytes())
-        .collect::<Vec<_>>();
-    assert_eq!(
-        c.execute(
-            "INSERT INTO embedding_inputs(model_id,input_hash,token_count)
-             SELECT model_id,?1,1 FROM search_profiles WHERE profile_id=?2",
-            rusqlite::params![
-                &Sha256::digest(b"unpublished input")[..],
-                input.semantic_units[0].profile_id.as_str()
-            ],
-        )
-        .unwrap(),
-        1
-    );
-    c.execute(
-        "INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,1)",
-        rusqlite::params![c.last_insert_rowid(), &pending_vector, &Sha256::digest(&pending_vector)[..]],
-    )
-    .unwrap();
-    assert_eq!(
-        sql_rows(
-            c,
-            "SELECT model_id FROM embedding_models WHERE length(published_token_count_digest)=33"
-        )
-        .len(),
-        2
-    );
-    let facts = [
-        "SELECT * FROM workspace",
-        "SELECT * FROM requested_reference_config",
-        "SELECT * FROM principals ORDER BY id",
-        "SELECT * FROM saved_lists",
-        "SELECT * FROM saved_list_items",
-        "SELECT * FROM saved_list_tags",
-        "SELECT * FROM parties",
-        "SELECT * FROM party_members",
-        "SELECT * FROM encounters",
-        "SELECT * FROM encounter_participants",
-        "SELECT * FROM encounter_manual_trackers",
-        "SELECT * FROM encounter_command_receipts",
-        "SELECT * FROM encounter_boundary_claims",
-        "SELECT * FROM sqlite_sequence ORDER BY name",
-        "SELECT * FROM pending_embedding_values",
-        "SELECT * FROM embedding_inputs ORDER BY input_id",
-        "SELECT * FROM embedding_models ORDER BY model_id",
-    ];
-    let before = facts.map(|sql| sql_rows(write.connection(), sql));
-    let old_ledger = sql_rows(write.connection(), LEDGER);
-    let vectors = occurrence_vector_bits(write.connection());
-    assert!(!vectors.is_empty());
-    write.commit().unwrap();
-    initialize_workspace(workspace.path()).unwrap();
-    initialize_workspace(workspace.path()).unwrap();
-
-    let current = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-    let c = current.connection();
-    assert_eq!(facts.map(|sql| sql_rows(c, sql)), before);
-    assert_eq!(occurrence_vector_bits(c), vectors);
-    let state = atlas_local_state::LocalStateRead::for_local(&current).unwrap();
-    let encounter = state
-        .encounters()
-        .get_with_participants("encounter")
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        encounter.participants[0].manual_trackers[0].name,
-        "Retained tracker"
-    );
-    let receipt = state
-        .encounters()
-        .condition_event_receipt("encounter", "request", &serde_json::json!({}))
-        .unwrap()
-        .unwrap();
-    assert_eq!(receipt.request_id, "request");
-    assert_eq!(
-        sql_rows(historical_backup(&workspace).connection(), LEDGER),
-        old_ledger
-    );
-    let fresh = initialize_workspace(directory.path().join("fresh.sqlite")).unwrap();
-    let fresh_read = fresh.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-    let fresh_c = fresh_read.connection();
-    assert_eq!(sql_rows(c, LEDGER), sql_rows(fresh_c, LEDGER));
-    assert_eq!(
-        sql_rows(c, LEDGER),
-        vec![vec![
-            rusqlite::types::Value::Integer(42),
-            rusqlite::types::Value::Text("release-baseline".into()),
-            rusqlite::types::Value::Text(
-                "5e0abae6ea6364eeb0408bab544fdafb2f1e25ecc6d341908a6cedb69928009e".into()
-            ),
-        ]]
-    );
-
-    let schema = r#"SELECT type,name,tbl_name,
-        replace(replace(sql,'CREATE TABLE "','CREATE TABLE '),'" (',' (')
-        FROM sqlite_schema WHERE tbl_name NOT LIKE 'native_vectors_%' ORDER BY type,name"#;
-    assert_eq!(sql_rows(c, schema), sql_rows(fresh_c, schema));
-    assert!(sql_rows(c, "PRAGMA foreign_key_check").is_empty());
-    drop(current);
-    drop(fresh_read);
-    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-    let condition_id: i64 = write.connection().query_row(
-        "INSERT INTO encounter_participant_conditions(participant_id,name,created_at,updated_at)
-         VALUES(39,'After upgrade','after','after') RETURNING id",
-        [],
-        |row| row.get(0),
-    ).unwrap();
-    assert!(condition_id > 4096);
-    write.commit().unwrap();
-    for workspace in [&workspace, &fresh] {
-        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
-        for sql in [
-            "INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('new','new','New','now','now')",
-            "INSERT INTO parties(party_key,name) VALUES('new','New')",
-            "INSERT INTO encounters(encounter_key,slug,name,status,created_at,updated_at) VALUES('new','new','New','draft','now','now')",
-        ] {
-            let error = write.connection().execute(sql, []).unwrap_err();
-            assert!(error.to_string().contains("owner_id"), "{error}");
-        }
-    }
+fn archive_path(workspace: &Workspace) -> std::path::PathBuf {
+    workspace
+        .path()
+        .with_file_name("workspace.sqlite.upgrade-archive.json")
 }
 
-#[test]
-fn release_bridge_rejects_bad_history_and_rolls_back_schema_drift() {
-    let directory = tempfile::tempdir().unwrap();
-    for (label, sql, expected, backup) in [
-        (
-            "older",
-            "PRAGMA user_version=40",
-            "must be upgraded to schema 41",
-            false,
-        ),
-        ("future", "PRAGMA user_version=43", "43", false),
-        (
-            "ledger",
-            "UPDATE schema_migrations SET checksum='bad' WHERE version=39",
-            "ledger differs",
-            false,
-        ),
-        (
-            "missing",
-            "DELETE FROM schema_migrations WHERE version=39",
-            "ledger differs",
-            false,
-        ),
-        (
-            "extra",
-            "INSERT INTO schema_migrations(version,name,checksum) VALUES(0,'extra','extra')",
-            "ledger differs",
-            false,
-        ),
-        (
-            "misnumbered",
-            "UPDATE schema_migrations SET version=42 WHERE version=39",
-            "ledger differs",
-            false,
-        ),
-        (
-            "unrelated",
-            "PRAGMA application_id=0",
-            "non-workspace database",
-            false,
-        ),
-        (
-            "missing-local",
-            "DELETE FROM principals WHERE principal_key='local'",
-            "missing its local principal",
-            true,
-        ),
-        (
-            "invalid-owner",
-            "PRAGMA foreign_keys=OFF; INSERT INTO parties(party_key,owner_id,name) VALUES('invalid',99,'Invalid')",
-            "foreign-key check failed",
-            true,
-        ),
-        (
-            "shape",
-            "CREATE INDEX owner_drift ON encounters(owner_id)",
-            "saved-owner tables or their dependencies differ",
-            true,
-        ),
-    ] {
-        let workspace = predecessor(&directory.path().join(format!("{label}.sqlite")));
-        let c = rusqlite::Connection::open(workspace.path()).unwrap();
-        c.execute_batch(sql).unwrap();
-        let version = sql_rows(&c, "PRAGMA user_version");
-        let history = sql_rows(&c, LEDGER);
-        let error = initialize_workspace(workspace.path())
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains(expected), "{label}: {error}");
-        assert_eq!(workspace.upgrade_backup_path().is_file(), backup);
-        assert_eq!(sql_rows(&c, "PRAGMA user_version"), version);
-        assert_eq!(sql_rows(&c, LEDGER), history);
-    }
-}
-
-#[test]
-fn release_bridge_rolls_back_after_reconstruction_and_can_append() {
-    let directory = tempfile::tempdir().unwrap();
-    let workspace = predecessor(&directory.path().join("old.sqlite"));
-    let path = workspace.path();
-    let error = workspace
-        .migrate_history(RELEASE_HISTORY, |_| {
-            Err(atlas_storage::StorageError::Migration(
-                "injected failure".into(),
-            ))
-        })
-        .unwrap_err();
-    assert!(error.to_string().contains("injected failure"));
-    let read = workspace.read(41).unwrap();
-    assert_eq!(
-        sql_rows(read.connection(), LEDGER),
-        sql_rows(historical_backup(&workspace).connection(), LEDGER)
-    );
-    assert_eq!(
-        read.connection()
-            .query_row(
-                "SELECT dflt_value FROM pragma_table_info('encounters') WHERE name='owner_id'",
-                [],
-                |row| row.get::<_, String>(0)
-            )
-            .unwrap(),
-        "1"
-    );
-    drop(read);
-    let upgraded = initialize_workspace(path).unwrap();
-    let fresh = initialize_workspace(directory.path().join("fresh.sqlite")).unwrap();
-    let mut appended = RELEASE_HISTORY.migrations.to_vec();
-    appended.push(Migration {
-        version: 43,
-        name: "future-fixture",
-        sql: "CREATE TABLE future_fixture (id INTEGER PRIMARY KEY); INSERT INTO future_fixture VALUES(7);",
-        backfill: None,
-    });
-    let history = MigrationHistory {
-        migrations: &appended,
-        ..RELEASE_HISTORY
-    };
-    for workspace in [upgraded, fresh] {
-        workspace.migrate_history(history, |_| Ok(())).unwrap();
-        workspace.migrate_history(history, |_| Ok(())).unwrap();
-        let read = workspace.read(43).unwrap();
-        assert_eq!(sql_rows(read.connection(), LEDGER).len(), 2);
-        assert_eq!(
-            sql_rows(read.connection(), "SELECT id FROM future_fixture").len(),
-            1
-        );
-    }
-}
-
-#[test]
-fn release_bridge_process_worker() {
-    let Some(path) = std::env::var_os("ATLAS_RELEASE_TEST_WORKSPACE") else {
-        return;
-    };
-    if std::env::var_os("ATLAS_RELEASE_TEST_INTERRUPT").is_some() {
-        register_extensions().unwrap();
-        let workspace = Workspace::at(path).unwrap();
-        workspace
-            .migrate_history(RELEASE_HISTORY, |_| std::process::exit(72))
-            .unwrap();
-    } else {
-        initialize_workspace(path).unwrap();
-    }
-}
-
-#[test]
-fn release_bridge_survives_process_exit_and_cooperating_reopen() {
-    let directory = tempfile::tempdir().unwrap();
-    let workspace = predecessor(&directory.path().join("old.sqlite"));
-    let old_ledger = {
-        let write = workspace.write(41).unwrap();
-        write
-            .connection()
-            .execute("UPDATE workspace SET maintenance='pending maintenance'", [])
-            .unwrap();
-        let ledger = sql_rows(write.connection(), LEDGER);
-        write.commit().unwrap();
-        ledger
-    };
-    let mut command = std::process::Command::new(std::env::current_exe().unwrap());
-    command
-        .args([
-            "--exact",
-            "workspace::release_migration_tests::release_bridge_process_worker",
-        ])
-        .env("ATLAS_RELEASE_TEST_WORKSPACE", workspace.path());
-    let interrupted = command
-        .env("ATLAS_RELEASE_TEST_INTERRUPT", "1")
-        .output()
-        .unwrap();
-    assert_eq!(interrupted.status.code(), Some(72));
-    {
-        let connection = rusqlite::Connection::open(workspace.path()).unwrap();
-        assert_eq!(
-            connection
-                .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
-                .unwrap(),
-            41
-        );
-        assert_eq!(sql_rows(&connection, LEDGER), old_ledger);
-    }
-    command.env_remove("ATLAS_RELEASE_TEST_INTERRUPT");
-    let mut first = command.spawn().unwrap();
-    let mut second = command.spawn().unwrap();
-    assert!(first.wait().unwrap().success());
-    assert!(second.wait().unwrap().success());
-    // The backup correctly retains maintenance, so inspect it outside product admission.
-    let backup = rusqlite::Connection::open_with_flags(
-        workspace.upgrade_backup_path(),
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-    )
-    .unwrap();
-    assert_eq!(sql_rows(&backup, LEDGER), old_ledger);
-    assert_eq!(
-        sql_rows(&backup, "SELECT maintenance FROM workspace"),
-        sql_rows(
-            &rusqlite::Connection::open(workspace.path()).unwrap(),
-            "SELECT maintenance FROM workspace",
-        )
-    );
-    assert_eq!(
-        workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
-        WORKSPACE_SCHEMA_VERSION
-    );
-    assert!(matches!(
-        workspace.read(WORKSPACE_SCHEMA_VERSION),
-        Err(atlas_storage::StorageError::Maintenance(reason)) if reason == "pending maintenance"
-    ));
-}
-
-#[test]
-fn ordinary_startup_refuses_a_supported_predecessor_until_explicit_setup() {
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("predecessor.sqlite");
-    let workspace = predecessor(&path);
-    let runtime = crate::AtlasRuntime::resolve(crate::AtlasRuntimeOptions {
-        overrides: crate::AtlasPathOverrides {
-            source_root: Some(directory.path().join("unavailable-source")),
-            index_path: Some(path.clone()),
+fn runtime(workspace: &Workspace) -> AtlasRuntime {
+    AtlasRuntime::resolve(AtlasRuntimeOptions {
+        overrides: AtlasPathOverrides {
+            index_path: Some(workspace.path().into()),
             ..Default::default()
         },
         ..Default::default()
     })
-    .unwrap();
+    .unwrap()
+}
 
-    assert!(
-        runtime
-            .check_workspace_if_present()
-            .unwrap_err()
-            .message()
-            .contains("atlas setup")
-    );
+fn archived_json(archive: WorkspaceArchive) -> serde_json::Value {
+    let mut data = Vec::new();
+    archive.write(&mut data).unwrap();
+    serde_json::from_slice(&data).unwrap()
+}
+
+#[test]
+fn schema_42_migrates_in_place_and_archives_only_saved_work() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+    let write = workspace.write(42).unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at)
+            VALUES(17,1,'kept-list','kept','Retained list','before','before');
+         INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
+            SELECT 17,key,0,'Kept note',last_known_name,'before','before' FROM record_identity LIMIT 1;
+         INSERT INTO parties(party_key,owner_id,name) VALUES('kept-party',1,'Retained party');
+         INSERT INTO party_members(member_key,party_key,position,name,level)
+            VALUES('kept-member','kept-party',0,'Retained member',2);
+         INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
+            VALUES(1,'running','running','Running encounter','running','before','before'),
+                  (1,'archived','archived','Archived encounter','archived','before','before');
+         DELETE FROM reference_component_digests WHERE record_id=(SELECT min(record_id) FROM records);",
+    ).unwrap();
+    write.commit().unwrap();
+
+    let before = workspace.read(42).unwrap();
+    assert!(WorkspaceArchive::capture(&before).is_err());
+    let key = before.workspace_key().unwrap();
+    let revision = before.reference_revision().unwrap();
+    let members = sql_rows(before.connection(), TRAITS);
+    assert!(!members.is_empty());
+    let proofs = sql_rows(before.connection(), PROOFS);
+    assert!(!proofs.is_empty());
+    let ledger = sql_rows(before.connection(), LEDGER);
     assert_eq!(
-        workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
-        41
+        ledger[0][2],
+        rusqlite::types::Value::Text(BASELINE_CHECKSUM.into())
     );
+    let mut reference_rows =
+        atlas_index::test_support::reference_preservation_rows(before.connection()).unwrap();
+    reference_rows.remove("trait_references");
+    reference_rows.remove("reference_component_digests");
+    drop(before);
+
+    let archive_file = archive_path(&workspace);
+    std::fs::write(&archive_file, "older archive").unwrap();
+    initialize_workspace(workspace.path()).unwrap();
     assert!(!workspace.upgrade_backup_path().exists());
+    let after = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(after.workspace_key().unwrap(), key);
+    assert_eq!(after.reference_revision().unwrap(), revision);
+    assert_eq!(sql_rows(after.connection(), TRAITS), members);
+    assert_eq!(sql_rows(after.connection(), PROOFS), proofs);
+    assert_eq!(sql_rows(after.connection(), LEDGER)[0], ledger[0]);
+    let mut migrated =
+        atlas_index::test_support::reference_preservation_rows(after.connection()).unwrap();
+    migrated.remove("workspace_settings");
+    migrated.remove("reference_component_digests");
+    let changed: Vec<_> = reference_rows
+        .keys()
+        .chain(migrated.keys())
+        .filter(|key| reference_rows.get(*key) != migrated.get(*key))
+        .collect();
+    assert!(changed.is_empty(), "changed tables: {changed:?}");
+    atlas_index::validate_reference(after.connection()).unwrap();
+    drop(after);
 
-    let _owner = workspace.service_guard().unwrap();
-    let options = crate::RuntimeSetupOptions {
-        target: crate::SetupTarget::Records,
-        offline: true,
-        ..Default::default()
-    };
-    let blocked = runtime.ensure_setup(options.clone());
-    assert!(blocked.checks.iter().any(|action| {
-        action
-            .reason
-            .as_deref()
-            .is_some_and(|reason| reason.contains("close Atlas"))
-    }));
+    let bytes = std::fs::read(&archive_file).unwrap();
+    let archive = WorkspaceArchive::read(bytes.as_slice()).unwrap();
+    let source = runtime(&workspace);
     assert_eq!(
-        workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
-        41
+        serde_json::from_slice::<serde_json::Value>(&bytes).unwrap(),
+        archived_json(source.capture_workspace_archive().unwrap())
     );
-    drop(_owner);
+    let target = initialize_workspace(directory.path().join("restore.sqlite")).unwrap();
+    let target = runtime(&target);
+    let preflight = target.preflight_workspace_restore().unwrap();
+    target
+        .restore_workspace_archive(&archive, &preflight, false)
+        .unwrap();
+    assert_eq!(
+        archived_json(source.capture_workspace_archive().unwrap()),
+        archived_json(target.capture_workspace_archive().unwrap())
+    );
 
-    runtime.ensure_setup(options);
-    assert_eq!(
-        workspace.check_migration_history(RELEASE_HISTORY).unwrap(),
-        WORKSPACE_SCHEMA_VERSION
+    initialize_workspace(workspace.path()).unwrap();
+    assert_eq!(std::fs::read(archive_file).unwrap(), bytes);
+}
+
+#[test]
+fn schema_42_vector_bytes_and_generation_survive_upgrade() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+    let input = atlas_search::test_support::input_with_both_profiles(vec![
+        atlas_search::test_support::record(
+            "actors",
+            "Actor",
+            serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Goblin","type":"npc","system":{"traits":{"value":["goblin"]}}}),
+        ),
+    ]);
+    atlas_index::test_support::publish_input_in(&workspace, 42, &input).unwrap();
+    let read = workspace.read(42).unwrap();
+    let vectors = occurrence_vector_bits(read.connection());
+    assert_eq!(vectors.len(), 2);
+    let revision = read.reference_revision().unwrap();
+    drop(read);
+    initialize_workspace(workspace.path()).unwrap();
+    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(occurrence_vector_bits(read.connection()), vectors);
+    assert_eq!(read.reference_revision().unwrap(), revision);
+}
+
+#[test]
+fn workspace_upgrade_checks_admission_and_keeps_migration_atomic() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+    let original = workspace.read(42).unwrap();
+    let ledger = sql_rows(original.connection(), LEDGER);
+    let revision = original.reference_revision().unwrap();
+    drop(original);
+
+    let archive_file = archive_path(&workspace);
+    std::fs::create_dir(&archive_file).unwrap();
+    assert!(
+        initialize_workspace(workspace.path())
+            .unwrap_err()
+            .to_string()
+            .contains("could not capture upgrade archive")
     );
-    assert!(workspace.upgrade_backup_path().is_file());
-    runtime.check_workspace_if_present().unwrap();
+    std::fs::remove_dir(&archive_file).unwrap();
+
+    let write = workspace.write(42).unwrap();
+    write
+        .connection()
+        .execute("UPDATE trait_members SET source_label='corrupt label'", [])
+        .unwrap();
+    write.commit().unwrap();
+    assert!(
+        initialize_workspace(workspace.path())
+            .unwrap_err()
+            .to_string()
+            .contains("trait memberships differ")
+    );
+    WorkspaceArchive::read(std::fs::File::open(&archive_file).unwrap()).unwrap();
+    let original = workspace.read(42).unwrap();
+    assert_eq!(original.reference_revision().unwrap(), revision);
+    assert_eq!(sql_rows(original.connection(), LEDGER), ledger);
+    assert_eq!(
+        sql_rows(
+            original.connection(),
+            "SELECT name FROM sqlite_schema WHERE name IN ('workspace_settings','trait_references')"
+        ),
+        vec![vec![rusqlite::types::Value::Text(
+            "trait_references".into()
+        )]]
+    );
+}
+
+#[test]
+fn schema_42_authenticates_the_ledger_before_capturing() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+    let write = workspace.write(42).unwrap();
+    write
+        .connection()
+        .execute("UPDATE schema_migrations SET checksum=?", ["0".repeat(64)])
+        .unwrap();
+    write.commit().unwrap();
+    let archive_file = archive_path(&workspace);
+    std::fs::write(&archive_file, "retained archive").unwrap();
+    let error = initialize_workspace(workspace.path()).unwrap_err();
+    assert!(
+        error.to_string().contains("applied migration 42 differs"),
+        "{error}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(archive_file).unwrap(),
+        "retained archive"
+    );
+    assert!(workspace.read(42).is_ok());
+}
+
+#[test]
+fn migration_rejects_corrupt_snapshot_and_retains_recognized_retired_proofs() {
+    for retired in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = schema_42(&directory.path().join("workspace.sqlite"));
+        let write = workspace.write(42).unwrap();
+        let c = write.connection();
+        let proofs = sql_rows(
+            c,
+            "SELECT * FROM reference_component_digests ORDER BY record_id",
+        );
+        if retired {
+            let mut context = atlas_index::read_stored_reference_context(c)
+                .unwrap()
+                .unwrap();
+            context.source_contract =
+                "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8".into();
+            c.execute(
+                "UPDATE artifact_context SET context_json=?,context_hash=?",
+                rusqlite::params![
+                    serde_json::to_string(&context).unwrap(),
+                    context.sha256().unwrap()
+                ],
+            )
+            .unwrap();
+        } else {
+            c.execute("UPDATE record_bodies SET snapshot=X'00' WHERE record_id=(SELECT min(record_id) FROM records)", []).unwrap();
+        }
+        write.commit().unwrap();
+        let result = initialize_workspace(workspace.path());
+        if retired {
+            result.unwrap();
+            let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+            assert_eq!(
+                atlas_index::classify_reference_upgrade(read.connection()).unwrap(),
+                atlas_index::ReferenceUpgrade::SourceReplacement
+            );
+            assert_eq!(
+                sql_rows(
+                    read.connection(),
+                    "SELECT * FROM reference_component_digests ORDER BY record_id"
+                ),
+                proofs
+            );
+        } else {
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Repair the reference data")
+            );
+            assert!(workspace.read(42).is_ok());
+        }
+        WorkspaceArchive::read(std::fs::File::open(archive_path(&workspace)).unwrap()).unwrap();
+    }
+}
+
+#[test]
+fn schema_41_is_refused_before_capture() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = load_fixture(
+        &directory.path().join("workspace.sqlite"),
+        include_bytes!("../tests/fixtures/schema-41.sqlite.gz"),
+    );
+    let original = std::fs::read(workspace.path()).unwrap();
+    let error = initialize_workspace(workspace.path()).unwrap_err();
+    assert!(
+        error.to_string().contains("must be upgraded to schema 42"),
+        "{error}"
+    );
+    assert_eq!(std::fs::read(workspace.path()).unwrap(), original);
+    assert!(!archive_path(&workspace).exists());
+    assert!(!workspace.upgrade_backup_path().exists());
 }
 
 #[test]

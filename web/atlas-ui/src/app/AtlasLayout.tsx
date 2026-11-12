@@ -150,7 +150,13 @@ function AtlasWorkspace({
     queryFn: getReadiness,
     refetchInterval: (query) => (query.state.data?.saved_writes_paused ? 1500 : false),
   });
-  const searchProfile = useSearchProfileSelection(readiness.data);
+  const searchProfile = useSearchProfileSelection(readiness.data, () =>
+    queryClient.fetchQuery({
+      queryKey: ["readiness"],
+      queryFn: getReadiness,
+      staleTime: 0,
+    }),
+  );
   const workspace = useSearchWorkspace({
     enabled: !routeError && section === "search",
     searchProfile: searchProfile.id,
@@ -161,6 +167,8 @@ function AtlasWorkspace({
     automaticKeyword: searchProfile.automaticKeyword,
     semanticDefault: searchProfile.semanticDefault,
     promoteKeyword: searchProfile.promoteKeyword,
+    resolveWorkspaceDefault: searchProfile.resolveWorkspaceDefault,
+    adoptWorkspaceDefault: searchProfile.adoptWorkspaceDefault,
     searchPreferences: searchProfile.preferences,
     includeSearchProfileInUrl:
       searchProfile.profiles.filter((profile) => profile.stored_vectors).length !== 1 ||

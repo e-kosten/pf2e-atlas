@@ -80,16 +80,19 @@ fn retained_traits_only_coverage_keeps_visible_contract_without_requiring_hidden
     publish_input(&path, &input).unwrap();
     let reader = open_reader(&path).unwrap();
     assert_eq!(reader.reference_coverage(), ReferenceCoverage::TraitsOnly);
-    let counts: (u64, u64) = reader
-        .native()
+    let definition = reader
+        .trait_definition(&input.traits[0].key)
         .unwrap()
-        .query_row(
-            "SELECT count(DISTINCT record_key), count(*) FROM trait_references WHERE trait_key=?1",
-            [input.traits[0].key.to_string()],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
         .unwrap();
-    assert_eq!(counts, (1, 2));
+    let prepared = definition.prepared.unwrap();
+    assert_eq!(
+        prepared
+            .references
+            .iter()
+            .filter(|reference| reference.visible)
+            .count(),
+        1
+    );
     drop(reader);
     validate_artifact(&path).unwrap();
 }

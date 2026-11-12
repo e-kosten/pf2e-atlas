@@ -4,16 +4,17 @@ use crate::{AtlasRuntime, StorageError, Workspace};
 use atlas_domain::SearchProfileId;
 use atlas_index::{
     RequestedReferenceConfig, clear_requested_reference_config, read_requested_reference_config,
-    read_requested_reference_config_for_write, validate_requested_reference_config,
-    write_requested_reference_config,
+    read_requested_reference_config_for_write, read_requested_reference_config_snapshot,
+    validate_requested_reference_config, write_requested_reference_config,
 };
 use atlas_local_state::workspace_recovery::{SavedWorkspace, ValidatedWorkspace, check_empty};
-use atlas_storage::ReadSession;
+use atlas_storage::{Connection, ReadSession, StorageResult};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use std::{
-    io::{Read, Write},
-    path::PathBuf,
+    fs::File,
+    io::{BufReader, BufWriter, Read, Seek, Write},
+    path::{Path, PathBuf},
 };
 
 const FORMAT: &str = "pf2e-atlas-workspace";
@@ -104,8 +105,12 @@ impl WorkspaceArchive {
     pub fn capture(read: &ReadSession) -> Result<Self, String> {
         read.authenticate_history(RELEASE_HISTORY)
             .map_err(admission_error)?;
-        let saved = SavedWorkspace::capture(read).map_err(message)?;
-        let reference_config = read_requested_reference_config(read)
+        Self::capture_snapshot(read.connection())
+    }
+
+    fn capture_snapshot(snapshot: &Connection) -> Result<Self, String> {
+        let saved = SavedWorkspace::capture(snapshot).map_err(message)?;
+        let reference_config = read_requested_reference_config_snapshot(snapshot)
             .map_err(message)?
             .map(ReferenceConfig::from);
         Ok(Self {
@@ -119,6 +124,45 @@ impl WorkspaceArchive {
     pub fn write(&self, mut output: impl Write) -> Result<(), String> {
         serde_json::to_writer(&mut output, self).map_err(message)?;
         output.write_all(b"\n").map_err(message)
+    }
+
+    pub fn export(&self, path: &Path) -> Result<(), String> {
+        self.publish(path, false)
+    }
+
+    fn publish(&self, path: &Path, upgrade: bool) -> Result<(), String> {
+        let parent = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let mut staged = tempfile::NamedTempFile::new_in(parent)
+            .map_err(|error| format!("Cannot stage {}: {error}", path.display()))?;
+        {
+            let mut output = BufWriter::new(staged.as_file_mut());
+            self.write(&mut output)?;
+            output.flush().map_err(message)?;
+        }
+        if upgrade {
+            staged.as_file_mut().rewind().map_err(message)?;
+            Self::read(BufReader::new(staged.as_file()))?;
+        }
+        staged.as_file().sync_all().map_err(message)?;
+        if upgrade {
+            staged.persist(path)
+        } else {
+            staged.persist_noclobber(path)
+        }
+        .map_err(|error| format!("Cannot publish {}: {}", path.display(), error.error))?;
+        #[cfg(unix)]
+        File::open(parent)
+            .and_then(|directory| directory.sync_all())
+            .map_err(|error| {
+                format!(
+                    "Archive {} was published but directory sync failed: {error}",
+                    path.display()
+                )
+            })?;
+        Ok(())
     }
 
     pub fn read(input: impl Read) -> Result<ValidatedArchive, String> {
@@ -150,6 +194,25 @@ impl WorkspaceArchive {
             config,
         })
     }
+}
+
+pub(crate) fn capture_upgrade_archive(
+    workspace: &Workspace,
+    snapshot: &Connection,
+) -> StorageResult<()> {
+    let mut path = workspace.path().as_os_str().to_owned();
+    path.push(".upgrade-archive.json");
+    let path = PathBuf::from(path);
+    WorkspaceArchive::capture_snapshot(snapshot)
+        .and_then(|archive| archive.publish(&path, true))
+        .map_err(|error| {
+            StorageError::Migration(format!(
+                "could not capture upgrade archive at {}: {error}",
+                path.display()
+            ))
+        })?;
+    tracing::info!(target: "atlas_progress", phase = "upgrade_archive", "Saved workspace recovery archive to {}", path.display());
+    Ok(())
 }
 
 fn archive_error(error: serde_json::Error) -> String {

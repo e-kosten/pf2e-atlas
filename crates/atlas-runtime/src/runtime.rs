@@ -145,6 +145,34 @@ impl AtlasRuntime {
         Ok(Some(workspace))
     }
 
+    /// Upgrade only the authenticated workspace schema. The desktop probes
+    /// readiness separately before offering any further setup.
+    pub fn upgrade_desktop_workspace(&self) -> Result<(), String> {
+        crate::workspace::register_extensions().map_err(|error| error.to_string())?;
+        let workspace = atlas_storage::Workspace::existing(self.index_path())
+            .map_err(|error| error.to_string())?;
+        let _setup = workspace.setup_guard().map_err(|error| match error {
+            atlas_storage::StorageError::Busy => "setup already running".into(),
+            error => error.to_string(),
+        })?;
+        let _service = workspace.service_guard().map_err(|error| match error {
+            atlas_storage::StorageError::Busy => {
+                "Close Atlas desktop and atlas web sessions for this workspace before upgrading."
+                    .into()
+            }
+            error => error.to_string(),
+        })?;
+        let schema = workspace
+            .check_migration_history(crate::workspace::RELEASE_HISTORY)
+            .map_err(|error| error.to_string())?;
+        if schema == 0 {
+            return Err("This workspace needs first-run setup.".into());
+        }
+        tracing::info!(target: "atlas_progress", phase = "check_setup", "Upgrading workspace format");
+        crate::initialize_workspace(workspace.path()).map_err(|error| error.to_string())?;
+        Ok(())
+    }
+
     #[cfg(test)]
     /// Apply executable-owned schema and projection upgrades before serving
     /// requests. An absent workspace remains a setup concern.
@@ -267,6 +295,48 @@ impl AtlasRuntime {
 
     pub fn desktop_setup_stage(&self) -> Option<crate::DesktopSetupStage> {
         setup::eligible_desktop_stage(&self.paths).ok()
+    }
+
+    pub fn desktop_reference_status(&self) -> Result<crate::DesktopReferenceStatus, String> {
+        crate::desktop_reference::inspect(&self.paths)
+    }
+
+    pub fn refresh_desktop_reference(
+        &self,
+        build_embeddings_locally: bool,
+        offer: &str,
+        models: Option<&crate::DesktopModelSelection>,
+        on_complete: impl FnMut(crate::DesktopReferenceOutcome),
+    ) -> RuntimeSetupReport {
+        setup::refresh_desktop_reference(
+            &self.paths,
+            RuntimeSetupOptions {
+                build_embeddings_locally,
+                offline: crate::desktop_reference::fixture(&self.paths),
+                ..Default::default()
+            },
+            offer,
+            models,
+            on_complete,
+        )
+    }
+
+    pub fn set_desktop_search_default(
+        &self,
+        offer: &str,
+        selection: &crate::DesktopModelSelection,
+    ) -> Result<(), crate::DesktopRefreshError> {
+        crate::desktop_reference::set_default(self, &self.paths, offer, selection)
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn holds_desktop_reference_fixture(&self) -> bool {
+        crate::desktop_reference::fixture(&self.paths)
+            && self
+                .paths
+                .managed_source_root
+                .join(".hold-reference")
+                .is_file()
     }
 
     /// Resolve and persist preparation intent before a manual build. Repeated

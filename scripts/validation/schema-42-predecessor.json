@@ -1,8 +1,8 @@
 {
-  "tag": "v0.1.0-nightly.20261109050726.g787c00b3b26e",
-  "commit": "787c00b3b26e5d73a39dc69708f72e95e686c402",
-  "schema": 41,
-  "ledger_sha256": "063c58315d7841c8dff56ed43ddc6a9465d92e1ff9924e59f250879d9815dd85",
+  "tag": "v0.1.0-nightly.20261112173917.g449cf4c9315c",
+  "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b",
+  "schema": 42,
+  "ledger_sha256": "d00d7fa2e465acc9c0856f162819aa518436ed2a383fbd21b91edf6e61723a6e",
   "source_tree": "7619ff3b8c5f8635871b49464c7e87c95c732289",
   "queries": [
     "frighten an enemy using a threatening display",
@@ -11,19 +11,19 @@
   "assets": {
     "aarch64-apple-darwin": {
       "asset": "atlas-cli-only-aarch64-apple-darwin.tar.xz",
-      "sha256": "5c0e8fd2a17d965ace0734b5f63b79fff9fc2514d587a44017f39620b5d05734"
+      "sha256": "8e283147f208afd5b1c735a75b5e3695077d9d5166eb606654677d3d82903353"
     },
     "aarch64-unknown-linux-gnu": {
       "asset": "atlas-cli-only-aarch64-unknown-linux-gnu.tar.xz",
-      "sha256": "0c27bc183b99692e1fc823c9dfb1de79c1746e87bd2e000f11e8386559d63d20"
+      "sha256": "505331dd610418541c5c8e54851adb22805f7c72fd2712e4784deefa29127f5e"
     },
     "x86_64-pc-windows-msvc": {
       "asset": "atlas-cli-only-x86_64-pc-windows-msvc.zip",
-      "sha256": "30dd35bf5ed48f43c852882ac769db290f990d4df6b2ed94ab0a489865a9741e"
+      "sha256": "82c03a8002bab026cad58465749c42661be78bd863c79f4b127035bcb78b7066"
     },
     "x86_64-unknown-linux-gnu": {
       "asset": "atlas-cli-only-x86_64-unknown-linux-gnu.tar.xz",
-      "sha256": "c84bcc72ea89354a9e0fadbe344ca0afb5d0b153e0d6bb4b6d59c6d1f1bfaea0"
+      "sha256": "c842f5a50fb94fac39cad7c36de1fa2f7407537587d74c35c5fa7cd21164eaef"
     }
   }
 }
