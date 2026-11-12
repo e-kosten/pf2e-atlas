@@ -216,6 +216,28 @@ maintenance, migrations and backups operate on the complete workspace. When
 adding saved access paths, cover the scope using a foreign owner's key or child
 ID, or a slug shared by two owners as appropriate to the operation.
 
+## Workspace recovery archives
+
+The runtime captures all saved owners, lists, parties, encounters, referenced
+identities and requested reference configuration on one authenticated read
+snapshot. Local state owns the saved data, including receipt identity and the
+condition ID allocation floor. Index owns requested reference configuration.
+The CLI stages and syncs a new archive file before publishing it. Restore
+validates the archive and applies it to an empty saved state in one transaction
+on a current-schema workspace. Generated reference data and the SQLite
+migration backup have their own storage lifecycles.
+
+The archive version starts at `1.0` and advances independently of the database
+schema. Bump the minor version for compatible additions, including new encounter
+statuses. Older readers can ignore optional data when doing so preserves saved
+behavior. Use a detectable behavioral value for new behavior that an older
+reader must reject before writing. Bump the major version for incompatible
+changes that cannot be represented safely under that contract. Translate
+historical values explicitly when their representation changes. New readers
+support archives from prior supported releases and published nightlies, across
+major versions. Keep frozen format fixtures and exercise them in offline tests
+as the format evolves.
+
 ## Development snapshots
 
 Whole-workspace developer seeds are storage-owned snapshots, not a second live

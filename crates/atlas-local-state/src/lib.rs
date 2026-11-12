@@ -11,6 +11,7 @@ pub use release::upgrade_release_owners;
 mod saved_lists;
 mod slug;
 mod store;
+pub mod workspace_recovery;
 
 pub use encounters::{
     AbilityStateChange, AbilityStateValue, AddEncounterParticipant,

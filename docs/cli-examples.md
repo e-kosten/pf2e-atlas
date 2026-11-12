@@ -272,6 +272,32 @@ atlas roll -- '-1d6+10'
 `kh`/`kl` keep high/low dice. JSON retains individual results, kept/dropped states
 and intermediate totals. Quote expressions containing shell operators.
 
+## Back up and restore saved workspace data
+
+```bash
+atlas workspace export campaign-recovery.json
+atlas workspace restore campaign-recovery.json
+```
+
+Export creates a new archive file with all saved lists, parties, encounters,
+and requested reference configuration. It includes archived encounters and the
+state needed to resume a running encounter. The archive contains saved display
+snapshots and record keys. Atlas prepares reference records, indexes, and
+embeddings separately.
+
+Restore requires an initialized workspace with empty saved state. For a missing
+workspace, run `atlas setup` first. Use `atlas setup --no-embeddings` to prepare
+reference records without embedding models. Use `--index <workspace.sqlite>`
+to select a separate workspace for setup or recovery. Restore uses existing
+reference records where available and retains saved references by key when a
+record is unavailable.
+
+If the destination's requested reference configuration differs, review the
+source and manifest paths and other settings before using
+`atlas workspace restore campaign-recovery.json --replace-reference-config`.
+Atlas shows both configurations and prompts before replacing or clearing the
+destination settings. Restore can run offline after workspace setup.
+
 ## Readiness and JSON
 
 Check whether setup is needed:

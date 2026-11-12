@@ -22,6 +22,8 @@ mod source_configuration;
 #[cfg(test)]
 mod tests;
 mod workspace;
+mod workspace_archive;
+pub use workspace_archive::{RestorePreflight, ValidatedArchive, WorkspaceArchive};
 
 pub use error::{RuntimeError, RuntimeErrorKind, RuntimePathTarget, RuntimePlatform};
 pub use paths::{AtlasPathMode, AtlasPathOverrides, ResolvedAtlasPaths, ResolvedPathMode};

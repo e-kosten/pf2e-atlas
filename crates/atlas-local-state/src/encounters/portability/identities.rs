@@ -184,6 +184,7 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
             || !(1..i64::MAX).contains(&p.initiative_order)
             || p.base_death_threshold <= 0
             || p.temporary_hp < 0
+            || (p.defeated && p.participant_kind == ParticipantKind::Hazard)
             || (p.hazard_disabled && p.participant_kind != ParticipantKind::Hazard)
             || p.turn_resources
                 .as_ref()
@@ -219,6 +220,12 @@ fn validate_snapshot(snapshot: &EncounterWithParticipants) -> LocalStateResult<B
         }
         let mut abilities = BTreeSet::new();
         for ability in &p.ability_states {
+            if ability
+                .rule_ordinal
+                .is_some_and(|ordinal| i64::try_from(ordinal).is_err())
+            {
+                return Err(invalid("invalid ability rule ordinal"));
+            }
             require_unique(
                 &mut abilities,
                 (serde_json::to_string(&ability.owner)?, ability.rule_ordinal),
@@ -267,6 +274,10 @@ fn require_unique<T: Ord>(seen: &mut BTreeSet<T>, key: T, label: &str) -> LocalS
 }
 
 impl Identities {
+    pub(super) fn condition_floor(&self) -> i64 {
+        self.conditions.last_key_value().map_or(0, |(&id, _)| id)
+    }
+
     pub(super) fn check_budget(&self, remaining: usize) -> LocalStateResult<()> {
         if self.conditions.len()
             + self.participants.len()

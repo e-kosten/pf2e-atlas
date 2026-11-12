@@ -20,3 +20,5 @@ pub(crate) mod web;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod desktop;
+
+pub(crate) mod workspace;
