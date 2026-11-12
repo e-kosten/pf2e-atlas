@@ -60,10 +60,10 @@ impl DesktopModelSelection {
         Ok(())
     }
 
-    fn retry_offer(&self, offer: &str) -> String {
-        let encoded = serde_json::to_vec(&(offer, self))
-            .expect("search model selection contains only strings");
-        format!("{:x}", Sha256::digest(encoded))
+    fn retry_offer(&self, offer: &str) -> Option<String> {
+        serde_json::to_vec(&(offer, self))
+            .ok()
+            .map(|encoded| format!("{:x}", Sha256::digest(encoded)))
     }
 }
 
@@ -322,7 +322,7 @@ impl Refresh {
             .model_offer
             .filter(|base| {
                 if local {
-                    selection.retry_offer(base) == offer
+                    selection.retry_offer(base).as_deref() == Some(offer)
                 } else {
                     base == offer
                 }
@@ -398,13 +398,11 @@ impl Refresh {
             if current.status.model_offer.as_ref() != Some(base) {
                 return None;
             }
-            return Some(
-                DesktopModelSelection {
-                    profiles: models.configuration.search_profiles.clone(),
-                    preferred: models.preference.clone(),
-                }
-                .retry_offer(base),
-            );
+            return DesktopModelSelection {
+                profiles: models.configuration.search_profiles.clone(),
+                preferred: models.preference.clone(),
+            }
+            .retry_offer(base);
         }
         if current.status.generation == self.generation
             && current.configuration.as_ref() == Some(&self.configuration)
