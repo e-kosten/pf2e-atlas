@@ -31,19 +31,6 @@ changes or the source establishes a relationship.
 
 ## Deferred decisions
 
-### Same-level scenario versions in Search
-
-These pairs differ by party tier and mechanics. Using the same friendly title,
-creature level, and publication would make their compact Search cards difficult
-to distinguish. Reopen when reviewing how Search can distinguish them.
-
-| Foundry actors | Evidence |
-| --- | --- |
-| Animal Companion (Wolf) (1-2) (`pfs-season-1-bestiary:czYt4Yp6ZeGnzyV6`) and Animal Companion (Wolf) (3-4) (`pfs-season-1-bestiary:9KauvSo8zxsaBWRc`) | Both are level 0 in *Bandits of Immenwood* and have different HP. |
-| Sparkles (9-10) (`pfs-season-3-bestiary:8CEKF7wq9qZzmveH`) and Sparkles (11-12) (`pfs-season-3-bestiary:SkV5zYJgu7hdpZE0`) | Both are level 9 in *Cavern of Sundered Songs* and have different HP. |
-| Ghost Of Diggen Thrune (1-2) (`pfs-season-1-bestiary:kpYq0piOlafgYSdo`) and Ghost Of Diggen Thrune (3-4) (`pfs-season-1-bestiary:5hR3mQw2sEy3Fy8g`) | Both are level 4 with 30 HP in *Flames of Rebellion*. Deception changes from +10 to +13. |
-| Cinder Wolf (1-2) (`pfs-season-1-bestiary:mIz8CjpB8uxf6M9f`) and Cinder Wolf (3-4) (`pfs-season-1-bestiary:Hjl0cYnMyrcsbKlY`) | Both are level 1 in *Lions of Katapesh*. The 3–4 block adds Smoke Vision. |
-
 ### Authored scaling
 
 **Anatomical Model.** In *The Seven Secrets of Dacilane Academy*, Foundry's

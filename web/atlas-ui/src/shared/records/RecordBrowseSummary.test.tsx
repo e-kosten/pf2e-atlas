@@ -119,3 +119,42 @@ it("selects the record from its plain trait badges and retains native modified l
   fireEvent.click(badge, { metaKey: true });
   expect(onPreview).toHaveBeenCalledTimes(1);
 });
+
+it("keeps Search scenario context with the source and groups the chips in order", () => {
+  const record = {
+    ...summaryFixture("actors:sparkles", "Sparkles"),
+    kind_label: "Creature",
+    level_label: "Level 9",
+    publication: "Cavern of Sundered Songs",
+    rarity: { value: "unique", label: "Unique" },
+    edition: "legacy" as const,
+    traits: [
+      { kind: "trait", value: "beast", label: "Beast", trait_key: "trait:beast" },
+    ],
+    creature_display: {
+      qualifiers: [],
+      scenario_context: "Party levels 9–10",
+      uses: [{ id: "party-9-10", label: "Party levels 9–10" }],
+    },
+  };
+  render(
+    <RecordBrowseSummary
+      record={record}
+      selected={false}
+      onPreview={vi.fn()}
+      searchCard
+    />,
+  );
+  expect(screen.getByText("Creature 9").parentElement).toHaveTextContent(
+    /^Sparkles Creature 9$/,
+  );
+  expect(
+    screen.getByText("Party levels 9–10 · Cavern of Sundered Songs"),
+  ).toBeVisible();
+  const chips = screen.getByText("Legacy").parentElement;
+  expect(Array.from(chips?.children ?? [], (chip) => chip.textContent)).toEqual([
+    "Unique",
+    "Legacy",
+    "Beast",
+  ]);
+});
