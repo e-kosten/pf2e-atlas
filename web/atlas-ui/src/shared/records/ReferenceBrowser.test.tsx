@@ -123,7 +123,7 @@ function renderBrowser(positions?: BrowsePositions) {
   );
 }
 
-it("keeps reviewed scenario details out of Search cards", () => {
+it("shows reviewed scenario context on compact reference results", () => {
   const record = {
     ...summaryFixture("actors:eltha", "Eltha"),
     kind_label: "Creature",
@@ -146,7 +146,9 @@ it("keeps reviewed scenario details out of Search cards", () => {
   const card = screen.getByRole("link", { name: /Eltha.*Creature 11/ });
   expect(card).toHaveAttribute("href", "/records/actors:eltha");
   expect(within(card).getByText("Cavern of Sundered Songs")).toBeVisible();
-  expect(within(card).queryByText(/Party levels/)).toBeNull();
+  expect(
+    within(card).getByText(record.creature_display.scenario_context),
+  ).toBeVisible();
 });
 
 beforeEach(() => {

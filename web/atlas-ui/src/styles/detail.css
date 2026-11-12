@@ -131,8 +131,7 @@
 }
 
 .creature-family .record-family__group-by label,
-.creature-family .reference-result__metadata,
-.creature-family .reference-result__title .reference-result__scenario {
+.creature-family .reference-result__metadata {
   font-size: 0.875rem;
 }
 

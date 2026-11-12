@@ -38,11 +38,13 @@ export function ReferenceBrowser({
   query,
   matchDisplay = DEFAULT_MATCH_DISPLAY,
   showSmallerWeights = false,
+  searchCards = false,
 }: {
   rows: SearchResultRow[];
   query?: string;
   matchDisplay?: MatchDisplay;
   showSmallerWeights?: boolean;
+  searchCards?: boolean;
   loading: boolean;
   selectedRecordKey: string | null;
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
@@ -109,7 +111,7 @@ export function ReferenceBrowser({
           <ReferenceResult
             key={row.record.record_key}
             row={row}
-            showScenarioUses={false}
+            searchCard={searchCards}
             relationshipClauses={relationshipClauses}
             filter={filter}
             generation={generation}

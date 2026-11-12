@@ -141,6 +141,7 @@ export function SearchView({
           />
         )}
         <ReferenceBrowser
+          searchCards
           emptyMessage={
             failed
               ? null

@@ -18,7 +18,7 @@ export function RecordBrowseSummary({
   href,
   context,
   qualifiers,
-  showScenarioUses = true,
+  searchCard = false,
 }: {
   record: RecordSummaryView;
   selected: boolean;
@@ -27,7 +27,7 @@ export function RecordBrowseSummary({
   href?: string;
   context?: ReactNode;
   qualifiers?: string[];
-  showScenarioUses?: boolean;
+  searchCard?: boolean;
 }) {
   const classification = [
     record.kind_label,
@@ -43,8 +43,7 @@ export function RecordBrowseSummary({
       }),
     );
   const traits = record.traits.filter((trait) => trait.kind !== "rarity");
-  const scenario =
-    showScenarioUses && qualifiers === undefined ? record.creature_display : undefined;
+  const scenario = qualifiers === undefined ? record.creature_display : undefined;
   const source = record.publication ?? record.pack;
   const showSource =
     qualifiers === undefined &&
@@ -52,9 +51,33 @@ export function RecordBrowseSummary({
     !(
       scenario?.scenario_context && scenario.uses.some(({ label }) => label === source)
     );
+  const badges = (
+    <>
+      <RecordRarity rarity={record.rarity} />
+      <RecordEditionBadge edition={record.edition} />
+    </>
+  );
+  const traitChips = traits.map((trait) => (
+    <Tag key={trait.kind + ":" + trait.value}>{sentenceCase(trait.label)}</Tag>
+  ));
+  const displayQualifiers = qualifiers ?? record.creature_display?.qualifiers ?? [];
+  const metadata = [
+    ...new Set(
+      [
+        scenario?.scenario_context,
+        record.unit_price_label,
+        showSource ? source : undefined,
+        ...displayQualifiers,
+      ].filter((value): value is string => Boolean(value)),
+    ),
+  ];
   return (
     <Button
-      className="reference-result__summary"
+      className={
+        searchCard
+          ? "reference-result__summary reference-result__summary--search"
+          : "reference-result__summary"
+      }
       styles={{
         root: {
           height: "auto",
@@ -116,27 +139,20 @@ export function RecordBrowseSummary({
     >
       <div className="reference-result__title">
         <strong>{record.title}</strong> <span>{classification}</span>
-        {scenario?.scenario_context && (
-          <span className="reference-result__scenario">
-            {scenario.scenario_context}
-          </span>
-        )}
       </div>
-      <div className="reference-result__metadata">
-        <RecordRarity rarity={record.rarity} />
-        <RecordEditionBadge edition={record.edition} />
-        {record.unit_price_label && <span>{record.unit_price_label}</span>}
-        {showSource && <span>{source}</span>}
-        {(qualifiers ?? record.creature_display?.qualifiers)?.map((qualifier) => (
-          <span key={qualifier}>{qualifier}</span>
-        ))}
-        {context && <span>{context}</span>}
-      </div>
-      {!!traits.length && (
+      {(!searchCard || metadata.length > 0 || context) && (
+        <div className="reference-result__metadata">
+          {!searchCard && badges}
+          {searchCard
+            ? metadata.length > 0 && <span>{metadata.join(" · ")}</span>
+            : metadata.map((value) => <span key={value}>{value}</span>)}
+          {context && <span>{context}</span>}
+        </div>
+      )}
+      {(traitChips.length > 0 || (searchCard && (record.rarity || record.edition))) && (
         <div className="reference-result__traits">
-          {traits.map((trait) => (
-            <Tag key={trait.kind + ":" + trait.value}>{sentenceCase(trait.label)}</Tag>
-          ))}
+          {searchCard && badges}
+          {traitChips}
         </div>
       )}
     </Button>
