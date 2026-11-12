@@ -1,0 +1,26 @@
+name = "Noppera-Bo Impersonator"
+source_note = "Season of Ghosts supplies six impersonator stat blocks with shared faceless-yokai abilities and different impersonated talents or spell traditions."
+
+[[members]]
+key = "season-of-ghosts-bestiary:QSa1PbcvbgDv8Zpr"
+name = "Noppera-Bo Impersonator (Arcane)"
+
+[[members]]
+key = "season-of-ghosts-bestiary:dqsQutshiegWaFPQ"
+name = "Noppera-Bo Impersonator (Divine)"
+
+[[members]]
+key = "season-of-ghosts-bestiary:AsfjgDmWkUxPI6m8"
+name = "Noppera-Bo Impersonator (Martial)"
+
+[[members]]
+key = "season-of-ghosts-bestiary:Mt053Q3jCVLXp6us"
+name = "Noppera-Bo Impersonator (Occult)"
+
+[[members]]
+key = "season-of-ghosts-bestiary:6UkZJRICusE2EOhS"
+name = "Noppera-Bo Impersonator (Primal)"
+
+[[members]]
+key = "season-of-ghosts-bestiary:3KNblm2fWM6XLiS7"
+name = "Noppera-Bo Impersonator (Skilled)"

@@ -1,0 +1,18 @@
+name = "Arisept"
+source_note = "Mean Streets of Shadow Absalom supplies 7–8 and 9–10 blocks for Arisept. Both have Caress Soul and Abyssal Strikes, with expanded spellcasting at the higher tier."
+
+[[members]]
+key = "pfs-season-3-bestiary:gtcISL1zMhQ0mv5g"
+name = "Arisept (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-3-bestiary:LG2pZMbLXZKtcWZh"
+name = "Arisept (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]

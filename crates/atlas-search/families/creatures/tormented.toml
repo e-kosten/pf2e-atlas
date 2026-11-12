@@ -1,0 +1,26 @@
+name = "Tormented"
+source_note = "Book of the Dead presents six forms distinguished by their past torment. The blocks share Endless Suffering and Tortured Gaze, and the form affects Regeneration or its other abilities."
+
+[[members]]
+key = "book-of-the-dead-bestiary:0PrrwvV1936eSCQy"
+name = "Tormented (Burning)"
+
+[[members]]
+key = "book-of-the-dead-bestiary:AXp5EzgP7p8FrYpN"
+name = "Tormented (Crushing)"
+
+[[members]]
+key = "book-of-the-dead-bestiary:f2dAjBXK55w6rnsh"
+name = "Tormented (Dislocation)"
+
+[[members]]
+key = "book-of-the-dead-bestiary:dcLHA7tihCF2Mraj"
+name = "Tormented (Drowning)"
+
+[[members]]
+key = "book-of-the-dead-bestiary:VN2Vz1dxA9ti66bC"
+name = "Tormented (Impalement)"
+
+[[members]]
+key = "book-of-the-dead-bestiary:hjBcN7ulP6FSK7ie"
+name = "Tormented (Starvation)"

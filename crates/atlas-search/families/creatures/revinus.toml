@@ -1,0 +1,18 @@
+name = "Revinus"
+source_note = "The East Hill Haunting supplies 2 party-tier stat blocks for Revinus. Each retains Disorienting Shot and Terrifying Stab."
+
+[[members]]
+key = "pfs-season-3-bestiary:uzFHHePtuxBv6K9u"
+name = "Revinus (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:gehsgt6uN6sUsmDW"
+name = "Revinus (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

@@ -1,0 +1,18 @@
+name = "Clouded Quartz"
+source_note = "Breaking the Storm: Bastion in Embers supplies 2 party-tier stat blocks for Clouded Quartz. Each retains Catch Rock and the Claw Strike."
+
+[[members]]
+key = "pfs-season-2-bestiary:576v0bDKtGE5dwnQ"
+name = "Clouded Quartz (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:GL9QRBCuNKjuvZSE"
+name = "Clouded Quartz (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

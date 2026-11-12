@@ -1,0 +1,18 @@
+name = "Muraxi"
+source_note = "The Dragon Who Stole Evoking Day supplies two party-tier blocks for Muraxi. Both have the same aquatic defenses, Breath Weapon, and Drench."
+
+[[members]]
+key = "pfs-season-1-bestiary:vgn39Yta3lgeRP1s"
+name = "Muraxi (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:7VCfX1QpRb2T7324"
+name = "Muraxi (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

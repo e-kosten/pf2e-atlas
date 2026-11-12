@@ -1,0 +1,18 @@
+name = "Murta Kronniksdottir"
+source_note = "Path of Kings supplies 2 party-tier stat blocks for Murta Kronniksdottir. Each retains Rage and Shoving Blow."
+
+[[members]]
+key = "pfs-season-2-bestiary:yCACZfj6PJJGCLcr"
+name = "Murta Kronniksdottir (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-2-bestiary:nSFA4Kei2Gyf7dc6"
+name = "Murta Kronniksdottir (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

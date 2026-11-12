@@ -1,0 +1,18 @@
+name = "Aydrian Thrune"
+source_note = "The Locked Lodge supplies 2 party-tier stat blocks for Aydrian Thrune. Each retains Darkness and Grim Tendrils."
+
+[[members]]
+key = "pfs-season-3-bestiary:39ShWwOPdJq2X5o2"
+name = "Aydrian Thrune (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-3-bestiary:eVVAitAkOGCPzhXJ"
+name = "Aydrian Thrune (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

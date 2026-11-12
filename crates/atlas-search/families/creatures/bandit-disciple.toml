@@ -1,0 +1,18 @@
+name = "Bandit Disciple"
+source_note = "Unforgiving Fire supplies two party-tier blocks for Bandit Disciple. Both use the Scimitar and Hand Crossbow with Cheap Shot and Dirty Trick."
+
+[[members]]
+key = "pfs-season-1-bestiary:S50loNsuTigldGll"
+name = "Bandit Disciple (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:jJd7Sa8DB7uBOn93"
+name = "Bandit Disciple (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

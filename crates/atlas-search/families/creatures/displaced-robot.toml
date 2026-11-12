@@ -1,0 +1,34 @@
+name = "Displaced Robot"
+source_note = "Fate in the Future supplies 4 party-tier stat blocks for Displaced Robot. Each retains Divert Power and Jolting Arc."
+
+[[members]]
+key = "pfs-season-3-bestiary:i9cCVnI5OlMe8d2u"
+name = "Displaced Robot (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:qPUP8Qtp7HXmXiBi"
+name = "Displaced Robot (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-3-bestiary:Lmo4SH5wpywZL1YS"
+name = "Displaced Robot (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-3-bestiary:vuxdXTrDMv5YQ1Fx"
+name = "Displaced Robot (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

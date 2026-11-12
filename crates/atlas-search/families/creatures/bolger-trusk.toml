@@ -1,0 +1,18 @@
+name = "Bolger Trusk"
+source_note = "Killer in the Golden Mask supplies 2 party-tier stat blocks for Bolger Trusk. Each retains Coffin Restoration and Mist Evasion."
+
+[[members]]
+key = "pfs-season-4-bestiary:LIU62taP4KjBpqEk"
+name = "Bolger Trusk (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-4-bestiary:hbnmM6YafwUqH50s"
+name = "Bolger Trusk (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

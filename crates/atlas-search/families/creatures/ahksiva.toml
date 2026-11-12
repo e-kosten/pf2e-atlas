@@ -1,0 +1,18 @@
+name = "Ahksiva"
+source_note = "Doom of Cassomir supplies two party-tier blocks for Ahksiva. Both have Betraying Touch, Enfeebling Humors, and Exhale Miasma."
+
+[[members]]
+key = "pfs-season-1-bestiary:86JAsGyUAfSviibC"
+name = "Ahksiva (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:pPpc1IevAeLYHZsh"
+name = "Ahksiva (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

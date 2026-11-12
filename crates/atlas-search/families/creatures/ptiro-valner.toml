@@ -1,0 +1,18 @@
+name = "Ptiro Valner"
+source_note = "Doom of Cassomir supplies two party-tier blocks for Ptiro Valner. Both have Club and Crossbow Strikes and Attack of Opportunity."
+
+[[members]]
+key = "pfs-season-1-bestiary:tBY1ayiQyI5tyME6"
+name = "Ptiro Valner (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:8axdoIyHw2WK9anh"
+name = "Ptiro Valner (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

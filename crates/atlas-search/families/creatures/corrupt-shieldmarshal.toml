@@ -1,0 +1,10 @@
+name = "Corrupt Shieldmarshal"
+source_note = "The Smoking Gun supplies the same shieldmarshal with two firearm loadouts. Each record has the weapon and corresponding Strike named in its title."
+
+[[members]]
+key = "outlaws-of-alkenstar-bestiary:CNFAfmVoVebnj7bY"
+name = "Corrupt Shieldmarshal (Clan Pistol)"
+
+[[members]]
+key = "outlaws-of-alkenstar-bestiary:RpGReUxsaT8wCz2u"
+name = "Corrupt Shieldmarshal (Jezail)"

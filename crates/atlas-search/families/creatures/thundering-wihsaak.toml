@@ -1,0 +1,18 @@
+name = "Thundering Wihsaak"
+source_note = "Guardian’s Covenant supplies a standard block and Arctic, Heretical, and Rifle Mutation versions. Each keeps Droning Distraction and Skip Between."
+
+[[members]]
+key = "pfs-season-3-bestiary:SJoWqX2P5LhJsbYA"
+name = "Thundering Wihsaak"
+
+[[members]]
+key = "pfs-season-3-bestiary:gzMCaAr2Bd2gbhrF"
+name = "Thundering Wihsaak (Arctic)"
+
+[[members]]
+key = "pfs-season-3-bestiary:BcSac9voqpoDjMTy"
+name = "Thundering Wihsaak (Heretical)"
+
+[[members]]
+key = "pfs-season-3-bestiary:hGu2JDWOAHHMLYeH"
+name = "Thundering Wihsaak (Rifle Mutation)"

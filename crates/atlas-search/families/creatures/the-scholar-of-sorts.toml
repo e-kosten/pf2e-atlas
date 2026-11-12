@@ -1,0 +1,18 @@
+name = "The Scholar of Sorts"
+source_note = "The Seven Secrets of Dacilane Academy provides two tiered blocks for the same akizendri, with higher fast healing and Protean Anatomy in the 3–4 block."
+
+[[members]]
+key = "pfs-season-2-bestiary:6kRWSFIjPusy4d58"
+name = "The Scholar of Sorts (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-2-bestiary:JxJ3vbV7piLxZrJ9"
+name = "The Scholar of Sorts (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

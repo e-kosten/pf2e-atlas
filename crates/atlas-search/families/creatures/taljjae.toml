@@ -1,0 +1,34 @@
+name = "Taljjae"
+source_note = "Monsters of Myth gives Taljjae a base stat block and seven characters with distinct abilities. Change Characters connects the forms."
+
+[[members]]
+key = "lost-omens-bestiary:bhLbKN7MJofTabfK"
+name = "Taljjae"
+
+[[members]]
+key = "lost-omens-bestiary:a1vTm01GBVF4TI8f"
+name = "Taljjae (The Beast)"
+
+[[members]]
+key = "lost-omens-bestiary:W0oF6Dl7G4UeTBSC"
+name = "Taljjae (The General)"
+
+[[members]]
+key = "lost-omens-bestiary:sXZExyaijbRnKI2S"
+name = "Taljjae (The Grandmother)"
+
+[[members]]
+key = "lost-omens-bestiary:XLDh6o6vBRCDEKsl"
+name = "Taljjae (The Hermit)"
+
+[[members]]
+key = "lost-omens-bestiary:IO7sPevkM0zvnWbi"
+name = "Taljjae (The Hero)"
+
+[[members]]
+key = "lost-omens-bestiary:j3NhCEMLVm4HSsgr"
+name = "Taljjae (The Nobleman)"
+
+[[members]]
+key = "lost-omens-bestiary:hfi0qJePy2cf4Fqe"
+name = "Taljjae (The Wanderer)"

@@ -1,0 +1,18 @@
+name = "Caliclotherax"
+source_note = "Cavern of Sundered Songs provides separate 9–10 and 11–12 blocks for Caliclotherax, retaining the crystal dragon’s Breath Weapon and Crystallize Flesh."
+
+[[members]]
+key = "pfs-season-3-bestiary:XyrToL9Wyl4MoAf1"
+name = "Caliclotherax (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]
+
+[[members]]
+key = "pfs-season-3-bestiary:AaCmgrEQ4sPakXca"
+name = "Caliclotherax (11-12)"
+
+[[members.uses]]
+id = "party-11-12"
+party_levels = [11, 12]

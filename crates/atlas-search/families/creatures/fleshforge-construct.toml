@@ -1,0 +1,110 @@
+name = "Fleshforge Construct"
+source_note = "The Absalom Initiation uses a Fleshforge Dreg for party levels 1–2 and a Fleshforge Prototype for 3–4 in area A2. The two appendix blocks offer the same six additional abilities with tier-specific mechanics."
+
+[[members]]
+key = "pfs-season-1-bestiary:bDKozdvVEElVQywQ"
+name = "Fleshforge Dreg (Acid Spit)"
+label = "Fleshforge Dreg (Acid Spit)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:t1QyIgwLORMhHNL4"
+name = "Fleshforge Dreg (Breath Weapon)"
+label = "Fleshforge Dreg (Breath Weapon)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:WlJ8fVMV7gXNQ9eR"
+name = "Fleshforge Dreg (Leaping Charge)"
+label = "Fleshforge Dreg (Leaping Charge)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:PXXHRzLRLB4bJ7M5"
+name = "Fleshforge Dreg (Reach)"
+label = "Fleshforge Dreg (Reach)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:JEwMnYFfyxr5i6Dy"
+name = "Fleshforge Dreg (Roots)"
+label = "Fleshforge Dreg (Roots)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:cuTgbvAxDEkT4XhZ"
+name = "Fleshforge Dreg (Shield)"
+label = "Fleshforge Dreg (Shield)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:lzDOAywWh0mP4UeH"
+name = "Fleshforge Prototype (Acid Spit)"
+label = "Fleshforge Prototype (Acid Spit)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:sN5jueRXgYI9DDGH"
+name = "Fleshforge Prototype (Breath Weapon)"
+label = "Fleshforge Prototype (Breath Weapon)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:QZVLjVPLl0PNo2K3"
+name = "Fleshforge Prototype (Leaping Charge)"
+label = "Fleshforge Prototype (Leaping Charge)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:R8D2GrilngQIb1eI"
+name = "Fleshforge Prototype (Reach)"
+label = "Fleshforge Prototype (Reach)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:toAsLLjdRwu1pT0b"
+name = "Fleshforge Prototype (Roots)"
+label = "Fleshforge Prototype (Roots)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:m3YBXS3ool7PmRfX"
+name = "Fleshforge Prototype (Shield)"
+label = "Fleshforge Prototype (Shield)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

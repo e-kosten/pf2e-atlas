@@ -1,0 +1,18 @@
+name = "Monastic Bodyguard"
+source_note = "The Locked Lodge supplies 2 party-tier stat blocks for Monastic Bodyguard. Each retains Hellfire Flurry and Powerful Fists."
+
+[[members]]
+key = "pfs-season-3-bestiary:xkXMKw8GhdI5FNar"
+name = "Monastic Bodyguard (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-3-bestiary:zzbBBSmjvCzJ6lyt"
+name = "Monastic Bodyguard (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

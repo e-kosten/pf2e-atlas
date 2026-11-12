@@ -1,0 +1,18 @@
+name = "Mosquito Witch"
+source_note = "Monsters of Myth supplies a generic Mosquito Witch and three forms with distinct spells or abilities. They share Haunting Gaze and Dipteric Dread."
+
+[[members]]
+key = "lost-omens-bestiary:KdOwmclPVpcTSPjF"
+name = "Mosquito Witch"
+
+[[members]]
+key = "lost-omens-bestiary:ns6fmJ8469hzBOtM"
+name = "Mosquito Witch (The Hemoprophet)"
+
+[[members]]
+key = "lost-omens-bestiary:FhgZOBWNMa5t7pYV"
+name = "Mosquito Witch (The Legion Leech)"
+
+[[members]]
+key = "lost-omens-bestiary:mE9MQ0hnRmlR9m94"
+name = "Mosquito Witch (The Swarm Seer)"

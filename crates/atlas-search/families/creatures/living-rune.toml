@@ -1,0 +1,18 @@
+name = "Living Rune"
+source_note = "Bestiary 3 supplies four living runes with distinct innate spell lists. Each retains Truescript, Backdrop, and Surface-Bound."
+
+[[members]]
+key = "pathfinder-bestiary-3:EMT6L7RarzkSiEOq"
+name = "Living Rune (Arcane)"
+
+[[members]]
+key = "pathfinder-bestiary-3:tvAlNMQluKDpfXMz"
+name = "Living Rune (Divine)"
+
+[[members]]
+key = "pathfinder-bestiary-3:pCDp2hdim12wonW5"
+name = "Living Rune (Occult)"
+
+[[members]]
+key = "pathfinder-bestiary-3:WfCLrFwwWSA7KRUu"
+name = "Living Rune (Primal)"

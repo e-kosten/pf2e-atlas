@@ -1,0 +1,18 @@
+name = "Keff The Lion"
+source_note = "Lions of Katapesh supplies two party-tier blocks for Keff The Lion. Both have the same Jaws and Claws Strikes, Pack Attack, and Pounce."
+
+[[members]]
+key = "pfs-season-1-bestiary:yn7x4Me1YrPuXFZf"
+name = "Keff The Lion (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:Nh3mKGv0uy1tovpL"
+name = "Keff The Lion (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

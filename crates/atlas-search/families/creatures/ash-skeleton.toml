@@ -1,0 +1,18 @@
+name = "Ash Skeleton"
+source_note = "Balancing the Scales supplies 2 party-tier stat blocks for Ash Skeleton. Each retains Ash Form and Crumble."
+
+[[members]]
+key = "pfs-season-2-bestiary:fpKKNDabU5XPov30"
+name = "Ash Skeleton (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-2-bestiary:IxDPownROvUhSU21"
+name = "Ash Skeleton (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

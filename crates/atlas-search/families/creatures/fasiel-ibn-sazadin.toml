@@ -1,0 +1,18 @@
+name = "Fasiel Ibn Sazadin"
+source_note = "Fury's Toll supplies 2 party-tier stat blocks for Fasiel Ibn Sazadin. Each retains Frightening Rant and Punishing Strike."
+
+[[members]]
+key = "pfs-season-3-bestiary:OOHNMq2uOfnp8QCg"
+name = "Fasiel Ibn Sazadin (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:986YKe07u2538RcF"
+name = "Fasiel Ibn Sazadin (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

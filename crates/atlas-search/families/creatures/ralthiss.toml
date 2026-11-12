@@ -1,0 +1,18 @@
+name = "Ralthiss"
+source_note = "Escaping the Grave supplies two party-tier blocks for Ralthiss. Both have the same Morningstar and Hand Crossbow Strikes, Sap Life, and divine spellcasting."
+
+[[members]]
+key = "pfs-season-1-bestiary:awImEAjEPe1LOY8m"
+name = "Ralthiss (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:Tnq5pjDMMSmPkBtB"
+name = "Ralthiss (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

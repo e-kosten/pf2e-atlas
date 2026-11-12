@@ -234,8 +234,25 @@ have their own `named_base`.
 The creature family files in [the retrieval catalog](../../crates/atlas-search/families/creatures)
 use one stable ID per TOML file. Verify each exact actor key and expected title
 against the candidate source. A named creature declares the exact base actor
-it connects to. Shared token names can suggest a relationship, including within
-one publication, and still require review.
+it connects to.
+
+1. Run the [creature audit](developer-commands.md#review-creature-families) against
+   the Foundry revision under review. Compare by exact actor key. A shared token
+   name within a publication is a discovery signal. Verify the actual actor
+   records and adventure evidence before declaring a relationship.
+2. Check the [family TOMLs](../../crates/atlas-search/families/creatures) and
+   [review notes](../../crates/atlas-search/families/creature-review.md). A group
+   whose actors all belong to one verified family is covered. Carry forward
+   recorded decisions while their evidence still applies. Review unresolved
+   or cross-family groups that lack a decision. On source upgrades, revisit a
+   decision when membership, titles, or relevant source facts change, including
+   changes where the actor keys stay the same.
+3. Put accepted relationships and their source notes in the TOMLs. For a
+   rejection or deferral, record the exact unresolved actor names and keys,
+   the reviewed source revision, the reason, and what would reopen the decision
+   in the review notes. Link to any accepted family involved in a partial
+   decision. Keep concrete discovery gaps there so a later pass can test them.
+   Report batch counts and validation in the PR.
 
 Declare party level ranges in the actor's reviewed scenario uses. Each use
 has its own identifier and may include a Challenge Point threshold when the
@@ -260,5 +277,4 @@ target applies and any custom mechanics. When adding an override or upgrading
 the source, verify that both records belong to the same adventure and check
 their usage conditions. Test the target's source adjustment and
 effective stats, including published records whose stats already include the
-adjustment. See the [creature audit command](developer-commands.md#review-creature-families)
-for inventory and candidate discovery.
+adjustment.

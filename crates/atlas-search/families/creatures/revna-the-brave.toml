@@ -1,0 +1,18 @@
+name = "Revna the Brave"
+source_note = "Linnorm's Legacy supplies 2 party-tier stat blocks for Revna the Brave. Each retains Haunting Hymn and the Battle Axe Strike."
+
+[[members]]
+key = "pfs-season-4-bestiary:CgoJslSLVrUc86W5"
+name = "Revna the Brave (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-4-bestiary:gOmGPZ3Ul1bFtQZO"
+name = "Revna the Brave (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

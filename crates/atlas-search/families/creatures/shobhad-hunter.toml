@@ -1,0 +1,18 @@
+name = "Shobhad Hunter"
+source_note = "Fate in the Future supplies 2 party-tier stat blocks for Shobhad Hunter. Each retains Determined Charge and Four-Armed."
+
+[[members]]
+key = "pfs-season-3-bestiary:Q2a9EA1zQB8acuiF"
+name = "Shobhad Hunter (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-3-bestiary:EB00f6ADElWInuix"
+name = "Shobhad Hunter (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

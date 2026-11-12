@@ -1,0 +1,18 @@
+name = "Corvius Vayn"
+source_note = "Freedom for Wishes supplies 2 party-tier stat blocks for Corvius Vayn. Each retains I Wish You Hadn’t Done That and the Sword Cane Strike."
+
+[[members]]
+key = "pfs-season-2-bestiary:aQsmJxRJIM0nzw5e"
+name = "Corvius Vayn (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-2-bestiary:X6ODple6SbEvbmmj"
+name = "Corvius Vayn (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

@@ -1,0 +1,18 @@
+name = "Pontrius Tilasti"
+source_note = "Inheritor's Rite supplies 2 party-tier stat blocks for Pontrius Tilasti. Each retains Diabolic Edict and Greater Darkvision."
+
+[[members]]
+key = "pfs-season-3-bestiary:uOgiYc5VGhSxkLFa"
+name = "Pontrius Tilasti (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-3-bestiary:43L2RtbBprItSjPY"
+name = "Pontrius Tilasti (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

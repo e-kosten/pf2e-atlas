@@ -1,0 +1,18 @@
+name = "Transformed Bremix"
+source_note = "Prisoners of the Electric Castle supplies 2 party-tier stat blocks for Transformed Bremix. Each retains Change Shape and the Antler Strike."
+
+[[members]]
+key = "pfs-season-4-bestiary:YBrbpODnj7nYtI7W"
+name = "Transformed Bremix (7-8)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-4-bestiary:GiSG0NC5MMpekWAu"
+name = "Transformed Bremix (9-10)"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]

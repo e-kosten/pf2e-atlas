@@ -1,0 +1,18 @@
+name = "Human Bandit"
+source_note = "A Curious Claim supplies two party-tier blocks for Human Bandit. Both have the same Shortsword and Dagger loadout and Attack of Opportunity."
+
+[[members]]
+key = "pfs-season-1-bestiary:aWiBgV5B9sIO7UtN"
+name = "Human Bandit (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:mWzScgUiWAGEb0RE"
+name = "Human Bandit (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

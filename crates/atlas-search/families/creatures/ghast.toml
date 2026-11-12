@@ -1,0 +1,10 @@
+name = "Ghast"
+source_note = "Guardian’s Covenant supplies Heretical and Arctic ghasts. Both have Ghast Fever and Stench, with variant traits and defenses."
+
+[[members]]
+key = "pfs-season-3-bestiary:uJe5OEPDuvIG6eg6"
+name = "Ghast (Arctic)"
+
+[[members]]
+key = "pfs-season-3-bestiary:3eowuKJaQ99K8Ofp"
+name = "Ghast (Heretical)"

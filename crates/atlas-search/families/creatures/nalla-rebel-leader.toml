@@ -1,0 +1,20 @@
+name = "Nalla, Rebel Leader"
+source_note = "Revolution on the Riverside supplies two party-tier blocks for the rebel leader, both with Inspire Courage. The shared token name shortens her title."
+
+[[members]]
+key = "pfs-season-1-bestiary:SprnhrgMbZxb59fA"
+name = "Nalla, Rebel Leader (1-2)"
+label = "Nalla, Rebel Leader"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-1-bestiary:E17afWSsCBGM8Gnq"
+name = "Nalla, Rebel Leader (3-4)"
+label = "Nalla, Rebel Leader"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

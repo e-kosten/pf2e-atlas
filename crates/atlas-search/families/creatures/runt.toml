@@ -1,0 +1,18 @@
+name = "Runt"
+source_note = "Within the Prairies supplies 2 party-tier stat blocks for Runt. Each retains Restorative Familiar and Speech."
+
+[[members]]
+key = "pfs-season-4-bestiary:XkoZF15KKDsz2m2x"
+name = "Runt (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-4-bestiary:qkqL6iX7WRmOfNk7"
+name = "Runt (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

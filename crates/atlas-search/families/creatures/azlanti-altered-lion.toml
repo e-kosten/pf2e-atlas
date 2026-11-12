@@ -1,0 +1,18 @@
+name = "Azlanti-Altered Lion"
+source_note = "Lost and Forgotten supplies four altered lion stat blocks. The additional legs, armor plating, chameleon fur, and additional head change their mobility, defenses, or abilities."
+
+[[members]]
+key = "pfs-season-6-bestiary:VlIiU3VbBE5Nugfw"
+name = "Azlanti-Altered Lion (Additional Head)"
+
+[[members]]
+key = "pfs-season-6-bestiary:FdyZQfDxEvO7MnJR"
+name = "Azlanti-Altered Lion (Additional Legs)"
+
+[[members]]
+key = "pfs-season-6-bestiary:I7TDVCaFyCewtz2U"
+name = "Azlanti-Altered Lion (Armor Plating)"
+
+[[members]]
+key = "pfs-season-6-bestiary:ISimjXutJ21dMAef"
+name = "Azlanti-Altered Lion (Chameleon Fur)"

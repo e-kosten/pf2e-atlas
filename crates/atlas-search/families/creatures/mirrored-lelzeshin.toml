@@ -1,0 +1,18 @@
+name = "Mirrored Lelzeshin"
+source_note = "Opal of Bhopan supplies two party-tier blocks for Mirrored Lelzeshin. Both are the mirrored construct with Kukri, Nimble Dodge, and Sneak Attack."
+
+[[members]]
+key = "pfs-season-1-bestiary:X6xVydw9XznvvFC2"
+name = "Mirrored Lelzeshin (Tier 3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-1-bestiary:yAZBjwCVDGbdT4Sb"
+name = "Mirrored Lelzeshin (Tier 5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

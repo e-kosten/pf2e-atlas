@@ -1,0 +1,10 @@
+name = "Velicarn"
+source_note = "Bastion of Blasphemies presents two forms of Velicarn in the same encounter (pp. 213–214). Discorporation describes the death coach transforming into a dullahan and back."
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:pRlJ0cepzWAyJeSJ"
+name = "Velicarn (Dullahan)"
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:weLjvcmjY81S9CV9"
+name = "Velicarn (Death Coach)"

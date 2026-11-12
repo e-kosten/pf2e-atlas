@@ -1,0 +1,18 @@
+name = "Ragewight"
+source_note = "A Dirge for Sarkoris supplies 2 party-tier stat blocks for Ragewight. Each retains Furious Grab and Wight Spawn."
+
+[[members]]
+key = "pfs-season-2-bestiary:XVda3dqZWi21we2j"
+name = "Ragewight (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-2-bestiary:zpIVn1k5nsR0sMZ8"
+name = "Ragewight (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]

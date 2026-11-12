@@ -1,0 +1,18 @@
+name = "Servitor Phantom"
+source_note = "Bastion of Blasphemies defines the four household roles in Skull-Faced Servant. The blocks differ in the skull Strike or Lore associated with each role."
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:Mw0cHFd5a4RGEqPn"
+name = "Servitor Phantom (Brewer)"
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:7KhhBPqRFYMDZmtm"
+name = "Servitor Phantom (Cook)"
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:buABPmUgUvhWxVaS"
+name = "Servitor Phantom (Housekeeper)"
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:GT0G3ELbvhtfCw1A"
+name = "Servitor Phantom (Valet)"
