@@ -44,7 +44,9 @@ pub use persisted_inputs::collect_persisted_inputs_for_fixture;
 pub use selected_sections::SELECTED_SECTIONS_RECIPE;
 mod requested_config;
 pub use requested_config::{
-    RequestedReferenceConfig, read_requested_reference_config, write_requested_reference_config,
+    RequestedReferenceConfig, clear_requested_reference_config, read_requested_reference_config,
+    read_requested_reference_config_for_write, validate_requested_reference_config,
+    write_requested_reference_config,
 };
 mod build_scratch;
 mod build_spool;

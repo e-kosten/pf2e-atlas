@@ -12,9 +12,11 @@ pub struct ManualTracker {
     pub progress: TrackerProgress,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "unit", content = "remaining", rename_all = "snake_case")]
+#[serde(tag = "unit", content = "remaining")]
 pub enum TrackerProgress {
+    #[serde(rename = "rounds")]
     Rounds(i64),
+    #[serde(rename = "seconds")]
     Seconds(i64),
 }
 #[derive(Debug, Clone)]

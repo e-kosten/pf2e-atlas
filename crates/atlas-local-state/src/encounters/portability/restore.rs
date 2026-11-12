@@ -25,7 +25,7 @@ impl EncountersWrite<'_> {
             let id = db.last_insert_rowid();
             identities.allocate(db, key, slug)?;
             identities.visit(&mut document);
-            write_document(db, id, &document)?;
+            write_document(db, id, &document, None)?;
             storage::get(
                 db,
                 self.owner_id,
@@ -36,9 +36,16 @@ impl EncountersWrite<'_> {
     }
 }
 
-fn write_document(db: &Connection, id: i64, document: &EncounterDocument) -> LocalStateResult<()> {
+pub(super) fn write_document(
+    db: &Connection,
+    id: i64,
+    document: &EncounterDocument,
+    tracker_positions: Option<&std::collections::BTreeMap<String, Vec<i64>>>,
+) -> LocalStateResult<()> {
     for participant in &document.snapshot.participants {
-        write_participant(db, id, participant)?;
+        let positions =
+            tracker_positions.and_then(|positions| positions.get(&participant.participant_key));
+        write_participant(db, id, participant, positions.map(Vec::as_slice))?;
     }
     let root = &document.snapshot.encounter;
     db.execute(
@@ -103,6 +110,7 @@ fn write_participant(
     db: &Connection,
     encounter_id: i64,
     p: &EncounterParticipant,
+    tracker_positions: Option<&[i64]>,
 ) -> LocalStateResult<()> {
     if let Some(key) = &p.record_key {
         crate::references::retain(
@@ -151,7 +159,9 @@ fn write_participant(
             VALUES(?1,?2,?3,?4)", params![p.participant_key,serde_json::to_string(&ability.owner)?,
             ordinal,receipt_codec::encode(ability)?])?;
     }
-    for (position, tracker) in (1_i64..).zip(&p.manual_trackers) {
+    let positions = (1_i64..).zip(&p.manual_trackers);
+    for (index, (ordinal, tracker)) in positions.enumerate() {
+        let position = tracker_positions.map_or(ordinal, |positions| positions[index]);
         db.execute(
             "INSERT INTO encounter_manual_trackers(participant_key,tracker_key,payload_json,position)
             VALUES(?1,?2,?3,?4)",

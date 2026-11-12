@@ -16,18 +16,17 @@ pub struct ParticipantAbilityState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum AbilityStateValue {
+    #[serde(rename = "option")]
     Option {
         active: bool,
         selection: Option<String>,
     },
-    ConditionValueOverride {
-        value: Option<i64>,
-    },
-    Uses {
-        remaining: i64,
-    },
+    #[serde(rename = "condition_value_override")]
+    ConditionValueOverride { value: Option<i64> },
+    #[serde(rename = "uses")]
+    Uses { remaining: i64 },
 }
 
 #[derive(Debug, Clone)]

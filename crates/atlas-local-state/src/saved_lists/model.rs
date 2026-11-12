@@ -1,5 +1,5 @@
 use atlas_domain::RecordKey;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SavedList {
@@ -14,7 +14,7 @@ pub struct SavedList {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct SavedListItem {
     pub record_key: String,
     pub position: i64,

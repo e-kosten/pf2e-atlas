@@ -32,16 +32,17 @@ pub struct ParticipantEventChange {
     pub hazard_disabled: bool,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum PendingConsequence {
+    #[serde(rename = "confused_damage_recovery")]
     ConfusedDamageRecovery {
         participant_key: String,
         condition_ids: Vec<i64>,
         qualifying_damage: Option<bool>,
     },
-    BrokenHpThreshold {
-        participant_key: String,
-    },
+    #[serde(rename = "broken_hp_threshold")]
+    BrokenHpThreshold { participant_key: String },
+    #[serde(rename = "initiative_placement")]
     InitiativePlacement {
         #[serde(default)]
         context: SavedHpEventContext,
@@ -49,6 +50,7 @@ pub enum PendingConsequence {
         before_hp: i64,
         after_hp: i64,
     },
+    #[serde(rename = "hp_lifecycle")]
     HpLifecycle {
         participant_key: String,
         before_hp: i64,
@@ -59,6 +61,7 @@ pub enum PendingConsequence {
         was_doomed: i64,
         context: SavedHpEventContext,
     },
+    #[serde(rename = "drained_hp_loss")]
     DrainedHpLoss {
         participant_key: String,
         magnitude_increase: i64,
@@ -110,8 +113,9 @@ impl ParticipantEventChange {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum ConditionEventOutcome {
+    #[serde(rename = "lifecycle_check")]
     LifecycleCheck {
         participant_key: String,
         purpose: LifecycleCheckPurpose,
@@ -122,12 +126,14 @@ pub enum ConditionEventOutcome {
         degree: CheckDegree,
         table_actions: u8,
     },
+    #[serde(rename = "persistent_damage")]
     PersistentDamage {
         participant_key: String,
         groups: Vec<PersistentDamageOutcome>,
         total: i64,
         hardness_absorbed: i64,
     },
+    #[serde(rename = "persistent_recovery")]
     PersistentRecovery {
         episode_id: String,
         damage_type: String,
@@ -150,9 +156,10 @@ pub struct PersistentDamageOutcome {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum DamageLethality {
+    #[serde(rename = "lethal")]
     Lethal,
+    #[serde(rename = "nonlethal")]
     Nonlethal,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -187,11 +194,14 @@ pub enum ConditionEventSource {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum EncounterBoundaryKind {
+    #[serde(rename = "persistent_damage")]
     PersistentDamage,
+    #[serde(rename = "persistent_recovery")]
     PersistentRecovery,
+    #[serde(rename = "turn_start")]
     TurnStart,
+    #[serde(rename = "turn_end")]
     TurnEnd,
 }
 impl EncounterBoundaryKind {
@@ -213,19 +223,25 @@ pub struct EncounterBoundaryClaim {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum CheckDegree {
+    #[serde(rename = "critical_failure")]
     CriticalFailure,
+    #[serde(rename = "failure")]
     Failure,
+    #[serde(rename = "success")]
     Success,
+    #[serde(rename = "critical_success")]
     CriticalSuccess,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum LifecycleCheckPurpose {
+    #[serde(rename = "dying_recovery")]
     DyingRecovery,
+    #[serde(rename = "retch")]
     Retch,
+    #[serde(rename = "wake_from_noise")]
     WakeFromNoise,
+    #[serde(rename = "confused_damage_recovery")]
     ConfusedDamageRecovery,
 }
 
