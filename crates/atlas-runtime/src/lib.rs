@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+mod desktop_reference;
 mod embedding_seeds;
 mod error;
 mod operations;
@@ -23,6 +24,7 @@ mod source_configuration;
 mod tests;
 mod workspace;
 
+pub use desktop_reference::{DesktopReferenceOutcome, DesktopReferenceStatus};
 pub use error::{RuntimeError, RuntimeErrorKind, RuntimePathTarget, RuntimePlatform};
 pub use paths::{AtlasPathMode, AtlasPathOverrides, ResolvedAtlasPaths, ResolvedPathMode};
 pub use retrieval::SearchProfileReadiness;

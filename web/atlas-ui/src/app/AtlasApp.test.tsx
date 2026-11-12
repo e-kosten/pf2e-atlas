@@ -332,6 +332,54 @@ describe("AtlasApp routing", () => {
     expect(location.pathname).toBe("/search");
   });
 
+  it("keeps the selected record and draft when reference data updates through the drawer", async () => {
+    const host = window as Window & {
+      __ATLAS_DESKTOP_SETUP__?: object;
+      __TAURI__?: object;
+    };
+    const invoke = vi.fn().mockResolvedValue(undefined);
+    host.__TAURI__ = { core: { invoke } };
+    host.__ATLAS_DESKTOP_SETUP__ = {
+      token: "desktop",
+      setup: { job: 0, sequence: 1, status: "idle" },
+      reference: {
+        revision: "current",
+        target: "current",
+        targetVersion: "8.6.1",
+        managed: true,
+        available: true,
+      },
+    };
+    try {
+      history.replaceState(null, "", "/search/records/spell:heal?q=heal");
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+      const input = screen.getByRole("searchbox", { name: "Search records" });
+      fireEvent.change(input, { target: { value: "Unsubmitted draft" } });
+      fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+      const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+      const repair = await within(drawer).findByRole("button", {
+        name: "Check and repair reference data",
+      });
+      await waitFor(() => expect(repair).toBeEnabled());
+      fireEvent.click(repair);
+      expect(invoke).toHaveBeenLastCalledWith(
+        "desktop_setup_action",
+        expect.objectContaining({ action: "check_reference" }),
+      );
+      fireEvent(window, new CustomEvent("atlas-reference-updated"));
+      fireEvent.click(within(drawer).getByRole("button", { name: "Close" }));
+      expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+      expect(location.pathname).toBe("/search/records/spell:heal");
+      expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+        "Unsubmitted draft",
+      );
+    } finally {
+      delete host.__ATLAS_DESKTOP_SETUP__;
+      delete host.__TAURI__;
+    }
+  });
+
   it.each(["rerun", "submit"] as const)(
     "keeps keyword results when semantic search becomes ready until %s",
     async (action) => {

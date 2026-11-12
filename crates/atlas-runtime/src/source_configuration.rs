@@ -80,15 +80,7 @@ fn resolve(
         indexing_locale: "en".into(),
         search_profiles: vec![],
     });
-    let previous_managed_pin = config.source_root.parent() == paths.managed_source_root.parent()
-        && config
-            .source_root
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| {
-                name.len() == 40 && name.bytes().all(|byte| byte.is_ascii_hexdigit())
-            });
-    if setup && previous_managed_pin {
+    if setup && crate::desktop_reference::managed_pin(paths, &config) {
         config.source_root.clone_from(&paths.managed_source_root);
     }
     if paths.source_root_explicit {

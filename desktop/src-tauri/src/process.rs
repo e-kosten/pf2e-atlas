@@ -7,7 +7,8 @@ use std::{
 };
 
 use atlas_desktop_protocol::{
-    LauncherReady, SetupPublication, SetupStage, VERSION, WorkspaceProbe,
+    LauncherReady, ReferenceRefreshResult, ReferenceStatus, SetupPublication, SetupStage, VERSION,
+    WorkspaceProbe,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -46,6 +47,18 @@ fn command() -> Result<Command, String> {
 
 pub fn probe() -> Result<WorkspaceProbe, String> {
     probe_with(&[])
+}
+
+pub fn reference_status() -> Result<ReferenceStatus, String> {
+    let output = command()?
+        .args(["desktop-probe", "--reference-status"])
+        .output()
+        .map_err(display)?;
+    let status: ReferenceStatus = decode(&output.stdout)?;
+    if !output.status.success() || status.version != VERSION {
+        return Err("Atlas could not verify the workspace reference status.".into());
+    }
+    Ok(status)
 }
 
 pub fn wait_for_upgrade() -> Result<(), String> {
@@ -129,11 +142,22 @@ impl Launcher {
     }
 }
 
+pub enum SetupMode<'a> {
+    Ordinary,
+    Staged(SetupStage),
+    Reference(&'a str),
+}
+
+pub enum SetupEvent {
+    Published(SetupPublication),
+    ReferenceFinished(ReferenceRefreshResult),
+}
+
 pub fn setup(
-    stage: Option<SetupStage>,
+    mode: SetupMode<'_>,
     build_embeddings_locally: bool,
     progress: impl Fn(Value) + Send + 'static,
-    published: impl Fn(SetupPublication) + Send + 'static,
+    event_received: impl Fn(SetupEvent) + Send + 'static,
     hold: impl FnOnce(ChildStdin),
 ) -> Result<(), Value> {
     let mut command = command()?;
@@ -143,20 +167,28 @@ pub fn setup(
         "--desktop-progress",
         "--desktop-cancel-on-eof",
     ]);
-    if let Some(stage) = stage {
-        command.args([
+    match mode {
+        SetupMode::Staged(stage) => command.args([
             "--desktop-stage",
             match stage {
                 SetupStage::FirstRun => "first-run",
                 SetupStage::Resume => "resume",
             },
-        ]);
-    }
+        ]),
+        SetupMode::Reference(offer) => command.args(["--desktop-reference-offer", offer]),
+        SetupMode::Ordinary => &mut command,
+    };
     if build_embeddings_locally {
         command.arg("--build-embeddings-locally");
     }
     #[cfg(debug_assertions)]
-    if let Some(source) = crate::smoke::source()? {
+    if matches!(mode, SetupMode::Reference(_)) && crate::smoke::reference_mode() {
+        crate::smoke::record_setup();
+    }
+    #[cfg(debug_assertions)]
+    if !matches!(mode, SetupMode::Reference(_))
+        && let Some(source) = crate::smoke::source()?
+    {
         crate::smoke::record_setup();
         command.args(["--offline", "--source"]);
         command.arg(source);
@@ -185,7 +217,12 @@ pub fn setup(
             } else if let Ok(event) = serde_json::from_str::<SetupPublication>(&line)
                 && event.setup_event_version == atlas_desktop_protocol::SETUP_EVENT_VERSION
             {
-                published(event);
+                event_received(SetupEvent::Published(event));
+            } else if let Ok(event) = serde_json::from_str::<ReferenceRefreshResult>(&line)
+                && event.reference_refresh_version
+                    == atlas_desktop_protocol::REFERENCE_REFRESH_VERSION
+            {
+                event_received(SetupEvent::ReferenceFinished(event));
             }
         }
     });

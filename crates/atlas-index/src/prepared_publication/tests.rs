@@ -115,6 +115,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         scratch.path(),
         metadata,
         None,
+        None,
     )
     .unwrap();
     for unit in &input.semantic_units {
@@ -142,6 +143,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
+        None,
         None,
     )
     .unwrap();

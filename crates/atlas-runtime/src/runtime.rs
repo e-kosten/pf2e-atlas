@@ -269,6 +269,38 @@ impl AtlasRuntime {
         setup::eligible_desktop_stage(&self.paths).ok()
     }
 
+    pub fn desktop_reference_status(&self) -> Result<crate::DesktopReferenceStatus, String> {
+        crate::desktop_reference::inspect(&self.paths)
+    }
+
+    pub fn refresh_desktop_reference(
+        &self,
+        build_embeddings_locally: bool,
+        offer: &str,
+        on_complete: impl FnMut(crate::DesktopReferenceOutcome),
+    ) -> RuntimeSetupReport {
+        setup::refresh_desktop_reference(
+            &self.paths,
+            RuntimeSetupOptions {
+                build_embeddings_locally,
+                offline: crate::desktop_reference::fixture(&self.paths),
+                ..Default::default()
+            },
+            offer,
+            on_complete,
+        )
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn holds_desktop_reference_fixture(&self) -> bool {
+        crate::desktop_reference::fixture(&self.paths)
+            && self
+                .paths
+                .managed_source_root
+                .join(".hold-reference")
+                .is_file()
+    }
+
     /// Resolve and persist preparation intent before a manual build. Repeated
     /// model selections add to the configured set; omission never removes one.
     pub fn configure_reference_build(

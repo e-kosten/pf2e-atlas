@@ -109,12 +109,17 @@ action if the initial render fails. Retry uses the published workspace.
 Fresh managed setup opens the primary window on a verified keyword publication
 receipt from the setup child. The child continues semantic preparation under
 the same setup guard. A narrowly scoped product permission exposes the native
-progress panel and its cancel and resume actions. The host validates the WebView,
+Setup and Updates drawer and its typed maintenance actions. The host validates the WebView,
 loopback origin, service instance, current document attachment and job on each
-action. Product documents disallow child frames. The bundled setup surface
-retains its existing permissions for explicit reference updates and workspace
-upgrades, preserving mounted product views and drafts. A data-free event tells
-the current product views to refresh readiness and reference queries in place.
+action. Product documents disallow child frames. The drawer displays stored
+reference metadata and the bundled source pin. The bundled setup child checks
+the offered workspace identity, published generation and requested
+configuration under setup and publication ownership before updating the
+current-format workspace. The host owns the job across all windows and
+reconciles the committed generation after it ends. A generation change tells
+mounted product views to refresh reference queries in place. Asset repairs
+with the same generation refresh readiness. The bundled surface handles first
+launch, workspace upgrades and recovery, and owns terminal command linking.
 The shared managed worker can warm the model on first attachment or after
 receiving an authenticated publication notification without adding a lease.
 

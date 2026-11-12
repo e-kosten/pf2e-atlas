@@ -37,7 +37,7 @@ mod selected_sections;
 mod semantic_locations;
 pub use component_upgrade::{
     ReferenceUpgrade, classify_reference_upgrade, ensure_reference_projections,
-    read_stored_reference_context,
+    read_stored_reference_context, refresh_reference_projections,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use persisted_inputs::collect_persisted_inputs_for_fixture;

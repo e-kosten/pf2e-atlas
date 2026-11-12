@@ -269,7 +269,7 @@ async fn prepare(
         }
         let progress_window = window.clone();
         let result = process::setup(
-            None,
+            process::SetupMode::Ordinary,
             build_embeddings_locally.unwrap_or_default(),
             move |event| {
                 let _ = progress_window.emit("atlas-progress", event);
@@ -312,13 +312,19 @@ fn cancel_setup(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
 
 fn refresh_product(app: &AppHandle, semantic_only: bool) {
     let desktop = app.state::<Desktop>();
-    let origin = lock(&desktop.launcher)
-        .as_ref()
-        .and_then(|launcher| verified_url(&launcher.ready.endpoint).ok())
-        .map(|endpoint| endpoint.origin());
+    let service = lock(&desktop.launcher).as_ref().and_then(|launcher| {
+        let ready = &launcher.ready;
+        Some((
+            verified_url(&ready.endpoint).ok()?.origin(),
+            ready.instance.clone(),
+        ))
+    });
+    let Some((origin, instance)) = service else {
+        return;
+    };
     for window in app.webview_windows().into_values() {
-        if window.label().starts_with("atlas-")
-            && window.url().is_ok_and(|url| Some(url.origin()) == origin)
+        if desktop.staged_setup.has_document(window.label(), &instance)
+            && window.url().is_ok_and(|url| url.origin() == origin)
         {
             let detail = if semantic_only { "'semantic'" } else { "null" };
             let _ = window.eval(format!(
@@ -365,7 +371,7 @@ fn show_pending_or_default(app: &AppHandle) {
     }
 }
 
-fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<(), String> {
+fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<WebviewWindow, String> {
     let desktop = app.state::<Desktop>();
     let (base, instance) = {
         let current = lock(&desktop.launcher);
@@ -389,7 +395,8 @@ fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<(), St
                     .is_ok_and(|open| same_product_route(&url, &open))
             {
                 window.show().map_err(display)?;
-                return window.set_focus().map_err(display);
+                window.set_focus().map_err(display)?;
+                return Ok(window);
             }
         }
     }
@@ -415,8 +422,35 @@ fn open_product(app: &AppHandle, route: &str, new_window: bool) -> Result<(), St
             tauri::webview::NewWindowResponse::Deny
         })
         .build()
-        .map_err(display)?;
-    Ok(())
+        .map_err(display)
+}
+
+fn show_workspace_setup(app: &AppHandle) -> Result<(), String> {
+    let desktop = app.state::<Desktop>();
+    let instance = lock(&desktop.launcher)
+        .as_ref()
+        .map(|launcher| launcher.ready.instance.clone());
+    if let Some(instance) = instance {
+        let windows = app.webview_windows();
+        let focused = windows
+            .values()
+            .find(|window| window.is_focused().unwrap_or(false));
+        for window in focused.into_iter().chain(windows.values()) {
+            if desktop.staged_setup.request_open(window, &instance, false) {
+                window.show().map_err(display)?;
+                return window.set_focus().map_err(display);
+            }
+        }
+        if lock(&desktop.primary).is_product() {
+            let window = open_product(app, "/search", true)?;
+            if desktop.staged_setup.request_open(&window, &instance, true) {
+                return Ok(());
+            }
+        }
+    }
+    opening::restore_setup_if_needed(app)
+        .and_then(|()| show_bootstrap(app))
+        .map_err(display)
 }
 
 fn open_external(destination: &Url) {
@@ -571,9 +605,17 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         Some("CmdOrCtrl+,"),
     )?;
     let window = MenuItem::with_id(app, "new", "New Window", true, Some("CmdOrCtrl+N"))?;
+    let terminal = MenuItem::with_id(
+        app,
+        "terminal-access",
+        "Terminal and Agent Access…",
+        true,
+        None::<&str>,
+    )?;
     let copy = MenuItem::with_id(app, "copy-link", "Copy Atlas Link", true, None::<&str>)?;
     let atlas = SubmenuBuilder::new(app, "PF2e Atlas")
         .item(&settings)
+        .item(&terminal)
         .separator()
         .quit()
         .build()?;
@@ -625,13 +667,14 @@ fn main() {
         })
         .on_menu_event(|app, event| {
             let result = match event.id().as_ref() {
-                "setup" => opening::restore_setup_if_needed(app)
+                "setup" => show_workspace_setup(app),
+                "terminal-access" => opening::restore_setup_if_needed(app)
                     .and_then(|()| show_bootstrap(app))
                     .map_err(display),
                 "new" => {
                     let running = lock(&app.state::<Desktop>().launcher).is_some();
                     if running && setup_window_label(app) != opening::PRIMARY {
-                        open_product(app, "/search", true)
+                        open_product(app, "/search", true).map(|_| ())
                     } else {
                         show_bootstrap(app).map_err(display)
                     }

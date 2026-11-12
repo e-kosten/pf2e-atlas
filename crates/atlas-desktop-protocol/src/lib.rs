@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 pub const VERSION: u32 = 1;
 pub const SETUP_EVENT_VERSION: u32 = 1;
+pub const REFERENCE_REFRESH_VERSION: u32 = 1;
 pub const BUNDLE_ID: &str = "com.ekosten.pf2e-atlas";
 const LINK_PREFIX: &str = "pf2e-atlas://v1/record/";
 const KEY_ENCODING: &AsciiSet = &CONTROLS
@@ -59,6 +60,40 @@ pub struct SetupPublication {
     pub workspace: PathBuf,
     pub generation: String,
     pub semantic: bool,
+}
+
+/// Private, read-only metadata for the desktop setup drawer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceStatus {
+    pub version: u32,
+    pub workspace: PathBuf,
+    pub generation: String,
+    pub revision: Option<String>,
+    pub target: String,
+    pub target_version: String,
+    pub managed: bool,
+    pub offer: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReferenceRefreshResult {
+    pub reference_refresh_version: u32,
+    #[serde(flatten)]
+    pub outcome: ReferenceRefreshOutcome,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum ReferenceRefreshOutcome {
+    Ready {
+        generation: String,
+        updated: bool,
+        model_repaired: bool,
+    },
+    SeedUnavailable {
+        retry_offer: String,
+    },
+    Busy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

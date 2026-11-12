@@ -16,6 +16,13 @@ pub(crate) struct SetupArgs {
     pub(crate) desktop_cancel_on_eof: bool,
     #[arg(long, hide = true, value_enum, requires = "desktop_cancel_on_eof")]
     pub(crate) desktop_stage: Option<DesktopStage>,
+    #[arg(
+        long,
+        hide = true,
+        requires = "desktop_cancel_on_eof",
+        conflicts_with = "desktop_stage"
+    )]
+    pub(crate) desktop_reference_offer: Option<String>,
     #[command(flatten)]
     pub(crate) paths: SetupPathOptions,
     #[command(flatten)]
