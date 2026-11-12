@@ -44,6 +44,8 @@ pub enum LocalStateError {
     InvalidListImport(String),
     #[error("invalid encounter document: {0}")]
     InvalidEncounterDocument(String),
+    #[error("invalid workspace recovery data: {0}")]
+    InvalidWorkspaceRecovery(String),
     #[error("saved list already exists: {0}")]
     ListAlreadyExists(String),
     #[error("saved list not found: {0}")]

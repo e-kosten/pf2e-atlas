@@ -25,8 +25,19 @@ struct StoredConfig {
 pub fn read_requested_reference_config(
     session: &ReadSession,
 ) -> Result<Option<RequestedReferenceConfig>, IndexError> {
-    let json: Option<String> = session
-        .connection()
+    read_configuration(session.connection())
+}
+
+pub fn read_requested_reference_config_for_write(
+    session: &WriteSession,
+) -> Result<Option<RequestedReferenceConfig>, IndexError> {
+    read_configuration(session.connection())
+}
+
+fn read_configuration(
+    connection: &rusqlite::Connection,
+) -> Result<Option<RequestedReferenceConfig>, IndexError> {
+    let json: Option<String> = connection
         .query_row(
             "SELECT config_json FROM requested_reference_config WHERE id=1",
             [],
@@ -41,7 +52,7 @@ pub fn read_requested_reference_config(
                 stored.version
             )));
         }
-        validate(&stored.config)?;
+        validate_requested_reference_config(&stored.config)?;
         Ok(stored.config)
     })
     .transpose()
@@ -55,11 +66,19 @@ pub fn write_requested_reference_config(
     write_configuration(session.connection(), config)
 }
 
+/// Clear the requested build intent in the caller's transaction.
+pub fn clear_requested_reference_config(session: &WriteSession) -> Result<(), IndexError> {
+    session
+        .connection()
+        .execute("DELETE FROM requested_reference_config WHERE id=1", [])?;
+    Ok(())
+}
+
 pub(crate) fn write_configuration(
     connection: &rusqlite::Connection,
     config: &RequestedReferenceConfig,
 ) -> Result<(), IndexError> {
-    validate(config)?;
+    validate_requested_reference_config(config)?;
     let json = serde_json::to_string(&StoredConfig {
         version: 1,
         config: config.clone(),
@@ -72,7 +91,9 @@ pub(crate) fn write_configuration(
     Ok(())
 }
 
-fn validate(config: &RequestedReferenceConfig) -> Result<(), IndexError> {
+pub fn validate_requested_reference_config(
+    config: &RequestedReferenceConfig,
+) -> Result<(), IndexError> {
     let invalid = |message: &str| {
         IndexError::Invalid(format!("requested reference configuration: {message}"))
     };

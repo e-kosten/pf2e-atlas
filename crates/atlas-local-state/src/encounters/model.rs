@@ -36,11 +36,14 @@ pub struct EncounterWithParticipantCount {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum EncounterStatus {
+    #[serde(rename = "draft")]
     Draft,
+    #[serde(rename = "running")]
     Running,
+    #[serde(rename = "complete")]
     Complete,
+    #[serde(rename = "archived")]
     Archived,
 }
 
@@ -110,10 +113,12 @@ pub struct EncounterParticipant {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ParticipantVariant {
+    #[serde(rename = "normal")]
     Normal,
+    #[serde(rename = "elite")]
     Elite,
+    #[serde(rename = "weak")]
     Weak,
 }
 
@@ -140,21 +145,24 @@ impl ParticipantVariant {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum ConditionScope {
     #[default]
+    #[serde(rename = "everyone")]
     Everyone,
-    SelectedParticipants {
-        participant_keys: Vec<String>,
-    },
+    #[serde(rename = "selected_participants")]
+    SelectedParticipants { participant_keys: Vec<String> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum ConditionExtraAction {
     #[default]
+    #[serde(rename = "unspecified")]
     Unspecified,
+    #[serde(rename = "unrestricted")]
     Unrestricted,
+    #[serde(rename = "restricted")]
     Restricted {
         actions: Vec<ConditionAction>,
         guidance: Option<String>,
@@ -162,21 +170,34 @@ pub enum ConditionExtraAction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ConditionAction {
+    #[serde(rename = "stride")]
     Stride,
+    #[serde(rename = "strike")]
     Strike,
+    #[serde(rename = "step")]
     Step,
+    #[serde(rename = "leap")]
     Leap,
+    #[serde(rename = "stand")]
     Stand,
+    #[serde(rename = "interact")]
     Interact,
+    #[serde(rename = "cast_spell")]
     CastSpell,
+    #[serde(rename = "sustain")]
     Sustain,
+    #[serde(rename = "escape")]
     Escape,
+    #[serde(rename = "crawl")]
     Crawl,
+    #[serde(rename = "fly")]
     Fly,
+    #[serde(rename = "swim")]
     Swim,
+    #[serde(rename = "climb")]
     Climb,
+    #[serde(rename = "burrow")]
     Burrow,
 }
 
@@ -199,10 +220,12 @@ pub struct EncounterParticipantCondition {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ParticipantKind {
+    #[serde(rename = "creature")]
     Creature,
+    #[serde(rename = "hazard")]
     Hazard,
+    #[serde(rename = "pc")]
     Pc,
 }
 
@@ -229,12 +252,16 @@ impl ParticipantKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ParticipantSide {
+    #[serde(rename = "pc")]
     Pc,
+    #[serde(rename = "ally")]
     Ally,
+    #[serde(rename = "enemy")]
     Enemy,
+    #[serde(rename = "neutral")]
     Neutral,
+    #[serde(rename = "hazard")]
     Hazard,
 }
 
@@ -378,12 +405,15 @@ pub struct UpdateEncounterParticipantCondition {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
 pub enum ParticipantHpOrigin {
+    #[serde(rename = "derived_pristine")]
     DerivedPristine,
+    #[serde(rename = "derived_edited")]
     DerivedEdited,
     #[default]
+    #[serde(rename = "explicit")]
     Explicit,
+    #[serde(rename = "unknown")]
     Unknown,
 }
 impl ParticipantHpOrigin {
@@ -409,12 +439,15 @@ impl ParticipantHpOrigin {
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
 pub enum ParticipantVariantOrigin {
+    #[serde(rename = "default_unadjusted")]
     DefaultUnadjusted,
+    #[serde(rename = "inherited_known")]
     InheritedKnown,
+    #[serde(rename = "inherited_unknown")]
     InheritedUnknown,
     #[default]
+    #[serde(rename = "explicit")]
     Explicit,
 }
 impl ParticipantVariantOrigin {
@@ -441,11 +474,14 @@ impl ParticipantVariantOrigin {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ConditionDurationUnit {
+    #[serde(rename = "rounds")]
     Rounds,
+    #[serde(rename = "minutes")]
     Minutes,
+    #[serde(rename = "hours")]
     Hours,
+    #[serde(rename = "days")]
     Days,
 }
 impl ConditionDurationUnit {
@@ -459,9 +495,10 @@ impl ConditionDurationUnit {
     }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum ConditionTurnEvent {
+    #[serde(rename = "start")]
     Start,
+    #[serde(rename = "end")]
     End,
 }
 impl ConditionTurnEvent {

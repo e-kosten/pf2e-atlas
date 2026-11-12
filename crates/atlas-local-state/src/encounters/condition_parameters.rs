@@ -2,29 +2,29 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum ConditionParameters {
-    Fleeing {
-        subject: Option<ConditionSubject>,
-    },
-    Fascinated {
-        subject: Option<ConditionSubject>,
-    },
+    #[serde(rename = "fleeing")]
+    Fleeing { subject: Option<ConditionSubject> },
+    #[serde(rename = "fascinated")]
+    Fascinated { subject: Option<ConditionSubject> },
+    #[serde(rename = "attitude")]
     Attitude,
-    Frightened {
-        recovery: FrightenedRecovery,
-    },
-    Broken {
-        threshold: Option<i64>,
-    },
+    #[serde(rename = "frightened")]
+    Frightened { recovery: FrightenedRecovery },
+    #[serde(rename = "broken")]
+    Broken { threshold: Option<i64> },
     #[default]
+    #[serde(rename = "none")]
     None,
+    #[serde(rename = "persistent_damage_reminder")]
     PersistentDamageReminder {
         formula: Option<String>,
         damage_type: Option<String>,
         multiplier: DamageMultiplier,
         recovery: PersistentRecovery,
     },
+    #[serde(rename = "persistent_damage")]
     PersistentDamage {
         formula: String,
         damage_type: String,
@@ -32,31 +32,35 @@ pub enum ConditionParameters {
         recovery: PersistentRecovery,
         episode_id: String,
     },
-    Sickened {
-        recovery_dc: Option<i64>,
-    },
-    Unconscious {
-        waking: WakingRule,
-    },
+    #[serde(rename = "sickened")]
+    Sickened { recovery_dc: Option<i64> },
+    #[serde(rename = "unconscious")]
+    Unconscious { waking: WakingRule },
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum DamageMultiplier {
+    #[serde(rename = "normal")]
     Normal,
+    #[serde(rename = "double")]
     Double,
+    #[serde(rename = "half")]
     Half,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum PersistentRecovery {
+    #[serde(rename = "standard")]
     Standard,
+    #[serde(rename = "specified")]
     Specified { dc: i64 },
+    #[serde(rename = "source_dependent")]
     SourceDependent,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum WakingRule {
+    #[serde(rename = "normal")]
     Normal,
+    #[serde(rename = "source_controlled")]
     SourceControlled,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,24 +73,30 @@ pub struct ConditionOrigin {
     pub artifact_generation: Option<String>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
 pub enum MortalityState {
     #[default]
+    #[serde(rename = "alive")]
     Alive,
+    #[serde(rename = "dead")]
     Dead,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum FrightenedRecovery {
+    #[serde(rename = "end_turn")]
     EndTurn { minimum: i64 },
+    #[serde(rename = "held")]
     Held,
+    #[serde(rename = "source_dependent")]
     SourceDependent,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum ConditionSubject {
+    #[serde(rename = "participant")]
     Participant { participant_key: String },
+    #[serde(rename = "other")]
     Other { description: String },
 }

@@ -634,7 +634,7 @@ pub(crate) fn set_turn_state(
     Ok(true)
 }
 
-fn participants(
+pub(super) fn participants(
     connection: &Connection,
     owner_id: i64,
     encounter_key: &str,
