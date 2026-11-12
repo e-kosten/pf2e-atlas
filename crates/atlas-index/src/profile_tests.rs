@@ -59,6 +59,7 @@ fn equal_dimension_profiles_isolate_knn_seeds_and_witnesses_before_top_k() {
     needle[0] = 1.0;
     let b = reader
         .vector_candidates(crate::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &base,
             vector: &needle,
             query: &query,
@@ -70,6 +71,7 @@ fn equal_dimension_profiles_isolate_knn_seeds_and_witnesses_before_top_k() {
         .unwrap();
     let g = reader
         .vector_candidates(crate::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &gemma,
             vector: &needle,
             query: &query,
@@ -91,6 +93,7 @@ fn equal_dimension_profiles_isolate_knn_seeds_and_witnesses_before_top_k() {
     assert!(
         reader
             .vector_candidates(crate::SourceVectorCandidateRequest {
+                discovery_scope: Default::default(),
                 profile: &SearchProfileId::new("missing"),
                 vector: &needle,
                 query: &query,

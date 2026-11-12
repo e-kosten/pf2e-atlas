@@ -78,7 +78,7 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                         RetrievalMode::Hybrid
                     },
                     filter: None,
-                    scope: RecordScope::All,
+                    scope: RecordScope::catalog(None),
                     page: SearchPage::new(page, if i == 3 { 3 } else { 1 }).unwrap(),
                     content_scope,
                     sort: sort.clone(),
@@ -141,7 +141,7 @@ fn explicit_key_scopes_and_discovery_do_not_retain_native_windows() {
     for _ in 0..2 {
         let mut service = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
         let mut request = TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
-        request.scope = RecordScope::Keys(&keys);
+        request.scope = RecordScope::exact(&keys);
         service.search_text(request).unwrap();
         assert_eq!(service.read_metrics().knn_queries, 3);
         service.reset_read_metrics();
@@ -157,7 +157,7 @@ fn explicit_key_scopes_and_discovery_do_not_retain_native_windows() {
                     content_scope: SearchContentScope::All,
                     search_profile: None,
                     text: Some("Ember"),
-                    scope: RecordScope::All,
+                    scope: RecordScope::catalog(None),
 
                     filter: None,
                 },
@@ -233,6 +233,7 @@ fn native_window_cutoff_ties_are_preserved_without_slicing_larger_windows() {
     vector[0] = 1.;
     for k in [1024, 2048, 4096] {
         let request = atlas_index::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile,
             vector: &vector,
             query: &query,
@@ -397,6 +398,7 @@ fn invalid_sort_predicate_and_vectors_keep_their_validation_on_warm_reads() {
     let mut valid = vec![0.; 768];
     valid[0] = 1.;
     let request = atlas_index::SourceVectorCandidateRequest {
+        discovery_scope: Default::default(),
         profile,
         vector: &valid,
         query: &predicate,
@@ -411,6 +413,7 @@ fn invalid_sort_predicate_and_vectors_keep_their_validation_on_warm_reads() {
         .unwrap();
     for invalid in [vec![0.; 768], vec![f32::NAN; 768], vec![1.; 1]] {
         let request = atlas_index::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             vector: &invalid,
             ..request
         };
@@ -464,6 +467,7 @@ fn current_scope_hydration_rejects_missing_members_instead_of_dropping_them() {
     let mut vector = vec![0.; 768];
     vector[0] = 1.;
     let request = atlas_index::SourceVectorCandidateRequest {
+        discovery_scope: Default::default(),
         profile,
         vector: &vector,
         query: &query,
@@ -477,6 +481,7 @@ fn current_scope_hydration_rejects_missing_members_instead_of_dropping_them() {
         .vector_candidates_with_neighbors(request)
         .unwrap();
     let request = atlas_index::SourceVectorCandidateRequest {
+        discovery_scope: Default::default(),
         query: &empty,
         ..request
     };

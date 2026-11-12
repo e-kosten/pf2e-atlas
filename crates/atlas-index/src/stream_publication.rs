@@ -138,6 +138,8 @@ pub(crate) fn write(
         Ok(())
     })?;
     crate::publication_delta::aliases(c, input, &products)?;
+    crate::verified_duplicates::publish(c, input, &products)?;
+    crate::verified_duplicates::validate(c, input.context.verified_duplicate_sha256.as_deref())?;
     crate::remaster::publish(c, input, &products)?;
     let changed_search = crate::publication_delta::search_units(c, input, &products, values)?;
     c.execute("DELETE FROM semantic_locations WHERE NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.location_id=semantic_locations.location_id)",[])?;

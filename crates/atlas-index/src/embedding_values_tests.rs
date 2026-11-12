@@ -300,6 +300,7 @@ fn new_record_reuses_native_inputs_and_keeps_distinct_filtered_witnesses() {
     for record in [original, key] {
         let hits = reader
             .vector_candidates(crate::SourceVectorCandidateRequest {
+                discovery_scope: Default::default(),
                 profile: &model.profile_id,
                 vector: &new_units[0].vector,
                 query: &all,
@@ -332,6 +333,7 @@ fn publication_updates_native_values_and_retains_attribution_per_occurrence() {
     let reader = open_reader(&path).unwrap();
     let old_passage = reader
         .vector_candidates(crate::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &model.profile_id,
             vector: &input.semantic_units[0].vector,
             query: &all,
@@ -406,6 +408,7 @@ fn publication_updates_native_values_and_retains_attribution_per_occurrence() {
     let model = &input.context.search_profiles[0];
     let new_passage = reader
         .vector_candidates(crate::SourceVectorCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &model.profile_id,
             vector: &input.semantic_units[0].vector,
             query: &all,

@@ -52,6 +52,7 @@ catalog have separate version identities. `artifact_context` contains the typed,
 hashed active build context. SQLite `user_version` instead tracks the shared
 physical migration ledger composed by runtime.
 The source artifact format is not the workspace schema version.
+
 Workspace migration 11 expands encounter boundary claims to admit receipt-only
 persistent-damage/recovery preparation. It copies every existing claim into the
 replacement constrained table. Reference rows, saved conditions, HP and prior
@@ -179,8 +180,10 @@ The current reference DDL lives in
 [the index release schema](../../crates/atlas-index/src/release_schema.sql).
 The [local-state release schema](../../crates/atlas-local-state/src/release/schema.sql)
 and its three saved-owner table definitions own saved-domain DDL. The production
-paths are direct creation at schema 42 and the authenticated schema 41 bridge
-described in [ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
+paths install the schema 42 checkpoint in a fresh workspace or through the
+authenticated schema 41 bridge, then apply pending migrations. A workspace
+already at schema 42 applies only the pending migrations. See
+[ADR0051](./decisions/0051-persistent-workspace.md#release-schema-and-migration-admission).
 Migrations 1–41 are retained in Git history. Their descriptions here record
 the provenance of retained formats. FTS5, sqlite-vec, dynamic eligibility relations and validation
 pragmas remain index-owned SQL. Stored data never supplies executable SQL.
@@ -1026,3 +1029,8 @@ Workspace migration 41 saves manual tracker positions per participant. It assign
 existing positions in the prior tracker-key order. New trackers append, while
 updates retain position. Snapshots continue to carry tracker order through their
 existing arrays, which restore uses to assign positions.
+
+Workspace migration 43 adds the reference-owned verified duplicate relation.
+Reference publication binds active pairs to their source records and checks
+the title alias and relation digest in the artifact context. See
+[ADR0070](decisions/0070-verified-source-duplicates.md) for discovery scope.

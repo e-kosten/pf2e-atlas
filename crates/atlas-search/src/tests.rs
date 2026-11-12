@@ -60,7 +60,7 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
                 text: "Ember",
                 mode,
                 query: &query,
-                scope: RecordScope::Keys(&candidates),
+                scope: RecordScope::exact(&candidates),
 
                 vector: Some(&vector),
                 exclude: None,
@@ -163,7 +163,7 @@ fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
             query: text,
             mode: RetrievalMode::Fts,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
         })
         .unwrap()
@@ -261,7 +261,7 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
                 search_profile: None,
                 record_key: &macro_key,
                 filter: None,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
                 page: SearchPage::default(),
             })
             .unwrap()
@@ -361,7 +361,7 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
                 text: "flame",
                 mode,
                 query: &predicate,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
                 vector: Some(&vector),
                 exclude: None,
             })
@@ -394,7 +394,7 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
             query: "flame",
             mode: RetrievalMode::Fts,
             filter: Some(filter.predicate()),
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::first(1).unwrap(),
         })
         .unwrap();
@@ -409,7 +409,7 @@ fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
             query: "flame",
             mode: RetrievalMode::Fts,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::new(2, 1).unwrap(),
         })
         .unwrap();
@@ -524,7 +524,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
             search_profile: None,
             record_key: &seed,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
         })
         .unwrap()
@@ -545,7 +545,7 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
             search_profile: None,
             record_key: &seed,
             filter: None,
-            scope: RecordScope::Keys(&keys),
+            scope: RecordScope::exact(&keys),
             page: SearchPage::default(),
         })
         .unwrap()
@@ -760,7 +760,7 @@ fn contextual_numeric_bounds_restore_target_clause_over_structured_eligibility()
                 content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: None,
                 text: None,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
 
                 filter: Some(&predicate),
             },
@@ -847,7 +847,7 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
             text: "",
             mode: RetrievalMode::Vector,
             query: &query,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
 
             vector: Some(&vector.vector),
             exclude: None,
@@ -927,7 +927,7 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
                 query: text,
                 mode: RetrievalMode::Fts,
                 filter: Some(filter.predicate()),
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
                 page: SearchPage::default(),
             })
             .unwrap();
@@ -1053,7 +1053,7 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
         })
         .unwrap()
@@ -1077,7 +1077,7 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::new(2, 1).unwrap(),
         })
         .unwrap()
@@ -1101,7 +1101,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         content_scope: atlas_domain::SearchContentScope::All,
         search_profile: None,
         text: Some("flame"),
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
 
         filter: Some(&predicate),
     };
@@ -1165,7 +1165,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
     let vocabulary = service
         .discover_filter_vocabulary(DiscoverFilterVocabularyRequest {
             field: "source.type",
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             text: None,
             offset: 0,
             limit: 10,
@@ -1180,7 +1180,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
     let empty = service
         .discover_filter_vocabulary(DiscoverFilterVocabularyRequest {
             field: "source.type",
-            scope: RecordScope::Keys(&[]),
+            scope: RecordScope::exact(&[]),
             text: None,
             offset: 0,
             limit: 10,
@@ -1276,7 +1276,7 @@ fn similar_keeps_matching_relationship_roots_and_applies_only_explicit_filters()
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: Some(filtered.predicate()),
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
         })
         .unwrap()
@@ -1292,7 +1292,7 @@ fn similar_keeps_matching_relationship_roots_and_applies_only_explicit_filters()
             search_profile: None,
             record_key: &key("aaaaaaaaaaaaaaaa"),
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
         })
         .unwrap()
@@ -1444,4 +1444,214 @@ fn lexical_rows_cannot_combine_parent_child_or_separate_alias_terms() {
             "missing coherent row: {query}"
         );
     }
+}
+
+#[test]
+fn verified_duplicates_collapse_discovery_and_keep_exact_source_reads() {
+    let make = |pack: &str, id: &str, name: &str, publication: &str, level: i32| {
+        record(
+            pack,
+            "Actor",
+            json!({"_id": id, "name": name, "type": "npc", "system": {
+                "details": {"level": {"value": level}, "publication": {
+                    "title": publication, "license": "OGL", "remaster": false
+                }}
+            }}),
+        )
+    };
+    let canonical = make("bestiary", "aaaaaaaaaaaaaaaa", "Skulk", "Bestiary", 2);
+    let copy = make(
+        "scenario",
+        "bbbbbbbbbbbbbbbb",
+        "Skulk (PFS 3-13)",
+        "Guardian’s Covenant",
+        2,
+    );
+    let different = make(
+        "beginner-box",
+        "cccccccccccccccc",
+        "Skulk (BB)",
+        "Beginner Box",
+        1,
+    );
+    let canonical_key = canonical.record.key().clone();
+    let copy_key = copy.record.key().clone();
+    let different_key = different.record.key().clone();
+    let pair = atlas_index::VerifiedDuplicateInput {
+        duplicate: copy_key.clone(),
+        canonical: canonical_key.clone(),
+        duplicate_sha256: copy.content_hash.clone(),
+        canonical_sha256: canonical.content_hash.clone(),
+    };
+    let mut fixture = input(vec![canonical, copy, different], true);
+    test_support::add_remaster_alias(&mut fixture, &canonical_key, "Skulk (PFS 3-13)").unwrap();
+    fixture.verified_duplicates.push(pair.clone());
+    let (artifact, mut retrieval) = service(fixture);
+    let one = SearchPage::first(1).unwrap();
+    let first = retrieval
+        .list_records(ListRecordsRequest::new(None, one))
+        .unwrap();
+    assert_eq!(first.total, 2);
+    assert_eq!(first.record_keys, std::slice::from_ref(&canonical_key));
+    let second = retrieval
+        .list_records(ListRecordsRequest::new(
+            None,
+            SearchPage::new(2, 1).unwrap(),
+        ))
+        .unwrap();
+    assert_eq!(second.record_keys, [different_key]);
+
+    let source = atlas_index::parse_where(r#"publication.title == "Guardian’s Covenant""#).unwrap();
+    let cross_member = atlas_index::parse_where(
+        r#"publication.title == "Guardian’s Covenant" && source.pack.id == "bestiary""#,
+    )
+    .unwrap();
+    for (query, expected) in [(&source, Some(&canonical_key)), (&cross_member, None)] {
+        let mut request = TextSearchRequest::new("Skulk (PFS 3-13)", one);
+        request.mode = RetrievalMode::Fts;
+        request.filter = Some(query.predicate());
+        let results = retrieval.search_text(request).unwrap();
+        assert_eq!(results.records.first().map(|r| &r.record.key), expected);
+        assert_eq!(
+            results.coverage.candidate_roots,
+            usize::from(expected.is_some())
+        );
+    }
+    let result = retrieval
+        .resolve_record(ResolveRecordRequest {
+            query: "Skulk (PFS 3-13)",
+            filter: Some(source.predicate()),
+        })
+        .unwrap();
+    assert_eq!(result[0].record.key, canonical_key);
+    let exact = retrieval
+        .resolve_record_ref(ResolveRecordRefRequest {
+            record_ref: &copy_key.to_string(),
+            filter: Some(source.predicate()),
+        })
+        .unwrap();
+    assert!(matches!(exact, RecordRefResolutionResult::Key(key) if key == copy_key));
+    let copied_only = retrieval
+        .list_records(
+            ListRecordsRequest::new(None, one)
+                .with_scope(RecordScope::exact(std::slice::from_ref(&copy_key))),
+        )
+        .unwrap();
+    assert_eq!(copied_only.record_keys, std::slice::from_ref(&copy_key));
+    let catalog_subset = retrieval
+        .list_records(
+            ListRecordsRequest::new(None, one)
+                .with_scope(RecordScope::catalog(Some(std::slice::from_ref(&copy_key)))),
+        )
+        .unwrap();
+    assert_eq!(
+        catalog_subset.record_keys,
+        std::slice::from_ref(&canonical_key)
+    );
+    assert_eq!(
+        retrieval
+            .verified_canonical_record(&copy_key)
+            .unwrap()
+            .unwrap()
+            .key,
+        canonical_key
+    );
+    assert_eq!(
+        retrieval
+            .verified_alternate_publications(&canonical_key)
+            .unwrap(),
+        ["Guardian’s Covenant"]
+    );
+
+    let query = retrieval.predicate(None).unwrap();
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
+    let mut vector = vec![0.0; 768];
+    vector[1] = 1.0;
+    let (roots, _) = retrieval
+        .rank_candidates(crate::text::CandidateRequest {
+            content_scope: Default::default(),
+            ranking: Default::default(),
+            search_profile: &profile,
+            text: "SKULK (PFS 3-13)",
+            mode: RetrievalMode::Vector,
+            query: &query,
+            scope: RecordScope::catalog(None),
+            vector: Some(&vector),
+            exclude: None,
+        })
+        .unwrap();
+    assert_eq!(roots[0].key, canonical_key);
+    assert!(!roots.iter().any(|root| root.key == copy_key));
+    let similar = retrieval
+        .similar_records(crate::SimilarRecordRequest {
+            content_scope: Default::default(),
+            sort: atlas_domain::ResultSort::Relevance {},
+            search_profile: None,
+            record_key: &copy_key,
+            filter: None,
+            scope: RecordScope::catalog(None),
+            page: one,
+        })
+        .unwrap()
+        .unwrap();
+    assert!(
+        similar
+            .results
+            .records
+            .iter()
+            .all(|result| result.record.key != canonical_key && result.record.key != copy_key)
+    );
+
+    let options = retrieval
+        .discover_filter_values(crate::DiscoverFilterValuesRequest {
+            only_matching: true,
+            field: "publication.title",
+            clause_id: None,
+            context: crate::FilterDiscoveryContext {
+                content_scope: Default::default(),
+                search_profile: None,
+                text: None,
+                scope: RecordScope::catalog(None),
+                filter: None,
+            },
+            text: None,
+            offset: 0,
+            limit: 10,
+        })
+        .unwrap();
+    let atlas_domain::QueryFacetOutcome::Available { value } = options else {
+        panic!("publication facets unavailable");
+    };
+    assert!(value.options.iter().any(|o| o.value
+        == atlas_domain::QueryLiteral::String("Guardian’s Covenant".into())
+        && o.distinct_roots == 1));
+
+    drop(retrieval);
+    let mut invalid = input(
+        vec![
+            make("bestiary", "aaaaaaaaaaaaaaaa", "Skulk", "Bestiary", 2),
+            make(
+                "scenario",
+                "bbbbbbbbbbbbbbbb",
+                "Skulk (PFS 3-13)",
+                "Guardian’s Covenant",
+                3,
+            ),
+        ],
+        true,
+    );
+    test_support::add_remaster_alias(&mut invalid, &canonical_key, "Skulk (PFS 3-13)").unwrap();
+    invalid.verified_duplicates.push(pair);
+    let before = atlas_index::test_support::open_reader(artifact.path()).unwrap();
+    let generation = before.artifact_instance().clone();
+    drop(before);
+
+    let error = atlas_index::test_support::publish_input(artifact.path(), &invalid).unwrap_err();
+    assert!(error.to_string().contains("verified duplicate"), "{error}");
+    let after = atlas_index::test_support::open_reader(artifact.path()).unwrap();
+    assert_eq!(after.artifact_instance(), &generation);
+    assert_eq!(
+        after.verified_canonical_key(&copy_key).unwrap(),
+        Some(canonical_key)
+    );
 }

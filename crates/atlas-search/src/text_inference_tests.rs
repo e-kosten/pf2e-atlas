@@ -106,7 +106,7 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
                     query: "Ghoul",
                     mode,
                     filter: Some(&filter),
-                    scope: RecordScope::All,
+                    scope: RecordScope::catalog(None),
                     page: SearchPage::new(number, 1).unwrap(),
                 })
                 .unwrap();
@@ -136,7 +136,7 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
             query: "Ghoul",
             mode: RetrievalMode::Fts,
             filter: Some(&filter),
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::first(10).unwrap(),
         })
         .unwrap();
@@ -158,7 +158,7 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
             search_profile: None,
             record_key: seed,
             filter: Some(&filter),
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::first(10).unwrap(),
         })
         .unwrap()

@@ -91,6 +91,14 @@ entry's origin information as source context without substituting its rules for
 the selected content. [ADR0067](architecture/decisions/0067-remaster-relationships.md)
 owns relationship authority and consumer policy.
 
+Show one discovery result for a verified same-edition source copy. A search
+for its old title can return the canonical record. Keep the canonical title
+and source on the result card, and show additional publications in the
+reader's source area. The exact copy's reader and drawer preserve its title
+and source and show a **Canonical record** link alongside the header metadata.
+[ADR0070](architecture/decisions/0070-verified-source-duplicates.md) owns
+verification and discovery scope.
+
 ## Product UI Copy
 
 These rules apply to all user-visible copy, including text projected by Rust into

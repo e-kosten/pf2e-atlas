@@ -36,6 +36,16 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
             serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Goblin","type":"npc"}),
         ),
     ]);
+    // Seed the historical fixture using the current writer, then remove its
+    // empty current-schema projection before exercising the real upgrade.
+    let staging = workspace.write(41).unwrap();
+    staging
+        .connection()
+        .execute_batch(include_str!(
+            "../../atlas-index/src/verified_duplicates.sql"
+        ))
+        .unwrap();
+    staging.commit().unwrap();
     {
         let owner = workspace.update_owner().unwrap();
         let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
@@ -51,7 +61,8 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
     write
         .connection()
         .execute_batch(
-            r#"UPDATE principals SET id=7 WHERE principal_key='local';
+            r#"DROP TABLE verified_duplicate_records;
+         UPDATE principals SET id=7 WHERE principal_key='local';
          INSERT INTO principals VALUES(2,'other','Other');
          INSERT INTO saved_lists(id,owner_id,list_key,slug,name,created_at,updated_at)
          VALUES(17,2,'list','same','Retained list','before','before');
@@ -166,13 +177,25 @@ fn release_checkpoint_preserves_populated_schema_41_and_matches_fresh_creation()
     assert_eq!(sql_rows(c, LEDGER), sql_rows(fresh_c, LEDGER));
     assert_eq!(
         sql_rows(c, LEDGER),
-        vec![vec![
-            rusqlite::types::Value::Integer(42),
-            rusqlite::types::Value::Text("release-baseline".into()),
-            rusqlite::types::Value::Text(
-                "5e0abae6ea6364eeb0408bab544fdafb2f1e25ecc6d341908a6cedb69928009e".into()
-            ),
-        ]]
+        vec![
+            vec![
+                rusqlite::types::Value::Integer(42),
+                rusqlite::types::Value::Text("release-baseline".into()),
+                rusqlite::types::Value::Text(
+                    "5e0abae6ea6364eeb0408bab544fdafb2f1e25ecc6d341908a6cedb69928009e".into()
+                ),
+            ],
+            vec![
+                rusqlite::types::Value::Integer(43),
+                rusqlite::types::Value::Text("verified-reference-duplicates".into()),
+                rusqlite::types::Value::Text(format!(
+                    "{:x}",
+                    Sha256::digest(include_bytes!(
+                        "../../atlas-index/src/verified_duplicates.sql"
+                    ))
+                )),
+            ]
+        ]
     );
 
     let schema = r#"SELECT type,name,tbl_name,
@@ -214,7 +237,7 @@ fn release_bridge_rejects_bad_history_and_rolls_back_schema_drift() {
             "must be upgraded to schema 41",
             false,
         ),
-        ("future", "PRAGMA user_version=43", "43", false),
+        ("future", "PRAGMA user_version=44", "44", false),
         (
             "ledger",
             "UPDATE schema_migrations SET checksum='bad' WHERE version=39",
@@ -312,7 +335,7 @@ fn release_bridge_rolls_back_after_reconstruction_and_can_append() {
     let fresh = initialize_workspace(directory.path().join("fresh.sqlite")).unwrap();
     let mut appended = RELEASE_HISTORY.migrations.to_vec();
     appended.push(Migration {
-        version: 43,
+        version: 44,
         name: "future-fixture",
         sql: "CREATE TABLE future_fixture (id INTEGER PRIMARY KEY); INSERT INTO future_fixture VALUES(7);",
         backfill: None,
@@ -324,8 +347,8 @@ fn release_bridge_rolls_back_after_reconstruction_and_can_append() {
     for workspace in [upgraded, fresh] {
         workspace.migrate_history(history, |_| Ok(())).unwrap();
         workspace.migrate_history(history, |_| Ok(())).unwrap();
-        let read = workspace.read(43).unwrap();
-        assert_eq!(sql_rows(read.connection(), LEDGER).len(), 2);
+        let read = workspace.read(44).unwrap();
+        assert_eq!(sql_rows(read.connection(), LEDGER).len(), 3);
         assert_eq!(
             sql_rows(read.connection(), "SELECT id FROM future_fixture").len(),
             1
@@ -487,5 +510,65 @@ fn domain_fixture_has_the_runtime_release_schema_and_ledger() {
     assert_eq!(
         sql_rows(runtime.connection(), LEDGER),
         sql_rows(domain.connection(), LEDGER)
+    );
+}
+
+#[test]
+fn verified_duplicates_upgrade_preserves_schema_42_saved_rows() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("workspace.sqlite");
+    register_extensions().unwrap();
+    let old = Workspace::at(&path).unwrap();
+    old.migrate_history(
+        MigrationHistory {
+            migrations: &RELEASE_HISTORY.migrations[..1],
+            ..RELEASE_HISTORY
+        },
+        |_| Ok(()),
+    )
+    .unwrap();
+    let write = old.write(42).unwrap();
+    write.connection().execute_batch(
+        "INSERT INTO record_identity(key,last_known_name,availability)
+         VALUES ('bestiary:aaaaaaaaaaaaaaaa','Eloko','unavailable'),
+                ('scenario:bbbbbbbbbbbbbbbb','Eloko (Scenario)','unavailable');
+         INSERT INTO saved_lists(owner_id,list_key,slug,name,created_at,updated_at)
+         SELECT id,'list','keep-list','Keep this list','before','before' FROM principals WHERE principal_key='local';
+         INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at)
+         SELECT l.id,r.key,r.id-1,'Note for ' || r.last_known_name,r.last_known_name,'before','before'
+         FROM saved_lists l CROSS JOIN record_identity r;
+         INSERT INTO encounters(owner_id,encounter_key,slug,name,status,created_at,updated_at)
+         SELECT id,'encounter','keep-encounter','Keep this encounter','draft','before','before' FROM principals WHERE principal_key='local';
+         INSERT INTO encounter_participants(
+            encounter_id,participant_key,record_key,participant_kind,position,display_name,initiative_order,
+            max_hp,current_hp,note,created_at,updated_at)
+         SELECT id,'participant','scenario:bbbbbbbbbbbbbbbb','creature',0,'Custom Eloko',1,40,27,
+                'Keep this note','before','before'
+         FROM encounters;",
+    ).unwrap();
+    let revision = write.reference_revision().unwrap();
+    let queries = [
+        "SELECT * FROM saved_lists",
+        "SELECT * FROM saved_list_items ORDER BY position",
+        "SELECT * FROM encounters",
+        "SELECT * FROM encounter_participants",
+    ];
+    let before = queries.map(|query| sql_rows(write.connection(), query));
+    assert_eq!(before.each_ref().map(Vec::len), [1, 2, 1, 1]);
+    write.commit().unwrap();
+
+    let upgraded = initialize_workspace(&path).unwrap();
+    let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(
+        queries.map(|query| sql_rows(read.connection(), query)),
+        before
+    );
+    assert!(
+        sql_rows(
+            read.connection(),
+            "SELECT * FROM verified_duplicate_records"
+        )
+        .is_empty()
     );
 }

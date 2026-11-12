@@ -44,7 +44,7 @@ impl<'a> TextSearchRequest<'a> {
             content_scope: Default::default(),
             mode: RetrievalMode::Hybrid,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page,
         }
     }
@@ -252,6 +252,7 @@ impl AtlasRetrievalService {
     ) -> Result<(Vec<RankedRoot>, usize), SearchError> {
         for window in SEMANTIC_WINDOWS {
             let input = atlas_index::SourceVectorCandidateRequest {
+                discovery_scope: request.scope.discovery_scope(),
                 profile: request.search_profile,
                 vector,
                 query: request.query,
@@ -286,16 +287,20 @@ impl AtlasRetrievalService {
             ..
         } = request;
         let mut roots = BTreeMap::<RecordKey, RankedRoot>::new();
+        let identity_text = text
+            .trim()
+            .strip_prefix('"')
+            .and_then(|s| s.strip_suffix('"'))
+            .unwrap_or(text.trim());
         if mode.uses_fts() {
-            let identity_text = text
-                .trim()
-                .strip_prefix('"')
-                .and_then(|s| s.strip_suffix('"'))
-                .unwrap_or(text.trim());
             let identities = self.index.lookup_name_or_alias(identity_text)?;
-            let mut lexical =
-                self.index
-                    .lexical_root_candidates(text, query, scope.keys(), content_scope)?;
+            let mut lexical = self.index.discovery_lexical_roots(
+                text,
+                query,
+                scope.keys(),
+                content_scope,
+                scope.discovery_scope(),
+            )?;
             let tier = |key: &RecordKey| {
                 if identities
                     .iter()
@@ -371,6 +376,27 @@ impl AtlasRetrievalService {
                         score: semantic_score,
                         ..semantic
                     });
+            }
+            if mode == RetrievalMode::Vector
+                && scope.discovery_scope() == atlas_index::DiscoveryScope::Catalog
+                && !text.trim().is_empty()
+            {
+                for key in
+                    self.index
+                        .verified_duplicate_title_hits(identity_text, query, scope.keys())?
+                {
+                    roots
+                        .entry(key.clone())
+                        .and_modify(|root| root.tier = 1)
+                        .or_insert(RankedRoot {
+                            key,
+                            lexical_rank: None,
+                            similarity: None,
+                            score: 0.0,
+                            tier: 1,
+                            witnesses: Vec::new(),
+                        });
+                }
             }
         }
         let mut roots = roots.into_values().collect::<Vec<_>>();

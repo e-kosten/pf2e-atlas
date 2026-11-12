@@ -2,18 +2,37 @@ use crate::{AtlasRetrievalService, SearchError, SearchPage, SearchPageInfo};
 use atlas_domain::{QueryPredicate, RecordKey, SourceRecordSummary};
 use atlas_index::{SourceContentBundle, SourceSummaryBatch};
 use atlas_record::{source_content::SourceContentLocator, source_record::SourceBackedRecord};
-#[derive(Debug, Clone, Copy, Default)]
-pub enum RecordScope<'a> {
-    #[default]
-    All,
-    Keys(&'a [RecordKey]),
+#[derive(Debug, Clone, Copy)]
+pub struct RecordScope<'a> {
+    keys: Option<&'a [RecordKey]>,
+    discovery_scope: atlas_index::DiscoveryScope,
+}
+impl Default for RecordScope<'_> {
+    fn default() -> Self {
+        Self::catalog(None)
+    }
 }
 impl<'a> RecordScope<'a> {
-    pub fn keys(self) -> Option<&'a [RecordKey]> {
-        match self {
-            Self::All => None,
-            Self::Keys(k) => Some(k),
+    pub fn catalog(keys: Option<&'a [RecordKey]>) -> Self {
+        Self {
+            keys,
+            discovery_scope: atlas_index::DiscoveryScope::Catalog,
         }
+    }
+
+    pub fn exact(keys: &'a [RecordKey]) -> Self {
+        Self {
+            keys: Some(keys),
+            discovery_scope: atlas_index::DiscoveryScope::Exact,
+        }
+    }
+
+    pub(crate) fn discovery_scope(self) -> atlas_index::DiscoveryScope {
+        self.discovery_scope
+    }
+
+    pub fn keys(self) -> Option<&'a [RecordKey]> {
+        self.keys
     }
 }
 pub struct GetRecordRequest<'a> {
@@ -37,7 +56,7 @@ impl<'a> ListRecordsRequest<'a> {
                 atlas_domain::SortDirection::Asc,
             ),
             filter,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page,
         }
     }
@@ -94,6 +113,23 @@ pub enum RecordRefResolutionResult {
     Ambiguous(Vec<RecordResolutionResult>),
 }
 impl AtlasRetrievalService {
+    pub fn verified_canonical_record(
+        &self,
+        key: &RecordKey,
+    ) -> Result<Option<SourceRecordSummary>, SearchError> {
+        let Some(canonical) = self.index.verified_canonical_key(key)? else {
+            return Ok(None);
+        };
+        Ok(self.index.read_summary(&canonical)?)
+    }
+
+    pub fn verified_alternate_publications(
+        &self,
+        key: &RecordKey,
+    ) -> Result<Vec<String>, SearchError> {
+        Ok(self.index.verified_alternate_publications(key)?)
+    }
+
     pub fn get_records(
         &self,
         request: GetRecordsRequest<'_>,
@@ -172,9 +208,10 @@ impl AtlasRetrievalService {
         request: ListRecordsRequest<'_>,
     ) -> Result<ListRecordsResult, SearchError> {
         let predicate = self.predicate(request.filter)?;
-        let page = self.index.eligible_keys(
+        let page = self.index.discovery_keys(
             &predicate,
             request.scope.keys(),
+            request.scope.discovery_scope(),
             request.sort,
             request.page.offset()? as usize,
             request.page.size() as usize,
@@ -200,10 +237,12 @@ impl AtlasRetrievalService {
     ) -> Result<Vec<RecordResolutionResult>, SearchError> {
         let matches = self.index.lookup_name_or_alias(request.query)?;
         let keys = matches.iter().map(|m| m.key.clone()).collect::<Vec<_>>();
+        let keys = self.index.verified_identity_members(keys)?;
         let query = self.predicate(request.filter)?;
-        let eligible = self.index.eligible_keys(
+        let eligible = self.index.discovery_keys(
             &query,
             Some(&keys),
+            atlas_index::DiscoveryScope::Catalog,
             atlas_domain::ResultSort::attribute(
                 atlas_domain::SortField::Name,
                 atlas_domain::SortDirection::Asc,

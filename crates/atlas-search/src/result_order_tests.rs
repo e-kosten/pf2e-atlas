@@ -247,7 +247,7 @@ fn sorting_semantic_set_above_two_hundred_preserves_membership_window_and_witnes
                 search_profile: None,
                 record_key: &key(0),
                 filter: None,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
                 page: SearchPage::new(page, size).unwrap(),
             })
             .unwrap()
@@ -323,7 +323,7 @@ fn sorting_hybrid_keeps_lexical_members_outside_semantic_window_and_ranking_stra
                 text: "Record",
                 mode: RetrievalMode::Hybrid,
                 query: &query,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
 
                 vector: Some(&vector),
                 exclude: None,
@@ -471,7 +471,7 @@ fn sorting_ties_keep_canonical_keys_and_relationship_scopes_do_not_rebind_editio
             .list_records(
                 ListRecordsRequest::new(Some(&filter), SearchPage::default())
                     .with_sort(sort)
-                    .with_scope(RecordScope::Keys(&keys)),
+                    .with_scope(RecordScope::exact(&keys)),
             )
             .unwrap();
         assert_eq!(result.record_keys, vec![key(0)]);
@@ -533,7 +533,7 @@ fn sorting_adaptive_semantic_windows_preserves_expansion_for_dense_contents() {
                 search_profile: None,
                 record_key: &key(0),
                 filter: None,
-                scope: RecordScope::All,
+                scope: RecordScope::catalog(None),
                 page: SearchPage::new(1, 100).unwrap(),
             })
             .unwrap()
@@ -683,7 +683,7 @@ fn sorting_random_orders_the_complete_eligible_set_before_any_page_and_keeps_sco
         let scoped = service
             .list_records(
                 ListRecordsRequest::new(None, SearchPage::new(1, 100).unwrap())
-                    .with_scope(RecordScope::Keys(&allowed))
+                    .with_scope(RecordScope::exact(&allowed))
                     .with_sort(sort),
             )
             .unwrap();

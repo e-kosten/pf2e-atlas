@@ -195,6 +195,7 @@ mod tests {
         let values = crate::discovery::field_vocabulary(
             &db,
             &crate::QueryVocabularyRequest {
+                discovery_scope: Default::default(),
                 field: "actions".into(),
                 eligible_keys: None,
                 text: Some("grab".into()),
@@ -219,6 +220,7 @@ mod tests {
                 clause_id: selected.clause_id.clone(),
                 query: crate::query::validate_query(&selected).unwrap(),
                 context: crate::QueryFacetContext {
+                    discovery_scope: Default::default(),
                     eligible_keys: Some(
                         [1, 3, 4, 7]
                             .map(|id| RecordKey::parse(&format!("test:{id:016}")).unwrap())

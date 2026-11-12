@@ -228,6 +228,7 @@ fn spool_input_in(
     for row in &input.aliases {
         spool.aliases.push(row)?;
     }
+    spool.set_verified_duplicates(input.verified_duplicates.clone())?;
     for row in &input.remaster_pairs {
         spool.remaster_pairs.push(row)?;
     }

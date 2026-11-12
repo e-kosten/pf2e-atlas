@@ -26,6 +26,7 @@ import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
 import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
+  CanonicalRecordView,
   PreparedContentFieldView,
   RecordNavigationView,
   RecordPresentationView,
@@ -166,6 +167,9 @@ export function RecordIdentity({
   identity,
   equipmentFamily,
   creatureFamily,
+  canonicalRecord,
+  alternatePublications,
+  onCanonicalNavigate,
   onEquipmentFamilyNavigate,
   classification,
   rankControl,
@@ -186,6 +190,9 @@ export function RecordIdentity({
   identity?: RecordSummaryView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
+  canonicalRecord?: CanonicalRecordView;
+  alternatePublications?: string[];
+  onCanonicalNavigate?: RecordReferenceHandler;
   onEquipmentFamilyNavigate?: () => void;
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
@@ -263,6 +270,25 @@ export function RecordIdentity({
               </AtlasLink>
             </p>
           )}
+          {canonicalRecord && (
+            <p className="record-reference__family">
+              Canonical record <span aria-hidden="true">·</span>{" "}
+              <AtlasLink
+                {...recordDestination({ recordKey: canonicalRecord.record_key })}
+                onClick={(event) => {
+                  if (onCanonicalNavigate && isPrimaryActivation(event)) {
+                    event.preventDefault();
+                    onCanonicalNavigate(
+                      canonicalRecord.record_key,
+                      event.currentTarget,
+                    );
+                  }
+                }}
+              >
+                {canonicalRecord.title}
+              </AtlasLink>
+            </p>
+          )}
           {scenario?.scenario_context && (
             <p className="record-reference__scenario">
               {[...scenario.qualifiers, scenario.scenario_context].join(" · ")}
@@ -300,6 +326,12 @@ export function RecordIdentity({
           {showSource && (
             <p className="muted record-reference__source">
               Source: <span>{source}</span>
+            </p>
+          )}
+          {!!alternatePublications?.length && (
+            <p className="muted record-reference__source">
+              Also in <span aria-hidden="true">·</span>{" "}
+              {alternatePublications.join(" · ")}
             </p>
           )}
         </>
@@ -353,6 +385,9 @@ export function RecordPresentationIdentity({
   presentation,
   equipmentFamily,
   creatureFamily,
+  canonicalRecord,
+  alternatePublications,
+  onCanonicalNavigate,
   onEquipmentFamilyNavigate,
   root,
   selection,
@@ -369,6 +404,9 @@ export function RecordPresentationIdentity({
   presentation?: RecordPresentationView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
+  canonicalRecord?: CanonicalRecordView;
+  alternatePublications?: string[];
+  onCanonicalNavigate?: RecordReferenceHandler;
   onEquipmentFamilyNavigate?: () => void;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
@@ -427,6 +465,9 @@ export function RecordPresentationIdentity({
       identity={presentation?.identity}
       equipmentFamily={equipmentFamily}
       creatureFamily={creatureFamily}
+      canonicalRecord={canonicalRecord}
+      alternatePublications={alternatePublications}
+      onCanonicalNavigate={onCanonicalNavigate}
       onEquipmentFamilyNavigate={onEquipmentFamilyNavigate}
       badgeExplanations={
         identityChanges?.length

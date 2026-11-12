@@ -46,6 +46,7 @@ pub struct SourceVectorHit {
 
 #[derive(Clone, Copy)]
 pub struct SourceVectorCandidateRequest<'a> {
+    pub discovery_scope: crate::DiscoveryScope,
     pub profile: &'a atlas_domain::SearchProfileId,
     pub vector: &'a [f32],
     pub query: &'a ValidatedQuery,
@@ -248,6 +249,25 @@ impl SqliteIndexReader {
         offset: usize,
         limit: usize,
     ) -> Result<SourceKeyPage, IndexError> {
+        self.discovery_keys(
+            query,
+            keys,
+            crate::DiscoveryScope::Exact,
+            sort,
+            offset,
+            limit,
+        )
+    }
+
+    pub fn discovery_keys(
+        &self,
+        query: &ValidatedQuery,
+        keys: Option<&[RecordKey]>,
+        scope: crate::DiscoveryScope,
+        sort: atlas_domain::ResultSort,
+        offset: usize,
+        limit: usize,
+    ) -> Result<SourceKeyPage, IndexError> {
         if limit > 1024 {
             return Err(IndexError::Invalid("browse page exceeds 1024 roots".into()));
         }
@@ -258,7 +278,8 @@ impl SqliteIndexReader {
         } else {
             Some(crate::result_order::attribute_order(&sort)?)
         };
-        let (eligible, mut params) = eligible_sql(query, keys)?;
+        let (eligible, mut params) =
+            crate::verified_duplicates::eligible_sql(query, keys, scope, None)?;
         let base = format!(
             "WITH eligible AS ({eligible}) SELECT r.key FROM records r WHERE r.record_id IN(SELECT record_id FROM eligible)"
         );
@@ -345,6 +366,7 @@ impl SqliteIndexReader {
         request: SourceVectorCandidateRequest<'_>,
     ) -> Result<Vec<SourceVectorHit>, IndexError> {
         let SourceVectorCandidateRequest {
+            discovery_scope,
             profile,
             vector,
             query,
@@ -362,12 +384,8 @@ impl SqliteIndexReader {
         let table = crate::schema::native_vector_table(model)?;
         crate::validation::check_vector(vector, model.dimensions)?;
         self.require_vectors()?;
-        let (mut eligible, mut params) = eligible_sql(query, keys)?;
-        if let Some(exclude) = exclude {
-            eligible.push_str(&format!(" AND r.key<>?{}", params.len() + 1));
-            params.push(Value::Text(exclude.to_string()));
-        }
-        let mut all = params;
+        let (eligible, mut all) =
+            crate::verified_duplicates::eligible_sql(query, keys, discovery_scope, exclude)?;
         let profile_param = all.len() + 1;
         all.push(Value::Text(profile.to_string()));
         let vector_param = all.len() + 1;
@@ -627,11 +645,29 @@ impl SqliteIndexReader {
         keys: Option<&[RecordKey]>,
         content_scope: SearchContentScope,
     ) -> Result<Vec<SourceLexicalRootHit>, IndexError> {
+        self.discovery_lexical_roots(
+            text,
+            query,
+            keys,
+            content_scope,
+            crate::DiscoveryScope::Exact,
+        )
+    }
+
+    pub fn discovery_lexical_roots(
+        &self,
+        text: &str,
+        query: &ValidatedQuery,
+        keys: Option<&[RecordKey]>,
+        content_scope: SearchContentScope,
+        scope: crate::DiscoveryScope,
+    ) -> Result<Vec<SourceLexicalRootHit>, IndexError> {
         let expression = literal_fts_query(text)?;
         if expression.is_empty() {
             return Ok(vec![]);
         }
-        let (eligible, mut params) = eligible_sql(query, keys)?;
+        let (eligible, mut params) =
+            crate::verified_duplicates::eligible_sql(query, keys, scope, None)?;
         let text_param = params.len() + 1;
         params.push(Value::Text(expression));
         let content_sql = lexical_content_sql(content_scope);

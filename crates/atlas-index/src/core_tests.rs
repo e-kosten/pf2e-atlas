@@ -214,6 +214,7 @@ fn core_masks_units_before_both_lexical_and_knn_limits_without_expanding_terms()
     for profile in &input.context.search_profiles {
         let hits = reader
             .vector_candidates(crate::SourceVectorCandidateRequest {
+                discovery_scope: Default::default(),
                 profile: &profile.profile_id,
                 vector: &basis(1., 0.),
                 query: &all,
@@ -227,6 +228,7 @@ fn core_masks_units_before_both_lexical_and_knn_limits_without_expanding_terms()
         assert!(!hits[0].location.owners.is_empty());
         let core = reader
             .vector_candidates(crate::SourceVectorCandidateRequest {
+                discovery_scope: Default::default(),
                 profile: &profile.profile_id,
                 vector: &basis(1., 0.),
                 query: &all,
@@ -349,6 +351,7 @@ fn identity_correspondence_and_scoped_baseline_use_the_same_destination_mask() {
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let hits = reader
         .similarity_candidates(SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &profile,
             vector: &basis(0., 1.),
             query: &all,
@@ -367,6 +370,7 @@ fn identity_correspondence_and_scoped_baseline_use_the_same_destination_mask() {
     ));
     let legacy = reader
         .similarity_candidates(SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &profile,
             vector: &basis(0., 1.),
             query: &all,

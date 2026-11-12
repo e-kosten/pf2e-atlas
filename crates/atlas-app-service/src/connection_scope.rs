@@ -135,8 +135,8 @@ fn resolve(
     let keys = retrieval.connected_record_keys(
         filter.as_ref(),
         keys.as_deref()
-            .map(RecordScope::Keys)
-            .unwrap_or(RecordScope::All),
+            .map(RecordScope::exact)
+            .unwrap_or(RecordScope::catalog(None)),
         context.direction,
         context.include_contents,
     )?;

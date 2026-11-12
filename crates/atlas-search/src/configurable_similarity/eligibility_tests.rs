@@ -83,7 +83,7 @@ fn request<'a>(
         content_scope: SearchContentScope::All,
         search_profile: Some(profile),
         filter: None,
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
         page: SearchPage::first(5).unwrap(),
         sort: ResultSort::Relevance {},
 
@@ -134,31 +134,31 @@ fn exact_complete_outputs_survive_profiles_roles_scopes_filters_paging_and_order
                 for case in 0..8 {
                     let (scope, filter, page, sort) = match case {
                         0 => (
-                            RecordScope::All,
+                            RecordScope::catalog(None),
                             None,
                             SearchPage::first(1).unwrap(),
                             ResultSort::Relevance {},
                         ),
                         1 => (
-                            RecordScope::All,
+                            RecordScope::catalog(None),
                             None,
                             SearchPage::first(5).unwrap(),
                             ResultSort::Relevance {},
                         ),
                         2 => (
-                            RecordScope::All,
+                            RecordScope::catalog(None),
                             None,
                             SearchPage::new(2, 1).unwrap(),
                             ResultSort::Relevance {},
                         ),
                         3 => (
-                            RecordScope::Keys(&keys),
+                            RecordScope::exact(&keys),
                             Some(&structured),
                             SearchPage::first(5).unwrap(),
                             ResultSort::Random { seed: 42 },
                         ),
                         4 => (
-                            RecordScope::Keys(&reordered),
+                            RecordScope::exact(&reordered),
                             None,
                             SearchPage::first(2).unwrap(),
                             ResultSort::attribute(
@@ -167,19 +167,19 @@ fn exact_complete_outputs_survive_profiles_roles_scopes_filters_paging_and_order
                             ),
                         ),
                         5 => (
-                            RecordScope::Keys(&[]),
+                            RecordScope::exact(&[]),
                             None,
                             SearchPage::first(2).unwrap(),
                             ResultSort::Relevance {},
                         ),
                         6 => (
-                            RecordScope::All,
+                            RecordScope::catalog(None),
                             Some(&structured),
                             SearchPage::first(2).unwrap(),
                             ResultSort::Relevance {},
                         ),
                         _ => (
-                            RecordScope::All,
+                            RecordScope::catalog(None),
                             Some(&empty),
                             SearchPage::first(2).unwrap(),
                             ResultSort::Relevance {},

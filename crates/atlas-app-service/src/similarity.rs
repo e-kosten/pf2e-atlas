@@ -366,7 +366,7 @@ mod tests {
                 content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: None,
                 filter: None,
-                scope: atlas_search::RecordScope::All,
+                scope: atlas_search::RecordScope::catalog(None),
                 page: Default::default(),
                 sort: atlas_domain::ResultSort::Relevance {},
 

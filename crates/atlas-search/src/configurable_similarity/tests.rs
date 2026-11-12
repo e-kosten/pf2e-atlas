@@ -89,7 +89,7 @@ fn complete_candidate_union_above_4096_is_scored_when_actual_work_fits() {
         content_scope: SearchContentScope::Core,
         search_profile: None,
         filter: None,
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
         page: SearchPage::first(10).unwrap(),
         sort: ResultSort::Relevance {},
 
@@ -198,7 +198,7 @@ fn compact_explanations_keep_first_32_rows_but_score_and_rank_all_65_components(
             content_scope: SearchContentScope::All,
             search_profile: None,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::first(10).unwrap(),
             sort: ResultSort::Relevance {},
 
@@ -454,6 +454,7 @@ fn corresponding_roles_filter_before_the_bounded_knn_and_other_never_corresponds
     let hits = service
         .index
         .similarity_candidates(atlas_index::SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &profile,
             vector: &vector,
             query: &query,
@@ -478,6 +479,7 @@ fn corresponding_roles_filter_before_the_bounded_knn_and_other_never_corresponds
         service
             .index
             .similarity_candidates(atlas_index::SourceSimilarityCandidateRequest {
+                discovery_scope: Default::default(),
                 profile: &profile,
                 vector: &vector,
                 query: &query,
@@ -519,7 +521,7 @@ fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
             options: &options,
             search_profile: None,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
 
@@ -609,7 +611,7 @@ fn selecting_a_small_part_of_a_large_seed_reads_only_selected_vectors() {
             options,
             search_profile: None,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
 
@@ -646,7 +648,7 @@ fn stale_parts_and_cancellation_are_explicit() {
         options: &options,
         search_profile: None,
         filter: None,
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
         page: SearchPage::default(),
         sort: ResultSort::Relevance {},
 
@@ -664,7 +666,7 @@ fn stale_parts_and_cancellation_are_explicit() {
         options: &SimilarityOptions::Baseline {},
         search_profile: None,
         filter: None,
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
         page: SearchPage::default(),
         sort: ResultSort::Relevance {},
 
@@ -687,7 +689,7 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
             search_profile: None,
             record_key: &key,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
         })
         .unwrap()
@@ -701,7 +703,7 @@ fn current_baseline_preserves_the_direct_record_algorithm() {
             options: &SimilarityOptions::Baseline {},
             search_profile: None,
             filter: None,
-            scope: RecordScope::All,
+            scope: RecordScope::catalog(None),
             page: SearchPage::default(),
             sort: ResultSort::Relevance {},
 
@@ -771,7 +773,7 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
         options: &options,
         search_profile: None,
         filter: None,
-        scope: RecordScope::All,
+        scope: RecordScope::catalog(None),
         page: SearchPage::default(),
         sort: ResultSort::Relevance {},
 

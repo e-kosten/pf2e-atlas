@@ -22,6 +22,7 @@ mod source_compatibility;
 mod source_enrichment;
 mod source_fingerprint;
 mod source_loading;
+mod verified_duplicates;
 pub use audit::{
     SourcePathAuditOptions, SourcePathAuditPathReport, SourcePathAuditReport,
     SourcePathAuditSample, SourcePathAuditValueType, audit_source_paths,

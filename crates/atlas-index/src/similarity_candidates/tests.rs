@@ -19,6 +19,7 @@ fn request<'a>(
     vector: &'a [f32],
 ) -> SourceSimilarityCandidateRequest<'a> {
     SourceSimilarityCandidateRequest {
+        discovery_scope: Default::default(),
         profile,
         vector,
         query,
@@ -199,6 +200,7 @@ fn complete_setup_reuse_still_validates_each_vector_and_window() {
     for r in [
         base,
         SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             vector: &different,
             limit: 1,
             ..base
@@ -224,14 +226,17 @@ fn complete_setup_reuse_still_validates_each_vector_and_window() {
             ..base
         },
         SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             vector: &invalid,
             ..base
         },
         SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             vector: &v[..5],
             ..base
         },
         SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             profile: &unavailable,
             ..base
         },
@@ -246,6 +251,7 @@ fn complete_setup_reuse_still_validates_each_vector_and_window() {
     }
     assert_eq!(operation.stats().materializations, 1);
     let short = SourceSimilarityCandidateRequest {
+        discovery_scope: Default::default(),
         profile: &unavailable,
         vector: &invalid,
         comparison_key: Some(SimilarityComparisonKey::Role(SimilarityRole::Other)),
@@ -275,6 +281,7 @@ fn capacity_bypass_is_once_exact_and_ordinary_selection_is_unchanged() {
     let v = vector();
     let r = request(p, &q, &v);
     let ordinary = crate::SourceVectorCandidateRequest {
+        discovery_scope: Default::default(),
         profile: p,
         vector: &v,
         query: &q,
@@ -493,10 +500,12 @@ fn complete_setup_keys_separate_every_eligibility_input_and_empty_hits_validate(
     let variants = [
         base,
         SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             query: &empty,
             ..base
         },
         SourceSimilarityCandidateRequest {
+            discovery_scope: Default::default(),
             profile: second,
             ..base
         },
@@ -529,6 +538,7 @@ fn complete_setup_keys_separate_every_eligibility_input_and_empty_hits_validate(
     assert!(
         op.candidates::<IndexError>(
             SourceSimilarityCandidateRequest {
+                discovery_scope: Default::default(),
                 query: &empty,
                 vector: &bad,
                 ..base

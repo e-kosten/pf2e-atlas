@@ -120,6 +120,7 @@ pub fn audience() -> ContentAudience {
 }
 pub fn context(semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        verified_duplicate_sha256: None,
         reference_preparation: None,
         selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
 
@@ -302,6 +303,7 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
         aliases: vec![],
         remaster_context: vec![],
         remaster_pairs: vec![],
+        verified_duplicates: vec![],
     }
 }
 
