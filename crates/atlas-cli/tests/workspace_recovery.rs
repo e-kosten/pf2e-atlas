@@ -288,3 +288,17 @@ fn all_owner_recovery_preserves_live_and_archived_encounters_and_rolls_back_late
     ).unwrap();
     assert_eq!(next, 74);
 }
+
+#[test]
+fn rich_sample_round_trips_offline() {
+    let temp = tempfile::tempdir().unwrap();
+    let db = temp.path().join("workspace.sqlite");
+    let sample = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/workspace-archive-rich-1.0.json");
+    let reexported = temp.path().join("reexported.json");
+    initialize_workspace(&db).unwrap();
+
+    success(workspace_command(&db, "restore", &sample, &[]));
+    success(workspace_command(&db, "export", &reexported, &[]));
+    assert_eq!(read_archive(&sample), read_archive(&reexported));
+}
