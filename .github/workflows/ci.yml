@@ -52,6 +52,8 @@ jobs:
       tooling: ${{ steps.select.outputs.tooling }}
       embedding: ${{ steps.select.outputs.embedding }}
       embedding-runners: ${{ steps.select.outputs.embedding-runners }}
+      embedding-build: ${{ steps.select.outputs.embedding-build }}
+      embedding-near-limit: ${{ steps.select.outputs.embedding-near-limit }}
       workspace: ${{ steps.select.outputs.workspace }}
       workspace-runners: ${{ steps.select.outputs.workspace-runners }}
     steps:
@@ -79,6 +81,8 @@ jobs:
             embedding_args+=(--manual)
           fi
           matrices="$(python3 scripts/validation/embedding-stack.py "${embedding_args[@]}")"
+          echo "embedding-build=$(jq -r '.build' <<< "$matrices")" >> "$GITHUB_OUTPUT"
+          echo "embedding-near-limit=$(jq -r '.near_limit' <<< "$matrices")" >> "$GITHUB_OUTPUT"
           for pair in embedding:model workspace:workspace; do
             flag="${pair%:*}"
             key="${pair#*:}"
@@ -166,19 +170,28 @@ jobs:
           cargo build --locked -p atlas-cli --no-default-features
           cargo build --locked -p atlas-runtime --example migrate-fixture-workspace --example read-fixture-vectors --example check-fixture-inference
           cargo run --locked -p atlas-embedding --example prepare-model-cache -- target/embedding-models
-      - name: Check native tokenizer and batch inference
+      - name: Check tokenizer goldens and ingest reuse
         shell: bash
         run: |
           ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
           export ATLAS_TEST_MODEL_CACHE
-          # Each test loads full model sessions; bound peak memory on release runners.
-          cargo test --locked -p atlas-embedding compatibility_tests -- --ignored --test-threads=1
+          cargo test --locked -p atlas-embedding pinned_query_and_document_token_ids_match_the_compatibility_baseline -- --ignored
+          cargo test --locked -p atlas-ingest edited_passage_only_sends_new_inputs_to_inference -- --ignored
+      - name: Check native near-limit batches separately for full manual probe
+        if: github.event_name == 'workflow_dispatch' && inputs.full-embedding-probe
+        shell: bash
+        run: |
+          ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
+          export ATLAS_TEST_MODEL_CACHE
+          cargo test --locked -p atlas-embedding mixed_length_unicode_batches_match_single_input_inference -- --ignored
       - name: Check search against release fixtures
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           GH_TOKEN: ${{ github.token }}
           FULL_PROBE: ${{ github.event_name == 'workflow_dispatch' && inputs.full-embedding-probe }}
+          CHECK_BUILD: ${{ needs.changes.outputs.embedding-build }}
+          NEAR_LIMIT: ${{ needs.changes.outputs.embedding-near-limit }}
         run: |
           candidate=target/debug/atlas
           migrator=target/debug/examples/migrate-fixture-workspace
@@ -192,7 +205,11 @@ jobs:
           fi
           if [[ -n "$BASE_SHA" ]] && ! git cat-file -e "$BASE_SHA^{commit}"; then BASE_SHA=; fi
           compact=()
-          if [[ "$FULL_PROBE" != true ]]; then compact+=(--compact-vector-reader "$reader" --fixture-inference "$inference"); fi
+          if [[ "$FULL_PROBE" != true ]]; then
+            compact+=(--compact-vector-reader "$reader" --fixture-inference "$inference")
+            if [[ "$CHECK_BUILD" == true ]]; then compact+=(--check-build); fi
+            if [[ "$NEAR_LIMIT" == true ]]; then compact+=(--near-limit); fi
+          fi
           python scripts/validation/probe-embedding-upgrade.py --pins "${compact[@]}" \
             --base-ref "$BASE_SHA" --repository "$GITHUB_REPOSITORY" \
             --workspace-migrator "$migrator" \

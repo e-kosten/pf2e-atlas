@@ -152,6 +152,40 @@ class Routing(unittest.TestCase):
         self.assertEqual(self.select("no-such-commit", False), expected)
         self.assertEqual(self.select("", False, True), {"model": [], "workspace": []})
 
+    def test_probe_depth_distinguishes_workflow_ingest_and_native_changes(self):
+        depth = STACK["probe_depth"]
+        for name, expected in (
+            (".github/workflows/ci.yml", {"build": False, "near_limit": False}),
+            ("crates/atlas-ingest/src/build.rs", {"build": True, "near_limit": False}),
+            ("crates/atlas-embedding/src/inference.rs", {"build": False, "near_limit": True}),
+            ("crates/atlas-ingest/src/native_execution.rs", {"build": True, "near_limit": True}),
+            ("dist-workspace.toml", {"build": False, "near_limit": True}),
+            (".github/workflows/release-build-check.yml", {"build": False, "near_limit": True}),
+        ):
+            with self.subTest(name=name):
+                path = self.root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("// changed")
+                self.git("add", name)
+                self.assertEqual(depth("HEAD"), expected)
+                self.git("rm", "-f", name)
+
+
+class PredecessorSearch(unittest.TestCase):
+    def test_requires_known_semantic_hit_without_fixing_unrelated_ranks(self):
+        compare = PROBE["compare_predecessor_hit"]
+        expected = [["known", [["passage", 0.75]]], ["other", [["elsewhere", 0.5]]]]
+        compare(expected, [expected[0], ["unrelated", [["different", 0.4]]]], "bge-base")
+        for actual in (
+            list(reversed(expected)),
+            [["other", [["elsewhere", 0.75]]]],
+            [["known", [["wrong passage", 0.75]]]],
+            [["known", [["passage", 0.6]]]],
+        ):
+            with self.subTest(actual=actual):
+                with self.assertRaisesRegex(RuntimeError, "witness changed"):
+                    compare(expected, actual, "bge-base")
+
 
 class FrozenNumerical(unittest.TestCase):
     def setUp(self):

@@ -191,7 +191,8 @@ def workspace_schema(index):
 
 
 def migrate_predecessor(old, fresh, migrator, manifest, root):
-    before, expected = workspace_schema(old), workspace_schema(fresh)
+    before = workspace_schema(old)
+    expected = fresh if isinstance(fresh, int) else workspace_schema(fresh)
     if before == expected:
         return {"from": before, "to": expected}
     if before > expected or migrator is None:
@@ -665,8 +666,48 @@ def load_v2_numerical(path, digest, target, policies):
     return payload
 
 
+def compare_predecessor_hit(expected, actual, profile):
+    # Protect a known record and its best matching passage. Unrelated near ties
+    # in the fixture are not part of the numerical contract.
+    if not expected or not expected[0][1]:
+        raise RuntimeError(f"{profile} missing predecessor search witness")
+    record = expected[0][0]
+    passage, score = expected[0][1][0]
+    if actual and actual[0][0] == record and actual[0][1]:
+        location, value = actual[0][1][0]
+        if location == passage and math.isclose(value, score, abs_tol=SCORE_TOLERANCE, rel_tol=0):
+            return
+    raise RuntimeError(f"{profile} predecessor search witness changed: {record}")
+
+
+def check_compatible_workspace(candidate, cache, root, profiles, manifest, migrator, schema):
+    old = root / "predecessor.sqlite"
+    before = published_vectors(old)
+    migration = migrate_predecessor(old, schema, migrator, manifest, root)
+    updated = counts(build(candidate, root / "source", old, cache, root / "candidate-reuse.json", profiles))
+    after = published_vectors(old)
+    invoke(candidate, ["index", "validate", "--no-embeddings", "--index", old],
+           root / "candidate-validated.json")
+    saved = invoke(candidate, ["lists", "show", "compatibility", "--index", old], root / "list-after.json")
+    if saved_list_state(saved) != saved_list_state(manifest["saved_list"]):
+        raise RuntimeError("Saved list changed across maintenance")
+    for profile in profiles:
+        require_preserved_vectors(profile, before, after, updated[profile])
+        query, expected = next(iter(manifest["expected_queries"][profile].items()))
+        actual = search(candidate, old, cache, profile, query, root / f"{profile}-existing.json")
+        compare_predecessor_hit(expected, actual, profile)
+    write_json(root / "result.json", {
+        "candidate_sha256": sha256(candidate),
+        "baseline_sha256": manifest["producer"]["binary_sha256"],
+        "workspace_schema": migration,
+        "profiles": updated,
+        "check": "frozen-documents-and-predecessor-search",
+    })
+    print(f"Embedding compatibility passed. Evidence is in {root}.")
+
+
 def check_v2_payloads(candidate, cache, root, migrator, reader, inference, workspace,
-                      numerical, policies, transitions, producers=None):
+                      numerical, policies, transitions, producers=None, *, check_build=False, near_limit=False):
     target = release_target()
     payload = load_v2_numerical(*numerical, target, policies)
     if producers and payload["producer"]["commit"] != producers["numerical"]:
@@ -674,7 +715,10 @@ def check_v2_payloads(candidate, cache, root, migrator, reader, inference, works
     for profile in policies.keys() - transitions.keys():
         samples = root / f"{profile}-numerical-inputs.json"
         write_json(samples, payload["profiles"][profile]["samples"])
-        subprocess.run([str(inference), str(cache), profile, str(samples)], check=True, timeout=240)
+        command = [str(inference), str(cache), profile, str(samples)]
+        if near_limit:
+            command.append("--near-limit")
+        subprocess.run(command, check=True, timeout=360)
     manifest = extract_bundle(*workspace, root)
     if manifest["producer"]["target"] != target:
         raise RuntimeError("Workspace payload target mismatch")
@@ -693,7 +737,13 @@ def check_v2_payloads(candidate, cache, root, migrator, reader, inference, works
             raise RuntimeError(f"{profile} workspace numerical contract mismatch")
         first = QUERIES[0]
         manifest["expected_queries"][profile] = {first: manifest["expected_queries"][profile][first]}
-    check(candidate, cache, root, tuple(policies), manifest, transitions, migrator, reader)
+    description = json.loads(subprocess.check_output([str(migrator), "--describe"], text=True, timeout=30))
+    contracts = {contract["profile_id"]: contract for contract in description["profiles"]}
+    if (check_build or transitions
+            or any(contracts.get(profile) != manifest["profiles"][profile] for profile in policies)):
+        check(candidate, cache, root, tuple(policies), manifest, transitions, migrator, reader)
+    else:
+        check_compatible_workspace(candidate, cache, root, policies, manifest, migrator, description["schema"])
 
 
 def v2_receipts(base):
@@ -745,7 +795,7 @@ def validate_v2_receipts(current, previous, targets, pins, old_pins):
 
 
 def check_published_v2(candidate, cache, root, base, repository, migrator, reader, inference,
-                       receipts, previous_receipts):
+                       receipts, previous_receipts, *, check_build=False, near_limit=False):
     if not reader or not inference:
         raise RuntimeError("Published v2 requires native vector and inference helpers")
     current, previous = read_pins(base)
@@ -798,17 +848,18 @@ def check_published_v2(candidate, cache, root, base, repository, migrator, reade
         policies = {profile: policy for profile, (policy, _) in profiles.items()}
         transitions = {profile: transition for profile, (_, transition) in profiles.items() if transition}
         check_v2_payloads(candidate, cache, directory, migrator, reader, inference,
-                          payloads["workspace"], payloads["numerical"], policies, transitions, producers)
+                          payloads["workspace"], payloads["numerical"], policies, transitions, producers,
+                          check_build=check_build, near_limit=near_limit)
 
 
-def check_pins(candidate, cache, root, base, repository, migrator=None, reader=None, inference=None):
+def check_pins(candidate, cache, root, base, repository, migrator=None, reader=None, inference=None, *, check_build=False, near_limit=False):
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository):
         raise RuntimeError("Expected a GitHub repository in owner/name format")
     root.mkdir(parents=True, exist_ok=True)
     receipts, previous_receipts = v2_receipts(base) if reader else ({}, {})
     if receipts:
         check_published_v2(candidate, cache, root, base, repository, migrator, reader, inference,
-                           receipts, previous_receipts)
+                           receipts, previous_receipts, check_build=check_build, near_limit=near_limit)
         return
     download_env = os.environ.copy()
     # Keep the CI credential out of candidate and migrator subprocesses.
@@ -856,6 +907,10 @@ def main():
     parser.add_argument("--workspace-migrator", type=Path, help="Candidate helper for schema-only workspace upgrades")
     parser.add_argument("--compact-vector-reader", type=Path,
                         help="Use compact checks with this native fixture-vector reader")
+    parser.add_argument("--check-build", action="store_true",
+                        help="Compare freshly built and predecessor indexes for ingest changes")
+    parser.add_argument("--near-limit", action="store_true",
+                        help="Check mixed batches at the native token limit")
     parser.add_argument("--produce", type=Path, help="Write a new baseline archive")
     parser.add_argument("--producer-commit")
     parser.add_argument("--producer-target")
@@ -897,14 +952,15 @@ def main():
         check_v2_payloads(
             args.candidate.resolve(), cache, root, migrator, reader, inference,
             (args.v2_workspace, args.sha256), (args.numerical, args.numerical_sha256),
-            policies, transitions,
+            policies, transitions, check_build=args.check_build, near_limit=args.near_limit,
         )
         return
     if args.produce_v2:
         produce_v2(args.repository, cache, root, reader)
         return
     if args.pins:
-        check_pins(args.candidate.resolve(), cache, root, args.base_ref, args.repository, migrator, reader, inference)
+        check_pins(args.candidate.resolve(), cache, root, args.base_ref, args.repository, migrator, reader, inference,
+                   check_build=args.check_build, near_limit=args.near_limit)
         return
     if args.bundle:
         manifest = extract_bundle(args.bundle, args.sha256, root)

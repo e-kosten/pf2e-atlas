@@ -72,6 +72,31 @@ def valid_base(base):
     ).returncode == 0
 
 
+def probe_depth(base):
+    if not base or not valid_base(base):
+        return {"build": True, "near_limit": True}
+    paths = set(git("diff", "--no-renames", "--name-only", base).splitlines())
+    before, after = snapshot(base), snapshot()
+    return {
+        "build": any(
+            path.startswith(("crates/atlas-ingest/src/", "crates/atlas-record/src/",
+                             "crates/atlas-index/src/", "crates/atlas-storage/src/"))
+            and not schema_path(path)
+            for path in paths
+        ),
+        "near_limit": before != after or any(
+            path.startswith(("crates/atlas-embedding/src/", ".cargo/"))
+            or path.endswith("/Cargo.toml")
+            or path in {"Cargo.toml", "rust-toolchain.toml", "dist-workspace.toml",
+                        ".github/workflows/release-build-check.yml",
+                        "crates/atlas-ingest/src/native_execution.rs"}
+            or path.startswith(("crates/atlas-cli/src/commands/setup",
+                                "crates/atlas-runtime/src/setup"))
+            for path in paths
+        ),
+    }
+
+
 def selected_checks(base, manual, reusable=False, packaged=False):
     if not (ROOT / BASELINE_PIN).exists():
         raise ValueError("The embedding baseline pin is missing")
@@ -87,7 +112,9 @@ def selected_checks(base, manual, reusable=False, packaged=False):
         BASELINE_PIN, RELEASE_PREDECESSOR_PIN, "scripts/validation/embedding-fixtures-v2.json", ".github/workflows/ci.yml",
         ".github/workflows/release-build-check.yml", "scripts/validation/embedding-stack.py",
         "scripts/validation/probe-embedding-upgrade.py", "scripts/validation/test-embedding-baseline.py",
-        "crates/atlas-runtime/examples/read-fixture-vectors.rs", ".gitattributes", "rust-toolchain.toml",
+        "crates/atlas-runtime/examples/read-fixture-vectors.rs",
+        "crates/atlas-runtime/examples/check-fixture-inference.rs",
+        "crates/atlas-runtime/examples/migrate-fixture-workspace.rs", ".gitattributes", "rust-toolchain.toml",
         "dist-workspace.toml", "crates/atlas-search/src/text.rs",
         "crates/atlas-search/src/service.rs",
     }
@@ -187,7 +214,10 @@ if __name__ == "__main__":
         print(json.dumps(release_targets()))
         raise SystemExit(0)
     if args.select:
-        print(json.dumps(selected_checks(args.base, args.manual, args.reusable)))
+        result = selected_checks(args.base, args.manual, args.reusable)
+        result.update(probe_depth(args.base) if result["model"] and not args.manual
+                      else {"build": False, "near_limit": False})
+        print(json.dumps(result))
         raise SystemExit(0)
     current = snapshot()
     if args.print:

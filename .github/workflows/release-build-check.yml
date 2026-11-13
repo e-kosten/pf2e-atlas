@@ -375,7 +375,7 @@ jobs:
             --repository "$GITHUB_REPOSITORY" --candidate "$candidate" \
             --workspace-migrator "target/debug/examples/migrate-fixture-workspace$suffix" \
             --compact-vector-reader "target/debug/examples/read-fixture-vectors$suffix" \
-            --fixture-inference "target/debug/examples/check-fixture-inference$suffix" \
+            --fixture-inference "target/debug/examples/check-fixture-inference$suffix" --check-build --near-limit \
             --model-cache target/embedding-models --output "$RUNNER_TEMP/packaged-embedding"
       - uses: actions/upload-artifact@v7
         if: always() && contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)

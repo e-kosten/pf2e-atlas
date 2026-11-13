@@ -67,8 +67,14 @@ the receipt. Schema-only changes run the offline setup and migration checks
 on the release targets without model assets. Retrieval and storage changes run
 the compact probe on Linux x86_64. Changes to numerical execution, its pinned
 dependencies, or native build settings qualify both profiles across the release
-matrix. The compact probe checks stored document samples and queries against the
-pinned predecessor, and keeps compatibility transition and maintenance checks.
+matrix. The compact probe checks tokenizer goldens without loading ONNX. It replays
+frozen document samples and checks mixed-length batches in one session per
+profile, then runs a real CLI query against the pinned predecessor's vectors.
+Changes to native execution and batching exercise the token-limit case.
+Ingest changes, layout changes and execution ID transitions also compare a
+fresh index against the maintained predecessor. Compatible maintenance must
+preserve published vectors and saved data.
+Dispatch CI without options to time the compact check on all release targets.
 To run the wider comparison on demand, dispatch the CI workflow with
 `full-embedding-probe` enabled.
 
@@ -97,6 +103,9 @@ Prepare or verify the cache with
 If the candidate uses a newer workspace schema, build
 `cargo build --locked -p atlas-runtime --example migrate-fixture-workspace`
 and pass `--workspace-migrator target/debug/examples/migrate-fixture-workspace`.
+The v2 path also uses this helper to read the candidate's profile contracts
+without building a fresh index. Pass `--check-build` or `--near-limit` to run
+the additional checks outside their usual CI routing.
 The helper runs the candidate's storage migrations on the private copy. For an
 unchanged profile, maintenance may refresh content and query projections before
 search becomes available. The probe requires zero inference, the same published input
