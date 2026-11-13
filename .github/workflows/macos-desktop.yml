@@ -1,9 +1,9 @@
-name: macOS pilot
+name: macOS desktop
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/macos-pilot.yml'
+      - '.github/workflows/macos-desktop.yml'
       - '.cargo/**'
       - 'Cargo.*'
       - 'crates/**'
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: macos-pilot-${{ github.ref }}
+  group: macos-desktop-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -39,6 +39,7 @@ jobs:
           npm --prefix desktop ci
       - name: Build the app and test its native host
         run: |
+          node --test desktop/release-config.test.mjs
           sh desktop/bundle-macos.sh
           cargo test --locked --manifest-path desktop/src-tauri/Cargo.toml --target-dir target
           cargo test --locked -p atlas-cli --test desktop

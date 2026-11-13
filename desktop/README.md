@@ -1,4 +1,4 @@
-# Build the macOS pilot
+# Develop the macOS desktop app
 
 Build a local app from the checkout on Apple Silicon. You need the Xcode
 command-line tools, the pinned [Rust toolchain](../rust-toolchain.toml) and Node 26.
@@ -8,6 +8,8 @@ npm --prefix web/atlas-ui ci
 npm --prefix desktop ci
 sh desktop/bundle-macos.sh
 ```
+
+For the published DMG, see [macOS desktop installation](../docs/installation.md#macos-desktop-app).
 
 Open **PF2e Atlas.app** in `target/debug/bundle/macos`. Keep the bundle together
 with its CLI in `Contents/MacOS/atlas`. This build is for local testing.
@@ -61,7 +63,7 @@ command again from the new location.
 
 The debug build accepts an alternate home for Atlas subprocesses. Use an empty
 directory to exercise setup from scratch, or a disposable copy of a stopped
-workspace to test upgrades. Quit the pilot before switching between test homes.
+workspace to test upgrades. Quit the app before switching between test homes.
 
 ```sh
 test_home="$(mktemp -d)"

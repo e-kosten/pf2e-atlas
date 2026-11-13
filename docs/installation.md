@@ -3,6 +3,29 @@
 For the default installation, follow the [README quick start](../README.md#quick-start).
 This guide covers platform support, alternate versions and agent integration.
 
+## macOS desktop app
+
+On Apple Silicon with macOS Tahoe 26 or later, download
+`atlas-desktop-aarch64-apple-darwin.dmg` from the
+[Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
+For a nightly, use the dated release named in
+[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt).
+Check the image's SHA-256 against `SHA256SUMS` on the same release. Open the
+image and drag **PF2e Atlas** into **Applications**.
+
+The app is ad-hoc signed and unnotarized. If macOS blocks first launch, try
+opening the app, then go to **System Settings → Privacy & Security → Open Anyway**
+to approve that download. See [Apple's first-open instructions](https://support.apple.com/en-us/102445).
+
+Open the app and choose **Set up Atlas** on a new workspace. For upgrades,
+quit Atlas, replace the app in Applications, reopen it, and use **Setup and
+Updates** if Atlas asks to prepare the workspace. Nightly and stable builds
+use the same workspace. Back it up before switching channels.
+
+The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
+Access** to enable it on your shell's PATH. The command also works when the
+app is closed.
+
 ## Update Atlas
 
 Rerun the [quick-start installer](../README.md#quick-start) to update the CLI to

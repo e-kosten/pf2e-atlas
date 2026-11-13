@@ -6,11 +6,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { nightlyVersion, planNightly, prepareNightly, publishNightly, type Run } from '../src/nightly.js';
+import { macosDmg } from '../src/release-data.js';
 
 const sha = 'abcdef123456' + '0'.repeat(28);
 const tag = 'v0.1.0-nightly.20261018092300.gabcdef123456';
 const archiveBytes = 'checked CLI archive';
 const archiveDigest = createHash('sha256').update(archiveBytes).digest('hex');
+const dmgBytes = 'checked DMG';
+const dmgAsset = { name: macosDmg, digest: `sha256:${createHash('sha256').update(dmgBytes).digest('hex')}` };
 const pins = Object.fromEntries(['bge-base', 'embeddinggemma'].map((profile) => [profile, {
   tag: `embedding-seed/${profile}/v1`, asset: `${profile}.gz`, file: { sha256: 'b'.repeat(64), bytes: 1 },
 }]));
@@ -26,6 +29,7 @@ function fixture(t: TestContext) {
     version: tag, assets: [{ name: coverageArchive, target: 'x86_64-unknown-linux-gnu', variant: 'cli-only', sha256: archiveDigest }],
   }));
   writeFileSync(path.join(dist, coverageArchive), archiveBytes);
+  writeFileSync(path.join(dist, macosDmg), dmgBytes);
   const pinPath = path.join(root, 'crates/atlas-runtime/embedding-seeds.json');
   mkdirSync(path.dirname(pinPath), { recursive: true });
   writeFileSync(pinPath, JSON.stringify(pins));
@@ -54,8 +58,9 @@ test('invalid versions and inconsistent locks fail before changing either file',
 
 test('scheduled skip requires the published channel to point to this exact source', (t) => {
   const { root } = fixture(t);
-  for (const scenario of ['same', 'changed', 'draft', 'missing-channel', 'missing-pointer', 'manual']) {
-    const dated = { tag_name: tag, target_commitish: scenario === 'changed' ? '1'.repeat(40) : sha, draft: scenario === 'draft', prerelease: true };
+  for (const scenario of ['same', 'changed', 'draft', 'missing-channel', 'missing-pointer', 'missing-dmg', 'manual']) {
+    const dated = { tag_name: tag, target_commitish: scenario === 'changed' ? '1'.repeat(40) : sha, draft: scenario === 'draft', prerelease: true,
+      assets: scenario === 'missing-dmg' ? [] : [dmgAsset] };
     const channel = { tag_name: 'nightly', draft: false, assets: scenario === 'missing-pointer' ? [] : [{ name: 'nightly-version.txt' }] };
     const run: Run = (program, args) => {
       if (program === 'git') return sha;
@@ -68,7 +73,7 @@ test('scheduled skip requires the published channel to point to this exact sourc
   }
 });
 
-function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean } = {}) {
+function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean; badDmg?: boolean; channelTag?: string } = {}) {
   const { root, dist } = fixture(t);
   const coverage = path.join(root, 'embedding-coverage.json');
   const covered = { status: 'covered', inferred_inputs: 0, reused_inputs: 3 };
@@ -78,9 +83,20 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
       ? { status: 'gap', reason: 'missing_input', first_hash: 'a'.repeat(64) } : covered },
   }));
   const calls: string[][] = [];
+  const releases = [...options.existing ?? []] as { tag_name: string; target_commitish?: string; draft?: boolean; prerelease?: boolean; assets?: object[] }[];
   const run: Run = (program, args) => {
     calls.push([program, ...args]);
-    if (program === 'gh' && args[0] === 'api') return JSON.stringify([options.existing ?? []]);
+    if (program === 'git') return releases.some((release) => release.tag_name === tag && !release.draft) ? `${sha}\trefs/tags/${tag}` : '';
+    if (program === 'gh' && args[0] === 'api') return JSON.stringify([releases]);
+    if (args[0] === 'release' && args[2] === tag) {
+      if (args[1] === 'create') releases.push({ tag_name: tag, target_commitish: sha, draft: true, prerelease: true });
+      const release = releases.find((item) => item.tag_name === tag)!;
+      if (args[1] === 'upload') release.assets = options.badDmg ? [] : [dmgAsset];
+      if (args[1] === 'edit' && args.includes('--draft=false')) release.draft = false;
+    }
+    if (args[0] === 'release' && args[1] === 'download' && args[2] === 'nightly' && options.channelTag) {
+      writeFileSync(path.join(args[args.indexOf('--dir') + 1], 'nightly-version.txt'), options.channelTag);
+    }
     if (program === 'sh' && options.failInstall) throw new Error('install failed');
     if (path.basename(program) === 'atlas' && args[0] === 'build-info') return JSON.stringify({ status: 'ok', data: { version: nightlyVersion(tag), variant: 'cli-only' } });
     if (path.basename(program) === 'atlas') return options.wrongVersion ? 'atlas wrong' : `atlas ${nightlyVersion(tag)}`;
@@ -120,10 +136,27 @@ test('validation, installation and binary-version failures preserve the channel'
 });
 
 test('retry preserves published dated assets while repairing the channel', async (t) => {
-  const { execute, calls } = publisher(t, { existing: [{ tag_name: tag, target_commitish: sha, draft: false, assets: [{ name: coverageArchive, digest: `sha256:${archiveDigest}` }] }] });
+  const { execute, calls } = publisher(t, { existing: [{ tag_name: tag, target_commitish: sha, draft: false, prerelease: true, assets: [dmgAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }] }] });
   await execute();
   assert.ok(!calls.some((call) => ['upload', 'edit', 'create'].includes(call[2]) && call[3] === tag));
   assert.ok(calls.some((call) => call[2] === 'upload' && call[3] === 'nightly'));
+});
+
+test('a bad uploaded DMG keeps the release in draft and an older retry cannot change the channel', async (t) => {
+  const bad = publisher(t, { badDmg: true });
+  await assert.rejects(bad.execute, /Uploaded DMG digest mismatch/);
+  assert.ok(!bad.calls.some((call) => call.includes('--draft=false')));
+  const old = publisher(t, { existing: [{ tag_name: 'nightly', assets: [{ name: 'nightly-version.txt' }] }],
+    channelTag: tag.replace('20261018092300', '20261019092300') });
+  await old.execute();
+  assert.ok(!old.calls.some((call) => ['upload', 'edit', 'create'].includes(call[2])));
+  const current = publisher(t, { existing: [
+    { tag_name: 'nightly', draft: false, assets: [{ name: 'nightly-version.txt' }] },
+    { tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
+      assets: [dmgAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }] },
+  ], channelTag: tag });
+  await current.execute();
+  assert.ok(!current.calls.some((call) => ['upload', 'edit', 'create'].includes(call[2])));
 });
 
 test('source or manifest identity mismatches cannot publish', async (t) => {

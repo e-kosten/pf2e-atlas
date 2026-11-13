@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { coverageArchive, coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
 import { validateAssets } from './validate-release-assets.js';
-import { object, readJson } from './release-data.js';
+import { macosDmg, object, readJson } from './release-data.js';
+import { releases, verifyReleaseSource, verifyUploadedDmg, type Run } from './release-upload.js';
+export type { Run } from './release-upload.js';
 
-const nightlyTag = /^v([0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12})$/;
+const nightlyTag = /^v([0-9]+\.[0-9]+\.[0-9]+-nightly\.([0-9]{14})\.g[0-9a-f]{12})$/;
 export function nightlyVersion(tag: string): string {
   const match = nightlyTag.exec(tag);
   if (!match || match[0] !== tag) throw new Error('Invalid nightly tag');
@@ -45,22 +47,10 @@ export function prepareNightly(root: string, tag: string): void {
   writeFileSync(lockFile, sections.join(''));
 }
 
-export type Run = (program: string, args: string[]) => string;
 export function commandRunner(root: string): Run {
   return (program, args) => execFileSync(program, args, {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024,
   }).trim();
-}
-interface Release {
-  tag_name: string;
-  target_commitish: string;
-  draft: boolean;
-  prerelease: boolean;
-  body?: string;
-  assets?: { name: string; digest?: string }[];
-}
-function releases(run: Run): Release[] {
-  return (JSON.parse(run('gh', ['api', '--paginate', '--slurp', 'repos/{owner}/{repo}/releases?per_page=100'])) as Release[][]).flat();
 }
 function temporary<T>(work: (directory: string) => T): T {
   const directory = mkdtempSync(path.join(tmpdir(), 'atlas-nightly-'));
@@ -77,7 +67,8 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
       run('gh', ['release', 'download', 'nightly', '--pattern', 'nightly-version.txt', '--dir', directory]);
       return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
     });
-    if (nightlyTag.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft)) {
+    if (nightlyTag.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft
+      && release.assets?.some((asset) => asset.name === macosDmg && /^sha256:[a-f0-9]{64}$/.test(asset.digest ?? '')))) {
       return 'build=false\n';
     }
   }
@@ -97,11 +88,25 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
   const coverage = await validateNightlyCoverage(root, dist, coveragePath, tag, sha);
   const existing = releases(run);
   const release = existing.find((item) => item.tag_name === tag);
-  if (release && release.target_commitish !== sha) throw new Error('Existing nightly points at another commit');
+  const channel = existing.find((item) => item.tag_name === 'nightly');
+  let alreadyCurrent = false;
+  if (channel?.assets?.some((asset) => asset.name === 'nightly-version.txt')) {
+    const current = temporary((directory) => {
+      run('gh', ['release', 'download', 'nightly', '--pattern', 'nightly-version.txt', '--dir', directory]);
+      return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
+    });
+    const currentDate = nightlyTag.exec(current)?.[2];
+    if (!currentDate) throw new Error('Invalid nightly channel pointer');
+    if (currentDate > nightlyTag.exec(tag)![2]) return;
+    alreadyCurrent = current === tag && !channel.draft;
+  }
+  if (release) verifyReleaseSource(run, release, tag, sha, true);
   const notes = [
     'Not a stable release',
     '',
     ...(coverage.notice ? [coverage.notice, ''] : []),
+    `[Download PF2e Atlas for Apple Silicon](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${macosDmg}). [First-open instructions](https://github.com/e-kosten/pf2e-atlas/blob/${sha}/docs/installation.md#macos-desktop-app).`,
+    '',
     '<details>',
     '<summary>Install instructions</summary>',
     '',
@@ -144,10 +149,22 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     }
   }
   if (!release || release.draft) {
+    const draft = releases(run).find((item) => item.tag_name === tag);
+    if (!draft?.draft) throw new Error('Expected a draft nightly before uploading assets');
+    verifyReleaseSource(run, draft, tag, sha, true);
     const assets = readdirSync(dist, { withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(dist, entry.name)).sort();
     run('gh', ['release', 'upload', tag, ...assets, '--clobber']);
+    const uploaded = releases(run).find((item) => item.tag_name === tag);
+    if (!uploaded?.draft) throw new Error('Expected a draft nightly after uploading assets');
+    verifyReleaseSource(run, uploaded, tag, sha, true);
+    await verifyUploadedDmg(uploaded, dist);
     run('gh', ['release', 'edit', tag, '--draft=false', '--prerelease', '--latest=false']);
   }
+  const published = releases(run).find((item) => item.tag_name === tag);
+  if (!published || published.draft || !published.prerelease) throw new Error('Expected a published dated nightly');
+  verifyReleaseSource(run, published, tag, sha, true);
+  await verifyUploadedDmg(published, dist);
+  if (alreadyCurrent) return;
   // Published dated assets stay immutable. Check actual downloads before advancing
   // the channel so a failed install preserves the last successful nightly.
   temporary((directory) => {
@@ -161,7 +178,7 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     if (cliVersion !== `atlas ${version}` || cliInfo.status !== 'ok' || cliInfo.data.version !== version || cliInfo.data.variant !== 'cli-only') {
       throw new Error('Downloaded CLI-only binary version or build variant mismatch');
     }
-    if (!existing.some((item) => item.tag_name === 'nightly')) {
+    if (!channel) {
       run('gh', ['release', 'create', 'nightly', '--target', sha, '--title', 'Nightly installer channel', '--notes',
         'Installers and a pointer to the newest validated nightly. Dated releases contain the binaries and source commit.',
         '--draft', '--prerelease', '--latest=false']);

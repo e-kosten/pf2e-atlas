@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { archiveName, compare, isFile, sha256, targets, variants, writeJson } from './release-data.js';
+import { archiveName, compare, isFile, macosDmg, sha256, targets, variants, writeJson } from './release-data.js';
 
 export async function generateManifest(tag: string, dist: string): Promise<void> {
   const assets = [];
@@ -18,7 +18,7 @@ export async function generateManifest(tag: string, dist: string): Promise<void>
     }
   }
   writeJson(path.join(dist, 'atlas-release-manifest.json'), { version: tag, assets });
-  for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'atlas-release-manifest.json', 'THIRD-PARTY-NOTICES.md']) {
+  for (const name of [macosDmg, 'atlas-installer.sh', 'atlas-installer.ps1', 'atlas-release-manifest.json', 'THIRD-PARTY-NOTICES.md']) {
     const file = path.join(dist, name);
     if (isFile(file)) sums.push(`${await sha256(file)}  ${name}`);
   }

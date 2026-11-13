@@ -18,6 +18,10 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      nightly:
+        description: Rehearse nightly version preparation without publishing
+        type: boolean
+        default: false
       tag:
         description: "Optional tag to use for cargo-dist metadata, such as v0.1.0-rc.2. Defaults to v<atlas-cli version>."
         required: false
@@ -87,7 +91,10 @@ jobs:
         shell: bash
         env:
           NIGHTLY_TAG: ${{ inputs.tag }}
-        run: node dev-tools/release/dist/src/cli/nightly.js prepare --tag "$NIGHTLY_TAG"
+        run: |
+          sha="$(git rev-parse HEAD)"
+          [[ "$NIGHTLY_TAG" == *.g"${sha:0:12}" ]]
+          node dev-tools/release/dist/src/cli/nightly.js prepare --tag "$NIGHTLY_TAG"
       - id: version
         shell: bash
         env:
@@ -390,6 +397,25 @@ jobs:
             target/distrib/atlas-cli*-${{ matrix.target }}.*
             target/distrib/cli-only-${{ matrix.target }}.json
           if-no-files-found: error
+      - name: Build and verify macOS desktop DMG
+        if: matrix.target == 'aarch64-apple-darwin' && matrix.variant == 'full'
+        shell: bash
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          npm --prefix desktop ci
+          sh desktop/bundle-release-macos.sh "$TAG" "$GITHUB_RUN_ID" \
+            target/distrib/atlas-cli-aarch64-apple-darwin.tar.xz \
+            target/distrib/atlas-desktop-aarch64-apple-darwin.dmg
+      - name: Upload macOS desktop DMG
+        if: matrix.target == 'aarch64-apple-darwin' && matrix.variant == 'full'
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-macos-desktop
+          path: |
+            target/distrib/atlas-desktop-aarch64-apple-darwin.dmg
+            target/distrib/atlas-desktop-aarch64-apple-darwin.dmg.receipt.json
+          if-no-files-found: error
 
   assemble:
     name: assemble release assets
@@ -418,6 +444,11 @@ jobs:
           pattern: package-*
           path: target/distrib
           merge-multiple: true
+      - name: Verify desktop build receipt
+        shell: bash
+        run: |
+          node dev-tools/release/dist/src/cli/verify-desktop-receipt.js "$TAG" "$(git rev-parse HEAD)" target/distrib
+          rm target/distrib/atlas-desktop-aarch64-apple-darwin.dmg.receipt.json
       - name: Prepare nightly version
         if: ${{ inputs.nightly }}
         shell: bash
