@@ -51,7 +51,10 @@ editor to get a linked record name, or into a plain-text field to get the
 if the local service moves to a different port.
 
 For shell or agent use, **PF2e Atlas → Terminal and Agent Access** can
-add the bundled command to a bin folder you choose. If that folder is already
+link the bundled command at `~/.local/bin/atlas` from the product drawer.
+An existing executable there can be switched to the bundled command with
+native confirmation. The startup setup screen can also link to an existing
+custom bin folder. If the folder is already
 on your shell's PATH, check that `command -v atlas` resolves to the path shown
 by the app. The command continues to work when the app is closed. Use
 `atlas open` or `atlas open '<link>'` to open the app from the terminal.

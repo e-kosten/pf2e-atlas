@@ -23,8 +23,12 @@ Updates** if Atlas asks to prepare the workspace. Nightly and stable builds
 use the same workspace. Back it up before switching channels.
 
 The app includes the matching CLI. Use **PF2e Atlas → Terminal and Agent
-Access** to enable it on your shell's PATH. The command also works when the
-app is closed.
+Access** to link it at `~/.local/bin/atlas`. If you already installed a
+standalone command there, choose **Switch to bundled CLI** and confirm the
+replacement in the macOS dialog. Run `command -v atlas` to check which
+command your shell uses. The linked command works when the app is closed
+and follows the app when you replace it in Applications at the same path.
+To switch back, rerun the standalone installer.
 
 ## Update Atlas
 

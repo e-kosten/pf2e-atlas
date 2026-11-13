@@ -40,7 +40,11 @@ function attach(openRequest?: number) {
     },
     setup: { job: 2, sequence: 5, status: "idle" },
   };
-  invoke.mockResolvedValue(undefined);
+  invoke.mockImplementation(async (_command, { action }) =>
+    action === "read_terminal"
+      ? { state: "missing", path: "/disposable/.local/bin/atlas", version: "0.1.0" }
+      : null,
+  );
 }
 
 function renderPanel() {
@@ -70,7 +74,10 @@ it("opens a retained native menu request and confirms a different bundled pin", 
     within(drawer).getByRole("button", { name: "Apply bundled reference data" });
   fireEvent.click(apply());
   expect(within(drawer).getByText(/may be older/)).toBeVisible();
-  expect(invoke).toHaveBeenCalledTimes(1);
+  expect(invoke).not.toHaveBeenCalledWith(
+    "desktop_setup_action",
+    expect.objectContaining({ action: "apply_reference" }),
+  );
   fireEvent.click(apply());
   expect(invoke).toHaveBeenLastCalledWith("desktop_setup_action", {
     action: "apply_reference",
@@ -101,7 +108,11 @@ it("applies keyword-only settings and links the fixed terminal command", async (
       modelSelection: { profiles: [], preferred: null },
     }),
   );
-  invoke.mockResolvedValueOnce("/disposable/.local/bin/atlas");
+  invoke.mockResolvedValueOnce({
+    state: "linked",
+    path: "/disposable/.local/bin/atlas",
+    version: "0.1.0",
+  });
   fireEvent.click(
     within(drawer).getByRole("button", { name: "Enable terminal command" }),
   );
@@ -109,7 +120,36 @@ it("applies keyword-only settings and links the fixed terminal command", async (
   expect(invoke).toHaveBeenLastCalledWith("desktop_setup_action", {
     action: "enable_terminal",
     job: 2,
-    sequence: 5,
     token: "current-document",
   });
+});
+
+it("requests a native switch and keeps the option available after cancellation", async () => {
+  attach();
+  const existing = {
+    state: "replaceable",
+    path: "/disposable/.local/bin/atlas",
+    version: "0.1.0-rc.6",
+  };
+  invoke.mockImplementation(async (_command, { action }) =>
+    action === "read_terminal" ? existing : null,
+  );
+  renderPanel();
+  fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+  const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+  const button = await within(drawer).findByRole("button", {
+    name: "Switch to bundled CLI",
+  });
+  expect(within(drawer).getByText(/bundles Atlas 0.1.0-rc.6/)).toBeVisible();
+  fireEvent.click(button);
+  await waitFor(() => expect(button).not.toHaveClass("ant-btn-loading"));
+  expect(invoke).toHaveBeenLastCalledWith("desktop_setup_action", {
+    action: "switch_terminal",
+    job: 2,
+    token: "current-document",
+  });
+  expect(within(drawer).queryByText("command -v atlas")).toBeNull();
+  invoke.mockResolvedValueOnce({ ...existing, state: "linked" });
+  fireEvent.click(button);
+  expect(await within(drawer).findByText("command -v atlas")).toBeVisible();
 });

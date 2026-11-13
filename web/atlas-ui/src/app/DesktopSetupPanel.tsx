@@ -21,8 +21,7 @@ type SetupAction =
   | "apply_reference"
   | "check_reference"
   | "read_reference_status"
-  | "apply_models"
-  | "enable_terminal";
+  | "apply_models";
 type ModelSelection = { profiles: string[]; preferred: string | null };
 type ModelStatus = { id: string; label: string; installed: boolean; usable: boolean };
 type ReferenceStatus = {
@@ -39,6 +38,7 @@ type ReferenceStatus = {
 type DesktopAttachment = {
   token: string;
   openRequest?: number | null;
+  openTerminal?: boolean;
   referenceLoading?: boolean;
   reference?: ReferenceStatus | null;
   setup: {
@@ -56,7 +56,7 @@ type DesktopAttachment = {
 type DesktopWindow = Window & {
   __ATLAS_DESKTOP_SETUP__?: DesktopAttachment;
   __TAURI__?: {
-    core: { invoke: (command: string, args: object) => Promise<string | null> };
+    core: { invoke: (command: string, args: object) => Promise<TerminalStatus | null> };
   };
 };
 function readAttachment() {
@@ -70,7 +70,8 @@ function subscribe(callback: () => void) {
 export function DesktopSetupPanel() {
   const attachment = useSyncExternalStore(subscribe, readAttachment);
   const [open, setOpen] = useState(false);
-  const [terminalPath, setTerminalPath] = useState<string | null>(null);
+  const terminalSection = useRef<HTMLDivElement>(null);
+  const focusTerminal = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +89,10 @@ export function DesktopSetupPanel() {
   }
   useEffect(() => {
     if (openRequest == null || !token || job == null) return;
+    if (attachment?.openTerminal) {
+      focusTerminal.current = true;
+      terminalSection.current?.focus();
+    }
     void (window as DesktopWindow).__TAURI__?.core
       .invoke("desktop_setup_action", {
         action: "acknowledge_open",
@@ -96,7 +101,7 @@ export function DesktopSetupPanel() {
         openRequest,
       })
       .catch(() => {});
-  }, [openRequest, token, job]);
+  }, [openRequest, token, job, attachment?.openTerminal]);
   if (!attachment || !setup) return null;
   const { status, progress } = setup;
   const { reference, referenceLoading } = attachment;
@@ -116,14 +121,13 @@ export function DesktopSetupPanel() {
     setError(null);
     setSending(true);
     try {
-      const result = await host.core.invoke("desktop_setup_action", {
+      await host.core.invoke("desktop_setup_action", {
         action,
         token: attachment.token,
         job: attachment.setup.job,
         sequence: attachment.setup.sequence,
         ...(modelSelection ? { modelSelection } : {}),
       });
-      if (action === "enable_terminal") setTerminalPath(result);
     } catch (failure) {
       setError(
         typeof failure === "string"
@@ -157,6 +161,12 @@ export function DesktopSetupPanel() {
       <AtlasDrawer
         title="Setup and Updates"
         open={open}
+        afterOpenChange={(visible) => {
+          if (visible && focusTerminal.current) {
+            terminalSection.current?.focus();
+            focusTerminal.current = false;
+          }
+        }}
         onClose={() => {
           restoreOverlayFocus(trigger.current, panel.current);
           setOpen(false);
@@ -299,26 +309,139 @@ export function DesktopSetupPanel() {
                 onApply={(selection) => void act("apply_models", selection)}
               />
             )}
-            <Space orientation="vertical" size="small">
-              <Typography.Text strong>Terminal and agent access</Typography.Text>
-              <Typography.Text>
-                Link the bundled Atlas command at <code>~/.local/bin/atlas</code>.
-              </Typography.Text>
-              <Button disabled={sending} onClick={() => void act("enable_terminal")}>
-                Enable terminal command
-              </Button>
-              {terminalPath && (
-                <Typography.Text role="status">
-                  Linked at <code>{terminalPath}</code>. Run{" "}
-                  <code>command -v atlas</code> to check which command your shell uses.
-                </Typography.Text>
-              )}
-            </Space>
+            {open && (
+              <div
+                ref={terminalSection}
+                tabIndex={-1}
+                aria-label="Terminal and agent access"
+              >
+                <TerminalAccess
+                  key={attachment.token}
+                  token={attachment.token}
+                  job={setup.job}
+                />
+              </div>
+            )}
           </Space>
         </div>
       </AtlasDrawer>
     </>
   );
+}
+
+type TerminalStatus = {
+  state: "missing" | "linked" | "replaceable" | "conflict";
+  path: string;
+  version: string;
+};
+
+function TerminalAccess({ token, job }: { token: string; job: number }) {
+  const [status, setStatus] = useState<TerminalStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    const host = (window as DesktopWindow).__TAURI__;
+    void host?.core
+      .invoke("desktop_setup_action", { action: "read_terminal", token, job })
+      .then((result) => {
+        if (active) setStatus(result ?? null);
+      })
+      .catch((failure) => {
+        if (active) setError(terminalError(failure));
+      })
+      .finally(() => {
+        if (active) setBusy(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, job]);
+
+  async function change(action: "enable_terminal" | "switch_terminal") {
+    const host = (window as DesktopWindow).__TAURI__;
+    if (!host || busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const result = await host.core.invoke("desktop_setup_action", {
+        action,
+        token,
+        job,
+      });
+      if (result) setStatus(result);
+    } catch (failure) {
+      setError(terminalError(failure));
+      try {
+        setStatus(
+          await host.core.invoke("desktop_setup_action", {
+            action: "read_terminal",
+            token,
+            job,
+          }),
+        );
+      } catch {
+        setStatus(null);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Space orientation="vertical" size="small">
+      <Typography.Text strong>Terminal and agent access</Typography.Text>
+      {!status && busy && (
+        <Typography.Text role="status">Checking terminal command…</Typography.Text>
+      )}
+      {error && <Alert type="error" title={error} />}
+      {status?.state === "missing" && (
+        <>
+          <Typography.Text>
+            Link Atlas {status.version} at <code>{status.path}</code>.
+          </Typography.Text>
+          <Button loading={busy} onClick={() => void change("enable_terminal")}>
+            Enable terminal command
+          </Button>
+        </>
+      )}
+      {status?.state === "replaceable" && (
+        <>
+          <Typography.Text>
+            A command already exists at <code>{status.path}</code>. This app bundles
+            Atlas {status.version}.
+          </Typography.Text>
+          <Button loading={busy} onClick={() => void change("switch_terminal")}>
+            Switch to bundled CLI
+          </Button>
+        </>
+      )}
+      {status?.state === "conflict" && (
+        <Alert
+          type="warning"
+          title={
+            <>
+              An entry already exists at <code>{status.path}</code>. Move it to enable
+              the bundled command here.
+            </>
+          }
+        />
+      )}
+      {status?.state === "linked" && (
+        <Typography.Text role="status">
+          Linked at <code>{status.path}</code>. Run <code>command -v atlas</code> to
+          check which command your shell uses.
+        </Typography.Text>
+      )}
+    </Space>
+  );
+}
+
+function terminalError(error: unknown) {
+  return typeof error === "string"
+    ? error
+    : "Atlas could not check or change the terminal command.";
 }
 
 function SearchModels({
@@ -376,6 +499,8 @@ function SearchModels({
         <Select
           aria-label="Default search model"
           value={preferred}
+          style={{ width: "100%", minWidth: "min(14rem, 100%)" }}
+          popupMatchSelectWidth={false}
           disabled={!editable || profiles.length === 0}
           options={[
             { value: "", label: "Automatic" },
