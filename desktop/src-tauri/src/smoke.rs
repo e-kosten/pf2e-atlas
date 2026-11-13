@@ -34,6 +34,10 @@ pub fn reference_mode() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "reference")
 }
 
+fn selector_mode() -> bool {
+    std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "selector")
+}
+
 pub fn configure(
     builder: WebviewWindowBuilder<'_, tauri::Wry, AppHandle>,
 ) -> WebviewWindowBuilder<'_, tauri::Wry, AppHandle> {
@@ -75,7 +79,9 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     }
     let app = app.clone();
     thread::spawn(move || {
-        match if reference_mode() {
+        match if selector_mode() {
+            run_selector(&app)
+        } else if reference_mode() {
             run_reference(&app)
         } else {
             run(&app)
@@ -327,7 +333,6 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     wait_for(deadline, "permanent setup toolbar entry", || {
         click_product_button(&window, "Setup and Updates", false)
     })?;
-    check_model_selector(&window)?;
     wait_for(deadline, "terminal access action", || {
         click_product_button(&window, "Enable terminal command", true)
     })?;
@@ -463,6 +468,18 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn run_selector(app: &AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary window unavailable")?;
+    wait_for(
+        Instant::now() + Duration::from_secs(10),
+        "setup drawer entry",
+        || click_product_button(&window, "Setup and Updates", false),
+    )?;
+    check_model_selector(&window)
+}
+
 fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
     let deadline = Instant::now() + Duration::from_secs(5);
     window
@@ -517,7 +534,7 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
             window,
             r#"(() => {
         const field = document.querySelector('[aria-label="Default search model"]');
-        const value = field?.closest('.ant-select')?.querySelector('.ant-select-content-value');
+        const value = field?.closest('.ant-select')?.querySelector('.ant-select-content');
         return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth;
     })()"#,
         )
