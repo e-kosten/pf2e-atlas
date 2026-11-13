@@ -4,8 +4,8 @@
 
 use objc2::MainThreadMarker;
 use objc2_app_kit::{
-    NSAlert, NSAlertFirstButtonReturn, NSApplication, NSWindow, NSWindowOrderingMode,
-    NSWindowTabbingMode,
+    NSAlert, NSAlertFirstButtonReturn, NSApplication, NSEventModifierFlags, NSWindow,
+    NSWindowOrderingMode, NSWindowTabbingMode,
 };
 use objc2_foundation::NSString;
 use tauri::WebviewWindow;
@@ -15,6 +15,20 @@ use crate::display;
 pub fn disable_automatic_grouping() -> Result<(), String> {
     NSWindow::setAllowsAutomaticWindowTabbing(false, main_thread()?);
     Ok(())
+}
+
+pub fn configure_zoom_shortcut() {
+    let item = MainThreadMarker::new()
+        .and_then(|main| NSApplication::sharedApplication(main).mainMenu())
+        .and_then(|menu| menu.itemWithTitle(&NSString::from_str("View")))
+        .and_then(|item| item.submenu())
+        .and_then(|menu| menu.itemWithTitle(&NSString::from_str("Zoom In (+)")));
+    if let Some(item) = item {
+        item.setKeyEquivalent(&NSString::from_str("+"));
+        item.setKeyEquivalentModifierMask(NSEventModifierFlags::Command);
+        item.setAllowsKeyEquivalentWhenHidden(true);
+        item.setHidden(true);
+    }
 }
 
 pub fn configure(window: &WebviewWindow, product: bool) -> Result<(), String> {

@@ -70,7 +70,7 @@ fn read(path: &Path) -> u8 {
 
 fn step(level: u8, action: &str) -> u8 {
     match action {
-        "zoom-in" => LEVELS
+        "zoom-in" | "zoom-plus" => LEVELS
             .iter()
             .copied()
             .find(|next| *next > level)

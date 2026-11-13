@@ -736,11 +736,12 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         .item(&copy)
         .build()?;
     let zoom_in = MenuItem::with_id(app, "zoom-in", "Zoom In", true, Some("CmdOrCtrl+Equal"))?;
+    let zoom_plus = MenuItem::with_id(app, "zoom-plus", "Zoom In (+)", true, None::<&str>)?;
     let zoom_out = MenuItem::with_id(app, "zoom-out", "Zoom Out", true, Some("CmdOrCtrl+Minus"))?;
     let zoom_reset =
         MenuItem::with_id(app, "zoom-reset", "Actual Size", true, Some("CmdOrCtrl+0"))?;
     let view = SubmenuBuilder::new(app, "View")
-        .items(&[&zoom_in, &zoom_out, &zoom_reset])
+        .items(&[&zoom_in, &zoom_plus, &zoom_out, &zoom_reset])
         .build()?;
     let window = SubmenuBuilder::new(app, "Window")
         .minimize()
@@ -792,7 +793,7 @@ fn main() {
                 "new" => new_search(app, false),
                 "new-tab" => new_search(app, true),
                 tab_links::MENU_ID => tab_links::open_context_link(app),
-                action @ ("zoom-in" | "zoom-out" | "zoom-reset") => {
+                action @ ("zoom-in" | "zoom-plus" | "zoom-out" | "zoom-reset") => {
                     if let Err(error) = app.state::<Desktop>().zoom.change(app, action) {
                         native_tabs::report("Could not update Atlas zoom", &error);
                     }
@@ -808,6 +809,7 @@ fn main() {
         })
         .setup(|app| {
             native_tabs::disable_automatic_grouping().map_err(std::io::Error::other)?;
+            native_tabs::configure_zoom_shortcut();
             app.state::<Desktop>().zoom.load(app.handle());
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
