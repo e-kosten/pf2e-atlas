@@ -97,6 +97,9 @@ version = "0.1.0"
 dependencies = [
  "atlas-desktop-protocol",
  "getrandom 0.4.3",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "serde",
  "serde_json",
  "tauri",

@@ -6,6 +6,7 @@ fn main() {
         "cancel_setup",
         "enable_cli",
         "desktop_setup_action",
+        "desktop_tab_link",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(commands))
         .expect("configure the Atlas desktop bundle");

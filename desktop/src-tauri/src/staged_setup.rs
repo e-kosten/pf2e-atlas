@@ -103,7 +103,8 @@ impl StagedSetup {
             .local(false)
             .remote(format!("{}/*", origin.ascii_serialization()))
             .webview(label)
-            .permission("allow-desktop-setup-action");
+            .permission("allow-desktop-setup-action")
+            .permission("allow-desktop-tab-link");
         app.add_capability(permission).map_err(display)?;
         lock(&self.documents).insert(
             label.into(),
@@ -115,6 +116,10 @@ impl StagedSetup {
             },
         );
         Ok(())
+    }
+
+    pub fn detach_window(&self, label: &str) {
+        lock(&self.documents).remove(label);
     }
 
     pub fn clear_documents(&self) {
@@ -206,6 +211,9 @@ fn broadcast(app: &AppHandle) {
 }
 
 pub fn page_load(window: WebviewWindow, payload: tauri::webview::PageLoadPayload<'_>) {
+    if payload.event() == PageLoadEvent::Finished {
+        crate::zoom::apply(&window);
+    }
     let desktop = window.state::<Desktop>();
     let instance = lock(&desktop.launcher)
         .as_ref()
