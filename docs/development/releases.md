@@ -254,7 +254,26 @@ release target in `scripts/validation/schema-42-predecessor.json`. CI verifies
 the archive, frozen source fixture and ledger, then generates a disposable
 predecessor on that target. Both profile execution policies carry forward.
 
-Publish a new bundle when an approved upgrade increments a profile's
+The CI workflow's `capture-embedding-fixtures` dispatch builds and verifies
+unpublished v2 evidence on the four release targets. It produces a workspace
+archive, an independent numerical sample payload, and their SHA-256 receipt
+for each target. The numerical sample records the exact prepared document input,
+native token count and stored vector from the verified predecessor. A future
+workspace schema cutoff can replace the workspace archive while preserving the
+numerical sample. The fixture-only release tag for the initial v2 capture is
+`fixtures/embedding-compatibility/v2`. Verify every target receipt before
+publishing or activating the frozen payloads. The compact CI probe uses the
+pinned packaged predecessor until frozen payloads are activated.
+
+Stable and RC packaging runs the compact compatibility probe against the exact
+packaged binaries when changes since the pinned producer affect numerical
+execution. This qualification is separate from the full-corpus seed coverage
+check. The optional `scripts/validation/embedding-fixtures-v2.json` activation
+receipt maps each release target and profile to `workspace` and `numerical`
+entries. Each entry records `tag`, `asset`, `sha256`, and producer `commit`.
+Refreshing only the workspace retains the numerical entry exactly.
+
+For the original single-archive fixture format, publish a new bundle when an approved upgrade increments a profile's
 compatibility ID. Generate the
 fixture using the packaged Linux x86_64 CLI from a pinned release build check on
 main or a verified product release. Record the actual target and build used if

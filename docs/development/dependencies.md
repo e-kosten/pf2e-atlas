@@ -63,12 +63,14 @@ describes when Atlas can compare new queries with stored document vectors. The
 [reviewed dependency set](../../scripts/validation/embedding-stack.json) records
 the relevant locked packages and manifest selections. CI detects changes to
 that set. Review the upstream change and test both profiles before updating
-the receipt. Once the first fixture is published and pinned, PR validation
-runs the probe on Linux x86_64 for Cargo lockfile changes and changes to code
-that prepares inputs, stores vectors, or executes retrieval. The first pin,
-watched native and tokenizer dependencies, Cargo native build settings, and
-Rust toolchain changes select the release platform matrix. Run the `ci`
-workflow manually to exercise all targets.
+the receipt. Schema-only changes run the offline setup and migration checks
+on the release targets without model assets. Retrieval and storage changes run
+the compact probe on Linux x86_64. Changes to numerical execution, its pinned
+dependencies, or native build settings qualify both profiles across the release
+matrix. The compact probe checks stored document samples and queries against the
+pinned predecessor, and keeps compatibility transition and maintenance checks.
+To run the wider comparison on demand, dispatch the CI workflow with
+`full-embedding-probe` enabled.
 
 Build the pre-upgrade and candidate Atlas binaries with the same pinned toolchain
 and features. Use disposable checkouts or save a copy of the baseline executable
@@ -102,7 +104,7 @@ identities and vector checksums, and successful deep vector validation before
 comparing queries with the frozen expectations. This exercises the supported
 setup migration window without replacing the numerical baseline.
 
-The probe checks ranked records, matching passages and absolute score drift
+The full manual probe checks ranked records, matching passages and absolute score drift
 within 0.00002. It verifies zero document inference on compatible maintenance,
 saved list preservation, and retrieval from a mixed index against a fresh
 index built from the same edited source. For an intentional passage layout
