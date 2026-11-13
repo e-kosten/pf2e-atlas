@@ -307,7 +307,46 @@ fn run(app: &AppHandle) -> Result<(), String> {
             return false;
         })()"#,
         )
-    })
+    })?;
+    if !forces_retry() && !forces_preflight_retry() {
+        check_tabs_and_zoom(app, &window)?;
+    }
+    Ok(())
+}
+
+fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), String> {
+    let primary = primary.clone();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    crate::run_on_main(app, move |app| {
+        let result = (|| {
+            crate::native_tabs::select(&primary)?;
+            app.state::<Desktop>().zoom.change(app, "zoom-in")?;
+            crate::new_search(app, true)?;
+            let tab = app
+                .get_webview_window("atlas-0")
+                .ok_or("New Search tab unavailable")?;
+            crate::native_tabs::verify_group(&primary, &tab)?;
+            if !tab.url().is_ok_and(|url| url.path() == "/search") {
+                return Err("New tab did not open Search".into());
+            }
+            let preference = process::home()?.join("desktop-zoom");
+            if std::fs::read_to_string(preference).map_err(display)?.trim() != "110" {
+                return Err("Zoom was not saved".into());
+            }
+            receive_link(app, FIXTURE_LINK);
+            if app.webview_windows().len() != 2 {
+                return Err("Record link did not select the existing tab".into());
+            }
+            crate::native_tabs::verify_group(&tab, &primary)
+                .map_err(|error| format!("Record link did not select the existing tab: {error}"))?;
+            app.state::<Desktop>().zoom.change(app, "zoom-reset")?;
+            Ok(())
+        })();
+        let _ = sender.send(result);
+    })?;
+    receiver
+        .recv_timeout(Duration::from_secs(4))
+        .map_err(display)?
 }
 
 fn run_reference(app: &AppHandle) -> Result<(), String> {
@@ -347,7 +386,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
     })?;
 
     crate::run_on_main(app, |app| {
-        let _ = crate::open_product(app, "/search", true);
+        let _ = crate::open_product(app, "/search", None);
     })?;
     wait_for(deadline, "second product window", || {
         app.webview_windows().len() == 2

@@ -165,7 +165,11 @@ pub fn record_path(key: &RecordKey) -> String {
 pub fn parse_record_path(path: &str) -> Option<RecordKey> {
     let segment = path
         .strip_prefix("/search/records/")
-        .or_else(|| path.strip_prefix("/records/"))?;
+        .or_else(|| path.strip_prefix("/records/"))
+        .or_else(|| {
+            let (slug, tail) = path.strip_prefix("/lists/")?.split_once('/')?;
+            (!slug.is_empty()).then_some(tail)?.strip_prefix("records/")
+        })?;
     parse_encoded_key(segment).ok()
 }
 
@@ -188,10 +192,14 @@ mod tests {
     }
 
     #[test]
-    fn both_reader_routes_match_the_exact_key() {
+    fn reader_routes_match_the_exact_key() {
         let key = RecordKey::parse("spells:one").unwrap();
         assert_eq!(parse_record_path(&record_path(&key)), Some(key.clone()));
-        assert_eq!(parse_record_path("/records/spells:one"), Some(key));
+        assert_eq!(parse_record_path("/records/spells:one"), Some(key.clone()));
+        assert_eq!(
+            parse_record_path("/lists/prepared/records/spells%3Aone"),
+            Some(key)
+        );
         assert_eq!(parse_record_path("/search/records/spells:one/extra"), None);
     }
 
