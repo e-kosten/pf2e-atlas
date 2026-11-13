@@ -50,7 +50,7 @@ atlas-search = { path = "crates/atlas-search" }
 atlas-sqlite-vec = { path = "crates/atlas-sqlite-vec" }
 atlas-storage = { path = "crates/atlas-storage" }
 atlas-tags = { path = "crates/atlas-tags" }
-ammonia = "=4.2.4"
+ammonia = "=4.2.5"
 axum = "0.8.7"
 utoipa = "=6.0.0"
 utoipa-axum = "=0.3.0"

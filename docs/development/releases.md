@@ -274,12 +274,57 @@ It maps each target and profile to independent `workspace` and `numerical`
 entries, each with the release `tag`, `asset`, `sha256`, and producer `commit`.
 Verify CI against the exact downloaded assets before merging the new pins.
 
-The `capture-embedding-fixtures` CI dispatch reproduces the initial v2 capture
-from the schema-42 producer in `scripts/validation/schema-42-predecessor.json`.
-It verifies the packaged CLI, source tree, and migration ledger and uploads
-unpublished workspace and numerical payloads plus their digests for all four
-targets. Capturing from a later producer or capturing only a replacement
-workspace requires updating the capture tooling to support that case.
+Run the `ci.yml` workflow manually to prepare unpublished fixture artifacts on
+all four release targets. For a schema cutoff, pick a published CLI release
+whose workspace schema the candidate supports and whose numerical contracts
+match the pinned samples. Start a checked-in producer receipt from
+[`schema-42-predecessor.json`](../../scripts/validation/schema-42-predecessor.json).
+Use the release tag and its Git commit, and copy the four CLI-only archive
+names and SHA-256 digests from `atlas-release-manifest.json`, cross-checking
+them against `SHA256SUMS`. Record the tree ID of
+`crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types` at that
+commit. Record the schema and ledger digest of a disposable index built by the
+packaged CLI. From the repository root, use the probe's existing readers to get
+those values. Keep the existing query recipe.
+
+```bash
+git rev-parse "$producer_commit:crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types"
+python3 - "$disposable_index" <<'PY'
+from pathlib import Path
+import runpy
+import sys
+
+probe = runpy.run_path("scripts/validation/probe-embedding-upgrade.py")
+index = Path(sys.argv[1]).resolve()
+print("schema", probe["workspace_schema"](index))
+print("ledger_sha256", probe["predecessor_ledger"](index))
+PY
+```
+
+The probe verifies the receipt against the actual archive, fixture tree, and
+database on every target.
+
+For a workspace-only refresh, dispatch from the branch containing that receipt.
+
+```bash
+gh workflow run ci.yml --ref "$capture_branch" \
+  -f capture-embedding-fixtures=true -f capture-workspace-only=true \
+  -f fixture-producer-receipt=scripts/validation/new-producer.json
+```
+
+Each `embedding-v2-fixtures-*` workflow artifact includes the workspace,
+its digest, and `fixture-replay.json` with the producer and candidate identities,
+schema versions, and numerical receipt checked for each profile. This dispatch
+replays the replacement workspace even if the candidate can no longer open the
+published workspace. Use the publication and activation steps above once the
+replacement is ready.
+
+To reproduce the original full capture, dispatch with only
+`-f capture-embedding-fixtures=true`. The default schema-42 receipt produces
+both workspace and numerical payloads. A later full capture can take a producer
+receipt with the same execution IDs, provided the numerical input helper works
+with that producer's source. Use the separate transition procedure when a
+profile's execution ID changes.
 
 Stable and RC packaging runs the compact compatibility probe against the exact
 packaged binaries when changes since the pinned producer affect numerical

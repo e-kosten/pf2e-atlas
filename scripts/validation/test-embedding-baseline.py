@@ -4,6 +4,7 @@ from contextlib import closing
 import hashlib
 import gzip
 import json
+import os
 import runpy
 import shutil
 import sqlite3
@@ -246,6 +247,175 @@ class FrozenNumerical(unittest.TestCase):
             PROBE["validate_v2_receipts"](current, previous, {target}, pins, pins)
         with self.assertRaisesRegex(RuntimeError, "all release targets"):
             PROBE["validate_v2_receipts"](current, previous, {target, "missing"}, pins, pins)
+
+
+class FixtureCapture(unittest.TestCase):
+    def test_manual_replacement_can_follow_a_previously_rotated_workspace(self):
+        receipts = json.loads((HERE / "embedding-fixtures-v2.json").read_bytes())
+        target = next(iter(receipts))
+        profile = next(iter(receipts[target]))
+        receipts[target][profile]["workspace"]["commit"] = "b" * 40
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        receipt_path = root / PROBE["V2_PIN_PATH"]
+        receipt_path.parent.mkdir(parents=True)
+        receipt_path.write_text(json.dumps(receipts))
+        shutil.copyfile(HERE / "schema-42-predecessor.json", root / PROBE["RELEASE_PIN"])
+        pins, _ = PROBE["read_pins"](None)
+        read = PROBE["v2_receipts"]
+        with patch.dict(read.__globals__, ROOT=root, read_pins=lambda _: (pins, {}),
+                        release_target=lambda: target), patch.object(subprocess, "check_output", return_value=""):
+            self.assertEqual(read(None), (receipts[target], {}))
+            with self.assertRaisesRegex(RuntimeError, "initial v2 producer"):
+                read("first-activation-base")
+
+    def test_conflicting_capture_and_replay_modes_are_rejected(self):
+        main = PROBE["main"]
+        common = ["probe", "--model-cache", "cache", "--output", "output"]
+        cases = (
+            (["--pins", "--workspace-only"], "require split fixture"),
+            (["--produce-v2", "--repository", "owner/repo"], "fixture vector reader"),
+            (["--v2-workspace", "workspace", "--producer-receipt", "producer.json"],
+             "requires workspace-only mode"),
+            (["--v2-workspace", "workspace", "--workspace-only", "--candidate", "atlas",
+              "--sha256", "digest", "--fixture-inference", "inference", "--workspace-migrator", "migrator",
+              "--compact-vector-reader", "reader", "--repository", "owner/repo", "--numerical", "local"],
+             "uses published numerical pins"),
+        )
+        for flags, error in cases:
+            with self.subTest(flags=flags), patch("sys.argv", common + flags), patch("sys.stderr") as stderr:
+                with self.assertRaises(SystemExit) as failure:
+                    main()
+                self.assertEqual(failure.exception.code, 2)
+                self.assertIn(error, "".join(call.args[0] for call in stderr.write.call_args_list))
+
+    def test_replay_rejects_different_workspace_numerical_contract(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        profile = PROBE["PROFILES"][0]
+        target = PROBE["release_target"]()
+        contract = {"execution_policy": "compatible-id", "tokenizer_sha256": "before"}
+        numerical = {"profiles": {profile: {"contract": contract, "samples": []}}}
+        manifest = {"producer": {"target": target, "workspace_schema": 43, "ledger_sha256": "ledger"},
+                    "profiles": {profile: {**contract, "tokenizer_sha256": "after"}}}
+        replay = PROBE["check_v2_payloads"]
+        with patch.dict(replay.__globals__, load_v2_numerical=Mock(return_value=numerical),
+                        extract_bundle=Mock(return_value=manifest), workspace_schema=lambda _: 43,
+                        predecessor_ledger=lambda _: "ledger"), patch.object(subprocess, "run"):
+            with self.assertRaisesRegex(RuntimeError, "workspace numerical contract mismatch"):
+                replay(None, root, root, None, None, Path("inference"), (None, None), (None, None),
+                       {profile: "compatible-id"}, {})
+
+    def test_producer_receipt_checks_tag_and_archive_names(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory())).resolve()
+        load = PROBE["producer_receipt"]
+        receipt_path = root / PROBE["RELEASE_PIN"]
+        receipt_path.parent.mkdir(parents=True)
+        original = (HERE.parent.parent / PROBE["RELEASE_PIN"]).read_bytes()
+        receipt_path.write_bytes(original.replace(b"\n", b"\r\n"))
+        receipt = json.loads(original)
+        commit = Mock(return_value=receipt["commit"] + "\n")
+        self.enterContext(patch.dict(load.__globals__, ROOT=root))
+        self.enterContext(patch.object(subprocess, "check_output", commit))
+        tracked = self.enterContext(patch.object(subprocess, "run"))
+        self.assertEqual(load(), (receipt, PROBE["RELEASE_DIGEST"]))
+
+        receipt.update(tag="v0.1.1", schema=43, commit="b" * 40)
+        receipt_path.write_text(json.dumps(receipt))
+        commit.return_value = receipt["commit"] + "\n"
+        self.assertEqual(load(receipt_path.relative_to(root))[0], receipt)
+        self.assertEqual(tracked.call_args.args[0][-1], PROBE["RELEASE_PIN"])
+        self.assertEqual(commit.call_args.args[0][-1], "refs/tags/v0.1.1^{commit}")
+        commit.return_value = "a" * 40
+        with self.assertRaisesRegex(RuntimeError, "tag does not match"):
+            load(receipt_path.relative_to(root))
+        receipt["assets"][PROBE["RELEASE_TARGETS"][0]]["asset"] = "../atlas.tar.xz"
+        receipt_path.write_text(json.dumps(receipt))
+        with self.assertRaisesRegex(RuntimeError, "Invalid packaged producer archive"):
+            load(receipt_path.relative_to(root))
+        with self.assertRaises(ValueError):
+            load(Path("../outside.json"))
+
+    def test_workspace_only_capture_skips_numerical_export(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        produce = PROBE["produce_v2"]
+        capture = Mock(return_value={"producer": {}})
+        export = Mock(side_effect=AssertionError("Unexpected numerical export"))
+        with patch.dict(produce.__globals__, capture_release_predecessor=capture,
+                        capture_numerical_payload=export,
+                        archive_bundle=lambda _, path: path.write_bytes(b"workspace")):
+            produce("owner/repo", root, root, None, receipt=Path("new.json"), workspace_only=True)
+        self.assertEqual(capture.call_args.kwargs, {"receipt": Path("new.json"), "compact": True})
+        self.assertEqual(list(json.loads((root / "fixture-digests.json").read_bytes())["assets"]),
+                         [f"workspace-{PROBE['release_target']()}.tar.gz"])
+
+    def test_replacement_replays_each_pinned_numerical_asset_without_old_workspace(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        profiles = PROBE["PROFILES"]
+        pins = {profile: {"execution_policy": profile} for profile in profiles}
+        receipts = {profile: {"workspace": {"asset": "unreadable"}, "numerical": {
+            "asset": f"{profile}.gz", "tag": "v2", "commit": profile, "sha256": profile,
+        }} for profile in profiles}
+        workspace = (root / "new.tar.gz", {"commit": "new", "sha256": "new-hash",
+                                            "release_receipt_sha256": "receipt-hash"})
+        replay = PROBE["check_published_v2"]
+
+        def validate(*args, **_kwargs):
+            self.assertEqual(args[6], (workspace[0], "new-hash"))
+            profile, = args[8]
+            self.assertEqual(args[7][1], profile)
+            self.assertEqual(args[10]["numerical"], profile)
+            PROBE["write_json"](args[2] / "result.json", {"workspace_schema": {"from": 43, "to": 44}})
+
+        verifier = Mock(side_effect=validate)
+        with patch.dict(replay.__globals__, read_pins=lambda _: (pins, {}), check_v2_payloads=verifier), \
+                patch.object(subprocess, "run") as download:
+            result = replay(None, None, root, None, "owner/repo", None, True, True,
+                            receipts, {}, replacement=workspace)
+            self.assertEqual(result, {profile: {"numerical": receipts[profile]["numerical"],
+                                               "workspace_schema": {"from": 43, "to": 44}}
+                                      for profile in profiles})
+            self.assertEqual([call.args[0][7] for call in download.call_args_list],
+                             [f"{profile}.gz" for profile in profiles])
+            pins[profiles[0]]["transition_to"] = "new-policy"
+            with self.assertRaisesRegex(RuntimeError, "separate execution-policy transition"):
+                replay(None, None, root, None, "owner/repo", None, True, True,
+                       receipts, {}, replacement=workspace)
+
+    @unittest.skipUnless(os.name == "posix", "Exercises the workflow's bash script")
+    def test_workspace_dispatch_routes_to_replacement_and_requires_replay_for_upload(self):
+        workflow = (HERE.parent.parent / ".github/workflows/ci.yml").read_text()
+        normal = workflow.split("- name: Check search against release fixtures\n", 1)[1]
+        self.assertEqual(normal.splitlines()[0].strip(),
+                         "if: ${{ !(github.event_name == 'workflow_dispatch' && "
+                         "inputs.capture-embedding-fixtures && inputs.capture-workspace-only) }}")
+        capture, upload = workflow.split("- name: Capture and check unpublished v2 fixtures\n", 1)[1].split(
+            "- uses: actions/upload-artifact@v7", 1)
+        self.assertIn("if: steps.fixture-capture.outcome == 'success'", upload.split("      - name:", 1)[0])
+        script = capture.split("run: |\n", 1)[1]
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        commands = root / "commands"
+        fake = root / "python"
+        fake.write_text('''#!/bin/bash
+case " $* " in
+  *" --produce-v2 "*) mkdir -p "$RUNNER_TEMP/embedding-v2-capture"
+    touch "$RUNNER_TEMP/embedding-v2-capture/workspace-new.tar.gz" ;;
+  *" --v2-workspace "*) [[ " $* " == *" --workspace-only "* ]] || exit 91
+    printf '%s\\n' "$*" > "$COMMANDS"
+    exit "$REPLAY_STATUS" ;;
+  *" -c "*) printf 'digest' ;;
+  *) exit 92 ;; # Includes the old published workspace route.
+esac
+''')
+        fake.chmod(0o700)
+        env = dict(os.environ, PATH=f"{root}{os.pathsep}{os.environ['PATH']}",
+                   RUNNER_TEMP=str(root), COMMANDS=str(commands), WORKSPACE_ONLY="true",
+                   PRODUCER_RECEIPT="scripts/validation/new.json", GITHUB_REPOSITORY="owner/repo")
+        for status in ("0", "17"):
+            with self.subTest(status=status):
+                result = subprocess.run(["bash", "-eo", "pipefail", "-c", script],
+                                        env={**env, "REPLAY_STATUS": status})
+                self.assertEqual(result.returncode, int(status))
+                self.assertIn("--producer-receipt=scripts/validation/new.json", commands.read_text())
+                self.assertNotIn("--numerical ", commands.read_text())
 
 
 class CompactDocumentSamples(unittest.TestCase):

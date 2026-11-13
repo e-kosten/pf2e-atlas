@@ -17,6 +17,13 @@ on:
         description: Generate unpublished v2 fixture artifacts on all release targets
         type: boolean
         default: false
+      capture-workspace-only:
+        description: Capture a workspace and replay with published numerical fixtures
+        type: boolean
+        default: false
+      fixture-producer-receipt:
+        description: Optional checked-in producer receipt path
+        type: string
   push:
     branches:
       - main
@@ -61,6 +68,23 @@ jobs:
         with:
           ref: ${{ inputs.source-ref || github.sha }}
           fetch-depth: 0
+      - name: Validate fixture capture inputs
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          CAPTURE: ${{ inputs.capture-embedding-fixtures }}
+          WORKSPACE_ONLY: ${{ inputs.capture-workspace-only }}
+          PRODUCER_RECEIPT: ${{ inputs.fixture-producer-receipt }}
+          FULL_PROBE: ${{ inputs.full-embedding-probe }}
+        run: |
+          if [[ "$CAPTURE" != true && ( "$WORKSPACE_ONLY" == true || -n "$PRODUCER_RECEIPT" ) ]]; then
+            echo 'Enable capture-embedding-fixtures to select a producer or capture only a workspace.' >&2
+            exit 1
+          fi
+          if [[ "$WORKSPACE_ONLY" == true && "$FULL_PROBE" == true ]]; then
+            echo 'Run workspace-only capture and the full manual probe separately.' >&2
+            exit 1
+          fi
       - name: Select validation surfaces
         id: select
         env:
@@ -153,6 +177,7 @@ jobs:
         with:
           ref: ${{ inputs.source-ref || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -185,6 +210,7 @@ jobs:
           export ATLAS_TEST_MODEL_CACHE
           cargo test --locked -p atlas-embedding mixed_length_unicode_batches_match_single_input_inference -- --ignored
       - name: Check search against release fixtures
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.capture-embedding-fixtures && inputs.capture-workspace-only) }}
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -216,10 +242,13 @@ jobs:
             --candidate "$candidate" --model-cache target/embedding-models \
             --output "$RUNNER_TEMP/embedding-compatibility"
       - name: Capture and check unpublished v2 fixtures
+        id: fixture-capture
         if: github.event_name == 'workflow_dispatch' && inputs.capture-embedding-fixtures
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          WORKSPACE_ONLY: ${{ inputs.capture-workspace-only }}
+          PRODUCER_RECEIPT: ${{ inputs.fixture-producer-receipt }}
         run: |
           candidate=target/debug/atlas
           migrator=target/debug/examples/migrate-fixture-workspace
@@ -232,25 +261,35 @@ jobs:
             inference+=.exe
           fi
           capture="$RUNNER_TEMP/embedding-v2-capture"
+          receipt=()
+          if [[ -n "$PRODUCER_RECEIPT" ]]; then receipt+=("--producer-receipt=$PRODUCER_RECEIPT"); fi
+          mode=(--compact-vector-reader "$reader")
+          if [[ "$WORKSPACE_ONLY" == true ]]; then mode=(--workspace-only); fi
           python scripts/validation/probe-embedding-upgrade.py --produce-v2 \
-            --repository "$GITHUB_REPOSITORY" --compact-vector-reader "$reader" \
+            --repository "$GITHUB_REPOSITORY" "${receipt[@]}" "${mode[@]}" \
             --model-cache target/embedding-models --output "$capture"
           workspace=("$capture"/workspace-*.tar.gz)
-          numerical=("$capture"/numerical-*.json.gz)
           digest() { python -c 'from pathlib import Path; import hashlib,sys; print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())' "$1"; }
+          if [[ "$WORKSPACE_ONLY" == true ]]; then
+            replay=(--workspace-only --repository "$GITHUB_REPOSITORY" "${receipt[@]}")
+          else
+            numerical=("$capture"/numerical-*.json.gz)
+            replay=(--numerical "${numerical[0]}" --numerical-sha256 "$(digest "${numerical[0]}")")
+            unset GH_TOKEN
+          fi
           python scripts/validation/probe-embedding-upgrade.py --v2-workspace "${workspace[0]}" \
-            --sha256 "$(digest "${workspace[0]}")" --numerical "${numerical[0]}" \
-            --numerical-sha256 "$(digest "${numerical[0]}")" --fixture-inference "$inference" \
+            --sha256 "$(digest "${workspace[0]}")" "${replay[@]}" --fixture-inference "$inference" \
             --candidate "$candidate" --workspace-migrator "$migrator" --compact-vector-reader "$reader" \
             --model-cache target/embedding-models --output "$RUNNER_TEMP/embedding-v2-check"
       - uses: actions/upload-artifact@v7
-        if: github.event_name == 'workflow_dispatch' && inputs.capture-embedding-fixtures
+        if: steps.fixture-capture.outcome == 'success'
         with:
           name: embedding-v2-fixtures-${{ matrix.os }}
           path: |
             ${{ runner.temp }}/embedding-v2-capture/workspace-*.tar.gz
             ${{ runner.temp }}/embedding-v2-capture/numerical-*.json.gz
             ${{ runner.temp }}/embedding-v2-capture/fixture-digests.json
+            ${{ runner.temp }}/embedding-v2-check/fixture-replay.json
           if-no-files-found: error
       - name: Summarize results
         if: ${{ always() }}
