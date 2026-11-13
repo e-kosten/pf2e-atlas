@@ -114,7 +114,7 @@ jobs:
 
       - name: Restore verified cargo-dist archives
         id: dist-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/atlas-cargo-dist-archives
           key: cargo-dist-archives-v1-${{ hashFiles('scripts/release/cargo-dist-checksums.json') }}
@@ -128,7 +128,7 @@ jobs:
           echo "prefix=cargo-dist-tool-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - name: Save verified cargo-dist archives
         if: steps.dist-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/atlas-cargo-dist-archives
           key: ${{ steps.dist-cache.outputs.cache-primary-key }}
@@ -338,7 +338,7 @@ jobs:
         if: contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)
         with:
           python-version: "3.12"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)
         with:
           path: target/embedding-models
