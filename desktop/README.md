@@ -1,4 +1,4 @@
-# Build the macOS pilot
+# Develop the macOS desktop app
 
 Build a local app from the checkout on Apple Silicon. You need the Xcode
 command-line tools, the pinned [Rust toolchain](../rust-toolchain.toml) and Node 26.
@@ -8,6 +8,8 @@ npm --prefix web/atlas-ui ci
 npm --prefix desktop ci
 sh desktop/bundle-macos.sh
 ```
+
+For the published DMG, see [macOS desktop installation](../docs/installation.md#macos-desktop-app).
 
 Open **PF2e Atlas.app** in `target/debug/bundle/macos`. Keep the bundle together
 with its CLI in `Contents/MacOS/atlas`. This build is for local testing.
@@ -57,7 +59,10 @@ opens it in a foreground tab in the most recently active Atlas window, or opens
 a window directly to the record if no Atlas window is available.
 
 For shell or agent use, **PF2e Atlas → Terminal and Agent Access** can
-add the bundled command to a bin folder you choose. If that folder is already
+link the bundled command at `~/.local/bin/atlas` from the product drawer.
+An existing executable there can be switched to the bundled command with
+native confirmation. The startup setup screen can also link to an existing
+custom bin folder. If the folder is already
 on your shell's PATH, check that `command -v atlas` resolves to the path shown
 by the app. The command continues to work when the app is closed. Use
 `atlas open` or `atlas open '<link>'` to open the app from the terminal.
@@ -69,7 +74,7 @@ command again from the new location.
 
 The debug build accepts an alternate home for Atlas subprocesses. Use an empty
 directory to exercise setup from scratch, or a disposable copy of a stopped
-workspace to test upgrades. Quit the pilot before switching between test homes.
+workspace to test upgrades. Quit the app before switching between test homes.
 
 ```sh
 test_home="$(mktemp -d)"

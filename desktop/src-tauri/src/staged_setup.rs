@@ -15,7 +15,9 @@ use tauri::{
 };
 use url::Url;
 
-use crate::{Desktop, display, lock, opening, process, refresh_product, run_on_main, verified_url};
+use crate::{
+    Desktop, display, lock, opening, process, refresh_product, run_on_main, terminal, verified_url,
+};
 
 #[derive(Default)]
 pub struct StagedSetup {
@@ -30,6 +32,7 @@ struct Document {
     origin: url::Origin,
     token: Option<String>,
     open_request: Option<usize>,
+    open_terminal: bool,
 }
 
 #[derive(Clone, Default, Serialize)]
@@ -114,6 +117,7 @@ impl StagedSetup {
                 origin,
                 token: None,
                 open_request: None,
+                open_terminal: false,
             },
         );
         Ok(())
@@ -144,7 +148,13 @@ impl StagedSetup {
             .is_some_and(|document| document.instance == instance && document.token.is_some())
     }
 
-    pub fn request_open(&self, window: &WebviewWindow, instance: &str, initial: bool) -> bool {
+    pub fn request_open(
+        &self,
+        window: &WebviewWindow,
+        instance: &str,
+        initial: bool,
+        terminal: bool,
+    ) -> bool {
         let origin = window.url().ok().map(|url| url.origin());
         let mut documents = lock(&self.documents);
         let Some(doc) = documents.get_mut(window.label()) else {
@@ -157,6 +167,7 @@ impl StagedSetup {
             return false;
         }
         doc.open_request = Some(self.menu_requests.fetch_add(1, Ordering::Relaxed) + 1);
+        doc.open_terminal = terminal;
         drop(documents);
         broadcast(window.app_handle());
         true
@@ -189,6 +200,7 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
     let detail = serde_json::json!({
         "token": token, "setup": state, "reference": reference,
         "referenceLoading": state.reference_loading, "openRequest": document.open_request,
+        "openTerminal": document.open_terminal,
     });
     // Check the current document again inside the queued WebView callback.
     let origin = serde_json::json!(document.origin.ascii_serialization());
@@ -226,6 +238,7 @@ pub fn page_load(window: WebviewWindow, payload: tauri::webview::PageLoadPayload
     if payload.event() == PageLoadEvent::Started {
         if doc.token.is_some() {
             doc.open_request = None;
+            doc.open_terminal = false;
         }
         doc.token = None;
         return;
@@ -844,12 +857,14 @@ pub enum SetupAction {
     CheckReference,
     ReadReferenceStatus,
     ApplyModels,
+    ReadTerminal,
     EnableTerminal,
+    SwitchTerminal,
     AcknowledgeOpen,
 }
 
 #[tauri::command]
-pub fn desktop_setup_action(
+pub async fn desktop_setup_action(
     window: WebviewWindow,
     token: String,
     job: usize,
@@ -857,7 +872,17 @@ pub fn desktop_setup_action(
     sequence: Option<usize>,
     open_request: Option<usize>,
     model_selection: Option<ModelSelection>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<terminal::Status>, String> {
+    if matches!(
+        action,
+        SetupAction::ReadTerminal | SetupAction::EnableTerminal | SetupAction::SwitchTerminal
+    ) {
+        return tauri::async_runtime::spawn_blocking(move || {
+            terminal_action(window, token, action)
+        })
+        .await
+        .map_err(display)?;
+    }
     let app = window.app_handle().clone();
     let desktop = app.state::<Desktop>();
     let instance = lock(&desktop.launcher)
@@ -878,6 +903,7 @@ pub fn desktop_setup_action(
         if matches!(action, SetupAction::AcknowledgeOpen) {
             if open_request.is_some() && doc.open_request == open_request {
                 doc.open_request = None;
+                doc.open_terminal = false;
                 drop(documents);
                 load_reference(&app, true);
                 broadcast(&app);
@@ -892,16 +918,6 @@ pub fn desktop_setup_action(
         load_reference(&app, true);
         broadcast(&app);
         return Ok(None);
-    }
-    if matches!(action, SetupAction::EnableTerminal) {
-        let state = lock(&desktop.staged_setup.state);
-        if state.job != job || Some(state.sequence) != sequence {
-            return Err("This setup action belongs to an earlier Atlas view.".into());
-        }
-        drop(state);
-        let home = process::home()?.canonicalize().map_err(display)?;
-        return crate::link_cli(&home, &home.join(".local/bin"), &process::bundled_cli()?)
-            .map(Some);
     }
     let local = matches!(action, SetupAction::BuildLocally);
     let reference = matches!(
@@ -923,4 +939,56 @@ pub fn desktop_setup_action(
         let _ = run(app, None, job, local);
     });
     Ok(None)
+}
+
+fn terminal_action(
+    window: WebviewWindow,
+    token: String,
+    action: SetupAction,
+) -> Result<Option<terminal::Status>, String> {
+    let desktop = window.state::<Desktop>();
+    let _operation = (!matches!(action, SetupAction::ReadTerminal))
+        .then(|| desktop.terminal_operation.try_lock())
+        .transpose()
+        .map_err(|_| "A terminal command action is already in progress.")?;
+    let authorize = || {
+        let origin = window.url().map_err(display)?.origin();
+        let launcher = lock(&desktop.launcher);
+        let documents = lock(&desktop.staged_setup.documents);
+        if !documents.get(window.label()).is_some_and(|doc| {
+            launcher
+                .as_ref()
+                .is_some_and(|launcher| doc.instance == launcher.ready.instance)
+                && doc.token.as_deref() == Some(token.as_str())
+                && doc.origin == origin
+        }) {
+            return Err("This terminal action belongs to an earlier Atlas view.".to_owned());
+        }
+        Ok((launcher, documents))
+    };
+    drop(authorize()?);
+    let bundled = terminal::Bundled::inspect()?;
+    let destination = terminal::Destination::inspect(&process::home()?, &bundled)?;
+    match action {
+        SetupAction::ReadTerminal => {
+            let _authorization = authorize()?;
+            Ok(Some(destination.status))
+        }
+        SetupAction::SwitchTerminal if destination.status.state == terminal::State::Replaceable => {
+            drop(authorize()?);
+            if !terminal::confirm(window.app_handle(), &destination.status)? {
+                return Ok(None);
+            }
+            let _authorization = authorize()?;
+            destination.commit(&bundled, true).map(Some)
+        }
+        SetupAction::SwitchTerminal if destination.status.state != terminal::State::Linked => {
+            Err("The terminal command changed. Review it and try again.".into())
+        }
+        SetupAction::EnableTerminal | SetupAction::SwitchTerminal => {
+            let _authorization = authorize()?;
+            destination.commit(&bundled, false).map(Some)
+        }
+        _ => unreachable!(),
+    }
 }

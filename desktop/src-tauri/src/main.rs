@@ -7,11 +7,12 @@ mod process;
 mod smoke;
 mod staged_setup;
 mod tab_links;
+mod terminal;
 mod zoom;
 
 use std::{
     collections::VecDeque,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::{
         Mutex, MutexGuard,
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -48,6 +49,7 @@ struct Desktop {
     quitting: AtomicBool,
     recovery: AtomicBool,
     primary: Mutex<opening::PrimaryWindow>,
+    terminal_operation: Mutex<()>,
 }
 
 #[derive(Serialize)]
@@ -503,17 +505,23 @@ fn new_search(app: &AppHandle, as_tab: bool) -> Result<(), String> {
     open_product(app, "/search", source.as_ref().map(|window| (window, true))).map(|_| ())
 }
 
-fn show_workspace_setup(app: &AppHandle) -> Result<(), String> {
+fn show_workspace_setup(app: &AppHandle, terminal: bool) -> Result<(), String> {
     let desktop = app.state::<Desktop>();
     if let Ok((base, instance)) = current_product(app) {
         for window in recent_product_views(app, &base, &instance) {
-            if desktop.staged_setup.request_open(&window, &instance, false) {
+            if desktop
+                .staged_setup
+                .request_open(&window, &instance, false, terminal)
+            {
                 return native_tabs::select(&window);
             }
         }
         if lock(&desktop.primary).is_product() {
             let window = open_product(app, "/search", None)?;
-            if desktop.staged_setup.request_open(&window, &instance, true) {
+            if desktop
+                .staged_setup
+                .request_open(&window, &instance, true, terminal)
+            {
                 return Ok(());
             }
         }
@@ -656,46 +664,23 @@ fn escape(value: &str) -> String {
 #[tauri::command]
 async fn enable_cli(window: WebviewWindow, directory: String) -> Result<String, String> {
     guard(&window)?;
-    let home = process::home()?;
-    let path = directory
-        .strip_prefix("~/")
-        .map_or_else(|| PathBuf::from(&directory), |relative| home.join(relative));
-    link_cli(&home, &path, &process::bundled_cli()?)
-}
-
-fn link_cli(home: &Path, directory: &Path, executable: &Path) -> Result<String, String> {
-    let home = home.canonicalize().map_err(display)?;
-    let candidate = if directory == home.join(".local/bin") && !directory.exists() {
-        let parent = home.join(".local");
-        if !parent.exists() {
-            std::fs::create_dir(&parent).map_err(display)?;
-        }
-        if parent.canonicalize().map_err(display)? != parent {
-            return Err("Choose a bin folder inside your home folder.".into());
-        }
-        std::fs::create_dir(directory).map_err(display)?;
-        directory.to_owned()
-    } else {
-        directory.canonicalize().map_err(display)?
-    };
-    if !candidate.starts_with(&home) || !candidate.is_dir() {
-        return Err("Choose an existing bin folder inside your home folder.".into());
-    }
-    let destination = candidate.join("atlas");
-    match std::os::unix::fs::symlink(executable, &destination) {
-        Ok(()) => Ok(destination.display().to_string()),
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            if std::fs::read_link(&destination).is_ok_and(|path| path == executable) {
-                Ok(destination.display().to_string())
-            } else {
-                Err(format!(
-                    "An atlas command already exists at {}. Choose another folder to preserve it.",
-                    destination.display()
-                ))
-            }
-        }
-        Err(error) => Err(display(error)),
-    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let desktop = window.state::<Desktop>();
+        let _operation = desktop
+            .terminal_operation
+            .try_lock()
+            .map_err(|_| "A terminal command action is already in progress.")?;
+        let home = process::home()?.canonicalize().map_err(display)?;
+        let path = directory.trim().strip_prefix("~/").map_or_else(
+            || PathBuf::from(directory.trim()),
+            |relative| home.join(relative),
+        );
+        let bundled = terminal::Bundled::inspect()?;
+        guard(&window)?;
+        terminal::link_from_bootstrap(&home, &path, &bundled)
+    })
+    .await
+    .map_err(display)?
 }
 
 fn display(error: impl std::fmt::Display) -> String {
@@ -794,10 +779,8 @@ fn main() {
         })
         .on_menu_event(|app, event| {
             let result = match event.id().as_ref() {
-                "setup" => show_workspace_setup(app),
-                "terminal-access" => opening::restore_setup_if_needed(app)
-                    .and_then(|()| show_bootstrap(app))
-                    .map_err(display),
+                "setup" => show_workspace_setup(app, false),
+                "terminal-access" => show_workspace_setup(app, true),
                 "new" => new_search(app, false),
                 "new-tab" => new_search(app, true),
                 tab_links::MENU_ID => tab_links::open_context_link(app),
@@ -906,21 +889,5 @@ mod tests {
         ] {
             assert!(verified_url(address).is_err(), "{address}");
         }
-    }
-
-    #[test]
-    fn terminal_exposure_preserves_an_existing_command() {
-        let root = tempfile::tempdir().unwrap();
-        let bin = root.path().join("bin");
-        let command = bin.join("atlas");
-        let bundled = root.path().join("bundled");
-        std::fs::create_dir(&bin).unwrap();
-        std::fs::write(&command, "existing CLI").unwrap();
-        assert!(link_cli(root.path(), &bin, &bundled).is_err());
-        assert_eq!(std::fs::read_to_string(&command).unwrap(), "existing CLI");
-        std::fs::remove_file(&command).unwrap();
-        assert!(link_cli(root.path(), &bin, &bundled).is_ok());
-        assert!(link_cli(root.path(), &bin, &bundled).is_ok());
-        assert_eq!(std::fs::read_link(command).unwrap(), bundled);
     }
 }

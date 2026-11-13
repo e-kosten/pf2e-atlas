@@ -20,6 +20,9 @@ tauri-plugin-clipboard-manager = "2"
 url = "2"
 tempfile = "3"
 ureq = { version = "3", default-features = false, features = ["json"] }
+plist = "1"
+rustix = { version = "1", features = ["fs", "process"] }
+semver = "1"
 
 [features]
 default = ["custom-protocol"]
@@ -27,5 +30,5 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["NSAlert", "NSAppearance", "NSApplication", "NSColor", "NSGraphics", "NSMenu", "NSMenuItem", "NSEvent", "NSResponder", "NSWindow", "NSWindowTabGroup"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["NSString"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSAppearance", "NSApplication", "NSButton", "NSColor", "NSGraphics", "NSMenu", "NSMenuItem", "NSEvent", "NSResponder", "NSWindow", "NSWindowTabGroup"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }

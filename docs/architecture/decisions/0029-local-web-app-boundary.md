@@ -125,7 +125,7 @@ receiving an authenticated publication notification without adding a lease.
 
 Native record URLs encode an exact `RecordKey` in a versioned path, independent
 of the local service address. The host opens the existing record reader
-route for that key. The [desktop pilot guide](../../../desktop/README.md)
+route for that key. The [macOS desktop development guide](../../../desktop/README.md)
 covers the local build and test workflow.
 
 ## Browser/backend compatibility

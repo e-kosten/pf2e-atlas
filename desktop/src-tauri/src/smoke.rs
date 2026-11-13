@@ -34,6 +34,10 @@ pub fn reference_mode() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "reference")
 }
 
+fn selector_mode() -> bool {
+    std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "selector")
+}
+
 pub fn configure(
     builder: WebviewWindowBuilder<'_, tauri::Wry, AppHandle>,
 ) -> WebviewWindowBuilder<'_, tauri::Wry, AppHandle> {
@@ -75,7 +79,9 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
     }
     let app = app.clone();
     thread::spawn(move || {
-        match if reference_mode() {
+        match if selector_mode() {
+            run_selector(&app)
+        } else if reference_mode() {
             run_reference(&app)
         } else {
             run(&app)
@@ -375,8 +381,12 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
             .read_link()
             .is_ok_and(|path| process::bundled_cli().is_ok_and(|cli| path == cli))
     })?;
-    wait_for(deadline, "idempotent terminal link action", || {
-        click_product_button(&window, "Enable terminal command", true)
+    wait_for(deadline, "terminal link status", || {
+        evaluates_true(
+            &window,
+            r#"[...document.querySelectorAll('[role=dialog] [role=status]')].some(
+            node => node.textContent.startsWith('Linked at') && node.getClientRects().length)"#,
+        )
     })?;
     wait_for(deadline, "reference action", || {
         click_product_button(&window, "Check and repair reference data", true)
@@ -484,7 +494,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         )
     })?;
     crate::run_on_main(app, |app| {
-        let _ = crate::show_workspace_setup(app);
+        let _ = crate::show_workspace_setup(app, false);
     })?;
     wait_for(
         deadline,
@@ -495,6 +505,86 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         return Err("setup menu opened an extra window".into());
     }
     Ok(())
+}
+
+fn run_selector(app: &AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary window unavailable")?;
+    wait_for(
+        Instant::now() + Duration::from_secs(10),
+        "setup drawer entry",
+        || click_product_button(&window, "Setup and Updates", false),
+    )?;
+    check_model_selector(&window)
+}
+
+fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    window
+        .set_size(tauri::LogicalSize::new(480.0, 720.0))
+        .map_err(display)?;
+    // Supply model availability to this isolated WebView fixture without loading models.
+    wait_for(deadline, "fixture model selector", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const state = window.__ATLAS_DESKTOP_SETUP__;
+        if (!state?.reference || state.referenceLoading) return false;
+        window.__atlasSmokeSetup = state;
+        window.__ATLAS_DESKTOP_SETUP__ = {
+            ...state, reference: { ...state.reference, modelsAvailable: true, canChangeModels: true,
+                preferred: null, models: [
+                    {id: 'bge-base', label: 'BGE Base', installed: true, usable: true},
+                    {id: 'embeddinggemma', label: 'EmbeddingGemma', installed: true, usable: true}
+                ]}
+        };
+        window.dispatchEvent(new Event('atlas-desktop-setup'));
+        return true;
+    })()"#,
+        )
+    })?;
+    wait_for(deadline, "open model selector", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const field = document.querySelector('[aria-label="Default search model"]');
+        if (!field || field.disabled) return false;
+        field.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+        return true;
+    })()"#,
+        )
+    })?;
+    wait_for(deadline, "full EmbeddingGemma option in viewport", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const option = [...document.querySelectorAll('.ant-select-item-option-content')].find(
+            item => item.textContent === 'EmbeddingGemma' && item.getClientRects().length);
+        if (!option || option.clientWidth < option.scrollWidth ||
+            option.getBoundingClientRect().right > innerWidth) return false;
+        option.click();
+        return true;
+    })()"#,
+        )
+    })?;
+    wait_for(deadline, "full selected model label", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const field = document.querySelector('[aria-label="Default search model"]');
+        const value = field?.closest('.ant-select')?.querySelector('.ant-select-content');
+        return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth;
+    })()"#,
+        )
+    })?;
+    window
+        .eval(
+            r#"window.__ATLAS_DESKTOP_SETUP__ = window.__atlasSmokeSetup;
+        delete window.__atlasSmokeSetup;
+        window.dispatchEvent(new Event('atlas-desktop-setup'));"#,
+        )
+        .map_err(display)
 }
 
 fn click_product_button(window: &WebviewWindow, text: &str, drawer: bool) -> bool {
