@@ -51,8 +51,10 @@ impl PrimaryWindow {
 
 pub fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let handle = app.clone();
+    let app_for_popup = app.clone();
     let builder = WebviewWindowBuilder::new(app, PRIMARY, WebviewUrl::App("index.html".into()))
         .title("PF2e Atlas")
+        .initialization_script(crate::tab_links::SCRIPT)
         .inner_size(1210.0, 830.0)
         .min_inner_size(480.0, 440.0)
         .on_page_load(crate::staged_setup::page_load)
@@ -70,8 +72,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
             }
             false
         })
-        .on_new_window(|destination, _| {
-            open_external(&destination);
+        .on_new_window(move |destination, _| {
+            let desktop = app_for_popup.state::<Desktop>();
+            if !lock(&desktop.primary).allows(&destination) {
+                open_external(&destination);
+            }
             tauri::webview::NewWindowResponse::Deny
         });
     #[cfg(debug_assertions)]
@@ -92,7 +97,7 @@ pub fn open(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
     };
     let is_retry = retry_route.is_some();
     let route = retry_route
-        .or_else(|| lock(&desktop.links).first().cloned())
+        .or_else(|| lock(&desktop.links).front().cloned())
         .unwrap_or_else(|| "/search".into());
     let target = base.join(&route).map_err(display)?;
     desktop
@@ -120,11 +125,18 @@ pub fn open(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
 
     {
         let mut links = lock(&desktop.links);
-        if links.first() == Some(&route) {
-            links.remove(0);
+        if links.front() == Some(&route) {
+            links.pop_front();
         }
     }
-    run_on_main(app, |app| {
+    run_on_main(app, move |app| {
+        *lock(&app.state::<Desktop>().primary) = PrimaryWindow::Product(origin);
+        if let Some(window) = app.get_webview_window(PRIMARY) {
+            if let Err(error) = crate::native_tabs::configure(&window, true) {
+                eprintln!("Could not configure Atlas tabs: {error}");
+            }
+            crate::remember_product_focus(app, PRIMARY);
+        }
         let has_pending_links = !lock(&app.state::<Desktop>().links).is_empty();
         if has_pending_links {
             show_pending_or_default(app);
@@ -152,7 +164,7 @@ pub fn retry_before_navigation(app: &AppHandle, window: &WebviewWindow, error: &
     }
     let desktop = app.state::<Desktop>();
     let route = lock(&desktop.links)
-        .first()
+        .front()
         .cloned()
         .unwrap_or_else(|| "/search".into());
     {
@@ -190,7 +202,6 @@ fn wait_until_rendered(
         Duration::from_secs(8)
     };
     let deadline = Instant::now() + timeout;
-    let origin = target.origin();
     let mut reached_page = false;
     while Instant::now() < deadline {
         {
@@ -221,7 +232,6 @@ fn wait_until_rendered(
                     .is_some_and(|launcher| launcher.ready.instance == instance)
                     && !desktop.quitting.load(Ordering::Acquire)
                 {
-                    *lock(&desktop.primary) = PrimaryWindow::Product(origin);
                     return Ok(());
                 }
             }

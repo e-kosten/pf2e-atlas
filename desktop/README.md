@@ -40,15 +40,23 @@ and drafts open. If the reference data changed while Search was open, use
 **Refresh results** when prompted to read from the new version. For a custom
 source, use the Atlas CLI to maintain its reference data.
 
-Use **File → New Window** to open another view. All windows share the local
-workspace and service with a compatible `atlas web` session. Closing a
-window leaves the app available. Choose **Quit PF2e Atlas** to release the
-app's connection to the service.
+Use **File → New Tab** (⌘T) or **File → New Window** (⌘N) to open a fresh
+Search view. Command-click, middle-click, or choose **Open Link in New Tab**
+from an Atlas link’s context menu to open its destination in a background tab.
+All windows and tabs share the local workspace and service with a compatible
+`atlas web` session. Choose **Quit PF2e Atlas** to release the app’s connection
+to the service.
+
+Use **View → Zoom In** (⌘+), **Zoom Out** (⌘−), or **Actual Size** (⌘0) to
+scale the entire view. Atlas saves one zoom level for all windows and tabs.
 
 Open a record, then choose **Edit → Copy Atlas Link**. Paste into a rich-text
 editor to get a linked record name, or into a plain-text field to get the
 `pf2e-atlas://v1/record/…` URL. A link continues to open its exact record even
-if the local service moves to a different port.
+if the local service moves to a different port. Opening a record link from
+another app or with `atlas open '<link>'` selects an existing view of that record,
+opens it in a foreground tab in the most recently active Atlas window, or opens
+a window directly to the record if no Atlas window is available.
 
 For shell or agent use, **PF2e Atlas → Terminal and Agent Access** can
 link the bundled command at `~/.local/bin/atlas` from the product drawer.
