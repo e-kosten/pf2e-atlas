@@ -334,9 +334,11 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
                 return Err("Zoom was not saved".into());
             }
             receive_link(app, FIXTURE_LINK);
-            if app.webview_windows().len() != 2 || !primary.is_focused().unwrap_or(false) {
+            if app.webview_windows().len() != 2 {
                 return Err("Record link did not select the existing tab".into());
             }
+            crate::native_tabs::verify_group(&tab, &primary)
+                .map_err(|error| format!("Record link did not select the existing tab: {error}"))?;
             app.state::<Desktop>().zoom.change(app, "zoom-reset")?;
             Ok(())
         })();

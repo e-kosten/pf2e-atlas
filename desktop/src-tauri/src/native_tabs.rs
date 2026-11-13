@@ -156,7 +156,7 @@ pub fn verify_group(source: &WebviewWindow, tab: &WebviewWindow) -> Result<(), S
                     .as_deref()
                     .is_none_or(|selected| !std::ptr::eq(selected, tab))
             {
-                return Err("The new Search tab was not selected in the original window".into());
+                return Err("The expected tab was not selected in the original window".into());
             }
             Ok(())
         })?
