@@ -88,6 +88,64 @@ fn published_reuse_has_no_staged_vector_copy_and_semantic_swaps_keep_exact_value
 }
 
 #[test]
+fn edited_input_stages_only_its_new_vector_and_a_noop_stages_none() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("edit.sqlite");
+    let old = crate::foundation_tests::fixture_with_description(
+        true,
+        "<h2>East</h2><p>Amber lantern.</p><h2>West</h2><p>Blue lantern.</p>",
+    );
+    let previous: std::collections::BTreeMap<_, _> = old
+        .semantic_units
+        .iter()
+        .map(|unit| (unit.input_hash.clone(), unit.vector.clone()))
+        .collect();
+    publish_input(&path, &old).unwrap();
+
+    let mut edited = crate::foundation_tests::fixture_with_description(
+        true,
+        "<h2>East</h2><p>Green lantern.</p><h2>West</h2><p>Blue lantern.</p>",
+    );
+    let mut changed = 0;
+    for unit in &mut edited.semantic_units {
+        if let Some(vector) = previous.get(&unit.input_hash) {
+            unit.vector.clone_from(vector);
+        } else {
+            unit.vector = vec![0.; 768];
+            unit.vector[42] = 1.;
+            changed += 1;
+        }
+    }
+    assert!(changed > 0 && changed < edited.semantic_units.len());
+
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    for expected_values in [changed, 0] {
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let publication = prepare_publication_in(
+            &owner,
+            TEST_WORKSPACE_SCHEMA_VERSION,
+            scratch.path(),
+            &edited,
+        )
+        .unwrap();
+        assert_eq!(
+            publication.logical_native_bytes().unwrap(),
+            (expected_values * 768 * size_of::<f32>()) as u64
+        );
+        publication.publish().unwrap();
+        for unit in &edited.semantic_units {
+            let model = edited.context.search_profile(&unit.profile_id).unwrap();
+            let actual = raw_value(&workspace, model, &descriptor(unit));
+            assert_eq!(
+                crate::read_units::vector_bytes(&actual),
+                crate::read_units::vector_bytes(&unit.vector)
+            );
+        }
+    }
+}
+
+#[test]
 fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contract() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("layout.sqlite");

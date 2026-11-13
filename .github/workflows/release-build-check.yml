@@ -45,10 +45,24 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
       dist-artifacts: ${{ steps.dist.outputs.prefix }}
+      embedding-targets: ${{ steps.embedding.outputs.targets }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
+          fetch-depth: 0
+      - name: Select packaged embedding checks
+        id: embedding
+        shell: bash
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+        run: |
+          if [[ "$NIGHTLY" == true ]]; then
+            echo 'targets=[]' >> "$GITHUB_OUTPUT"
+          else
+            targets="$(python3 scripts/validation/embedding-stack.py --release-targets)"
+            echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v7
         with:
           node-version: 26
@@ -183,6 +197,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 26
@@ -319,6 +334,54 @@ jobs:
             node dev-tools/release/dist/src/cli/smoke-packaged-web.js $binary.FullName web/atlas-ui/dist
             if ($LASTEXITCODE -ne 0) { throw "packaged web smoke test failed" }
           }
+      - uses: actions/setup-python@v7
+        if: contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        if: contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)
+        with:
+          path: target/embedding-models
+          key: embedding-models-v1-${{ hashFiles('crates/atlas-embedding/src/catalog.rs', 'crates/atlas-embedding/src/model_cache.rs') }}
+      - name: Qualify the packaged binary against predecessor vectors
+        if: contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cargo build --locked -p atlas-runtime --example migrate-fixture-workspace --example read-fixture-vectors --example check-fixture-inference
+          cargo run --locked -p atlas-embedding --example prepare-model-cache -- target/embedding-models
+          binary=atlas
+          suffix=
+          archive_ext=tar.xz
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            binary=atlas.exe
+            suffix=.exe
+            archive_ext=zip
+          fi
+          candidate="$(find target/package-smoke -type f -name "$binary" -print -quit)"
+          test -n "$candidate"
+          prefix=atlas-cli
+          if [[ "${{ matrix.variant }}" == cli-only ]]; then prefix=atlas-cli-only; fi
+          archive="target/distrib/$prefix-${{ matrix.target }}.$archive_ext"
+          python - "$archive" "$candidate" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import hashlib
+          import sys
+          for path in sys.argv[1:]:
+              with open(path, "rb") as stream:
+                  print(hashlib.file_digest(stream, "sha256").hexdigest(), path)
+          PY
+          python scripts/validation/probe-embedding-upgrade.py --pins \
+            --repository "$GITHUB_REPOSITORY" --candidate "$candidate" \
+            --workspace-migrator "target/debug/examples/migrate-fixture-workspace$suffix" \
+            --compact-vector-reader "target/debug/examples/read-fixture-vectors$suffix" \
+            --fixture-inference "target/debug/examples/check-fixture-inference$suffix" --check-build --near-limit \
+            --model-cache target/embedding-models --output "$RUNNER_TEMP/packaged-embedding"
+      - uses: actions/upload-artifact@v7
+        if: always() && contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)
+        with:
+          name: packaged-embedding-${{ matrix.target }}-${{ matrix.variant }}
+          path: ${{ runner.temp }}/packaged-embedding/bundle-*/*.json
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v7
         with:

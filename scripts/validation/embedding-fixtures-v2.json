@@ -1,0 +1,122 @@
+{
+  "aarch64-apple-darwin": {
+    "bge-base": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-aarch64-apple-darwin.tar.gz",
+        "sha256": "0031fb21261d31b658514bcc6a836e140942d93b485d5c8b1685d19b13d24c63",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-aarch64-apple-darwin.json.gz",
+        "sha256": "3fed932e1be6b3d9179e7d116dc6eeb6ec9922e4f43b69021395beb2f6552c01",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    },
+    "embeddinggemma": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-aarch64-apple-darwin.tar.gz",
+        "sha256": "0031fb21261d31b658514bcc6a836e140942d93b485d5c8b1685d19b13d24c63",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-aarch64-apple-darwin.json.gz",
+        "sha256": "3fed932e1be6b3d9179e7d116dc6eeb6ec9922e4f43b69021395beb2f6552c01",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    }
+  },
+  "aarch64-unknown-linux-gnu": {
+    "bge-base": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-aarch64-unknown-linux-gnu.tar.gz",
+        "sha256": "8e752e8745d4876877250020bdee4d0b6673020c677cf18c5b55b4c46dfc83c7",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-aarch64-unknown-linux-gnu.json.gz",
+        "sha256": "b48757f66cc48696f45503b02bb970d57f28126babd59237f229e47b1b4db25c",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    },
+    "embeddinggemma": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-aarch64-unknown-linux-gnu.tar.gz",
+        "sha256": "8e752e8745d4876877250020bdee4d0b6673020c677cf18c5b55b4c46dfc83c7",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-aarch64-unknown-linux-gnu.json.gz",
+        "sha256": "b48757f66cc48696f45503b02bb970d57f28126babd59237f229e47b1b4db25c",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    }
+  },
+  "x86_64-pc-windows-msvc": {
+    "bge-base": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-x86_64-pc-windows-msvc.tar.gz",
+        "sha256": "17415d978c8448173bc19b8541f1faa35cca0976bed412c2df29fc88b36a5d16",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-x86_64-pc-windows-msvc.json.gz",
+        "sha256": "35fd6c9e3040eba0390f651800e6580b0672783c6dad4dc1521c85168832f912",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    },
+    "embeddinggemma": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-x86_64-pc-windows-msvc.tar.gz",
+        "sha256": "17415d978c8448173bc19b8541f1faa35cca0976bed412c2df29fc88b36a5d16",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-x86_64-pc-windows-msvc.json.gz",
+        "sha256": "35fd6c9e3040eba0390f651800e6580b0672783c6dad4dc1521c85168832f912",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    }
+  },
+  "x86_64-unknown-linux-gnu": {
+    "bge-base": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "672adbb98b139f5523527a09de6357e30174ce61baf13cdad66520903c4762e3",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-x86_64-unknown-linux-gnu.json.gz",
+        "sha256": "2b8f403877440987590dcae40cd5fa5bd9d583e2fd09dbfe0c877591f064fa8b",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    },
+    "embeddinggemma": {
+      "workspace": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "workspace-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "672adbb98b139f5523527a09de6357e30174ce61baf13cdad66520903c4762e3",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      },
+      "numerical": {
+        "tag": "fixtures/embedding-compatibility/v2",
+        "asset": "numerical-x86_64-unknown-linux-gnu.json.gz",
+        "sha256": "2b8f403877440987590dcae40cd5fa5bd9d583e2fd09dbfe0c877591f064fa8b",
+        "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b"
+      }
+    }
+  }
+}

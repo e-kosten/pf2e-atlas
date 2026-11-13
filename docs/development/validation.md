@@ -435,6 +435,8 @@ a gate.
 | Release tooling | Tool tests, notices and installer checks; CI includes three OSes |
 | Research datasets, including hash-bound Markdown | Each dataset's offline `verify.ts`, with no inference |
 | Prose documentation | Diff/links/examples review; no application builds |
+| Workspace release schema or migration fixture | Offline setup smoke and migration tests on all release targets |
+| Embedding numerical execution | Compact compatibility probe on affected targets, including actual old/candidate document vectors and cross-version search |
 | Cargo manifests/lockfile | Rust, production frontend bundle/typecheck, applicable browsers, native Windows checks, dependency advisories and embedding selection |
 | npm manifests/lockfiles | Owning package checks plus dependency advisories |
 | Shipped agent skill | Metadata and bundled-file coverage checks (`node scripts/validation/skill.ts`); no application build |

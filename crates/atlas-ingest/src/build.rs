@@ -629,7 +629,7 @@ fn publication_error(error: atlas_index::IndexError, checked: bool) -> IngestErr
 #[cfg(test)]
 pub(crate) fn publish_fixture_without_inference(
     options: &BuildArtifactOptions,
-) -> Result<(), IngestError> {
+) -> Result<Vec<atlas_embedding::NativeInputDescriptor>, IngestError> {
     let workspace = atlas_index::test_support::initialize_workspace(&options.output_path)
         .map_err(index_error)?;
     let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
@@ -641,12 +641,14 @@ pub(crate) fn publish_fixture_without_inference(
     let mut publication =
         atlas_index::PreparedPublication::new_in(&owner, schema, scratch.path(), prepared.spool)
             .map_err(index_error)?;
+    let mut inferred = Vec::new();
     crate::native_execution::stage_fixture_values(
         &mut publication,
         &prepared.native_inputs,
         options,
         prepared.document_units,
+        &mut inferred,
     )?;
     publication.publish().map_err(index_error)?;
-    Ok(())
+    Ok(inferred)
 }

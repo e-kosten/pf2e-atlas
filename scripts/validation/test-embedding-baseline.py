@@ -2,6 +2,7 @@
 from pathlib import Path
 from contextlib import closing
 import hashlib
+import gzip
 import json
 import runpy
 import shutil
@@ -29,7 +30,7 @@ class Routing(unittest.TestCase):
         self.git("add", ".")
         self.git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
                  "commit", "-qm", "baseline")
-        self.select = STACK["selected_runners"]
+        self.select = STACK["selected_checks"]
         self.enterContext(patch.dict(self.select.__globals__, ROOT=self.root))
 
     def git(self, *args):
@@ -39,17 +40,16 @@ class Routing(unittest.TestCase):
     def test_unrelated_change_skips_probe(self):
         (self.root / "README.md").write_text("Docs")
         self.git("add", "README.md")
-        self.assertEqual(self.select("HEAD", False), [])
+        self.assertEqual(self.select("HEAD", False), {"model": [], "workspace": []})
 
     def test_embedding_implementation_change_selects_linux(self):
-        for name in ("atlas-embedding/src/inference.rs", "atlas-ingest/src/native_execution.rs",
-                     "atlas-search/src/text.rs", "atlas-runtime/src/workspace.rs"):
+        for name in ("atlas-search/src/similar.rs", "atlas-runtime/src/workspace.rs"):
             with self.subTest(name=name):
                 path = self.root / "crates" / name
                 path.parent.mkdir(parents=True)
                 path.write_text("// changed")
                 self.git("add", str(path))
-                self.assertEqual(self.select("HEAD", False), ["ubuntu-24.04"])
+                self.assertEqual(self.select("HEAD", False)["model"], ["ubuntu-24.04"])
                 self.git("rm", "-f", str(path))
 
     def test_native_lockfile_change_runs_matrix_even_with_receipt_update(self):
@@ -60,7 +60,7 @@ class Routing(unittest.TestCase):
         receipt = self.pin.with_name("embedding-stack.json")
         receipt.write_text("{}")
         self.git("add", ".")
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_removing_an_active_pin_fails(self):
         self.pin.unlink()
@@ -73,7 +73,7 @@ class Routing(unittest.TestCase):
             'name = "unicode-normalization-alignments"\nversion = "',
             'name = "unicode-normalization-alignments"\nversion = "fixture-',
         ))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_daachorse_only_update_requires_review_and_runs_matrix(self):
         before = STACK["snapshot"]()
@@ -85,7 +85,7 @@ class Routing(unittest.TestCase):
         )
         self.assertNotEqual(original, updated, "Fixture must contain daachorse")
         lockfile.write_text(updated)
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
         after = STACK["snapshot"]()
         self.assertNotEqual(before, after, "Reviewed receipt must detect the update")
         self.assertEqual(
@@ -95,14 +95,14 @@ class Routing(unittest.TestCase):
         receipt = self.pin.with_name("embedding-stack.json")
         receipt.write_text(json.dumps(after))
         self.git("add", ".")
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_native_link_settings_run_matrix(self):
         config = self.root / ".cargo/config.toml"
         config.parent.mkdir()
         config.write_text('[target.x86_64-pc-windows-msvc]\nrustflags = ["-C", "opt-level=2"]\n')
         self.git("add", str(config))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_first_pin_runs_matrix(self):
         self.git("rm", str(self.pin))
@@ -111,16 +111,16 @@ class Routing(unittest.TestCase):
         self.pin.parent.mkdir(parents=True, exist_ok=True)
         self.pin.write_text("{}")
         self.git("add", str(self.pin))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
     def test_schema_cutover_runs_all_four_targets(self):
         cutoff = self.root / STACK["RELEASE_PREDECESSOR_PIN"]
         cutoff.write_text("{}")
         self.git("add", str(cutoff))
-        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        self.assertEqual(self.select("HEAD", False)["model"], STACK["FULL_MATRIX"])
 
 
-    def test_release_schema_changes_run_all_four_targets(self):
+    def test_release_schema_changes_run_offline_checks_on_all_targets(self):
         for name in ("atlas-runtime/src/release_history.rs",
                      "atlas-index/src/release_schema.sql",
                      "atlas-runtime/src/workspace_settings.sql",
@@ -131,8 +131,155 @@ class Routing(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"fixture change")
                 self.git("add", str(path))
-                self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+                self.assertEqual(self.select("HEAD", False), {"model": [], "workspace": STACK["FULL_MATRIX"]})
                 self.git("rm", "-f", str(path))
+
+    def test_numerical_changes_keep_full_matrix_even_with_schema_changes(self):
+        for name in ("atlas-embedding/src/inference.rs", "atlas-ingest/src/native_execution.rs",
+                     "atlas-runtime/src/release_history.rs"):
+            path = self.root / "crates" / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("// changed")
+            self.git("add", str(path))
+        self.assertEqual(self.select("HEAD", False), {
+            "model": STACK["FULL_MATRIX"], "workspace": STACK["FULL_MATRIX"],
+        })
+
+    def test_unknown_base_and_manual_keep_both_checks(self):
+        expected = {"model": STACK["FULL_MATRIX"], "workspace": STACK["FULL_MATRIX"]}
+        self.assertEqual(self.select("", False), expected)
+        self.assertEqual(self.select("HEAD", True), expected)
+        self.assertEqual(self.select("no-such-commit", False), expected)
+        self.assertEqual(self.select("", False, True), {"model": [], "workspace": []})
+
+    def test_probe_depth_distinguishes_workflow_ingest_and_native_changes(self):
+        depth = STACK["probe_depth"]
+        for name, expected in (
+            (".github/workflows/ci.yml", {"build": False, "near_limit": False}),
+            ("crates/atlas-ingest/src/build.rs", {"build": True, "near_limit": False}),
+            ("crates/atlas-embedding/src/inference.rs", {"build": False, "near_limit": True}),
+            ("crates/atlas-ingest/src/native_execution.rs", {"build": True, "near_limit": True}),
+            ("dist-workspace.toml", {"build": False, "near_limit": True}),
+            (".github/workflows/release-build-check.yml", {"build": False, "near_limit": True}),
+        ):
+            with self.subTest(name=name):
+                path = self.root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("// changed")
+                self.git("add", name)
+                self.assertEqual(depth("HEAD"), expected)
+                self.git("rm", "-f", name)
+
+
+class PredecessorSearch(unittest.TestCase):
+    def test_requires_known_semantic_hit_without_fixing_unrelated_ranks(self):
+        compare = PROBE["compare_predecessor_hit"]
+        expected = [["known", [["passage", 0.75]]], ["other", [["elsewhere", 0.5]]]]
+        compare(expected, [expected[0], ["unrelated", [["different", 0.4]]]], "bge-base")
+        for actual in (
+            list(reversed(expected)),
+            [["other", [["elsewhere", 0.75]]]],
+            [["known", [["wrong passage", 0.75]]]],
+            [["known", [["passage", 0.6]]]],
+        ):
+            with self.subTest(actual=actual):
+                with self.assertRaisesRegex(RuntimeError, "witness changed"):
+                    compare(expected, actual, "bge-base")
+
+
+class FrozenNumerical(unittest.TestCase):
+    def setUp(self):
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+        self.path = Path(directory) / "samples.json.gz"
+        self.profile = "bge-base"
+        self.target = "aarch64-apple-darwin"
+        self.policy = "test-policy"
+        self.payload = {
+            "format": 2, "producer": {"target": self.target},
+            "profiles": {self.profile: {
+                "contract": {"profile_id": self.profile, "execution_policy": self.policy},
+                "samples": [{"kind": "identity"}, {"kind": "passage"}],
+            }},
+        }
+
+    def load(self, *, target=None, digest=None):
+        self.path.write_bytes(gzip.compress(json.dumps(self.payload).encode()))
+        return PROBE["load_v2_numerical"](
+            self.path, digest or PROBE["sha256"](self.path), target or self.target,
+            {self.profile: self.policy},
+        )
+
+    def test_numerical_evidence_loads_without_a_workspace(self):
+        self.assertEqual(self.load(), self.payload)
+
+    def test_checksum_target_policy_and_sample_coverage_are_required(self):
+        with self.assertRaisesRegex(RuntimeError, "checksum"):
+            self.load(digest="0" * 64)
+        with self.assertRaisesRegex(RuntimeError, "target"):
+            self.load(target="x86_64-unknown-linux-gnu")
+        data = self.payload["profiles"][self.profile]
+        data["contract"]["execution_policy"] = "changed"
+        with self.assertRaisesRegex(RuntimeError, "policy"):
+            self.load()
+        data["contract"]["execution_policy"] = self.policy
+        data["samples"].pop()
+        with self.assertRaisesRegex(RuntimeError, "incomplete"):
+            self.load()
+
+    def test_workspace_refresh_keeps_numeric_pin_and_producer(self):
+        from copy import deepcopy
+
+        pins = {self.profile: {"execution_policy": self.policy, "asset": "test-bundle"}}
+        target = self.target
+        row = {kind: {
+            "tag": "fixtures/embedding-compatibility/v2",
+            "asset": f"{kind}-{target}.{extension}", "commit": "a" * 40,
+            "sha256": "a" * 64,
+        } for kind, extension in (("workspace", "tar.gz"), ("numerical", "json.gz"))}
+        previous = {target: {self.profile: row}}
+        current = deepcopy(previous)
+        current[target][self.profile]["workspace"]["sha256"] = "b" * 64
+        current[target][self.profile]["workspace"]["commit"] = "b" * 40
+        PROBE["validate_v2_receipts"](current, previous, {target}, pins, pins)
+        current[target][self.profile]["numerical"]["sha256"] = "b" * 64
+        with self.assertRaisesRegex(RuntimeError, "rotated without transition"):
+            PROBE["validate_v2_receipts"](current, previous, {target}, pins, pins)
+        with self.assertRaisesRegex(RuntimeError, "all release targets"):
+            PROBE["validate_v2_receipts"](current, previous, {target, "missing"}, pins, pins)
+
+
+class CompactDocumentSamples(unittest.TestCase):
+    def test_equal_input_hash_with_changed_token_count_fails_before_reading(self):
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+        path = Path(directory) / "fixture.sqlite"
+        with closing(sqlite3.connect(path)) as db, db:
+            db.executescript("""
+                CREATE TABLE semantic_units(input_id, unit_kind, profile_id);
+                CREATE TABLE embedding_inputs(input_id, input_hash);
+                INSERT INTO semantic_units VALUES(1, 'identity', 'bge-base');
+                INSERT INTO embedding_inputs VALUES(1, x'12');
+            """)
+        before = {"bge-base": {("{}", "12", 6): "old"}}
+        after = {"bge-base": {("{}", "12", 7): "new"}}
+        with self.assertRaisesRegex(RuntimeError, "token count changed"):
+            PROBE["check_document_samples"](None, path, path, "bge-base", before, after, layout_changed=True)
+
+    def test_same_policy_vector_drift_fails(self):
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+        path = Path(directory) / "fixture.sqlite"
+        with closing(sqlite3.connect(path)) as db, db:
+            db.executescript("""
+                CREATE TABLE semantic_units(input_id, unit_kind, profile_id);
+                CREATE TABLE embedding_inputs(input_id, input_hash);
+                INSERT INTO semantic_units VALUES(1, 'identity', 'bge-base');
+                INSERT INTO embedding_inputs VALUES(1, x'12');
+            """)
+        receipt = {"bge-base": {("{}", "12", 6): "hash"}}
+        vectors = [json.dumps([{"hash": "12", "tokens": 6, "values": [value]}])
+                   for value in (0.1, 0.2)]
+        with patch.object(subprocess, "check_output", side_effect=vectors):
+            with self.assertRaisesRegex(RuntimeError, "vector drift"):
+                PROBE["check_document_samples"](None, path, path, "bge-base", receipt, receipt, layout_changed=True)
 
 
 class PinTransition(unittest.TestCase):

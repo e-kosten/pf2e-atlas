@@ -8,6 +8,15 @@ on:
         type: string
   pull_request:
   workflow_dispatch:
+    inputs:
+      full-embedding-probe:
+        description: Run the full embedding compatibility comparison
+        type: boolean
+        default: false
+      capture-embedding-fixtures:
+        description: Generate unpublished v2 fixture artifacts on all release targets
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -43,6 +52,10 @@ jobs:
       tooling: ${{ steps.select.outputs.tooling }}
       embedding: ${{ steps.select.outputs.embedding }}
       embedding-runners: ${{ steps.select.outputs.embedding-runners }}
+      embedding-build: ${{ steps.select.outputs.embedding-build }}
+      embedding-near-limit: ${{ steps.select.outputs.embedding-near-limit }}
+      workspace: ${{ steps.select.outputs.workspace }}
+      workspace-runners: ${{ steps.select.outputs.workspace-runners }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -54,6 +67,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           SOURCE_REF: ${{ inputs.source-ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EMBEDDING_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           if [[ "$EVENT" == pull_request && -z "$SOURCE_REF" ]]; then
@@ -61,17 +75,25 @@ jobs:
           else
             scripts/verify-changed.sh --all --list > selected-checks
           fi
-          embedding_args=(--select --base "$BASE_SHA")
+          embedding_args=(--select --base "$EMBEDDING_BASE")
+          if [[ -n "$SOURCE_REF" ]]; then embedding_args+=(--reusable); fi
           if [[ "$EVENT" == workflow_dispatch ]]; then
             embedding_args+=(--manual)
           fi
-          embedding_runners="$(python3 scripts/validation/embedding-stack.py "${embedding_args[@]}")"
-          echo "embedding-runners=$embedding_runners" >> "$GITHUB_OUTPUT"
-          if [[ "$embedding_runners" == '[]' ]]; then
-            echo "embedding=false" >> selected-checks
-          else
-            echo "embedding=true" >> selected-checks
-          fi
+          matrices="$(python3 scripts/validation/embedding-stack.py "${embedding_args[@]}")"
+          echo "embedding-build=$(jq -r '.build' <<< "$matrices")" >> "$GITHUB_OUTPUT"
+          echo "embedding-near-limit=$(jq -r '.near_limit' <<< "$matrices")" >> "$GITHUB_OUTPUT"
+          for pair in embedding:model workspace:workspace; do
+            flag="${pair%:*}"
+            key="${pair#*:}"
+            runners="$(jq -c --arg key "$key" '.[$key]' <<< "$matrices")"
+            echo "$flag-runners=$runners" >> "$GITHUB_OUTPUT"
+            if [[ "$runners" == '[]' ]]; then
+              echo "$flag=false" >> selected-checks
+            else
+              echo "$flag=true" >> selected-checks
+            fi
+          done
           windows=false
           if grep -q '^rust=true$' selected-checks; then
             windows="$(python3 scripts/validation/windows-selection.py --base "$BASE_SHA")"
@@ -87,6 +109,35 @@ jobs:
       - name: Validation routing regression tests
         run: node scripts/validation/tooling.mjs
 
+  workspace:
+    name: offline workspace upgrade (${{ matrix.os }})
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.workspace == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.changes.outputs.workspace-runners) }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-workspace-crates: false
+      - name: Check setup and migration without loading models
+        shell: bash
+        run: |
+          cargo build --locked -p atlas-cli --no-default-features
+          cargo test --locked -p atlas-runtime release_migration_tests
+          candidate=target/debug/atlas
+          if [[ "$RUNNER_OS" == Windows ]]; then candidate+=.exe; fi
+          python scripts/validation/check-workspace-upgrade.py "$candidate"
+
   embedding:
     name: embedding compatibility (${{ matrix.os }})
     needs: changes
@@ -96,8 +147,7 @@ jobs:
       matrix:
         os: ${{ fromJSON(needs.changes.outputs.embedding-runners) }}
     runs-on: ${{ matrix.os }}
-    # The Apple Silicon runner needs extra time for the cold model sessions in the release fixture.
-    timeout-minutes: ${{ matrix.os == 'macos-26' && 60 || 45 }}
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && (inputs.full-embedding-probe || inputs.capture-embedding-fixtures) && 60 || 35 }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -111,42 +161,102 @@ jobs:
         with:
           cache-workspace-crates: false
       - uses: actions/cache@v4
+        id: model-cache
         with:
           path: target/embedding-models
           key: embedding-models-v1-${{ hashFiles('crates/atlas-embedding/src/catalog.rs', 'crates/atlas-embedding/src/model_cache.rs') }}
       - name: Build candidate and verify pinned models
         run: |
           cargo build --locked -p atlas-cli --no-default-features
-          cargo build --locked -p atlas-runtime --example migrate-fixture-workspace
+          cargo build --locked -p atlas-runtime --example migrate-fixture-workspace --example read-fixture-vectors --example check-fixture-inference
           cargo run --locked -p atlas-embedding --example prepare-model-cache -- target/embedding-models
-      - name: Check native token IDs
+      - name: Check tokenizer goldens and ingest reuse
         shell: bash
         run: |
           ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
           export ATLAS_TEST_MODEL_CACHE
-          # Each test loads full model sessions; bound peak memory on release runners.
-          cargo test --locked -p atlas-embedding compatibility_tests -- --ignored --test-threads=1
+          cargo test --locked -p atlas-embedding pinned_query_and_document_token_ids_match_the_compatibility_baseline -- --ignored
+          cargo test --locked -p atlas-ingest edited_passage_only_sends_new_inputs_to_inference -- --ignored
+      - name: Check native near-limit batches separately for full manual probe
+        if: github.event_name == 'workflow_dispatch' && inputs.full-embedding-probe
+        shell: bash
+        run: |
+          ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
+          export ATLAS_TEST_MODEL_CACHE
+          cargo test --locked -p atlas-embedding mixed_length_unicode_batches_match_single_input_inference -- --ignored
       - name: Check search against release fixtures
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           GH_TOKEN: ${{ github.token }}
+          FULL_PROBE: ${{ github.event_name == 'workflow_dispatch' && inputs.full-embedding-probe }}
+          CHECK_BUILD: ${{ needs.changes.outputs.embedding-build }}
+          NEAR_LIMIT: ${{ needs.changes.outputs.embedding-near-limit }}
         run: |
           candidate=target/debug/atlas
           migrator=target/debug/examples/migrate-fixture-workspace
+          reader=target/debug/examples/read-fixture-vectors
+          inference=target/debug/examples/check-fixture-inference
           if [[ "$RUNNER_OS" == Windows ]]; then
             candidate+=.exe
             migrator+=.exe
+            reader+=.exe
+            inference+=.exe
           fi
-          python scripts/validation/probe-embedding-upgrade.py --pins \
+          if [[ -n "$BASE_SHA" ]] && ! git cat-file -e "$BASE_SHA^{commit}"; then BASE_SHA=; fi
+          compact=()
+          if [[ "$FULL_PROBE" != true ]]; then
+            compact+=(--compact-vector-reader "$reader" --fixture-inference "$inference")
+            if [[ "$CHECK_BUILD" == true ]]; then compact+=(--check-build); fi
+            if [[ "$NEAR_LIMIT" == true ]]; then compact+=(--near-limit); fi
+          fi
+          python scripts/validation/probe-embedding-upgrade.py --pins "${compact[@]}" \
             --base-ref "$BASE_SHA" --repository "$GITHUB_REPOSITORY" \
             --workspace-migrator "$migrator" \
             --candidate "$candidate" --model-cache target/embedding-models \
             --output "$RUNNER_TEMP/embedding-compatibility"
+      - name: Capture and check unpublished v2 fixtures
+        if: github.event_name == 'workflow_dispatch' && inputs.capture-embedding-fixtures
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          candidate=target/debug/atlas
+          migrator=target/debug/examples/migrate-fixture-workspace
+          reader=target/debug/examples/read-fixture-vectors
+          inference=target/debug/examples/check-fixture-inference
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            candidate+=.exe
+            migrator+=.exe
+            reader+=.exe
+            inference+=.exe
+          fi
+          capture="$RUNNER_TEMP/embedding-v2-capture"
+          python scripts/validation/probe-embedding-upgrade.py --produce-v2 \
+            --repository "$GITHUB_REPOSITORY" --compact-vector-reader "$reader" \
+            --model-cache target/embedding-models --output "$capture"
+          workspace=("$capture"/workspace-*.tar.gz)
+          numerical=("$capture"/numerical-*.json.gz)
+          digest() { python -c 'from pathlib import Path; import hashlib,sys; print(hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest())' "$1"; }
+          python scripts/validation/probe-embedding-upgrade.py --v2-workspace "${workspace[0]}" \
+            --sha256 "$(digest "${workspace[0]}")" --numerical "${numerical[0]}" \
+            --numerical-sha256 "$(digest "${numerical[0]}")" --fixture-inference "$inference" \
+            --candidate "$candidate" --workspace-migrator "$migrator" --compact-vector-reader "$reader" \
+            --model-cache target/embedding-models --output "$RUNNER_TEMP/embedding-v2-check"
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'workflow_dispatch' && inputs.capture-embedding-fixtures
+        with:
+          name: embedding-v2-fixtures-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/embedding-v2-capture/workspace-*.tar.gz
+            ${{ runner.temp }}/embedding-v2-capture/numerical-*.json.gz
+            ${{ runner.temp }}/embedding-v2-capture/fixture-digests.json
+          if-no-files-found: error
       - name: Summarize results
         if: ${{ always() }}
         shell: bash
         run: |
+          echo "Model cache hit: ${{ steps.model-cache.outputs.cache-hit }}" >> "$GITHUB_STEP_SUMMARY"
           for report in "$RUNNER_TEMP"/embedding-compatibility/bundle-*/result.json; do
             if [[ -f "$report" ]]; then
               { echo '~~~json'; cat "$report"; echo '~~~'; } >> "$GITHUB_STEP_SUMMARY"
@@ -513,7 +623,7 @@ jobs:
   validation:
     name: validation complete
     if: ${{ !cancelled() }}
-    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding, advisories]
+    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding, workspace, advisories]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
