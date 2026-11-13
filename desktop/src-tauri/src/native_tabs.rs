@@ -4,13 +4,66 @@
 
 use objc2::MainThreadMarker;
 use objc2_app_kit::{
-    NSAlert, NSAlertFirstButtonReturn, NSApplication, NSEventModifierFlags, NSWindow,
-    NSWindowOrderingMode, NSWindowTabbingMode,
+    NSAlert, NSAlertFirstButtonReturn, NSAppearance, NSAppearanceCustomization, NSApplication,
+    NSColor, NSEventModifierFlags, NSWindow, NSWindowOrderingMode, NSWindowTabbingMode,
 };
 use objc2_foundation::NSString;
-use tauri::WebviewWindow;
+use tauri::{Manager, WebviewWindow};
 
-use crate::display;
+use crate::{current_product, display, product_view, run_on_main};
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Appearance {
+    System,
+    Light,
+    Dark,
+}
+
+#[tauri::command]
+pub async fn desktop_appearance(
+    window: WebviewWindow,
+    appearance: Appearance,
+    dark: bool,
+) -> Result<(), String> {
+    let label = window.label().to_owned();
+    run_on_main(window.app_handle(), move |app| {
+        let Ok((base, instance)) = current_product(app) else {
+            return;
+        };
+        let Some(window) = app.get_webview_window(&label) else {
+            return;
+        };
+        if !product_view(&window, &base, &instance)
+            && !(label == crate::opening::PRIMARY
+                && window
+                    .state::<crate::Desktop>()
+                    .staged_setup
+                    .attached_to(&label, &instance)
+                && window.url().is_ok_and(|url| url.origin() == base.origin()))
+        {
+            return;
+        }
+        let _ = with_window(&window, |native| {
+            let name = match appearance {
+                Appearance::System => None,
+                Appearance::Light => Some("NSAppearanceNameAqua"),
+                Appearance::Dark => Some("NSAppearanceNameDarkAqua"),
+            };
+            let appearance =
+                name.and_then(|name| NSAppearance::appearanceNamed(&NSString::from_str(name)));
+            native.setAppearance(appearance.as_deref());
+            let (red, green, blue) = if dark { (14, 13, 12) } else { (246, 239, 227) };
+            let background = NSColor::colorWithSRGBRed_green_blue_alpha(
+                f64::from(red) / 255.0,
+                f64::from(green) / 255.0,
+                f64::from(blue) / 255.0,
+                1.0,
+            );
+            native.setBackgroundColor(Some(&background));
+        });
+    })
+}
 
 pub fn disable_automatic_grouping() -> Result<(), String> {
     NSWindow::setAllowsAutomaticWindowTabbing(false, main_thread()?);
@@ -51,6 +104,8 @@ pub fn attach(
 ) -> Result<(), String> {
     with_window(source, |source| {
         with_window(target, |target| {
+            target.setAppearance(source.appearance().as_deref());
+            target.setBackgroundColor(Some(&source.backgroundColor()));
             source.addTabbedWindow_ordered(target, NSWindowOrderingMode::Above);
             let group = source
                 .tabGroup()

@@ -443,6 +443,13 @@ fn open_product(
     }
     let id = desktop.window_id.fetch_add(1, Ordering::Relaxed);
     let label = format!("atlas-{id}");
+    let (width, height) = if let Some((source, _)) = tab {
+        let size = source.inner_size().map_err(display)?;
+        let size = size.to_logical::<f64>(source.scale_factor().map_err(display)?);
+        (size.width, size.height)
+    } else {
+        (1210.0, 830.0)
+    };
     desktop
         .staged_setup
         .attach_window(app, &label, &base, &instance)?;
@@ -451,7 +458,7 @@ fn open_product(
         .on_page_load(staged_setup::page_load)
         .title("PF2e Atlas")
         .visible(false)
-        .inner_size(1210.0, 830.0)
+        .inner_size(width, height)
         .min_inner_size(480.0, 440.0)
         .on_navigation(move |destination| {
             if destination.origin() == origin {
@@ -764,7 +771,8 @@ fn main() {
             cancel_setup,
             enable_cli,
             staged_setup::desktop_setup_action,
-            tab_links::desktop_tab_link
+            tab_links::desktop_tab_link,
+            native_tabs::desktop_appearance
         ])
         .menu(menu)
         .on_window_event(|window, event| {

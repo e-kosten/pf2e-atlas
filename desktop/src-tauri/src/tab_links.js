@@ -3,6 +3,49 @@
 (() => {
   if (location.protocol !== "http:" || location.hostname !== "127.0.0.1") return;
 
+  // Paint the document before the application bundle runs. The React theme
+  // takes over when it sets data-theme on the document element.
+  function themePreference() {
+    try {
+      const value = localStorage.getItem("atlas-ui-color-scheme");
+      if (value === "dark" || value === "light") return value;
+    } catch {
+      // Use the system appearance if preferences are unavailable.
+    }
+    return "system";
+  }
+
+  function applyStartupTheme(root) {
+    const appearance = themePreference();
+    const dark = appearance === "dark" ||
+      (appearance === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+    root.style.backgroundColor = dark ? "#0e0d0c" : "#f6efe3";
+  }
+
+  function syncAppearance(event) {
+    window.__TAURI_INTERNALS__.invoke("desktop_appearance", event.detail)
+      .catch((error) => console.error("Could not update Atlas window appearance", error));
+  }
+
+  function watchTheme() {
+    const root = document.documentElement;
+    if (!root) return false;
+    applyStartupTheme(root);
+    const observer = new MutationObserver(() => {
+      if (root.dataset.theme) root.style.backgroundColor = "var(--bg)";
+    });
+    window.addEventListener("atlas-appearance-changed", syncAppearance);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return true;
+  }
+
+  if (!watchTheme()) {
+    const observer = new MutationObserver(() => {
+      if (watchTheme()) observer.disconnect();
+    });
+    observer.observe(document, { childList: true });
+  }
+
   function link(event) {
     if (!event.isTrusted || event.defaultPrevented) return;
     const anchor = event.composedPath().find(

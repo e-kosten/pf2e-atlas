@@ -104,7 +104,8 @@ impl StagedSetup {
             .remote(format!("{}/*", origin.ascii_serialization()))
             .webview(label)
             .permission("allow-desktop-setup-action")
-            .permission("allow-desktop-tab-link");
+            .permission("allow-desktop-tab-link")
+            .permission("allow-desktop-appearance");
         app.add_capability(permission).map_err(display)?;
         lock(&self.documents).insert(
             label.into(),
