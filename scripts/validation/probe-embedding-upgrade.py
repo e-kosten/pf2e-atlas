@@ -542,34 +542,63 @@ def extract_release_executable(archive, destination):
     destination.chmod(0o700)
 
 
-def capture_release_predecessor(repository, download_env, cache, evidence, profiles, *, compact=False):
-    receipt = ROOT / RELEASE_PIN
-    if hashlib.sha256(receipt.read_bytes().replace(b"\r\n", b"\n")).hexdigest() != RELEASE_DIGEST:
+def producer_receipt(path=None):
+    receipt = (ROOT / (path or RELEASE_PIN)).resolve()
+    relative = receipt.relative_to(ROOT)
+    if path is not None:
+        subprocess.run(["git", "ls-files", "--error-unmatch", "--", relative.as_posix()],
+                       cwd=ROOT, check=True, stdout=subprocess.DEVNULL, timeout=30)
+    data = receipt.read_bytes().replace(b"\r\n", b"\n")
+    digest = hashlib.sha256(data).hexdigest()
+    release = json.loads(data)
+    if path is None and (digest != RELEASE_DIGEST or release["tag"] != RELEASE_TAG or release["schema"] != 42):
         raise RuntimeError("Schema 42 producer receipt differs from the cutover pin")
-    release = json.loads(receipt.read_text(encoding="utf-8"))
-    if release["tag"] != RELEASE_TAG or release["schema"] != 42 or tuple(release["queries"]) != QUERIES:
-        raise RuntimeError("Schema 42 producer or query recipes differ from the cutover")
+    if (not re.fullmatch(r"v[0-9][0-9A-Za-z.-]*", release["tag"])
+            or not re.fullmatch(r"[0-9a-f]{40}", release["commit"])
+            or not re.fullmatch(r"[0-9a-f]{40}", release["source_tree"])
+            or not re.fullmatch(r"[0-9a-f]{64}", release["ledger_sha256"])
+            or type(release["schema"]) is not int or release["schema"] <= 0
+            or tuple(release["queries"]) != QUERIES
+            or set(release["assets"]) != set(RELEASE_TARGETS)):
+        raise RuntimeError("Invalid packaged producer receipt")
+    for target, pin in release["assets"].items():
+        extension = "zip" if target.endswith("windows-msvc") else "tar.xz"
+        if (pin["asset"] != f"atlas-cli-only-{target}.{extension}"
+                or not re.fullmatch(r"[0-9a-f]{64}", pin["sha256"])):
+            raise RuntimeError(f"Invalid packaged producer archive for {target}")
+    commit = subprocess.check_output(
+        ["git", "rev-parse", "--verify", f"refs/tags/{release['tag']}^{{commit}}"],
+        cwd=ROOT, text=True, timeout=30,
+    ).strip()
+    if commit != release["commit"]:
+        raise RuntimeError("Producer release tag does not match the receipt commit")
+    return release, digest
+
+
+def capture_release_predecessor(repository, download_env, cache, evidence, profiles, *,
+                                compact=False, receipt=None):
+    release, receipt_digest = producer_receipt(receipt)
     target = release_target()
     pin = release["assets"][target]
     archive = evidence / pin["asset"]
     subprocess.run(
-        ["gh", "release", "download", RELEASE_TAG, "--repo", repository,
+        ["gh", "release", "download", release["tag"], "--repo", repository,
          "--pattern", pin["asset"], "--output", str(archive)],
         env=download_env, check=True, timeout=120,
     )
     if sha256(archive) != pin["sha256"]:
-        raise RuntimeError("Schema 42 producer archive SHA-256 mismatch")
+        raise RuntimeError("Producer archive SHA-256 mismatch")
     baseline = evidence / ("atlas.exe" if archive.suffix == ".zip" else "atlas")
     extract_release_executable(archive, baseline)
     version = subprocess.check_output([str(baseline), "--version"], text=True, timeout=20).strip()
-    if version != f"atlas {RELEASE_TAG[1:]}":
-        raise RuntimeError("Unexpected version in the schema 42 producer archive")
+    if version != f"atlas {release['tag'][1:]}":
+        raise RuntimeError("Unexpected version in the producer archive")
 
     tree = subprocess.check_output(
         ["git", "rev-parse", f"{release['commit']}:{SOURCE_FIXTURE}"], cwd=ROOT, text=True,
     ).strip()
     if tree != release["source_tree"]:
-        raise RuntimeError("Schema 41 capture input tree differs from the cutover pin")
+        raise RuntimeError("Producer fixture source tree does not match the receipt")
     source = subprocess.check_output(
         ["git", "archive", "--format=tar", release["commit"], SOURCE_FIXTURE], cwd=ROOT,
     )
@@ -577,11 +606,16 @@ def capture_release_predecessor(repository, download_env, cache, evidence, profi
     with tarfile.open(fileobj=io.BytesIO(source), mode="r:") as package:
         package.extractall(fixture_dir, filter="data")
     manifest = capture(baseline, cache, evidence, tuple(profiles), {
-        "commit": release["commit"], "target": target, "build": RELEASE_TAG,
+        "commit": release["commit"], "target": target, "build": release["tag"],
     }, fixture_dir / SOURCE_FIXTURE, compact=compact)
     index = evidence / "predecessor.sqlite"
-    if workspace_schema(index) != 42 or predecessor_ledger(index) != release["ledger_sha256"]:
-        raise RuntimeError("Pinned producer did not create the authenticated schema 42 predecessor")
+    if workspace_schema(index) != release["schema"] or predecessor_ledger(index) != release["ledger_sha256"]:
+        raise RuntimeError("Producer workspace schema or ledger does not match the receipt")
+    manifest["producer"].update(
+        release_receipt_sha256=receipt_digest, release_archive_sha256=pin["sha256"],
+        ledger_sha256=release["ledger_sha256"], source_tree=release["source_tree"],
+        workspace_schema=release["schema"],
+    )
     return manifest
 
 
@@ -628,24 +662,20 @@ def capture_numerical_payload(root, cache, manifest, reader):
     return payload
 
 
-def produce_v2(repository, cache, root, reader):
+def produce_v2(repository, cache, root, reader, *, receipt=None, workspace_only=False):
     download_env = os.environ.copy()
     os.environ.pop("GH_TOKEN", None)
-    manifest = capture_release_predecessor(repository, download_env, cache, root, PROFILES)
-    manifest["producer"]["release_receipt_sha256"] = RELEASE_DIGEST
-    release = json.loads((ROOT / RELEASE_PIN).read_text(encoding="utf-8"))
-    manifest["producer"].update(
-        release_archive_sha256=release["assets"][release_target()]["sha256"],
-        ledger_sha256=release["ledger_sha256"], source_tree=release["source_tree"],
-        workspace_schema=release["schema"],
-    )
+    manifest = capture_release_predecessor(repository, download_env, cache, root, PROFILES,
+                                           compact=workspace_only, receipt=receipt)
     write_json(root / "manifest.json", manifest)
     workspace = root / f"workspace-{release_target()}.tar.gz"
     archive_bundle(root, workspace)
-    numerical = capture_numerical_payload(root, cache, manifest, reader)
+    assets = [workspace]
+    if not workspace_only:
+        assets.append(capture_numerical_payload(root, cache, manifest, reader))
     write_json(root / "fixture-digests.json", {
         "target": release_target(),
-        "assets": {path.name: sha256(path) for path in (workspace, numerical)},
+        "assets": {path.name: sha256(path) for path in assets},
     })
 
 
@@ -727,6 +757,9 @@ def check_v2_payloads(candidate, cache, root, migrator, reader, inference, works
         raise RuntimeError("Workspace payload schema or ledger mismatch")
     if producers and manifest["producer"]["commit"] != producers["workspace"]:
         raise RuntimeError("Workspace payload producer mismatch")
+    if (producers and "release_receipt_sha256" in producers
+            and manifest["producer"].get("release_receipt_sha256") != producers["release_receipt_sha256"]):
+        raise RuntimeError("Workspace payload producer receipt mismatch")
     for profile, policy in policies.items():
         contract = manifest["profiles"][profile]
         frozen_contract = payload["profiles"][profile]["contract"]
@@ -762,11 +795,12 @@ def v2_receipts(base):
         return {}, {}
     targets = set(RELEASE_TARGETS)
     pins, old_pins = read_pins(base)
-    validate_v2_receipts(current, previous, targets, pins, old_pins)
+    validate_v2_receipts(current, previous, targets, pins, old_pins,
+                         compare_history=bool(base))
     return current[release_target()], previous.get(release_target(), {})
 
 
-def validate_v2_receipts(current, previous, targets, pins, old_pins):
+def validate_v2_receipts(current, previous, targets, pins, old_pins, *, compare_history=True):
     if current.keys() != targets:
         raise RuntimeError("Published v2 fixtures must cover all release targets")
     for target, profiles in current.items():
@@ -782,7 +816,7 @@ def validate_v2_receipts(current, previous, targets, pins, old_pins):
                         or not re.fullmatch(r"[0-9a-f]{40}", payload["commit"])):
                     raise RuntimeError(f"Invalid {target} {profile} {kind} receipt")
             old = previous.get(target, {}).get(profile)
-            if not old and pins[profile]["asset"] == RELEASE_ASSET:
+            if compare_history and not old and pins[profile]["asset"] == RELEASE_ASSET:
                 producer = json.loads((ROOT / RELEASE_PIN).read_text(encoding="utf-8"))["commit"]
                 if any(receipt[kind]["commit"] != producer for kind in ("workspace", "numerical")):
                     raise RuntimeError(f"{target} {profile} initial v2 producer differs from pinned predecessor")
@@ -795,11 +829,12 @@ def validate_v2_receipts(current, previous, targets, pins, old_pins):
 
 
 def check_published_v2(candidate, cache, root, base, repository, migrator, reader, inference,
-                       receipts, previous_receipts, *, check_build=False, near_limit=False):
+                       receipts, previous_receipts, *, check_build=False, near_limit=False,
+                       replacement=None):
     if not reader or not inference:
         raise RuntimeError("Published v2 requires native vector and inference helpers")
     current, previous = read_pins(base)
-    if not previous_receipts:
+    if not previous_receipts and replacement is None:
         pinned_checks(current, previous)
     old_transitions = {}
     for profile, previous_receipt in previous_receipts.items():
@@ -817,6 +852,7 @@ def check_published_v2(candidate, cache, root, base, repository, migrator, reade
     os.environ.pop("GH_TOKEN", None)
     downloaded = {}
     groups = {}
+    replay = {}
 
     def add(profile, receipt, policy, transition):
         key = tuple(tuple(sorted(receipt[kind].items())) for kind in ("workspace", "numerical"))
@@ -827,6 +863,10 @@ def check_published_v2(candidate, cache, root, base, repository, migrator, reade
 
     for profile, receipt in receipts.items():
         pin = current[profile]
+        if replacement is not None:
+            if pin.get("transition_to") or profile in old_transitions:
+                raise RuntimeError(f"{profile} requires a separate execution-policy transition")
+            receipt = {**receipt, "workspace": replacement[1]}
         add(profile, receipt, pin["execution_policy"], pin.get("transition_to"))
     for profile, transition in old_transitions.items():
         add(profile, previous_receipts[profile], previous[profile]["execution_policy"], transition)
@@ -837,19 +877,52 @@ def check_published_v2(candidate, cache, root, base, repository, migrator, reade
         producers = {}
         for kind, fields in zip(("workspace", "numerical"), receipts_key, strict=True):
             pin = dict(fields)
-            if fields not in downloaded:
+            if replacement is not None and kind == "workspace":
+                path = replacement[0]
+            elif fields in downloaded:
+                path = downloaded[fields]
+            else:
                 path = root / f"download-{len(downloaded)}-{pin['asset']}"
                 subprocess.run(["gh", "release", "download", pin["tag"], "--repo", repository,
                                 "--pattern", pin["asset"], "--output", str(path)],
                                env=download_env, check=True, timeout=120)
                 downloaded[fields] = path
-            payloads[kind] = (downloaded[fields], pin["sha256"])
+            payloads[kind] = (path, pin["sha256"])
             producers[kind] = pin["commit"]
+        if replacement is not None:
+            producers["release_receipt_sha256"] = replacement[1]["release_receipt_sha256"]
         policies = {profile: policy for profile, (policy, _) in profiles.items()}
         transitions = {profile: transition for profile, (_, transition) in profiles.items() if transition}
         check_v2_payloads(candidate, cache, directory, migrator, reader, inference,
                           payloads["workspace"], payloads["numerical"], policies, transitions, producers,
                           check_build=check_build, near_limit=near_limit)
+        if replacement is not None:
+            result = json.loads((directory / "result.json").read_bytes())
+            for profile in profiles:
+                replay[profile] = {"numerical": receipts[profile]["numerical"],
+                                   "workspace_schema": result["workspace_schema"]}
+    return replay
+
+
+def check_replacement_workspace(candidate, cache, root, base, repository, migrator, reader,
+                                inference, workspace, receipt):
+    receipts, previous = v2_receipts(base)
+    if not receipts:
+        raise RuntimeError("Workspace-only replay requires published numerical pins")
+    release, receipt_digest = producer_receipt(receipt)
+    workspace_pin = {"commit": release["commit"], "sha256": workspace[1],
+                     "release_receipt_sha256": receipt_digest}
+    replay = check_published_v2(candidate, cache, root, base, repository, migrator, reader,
+                                inference, receipts, previous,
+                                replacement=(workspace[0], workspace_pin))
+    write_json(root / "fixture-replay.json", {
+        "target": release_target(),
+        "candidate_commit": subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                                     cwd=ROOT, text=True, timeout=30).strip(),
+        "candidate_sha256": sha256(candidate),
+        "workspace": workspace_pin,
+        "profiles": replay,
+    })
 
 
 def check_pins(candidate, cache, root, base, repository, migrator=None, reader=None, inference=None, *, check_build=False, near_limit=False):
@@ -903,6 +976,9 @@ def main():
     parser.add_argument("--candidate", type=Path)
     parser.add_argument("--numerical", type=Path)
     parser.add_argument("--numerical-sha256")
+    parser.add_argument("--producer-receipt", type=Path, help="Checked-in packaged producer receipt")
+    parser.add_argument("--workspace-only", action="store_true",
+                        help="Capture only the workspace or replay it with published numerical pins")
     parser.add_argument("--fixture-inference", type=Path)
     parser.add_argument("--workspace-migrator", type=Path, help="Candidate helper for schema-only workspace upgrades")
     parser.add_argument("--compact-vector-reader", type=Path,
@@ -919,13 +995,25 @@ def main():
     parser.add_argument("--model-cache", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if (args.workspace_only or args.producer_receipt) and not (args.produce_v2 or args.v2_workspace):
+        parser.error("producer receipts and workspace-only mode require split fixture capture or replay")
+    if args.producer_receipt and args.v2_workspace and not args.workspace_only:
+        parser.error("a producer receipt for replay requires workspace-only mode")
+    if args.repository and not re.fullmatch(r"[\w.-]+/[\w.-]+", args.repository):
+        parser.error("expected a GitHub repository in owner/name format")
     if args.produce_v2:
-        if not (args.repository and args.compact_vector_reader) or args.produce or args.candidate or args.profile:
-            parser.error("--produce-v2 requires a repository and fixture vector reader")
+        if (not args.repository or (not args.workspace_only and not args.compact_vector_reader)
+                or args.produce or args.candidate or args.profile or args.numerical or args.numerical_sha256):
+            parser.error("--produce-v2 requires a repository and, for full capture, a fixture vector reader")
     elif args.v2_workspace:
-        if not all((args.candidate, args.sha256, args.numerical, args.numerical_sha256,
-                    args.fixture_inference, args.compact_vector_reader)):
-            parser.error("--v2-workspace requires both pinned payloads and candidate readers")
+        if not all((args.candidate, args.sha256, args.fixture_inference, args.compact_vector_reader,
+                    args.workspace_migrator)):
+            parser.error("--v2-workspace requires a candidate, workspace checksum and candidate helpers")
+        if args.workspace_only:
+            if not args.repository or args.numerical or args.numerical_sha256:
+                parser.error("workspace-only replay requires a repository and uses published numerical pins")
+        elif not (args.numerical and args.numerical_sha256):
+            parser.error("full replay requires a local numerical payload and its checksum")
     elif args.produce:
         if not (args.baseline and args.producer_commit and args.producer_target and args.producer_build):
             parser.error("production requires a baseline binary, commit, target and packaging run or tag")
@@ -943,20 +1031,25 @@ def main():
     reader = args.compact_vector_reader.resolve() if args.compact_vector_reader else None
     inference = args.fixture_inference.resolve() if args.fixture_inference else None
     if args.v2_workspace:
-        checks = pinned_checks(*read_pins(args.base_ref))
-        if len(checks) != 1:
-            raise RuntimeError("Unpublished v2 comparison requires one predecessor group")
-        group = next(iter(checks.values()))
-        policies = {profile: policy for profile, (policy, _) in group.items()}
-        transitions = {profile: transition for profile, (_, transition) in group.items() if transition}
+        workspace = (args.v2_workspace.resolve(), args.sha256)
+        if args.workspace_only:
+            check_replacement_workspace(args.candidate.resolve(), cache, root, args.base_ref,
+                                        args.repository, migrator, reader, inference, workspace,
+                                        args.producer_receipt)
+            return
+        pins, _ = read_pins(args.base_ref)
+        if any(pin.get("transition_to") for pin in pins.values()):
+            raise RuntimeError("Full capture replay requires compatible execution policies")
+        policies = {profile: pin["execution_policy"] for profile, pin in pins.items()}
         check_v2_payloads(
             args.candidate.resolve(), cache, root, migrator, reader, inference,
-            (args.v2_workspace, args.sha256), (args.numerical, args.numerical_sha256),
-            policies, transitions, check_build=args.check_build, near_limit=args.near_limit,
+            workspace, (args.numerical, args.numerical_sha256),
+            policies, {}, check_build=args.check_build, near_limit=args.near_limit,
         )
         return
     if args.produce_v2:
-        produce_v2(args.repository, cache, root, reader)
+        produce_v2(args.repository, cache, root, reader, receipt=args.producer_receipt,
+                   workspace_only=args.workspace_only)
         return
     if args.pins:
         check_pins(args.candidate.resolve(), cache, root, args.base_ref, args.repository, migrator, reader, inference,
