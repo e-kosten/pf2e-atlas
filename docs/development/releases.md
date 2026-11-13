@@ -249,35 +249,51 @@ it.
 
 ### Publish an embedding compatibility fixture
 
-The release schema cutoff pins a published schema 42 CLI archive for each
-release target in `scripts/validation/schema-42-predecessor.json`. CI verifies
-the archive, frozen source fixture and ledger, then generates a disposable
-predecessor on that target. Both profile execution policies carry forward.
+CI uses the fixture-only release [`fixtures/embedding-compatibility/v2`](https://github.com/e-kosten/pf2e-atlas/releases/tag/fixtures/embedding-compatibility/v2).
+Each release target has a small predecessor workspace with expected search
+results and a separate set of exact prepared inputs, token counts, and stored
+vectors. The numerical samples can be replayed independently of the workspace
+schema. These fixtures qualify embedding compatibility. The product's published
+corpus seeds have their own [refresh procedure](#refresh-precomputed-corpus-embeddings).
 
-The CI workflow's `capture-embedding-fixtures` dispatch builds and verifies
-unpublished v2 evidence on the four release targets. It produces a workspace
-archive, an independent numerical sample payload, and their SHA-256 receipt
-for each target. The numerical sample records the exact prepared document input,
-native token count and stored vector from the verified predecessor. A future
-workspace schema cutoff can replace the workspace archive while preserving the
-numerical sample. The fixture-only release tag for the initial v2 capture is
-`fixtures/embedding-compatibility/v2`. Verify every target receipt before
-publishing or activating the frozen payloads. The compact CI probe uses the
-pinned packaged predecessor until frozen payloads are activated.
+| What changed | Fixture action |
+| --- | --- |
+| Routine Atlas release, compatible dependency update, or passage layout change | Keep the existing pins when compatibility checks pass. The fixture represents the predecessor whose vectors must remain usable. |
+| A schema cutoff makes the pinned workspace unreadable | Coordinate the cutoff with a replacement workspace from a supported packaged predecessor for each affected target. Verify that its numerical contract still matches the pinned samples, and keep each numerical entry exactly as pinned. |
+| An approved change increments a model's execution compatibility ID | First qualify the transition against the old pins. Once a packaged producer with the new ID is available, publish new workspace and numerical evidence for that profile on the release targets. Keep the other profile's pins. Follow the [transition procedure](dependencies.md#review-an-embedding-dependency-update). |
+
+For a replacement, use the next fixture-only tag, such as
+`fixtures/embedding-compatibility/v3`, at the verified producer commit. Validate
+the capture and replay on each affected target. Create a prerelease draft with
+latest disabled, upload the verified payloads, publish, then download them again
+and check their SHA-256 digests before updating CI. Keep the previous release
+assets so old pins and transition checks can still be reproduced.
+
+Update `scripts/validation/embedding-fixtures-v2.json` in the activation PR.
+It maps each target and profile to independent `workspace` and `numerical`
+entries, each with the release `tag`, `asset`, `sha256`, and producer `commit`.
+Verify CI against the exact downloaded assets before merging the new pins.
+
+The `capture-embedding-fixtures` CI dispatch reproduces the initial v2 capture
+from the schema-42 producer in `scripts/validation/schema-42-predecessor.json`.
+It verifies the packaged CLI, source tree, and migration ledger and uploads
+unpublished workspace and numerical payloads plus their digests for all four
+targets. Capturing from a later producer or capturing only a replacement
+workspace requires updating the capture tooling to support that case.
 
 Stable and RC packaging runs the compact compatibility probe against the exact
 packaged binaries when changes since the pinned producer affect numerical
-execution. This qualification is separate from the full-corpus seed coverage
-check. The optional `scripts/validation/embedding-fixtures-v2.json` activation
-receipt maps each release target and profile to `workspace` and `numerical`
-entries. Each entry records `tag`, `asset`, `sha256`, and producer `commit`.
-Refreshing only the workspace retains the numerical entry exactly.
+execution. The full manual probe still reads its workspace from the legacy
+producer pin. When a cutoff or execution ID change invalidates that pin, update
+the manual probe to use a compatible legacy fixture or move it to the split
+fixtures. Changing only the policy ID cannot qualify the old archive.
 
-For the original single-archive fixture format, publish a new bundle when an approved upgrade increments a profile's
-compatibility ID. Generate the
-fixture using the packaged Linux x86_64 CLI from a pinned release build check on
-main or a verified product release. Record the actual target and build used if
-generating on another platform.
+#### Original single-archive fixtures
+
+For a checkout that still uses the original format, generate the fixture with
+the packaged Linux x86_64 CLI from a pinned release build check on main or a
+verified product release. Record the actual target and build when generating
+on another platform.
 
 ```sh
 python3 scripts/validation/probe-embedding-upgrade.py \
@@ -293,10 +309,10 @@ profile's fixture. Inspect the archive contents and run the probe with
 `--bundle`, its reported `--sha256`, and a fresh output directory before
 publication. After publication is authorized, create a fixture-only draft under
 a new `fixtures/embedding-compatibility/v<N>` tag at the producer commit.
-Continue the revision sequence from `embedding-baseline-v1` and preserve that
-published release. Mark the new release as a
-prerelease with latest disabled. Attach the verified archive to the draft and
-then publish. Download the published bytes and rerun the probe before pinning.
+Preserve `embedding-baseline-v1` for historical reproduction. Mark the new
+release as a prerelease with latest disabled. Attach the verified archive to the
+draft and publish it. Download the published bytes and rerun the probe before
+pinning.
 
 In the CI activation PR, update the affected profile entry in
 `scripts/validation/embedding-baseline.json`. A bundle entry records `tag`,

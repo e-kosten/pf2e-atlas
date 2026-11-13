@@ -133,10 +133,15 @@ python3 scripts/validation/embedding-stack.py --print > scripts/validation/embed
 ```
 
 When execution is incompatible, bump the affected profile’s compatibility ID
-and set its `transition_to` to the new ID in the existing pin. Keep the old
-archive digest. CI checks that the candidate rejects the old query contract and
-rebuilds that profile, while the other profile retains its compatibility checks.
+and set its `transition_to` to the new ID in
+`scripts/validation/embedding-baseline.json`. Keep its old v2 workspace and
+numerical receipts pinned during the transition. CI checks that the candidate
+rejects the old query contract and rebuilds that profile, while the other
+profile retains its compatibility checks.
 Validate `atlas setup` and saved-state preservation for the migration and explain
 the affected profiles in the release notes. After publishing and verifying the
-[new fixture](releases.md#publish-an-embedding-compatibility-fixture), advance only
-the affected profile’s pin and remove its `transition_to`.
+[new fixture](releases.md#publish-an-embedding-compatibility-fixture), update
+only the affected profile’s entries in `scripts/validation/embedding-fixtures-v2.json`.
+Set that profile’s `execution_policy` to the new ID and remove its
+`transition_to` in `embedding-baseline.json` in the same PR.
+CI checks both the previous and replacement evidence.
