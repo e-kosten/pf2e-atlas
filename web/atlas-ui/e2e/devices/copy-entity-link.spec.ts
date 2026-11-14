@@ -43,13 +43,16 @@ test("copy actions target the loaded list and record independently", async ({
     const recordCopy = page.getByRole("button", { name: "Copy link", exact: true });
     await expect(recordCopy).toBeVisible();
     const recordPosition = await recordCopy.boundingBox();
-    await recordCopy.click();
+    await recordCopy.focus();
+    await recordCopy.press("Enter");
     await expect(
-      page.getByRole("tooltip").filter({ hasText: "Link copied" }),
+      page.getByRole("tooltip").filter({ hasText: /^Copied$/ }),
     ).toBeVisible();
     await expect(recordCopy.locator("svg.lucide-check")).toBeVisible();
+    await expect(recordCopy).toBeFocused();
     expect(await recordCopy.boundingBox()).toEqual(recordPosition);
     await expect(recordCopy.locator("svg.lucide-link")).toBeVisible();
+    await expect(recordCopy).toBeFocused();
     expect(await copiedUrl()).toBe(new URL(`/records/${sentinel}`, page.url()).href);
 
     await page.goto(`/lists/${slug}/edit`);

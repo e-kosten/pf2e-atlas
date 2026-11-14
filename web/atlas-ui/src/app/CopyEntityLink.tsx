@@ -85,6 +85,7 @@ function EntityCopyAction({
 }: CopyEntityLinkProps) {
   const attachment = useSyncExternalStore(subscribe, token);
   const desktop = Boolean(host().__TAURI__);
+  const [hintOpen, setHintOpen] = useState(false);
   const [result, setResult] = useState<"copied" | "failed">();
   const route = window.location.href;
   const url = new URL(
@@ -155,7 +156,7 @@ function EntityCopyAction({
         <Button
           {...(kind === "record" ? { outlined: true } : {})}
           label="Copy link"
-          tooltip={!result}
+          tooltip={false}
           icon={<Icon size={16} aria-hidden="true" />}
           onClick={copyLink}
         />
@@ -181,8 +182,22 @@ function EntityCopyAction({
       >
         <span style={{ display: "inline-flex" }}>
           <Tooltip
-            open={result === "copied" || (result === "failed" && Boolean(attachment))}
-            title={result === "copied" ? "Link copied" : "Could not copy link"}
+            trigger={actions ? [] : ["hover", "focus"]}
+            open={
+              result === "copied" ||
+              (result === "failed" && Boolean(attachment)) ||
+              (!actions && !result && hintOpen)
+            }
+            onOpenChange={setHintOpen}
+            title={
+              result === "copied"
+                ? actions
+                  ? "Link copied"
+                  : "Copied"
+                : result === "failed"
+                  ? "Could not copy link"
+                  : "Copy link"
+            }
           >
             <span style={{ display: "inline-flex" }}>{trigger}</span>
           </Tooltip>
