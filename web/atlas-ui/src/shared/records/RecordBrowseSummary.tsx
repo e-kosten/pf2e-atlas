@@ -5,10 +5,10 @@ import {
   navigatePath,
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Button, Tag } from "antd";
-import { sentenceCase } from "../ui/labels";
+import { Button } from "antd";
 import type { ReactNode } from "react";
 import type { RecordSummaryView } from "../../generated/atlas";
+import { RecordIdentityBadges } from "./RecordIdentityBadges";
 import { RecordRarity } from "./RecordRarity";
 export function RecordBrowseSummary({
   record,
@@ -42,7 +42,6 @@ export function RecordBrowseSummary({
         recordKey: record.record_key,
       }),
     );
-  const traits = record.traits.filter((trait) => trait.kind !== "rarity");
   const scenario = qualifiers === undefined ? record.creature_display : undefined;
   const source = record.publication ?? record.pack;
   const showSource =
@@ -51,15 +50,6 @@ export function RecordBrowseSummary({
     !(
       scenario?.scenario_context && scenario.uses.some(({ label }) => label === source)
     );
-  const badges = (
-    <>
-      <RecordRarity rarity={record.rarity} />
-      <RecordEditionBadge edition={record.edition} />
-    </>
-  );
-  const traitChips = traits.map((trait) => (
-    <Tag key={trait.kind + ":" + trait.value}>{sentenceCase(trait.label)}</Tag>
-  ));
   const displayQualifiers = qualifiers ?? record.creature_display?.qualifiers ?? [];
   const metadata = [
     ...new Set(
@@ -142,19 +132,23 @@ export function RecordBrowseSummary({
       </div>
       {(!searchCard || metadata.length > 0 || context) && (
         <div className="reference-result__metadata">
-          {!searchCard && badges}
+          {!searchCard && (
+            <>
+              <RecordRarity rarity={record.rarity} linked={false} />
+              <RecordEditionBadge edition={record.edition} />
+            </>
+          )}
           {searchCard
             ? metadata.length > 0 && <span>{metadata.join(" · ")}</span>
             : metadata.map((value) => <span key={value}>{value}</span>)}
           {context && <span>{context}</span>}
         </div>
       )}
-      {(traitChips.length > 0 || (searchCard && (record.rarity || record.edition))) && (
-        <div className="reference-result__traits">
-          {searchCard && badges}
-          {traitChips}
-        </div>
-      )}
+      <RecordIdentityBadges
+        identity={searchCard ? record : { traits: record.traits }}
+        linked={false}
+        className="reference-result__traits"
+      />
     </Button>
   );
 }

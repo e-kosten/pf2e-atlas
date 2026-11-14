@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { RecordEditionBadge } from "./RecordEditionBadge";
+import { RecordIdentityBadges } from "./RecordIdentityBadges";
 import {
   ownerReturnHref,
   isPrimaryActivation,
@@ -18,7 +18,6 @@ import { JournalContents } from "./JournalContents";
 import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
 import { TraitBadge } from "./TraitBadge";
 import { RollTableReading } from "./RollTableReading";
-import { RecordRarity } from "./RecordRarity";
 import { SpellRankControl } from "./SpellRankControl";
 import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
@@ -207,8 +206,6 @@ export function RecordIdentity({
     anchor: HTMLElement,
   ) => void;
 }) {
-  const traits = identity?.traits.filter((trait) => trait.kind !== "rarity") ?? [];
-  const hasRarity = Boolean(identity?.rarity?.label.trim());
   const source = identity?.publication?.trim();
   const scenario = identity?.creature_display;
   const showSource =
@@ -336,16 +333,8 @@ export function RecordIdentity({
         ) : null
       }
     >
-      {(identity?.edition || hasRarity || traits.length > 0 || badgeExplanations) && (
-        <div className="badge-row">
-          <RecordRarity rarity={identity?.rarity ?? null} />
-          <RecordEditionBadge edition={identity?.edition} />
-          {traits.map((trait) => (
-            <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
-          ))}
-          {badgeExplanations}
-        </div>
-      )}
+      <RecordIdentityBadges identity={identity} />
+      {badgeExplanations && <div className="badge-row">{badgeExplanations}</div>}
     </DocumentIdentityHeader>
   );
 }
