@@ -151,7 +151,7 @@ function EntityCopyAction({
         icon={<Link size={16} aria-hidden="true" />}
         onClick={() => void copy()}
       />
-      <span role="status">
+      <span aria-live="polite">
         {result === "copied" && "Link copied"}
         {result === "failed" &&
           (attachment ? (
