@@ -166,7 +166,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
             )
         })?;
     }
-    let expected = atlas_desktop_protocol::parse_record_link(FIXTURE_LINK).map_err(display)?;
+    let expected = atlas_desktop_protocol::EntityLink::parse(FIXTURE_LINK).map_err(display)?;
     wait_for(deadline, "rendered fixture record", || {
         let opened = lock(&app.state::<Desktop>().primary).is_product();
         opened
@@ -175,7 +175,8 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 .ns_window()
                 .is_ok_and(|current| current == initial_window)
             && window.url().is_ok_and(|url| {
-                atlas_desktop_protocol::parse_record_path(url.path()).as_ref() == Some(&expected)
+                atlas_desktop_protocol::EntityLink::from_path(url.path()).as_ref()
+                    == Some(&expected)
             })
             && evaluates_true(
                 &window,
@@ -184,6 +185,17 @@ fn run(app: &AppHandle) -> Result<(), String> {
             )"#,
             )
     })?;
+    wait_for(
+        deadline,
+        "loaded record copy control and enabled Edit menu",
+        || {
+            crate::copy_link::menu_item(app).is_some_and(|item| item.is_enabled().unwrap_or(false))
+                && evaluates_true(
+                    &window,
+                    r#"Boolean(document.querySelector('button[aria-label="Copy link"]'))"#,
+                )
+        },
+    )?;
     if SETUP_RUNS.load(Ordering::Relaxed) != 1 || app.webview_windows().len() != 1 {
         return Err("opening the record should use one setup run and one window".into());
     }

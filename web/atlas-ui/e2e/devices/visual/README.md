@@ -728,3 +728,16 @@ Review covered source precedence, removal fallback, retained recovery anchors,
 pending/settled previews, Quickened restrictions and turn-reminder states. All 12
 capture scenarios passed their interaction/geometry assertions. Capture alone
 is not comparison evidence; normal CI must subsequently compare these files.
+
+## Encounter actions menu
+
+PR #340 replaces the encounter header's settings cog with an ellipsis when
+the menu gains Copy link. The updated references show that intentional icon
+change. The condition editor and recovery interaction assertions remain active.
+
+The Linux references came from [focused capture 43552038781](https://github.com/e-kosten/pf2e-atlas/actions/runs/43552038781),
+using CI run 43550048669 and fixture merge commit
+c0cc04d0655f04ca434d42352b1f502bf827fb4d on Ubuntu 24.04 x64.
+The macOS references were captured from the resolved PR worktree with the
+encounter-action guard restored on macOS 27.2 arm64. Both used Playwright 1.65.0
+and all four device projects.

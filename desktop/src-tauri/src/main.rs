@@ -19,22 +19,20 @@ use std::{
     },
 };
 
-use atlas_desktop_protocol::{
-    WorkspaceProbe, WorkspaceStatus, api_record_path, parse_record_link, parse_record_path,
-    record_link, record_path,
-};
+use atlas_desktop_protocol::{EntityLink, WorkspaceProbe, WorkspaceStatus, parse_record_path};
+mod copy_link;
 use process::Launcher;
 use serde::Serialize;
 use tauri::{
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
     menu::{MenuBuilder, MenuItem, SubmenuBuilder},
 };
-use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_deep_link::DeepLinkExt;
 use url::Url;
 
 #[derive(Default)]
 struct Desktop {
+    copy_menu: copy_link::CopyMenu,
     operation: Mutex<()>,
     staged_setup: staged_setup::StagedSetup,
     launcher: Mutex<Option<Launcher>>,
@@ -219,15 +217,6 @@ fn verified_url(endpoint: &str) -> Result<Url, String> {
     Ok(url)
 }
 
-fn local_http() -> ureq::Agent {
-    ureq::Agent::config_builder()
-        .proxy(None)
-        .max_redirects(0)
-        .timeout_global(Some(std::time::Duration::from_secs(3)))
-        .build()
-        .into()
-}
-
 fn on_launcher_exit(app: &AppHandle, pid: u32) {
     let desktop = app.state::<Desktop>();
     let mut launcher = lock(&desktop.launcher);
@@ -240,6 +229,7 @@ fn on_launcher_exit(app: &AppHandle, pid: u32) {
     drop(launcher);
     if !desktop.quitting.load(Ordering::Acquire) {
         let _ = run_on_main(app, |app| {
+            copy_link::refresh(app);
             let _ = show_bootstrap(app);
         });
     }
@@ -457,7 +447,7 @@ fn open_product(
         .attach_window(app, &label, &base, &instance)?;
     let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .initialization_script(tab_links::SCRIPT)
-        .on_page_load(staged_setup::page_load)
+        .on_page_load(copy_link::page_load)
         .title("PF2e Atlas")
         .visible(false)
         .inner_size(width, height)
@@ -542,12 +532,15 @@ fn open_external(destination: &Url) {
 fn same_product_route(expected: &Url, current: &Url) -> bool {
     expected.origin() == current.origin()
         && (expected.path() == current.path()
+            || EntityLink::from_path(expected.path()).is_some_and(|target| {
+                EntityLink::from_path(current.path()).as_ref() == Some(&target)
+            })
             || parse_record_path(expected.path())
                 .is_some_and(|key| parse_record_path(current.path()).as_ref() == Some(&key)))
 }
 
 fn receive_link(app: &AppHandle, link: &str) {
-    let key = match parse_record_link(link) {
+    let target = match EntityLink::parse(link) {
         Ok(key) => key,
         Err(error) => {
             let _ = show_bootstrap(app);
@@ -555,7 +548,7 @@ fn receive_link(app: &AppHandle, link: &str) {
             return;
         }
     };
-    let route = record_path(&key);
+    let route = target.path();
     let desktop = app.state::<Desktop>();
     lock(&desktop.links).push_back(route);
     if setup_window_label(app) == opening::PRIMARY || current_product(app).is_err() {
@@ -597,60 +590,20 @@ fn deliver_links(app: &AppHandle, desktop: &Desktop) -> Result<(), String> {
 }
 
 fn report_link_error(app: &AppHandle, error: &str) {
-    if native_tabs::offer_retry("Could not open Atlas record link", error)
+    if native_tabs::offer_retry("Could not open Atlas link", error)
         && let Err(error) = drain_links(app)
     {
-        native_tabs::report("Could not open Atlas record link", &error);
+        native_tabs::report("Could not open Atlas link", &error);
     }
 }
 
-fn copy_record(app: &AppHandle) -> Result<(), String> {
-    let desktop = app.state::<Desktop>();
-    let ready = lock(&desktop.launcher)
-        .as_ref()
-        .ok_or("Start the Atlas workspace first.")?
-        .ready
-        .clone();
-    let base = verified_url(&ready.endpoint)?;
-    let window = recent_product_views(app, &base, &ready.instance)
-        .into_iter()
-        .find(|window| window.is_focused().unwrap_or(false))
-        .ok_or("Open an Atlas record first.")?;
-    let url = window.url().map_err(display)?;
-    let key = (url.origin() == base.origin())
-        .then(|| parse_record_path(url.path()))
-        .flatten()
-        .ok_or("Open an Atlas record first.")?;
-    let link = record_link(&key);
-    let api = base.join(&api_record_path(&key)).map_err(display)?;
-    let handle = app.clone();
-    std::thread::spawn(move || {
-        let result = (|| -> Result<(), String> {
-            let record: serde_json::Value = local_http()
-                .get(api.as_str())
-                .header("x-atlas-api-contract", &ready.api_contract)
-                .call()
-                .map_err(display)?
-                .body_mut()
-                .read_json()
-                .map_err(display)?;
-            let title = record["record"]["title"]
-                .as_str()
-                .ok_or("The record name is unavailable.")?;
-            let html = format!("<a href=\"{}\">{}</a>", escape(&link), escape(title));
-            handle
-                .clipboard()
-                .write_html(html, Some(link))
-                .map_err(display)
-        })();
-        if let Err(error) = result {
-            let _ = run_on_main(&handle, move |app| {
-                let _ = show_bootstrap(app);
-                show_error(app, error);
-            });
-        }
-    });
-    Ok(())
+fn local_http() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .proxy(None)
+        .max_redirects(0)
+        .timeout_global(Some(std::time::Duration::from_secs(3)))
+        .build()
+        .into()
 }
 
 fn escape(value: &str) -> String {
@@ -703,7 +656,7 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         true,
         None::<&str>,
     )?;
-    let copy = MenuItem::with_id(app, "copy-link", "Copy Atlas Link", true, None::<&str>)?;
+    let copy = MenuItem::with_id(app, "copy-link", "Copy Atlas Link", false, None::<&str>)?;
     let atlas = SubmenuBuilder::new(app, "PF2e Atlas")
         .item(&settings)
         .item(&terminal)
@@ -757,6 +710,8 @@ fn main() {
             enable_cli,
             staged_setup::desktop_setup_action,
             tab_links::desktop_tab_link,
+            copy_link::desktop_copy_link,
+            copy_link::desktop_copy_availability,
             native_tabs::desktop_appearance
         ])
         .menu(menu)
@@ -765,7 +720,11 @@ fn main() {
             if matches!(event, tauri::WindowEvent::Focused(true)) {
                 remember_product_focus(app, window.label());
             }
+            if matches!(event, tauri::WindowEvent::Focused(_)) {
+                copy_link::invalidate(app, window.label(), false);
+            }
             if matches!(event, tauri::WindowEvent::Destroyed) {
+                copy_link::invalidate(app, window.label(), true);
                 let desktop = app.state::<Desktop>();
                 desktop.staged_setup.detach_window(window.label());
                 lock(&desktop.focus_order).retain(|label| label != window.label());
@@ -790,7 +749,7 @@ fn main() {
                     }
                     Ok(())
                 }
-                "copy-link" => copy_record(app),
+                "copy-link" => copy_link::request(app),
                 _ => Ok(()),
             };
             if let Err(error) = result {

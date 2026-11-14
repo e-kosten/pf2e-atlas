@@ -57,7 +57,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .initialization_script(crate::tab_links::SCRIPT)
         .inner_size(1210.0, 830.0)
         .min_inner_size(480.0, 440.0)
-        .on_page_load(crate::staged_setup::page_load)
+        .on_page_load(crate::copy_link::page_load)
         .on_navigation(move |url| {
             let desktop = handle.state::<Desktop>();
             let (allowed, product) = {
@@ -131,6 +131,7 @@ pub fn open(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
     }
     run_on_main(app, move |app| {
         *lock(&app.state::<Desktop>().primary) = PrimaryWindow::Product(origin);
+        crate::copy_link::refresh(app);
         if let Some(window) = app.get_webview_window(PRIMARY) {
             if let Err(error) = crate::native_tabs::configure(&window, true) {
                 eprintln!("Could not configure Atlas tabs: {error}");

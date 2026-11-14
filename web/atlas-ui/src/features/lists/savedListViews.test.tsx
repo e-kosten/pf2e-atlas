@@ -561,7 +561,8 @@ describe("list views", () => {
     expect(screen.queryByText("Active")).not.toBeInTheDocument();
     expect(screen.queryByText("research")).not.toBeInTheDocument();
     const beforeEdit = window.location.href;
-    fireEvent.click(screen.getByRole("button", { name: "Edit list" }));
+    fireEvent.click(screen.getByRole("button", { name: "List actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit list" }));
     const editor = await screen.findByRole("dialog", { name: "Edit list" });
     await within(editor).findByLabelText("Name");
     fireEvent.click(within(editor).getByRole("button", { name: "Cancel" }));

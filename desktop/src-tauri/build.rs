@@ -8,6 +8,8 @@ fn main() {
         "desktop_setup_action",
         "desktop_tab_link",
         "desktop_appearance",
+        "desktop_copy_link",
+        "desktop_copy_availability",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(commands))
         .expect("configure the Atlas desktop bundle");
