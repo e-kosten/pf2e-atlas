@@ -173,7 +173,14 @@ test("confirmations focus Cancel and hold their anchor through errors and viewpo
   ).json();
   try {
     await page.goto(`/lists/${slug}`);
-    await activate(page.getByRole("button", { name: "Edit list", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "List actions", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit list", exact: true }),
+      info,
+    );
     const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
     const trigger = editor.getByRole("button", { name: "Delete List", exact: true });
     await activate(trigger, info);

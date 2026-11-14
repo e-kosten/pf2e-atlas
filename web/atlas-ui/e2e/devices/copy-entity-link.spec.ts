@@ -28,7 +28,8 @@ test("copy actions target the loaded list and record independently", async ({
     const copiedUrl = () =>
       page.evaluate(() => sessionStorage.getItem("atlas-test-copy"));
     await page.goto(`/lists/${slug}`);
-    await page.getByRole("button", { name: "Copy list link", exact: true }).click();
+    await page.getByRole("button", { name: "List actions", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Copy list link", exact: true }).click();
     expect(await copiedUrl()).toBe(new URL(`/lists/${list.list_key}`, page.url()).href);
 
     await page.goto(`/lists/${slug}/records/${sentinel}`);
@@ -37,7 +38,7 @@ test("copy actions target the loaded list and record independently", async ({
 
     await page.goto(`/lists/${slug}/edit`);
     await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Copy list link" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: "Copy list link" })).toHaveCount(0);
   } finally {
     await page.request.delete(`/api/lists/${slug}`);
   }

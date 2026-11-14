@@ -24,7 +24,7 @@ test("overnight review reopens a stale draft and checks current values after a l
   try {
     await add("Resting hero", 10);
     await page.goto(`/encounters/${encounter.slug}`);
-    const cog = page.getByRole("button", { name: "Encounter settings", exact: true });
+    const cog = page.getByRole("button", { name: "Encounter actions", exact: true });
     const open = async () => {
       await activate(cog, info);
       await activate(
@@ -668,7 +668,7 @@ test("overnight review preserves zero healing and unavailable HP through the rea
     }
     await page.goto(`/encounters/${encounter.slug}`);
     await activate(
-      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      page.getByRole("button", { name: "Encounter actions", exact: true }),
       info,
     );
     await activate(

@@ -11,7 +11,7 @@ import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Dropdown, Grid, Spin } from "antd";
-import { Settings } from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounterConditionDefinitions } from "../../api/atlasApi";
 import { useEncounterStrike } from "./useEncounterStrike";
@@ -317,50 +317,54 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
           <WorkspaceContextBar
             title={encounterSummary?.name ?? "Encounter"}
             actions={
-              <>
-                {encounterSummary && !editEncounterOpen && !onCloseDirectEditor && (
-                  <CopyEntityLink
-                    primary
-                    kind="encounter"
-                    identity={encounterSummary.encounter_key}
-                    title={encounterSummary.name}
-                  />
-                )}
-                <Dropdown
-                  trigger={["click"]}
-                  menu={{
-                    items: [
-                      { key: "edit", label: "Edit encounter" },
-                      { type: "divider" },
-                      { key: "rest", label: "Rest overnight" },
-                      { key: "reset", label: "Reset encounter" },
-                    ],
-                    onClick: ({ key }) => {
-                      settingsTrigger.current?.focus({ preventScroll: true });
-                      recoveryTrigger.current = settingsTrigger.current;
-                      if (key === "edit") {
-                        if (encounterKey) {
-                          mutations.clearSettingsError();
-                          editing.begin(encounterKey, settingsTrigger.current);
-                        }
-                      } else
-                        setRecoveryMode(
-                          key === "rest" ? "rest_overnight" : "reset_encounter",
-                        );
-                    },
-                  }}
-                >
-                  <Button
-                    type="text"
-                    ref={settingsTrigger}
-                    aria-label="Encounter settings"
-                    aria-busy={preparingSettings}
-                    loading={preparingSettings ? { delay: 200 } : false}
-                    disabled={disabled}
-                    icon={<Settings size={18} />}
-                  />
-                </Dropdown>
-              </>
+              encounterSummary && (
+                <CopyEntityLink
+                  primary={!editEncounterOpen && !onCloseDirectEditor}
+                  kind="encounter"
+                  identity={encounterSummary.encounter_key}
+                  title={encounterSummary.name}
+                  actions={(copy) => (
+                    <Dropdown
+                      trigger={["click"]}
+                      menu={{
+                        items: [
+                          { key: "edit", label: "Edit encounter", disabled },
+                          ...(copy && !editEncounterOpen && !onCloseDirectEditor
+                            ? [{ key: "copy", label: "Copy encounter link" }]
+                            : []),
+                          { type: "divider" },
+                          { key: "rest", label: "Rest overnight", disabled },
+                          { key: "reset", label: "Reset encounter", disabled },
+                        ],
+                        onClick: ({ key }) => {
+                          settingsTrigger.current?.focus({ preventScroll: true });
+                          recoveryTrigger.current = settingsTrigger.current;
+                          if (key === "copy") {
+                            copy?.();
+                          } else if (key === "edit") {
+                            if (encounterKey) {
+                              mutations.clearSettingsError();
+                              editing.begin(encounterKey, settingsTrigger.current);
+                            }
+                          } else
+                            setRecoveryMode(
+                              key === "rest" ? "rest_overnight" : "reset_encounter",
+                            );
+                        },
+                      }}
+                    >
+                      <Button
+                        type="text"
+                        ref={settingsTrigger}
+                        aria-label="Encounter actions"
+                        aria-busy={preparingSettings}
+                        loading={preparingSettings ? { delay: 200 } : false}
+                        icon={<Ellipsis size={18} aria-hidden="true" />}
+                      />
+                    </Dropdown>
+                  )}
+                />
+              )
             }
           />
           <SettingsOpeningError

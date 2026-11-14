@@ -4,10 +4,10 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
 import { listsDestination } from "../../app/destinations";
 import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
-import { Button, Popover, Tag, Typography } from "antd";
+import { Button, Dropdown, Popover, Tag, Typography } from "antd";
 import { useRef, useState } from "react";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Ellipsis } from "lucide-react";
 import type { SavedListSummaryView } from "../../generated/atlas";
 export function ListBrowseHeader({
   error,
@@ -28,6 +28,7 @@ export function ListBrowseHeader({
   editing?: boolean;
   onRetry: () => void;
 }) {
+  const actionsTrigger = useRef<HTMLButtonElement>(null);
   const paused = useSavedWritesPaused();
   const errorNotice = error ? (
     <ErrorNotice
@@ -57,28 +58,42 @@ export function ListBrowseHeader({
         actions={
           list && (
             <>
-              {!editing && (
-                <CopyEntityLink
-                  primary
-                  kind="list"
-                  identity={list.list_key}
-                  title={list.name}
-                />
-              )}
               {(list.description || list.tags.length > 0) && <ListAbout list={list} />}
-              <Button
-                type="text"
-                className="list-context-secondary"
-                aria-busy={editPreparing}
-                disabled={paused}
-                loading={editPreparing ? { delay: 200 } : false}
-                onClick={(event) => {
-                  event.currentTarget.focus({ preventScroll: true });
-                  onEdit(event.currentTarget);
-                }}
-              >
-                Edit list
-              </Button>
+              <CopyEntityLink
+                primary={!editing}
+                kind="list"
+                identity={list.list_key}
+                title={list.name}
+                actions={(copy) => (
+                  <Dropdown
+                    trigger={["click"]}
+                    menu={{
+                      items: [
+                        { key: "edit", label: "Edit list", disabled: paused },
+                        ...(!editing && copy
+                          ? [{ key: "copy", label: "Copy list link" }]
+                          : []),
+                      ],
+                      onClick: ({ key }) => {
+                        const opener = actionsTrigger.current;
+                        opener?.focus({ preventScroll: true });
+                        if (key === "edit" && opener) onEdit(opener);
+                        if (key === "copy") copy?.();
+                      },
+                    }}
+                  >
+                    <Button
+                      ref={actionsTrigger}
+                      type="text"
+                      className="list-context-secondary"
+                      aria-label="List actions"
+                      aria-busy={editPreparing}
+                      loading={editPreparing ? { delay: 200 } : false}
+                      icon={<Ellipsis size={18} aria-hidden="true" />}
+                    />
+                  </Dropdown>
+                )}
+              />
               <Button type="primary" disabled={paused} onClick={onAddRecords}>
                 Add records
               </Button>

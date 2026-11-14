@@ -1,5 +1,7 @@
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { Link } from "lucide-react";
+import type { ReactNode } from "react";
+import { PaneIconButton } from "../shared/ui/actions/PaneAction";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { InlineIconButton } from "../shared/ui/actions/InlineAction";
 import {
@@ -52,12 +54,15 @@ function invoke(command: string, args: object) {
     : Promise.reject(new Error("Atlas is unavailable."));
 }
 
-export function CopyEntityLink(props: {
+type CopyEntityLinkProps = {
   kind: Kind;
   identity: string;
   title: string;
   primary?: boolean;
-}) {
+  actions?: (copy: (() => void) | undefined) => ReactNode;
+};
+
+export function CopyEntityLink(props: CopyEntityLinkProps) {
   const href = useRouterState({
     router: useRouter({ warn: false }) ?? atlasRouter,
     select: (state) => state.location.href,
@@ -75,12 +80,8 @@ function EntityCopyAction({
   identity,
   title,
   primary,
-}: {
-  kind: Kind;
-  identity: string;
-  title: string;
-  primary?: boolean;
-}) {
+  actions,
+}: CopyEntityLinkProps) {
   const attachment = useSyncExternalStore(subscribe, token);
   const desktop = Boolean(host().__TAURI__);
   const [result, setResult] = useState<"copied" | "failed">();
@@ -142,15 +143,22 @@ function EntityCopyAction({
     }
   }
 
-  if (desktop && !attachment) return null;
+  const available = !desktop || Boolean(attachment);
+  const Button = kind === "record" ? PaneIconButton : InlineIconButton;
+  const copyLink = () => void copy();
 
   return (
     <>
-      <InlineIconButton
-        label={`Copy ${kind.replace("-", " ")} link`}
-        icon={<Link size={16} aria-hidden="true" />}
-        onClick={() => void copy()}
-      />
+      {actions
+        ? actions(available ? copyLink : undefined)
+        : available && (
+            <Button
+              {...(kind === "record" ? { outlined: true } : {})}
+              label={`Copy ${kind.replace("-", " ")} link`}
+              icon={<Link size={16} aria-hidden="true" />}
+              onClick={copyLink}
+            />
+          )}
       <span aria-live="polite">
         {result === "copied" && "Link copied"}
         {result === "failed" &&

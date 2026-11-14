@@ -859,7 +859,14 @@ test("list tags, editing and explicit Add survive constrained space", async ({
   let releaseAdd: (() => void) | undefined;
   try {
     await page.goto(`/lists/${list.slug}`);
-    await activate(page.getByRole("button", { name: "Edit list", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "List actions", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit list", exact: true }),
+      info,
+    );
     const editor = page.getByRole("dialog", { name: "Edit list", exact: true });
     const description = "A retained description draft with a useful purpose.";
     await editor
@@ -1198,7 +1205,7 @@ test("encounter references retain their owner, scroll and native destination", a
       .filter({ hasText: "Saved, but the encounter could not refresh" });
     await expect(feedback).toBeVisible();
     const settingsAction = page.getByRole("button", {
-      name: "Encounter settings",
+      name: "Encounter actions",
       exact: true,
     });
     await expect(settingsAction).toBeVisible();
@@ -1314,7 +1321,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       info,
     );
     await activate(
-      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      page.getByRole("button", { name: "Encounter actions", exact: true }),
       info,
     );
     await activate(

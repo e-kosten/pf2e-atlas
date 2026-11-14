@@ -679,7 +679,7 @@ describe("encounter views", () => {
       let editor: ReturnType<typeof within> | typeof screen = screen;
       if (surface === "detail") {
         const settings = await screen.findByRole("button", {
-          name: "Encounter settings",
+          name: "Encounter actions",
         });
         await waitFor(() => expect(settings).toBeEnabled());
         fireEvent.click(settings);
@@ -946,7 +946,7 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const settings = await screen.findByRole("button", { name: "Encounter settings" });
+    const settings = await screen.findByRole("button", { name: "Encounter actions" });
     await waitFor(() => expect(settings).toBeEnabled());
     fireEvent.click(settings);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
@@ -1409,7 +1409,7 @@ describe("encounter views", () => {
     const add = await screen.findByRole("dialog", { name: "Add PC" });
     const previousId = within(add).getByLabelText("Name").id;
     fireEvent.click(within(add).getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Encounter settings" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Encounter actions" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const edit = await screen.findByRole("dialog", { name: "Settings" });
     const input = within(edit).getByLabelText("Name");
@@ -1765,7 +1765,7 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const cog = screen.getByRole("button", { name: "Encounter settings" });
+    const cog = await screen.findByRole("button", { name: "Encounter actions" });
     await waitFor(() => expect(cog).toBeEnabled());
     fireEvent.click(cog);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Rest overnight" }));
@@ -1794,7 +1794,7 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const cog = screen.getByRole("button", { name: "Encounter settings" });
+    const cog = await screen.findByRole("button", { name: "Encounter actions" });
     await waitFor(() => expect(cog).toBeEnabled());
     fireEvent.click(cog);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Rest overnight" }));
@@ -1843,10 +1843,10 @@ describe("encounter views", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Encounter settings" }),
+        screen.getByRole("button", { name: "Encounter actions" }),
       ).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Encounter settings" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Encounter actions" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
     await selectOption(within(dialog).getByRole("combobox"), "Complete");
@@ -3098,7 +3098,7 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const opener = screen.getByRole("button", { name: "Encounter settings" });
+    const opener = await screen.findByRole("button", { name: "Encounter actions" });
     await waitFor(() => expect(opener).toBeEnabled());
     const reading = deferred<EncounterDetailViewDto>();
     apiMocks.getEncounter.mockReturnValueOnce(reading.promise);
@@ -3127,7 +3127,7 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(client),
     });
-    const opener = screen.getByRole("button", { name: "Encounter settings" });
+    const opener = await screen.findByRole("button", { name: "Encounter actions" });
     await waitFor(() => expect(opener).toBeEnabled());
     const original = serverEncounter;
     const reading = deferred<EncounterDetailViewDto>();
@@ -3160,9 +3160,9 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     await waitFor(() =>
-      expect(screen.getByLabelText("Encounter settings")).not.toBeDisabled(),
+      expect(screen.getByLabelText("Encounter actions")).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByLabelText("Encounter settings"));
+    fireEvent.click(screen.getByLabelText("Encounter actions"));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
     const name = within(dialog).getByLabelText("Name");
@@ -3191,7 +3191,7 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const edit = screen.getByRole("button", { name: "Encounter settings" });
+    const edit = await screen.findByRole("button", { name: "Encounter actions" });
     await waitFor(() => expect(edit).not.toBeDisabled());
     fireEvent.click(edit);
     fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
@@ -3274,7 +3274,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     expect(await screen.findByText("Encounter could not load")).toBeInTheDocument();
-    expect(screen.getByLabelText("Encounter settings")).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Encounter actions" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter" }));
     expect(
       await screen.findByText("Condition choices unavailable"),
