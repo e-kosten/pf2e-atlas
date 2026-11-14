@@ -2,9 +2,8 @@
 
 The active favicon has separate
 [light](../../public/favicon-light.svg) and
-[dark](../../public/favicon-dark.svg) variants. Both use the simplified small-size
-form of the ring compass and d20 mark; the application header renders the full
-eight-point tucked-under treatment from the shared `AtlasMark` component.
+[dark](../../public/favicon-dark.svg) variants. Both share the header’s four-point compass and enlarged d20 geometry
+from the `AtlasMark` component.
 
 These matching parchment + oxblood alternatives are retained for future selection:
 

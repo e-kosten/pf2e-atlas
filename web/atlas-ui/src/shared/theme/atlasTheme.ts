@@ -80,8 +80,6 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--brand-mark-cardinal": palette.brand.mark.cardinal,
     "--brand-mark-shade": palette.brand.mark.shade,
     "--brand-mark-outline": palette.brand.mark.outline,
-    "--brand-mark-secondary": palette.brand.mark.secondary,
-    "--brand-mark-tick": palette.brand.mark.tick,
     "--brand-mark-die-rim": palette.brand.mark.dieRim,
     "--brand-mark-die-field": palette.brand.mark.dieField,
     ...Object.fromEntries(
