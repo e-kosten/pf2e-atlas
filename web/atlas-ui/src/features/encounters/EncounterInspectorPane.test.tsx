@@ -71,6 +71,36 @@ vi.mock("./EncounterSpellControls", () => ({
   ),
 }));
 
+it("shows supplied rarity and edition even without traits", () => {
+  const presentation = detailFixture("actors:sentinel").presentation;
+  presentation.identity = {
+    ...presentation.identity,
+    rarity: { value: "common", label: "Common" },
+    edition: "remaster",
+    traits: [],
+  };
+  const participant = encounterParticipant({
+    participant_key: "one",
+    participant_kind: "creature",
+    record_key: "actors:sentinel",
+    presentation,
+  });
+  const props = {
+    disabled: false,
+    encounterKey: "encounter",
+    encounterRevision: 1,
+    participants: [participant],
+    participant,
+    preview: { open: vi.fn(), destination: null },
+  } as unknown as ComponentProps<typeof EncounterInspectorPane>;
+  renderEncounter(<EncounterInspectorPane {...props} />);
+
+  expect(screen.getByText("Common")).toBeVisible();
+  expect(screen.getByText("Remaster").parentElement).toHaveTextContent(
+    /^CommonRemaster$/,
+  );
+});
+
 it("keeps retained spell content read-only after a contextual refresh fails and enables it only after a successful retry", () => {
   const onSpellAction = vi.fn();
   const spell = detailFixture("actors:mage");

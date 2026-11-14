@@ -87,6 +87,7 @@ export function ListItemsPane({
         {item.status !== "unresolved" && item.record ? (
           <RecordBrowseSummary
             record={item.record}
+            searchCard
             href={itemHref?.(item.record_key)}
             selected={selected}
             onPreview={() => onSelect(item.record_key)}

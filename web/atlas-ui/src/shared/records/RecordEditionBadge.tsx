@@ -1,4 +1,4 @@
-import { Tag } from "antd";
+import { DisplayChip } from "../ui/DisplayChip";
 import type { RecordSummaryView } from "../../generated/atlas";
 
 export function RecordEditionBadge({
@@ -6,5 +6,7 @@ export function RecordEditionBadge({
 }: {
   edition: RecordSummaryView["edition"];
 }) {
-  return edition ? <Tag>{edition === "legacy" ? "Legacy" : "Remaster"}</Tag> : null;
+  return edition ? (
+    <DisplayChip>{edition === "legacy" ? "Legacy" : "Remaster"}</DisplayChip>
+  ) : null;
 }

@@ -95,9 +95,13 @@ export function SpellEffectPreview({ view }: { view: SpellEffectPreviewView }) {
                 <div className="spell-effect-preview__strike" key={strike.id}>
                   <div className="spell-effect-preview__strike-title">
                     <h4>{strike.title}</h4>
-                    {strike.traits.map((trait) => (
-                      <TraitBadge key={trait.value} trait={trait} />
-                    ))}
+                    {strike.traits.length > 0 && (
+                      <div className="badge-row">
+                        {strike.traits.map((trait) => (
+                          <TraitBadge key={trait.value} trait={trait} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="spell-effect-preview__facts">
                     <EffectFact fact={strike.attack} />

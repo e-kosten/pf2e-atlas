@@ -1,4 +1,5 @@
-import { Button, Popover, Tag } from "antd";
+import { DisplayChip } from "../../shared/ui/DisplayChip";
+import { Button, Popover } from "antd";
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 // Ant Tag transitions all properties by default. Layout-only measurement nodes
@@ -63,14 +64,14 @@ export function ListTagSummary({
   return (
     <div className="list-tag-summary" aria-label={label} ref={summary}>
       {tags.map((tag, index) => (
-        <Tag
+        <DisplayChip
           key={tag}
           data-list-tag
           aria-hidden={index >= visible || undefined}
           style={index < visible ? measuredStyle : hiddenMeasuredStyle}
         >
           {tag}
-        </Tag>
+        </DisplayChip>
       ))}
       <Popover
         open={hidden > 0 && open}
@@ -84,7 +85,7 @@ export function ListTagSummary({
             onClickCapture={(event) => event.stopPropagation()}
           >
             {tags.map((tag) => (
-              <Tag key={tag}>{tag}</Tag>
+              <DisplayChip key={tag}>{tag}</DisplayChip>
             ))}
           </div>
         }

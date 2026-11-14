@@ -64,6 +64,7 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
   const token = antTheme.getDesignToken(antDesignTheme(scheme));
   return {
     "--theme-font": FONT_FAMILY,
+    "--font-size-small": `${token.fontSizeSM}px`,
     "--wordmark-font": WORDMARK_FONT_FAMILY,
     "--heading-color": palette.text,
     "--record-kind-text": palette.recordKind.text,
