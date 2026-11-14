@@ -169,6 +169,16 @@ under a global CSS selector or a global boolean.
   alerts for important blocked work, associate field errors with inputs, and do
   not move focus merely to announce a background failure. Color alone is insufficient.
 
+### Clipboard feedback
+
+Confirm a copy only after the clipboard write succeeds. For a dedicated icon
+button, briefly replace its icon with a checkmark and keep the button size,
+position and accessible name stable. A tooltip can show the result next to the
+control. For a copy command in an actions menu, keep the menu icon and anchor
+the confirmation tooltip to its trigger after the menu closes. Keep confirmation
+out of the action row and announce it through a polite live region. Report a
+failed write and preserve a manual copy path when one is available.
+
 ### Acceptance checks
 
 Exercise one shared failure across multiple requests and confirm one shell
@@ -1090,7 +1100,7 @@ Relevance, Random and list-only Saved order replace the attribute sequence.
 Random generates a u32 seed on selection. Keep Shuffle beside its seed input
 inside the popover, preserving the toolbar anchor when switching modes. Seed
 editing/copying also stays inside the popover. Put the Copy seed icon at the
-field’s trailing edge with a tooltip and brief Copied feedback; keep the field
+field’s trailing edge and follow [clipboard feedback](#clipboard-feedback). Keep the field
 and Shuffle on one row. Commit seed drafts on
 Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
 stable through paging, reload and Back. Incoming malformed combinations are errors.

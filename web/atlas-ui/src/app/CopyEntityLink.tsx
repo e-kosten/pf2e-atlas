@@ -1,6 +1,6 @@
 import { Popover, Tooltip } from "antd";
 import { useRouter, useRouterState } from "@tanstack/react-router";
-import { Link } from "lucide-react";
+import { Check, Link } from "lucide-react";
 import type { ReactNode } from "react";
 import { PaneIconButton } from "../shared/ui/actions/PaneAction";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -146,6 +146,7 @@ function EntityCopyAction({
 
   const available = !desktop || Boolean(attachment);
   const Button = kind === "record" ? PaneIconButton : InlineIconButton;
+  const Icon = result === "copied" ? Check : Link;
   const copyLink = () => void copy();
 
   const trigger = actions
@@ -155,7 +156,7 @@ function EntityCopyAction({
           {...(kind === "record" ? { outlined: true } : {})}
           label="Copy link"
           tooltip={!result}
-          icon={<Link size={16} aria-hidden="true" />}
+          icon={<Icon size={16} aria-hidden="true" />}
           onClick={copyLink}
         />
       );
