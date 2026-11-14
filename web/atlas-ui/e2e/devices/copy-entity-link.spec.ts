@@ -42,6 +42,8 @@ test("copy actions target the loaded list and record independently", async ({
     await page.goto(`/lists/${slug}/records/${sentinel}`);
     const recordCopy = page.getByRole("button", { name: "Copy link", exact: true });
     await expect(recordCopy).toBeVisible();
+    await expect(recordCopy).not.toHaveAttribute("title", "Copy link");
+
     const recordPosition = await recordCopy.boundingBox();
     await recordCopy.focus();
     await recordCopy.press("Enter");

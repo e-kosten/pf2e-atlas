@@ -157,6 +157,8 @@ function EntityCopyAction({
         <Button
           {...(kind === "record" ? { outlined: true } : {})}
           label="Copy link"
+          title=""
+
           tooltip={false}
           icon={<Icon size={16} aria-hidden="true" />}
           onClick={copyLink}
