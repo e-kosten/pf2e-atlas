@@ -31,12 +31,16 @@ compatibility evidence below before landing.
 GitHub's advisory alerts and security update PRs are separate repository settings.
 PR CI scans the committed Rust and npm lockfiles on dependency changes and
 requires the result through `validation complete`. The separate dependency audit
-workflow runs the same scanner daily and on manual dispatch, including the locked
-dice prototypes. Cargo changes retain Rust/browser/native and embedding checks;
-they do not automatically rerun unrelated source generation, frontend unit tests
+workflow runs the same scanner daily and on manual dispatch. Both include the
+locked desktop app and dice prototypes. Cargo resolves the desktop lockfile for
+its supported Apple Silicon build target before scanning. Atlas workspace Cargo changes retain
+Rust, browser, native Windows, and embedding checks. Desktop-only Cargo changes
+select the native macOS job and advisory scan. Dependency changes in general
+do not automatically rerun unrelated source generation, frontend unit tests
 or the installer matrix. Those checks remain selected by their owning inputs
 and by full main verification. Run the same
-scanner locally with Python 3.11 or newer and a supported Node/npm installation.
+scanner locally with Python 3.11 or newer, the repository Rust toolchain, and a
+supported Node/npm installation.
 
 ```sh
 python3 scripts/validation/dependency-audit.py

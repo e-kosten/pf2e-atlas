@@ -38,7 +38,8 @@ channel; manual runs rebuild it. A single source SHA is used for CI, packaging a
 publication. Runs from other branches do not publish.
 
 Nightly first looks for successful push-to-main CI for the exact planned SHA,
-including its completed `validation complete` and advisory jobs. It waits up to
+including its completed `validation complete` check and successful lockfile
+scan within the repository tooling job. It waits up to
 30 minutes for a pending run, then falls back to fresh CI when no qualifying
 success exists. Failed, cancelled or incomplete evidence cannot authorize
 packaging. Manual dispatch accepts `force-verification` to request fresh CI.

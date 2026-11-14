@@ -263,7 +263,7 @@ for entry in \
   'crates/atlas-dev/src/main.rs:00000001000' \
   'scripts/development/build-preview.mjs:00000000100' \
   'scripts/development/build-preview.test.mjs:00000000100' \
-  'crates/atlas-cli/src/main.rs:10000001000' \
+  'crates/atlas-cli/src/main.rs:10000000000' \
   'crates/atlas-cli-support/src/lib.rs:10000001000' \
   'crates/atlas-runtime/src/lib.rs:10000010000' \
   'docs/research/evaluations/frozen/README.md:00001000000' \
@@ -291,12 +291,28 @@ for entry in \
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
   : >"$log"
   (cd "$fixture"; scripts/verify-changed.sh --paths-file paths-input --list) >"$check_output"
-  actual=$(sed -e 's/.*=true/1/' -e 's/.*=false/0/' "$check_output" | tr -d '\n')
+  actual=$(sed -e '/^corpus=/d' -e '/^desktop=/d' -e '/^fanout=/d' -e 's/.*=true/1/' -e 's/.*=false/0/' "$check_output" | tr -d '\n')
   [ "$actual" = "$expected" ] || { echo "wrong selection for $changed_path: $actual" >&2; exit 1; }
+done
+for entry in \
+  'desktop/src-tauri/src/main.rs:desktop' \
+  'desktop/src-tauri/Cargo.toml:audit desktop' \
+  'desktop/src-tauri/Cargo.lock:audit desktop' \
+  'desktop/package-lock.json:audit desktop' \
+  'desktop/bundle-release-macos.sh:release' \
+  'desktop/release-config.mjs:desktop release' \
+  'web/atlas-ui/playwright.config.ts:corpus web-format' \
+  'web/atlas-ui/e2e/journeys.spec.ts:corpus web-format' \
+  'web/atlas-ui/e2e/devices/journeys.spec.ts:browser web-format' \
+  'web/atlas-ui/e2e/readingUrl.ts:browser corpus web-format'; do
+  printf '%s\n' "${entry%:*}" >"$fixture/paths-input"
+  (cd "$fixture"; scripts/verify-changed.sh --paths-file paths-input --list) >"$check_output"
+  actual=$(sed -n 's/=true$//p' "$check_output" | sort | paste -sd ' ' -)
+  [ "$actual" = "${entry##*:}" ] || { echo "wrong narrowing for ${entry%:*}: $actual" >&2; exit 1; }
 done
 # Full local dispatch follows ownership: browser-only checks build/type/lint
 # their app fixture inputs, while developer-only checks do not invoke npm.
-for changed_path in web/atlas-ui/src/app.tsx web/atlas-ui/e2e/devices/conditions.spec.ts crates/atlas-dev/src/main.rs scripts/development/build-preview.mjs crates/example/src/lib.rs; do
+for changed_path in web/atlas-ui/src/app.tsx web/atlas-ui/e2e/devices/conditions.spec.ts web/atlas-ui/e2e/filter-ux.spec.ts crates/atlas-dev/src/main.rs scripts/development/build-preview.mjs crates/example/src/lib.rs; do
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
   : >"$log"
   (cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1
@@ -305,10 +321,18 @@ for changed_path in web/atlas-ui/src/app.tsx web/atlas-ui/e2e/devices/conditions
       grep -q '^npm --prefix web/atlas-ui run verify$' "$log"
       if grep -q '^cargo ' "$log"; then echo 'frontend-only change ran Cargo' >&2; exit 1; fi
       ;;
-    web/atlas-ui/e2e/*)
+    web/atlas-ui/e2e/devices/*)
       grep -q '^npm --prefix web/atlas-ui run verify:bundle$' "$log"
       if grep -q '^cargo ' "$log"; then echo 'frontend-only change ran Cargo' >&2; exit 1; fi
       if grep -q '^npm --prefix web/atlas-ui run verify$' "$log"; then echo 'non-unit surface ran full frontend verify' >&2; exit 1; fi
+      ;;
+    web/atlas-ui/e2e/*)
+      grep -q '^npm --prefix web/atlas-ui run check$' "$log"
+      grep -q '^npm --prefix web/atlas-ui run test:e2e:list$' "$log"
+      if grep -Eq '^cargo |^npm .* run (verify|build)' "$log"; then
+        echo 'corpus discovery ran an application build or tests' >&2
+        exit 1
+      fi
       ;;
     scripts/development/*)
       grep -q '^tooling check$' "$log"
@@ -339,7 +363,7 @@ grep -q '^rust=true$' "$check_output"
 chmod +x "$fixture/README.md"
 git -C "$fixture" add README.md
 (cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
-[ "$(grep -c '=true$' "$check_output")" -eq 10 ]
+[ "$(grep -c '=true$' "$check_output")" -eq 13 ]
 
 # The real research runner rejects missing verifiers and propagates failures.
 cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"

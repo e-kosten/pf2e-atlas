@@ -1,14 +1,7 @@
 name: macOS desktop
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/macos-desktop.yml'
-      - '.cargo/**'
-      - 'Cargo.*'
-      - 'crates/**'
-      - 'desktop/**'
-      - 'web/atlas-ui/**'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
