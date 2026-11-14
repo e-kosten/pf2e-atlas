@@ -5,6 +5,12 @@ import { activate, noPageOverflow } from "./reading";
 const fontSize = (element: Locator) =>
   element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
 
+async function expectChipTypography(chip: Locator) {
+  await expect(chip).toHaveCSS("font-size", "12px");
+  await expect(chip).toHaveCSS("font-weight", "400");
+  await expect(chip).toHaveCSS("line-height", "20px");
+}
+
 test.describe("narrow desktop tabs with touch input", () => {
   // Desktop-UA touch devices use the overflow menu; phone UA uses scrollable tabs.
   test.use({
@@ -109,10 +115,39 @@ test("reader links follow prose and badge links retain the badge scale", async (
     .filter({ has: page.getByRole("link", { name: "Light", exact: true }) })
     .first();
   const traitLink = trait.getByRole("link", { name: "Light", exact: true });
-  await expect(traitLink).toBeVisible();
-  const badgeSize = await fontSize(trait);
-  expect(await fontSize(traitLink)).toBe(badgeSize);
-  expect(badgeSize).toBeLessThan(bodySize);
+  await expectChipTypography(traitLink);
+  const staticChip = trait.locator("..").locator(".display-chip:not(:has(a))").first();
+  await expectChipTypography(staticChip);
+  expect(await fontSize(traitLink)).toBeLessThan(bodySize);
+});
+
+test("drawer chip links match static chips and restore keyboard focus", async ({
+  page,
+}) => {
+  await page.goto("/records/browser-rules:rule000000000001");
+  await page.getByRole("link", { name: "Lantern Ward", exact: true }).press("Enter");
+
+  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
+  const heading = drawer.getByRole("heading", { name: "Lantern Ward", exact: true });
+  await expect(heading).toBeVisible();
+  const header = heading.locator("xpath=ancestor::header");
+  const trait = header.getByRole("link", { name: "Light", exact: true });
+  const staticChip = header.locator(".display-chip:not(:has(a))").first();
+
+  await expectChipTypography(trait);
+  await expectChipTypography(staticChip);
+  // Set keyboard modality before focusing a link on touch-oriented WebKit.
+  await page.keyboard.press("Tab");
+  await trait.focus();
+  await expect(trait).toBeFocused();
+  await expect(trait).toHaveCSS("outline-style", "solid");
+  await trait.press("Enter");
+  await expect(
+    drawer.getByRole("heading", { name: "Light", exact: true }),
+  ).toBeVisible();
+  await drawer.getByRole("button", { name: "Back", exact: true }).press("Enter");
+  await expect(heading).toBeVisible();
+  await expect(trait).toBeFocused();
 });
 
 test("a link at the edge of authored prose has room for its focus outline", async ({

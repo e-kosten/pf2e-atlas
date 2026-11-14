@@ -1062,6 +1062,15 @@ test("encounter references retain their owner, scroll and native destination", a
     const originalSize = page.viewportSize()!;
     if (originalSize.width < 768)
       await page.setViewportSize({ width: originalSize.width, height: 560 });
+    const construct = page
+      .locator(".encounter-reference__identity")
+      .getByRole("link", { name: "Construct", exact: true });
+    await expect(construct).toBeVisible();
+    // Set keyboard modality before focusing a link on touch-oriented WebKit.
+    await page.keyboard.press("Tab");
+    await construct.focus();
+    await expect(construct).toBeFocused();
+    await expect(construct).toHaveCSS("outline-style", "solid");
     const pulse = page.getByRole("link", { name: "Signal Pulse", exact: true });
     // Encounter abilities now read inline with bounded continuation. Exercise
     // that continuation before opening this deliberately late owned ability.

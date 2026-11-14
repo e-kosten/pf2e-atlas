@@ -1,9 +1,10 @@
+import { DisplayChip } from "../../shared/ui/DisplayChip";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
 import { listsDestination } from "../../app/destinations";
 import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
-import { Button, Popover, Tag, Typography } from "antd";
+import { Button, Popover, Typography } from "antd";
 import { useRef, useState } from "react";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { ArrowLeft } from "lucide-react";
@@ -117,7 +118,7 @@ function ListAbout({ list }: { list: SavedListSummaryView }) {
           {list.tags.length > 0 && (
             <div className="list-about__tags" role="group" aria-label="List tags">
               {list.tags.map((tag) => (
-                <Tag key={tag}>{tag}</Tag>
+                <DisplayChip key={tag}>{tag}</DisplayChip>
               ))}
             </div>
           )}

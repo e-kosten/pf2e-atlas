@@ -484,9 +484,11 @@ shared 6px base radius. Generic controls retain Ant component/token ownership.
 Reader hosts share the document type scale in `record-reference.css`, including
 related-record content shown inside Tabs. Inline links and text inherit their
 local fact, heading or metadata size rather than Ant Typography's UI default.
-Controls and trait badges retain their own scales; do not change Ant's global
-font size to repair reader content. Verify computed label/link sizes in the
-reader and Explore, and check that badges and controls keep their intended size.
+Controls retain their own scale. Display chips for record metadata and saved-list
+tags use 12px text at weight 400 with a 20px line height. Linked chip labels
+inherit those metrics and offer a visible keyboard focus indicator in every
+host. Use the semantic rarity colors at the same weight as other chips.
+Keep kind and level as a separate semibold label alongside the title.
 
 Use a thin, subdued solid underline for navigation links embedded in rules
 prose, including sentences in lists. Strengthen the underline on hover and
@@ -1432,6 +1434,14 @@ activity detail links still follow the service has_reference_details decision.
 No reader-mode URL adapter or alternate rendering path is retained.
 
 ### Record presentation
+
+Search and saved-list cards show source and context as text, followed by a
+wrapping row ordered rarity, edition, then traits. Their chips are static
+because the card is the navigation target. In the reader, drawer and encounter
+inspector, place the same row below the title and classification and above
+source attribution. Use definition links where supplied. Put local traits
+beside their own heading or immediately below it, and keep check traits in
+check details. Preserve the compact layouts of other record summaries.
 
 Show Rust-projected publication edition beside the record identity and in result
 metadata. Explicit pre-remaster content is labelled Legacy; unavailable source

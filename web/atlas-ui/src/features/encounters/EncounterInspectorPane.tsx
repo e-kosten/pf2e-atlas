@@ -27,8 +27,7 @@ import { Button, Space } from "antd";
 import { ActorEncounterLayout } from "../../shared/records/ActorEncounterLayout";
 import { HazardDefenses, hasHazardDefenses } from "../../shared/records/HazardDefenses";
 import { ActorDefenses } from "../../shared/records/ActorReference";
-import { RecordRarity } from "../../shared/records/RecordRarity";
-import { TraitBadge } from "../../shared/records/TraitBadge";
+import { RecordIdentityBadges } from "../../shared/records/RecordIdentityBadges";
 import type {
   EncounterHpAction,
   EncounterParticipantView,
@@ -579,19 +578,7 @@ function EncounterParticipantSurface({
               {!hasHp && statusControl}
             </div>
           </div>
-          {presentation &&
-          (presentation.identity.traits.length > 0 ||
-            (presentation.identity.rarity &&
-              presentation.identity.rarity.value !== "common")) ? (
-            <div className="badge-row">
-              <RecordRarity rarity={presentation.identity.rarity} />
-              {presentation.identity.traits
-                .filter((trait) => trait.kind !== "rarity")
-                .map((trait) => (
-                  <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
-                ))}
-            </div>
-          ) : null}
+          <RecordIdentityBadges identity={presentation?.identity} />
           {presentation?.identity.publication?.trim() && (
             <p className="muted record-reference__source">
               Source: <span>{presentation.identity.publication}</span>
