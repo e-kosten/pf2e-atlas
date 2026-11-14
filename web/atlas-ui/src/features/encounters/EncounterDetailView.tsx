@@ -357,6 +357,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                         type="text"
                         ref={settingsTrigger}
                         aria-label="Encounter actions"
+                        disabled={disabled}
                         aria-busy={preparingSettings}
                         loading={preparingSettings ? { delay: 200 } : false}
                         icon={<Ellipsis size={18} aria-hidden="true" />}

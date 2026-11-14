@@ -99,9 +99,10 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
   await expect(region).toBeVisible();
   const after = await geometry();
   expect(after).toEqual(before);
-  expect(after.buttons).toHaveLength(2);
-  expect(after.buttons[1].x - after.buttons[0].x - after.buttons[0].width).toBe(4);
-  for (const button of after.buttons) {
+  expect(after.buttons).toHaveLength(3);
+  for (const [index, button] of after.buttons.entries()) {
+    const previous = after.buttons[index - 1];
+    if (previous) expect(button.x - previous.x - previous.width).toBe(4);
     expect(button.width).toBe(34);
     expect(button.height).toBe(34);
     expect(Math.abs(button.center - after.badge.center)).toBeLessThanOrEqual(1);
