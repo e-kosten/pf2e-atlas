@@ -290,7 +290,9 @@ fn all_owner_recovery_preserves_live_and_archived_encounters_and_rolls_back_late
 }
 
 #[test]
-fn rich_sample_round_trips_offline() {
+fn rich_sample_round_trips_and_retries_through_the_app_offline() {
+    use atlas_app_model::{AdvanceEncounterTurnRequest, UpdateEncounterManualTrackerRequest};
+
     let temp = tempfile::tempdir().unwrap();
     let db = temp.path().join("workspace.sqlite");
     let sample = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -299,6 +301,67 @@ fn rich_sample_round_trips_offline() {
     initialize_workspace(&db).unwrap();
 
     success(workspace_command(&db, "restore", &sample, &[]));
+    let app = sample_app(&db);
+    let encounter_key = "enc-running";
+    let detail = app.encounter(encounter_key).unwrap();
+    assert_eq!(detail.encounter.name, "Ambush at the old sluice");
+    assert_eq!(app.parties().unwrap().parties[0].name, "Lantern Company");
+    assert!(
+        app.encounter_turn_review(encounter_key)
+            .unwrap()
+            .outgoing
+            .is_some()
+    );
+    let participant = &detail.participants[0];
+    let tracker = &participant.manual_trackers[0];
+    assert_eq!(tracker.name, "Sluice opens");
+    assert!(tracker.timing_available);
+    assert_eq!(tracker.remaining_rounds, 2);
+
+    let archive = read_archive(&sample);
+    let receipts = archive["saved"]["owners"][1]["encounters"][0]["receipts"]
+        .as_array()
+        .unwrap();
+    let intent = |request_id: &str| {
+        receipts
+            .iter()
+            .find(|row| row["request_id"] == request_id)
+            .unwrap()["intent"]
+            .clone()
+    };
+    let mut tracker_request = intent("add-sluice-countdown")["request"].clone();
+    let target = tracker_request
+        .as_object_mut()
+        .unwrap()
+        .remove("participant_key")
+        .unwrap();
+    assert_eq!(target, participant.participant_key);
+    app.update_encounter_manual_tracker(
+        encounter_key,
+        &participant.participant_key,
+        serde_json::from_value::<UpdateEncounterManualTrackerRequest>(tracker_request).unwrap(),
+    )
+    .unwrap();
+    app.advance_encounter_turn(
+        encounter_key,
+        serde_json::from_value::<AdvanceEncounterTurnRequest>(intent("advance-round-four"))
+            .unwrap(),
+    )
+    .unwrap();
+
     success(workspace_command(&db, "export", &reexported, &[]));
     assert_eq!(read_archive(&sample), read_archive(&reexported));
+}
+
+fn sample_app(db: &Path) -> atlas_app_service::AtlasAppService {
+    use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
+    AtlasAppService::start(AtlasAppServiceOptions {
+        default_search_profile: None,
+        path_mode: atlas_runtime::AtlasPathMode::Global,
+        source_root: None,
+        embedding_cache_root: None,
+        index_path: Some(db.to_owned()),
+        retrieval_mode: AppServiceRetrievalMode::OnDemandSavedWorkspace,
+    })
+    .unwrap()
 }

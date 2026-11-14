@@ -1,426 +1,139 @@
 {
   "format": "pf2e-atlas-workspace",
-  "version": "1.0",
+  "reference_config": {
+    "indexing_locale": "en",
+    "manifest_path": null,
+    "search_profiles": [],
+    "source_root": "/example/foundry-pf2e"
+  },
   "saved": {
+    "condition_floor": 73,
     "owners": [
       {
+        "encounters": [],
         "key": "guest",
-        "name": "Campaign GM",
         "lists": [
           {
-            "key": "guest-list",
-            "slug": "shared",
-            "name": "Marsh expedition",
-            "description": "Notes and references for the next session",
-            "revision": 3,
             "created_at": "2026-01-03T20:00:00Z",
-            "updated_at": "2026-01-03T20:30:00Z",
-            "tags": [
-              {
-                "name": "marsh",
-                "created_at": "2026-01-03T20:00:00Z"
-              }
-            ],
+            "description": "Notes and references for the next session",
             "items": [
               {
-                "record_key": "spells:bbbbbbbbbbbbbbbb",
-                "position": 2,
+                "added_at": "2026-01-03T20:00:00Z",
                 "note": "Cast before entering the marsh",
-                "record_title_snapshot": "Lantern ward",
+                "position": 2,
+                "record_key": "spells:bbbbbbbbbbbbbbbb",
                 "record_kind_snapshot": "spell",
-                "added_at": "2026-01-03T20:00:00Z",
-                "updated_at": "2026-01-03T20:30:00Z"
-              },
-              {
-                "record_key": "bestiary:aaaaaaaaaaaaaaaa",
-                "position": 13,
-                "note": "Keep this note",
-                "record_title_snapshot": "Saved title",
-                "record_kind_snapshot": "creature",
-                "added_at": "2026-01-03T20:00:00Z",
+                "record_title_snapshot": "Lantern ward",
                 "updated_at": "2026-01-03T20:30:00Z"
               }
-            ]
-          }
-        ],
-        "parties": [
-          {
-            "key": "guest-party",
-            "name": "Lantern Company",
-            "revision": 7,
-            "members": [
+            ],
+            "key": "guest-list",
+            "name": "Guest scouting notes",
+            "revision": 3,
+            "slug": "shared",
+            "tags": [
               {
-                "key": "pc-one",
-                "name": "Sera",
-                "level": 5,
-                "position": 3
-              },
-              {
-                "key": "pc-two",
-                "name": "Orrin",
-                "level": 5,
-                "position": 9
+                "created_at": "2026-01-03T20:00:00Z",
+                "name": "marsh"
               }
-            ]
+            ],
+            "updated_at": "2026-01-03T20:30:00Z"
           }
         ],
+        "name": "Guest player",
+        "parties": []
+      },
+      {
         "encounters": [
           {
-            "snapshot": {
-              "encounter": {
-                "round_duration_seconds": 6,
-                "difficulty_reference": {
-                  "party_level": null,
-                  "party_size": null
-                },
-                "revision": 0,
-                "encounter_key": "enc-archived",
-                "slug": "crossing-reed-bridge",
-                "name": "Crossing the reed bridge",
-                "description": null,
-                "note": null,
-                "status": "archived",
-                "round_number": 6,
-                "current_turn_participant_key": null,
-                "created_at": "2026-01-03T20:00:00Z",
-                "updated_at": "2026-01-03T20:30:00Z"
-              },
-              "participants": []
-            },
-            "baselines": [],
-            "pending": [],
-            "applications": [],
-            "claims": [],
-            "receipts": [],
-            "outgoing": null,
-            "tracker_positions": {}
-          },
-          {
-            "snapshot": {
-              "encounter": {
-                "round_duration_seconds": 6,
-                "difficulty_reference": {
-                  "party_level": null,
-                  "party_size": null
-                },
-                "revision": 8,
-                "encounter_key": "enc-running",
-                "slug": "live",
-                "name": "Ambush at the old sluice",
-                "description": null,
-                "note": "The sluice opens in two rounds",
-                "status": "running",
-                "round_number": 4,
-                "current_turn_participant_key": "saved-participant",
-                "created_at": "2026-01-03T20:00:00Z",
-                "updated_at": "2026-01-03T20:30:00Z"
-              },
-              "participants": [
-                {
-                  "manual_trackers": [
-                    {
-                      "tracker_key": "tracker-1",
-                      "name": "Countdown",
-                      "duration": {
-                        "amount": 2,
-                        "unit": "rounds",
-                        "timing": null
-                      },
-                      "progress": {
-                        "unit": "rounds",
-                        "remaining": 2
-                      }
-                    }
-                  ],
-                  "ability_states": [
-                    {
-                      "owner": {
-                        "collection": "items",
-                        "identity": {
-                          "Stable": "cccccccccccccccc"
-                        }
-                      },
-                      "rule_ordinal": 0,
-                      "source_fingerprint": "example-source",
-                      "declaration_identity": null,
-                      "value": {
-                        "kind": "uses",
-                        "remaining": 1
-                      }
-                    }
-                  ],
-                  "turn_resources": {
-                    "before_first_turn": false,
-                    "allocation": {
-                      "base": 3,
-                      "adjustments": []
-                    },
-                    "actions_open": true,
-                    "pending_reason": null,
-                    "participant_key": "saved-participant",
-                    "turn_key": "turn-4",
-                    "round_number": 4,
-                    "regular_total": 3,
-                    "regular_remaining": 1,
-                    "extra_total": 0,
-                    "extra_remaining": 0,
-                    "extra_uses": [],
-                    "reactions_total": 1,
-                    "reactions_remaining": 1,
-                    "effects": []
-                  },
-                  "level_override": null,
-                  "base_death_threshold": 4,
-                  "persistent_precedence": [
-                    {
-                      "episode_id": "sentinel-burning",
-                      "source_order": [
-                        43
-                      ]
-                    }
-                  ],
-                  "track_dying": false,
-                  "mortality": "alive",
-                  "spell_resources": [
-                    {
-                      "key": "rank-1",
-                      "capacity": 3,
-                      "remaining": 1,
-                      "undo_remaining": 2
-                    }
-                  ],
-                  "expended_spells": [
-                    "lantern-ward"
-                  ],
-                  "revision": 0,
-                  "hp_origin": "explicit",
-                  "variant_origin": "explicit",
-                  "participant_key": "saved-participant",
-                  "record_key": "bestiary:aaaaaaaaaaaaaaaa",
-                  "participant_kind": "creature",
-                  "participant_variant": "normal",
-                  "position": 3,
-                  "display_name": "Marsh sentinel",
-                  "record_title_snapshot": "Marsh sentinel",
-                  "record_kind_snapshot": "creature",
-                  "side": "enemy",
-                  "initiative": 15,
-                  "initiative_order": 1,
-                  "max_hp": 32,
-                  "current_hp": 17,
-                  "temporary_hp": 2,
-                  "defeated": false,
-                  "hazard_disabled": false,
-                  "hidden": false,
-                  "note": "Guarding the lever",
-                  "created_at": "2026-01-03T20:00:00Z",
-                  "updated_at": "2026-01-03T20:30:00Z",
-                  "conditions": [
-                    {
-                      "condition_id": 42,
-                      "condition_key": null,
-                      "name": "Frightened",
-                      "value": 1,
-                      "source_participant_key": null,
-                      "scope": {
-                        "kind": "everyone"
-                      },
-                      "extra_action": {
-                        "kind": "unspecified"
-                      },
-                      "immunity_override": false,
-                      "parameters": {
-                        "kind": "none"
-                      },
-                      "origin": null,
-                      "duration": null,
-                      "note": null,
-                      "created_at": "2026-01-03T20:00:00Z",
-                      "updated_at": "2026-01-03T20:30:00Z"
-                    },
-                    {
-                      "condition_id": 43,
-                      "condition_key": null,
-                      "name": "Persistent fire damage",
-                      "value": null,
-                      "source_participant_key": null,
-                      "scope": {
-                        "kind": "everyone"
-                      },
-                      "extra_action": {
-                        "kind": "unspecified"
-                      },
-                      "immunity_override": false,
-                      "parameters": {
-                        "kind": "persistent_damage",
-                        "formula": "1d6",
-                        "damage_type": "fire",
-                        "multiplier": "normal",
-                        "recovery": {
-                          "kind": "standard"
-                        },
-                        "episode_id": "sentinel-burning"
-                      },
-                      "origin": null,
-                      "duration": null,
-                      "note": null,
-                      "created_at": "2026-01-03T20:00:00Z",
-                      "updated_at": "2026-01-03T20:30:00Z"
-                    }
-                  ]
-                }
-              ]
-            },
-            "baselines": [
-              {
-                "participant_key": "saved-participant",
-                "gameplay": {
-                  "manual_trackers": [],
-                  "participant_variant": "normal",
-                  "variant_origin": "explicit",
-                  "level_override": null,
-                  "hp_origin": "explicit",
-                  "max_hp": 32,
-                  "current_hp": 32,
-                  "temporary_hp": 0,
-                  "initiative": 15,
-                  "defeated": false,
-                  "hazard_disabled": false,
-                  "mortality": "alive",
-                  "track_dying": false,
-                  "base_death_threshold": 4,
-                  "conditions": [],
-                  "spell_resources": [
-                    {
-                      "key": "rank-1",
-                      "capacity": 3,
-                      "remaining": 1,
-                      "undo_remaining": 2
-                    }
-                  ],
-                  "expended_spells": [],
-                  "ability_states": [
-                    {
-                      "owner": {
-                        "collection": "items",
-                        "identity": {
-                          "Stable": "cccccccccccccccc"
-                        }
-                      },
-                      "rule_ordinal": 0,
-                      "source_fingerprint": "example-source",
-                      "declaration_identity": null,
-                      "value": {
-                        "kind": "uses",
-                        "remaining": 1
-                      }
-                    }
-                  ],
-                  "persistent_precedence": []
-                }
-              }
-            ],
-            "pending": [
-              {
-                "consequence_key": "pending",
-                "consequence": {
-                  "kind": "broken_hp_threshold",
-                  "participant_key": "saved-participant"
-                }
-              }
-            ],
             "applications": [
               {
-                "participant_key": "saved-participant",
                 "application_id": "marsh-dread",
+                "condition_id": 42,
                 "grant_slot": "primary",
-                "condition_id": 42
+                "participant_key": "saved-participant"
               }
             ],
-            "claims": [
+            "baselines": [
               {
-                "claim": {
-                  "participant_key": "saved-participant",
-                  "round_number": 4,
-                  "kind": "turn_start",
-                  "scope_key": "marsh-dread"
+                "gameplay": {
+                  "ability_states": [
+                    {
+                      "declaration_identity": null,
+                      "owner": {
+                        "collection": "items",
+                        "identity": {
+                          "Stable": "cccccccccccccccc"
+                        }
+                      },
+                      "rule_ordinal": 0,
+                      "source_fingerprint": "example-source",
+                      "value": {
+                        "kind": "uses",
+                        "remaining": 1
+                      }
+                    }
+                  ],
+                  "base_death_threshold": 4,
+                  "conditions": [],
+                  "current_hp": 32,
+                  "defeated": false,
+                  "expended_spells": [],
+                  "hazard_disabled": false,
+                  "hp_origin": "explicit",
+                  "initiative": 15,
+                  "level_override": null,
+                  "manual_trackers": [],
+                  "max_hp": 32,
+                  "mortality": "alive",
+                  "participant_variant": "normal",
+                  "persistent_precedence": [],
+                  "spell_resources": [
+                    {
+                      "capacity": 3,
+                      "key": "rank-1",
+                      "remaining": 1,
+                      "undo_remaining": 2
+                    }
+                  ],
+                  "temporary_hp": 0,
+                  "track_dying": false,
+                  "variant_origin": "explicit"
                 },
-                "request_id": "request-1"
+                "participant_key": "saved-participant"
               }
             ],
-            "receipts": [
-              {
-                "request_id": "request-1",
-                "intent": {
-                  "example": "unchanged"
-                },
-                "outcome": {
-                  "kind": "event",
-                  "receipt": {
-                    "encounter_key": "enc-running",
-                    "request_id": "request-1",
-                    "added_condition_ids": [
-                      45
-                    ],
-                    "outcomes": [],
-                    "pending": []
-                  }
-                }
-              },
-              {
-                "request_id": "advance-4",
-                "intent": {
-                  "round": 4
-                },
-                "outcome": {
-                  "kind": "turn",
-                  "boundary_key": "turn-4"
-                }
-              }
-            ],
+            "claims": [],
             "outgoing": {
-              "request_id": "advance-4",
+              "request_id": "advance-round-four",
               "requires_review": true,
               "turn": {
-                "boundary_key": "turn-4",
+                "boundary_key": "turn_4b91307fd19395f5",
+                "next_participant_key": "saved-participant",
                 "snapshot": {
                   "encounter": {
-                    "round_duration_seconds": 6,
+                    "created_at": "2026-01-03T20:00:00Z",
+                    "current_turn_participant_key": "saved-participant",
+                    "description": null,
                     "difficulty_reference": {
                       "party_level": null,
                       "party_size": null
                     },
-                    "revision": 8,
                     "encounter_key": "enc-running",
-                    "slug": "live",
                     "name": "Ambush at the old sluice",
-                    "description": null,
                     "note": "The sluice opens in two rounds",
-                    "status": "running",
+                    "revision": 9,
+                    "round_duration_seconds": 6,
                     "round_number": 3,
-                    "current_turn_participant_key": "saved-participant",
-                    "created_at": "2026-01-03T20:00:00Z",
-                    "updated_at": "2026-01-03T20:30:00Z"
+                    "slug": "live",
+                    "status": "running",
+                    "updated_at": "2026-11-14T02:06:18.846Z"
                   },
                   "participants": [
                     {
-                      "manual_trackers": [
-                        {
-                          "tracker_key": "tracker-1",
-                          "name": "Countdown",
-                          "duration": {
-                            "amount": 2,
-                            "unit": "rounds",
-                            "timing": null
-                          },
-                          "progress": {
-                            "unit": "rounds",
-                            "remaining": 2
-                          }
-                        }
-                      ],
                       "ability_states": [
                         {
+                          "declaration_identity": null,
                           "owner": {
                             "collection": "items",
                             "identity": {
@@ -429,114 +142,471 @@
                           },
                           "rule_ordinal": 0,
                           "source_fingerprint": "example-source",
-                          "declaration_identity": null,
                           "value": {
                             "kind": "uses",
                             "remaining": 1
                           }
                         }
                       ],
-                      "turn_resources": null,
-                      "level_override": null,
                       "base_death_threshold": 4,
-                      "persistent_precedence": [],
-                      "track_dying": false,
-                      "mortality": "alive",
-                      "spell_resources": [
-                        {
-                          "key": "rank-1",
-                          "capacity": 3,
-                          "remaining": 1,
-                          "undo_remaining": 2
-                        }
-                      ],
-                      "expended_spells": [
-                        "lantern-ward"
-                      ],
-                      "revision": 0,
-                      "hp_origin": "explicit",
-                      "variant_origin": "explicit",
-                      "participant_key": "saved-participant",
-                      "record_key": "bestiary:aaaaaaaaaaaaaaaa",
-                      "participant_kind": "creature",
-                      "participant_variant": "normal",
-                      "position": 3,
-                      "display_name": "Marsh sentinel",
-                      "record_title_snapshot": "Marsh sentinel",
-                      "record_kind_snapshot": "creature",
-                      "side": "enemy",
-                      "initiative": 15,
-                      "initiative_order": 1,
-                      "max_hp": 32,
-                      "current_hp": 17,
-                      "temporary_hp": 2,
-                      "defeated": false,
-                      "hazard_disabled": false,
-                      "hidden": false,
-                      "note": "Guarding the lever",
-                      "created_at": "2026-01-03T20:00:00Z",
-                      "updated_at": "2026-01-03T20:30:00Z",
                       "conditions": [
                         {
                           "condition_id": 42,
                           "condition_key": null,
-                          "name": "Frightened",
-                          "value": 1,
-                          "source_participant_key": null,
-                          "scope": {
-                            "kind": "everyone"
-                          },
+                          "created_at": "2026-01-03T20:00:00Z",
+                          "duration": null,
                           "extra_action": {
                             "kind": "unspecified"
                           },
                           "immunity_override": false,
+                          "name": "Frightened",
+                          "note": null,
+                          "origin": null,
                           "parameters": {
                             "kind": "none"
                           },
-                          "origin": null,
-                          "duration": null,
-                          "note": null,
+                          "scope": {
+                            "kind": "everyone"
+                          },
+                          "source_participant_key": null,
+                          "updated_at": "2026-01-03T20:30:00Z",
+                          "value": 1
+                        },
+                        {
+                          "condition_id": 43,
+                          "condition_key": "conditionitems:lDVqvLKA6eF3Df60",
                           "created_at": "2026-01-03T20:00:00Z",
-                          "updated_at": "2026-01-03T20:30:00Z"
+                          "duration": null,
+                          "extra_action": {
+                            "kind": "unspecified"
+                          },
+                          "immunity_override": false,
+                          "name": "Persistent fire damage",
+                          "note": null,
+                          "origin": null,
+                          "parameters": {
+                            "damage_type": "fire",
+                            "episode_id": "sentinel-burning",
+                            "formula": "1d6",
+                            "kind": "persistent_damage",
+                            "multiplier": "normal",
+                            "recovery": {
+                              "kind": "standard"
+                            }
+                          },
+                          "scope": {
+                            "kind": "everyone"
+                          },
+                          "source_participant_key": null,
+                          "updated_at": "2026-01-03T20:30:00Z",
+                          "value": null
                         }
-                      ]
+                      ],
+                      "created_at": "2026-01-03T20:00:00Z",
+                      "current_hp": 17,
+                      "defeated": false,
+                      "display_name": "Marsh sentinel",
+                      "expended_spells": [
+                        "lantern-ward"
+                      ],
+                      "hazard_disabled": false,
+                      "hidden": false,
+                      "hp_origin": "explicit",
+                      "initiative": 15,
+                      "initiative_order": 1,
+                      "level_override": null,
+                      "manual_trackers": [
+                        {
+                          "duration": {
+                            "amount": 3,
+                            "timing": {
+                              "event": "end",
+                              "participant_key": "saved-participant"
+                            },
+                            "unit": "rounds"
+                          },
+                          "name": "Sluice opens",
+                          "progress": {
+                            "remaining": 3,
+                            "unit": "rounds"
+                          },
+                          "tracker_key": "tracker_add-sluice-countdown"
+                        }
+                      ],
+                      "max_hp": 32,
+                      "mortality": "alive",
+                      "note": "Guarding the lever",
+                      "participant_key": "saved-participant",
+                      "participant_kind": "creature",
+                      "participant_variant": "normal",
+                      "persistent_precedence": [
+                        {
+                          "episode_id": "sentinel-burning",
+                          "source_order": [
+                            43
+                          ]
+                        }
+                      ],
+                      "position": 3,
+                      "record_key": "bestiary:aaaaaaaaaaaaaaaa",
+                      "record_kind_snapshot": "creature",
+                      "record_title_snapshot": "Marsh sentinel",
+                      "revision": 1,
+                      "side": "enemy",
+                      "spell_resources": [
+                        {
+                          "capacity": 3,
+                          "key": "rank-1",
+                          "remaining": 1,
+                          "undo_remaining": 2
+                        }
+                      ],
+                      "temporary_hp": 2,
+                      "track_dying": false,
+                      "turn_resources": null,
+                      "updated_at": "2026-01-03T20:30:00Z",
+                      "variant_origin": "explicit"
                     }
                   ]
-                },
-                "next_participant_key": "saved-participant"
+                }
               }
+            },
+            "pending": [],
+            "receipts": [
+              {
+                "intent": {
+                  "action": "manual_tracker",
+                  "request": {
+                    "action": {
+                      "duration": {
+                        "amount": 3,
+                        "timing": {
+                          "event": "end",
+                          "participant_key": "saved-participant"
+                        },
+                        "unit": "rounds"
+                      },
+                      "kind": "add",
+                      "name": "Sluice opens"
+                    },
+                    "expected_encounter_revision": 8,
+                    "expected_participant_revision": 0,
+                    "participant_key": "saved-participant",
+                    "request_id": "add-sluice-countdown"
+                  }
+                },
+                "outcome": {
+                  "kind": "event",
+                  "receipt": {
+                    "added_condition_ids": [],
+                    "encounter_key": "enc-running",
+                    "outcomes": [],
+                    "pending": [],
+                    "request_id": "add-sluice-countdown"
+                  }
+                },
+                "request_id": "add-sluice-countdown"
+              },
+              {
+                "intent": {
+                  "expected_revision": 9,
+                  "request_id": "advance-round-four"
+                },
+                "outcome": {
+                  "kind": "event",
+                  "receipt": {
+                    "added_condition_ids": [],
+                    "encounter_key": "enc-running",
+                    "outcomes": [],
+                    "pending": [],
+                    "request_id": "start:turn_4b91307fd19395f5"
+                  }
+                },
+                "request_id": "start:turn_4b91307fd19395f5"
+              },
+              {
+                "intent": {
+                  "expected_revision": 9,
+                  "request_id": "advance-round-four"
+                },
+                "outcome": {
+                  "boundary_key": "turn_4b91307fd19395f5",
+                  "kind": "turn"
+                },
+                "request_id": "advance-round-four"
+              }
+            ],
+            "snapshot": {
+              "encounter": {
+                "created_at": "2026-01-03T20:00:00Z",
+                "current_turn_participant_key": "saved-participant",
+                "description": null,
+                "difficulty_reference": {
+                  "party_level": null,
+                  "party_size": null
+                },
+                "encounter_key": "enc-running",
+                "name": "Ambush at the old sluice",
+                "note": "The sluice opens in two rounds",
+                "revision": 11,
+                "round_duration_seconds": 6,
+                "round_number": 4,
+                "slug": "live",
+                "status": "running",
+                "updated_at": "2026-11-14T02:06:18.863Z"
+              },
+              "participants": [
+                {
+                  "ability_states": [
+                    {
+                      "declaration_identity": null,
+                      "owner": {
+                        "collection": "items",
+                        "identity": {
+                          "Stable": "cccccccccccccccc"
+                        }
+                      },
+                      "rule_ordinal": 0,
+                      "source_fingerprint": "example-source",
+                      "value": {
+                        "kind": "uses",
+                        "remaining": 1
+                      }
+                    }
+                  ],
+                  "base_death_threshold": 4,
+                  "conditions": [
+                    {
+                      "condition_id": 42,
+                      "condition_key": null,
+                      "created_at": "2026-01-03T20:00:00Z",
+                      "duration": null,
+                      "extra_action": {
+                        "kind": "unspecified"
+                      },
+                      "immunity_override": false,
+                      "name": "Frightened",
+                      "note": null,
+                      "origin": null,
+                      "parameters": {
+                        "kind": "none"
+                      },
+                      "scope": {
+                        "kind": "everyone"
+                      },
+                      "source_participant_key": null,
+                      "updated_at": "2026-01-03T20:30:00Z",
+                      "value": 1
+                    },
+                    {
+                      "condition_id": 43,
+                      "condition_key": "conditionitems:lDVqvLKA6eF3Df60",
+                      "created_at": "2026-01-03T20:00:00Z",
+                      "duration": null,
+                      "extra_action": {
+                        "kind": "unspecified"
+                      },
+                      "immunity_override": false,
+                      "name": "Persistent fire damage",
+                      "note": null,
+                      "origin": null,
+                      "parameters": {
+                        "damage_type": "fire",
+                        "episode_id": "sentinel-burning",
+                        "formula": "1d6",
+                        "kind": "persistent_damage",
+                        "multiplier": "normal",
+                        "recovery": {
+                          "kind": "standard"
+                        }
+                      },
+                      "scope": {
+                        "kind": "everyone"
+                      },
+                      "source_participant_key": null,
+                      "updated_at": "2026-01-03T20:30:00Z",
+                      "value": null
+                    }
+                  ],
+                  "created_at": "2026-01-03T20:00:00Z",
+                  "current_hp": 17,
+                  "defeated": false,
+                  "display_name": "Marsh sentinel",
+                  "expended_spells": [
+                    "lantern-ward"
+                  ],
+                  "hazard_disabled": false,
+                  "hidden": false,
+                  "hp_origin": "explicit",
+                  "initiative": 15,
+                  "initiative_order": 1,
+                  "level_override": null,
+                  "manual_trackers": [
+                    {
+                      "duration": {
+                        "amount": 3,
+                        "timing": {
+                          "event": "end",
+                          "participant_key": "saved-participant"
+                        },
+                        "unit": "rounds"
+                      },
+                      "name": "Sluice opens",
+                      "progress": {
+                        "remaining": 2,
+                        "unit": "rounds"
+                      },
+                      "tracker_key": "tracker_add-sluice-countdown"
+                    }
+                  ],
+                  "max_hp": 32,
+                  "mortality": "alive",
+                  "note": "Guarding the lever",
+                  "participant_key": "saved-participant",
+                  "participant_kind": "creature",
+                  "participant_variant": "normal",
+                  "persistent_precedence": [
+                    {
+                      "episode_id": "sentinel-burning",
+                      "source_order": [
+                        43
+                      ]
+                    }
+                  ],
+                  "position": 3,
+                  "record_key": "bestiary:aaaaaaaaaaaaaaaa",
+                  "record_kind_snapshot": "creature",
+                  "record_title_snapshot": "Marsh sentinel",
+                  "revision": 3,
+                  "side": "enemy",
+                  "spell_resources": [
+                    {
+                      "capacity": 3,
+                      "key": "rank-1",
+                      "remaining": 1,
+                      "undo_remaining": 2
+                    }
+                  ],
+                  "temporary_hp": 2,
+                  "track_dying": false,
+                  "turn_resources": {
+                    "actions_open": false,
+                    "before_first_turn": false,
+                    "effects": [],
+                    "extra_remaining": 0,
+                    "extra_total": 0,
+                    "extra_uses": [],
+                    "participant_key": "saved-participant",
+                    "pending_reason": "Source conditions are unavailable.",
+                    "reactions_remaining": null,
+                    "reactions_total": null,
+                    "regular_remaining": 0,
+                    "regular_total": 0,
+                    "round_number": 4,
+                    "turn_key": "turn:advance-round-four"
+                  },
+                  "updated_at": "2026-01-03T20:30:00Z",
+                  "variant_origin": "explicit"
+                }
+              ]
             },
             "tracker_positions": {
               "saved-participant": [
-                12
+                1
               ]
             }
-          }
-        ]
-      },
-      {
-        "key": "local",
-        "name": "Local owner",
-        "lists": [
+          },
           {
-            "key": "local-list",
-            "slug": "shared",
-            "name": "Marsh expedition",
-            "description": "Notes and references for the next session",
-            "revision": 3,
-            "created_at": "2026-01-03T20:00:00Z",
-            "updated_at": "2026-01-03T20:30:00Z",
-            "tags": [
-              {
-                "name": "marsh",
-                "created_at": "2026-01-03T20:00:00Z"
-              }
-            ],
-            "items": []
+            "applications": [],
+            "baselines": [],
+            "claims": [],
+            "outgoing": null,
+            "pending": [],
+            "receipts": [],
+            "snapshot": {
+              "encounter": {
+                "created_at": "2026-01-03T20:00:00Z",
+                "current_turn_participant_key": null,
+                "description": null,
+                "difficulty_reference": {
+                  "party_level": null,
+                  "party_size": null
+                },
+                "encounter_key": "enc-archived",
+                "name": "Crossing the reed bridge",
+                "note": null,
+                "revision": 0,
+                "round_duration_seconds": 6,
+                "round_number": 6,
+                "slug": "crossing-reed-bridge",
+                "status": "archived",
+                "updated_at": "2026-01-03T20:30:00Z"
+              },
+              "participants": []
+            },
+            "tracker_positions": {}
           }
         ],
-        "parties": [],
-        "encounters": []
+        "key": "local",
+        "lists": [
+          {
+            "created_at": "2026-01-03T20:00:00Z",
+            "description": "Notes and references for the next session",
+            "items": [
+              {
+                "added_at": "2026-01-03T20:00:00Z",
+                "note": "Cast before entering the marsh",
+                "position": 2,
+                "record_key": "spells:bbbbbbbbbbbbbbbb",
+                "record_kind_snapshot": "spell",
+                "record_title_snapshot": "Lantern ward",
+                "updated_at": "2026-01-03T20:30:00Z"
+              },
+              {
+                "added_at": "2026-01-03T20:00:00Z",
+                "note": "Keep this note",
+                "position": 13,
+                "record_key": "bestiary:aaaaaaaaaaaaaaaa",
+                "record_kind_snapshot": "creature",
+                "record_title_snapshot": "Saved title",
+                "updated_at": "2026-01-03T20:30:00Z"
+              }
+            ],
+            "key": "local-list",
+            "name": "Marsh expedition",
+            "revision": 3,
+            "slug": "shared",
+            "tags": [
+              {
+                "created_at": "2026-01-03T20:00:00Z",
+                "name": "marsh"
+              }
+            ],
+            "updated_at": "2026-01-03T20:30:00Z"
+          }
+        ],
+        "name": "Local owner",
+        "parties": [
+          {
+            "key": "guest-party",
+            "members": [
+              {
+                "key": "pc-one",
+                "level": 5,
+                "name": "Sera",
+                "position": 3
+              },
+              {
+                "key": "pc-two",
+                "level": 5,
+                "name": "Orrin",
+                "position": 9
+              }
+            ],
+            "name": "Lantern Company",
+            "revision": 7
+          }
+        ]
       }
     ],
     "references": [
@@ -548,13 +618,7 @@
         "key": "spells:bbbbbbbbbbbbbbbb",
         "last_known_name": "Lantern ward"
       }
-    ],
-    "condition_floor": 73
+    ]
   },
-  "reference_config": {
-    "source_root": "/example/foundry-pf2e",
-    "manifest_path": null,
-    "indexing_locale": "en",
-    "search_profiles": []
-  }
+  "version": "1.0"
 }
