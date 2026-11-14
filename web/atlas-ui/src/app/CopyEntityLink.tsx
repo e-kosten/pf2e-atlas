@@ -120,11 +120,12 @@ function EntityCopyAction({
     };
   }, [attachment, primary, route, kind, identity, title]);
 
+  const inMenu = Boolean(actions);
   useEffect(() => {
     if (result !== "copied") return;
-    const timeout = window.setTimeout(() => setResult(undefined), 1600);
+    const timeout = window.setTimeout(() => setResult(undefined), inMenu ? 1600 : 800);
     return () => window.clearTimeout(timeout);
-  }, [result]);
+  }, [inMenu, result]);
 
   async function copy() {
     try {
