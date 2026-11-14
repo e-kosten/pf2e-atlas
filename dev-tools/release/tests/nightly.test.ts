@@ -10,10 +10,13 @@ import { macosDmg } from '../src/release-data.js';
 
 const sha = 'abcdef123456' + '0'.repeat(28);
 const tag = 'v0.1.0-nightly.20261018092300.gabcdef123456';
+const datedReleaseId = 123;
+const releaseEndpoint = 'repos/{owner}/{repo}/releases';
+const uploadUrl = `https://uploads.github.com/repos/e-kosten/pf2e-atlas/releases/${datedReleaseId}/assets`;
 const archiveBytes = 'checked CLI archive';
 const archiveDigest = createHash('sha256').update(archiveBytes).digest('hex');
 const dmgBytes = 'checked DMG';
-const dmgAsset = { name: macosDmg, digest: `sha256:${createHash('sha256').update(dmgBytes).digest('hex')}` };
+const dmgAsset = { id: 456, name: macosDmg, digest: `sha256:${createHash('sha256').update(dmgBytes).digest('hex')}` };
 const pins = Object.fromEntries(['bge-base', 'embeddinggemma'].map((profile) => [profile, {
   tag: `embedding-seed/${profile}/v1`, asset: `${profile}.gz`, file: { sha256: 'b'.repeat(64), bytes: 1 },
 }]));
@@ -73,7 +76,7 @@ test('scheduled skip requires the published channel to point to this exact sourc
   }
 });
 
-function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean; badDmg?: boolean; channelTag?: string } = {}) {
+function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean; badDmg?: boolean; channelTag?: string; staleList?: boolean; listPublishedAsDraft?: boolean } = {}) {
   const { root, dist } = fixture(t);
   const coverage = path.join(root, 'embedding-coverage.json');
   const covered = { status: 'covered', inferred_inputs: 0, reused_inputs: 3 };
@@ -83,16 +86,56 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
       ? { status: 'gap', reason: 'missing_input', first_hash: 'a'.repeat(64) } : covered },
   }));
   const calls: string[][] = [];
-  const releases = [...options.existing ?? []] as { tag_name: string; target_commitish?: string; draft?: boolean; prerelease?: boolean; assets?: object[] }[];
+  const releases = [...options.existing ?? []] as { tag_name: string; target_commitish?: string; draft?: boolean; prerelease?: boolean; assets?: { id?: number; name?: string }[] }[];
+  const listedReleases = [...releases];
+  const draftMetadata = { id: datedReleaseId, upload_url: `${uploadUrl}{?name,label}` };
   const run: Run = (program, args) => {
     calls.push([program, ...args]);
     if (program === 'git') return releases.some((release) => release.tag_name === tag && !release.draft) ? `${sha}\trefs/tags/${tag}` : '';
-    if (program === 'gh' && args[0] === 'api') return JSON.stringify([releases]);
-    if (args[0] === 'release' && args[2] === tag) {
-      if (args[1] === 'create') releases.push({ tag_name: tag, target_commitish: sha, draft: true, prerelease: true });
-      const release = releases.find((item) => item.tag_name === tag)!;
-      if (args[1] === 'upload') release.assets = options.badDmg ? [] : [dmgAsset];
-      if (args[1] === 'edit' && args.includes('--draft=false')) release.draft = false;
+    if (program === 'gh' && args[0] === 'api') {
+      if (args[1] === '--paginate') {
+        const listed = options.staleList ? listedReleases : releases;
+        return JSON.stringify([listed.map((item) => options.listPublishedAsDraft && item.tag_name === tag
+          ? { ...item, draft: true } : item)]);
+      }
+      if (args[1] === `${releaseEndpoint}/${datedReleaseId}`) {
+        return JSON.stringify({ ...draftMetadata, ...releases.find((item) => item.tag_name === tag) });
+      }
+      const [, , method, endpoint] = args;
+      if (method === 'POST' && endpoint === releaseEndpoint) {
+        assert.ok(args.includes(`tag_name=${tag}`));
+        assert.ok(args.includes(`target_commitish=${sha}`));
+        assert.ok(args.includes('draft=true'));
+        assert.ok(args.includes('prerelease=true'));
+        assert.ok(args.includes('make_latest=false'));
+        assert.ok(!releases.some((item) => item.tag_name === tag), 'duplicate dated release');
+        const release = { ...draftMetadata, tag_name: tag, target_commitish: sha, draft: true, prerelease: true, assets: [] };
+        releases.push(release);
+        return JSON.stringify(release);
+      }
+      const draft = releases.find((item) => item.tag_name === tag);
+      assert.ok(draft?.draft, 'dated release must be in draft before mutation');
+      if (method === 'PATCH' && endpoint === `${releaseEndpoint}/${datedReleaseId}`) {
+        if (args.includes('draft=false')) {
+          assert.ok(args.includes('prerelease=true'));
+          assert.ok(args.includes('make_latest=false'));
+          draft.draft = false;
+        }
+        return JSON.stringify({ ...draftMetadata, ...draft });
+      }
+      if (method === 'DELETE' && endpoint === `${releaseEndpoint}/assets/${dmgAsset.id}`) {
+        draft.assets = draft.assets?.filter((asset) => asset.id !== dmgAsset.id);
+        return '';
+      }
+      assert.equal(method, 'POST');
+      const input = args[args.indexOf('--input') + 1];
+      const name = path.basename(input);
+      assert.equal(endpoint, `${uploadUrl}?name=${name}`);
+      assert.equal(path.dirname(input), dist);
+      assert.ok(!draft.assets?.some((asset) => asset.name === name), 'duplicate draft asset');
+      const asset = name === macosDmg && !options.badDmg ? dmgAsset : { name };
+      (draft.assets ??= []).push(asset);
+      return JSON.stringify(asset);
     }
     if (args[0] === 'release' && args[1] === 'download' && args[2] === 'nightly' && options.channelTag) {
       writeFileSync(path.join(args[args.indexOf('--dir') + 1], 'nightly-version.txt'), options.channelTag);
@@ -107,9 +150,10 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
 }
 
 test('channel advances only after dated publication and successful downloaded install', async (t) => {
-  const { execute, calls } = publisher(t); await execute();
+  // The list never sees the new draft or published release during this run.
+  const { execute, calls } = publisher(t, { staleList: true }); await execute();
   const locate = (...prefix: string[]) => calls.findIndex((call) => prefix.every((value, index) => call[index] === value));
-  const datedPublication = locate('gh', 'release', 'edit', tag);
+  const datedPublication = locate('gh', 'api', '--method', 'PATCH', `${releaseEndpoint}/${datedReleaseId}`);
   const installation = locate('sh');
   const channelPublication = locate('gh', 'release', 'create', 'nightly');
   assert.notEqual(datedPublication, -1, 'dated release must be published');
@@ -126,6 +170,16 @@ test('channel advances only after dated publication and successful downloaded in
   }
 });
 
+test('retry resumes the existing draft by ID and replaces its partial uploads', async (t) => {
+  const { execute, calls } = publisher(t, { existing: [{
+    id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: true, prerelease: true, assets: [dmgAsset],
+  }] });
+  await execute();
+  assert.ok(!calls.some((call) => call[3] === 'POST' && call[4] === releaseEndpoint));
+  assert.ok(calls.some((call) => call[3] === 'DELETE' && call[4] === `${releaseEndpoint}/assets/${dmgAsset.id}`));
+  assert.ok(calls.some((call) => call[4] === `${releaseEndpoint}/${datedReleaseId}` && call.includes('draft=false')));
+});
+
 test('validation, installation and binary-version failures preserve the channel', async (t) => {
   for (const options of [{ failValidation: true }, { failInstall: true }, { wrongVersion: true }]) {
     const { execute, calls } = publisher(t, options);
@@ -136,27 +190,30 @@ test('validation, installation and binary-version failures preserve the channel'
 });
 
 test('retry preserves published dated assets while repairing the channel', async (t) => {
-  const { execute, calls } = publisher(t, { existing: [{ tag_name: tag, target_commitish: sha, draft: false, prerelease: true, assets: [dmgAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }] }] });
+  const { execute, calls } = publisher(t, { listPublishedAsDraft: true, existing: [{
+    id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
+    assets: [dmgAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }],
+  }] });
   await execute();
-  assert.ok(!calls.some((call) => ['upload', 'edit', 'create'].includes(call[2]) && call[3] === tag));
+  assert.ok(!calls.some((call) => call[1] === 'api' && call[2] === '--method'));
   assert.ok(calls.some((call) => call[2] === 'upload' && call[3] === 'nightly'));
 });
 
 test('a bad uploaded DMG keeps the release in draft and an older retry cannot change the channel', async (t) => {
   const bad = publisher(t, { badDmg: true });
   await assert.rejects(bad.execute, /Uploaded DMG digest mismatch/);
-  assert.ok(!bad.calls.some((call) => call.includes('--draft=false')));
+  assert.ok(!bad.calls.some((call) => call.includes('draft=false')));
   const old = publisher(t, { existing: [{ tag_name: 'nightly', assets: [{ name: 'nightly-version.txt' }] }],
     channelTag: tag.replace('20261018092300', '20261019092300') });
   await old.execute();
-  assert.ok(!old.calls.some((call) => ['upload', 'edit', 'create'].includes(call[2])));
+  assert.ok(!old.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
   const current = publisher(t, { existing: [
     { tag_name: 'nightly', draft: false, assets: [{ name: 'nightly-version.txt' }] },
     { tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
       assets: [dmgAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }] },
   ], channelTag: tag });
   await current.execute();
-  assert.ok(!current.calls.some((call) => ['upload', 'edit', 'create'].includes(call[2])));
+  assert.ok(!current.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
 });
 
 test('source or manifest identity mismatches cannot publish', async (t) => {
@@ -171,9 +228,9 @@ test('source or manifest identity mismatches cannot publish', async (t) => {
 test('nightly discloses the affected profile before install instructions', async (t) => {
   const { execute, calls } = publisher(t, { gap: true });
   await execute();
-  const create = calls.find((call) => call[2] === 'create' && call[3] === tag);
+  const create = calls.find((call) => call[3] === 'POST' && call[4] === releaseEndpoint);
   assert.ok(create);
-  const notes = create[create.indexOf('--notes') + 1];
+  const notes = create.find((argument) => argument.startsWith('body='))!;
   assert.match(notes, /\*\*EmbeddingGemma\*\*/);
   assert.match(notes, /--build-embeddings-locally/);
   assert.ok(notes.indexOf('Embedding coverage gap') < notes.indexOf('Install instructions'));

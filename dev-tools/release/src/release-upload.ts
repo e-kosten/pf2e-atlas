@@ -4,12 +4,14 @@ import { macosDmg, sha256 } from './release-data.js';
 export type Run = (program: string, args: string[]) => string;
 
 export interface Release {
+  id: number;
+  upload_url?: string;
   tag_name: string;
   target_commitish: string;
   draft: boolean;
   prerelease: boolean;
   body?: string;
-  assets?: { name: string; digest?: string }[];
+  assets?: { id: number; name: string; digest?: string }[];
 }
 
 export function releases(run: Run): Release[] {
