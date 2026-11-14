@@ -1,3 +1,4 @@
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "antd";
 import { getCreatureFamily } from "../../api/atlasApi";
@@ -39,6 +40,14 @@ export function CreatureFamilyPage({ familyId }: { familyId: string }) {
               <>
                 <DocumentIdentityHeader
                   title={family.name}
+                  actions={
+                    <CopyEntityLink
+                      primary
+                      kind="creature-family"
+                      identity={familyId}
+                      title={family.name}
+                    />
+                  }
                   classification="Creature family"
                 />
                 <div className="record-explore__task creature-family">

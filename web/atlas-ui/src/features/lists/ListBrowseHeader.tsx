@@ -1,3 +1,4 @@
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { isPrimaryActivation, navigateDestination } from "../../app/navigation";
@@ -15,6 +16,7 @@ export function ListBrowseHeader({
   onAddRecords,
   onEdit,
   editPreparing,
+  editing,
   onRetry,
 }: {
   error?: Error | null;
@@ -23,6 +25,7 @@ export function ListBrowseHeader({
   onAddRecords: () => void;
   onEdit: (opener: HTMLElement) => void;
   editPreparing?: boolean;
+  editing?: boolean;
   onRetry: () => void;
 }) {
   const paused = useSavedWritesPaused();
@@ -54,6 +57,14 @@ export function ListBrowseHeader({
         actions={
           list && (
             <>
+              {!editing && (
+                <CopyEntityLink
+                  primary
+                  kind="list"
+                  identity={list.list_key}
+                  title={list.name}
+                />
+              )}
               {(list.description || list.tags.length > 0) && <ListAbout list={list} />}
               <Button
                 type="text"

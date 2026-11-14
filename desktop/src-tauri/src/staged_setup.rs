@@ -108,7 +108,9 @@ impl StagedSetup {
             .webview(label)
             .permission("allow-desktop-setup-action")
             .permission("allow-desktop-tab-link")
-            .permission("allow-desktop-appearance");
+            .permission("allow-desktop-appearance")
+            .permission("allow-desktop-copy-link")
+            .permission("allow-desktop-copy-availability");
         app.add_capability(permission).map_err(display)?;
         lock(&self.documents).insert(
             label.into(),
@@ -991,4 +993,16 @@ fn terminal_action(
         }
         _ => unreachable!(),
     }
+}
+
+pub(crate) fn owns_document(window: &WebviewWindow, instance: &str, token: &str) -> bool {
+    let desktop = window.state::<Desktop>();
+    let origin = window.url().ok().map(|url| url.origin());
+    lock(&desktop.staged_setup.documents)
+        .get(window.label())
+        .is_some_and(|doc| {
+            doc.instance == instance
+                && doc.token.as_deref() == Some(token)
+                && origin.as_ref() == Some(&doc.origin)
+        })
 }

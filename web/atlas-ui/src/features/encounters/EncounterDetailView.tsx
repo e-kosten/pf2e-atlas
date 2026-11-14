@@ -1,3 +1,4 @@
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
@@ -316,40 +317,50 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
           <WorkspaceContextBar
             title={encounterSummary?.name ?? "Encounter"}
             actions={
-              <Dropdown
-                trigger={["click"]}
-                menu={{
-                  items: [
-                    { key: "edit", label: "Edit encounter" },
-                    { type: "divider" },
-                    { key: "rest", label: "Rest overnight" },
-                    { key: "reset", label: "Reset encounter" },
-                  ],
-                  onClick: ({ key }) => {
-                    settingsTrigger.current?.focus({ preventScroll: true });
-                    recoveryTrigger.current = settingsTrigger.current;
-                    if (key === "edit") {
-                      if (encounterKey) {
-                        mutations.clearSettingsError();
-                        editing.begin(encounterKey, settingsTrigger.current);
-                      }
-                    } else
-                      setRecoveryMode(
-                        key === "rest" ? "rest_overnight" : "reset_encounter",
-                      );
-                  },
-                }}
-              >
-                <Button
-                  type="text"
-                  ref={settingsTrigger}
-                  aria-label="Encounter settings"
-                  aria-busy={preparingSettings}
-                  loading={preparingSettings ? { delay: 200 } : false}
-                  disabled={disabled}
-                  icon={<Settings size={18} />}
-                />
-              </Dropdown>
+              <>
+                {encounterSummary && !editEncounterOpen && !onCloseDirectEditor && (
+                  <CopyEntityLink
+                    primary
+                    kind="encounter"
+                    identity={encounterSummary.encounter_key}
+                    title={encounterSummary.name}
+                  />
+                )}
+                <Dropdown
+                  trigger={["click"]}
+                  menu={{
+                    items: [
+                      { key: "edit", label: "Edit encounter" },
+                      { type: "divider" },
+                      { key: "rest", label: "Rest overnight" },
+                      { key: "reset", label: "Reset encounter" },
+                    ],
+                    onClick: ({ key }) => {
+                      settingsTrigger.current?.focus({ preventScroll: true });
+                      recoveryTrigger.current = settingsTrigger.current;
+                      if (key === "edit") {
+                        if (encounterKey) {
+                          mutations.clearSettingsError();
+                          editing.begin(encounterKey, settingsTrigger.current);
+                        }
+                      } else
+                        setRecoveryMode(
+                          key === "rest" ? "rest_overnight" : "reset_encounter",
+                        );
+                    },
+                  }}
+                >
+                  <Button
+                    type="text"
+                    ref={settingsTrigger}
+                    aria-label="Encounter settings"
+                    aria-busy={preparingSettings}
+                    loading={preparingSettings ? { delay: 200 } : false}
+                    disabled={disabled}
+                    icon={<Settings size={18} />}
+                  />
+                </Dropdown>
+              </>
             }
           />
           <SettingsOpeningError

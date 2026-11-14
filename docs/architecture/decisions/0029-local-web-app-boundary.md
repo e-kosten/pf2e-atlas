@@ -123,10 +123,13 @@ launch, workspace upgrades and recovery, and owns terminal command linking.
 The shared managed worker can warm the model on first attachment or after
 receiving an authenticated publication notification without adding a lease.
 
-Native record URLs encode an exact `RecordKey` in a versioned path, independent
-of the local service address. The host opens the existing record reader
-route for that key. The [macOS desktop development guide](../../../desktop/README.md)
-covers the local build and test workflow.
+Native Atlas URLs encode a typed entity identity in a versioned path independent
+of the local service address. The desktop host and CLI share the codec, including
+legacy v1 record URLs. The host projects each identity onto the existing web
+detail route. Saved lists and encounters use stable keys and existing owner-scoped
+reads. The entity header supplies the current identity and title to its copy
+action. The native host checks the attached product document before writing the
+clipboard. Browsers copy the corresponding HTTP(S) detail URL.
 
 ## Browser/backend compatibility
 

@@ -50,13 +50,20 @@ to the service.
 Use **View → Zoom In** (⌘+), **Zoom Out** (⌘−), or **Actual Size** (⌘0) to
 scale the entire view. Atlas saves one zoom level for all windows and tabs.
 
-Open a record, then choose **Edit → Copy Atlas Link**. Paste into a rich-text
-editor to get a linked record name, or into a plain-text field to get the
-`pf2e-atlas://v1/record/…` URL. A link continues to open its exact record even
-if the local service moves to a different port. Opening a record link from
-another app or with `atlas open '<link>'` selects an existing view of that record,
-opens it in a foreground tab in the most recently active Atlas window, or opens
-a window directly to the record if no Atlas window is available.
+Use the link icon in an entity header, or choose **Edit → Copy Atlas Link**
+for the page's main entity. On a list page, the Edit menu copies the list link.
+Use the reader's icon to copy the record link. The menu item becomes available
+when the entity loads.
+
+Paste into a rich-text editor for a linked entity name or into a plain-text
+field for the `pf2e-atlas://v1/…` URL. Atlas links continue to work if the local
+service moves to a different port. Saved list and encounter links use stable
+keys and require that entity in the active workspace. In the browser, the same
+icon copies the entity's web URL.
+
+Opening an Atlas link from another app or with `atlas open '<link>'` selects an
+existing matching tab, opens a foreground tab in the most recently active Atlas
+window, or opens a window directly to the destination.
 
 For shell or agent use, **PF2e Atlas → Terminal and Agent Access** can
 link the bundled command at `~/.local/bin/atlas` from the product drawer.

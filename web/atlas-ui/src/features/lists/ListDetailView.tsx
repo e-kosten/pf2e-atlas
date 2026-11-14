@@ -328,6 +328,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
           loading={listLoading}
           onAddRecords={() => setAddOpen(true)}
           editPreparing={editing.preparing}
+          editing={editing.open || Boolean(onCloseDirectEditor)}
           onEdit={(opener) => {
             if (listIdentity) editing.begin(listIdentity.list_key, opener);
           }}
