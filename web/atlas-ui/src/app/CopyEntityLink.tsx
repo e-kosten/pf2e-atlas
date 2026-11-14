@@ -1,3 +1,4 @@
+import { Popover, Tooltip } from "antd";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { Link } from "lucide-react";
 import type { ReactNode } from "react";
@@ -147,34 +148,48 @@ function EntityCopyAction({
   const Button = kind === "record" ? PaneIconButton : InlineIconButton;
   const copyLink = () => void copy();
 
+  const trigger = actions
+    ? actions(available ? copyLink : undefined)
+    : available && (
+        <Button
+          {...(kind === "record" ? { outlined: true } : {})}
+          label="Copy link"
+          tooltip={!result}
+          icon={<Link size={16} aria-hidden="true" />}
+          onClick={copyLink}
+        />
+      );
+
   return (
     <>
-      {actions
-        ? actions(available ? copyLink : undefined)
-        : available && (
-            <Button
-              {...(kind === "record" ? { outlined: true } : {})}
-              label={`Copy ${kind.replace("-", " ")} link`}
-              icon={<Link size={16} aria-hidden="true" />}
-              onClick={copyLink}
-            />
-          )}
-      <span aria-live="polite">
+      <Popover
+        open={result === "failed" && !attachment}
+        onOpenChange={(open) => {
+          if (!open) setResult(undefined);
+        }}
+        trigger="click"
+        title="Could not copy link"
+        content={
+          <input
+            aria-label="Link to copy"
+            readOnly
+            value={url}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+        }
+      >
+        <span style={{ display: "inline-flex" }}>
+          <Tooltip
+            open={result === "copied" || (result === "failed" && Boolean(attachment))}
+            title={result === "copied" ? "Link copied" : "Could not copy link"}
+          >
+            <span style={{ display: "inline-flex" }}>{trigger}</span>
+          </Tooltip>
+        </span>
+      </Popover>
+      <span className="sr-only" aria-live="polite">
         {result === "copied" && "Link copied"}
-        {result === "failed" &&
-          (attachment ? (
-            "Could not copy link"
-          ) : (
-            <>
-              Could not copy link.{" "}
-              <input
-                aria-label="Link to copy"
-                readOnly
-                value={url}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-            </>
-          ))}
+        {result === "failed" && "Could not copy link"}
       </span>
     </>
   );

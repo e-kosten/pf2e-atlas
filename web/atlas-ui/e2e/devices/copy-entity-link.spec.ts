@@ -28,17 +28,31 @@ test("copy actions target the loaded list and record independently", async ({
     const copiedUrl = () =>
       page.evaluate(() => sessionStorage.getItem("atlas-test-copy"));
     await page.goto(`/lists/${slug}`);
-    await page.getByRole("button", { name: "List actions", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Copy list link", exact: true }).click();
+    const listActions = page.getByRole("button", { name: "List actions", exact: true });
+    await expect(listActions).toBeVisible();
+    const listPosition = await listActions.boundingBox();
+    await listActions.click();
+    await page.getByRole("menuitem", { name: "Copy link", exact: true }).click();
+    await expect(
+      page.getByRole("tooltip").filter({ hasText: "Link copied" }),
+    ).toBeVisible();
+    expect(await listActions.boundingBox()).toEqual(listPosition);
     expect(await copiedUrl()).toBe(new URL(`/lists/${list.list_key}`, page.url()).href);
 
     await page.goto(`/lists/${slug}/records/${sentinel}`);
-    await page.getByRole("button", { name: "Copy record link", exact: true }).click();
+    const recordCopy = page.getByRole("button", { name: "Copy link", exact: true });
+    await expect(recordCopy).toBeVisible();
+    const recordPosition = await recordCopy.boundingBox();
+    await recordCopy.click();
+    await expect(
+      page.getByRole("tooltip").filter({ hasText: "Link copied" }),
+    ).toBeVisible();
+    expect(await recordCopy.boundingBox()).toEqual(recordPosition);
     expect(await copiedUrl()).toBe(new URL(`/records/${sentinel}`, page.url()).href);
 
     await page.goto(`/lists/${slug}/edit`);
     await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: "Copy list link" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: "Copy link" })).toHaveCount(0);
   } finally {
     await page.request.delete(`/api/lists/${slug}`);
   }

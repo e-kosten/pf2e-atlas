@@ -330,7 +330,7 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
                         items: [
                           { key: "edit", label: "Edit encounter", disabled },
                           ...(copy && !editEncounterOpen && !onCloseDirectEditor
-                            ? [{ key: "copy", label: "Copy encounter link" }]
+                            ? [{ key: "copy", label: "Copy link" }]
                             : []),
                           { type: "divider" },
                           { key: "rest", label: "Rest overnight", disabled },

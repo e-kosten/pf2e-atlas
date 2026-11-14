@@ -71,7 +71,7 @@ export function ListBrowseHeader({
                       items: [
                         { key: "edit", label: "Edit list", disabled: paused },
                         ...(!editing && copy
-                          ? [{ key: "copy", label: "Copy list link" }]
+                          ? [{ key: "copy", label: "Copy link" }]
                           : []),
                       ],
                       onClick: ({ key }) => {

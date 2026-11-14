@@ -192,7 +192,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
             crate::copy_link::menu_item(app).is_some_and(|item| item.is_enabled().unwrap_or(false))
                 && evaluates_true(
                     &window,
-                    r#"Boolean(document.querySelector('button[aria-label="Copy record link"]'))"#,
+                    r#"Boolean(document.querySelector('button[aria-label="Copy link"]'))"#,
                 )
         },
     )?;
