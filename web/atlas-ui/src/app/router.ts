@@ -7,7 +7,7 @@ export function createAtlasRouter(
   history?: RouterHistory,
   scrollRestoration: boolean | (() => boolean) = true,
 ) {
-  return createRouter({
+  const router = createRouter({
     history,
     routeTree,
     parseSearch: parseSearchParams,
@@ -15,8 +15,14 @@ export function createAtlasRouter(
     pathParamsAllowedCharacters: [":"],
     defaultPreload: false,
     defaultPendingMs: 500,
-    scrollRestoration,
+    scrollRestoration: scrollRestoration === true,
   });
+  if (typeof scrollRestoration === "function") {
+    // The per-tab predicate gates render-time scrolling. Initializing with it
+    // would also register document listeners that keep closed routers alive.
+    router.update({ ...router.options, scrollRestoration });
+  }
+  return router;
 }
 
 export const atlasRouter = createAtlasRouter();

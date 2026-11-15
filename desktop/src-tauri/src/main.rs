@@ -979,7 +979,7 @@ fn main() {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 copy_link::invalidate(app, window.label(), true);
                 #[cfg(windows)]
-                windows_tabs::forget(app, window.label());
+                let interrupted_delivery = windows_tabs::forget(app, window.label());
                 let desktop = app.state::<Desktop>();
                 desktop.staged_setup.detach_window(window.label());
                 lock(&desktop.presented_bootstrap).remove(window.label());
@@ -994,6 +994,8 @@ fn main() {
                         || (label == "bootstrap" && matches!(remaining.is_visible(), Ok(false)))
                 }) {
                     app.exit(0);
+                } else if interrupted_delivery && let Err(error) = drain_links(app) {
+                    report_link_error(app, &error);
                 }
             }
             #[cfg(windows)]

@@ -1,4 +1,5 @@
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
+import { useTabCloseGuard } from "../../app/DesktopTabContext";
 import {
   skipToken,
   useMutation,
@@ -136,6 +137,8 @@ export function useListEntryNote({
   const removed = itemWasRemoved(note.error) || itemWasRemoved(saveError);
   const paused = useSavedWritesPaused();
   const pending = Boolean(currentSave && save.isPending);
+  const dirty = active !== null && active.text !== (active.expected ?? "");
+  useTabCloseGuard(() => (save.isPending ? "pending" : dirty ? "dirty" : undefined));
 
   function saveNote(draft: Draft, expected: string | null) {
     if (paused) return;
@@ -180,7 +183,7 @@ export function useListEntryNote({
     },
     submit() {
       if (!active || active.review || removed || pending) return;
-      if (active.text === (active.expected ?? "")) {
+      if (!dirty) {
         setDraft(null);
         return;
       }

@@ -1,6 +1,10 @@
 import { ConfigProvider } from "antd";
 import { arrayMove } from "@dnd-kit/sortable";
-import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
+import {
+  createMemoryHistory,
+  RouterProvider,
+  type ParsedLocation,
+} from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -54,12 +58,28 @@ function reportCommandFailure(error: unknown) {
 
 function createTab(href: string) {
   let active = false;
+  const router = createAtlasRouter(
+    createMemoryHistory({ initialEntries: [href] }),
+    () => active,
+  );
+  const scrollByEntry = new Map<string, { x: number; y: number }>();
+  const scrollKey = (location: ParsedLocation) =>
+    location.state.__TSR_key ?? location.href;
+  router.subscribe("onBeforeLoad", ({ fromLocation }) => {
+    if (active && fromLocation)
+      scrollByEntry.set(scrollKey(fromLocation), {
+        x: window.scrollX,
+        y: window.scrollY,
+      });
+  });
+  router.subscribe("onRendered", ({ fromLocation, toLocation }) => {
+    if (!active || fromLocation?.href === toLocation.href || toLocation.hash) return;
+    const position = scrollByEntry.get(scrollKey(toLocation));
+    if (position) window.scrollTo(position.x, position.y);
+  });
   return {
     id: crypto.randomUUID(),
-    router: createAtlasRouter(
-      createMemoryHistory({ initialEntries: [href] }),
-      () => active,
-    ),
+    router,
     setVisible(visible: boolean) {
       active = visible;
     },

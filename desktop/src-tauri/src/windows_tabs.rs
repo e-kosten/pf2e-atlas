@@ -94,7 +94,7 @@ fn validate_document(window: &WebviewWindow, token: &str) -> Result<(Url, String
     Ok((base, instance))
 }
 
-pub fn forget(app: &AppHandle, label: &str) {
+pub fn forget(app: &AppHandle, label: &str) -> bool {
     let desktop = app.state::<Desktop>();
     let mut state = lock(&desktop.windows_tabs.0);
     state.windows.remove(label);
@@ -105,13 +105,14 @@ pub fn forget(app: &AppHandle, label: &str) {
     {
         state.exit = None;
     }
-    if state
+    let interrupted_delivery = state
         .delivery
         .as_ref()
-        .is_some_and(|delivery| delivery.label == label)
-    {
+        .is_some_and(|delivery| delivery.label == label);
+    if interrupted_delivery {
         state.delivery = None;
     }
+    interrupted_delivery
 }
 
 pub fn ready(window: &WebviewWindow) -> bool {
@@ -303,11 +304,9 @@ pub async fn desktop_tabs_ack(
 pub async fn desktop_tabs_close(window: WebviewWindow, token: String) -> Result<(), String> {
     validate(&window, &token)?;
     let app = window.app_handle().clone();
-    run_on_main(&app, move |app| {
+    run_on_main(&app, move |_| {
         if let Err(error) = window.destroy() {
             window_host::report("Could not close Atlas window", &display(error));
-        } else if let Err(error) = crate::drain_links(app) {
-            crate::report_link_error(app, &error);
         }
     })
 }

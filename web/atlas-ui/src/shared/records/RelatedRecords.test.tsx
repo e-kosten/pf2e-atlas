@@ -497,6 +497,27 @@ it("retains active Search filters and explicit order in the Similar handoff", as
   ).not.toHaveProperty("sort");
 });
 
+it("uses the current tab's Search URL for Similar previews and their Search handoff", async () => {
+  history.replaceState(null, "", "/search?search_content=all");
+  const router = createAtlasRouter(
+    createMemoryHistory({
+      initialEntries: ["/search/records/actors:seed?search_content=core"],
+    }),
+  );
+  renderRelated(undefined, undefined, router);
+  openRelated();
+  await selectTab("Similar");
+  const link = await screen.findByRole("link", { name: "Search similar records" });
+  expect(
+    api.searchPage.mock.calls.find(([r]) => r.criteria.kind === "similar_records")?.[0],
+  ).toMatchObject({ criteria: { search_content: "core" } });
+  expect(
+    new URL(link.getAttribute("href")!, location.origin).searchParams.get(
+      "search_content",
+    ),
+  ).toBe("core");
+});
+
 it("rejects late Similar responses from the previous model and updates the Search handoff", async () => {
   const detail = detailFixture("actors:seed", "Viewed creature");
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

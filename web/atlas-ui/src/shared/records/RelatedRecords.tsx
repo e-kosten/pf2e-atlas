@@ -706,10 +706,11 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       : seedInventory.data
         ? preferredSourceSections(profile.preferences, seedInventory.data.core.family)
         : "all";
+  const searchLocation = currentSearchLocation(atlasRouter);
   const currentSearch =
-    currentSearchLocation(atlasRouter) !== null
+    searchLocation !== null
       ? decodeSearchStateFromParams(
-          new URLSearchParams(window.location.search),
+          new URLSearchParams(searchLocation.query),
           "search",
           profile.preferences,
         )
