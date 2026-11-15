@@ -1,0 +1,7 @@
+#!/bin/sh
+# Tauri's Node CLI starts actool with stdin closed. Remove this wrapper when
+# the pinned CLI includes https://github.com/tauri-apps/tauri/pull/15991.
+# Keep the shim off PATH so xcrun cannot find it when full Xcode is absent.
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+exec /usr/bin/actool "$@" </dev/null
