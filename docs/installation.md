@@ -9,7 +9,7 @@ On Apple Silicon with macOS Tahoe 26 or later, download
 `atlas-desktop-aarch64-apple-darwin.dmg` from the
 [Atlas release you want to install](https://github.com/e-kosten/pf2e-atlas/releases).
 For a nightly, use the dated release named in
-[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt).
+[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt).
 Check the image's SHA-256 against `SHA256SUMS` on the same release. Open the
 image and drag **PF2e Atlas** into **Applications**.
 
@@ -33,7 +33,7 @@ To switch back, rerun the standalone installer.
 ## Windows desktop app
 
 On Windows x64, open the dated nightly release named in
-[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt)
+[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt)
 and download `atlas-desktop-x86_64-pc-windows-msvc-setup.exe` from that release.
 Check its SHA-256 against `SHA256SUMS` on the same release. The installer is
 unsigned, so Windows may show a warning when you open it.
@@ -114,11 +114,11 @@ atlas --version
 ```
 
 To install a specific version, use that release's installer URL (replace `VERSION`
-with a published release tag):
+with a published release tag such as `release/v1.2.3` or `rc/v1.2.3-rc.1`):
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/download/VERSION/atlas-installer.sh | sh
+  https://github.com/e-kosten/pf2e-atlas/releases/download/VERSION/atlas-installer.sh | sh -s -- --version VERSION
 ```
 
 For a release candidate, use its specific release tag; the default installer
@@ -136,7 +136,7 @@ run the nightly installer:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.sh \
+  https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/atlas-installer.sh \
   | sh -s -- --version nightly
 ```
 
@@ -144,7 +144,7 @@ On Windows, download the CLI installer and select the nightly version:
 
 ```powershell
 $installer = Join-Path $env:TEMP 'atlas-installer.ps1'
-Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.ps1 -OutFile $installer
+Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/atlas-installer.ps1 -OutFile $installer
 & $installer -Version nightly
 ```
 

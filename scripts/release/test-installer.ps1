@@ -227,18 +227,18 @@ function Expand-Archive {
     throw "PowerShell installer replaced existing binary without -Yes"
   }
 
-  $nightlyTag = "v9.9.9-nightly.20261018092300.gabcdef123456"
+  $nightlyTag = "nightly/20261018092300.gabcdef123456"
   Set-Content -Path (Join-Path $dist "nightly-version.txt") -Value $nightlyTag
   $env:ATLAS_URL_LOG = Join-Path $tmp "nightly-urls"
   (Get-Content (Join-Path $fakeBin "run-install.ps1") -Raw).Replace("-Version v9.9.9", "-Version nightly") |
     Set-Content (Join-Path $fakeBin "run-nightly.ps1")
   pwsh -NoProfile -File (Join-Path $fakeBin "run-nightly.ps1") | Out-Null
   $urls = @(Get-Content $env:ATLAS_URL_LOG)
-  if ($urls[0] -ne "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt") {
+  if ($urls[0] -ne "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt") {
     throw "nightly installer did not fetch the channel pointer"
   }
   $expectedUrls = @(
-    "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt"
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt"
     "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightlyTag/SHA256SUMS"
     "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightlyTag/atlas-release-manifest.json"
     "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightlyTag/atlas-cli-x86_64-pc-windows-msvc.zip"

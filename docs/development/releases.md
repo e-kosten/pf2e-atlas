@@ -58,15 +58,16 @@ verify their tools themselves. Tool verification builds the TypeScript output,
 so no preliminary duplicate build is needed. Nightly
 packaging edits only the CI checkout's CLI manifest and lockfile, using a version
 such as `0.1.0-nightly.20261018092300.gabcdef123456`. No version-bump commits or
-handwritten release notes are needed. The four-platform packaging checks run both variants before upload. The publication job validates all assets, publishes
-a dated prerelease, and smoke-tests its downloaded Linux installer and binary.
-Only then does it update `nightly-version.txt` in the `nightly` installer-channel
-release. Installers resolve that pointer once and download all remaining assets
+handwritten release notes are needed. The four-platform packaging checks run both
+variants before upload. The publication job validates all assets, publishes a
+prerelease under `nightly/<UTC timestamp>.g<12-character commit>`, and smoke-tests
+its downloaded Linux installer and binary. Only then does it update
+`nightly-version.txt` in the `nightly/latest` installer-channel release. Installers resolve that pointer once and download all remaining assets
 from the dated release. Dated releases remain available for rollback; the channel
 release's tag is only an installer entry point, not the source identity of a build.
 
 Nightlies are always prereleases and never become GitHub's latest stable release.
-The stable workflow excludes nightly tags. Nightly writes use the job-scoped
+The release workflow accepts only `release/v…` and `rc/v…` tags. Nightly writes use the job-scoped
 `GITHUB_TOKEN` with `contents: write`; repository rules must permit this workflow
 to create nightly tags and releases. No personal token is needed. If publication
 fails, inspect the failed run and rerun it; published dated assets are not
@@ -87,9 +88,9 @@ Keep the original assembled artifact when retrying a partially published release
 
 For an unpublished rehearsal, dispatch **release build check** on the
 candidate ref. Use the checked-in CLI version for the official-style build.
-For the nightly-style build, enable the `nightly` input and supply a nightly
-tag with the candidate's version core, timestamp, and 12-character commit
-suffix. Download the assembled artifact and test the
+For a nightly rehearsal, enable the `nightly` input and supply a package tag
+with the candidate’s version core, UTC timestamp, and 12-character commit suffix,
+such as `v0.1.0-nightly.20261018092300.gabcdef123456`. Download the assembled artifact and test the
 [DMG](../installation.md#macos-desktop-app) and, for a nightly rehearsal, the
 [Windows installer](../installation.md#windows-desktop-app) from disposable
 accounts.
@@ -119,7 +120,7 @@ scripts/prepare-release.sh --prepare-pr
 # or: just release-prepare
 ```
 
-The helper prompts for the release version, creates `release/v<version>`, updates
+The helper prompts for the release version, creates `release-prep/v<version>`, updates
 `crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock`, and scaffolds `docs/releases/v<version>.md`. Pass
 `--version <X.Y.Z[-rc.N]>` to skip the prompt. In an interactive terminal, the
 helper opens the release notes with `VISUAL`, `EDITOR`, or `git config
@@ -161,7 +162,10 @@ picker for the workflow steps. Non-interactive shells must pass
 available, with numbered prompts as the portable fallback.
 Run `just release` to use the same interactive picker through the task runner.
 
-Release candidates use Cargo prerelease versions and tags such as `0.1.0-rc.1` and `v0.1.0-rc.1`. The final release gets a separate version commit and rebuilds final artifacts as `0.1.0`; do not rename or promote RC artifacts.
+Release candidates use Cargo versions such as `0.1.0-rc.1` and tags such as
+`rc/v0.1.0-rc.1`. The final release gets a separate version commit, rebuilds
+the artifacts as `0.1.0`, and uses `release/v0.1.0`. GitHub marks the stable
+release as latest for the default installers.
 
 Release notes use this template:
 
@@ -204,7 +208,7 @@ Repository settings checklist:
 - GitHub Actions is enabled.
 - Tag pushes trigger workflows.
 - The release workflow can use `GITHUB_TOKEN` with `contents: write` for release asset upload.
-- Only maintainers can push `v*` release tags.
+- Reserve `release/v*` and `rc/v*` for maintainer-published releases.
 - The main ruleset requires `validation complete`; this includes every selected
   gate and dependency advisories, with no separate path-filtered required workflow.
 - Branch protection allows release-preparation PRs to land normally.
@@ -309,7 +313,8 @@ all four release targets. For a schema cutoff, pick a published CLI release
 whose workspace schema the candidate supports and whose numerical contracts
 match the pinned samples. Start a checked-in producer receipt from
 [`schema-42-predecessor.json`](../../scripts/validation/schema-42-predecessor.json).
-Use the release tag and its Git commit, and copy the four CLI-only archive
+Use the release tag, the reported binary version without the `atlas ` prefix,
+and its Git commit, and copy the four CLI-only archive
 names and SHA-256 digests from `atlas-release-manifest.json`, cross-checking
 them against `SHA256SUMS`. Record the tree ID of
 `crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types` at that
@@ -384,9 +389,8 @@ profile's fixture. Inspect the archive contents and run the probe with
 `--bundle`, its reported `--sha256`, and a fresh output directory before
 publication. After publication is authorized, create a fixture-only draft under
 a new `fixtures/embedding-compatibility/v<N>` tag at the producer commit.
-Preserve `embedding-baseline-v1` for historical reproduction. Mark the new
-release as a prerelease with latest disabled. Attach the verified archive to the
-draft and publish it. Download the published bytes and rerun the probe before
+Mark the new release as a prerelease with latest disabled. Attach the verified
+archive to the draft and publish it. Download the published bytes and rerun the probe before
 pinning.
 
 In the CI activation PR, update the affected profile entry in

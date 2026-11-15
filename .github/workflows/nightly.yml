@@ -27,6 +27,7 @@ jobs:
       build: ${{ steps.plan.outputs.build }}
       sha: ${{ steps.plan.outputs.sha }}
       tag: ${{ steps.plan.outputs.tag }}
+      package-tag: ${{ steps.plan.outputs.package-tag }}
       verify: ${{ steps.ci.outputs.verify }}
     steps:
       - uses: actions/checkout@v7
@@ -73,7 +74,7 @@ jobs:
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.build == 'true' && (needs.verify.result == 'success' || (needs.verify.result == 'skipped' && needs.plan.outputs.verify == 'false')) }}
     uses: ./.github/workflows/release-build-check.yml
     with:
-      tag: ${{ needs.plan.outputs.tag }}
+      tag: ${{ needs.plan.outputs.package-tag }}
       source-ref: ${{ needs.plan.outputs.sha }}
       nightly: true
       tools-verified: true
@@ -99,12 +100,12 @@ jobs:
           npm --prefix dev-tools/release run build
       - uses: actions/download-artifact@v8
         with:
-          name: release-build-check-${{ needs.plan.outputs.tag }}
+          name: release-build-check-${{ needs.plan.outputs.package-tag }}
           path: target/nightly
       - name: Download nightly embedding coverage evidence
         uses: actions/download-artifact@v8
         with:
-          name: embedding-coverage-${{ needs.plan.outputs.tag }}
+          name: embedding-coverage-${{ needs.plan.outputs.package-tag }}
           path: target/nightly-coverage
       - name: Publish and smoke-test dated release, then update channel
         env:

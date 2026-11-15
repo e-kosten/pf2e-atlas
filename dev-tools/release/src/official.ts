@@ -1,10 +1,10 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { macosDmg, object, readJson } from './release-data.js';
+import { macosDmg, object, officialPackageTag, readJson } from './release-data.js';
 import { releases, verifyReleaseSource, verifyUploadedDesktop, type Run } from './release-upload.js';
 
 export async function publishOfficial(tag: string, sha: string, dist: string, run: Run): Promise<void> {
-  if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== tag) {
+  if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== officialPackageTag(tag)) {
     throw new Error('Release manifest version mismatch');
   }
   const find = () => {
@@ -14,7 +14,7 @@ export async function publishOfficial(tag: string, sha: string, dist: string, ru
     return release;
   };
   const release = find();
-  const prerelease = tag.includes('-');
+  const prerelease = tag.startsWith('rc/');
   if (!release.draft) {
     if (release.prerelease !== prerelease) throw new Error('Published release channel mismatch');
     await verifyUploadedDesktop(release, dist);
