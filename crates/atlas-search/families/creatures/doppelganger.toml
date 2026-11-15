@@ -1,0 +1,11 @@
+name = "Doppelganger"
+source_note = "The Beginner Box presents Mind Reading as a creature action. Monster Core gives it as an at-will innate spell and lists languages."
+
+[[members]]
+key = "pathfinder-bestiary:AdQVjlOWB6rmBRVp"
+name = "Doppelganger"
+
+[[members]]
+key = "menace-under-otari-bestiary:AdQVjlOWB6rmBRVp"
+name = "Doppelganger (BB)"
+label = "Doppelganger"

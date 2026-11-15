@@ -1,0 +1,11 @@
+name = "Orc Commander"
+source_note = "The Beginner Box commander wields a maul. The Monster Core commander uses a greatclub and gains Reactive Strike."
+
+[[members]]
+key = "pathfinder-monster-core:PLZk6zY5iwccPTPS"
+name = "Orc Commander"
+
+[[members]]
+key = "menace-under-otari-bestiary:PLZk6zY5iwccPTPS"
+name = "Orc Commander (BB)"
+label = "Orc Commander"

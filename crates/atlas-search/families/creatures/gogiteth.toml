@@ -1,0 +1,11 @@
+name = "Gogiteth"
+source_note = "The Monster Core and Bastion of Blasphemies records share Skittering Assault and Carry Off Prey. The adventure block adds constant Water Walk through a primal innate spell entry."
+
+[[members]]
+key = "pathfinder-monster-core:Iwk2qT4lVyrvoz3B"
+name = "Gogiteth"
+
+[[members]]
+key = "bastion-of-blasphemies-bestiary:Iwk2qT4lVyrvoz3B"
+name = "Gogiteth (Bastion of Blasphemies)"
+label = "Gogiteth"

@@ -1,0 +1,11 @@
+name = "Orc Veteran"
+source_note = "The Beginner Box veteran wields a battle axe. The Monster Core veteran uses an orc necksplitter and gains Reactive Strike."
+
+[[members]]
+key = "pathfinder-monster-core:V90OYOMyyPLPJuod"
+name = "Orc Veteran"
+
+[[members]]
+key = "menace-under-otari-bestiary:V90OYOMyyPLPJuod"
+name = "Orc Veteran (BB)"
+label = "Orc Veteran"

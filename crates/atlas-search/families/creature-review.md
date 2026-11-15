@@ -31,6 +31,15 @@ changes or the source establishes a relationship.
 - Shulgurk (`the-dead-gods-hand-bestiary:oFK6kZAsaCe2Th41`)
 - Zulgara (`the-dead-gods-hand-bestiary:zFTfx1Q0oJxk8Bno`)
 
+### Reviewed cross-publication comparisons
+
+- **Human Bandit.** The *Lost on the Spirit Road* actor
+  (`pfs-season-1-bestiary:Gs2zYE86QGrDzCrv`) shares a generic role with
+  both *A Curious Claim* blocks (`pfs-season-1-bestiary:aWiBgV5B9sIO7UtN`
+  and `pfs-season-1-bestiary:mWzScgUiWAGEb0RE`). Their strikes and abilities
+  differ. Keep separate unless a source or a distinctive stat-block match
+  establishes a relationship.
+
 ## Deferred decisions
 
 ### Authored scaling
@@ -45,24 +54,46 @@ actor. Recheck when the source changes.
 
 **Alystair Caskwater.** The [family](creatures/alystair-caskwater.toml) uses
 both party tiers from encounter A8 of *In the Footsteps of Horror*. Its lower
-Vengeful block (`pfs-season-5-bestiary:nMMRUST4ow0kcbTy`) still needs comparison
-with the printed stat block. The lower substitution depends on Challenge
-Points and party size, so the family shows the party tier for that block.
+Vengeful block (`pfs-season-5-bestiary:nMMRUST4ow0kcbTy`) is outside the
+available printed excerpt. The lower substitution uses 14–15 Challenge
+Points or 16–18 with five or more players. Keep that block selectable by
+party tier and revisit its statistics when the lower printed block is available.
 [Published quest](https://www.studocu.com/pt-br/document/universidade-federal-do-estado-do-rio-de-janeiro/lingua-portuguesa-na-educacao/pf2-quest-15-in-the-footsteps-of-horror-adventure-guide/149792260)
 
 **The Warden.** The [family](creatures/the-warden.toml) uses the tiers in
-the Foundry actor names. Verify which conditions in *The Winter Queen's
-Dollhouse* select the Upset blocks before adding encounter guidance.
+the Foundry actor names. Keep both moods selectable. Add selection guidance
+if the printed encounter in *The Winter Queen's Dollhouse* is available.
 
 ### Source identity and publication
+
+**Quickling.** The [family](creatures/quickling.toml) retains both the
+Bestiary 2 and *The King in Thorns* actors as selectable members. Their
+Foundry stats match. The printed encounter adds 10 HP at 10–11 and 14–15
+Challenge Points. Revisit the scenario guidance if Foundry supplies an
+authored variant or Atlas can represent that encounter condition.
+
+**Nuglub.** The [family](creatures/nuglub.toml) includes both scenario
+records and Bestiary 2. Foundry encodes the same alignment for both
+scenario actors. *The King in Thorns* prints CN, while Bestiary 2 and
+*Dacilane Academy's Delightful Disaster* print CE. The existing canonical
+link applies to the Dacilane actor. Revisit if the source resolves the
+alignment discrepancy.
+
+**Jinkin.** The [family](creatures/jinkin.toml) includes the Monster Core
+actor, the two older scenario actors, and the ordinary and Lesser blocks
+from Quest 20. The older actors have the same Crafting bonus for traps,
+with predicates `trap` and `action:craft:trap`. Monster Core has AC 15
+instead of AC 17. Revisit canonical links if the source establishes an
+equivalent target for either scenario actor.
 
 **Boggard Swampseer.** The [family](creatures/boggard-swampseer.toml) includes
 the Monster Core actor and the three *Lost Legend* actors. The publication,
 pack paths, and printed encounter A identify scenario 1-20. The Foundry
 titles say 1-24. Pages 21 and 26 document the staff loadouts. The printed
-Elite block reports creature level 4, while both Foundry Elite actors
-store creature level 3 with a typed Elite adjustment. Recheck the source
-titles and effective Elite statistics when the pin changes.
+Elite block's level 4, 65 HP, AC 20 and staff attack +12 match the effective
+values of both typed Elite actors. Encounter A uses those loadouts as
+5–6 scaling substitutions, with the ordinary actor available in both tiers.
+Keep both loadouts selectable and recheck the source titles when the pin changes.
 [Published scenario](https://www.scribd.com/document/655349423/PF2-S01-20-The-Lost-Legend)
 
 **Gosterion.** The [Phistophilus family](creatures/phistophilus.toml) links
@@ -82,36 +113,40 @@ the pinned Foundry source changes.
 
 ### Published adjustments and scaling
 
-**Cosmic Amoeba.** The [family](creatures/cosmic-amoeba.toml) presents the
-two pinned records. The reader and summary show the Weak actor's stored
-creature level 1, while the encounter applies its typed Weak adjustment.
-The adventure prints the Weak block at level −1 and also has an Elite block
-without a pinned actor. Recheck effective damage and DCs before declaring an
-override.
+**Cosmic Amoeba.** The [family](creatures/cosmic-amoeba.toml) records both
+tiers for the ordinary block (encounter B) and 1–2 for the Weak block
+(encounter D). The typed Weak adjustment projects level −1, 35 HP, AC 6
+and Pseudopod +6 with 1d4 acid, matching print. The authored Weak attack
+already has different damage dice from the standard block. Constrict and
+Envelop also differ in the source prose. Keep the Weak block selectable and
+revisit the Elite form if Foundry adds the printed actor.
+[Published scenario](https://www.scribd.com/document/820438906/PF2-S05-17-Stranded-on-Yesterday-s-Tide)
 
 **Hound Echo.** The [family](creatures/hound-echo.toml) presents the
 four records from *Stranded on Yesterday's Tide*. Foundry stores the Weak
 blocks as typed adjustments on creature levels 2 and 4. The reader and
 summary currently show those source levels, while the encounter applies Weak
-and yields the printed levels 1 and 3. The encounter's scaling can use
-ordinary and Weak blocks together.
+and yields the printed levels 1 and 3 with 15 and 23 HP, respectively. The
+lower Weak actor has different authored strike dice, and the encounter can
+use ordinary and Weak blocks together. Keep all four selectable.
 [Published scenario](https://www.scribd.com/document/820438906/PF2-S05-17-Stranded-on-Yesterday-s-Tide)
 
 **Congealed Magic.** The [family](creatures/congealed-magic.toml) presents
-ordinary and Concentrated forms with typed Elite counterparts. Summaries
-show stored creature levels 3 and 5. Verify exact encounter scaling and
-effective statistics before declaring party uses or overrides.
+ordinary and Concentrated forms with typed Elite counterparts. The typed
+adjustments project levels 4 and 6 with 105 and 170 HP, compared to
+ordinary levels 3 and 5 with 90 and 150 HP. Keep all four selectable until
+the printed encounter verifies when the upper forms and Elite blocks apply.
 
 **Student Exchange.** [Commodore Sticky Fingers](creatures/commodore-sticky-fingers.toml),
 [Sewer Ooze](creatures/sewer-ooze.toml), and [Sprite](creatures/sprite.toml)
 show their quest blocks individually. The ordinary Sprite has 11 HP and
 different attack and Stealth bonuses from the 7 HP Monster Core Sprite.
 The quest Sewer Oozes are authored Weak and Elite blocks with different
-stats from the Monster Core block. Verify encounter scaling before defining
-an override.
+stats from the Monster Core block. Keep the quest blocks selectable until
+the *Student Exchange* encounter confirms which blocks can substitute.
 
-**Jinkin.** The [Jinkin family](creatures/jinkin.toml) presents the quest's
-ordinary and Lesser blocks. The Lesser Jinkin
+**Lesser Jinkin.** The [Jinkin family](creatures/jinkin.toml) presents the
+Quest 20 ordinary and Lesser blocks. The Lesser Jinkin
 (`pfs-season-6-bestiary:D7XibY38wx9AjopU`) has Thievery +7 in Foundry and +5
 on p. 16. The balcony scaling instructions add the Lesser block in specific
 bands. Recheck Thievery if the pinned source changes.
@@ -120,19 +155,19 @@ bands. Recheck Thievery if the pinned source changes.
 and [Wood Scamp](creatures/wood-scamp.toml) show their quest blocks
 individually. Compared with Rage of Elements, the ordinary quest Geode omits
 Petran. The ordinary quest Wood Scamp omits the climb Speed and regeneration
-text and changes its language and traits. Verify encounter scaling before
-defining an override.
+text and changes its language and traits. Keep the quest blocks selectable
+until the *Friends in Need* encounter confirms which blocks can substitute.
 
 **Animated Flame.** The [family](creatures/animated-flame.toml) presents
 the ordinary, Weak, and Elite blocks separately. The Elite actor has
-distinct task-related abilities. Check the published use before declaring
-party ranges or an override.
+distinct task-related abilities. Keep the authored blocks selectable and
+add party ranges if confirmed by the printed encounter.
 
 **Animate Dream.** The [family](creatures/animate-dream.toml) includes the
 Monster Core 2, Gatewalkers, Lesser, Faded, and Elite records. The two
-unqualified blocks have different resistance exceptions. Verify the
-conditions that select the Faded and Elite blocks before declaring
-party uses or overrides.
+unqualified blocks have different resistance exceptions. Keep the authored
+blocks selectable until the printed encounter establishes the conditions
+that select the Faded and Elite blocks.
 
 ## Discovery and grouping gaps
 
@@ -142,19 +177,35 @@ party uses or overrides.
 same-publication actors the token audit missed. Use them to check future
 discovery passes.
 
+**Fasiel Ibn Sazadin.** *Freedom for Wishes* introduces Fasiel as a survivor
+and social NPC (p. 7). Its pinned encounter pack has no separate Fasiel
+actor. The [family](creatures/fasiel-ibn-sazadin.toml) uses the three indexed
+blocks from his later appearances. Revisit if a separate playable stat block
+from *Freedom for Wishes* is added to the source.
+[Published scenario](https://www.scribd.com/document/696240121/PF2-S02-16-Freedom-For-Wishes)
+
+**The Overthrow of Ambition.** The higher [Hesla](creatures/hesla-the-broken-ember.toml)
+and [Harbinger of Ingalor](creatures/harbinger-of-ingalor.toml) titles specify
+11–12. The scenario listing establishes levels 9–12 for the adventure as a
+whole. Show both actors by creature level until the encounter appendix
+confirms the assignments for the unsuffixed blocks.
+[Paizo scenario listing](https://paizo.com/products/btq0anbx)
+
 ### Same-publication actor pairs
 
 The [Champion of Asmodeus](creatures/champion-of-asmodeus.toml) and
 [Rival Corpsekiller](creatures/rival-corpsekiller.toml) relationships rely on
 the pinned Foundry actors. Their exact roles in the printed encounters remain
-unverified.
+unverified. Keep the reviewed family relationships and revisit party context
+if the corresponding encounters become available.
 
 #### Pathfinder Society Quest #15: In the Footsteps of Horror
 
 The [Arisen Pixies family](creatures/arisen-pixies.toml) uses the reviewed
 party levels 1–2 for the Shadow pair. The two Umbral blocks share the
-signature ability and strike kit. Their exact party ranges still need
-verification.
+signature ability and strike kit. The available encounter excerpt verifies
+only the Shadow pair's party range. Keep both Umbral blocks selectable and
+add their party use when the matching encounter is available.
 
 The [Shadow Draugr family](creatures/shadow-draugr.toml) retains both
 published blocks as selectable variants. Foundry gives both actors a

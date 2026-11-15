@@ -1,0 +1,11 @@
+name = "Hobgoblin Soldier"
+source_note = "The Beginner Box soldier uses Raise a Shield as an explicit action. The Monster Core block has Reactive Strike and lists a wooden shield."
+
+[[members]]
+key = "pathfinder-monster-core:NW68bxCLC6oDHxL9"
+name = "Hobgoblin Soldier"
+
+[[members]]
+key = "menace-under-otari-bestiary:NW68bxCLC6oDHxL9"
+name = "Hobgoblin Soldier (BB)"
+label = "Hobgoblin Soldier"

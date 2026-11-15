@@ -1,0 +1,11 @@
+name = "Minotaur Hunter"
+source_note = "Both blocks share Axe Swipe, Powerful Charge, and Perfect Orienteering. The Monster Core block adds Hunted Fear."
+
+[[members]]
+key = "pathfinder-monster-core:vN2alMciNlKpBpKN"
+name = "Minotaur Hunter"
+
+[[members]]
+key = "menace-under-otari-bestiary:vN2alMciNlKpBpKN"
+name = "Minotaur Hunter (BB)"
+label = "Minotaur Hunter"

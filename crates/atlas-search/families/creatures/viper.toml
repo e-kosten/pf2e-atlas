@@ -1,0 +1,11 @@
+name = "Viper"
+source_note = "The Beginner Box viper uses a single poison damage roll. Monster Core adds scent and uses staged venom."
+
+[[members]]
+key = "pathfinder-monster-core:1uVwkGlqYzyWaDMy"
+name = "Viper"
+
+[[members]]
+key = "menace-under-otari-bestiary:1uVwkGlqYzyWaDMy"
+name = "Viper (BB)"
+label = "Viper"

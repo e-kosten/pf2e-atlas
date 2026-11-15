@@ -292,7 +292,13 @@ impl AtlasRetrievalService {
                 .strip_prefix('"')
                 .and_then(|s| s.strip_suffix('"'))
                 .unwrap_or(text.trim());
-            let identities = self.index.lookup_name_or_alias(identity_text)?;
+            let mut reviewed_labels = self.reviewed_creature_label_matches(identity_text)?;
+            reviewed_labels.retain(|matched| {
+                request.exclude != Some(&matched.key)
+                    && scope.keys().is_none_or(|keys| keys.contains(&matched.key))
+            });
+            let mut identities = self.index.lookup_name_or_alias(identity_text)?;
+            identities.extend(reviewed_labels.iter().cloned());
             let mut lexical =
                 self.index
                     .lexical_root_candidates(text, query, scope.keys(), content_scope)?;
@@ -340,6 +346,36 @@ impl AtlasRetrievalService {
                         witnesses: hit.witnesses.into_iter().map(lexical_witness).collect(),
                     },
                 );
+            }
+            let unranked_labels: Vec<_> = reviewed_labels
+                .into_iter()
+                .map(|matched| matched.key)
+                .filter(|key| !roots.contains_key(key))
+                .collect();
+            if !unranked_labels.is_empty() {
+                let eligible = self.index.eligible_keys(
+                    query,
+                    Some(&unranked_labels),
+                    atlas_domain::ResultSort::attribute(
+                        atlas_domain::SortField::Name,
+                        atlas_domain::SortDirection::Asc,
+                    ),
+                    0,
+                    unranked_labels.len(),
+                )?;
+                for key in eligible.keys {
+                    roots.insert(
+                        key.clone(),
+                        RankedRoot {
+                            tier: tier(&key),
+                            key,
+                            lexical_rank: None,
+                            similarity: None,
+                            score: 0.0,
+                            witnesses: Vec::new(),
+                        },
+                    );
+                }
             }
         }
         let mut window = None;

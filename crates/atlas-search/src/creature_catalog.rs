@@ -18,6 +18,8 @@ pub(super) struct CreatureFamily {
     #[serde(default)]
     pub all_variants_by_default: bool,
     #[serde(default)]
+    pub omit_axis_qualifiers: bool,
+    #[serde(default)]
     pub overrides: Vec<AdjustmentOverride>,
 }
 
@@ -27,6 +29,8 @@ pub(super) struct Member {
     pub key: RecordKey,
     pub name: String,
     pub label: Option<String>,
+    #[serde(default)]
+    pub searchable_label: bool,
     pub qualifier: Option<String>,
     #[serde(default)]
     pub coordinates: Coordinates,

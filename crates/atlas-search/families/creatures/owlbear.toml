@@ -1,0 +1,11 @@
+name = "Owlbear"
+source_note = "The Beginner Box owlbear shares Bloodcurdling Screech and Screeching Advance with the Bestiary block. The Bestiary block adds scent and Gnaw."
+
+[[members]]
+key = "pathfinder-bestiary:X03vq2RWi2jiA6Ri"
+name = "Owlbear"
+
+[[members]]
+key = "menace-under-otari-bestiary:X03vq2RWi2jiA6Ri"
+name = "Owlbear (BB)"
+label = "Owlbear"

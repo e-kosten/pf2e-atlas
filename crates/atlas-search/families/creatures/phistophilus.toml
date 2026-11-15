@@ -9,4 +9,5 @@ name = "Phistophilus"
 key = "one-shot-bestiary:3QyqHIuAXE3YVLUh"
 name = "Phistophilus"
 label = "Gosterion"
+searchable_label = true
 named_base = { key = "pathfinder-monster-core:3QyqHIuAXE3YVLUh", name = "Phistophilus" }

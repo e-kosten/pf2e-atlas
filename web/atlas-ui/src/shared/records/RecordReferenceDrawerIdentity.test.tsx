@@ -119,7 +119,7 @@ it("shows the projected creature title and scenario guidance in the Drawer", () 
   );
   const heading = screen.getByRole("heading", { name: "Prefect (Fist)" });
   expect(
-    within(heading.closest("header")!).getByText("Party levels 3–4"),
+    within(heading.closest("header")!).getByText("Party levels: 3–4"),
   ).toBeVisible();
   expect(screen.queryByText("Prefect (Fist) (3-4)")).toBeNull();
 });

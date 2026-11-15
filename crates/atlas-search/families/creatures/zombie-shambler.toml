@@ -1,0 +1,11 @@
+name = "Zombie Shambler"
+source_note = "Both retain Grab and Slow. The Monster Core block has Void Healing and additional undead immunities."
+
+[[members]]
+key = "pathfinder-monster-core:Xo4IGzw28hivgMmM"
+name = "Zombie Shambler"
+
+[[members]]
+key = "menace-under-otari-bestiary:Xo4IGzw28hivgMmM"
+name = "Zombie Shambler (BB)"
+label = "Zombie Shambler"

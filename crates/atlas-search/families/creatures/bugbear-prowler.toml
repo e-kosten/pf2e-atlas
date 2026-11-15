@@ -1,0 +1,11 @@
+name = "Bugbear Prowler"
+source_note = "The Beginner Box prowler has a longsword. Monster Core uses a bastard sword and adds scent."
+
+[[members]]
+key = "pathfinder-monster-core:9cBuzDV8seJqhNKJ"
+name = "Bugbear Prowler"
+
+[[members]]
+key = "menace-under-otari-bestiary:9cBuzDV8seJqhNKJ"
+name = "Bugbear Prowler (BB)"
+label = "Bugbear Prowler"

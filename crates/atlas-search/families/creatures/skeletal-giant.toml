@@ -1,0 +1,11 @@
+name = "Skeletal Giant"
+source_note = "The Beginner Box Skeletal Giant uses a greataxe. Monster Core uses a glaive and has Void Healing."
+
+[[members]]
+key = "pathfinder-monster-core:sEgjgitJmwYYa4mV"
+name = "Skeletal Giant"
+
+[[members]]
+key = "menace-under-otari-bestiary:sEgjgitJmwYYa4mV"
+name = "Skeletal Giant (BB)"
+label = "Skeletal Giant"

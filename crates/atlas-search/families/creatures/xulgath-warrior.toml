@@ -1,0 +1,11 @@
+name = "Xulgath Warrior"
+source_note = "The Beginner Box xulgath uses a simplified Stench. The Monster Core version includes an additional Slowed outcome."
+
+[[members]]
+key = "pathfinder-monster-core:5vBG8a8dnJfmVd3Y"
+name = "Xulgath Warrior"
+
+[[members]]
+key = "menace-under-otari-bestiary:5vBG8a8dnJfmVd3Y"
+name = "Xulgath Warrior (BB)"
+label = "Xulgath Warrior"

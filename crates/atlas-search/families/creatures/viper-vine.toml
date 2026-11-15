@@ -1,0 +1,10 @@
+name = "Viper Vine"
+source_note = "The Hell’s Destiny Aquatic Viper Vine shares the Monster Core 2 Viper Vine’s jaws, vines, and signature abilities. The adventure block gains the Aquatic trait and a 20-foot swim Speed."
+
+[[members]]
+key = "pathfinder-monster-core-2:rEjKVZqLfEC5jdVV"
+name = "Viper Vine"
+
+[[members]]
+key = "hells-destiny-bestiary:rEjKVZqLfEC5jdVV"
+name = "Aquatic Viper Vine"

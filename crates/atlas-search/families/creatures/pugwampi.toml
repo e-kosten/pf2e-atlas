@@ -1,0 +1,11 @@
+name = "Pugwampi"
+source_note = "The Beginner Box presents Animal Talker as an ability. Monster Core supplies Speak with Animals and Prestidigitation as innate spells."
+
+[[members]]
+key = "pathfinder-monster-core:aeOzCBpwnUVcpqxI"
+name = "Pugwampi"
+
+[[members]]
+key = "menace-under-otari-bestiary:aeOzCBpwnUVcpqxI"
+name = "Pugwampi (BB)"
+label = "Pugwampi"

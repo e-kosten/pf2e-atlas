@@ -1,0 +1,11 @@
+name = "Goblin Warrior"
+source_note = "The Beginner Box goblin uses a shortsword. Monster Core uses a dogslicer. Both keep Goblin Scuttle."
+
+[[members]]
+key = "pathfinder-monster-core:fLLKuOXwPq1Iq0U4"
+name = "Goblin Warrior"
+
+[[members]]
+key = "menace-under-otari-bestiary:fLLKuOXwPq1Iq0U4"
+name = "Goblin Warrior (BB)"
+label = "Goblin Warrior"

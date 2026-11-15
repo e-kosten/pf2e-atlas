@@ -1,0 +1,11 @@
+name = "Werebat"
+source_note = "The Guardian’s Covenant Werebat and the Rusthenge Starving Werebat share Change Shape, Moon Frenzy, and Curse of the Werebat. The Rusthenge actor carries a typed Weak adjustment and a different loadout."
+
+[[members]]
+key = "rusthenge-bestiary:otBXbd41vVLZW1xv"
+name = "Starving Werebat"
+
+[[members]]
+key = "pfs-season-3-bestiary:U41mRr07sJywSFYZ"
+name = "Werebat (PFS 3-13)"
+label = "Werebat"

@@ -1,0 +1,11 @@
+name = "Giant Centipede"
+source_note = "The Beginner Box centipede’s venom deals immediate poison damage on a failed save. Monster Core uses an affliction with three stages."
+
+[[members]]
+key = "pathfinder-monster-core:NRBgcu0LkXXp8mtp"
+name = "Giant Centipede"
+
+[[members]]
+key = "menace-under-otari-bestiary:NRBgcu0LkXXp8mtp"
+name = "Giant Centipede (BB)"
+label = "Giant Centipede"

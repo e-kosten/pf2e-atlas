@@ -1,0 +1,11 @@
+name = "Warg"
+source_note = "The Beginner Box warg has Shred. Monster Core instead includes Swallow Whole and lists imprecise scent."
+
+[[members]]
+key = "pathfinder-monster-core:x7Aa4Tvr9eBaHryF"
+name = "Warg"
+
+[[members]]
+key = "menace-under-otari-bestiary:x7Aa4Tvr9eBaHryF"
+name = "Warg (BB)"
+label = "Warg"

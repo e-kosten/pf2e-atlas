@@ -1,0 +1,11 @@
+name = "Gargoyle"
+source_note = "The Beginner Box gargoyle lists three physical resistance types. Monster Core uses physical resistance that adamantine bypasses."
+
+[[members]]
+key = "pathfinder-monster-core:cvfIkEF6xmWn2soN"
+name = "Gargoyle"
+
+[[members]]
+key = "menace-under-otari-bestiary:cvfIkEF6xmWn2soN"
+name = "Gargoyle (BB)"
+label = "Gargoyle"

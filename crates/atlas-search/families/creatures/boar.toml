@@ -1,0 +1,11 @@
+name = "Boar"
+source_note = "Both boars have Boar Charge and Ferocity. Monster Core adds imprecise scent to the senses shared with the Beginner Box block."
+
+[[members]]
+key = "pathfinder-monster-core:IyhbcdTVmkV4pSju"
+name = "Boar"
+
+[[members]]
+key = "menace-under-otari-bestiary:IyhbcdTVmkV4pSju"
+name = "Boar (BB)"
+label = "Boar"

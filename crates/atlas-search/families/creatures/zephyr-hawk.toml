@@ -1,0 +1,11 @@
+name = "Zephyr Hawk"
+source_note = "Both blocks have Circling Attack. Monster Core includes immunity to paralysis and more explicit multiple attack penalty text."
+
+[[members]]
+key = "pathfinder-monster-core:sAfjpjAS56jtrUbi"
+name = "Zephyr Hawk"
+
+[[members]]
+key = "menace-under-otari-bestiary:sAfjpjAS56jtrUbi"
+name = "Zephyr Hawk (BB)"
+label = "Zephyr Hawk"

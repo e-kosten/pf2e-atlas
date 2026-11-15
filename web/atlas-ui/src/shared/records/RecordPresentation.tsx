@@ -289,6 +289,9 @@ export function RecordIdentity({
 }) {
   const source = identity?.publication?.trim();
   const scenario = identity?.creature_display;
+  const scenarioContext = scenario?.scenario_context;
+  const showFamily =
+    equipmentFamily || (creatureFamily && !creatureLinkPlacement?.hide_family);
   const showSource =
     source &&
     !(
@@ -325,22 +328,43 @@ export function RecordIdentity({
         )
       }
       attribution={
-        <>
-          {(equipmentFamily ||
-            (creatureFamily && !creatureLinkPlacement?.hide_family)) && (
-            <p className="record-reference__family">
-              Family <span aria-hidden="true">·</span>{" "}
-              <AtlasLink
-                {...(creatureFamily
-                  ? creatureFamilyDestination(creatureFamily.id)
-                  : equipmentFamilyDestination(equipmentFamily!.id))}
-                onClick={(event) => {
-                  if (isPrimaryActivation(event)) onEquipmentFamilyNavigate?.();
-                }}
-              >
-                {creatureFamily?.name ?? equipmentFamily?.name}
-              </AtlasLink>
-            </p>
+        <div className="record-reference__attribution">
+          {(showFamily || scenarioContext) && (
+            <div className="record-reference__context">
+              {showFamily && (
+                <p className="record-reference__family">
+                  Family:{" "}
+                  <AtlasLink
+                    {...(creatureFamily
+                      ? creatureFamilyDestination(creatureFamily.id)
+                      : equipmentFamilyDestination(equipmentFamily!.id))}
+                    onClick={(event) => {
+                      if (isPrimaryActivation(event)) onEquipmentFamilyNavigate?.();
+                    }}
+                  >
+                    {creatureFamily?.name ?? equipmentFamily?.name}
+                  </AtlasLink>
+                </p>
+              )}
+              {showFamily && scenarioContext && (
+                <span
+                  className="record-reference__context-separator"
+                  aria-hidden="true"
+                >
+                  ·
+                </span>
+              )}
+              {scenarioContext && (
+                <p className="record-reference__scenario">
+                  {[
+                    scenarioContext.startsWith("Party levels ")
+                      ? scenarioContext.replace("Party levels ", "Party levels: ")
+                      : `Scenario use: ${scenarioContext}`,
+                    ...(scenario?.qualifiers ?? []),
+                  ].join(" · ")}
+                </p>
+              )}
+            </div>
           )}
           {canonicalRecord && (
             <RecordIdentityLinks
@@ -354,17 +378,12 @@ export function RecordIdentity({
             include={(key) => !creatureLinkPlacement?.version_record_keys.includes(key)}
             onReference={onIdentityReference}
           />
-          {scenario?.scenario_context && (
-            <p className="record-reference__scenario">
-              {[...scenario.qualifiers, scenario.scenario_context].join(" · ")}
-            </p>
-          )}
           {showSource && (
             <p className="muted record-reference__source">
               Source: <span>{source}</span>
             </p>
           )}
-        </>
+        </div>
       }
       navigation={
         showOwnerReturn &&

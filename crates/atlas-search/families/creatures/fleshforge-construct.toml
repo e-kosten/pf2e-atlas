@@ -1,5 +1,6 @@
 name = "Fleshforge Construct"
 source_note = "The Absalom Initiation uses a Fleshforge Dreg for party levels 1–2 and a Fleshforge Prototype for 3–4 in area A2. The two appendix blocks offer the same six additional abilities with tier-specific mechanics."
+omit_axis_qualifiers = true
 
 axes = [
     { id = "form", label = "Form", alternatives_label = "Other forms", options = [

@@ -1,0 +1,11 @@
+name = "Reefclaw"
+source_note = "The Beginner Box reefclaw uses a one-time venom damage roll, while Monster Core uses staged venom with enfeebled."
+
+[[members]]
+key = "pathfinder-monster-core:Rr1u6WvZEdPw1s6v"
+name = "Reefclaw"
+
+[[members]]
+key = "menace-under-otari-bestiary:Rr1u6WvZEdPw1s6v"
+name = "Reefclaw (BB)"
+label = "Reefclaw"

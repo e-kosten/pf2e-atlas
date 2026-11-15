@@ -1,0 +1,11 @@
+name = "Animated Armor"
+source_note = "The Beginner Box armor uses a longsword and Armored Fist. The Monster Core armor uses a glaive and Gauntlet."
+
+[[members]]
+key = "pathfinder-monster-core:CFlx1tkRxKC9qAC7"
+name = "Animated Armor"
+
+[[members]]
+key = "menace-under-otari-bestiary:CFlx1tkRxKC9qAC7"
+name = "Animated Armor (BB)"
+label = "Animated Armor"

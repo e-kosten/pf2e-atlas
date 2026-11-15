@@ -1,0 +1,11 @@
+name = "Giant Rat"
+source_note = "Monster Core adds Putrid Plague and imprecise scent. The Beginner Box rat has a simpler set of abilities."
+
+[[members]]
+key = "pathfinder-monster-core:iIJPJcDT8wlJ8z5M"
+name = "Giant Rat"
+
+[[members]]
+key = "menace-under-otari-bestiary:iIJPJcDT8wlJ8z5M"
+name = "Giant Rat (BB)"
+label = "Giant Rat"

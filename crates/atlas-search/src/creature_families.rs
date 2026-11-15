@@ -4,9 +4,11 @@ use crate::family_axis_projection;
 use crate::{
     AtlasRetrievalService, FamilyGrouping, GetRecordsRequest, SearchError, VariantAxisSlice,
 };
-use atlas_domain::{RecordKey, RecordKind, SourceRecordSummary};
+use atlas_domain::{RecordKey, RecordKind, SourceRecordSummary, normalize_record_name};
 use atlas_foundry_model::{ActorSourcePF2e, FoundryDocumentSource};
+use atlas_index::SourceIdentityMatch;
 use atlas_record::source_record::SourceBackedRecord;
+use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 pub use crate::creature_catalog::CreatureAdjustment;
@@ -92,6 +94,39 @@ fn matches_creature(key: &RecordKey, name: &str, summary: &SourceRecordSummary) 
         && summary.name.as_value().is_some_and(|actual| actual == name)
 }
 
+struct SearchableCreatureLabel {
+    member: &'static Member,
+    label: &'static str,
+    source_note: &'static str,
+}
+
+fn searchable_creature_labels(text: &str) -> &'static [SearchableCreatureLabel] {
+    static LABELS: OnceLock<BTreeMap<String, Vec<SearchableCreatureLabel>>> = OnceLock::new();
+    LABELS
+        .get_or_init(|| {
+            let mut labels = BTreeMap::<_, Vec<_>>::new();
+            for family in catalog().into_iter().flat_map(|catalog| catalog.values()) {
+                for member in &family.members {
+                    if member.searchable_label
+                        && let Some(label) = member.label.as_deref()
+                    {
+                        labels
+                            .entry(normalize_record_name(label))
+                            .or_default()
+                            .push(SearchableCreatureLabel {
+                                member,
+                                label,
+                                source_note: &family.source_note,
+                            });
+                    }
+                }
+            }
+            labels
+        })
+        .get(&normalize_record_name(text))
+        .map_or(&[], Vec::as_slice)
+}
+
 pub fn creature_display(
     summary: &SourceRecordSummary,
     load_token_name: impl FnOnce() -> Option<String>,
@@ -158,6 +193,27 @@ fn select_use<'a>(member: &'a Member, selected: Option<&str>) -> Option<&'a Scen
 }
 
 impl AtlasRetrievalService {
+    pub(crate) fn reviewed_creature_label_matches(
+        &self,
+        text: &str,
+    ) -> Result<Vec<SourceIdentityMatch>, SearchError> {
+        let mut matches_ = Vec::new();
+        for entry in searchable_creature_labels(text) {
+            if self
+                .index
+                .read_summary(&entry.member.key)?
+                .is_some_and(|summary| matches(entry.member, &summary))
+            {
+                matches_.push(SourceIdentityMatch {
+                    key: entry.member.key.clone(),
+                    alias: Some(entry.label.into()),
+                    evidence: Some(entry.source_note.into()),
+                });
+            }
+        }
+        Ok(matches_)
+    }
+
     pub fn named_creature_links(
         &self,
         summary: &SourceRecordSummary,
@@ -263,7 +319,7 @@ impl AtlasRetrievalService {
                 Some(CreatureFamilyRecord {
                     summary,
                     named_base: family.local_named_base(member),
-                    qualifier: if member.coordinates.is_empty() {
+                    qualifier: if member.coordinates.is_empty() || family.omit_axis_qualifiers {
                         member.qualifier.clone()
                     } else {
                         Some(family_axis_projection::labels(

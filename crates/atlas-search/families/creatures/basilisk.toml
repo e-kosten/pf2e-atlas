@@ -1,0 +1,11 @@
+name = "Basilisk"
+source_note = "The Beginner Box basilisk differs in Petrifying Gaze text and lacks the Monster Core block’s petrified immunity."
+
+[[members]]
+key = "pathfinder-monster-core:mX47c0W9rizbmMBM"
+name = "Basilisk"
+
+[[members]]
+key = "menace-under-otari-bestiary:mX47c0W9rizbmMBM"
+name = "Basilisk (BB)"
+label = "Basilisk"

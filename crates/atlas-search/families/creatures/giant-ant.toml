@@ -1,0 +1,11 @@
+name = "Giant Ant"
+source_note = "The Beginner Box ant has different Wisdom and no scent. Monster Core adds imprecise scent."
+
+[[members]]
+key = "pathfinder-monster-core:mEZUTqNIgu0ASApu"
+name = "Giant Ant"
+
+[[members]]
+key = "menace-under-otari-bestiary:mEZUTqNIgu0ASApu"
+name = "Giant Ant (BB)"
+label = "Giant Ant"

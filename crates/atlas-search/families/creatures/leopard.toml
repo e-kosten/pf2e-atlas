@@ -1,0 +1,21 @@
+name = "Leopard"
+source_note = "The Beginner Box leopard lacks the Monster Core block’s imprecise scent. Their Maul and Pounce rules also differ. The Legacy Lions of Katapesh and Guardian’s Covenant records share the same strike and ability kit and differ in Intelligence."
+
+[[members]]
+key = "pathfinder-monster-core:kB7FNn3vosp6cqQg"
+name = "Leopard"
+
+[[members]]
+key = "menace-under-otari-bestiary:kB7FNn3vosp6cqQg"
+name = "Leopard (BB)"
+label = "Leopard"
+
+[[members]]
+key = "pfs-season-1-bestiary:vtSVLCmJvef8980U"
+name = "Leopard (1-14)"
+label = "Leopard"
+
+[[members]]
+key = "pfs-season-3-bestiary:BQOgvcGbGxFSQQ0T"
+name = "Leopard (PFS 3-13)"
+label = "Leopard"

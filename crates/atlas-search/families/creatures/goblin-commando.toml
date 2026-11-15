@@ -1,0 +1,11 @@
+name = "Goblin Commando"
+source_note = "The Beginner Box commando uses a greatsword. Monster Core uses a horsechopper. Both retain Goblin Scuttle."
+
+[[members]]
+key = "pathfinder-monster-core:sA2dFdRUwiapo69Z"
+name = "Goblin Commando"
+
+[[members]]
+key = "menace-under-otari-bestiary:sA2dFdRUwiapo69Z"
+name = "Goblin Commando (BB)"
+label = "Goblin Commando"

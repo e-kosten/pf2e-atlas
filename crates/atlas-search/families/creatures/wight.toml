@@ -1,0 +1,11 @@
+name = "Wight"
+source_note = "The Monster Core block has additional undead immunities and actions including Fueled by Spite and Grave Weapon."
+
+[[members]]
+key = "pathfinder-monster-core:DBTbqI9QQRtlJwWh"
+name = "Wight"
+
+[[members]]
+key = "menace-under-otari-bestiary:DBTbqI9QQRtlJwWh"
+name = "Wight (BB)"
+label = "Wight"

@@ -1,0 +1,11 @@
+name = "Ogre Warrior"
+source_note = "The Beginner Box ogre wields a greataxe. The Monster Core ogre uses an ogre hook."
+
+[[members]]
+key = "pathfinder-monster-core:Twvzy1yRo6m6dM8D"
+name = "Ogre Warrior"
+
+[[members]]
+key = "menace-under-otari-bestiary:Twvzy1yRo6m6dM8D"
+name = "Ogre Warrior (BB)"
+label = "Ogre Warrior"

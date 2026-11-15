@@ -238,6 +238,13 @@ to connect it to an exact base actor. Atlas shows the link in both record reader
 The base may be in any family or have no family. A named member whose base is
 in the same family appears under **Named creatures** on that family page.
 
+Set `searchable_label = true` on an explicit member label when the reviewed
+source establishes that label as the creature's name. Search and strict
+resolution match it as a normalized exact alias while preserving the indexed
+Foundry title. Set `omit_axis_qualifiers = true` on families whose member names
+already describe all their coordinates. The axes still drive grouping and
+sibling links.
+
 1. Run the [creature audit](developer-commands.md#review-creature-families) against
    the Foundry revision under review. Compare by exact actor key. A shared token
    name within a publication is a discovery signal. Compare the actor records,

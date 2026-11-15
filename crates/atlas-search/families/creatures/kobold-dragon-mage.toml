@@ -1,0 +1,17 @@
+name = "Kobold Dragon Mage"
+source_note = "The Society actors share their staff and arcane spell list. Lions of Katapesh adds lesser Alchemist’s Fire, and Fate in the Future adds Dragonscaled. Their resistances differ."
+
+[[members]]
+key = "pfs-season-1-bestiary:Kv7ciLOLN8vDgIGy"
+name = "Kobold Dragon Mage (PFS 1-11)"
+label = "Kobold Dragon Mage"
+
+[[members]]
+key = "pfs-season-1-bestiary:dOSeTKHADNhJ1bhz"
+name = "Kobold Dragon Mage (1-14)"
+label = "Kobold Dragon Mage"
+
+[[members]]
+key = "pfs-season-3-bestiary:Tt9DtLxj1N2TBT9w"
+name = "Kobold Dragon Mage (PFS 3-99)"
+label = "Kobold Dragon Mage"

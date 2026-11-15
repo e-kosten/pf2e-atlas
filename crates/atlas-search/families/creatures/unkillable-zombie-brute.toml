@@ -1,0 +1,12 @@
+name = "Unkillable Zombie Brute"
+source_note = "The Absalom Initiation uses a block with Corpse Throwing and Wide Swing. Devil at the Crossroads supplies a block with a Fist strike and Improved Push. Both source titles identify the same creature type."
+
+[[members]]
+key = "pfs-season-1-bestiary:fG2rxzrSiMS01Xqe"
+name = "Unkillable Zombie Brute (PFS 1-13)"
+label = "Unkillable Zombie Brute"
+
+[[members]]
+key = "pfs-season-1-bestiary:bjugOjcHcBHgWTeZ"
+name = "Unkillable Zombie Brute (PFS 1-01)"
+label = "Unkillable Zombie Brute"
