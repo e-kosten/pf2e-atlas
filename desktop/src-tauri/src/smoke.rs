@@ -572,7 +572,7 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         evaluates_true(
             window,
             r#"(() => {
-        const field = document.querySelector('[aria-label="Default search model"]');
+        const field = document.querySelector('[aria-label="Preferred search model"]');
         if (!field || field.disabled) return false;
         field.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
         return true;
@@ -596,7 +596,7 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         evaluates_true(
             window,
             r#"(() => {
-        const field = document.querySelector('[aria-label="Default search model"]');
+        const field = document.querySelector('[aria-label="Preferred search model"]');
         const value = field?.closest('.ant-select')?.querySelector('.ant-select-content');
         return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth;
     })()"#,

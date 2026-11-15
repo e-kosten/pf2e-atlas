@@ -44,3 +44,38 @@
   min-height: var(--control-height);
   white-space: normal;
 }
+
+.desktop-setup__model-status {
+  display: grid;
+  width: 100%;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desktop-setup__model-status li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.desktop-setup__terminal-details {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.desktop-setup__terminal-details summary {
+  cursor: pointer;
+}
+
+.desktop-setup__terminal-details dl {
+  display: grid;
+  gap: 4px;
+  margin-block: 8px;
+}
+
+.desktop-setup__terminal-details dd {
+  margin: 0 0 4px;
+}

@@ -163,6 +163,7 @@ export function DesktopSetupPanel() {
       </Tooltip>
       <AtlasDrawer
         title="Setup and Updates"
+        size="min(378px, 100vw)"
         open={open}
         afterOpenChange={(visible) => {
           if (visible && focusTerminal.current) {
@@ -425,9 +426,7 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
       {error && <Alert type="error" title={error} />}
       {status?.state === "missing" && (
         <>
-          <Typography.Text>
-            Link Atlas {status.version} at <code>{status.path}</code>.
-          </Typography.Text>
+          <Typography.Text>The Atlas command is off.</Typography.Text>
           <Button loading={busy} onClick={() => void change("enable_terminal")}>
             Enable terminal command
           </Button>
@@ -435,10 +434,7 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
       )}
       {status?.state === "replaceable" && (
         <>
-          <Typography.Text>
-            A command already exists at <code>{status.path}</code>. This app bundles
-            Atlas {status.version}.
-          </Typography.Text>
+          <Typography.Text>An Atlas command already exists here.</Typography.Text>
           <Button loading={busy} onClick={() => void change("switch_terminal")}>
             Switch to bundled CLI
           </Button>
@@ -456,10 +452,29 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
         />
       )}
       {status?.state === "linked" && (
-        <Typography.Text role="status">
-          Linked at <code>{status.path}</code>. Run <code>command -v atlas</code> to
-          check which command your shell uses.
-        </Typography.Text>
+        <Typography.Text role="status">The Atlas command is enabled.</Typography.Text>
+      )}
+      {status && (
+        <details className="desktop-setup__terminal-details">
+          <summary>Details</summary>
+          <dl>
+            <dt>Bundled version</dt>
+            <dd>{status.version}</dd>
+            {status.state !== "conflict" && (
+              <>
+                <dt>Command path</dt>
+                <dd>
+                  <code>{status.path}</code>
+                </dd>
+              </>
+            )}
+          </dl>
+          {status.state === "linked" && (
+            <Typography.Text>
+              Run <code>command -v atlas</code> to check which command your shell uses.
+            </Typography.Text>
+          )}
+        </details>
       )}
     </section>
   );
@@ -481,56 +496,67 @@ function SearchModels({
   onApply: (selection: ModelSelection) => void;
 }) {
   const models = reference.models ?? [];
-  const installed = models
-    .filter((model) => model.installed)
-    .map((model) => model.id)
-    .sort();
+  const installedModels = models.filter((model) => model.installed);
+  const installed = installedModels.map((model) => model.id).sort();
   const [profiles, setProfiles] = useState(installed);
   const [preferred, setPreferred] = useState(reference.preferred ?? "");
   const membershipChanged = profiles.join(",") !== installed.join(",");
   const dirty = membershipChanged || preferred !== (reference.preferred ?? "");
   const editable = !disabled && !!reference.modelsAvailable;
+  const canEditMembership = editable && !!reference.canChangeModels;
   return (
     <section className="desktop-setup__section" aria-labelledby="desktop-setup-models">
       <h2 id="desktop-setup-models">Search models</h2>
-      <Checkbox.Group
-        aria-label="Installed search models"
-        className="desktop-setup__model-options"
-        value={profiles}
-        disabled={!editable || !reference.canChangeModels}
-        options={models.map((model) => ({
-          value: model.id,
-          label:
-            model.installed && !model.usable
-              ? `${model.label} (needs repair)`
-              : model.label,
-        }))}
-        onChange={(next) => {
-          const selected = next.sort();
-          setProfiles(selected);
-          if (!selected.includes(preferred)) setPreferred("");
-        }}
-      />
-      <Typography.Text>
-        {profiles.length === 0
-          ? "Keyword-only search uses no model. Similar records requires a search model."
-          : "Adding a model may download files and rebuild parts of the search index. Editing pauses while the index is prepared."}
-      </Typography.Text>
+      {canEditMembership ? (
+        <Checkbox.Group
+          aria-label="Installed search models"
+          className="desktop-setup__model-options"
+          value={profiles}
+          options={models.map((model) => ({
+            value: model.id,
+            label:
+              model.installed && !model.usable
+                ? `${model.label} (needs repair)`
+                : model.label,
+          }))}
+          onChange={(next) => {
+            const selected = next.sort();
+            setProfiles(selected);
+            if (!selected.includes(preferred)) setPreferred("");
+          }}
+        />
+      ) : (
+        installedModels.length > 0 && (
+          <ul className="desktop-setup__model-status">
+            {installedModels.map((model) => (
+              <li key={model.id}>
+                <span>{model.label}</span>
+                <Typography.Text type="secondary">
+                  {model.usable ? "Installed" : "Needs repair"}
+                </Typography.Text>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
       {reference.modelsAvailable && !reference.canChangeModels && (
         <Typography.Text type="secondary">
-          Installed models can be changed after the workspace uses the bundled reference
-          data.
+          {!reference.managed
+            ? "Use the Atlas CLI to add or remove models for this workspace."
+            : reference.available && reference.revision !== reference.target
+              ? "Apply the bundled reference data above to add or remove models."
+              : "Check and repair the reference data before adding or removing models."}
         </Typography.Text>
       )}
       <div className="desktop-setup__stack">
-        <Typography.Text>Default search model</Typography.Text>
+        <Typography.Text>Preferred search model</Typography.Text>
         <Select
-          aria-label="Default search model"
+          aria-label="Preferred search model"
           value={preferred}
           popupMatchSelectWidth={false}
           disabled={!editable || profiles.length === 0}
           options={[
-            { value: "", label: "Automatic" },
+            { value: "", label: "Atlas default" },
             ...models
               .filter((model) => profiles.includes(model.id))
               .map((model) => ({
@@ -542,15 +568,26 @@ function SearchModels({
           onChange={setPreferred}
         />
       </div>
-      <Button
-        type="primary"
-        disabled={
-          !editable || !dirty || (membershipChanged && !reference.canChangeModels)
-        }
-        onClick={() => onApply({ profiles, preferred: preferred || null })}
-      >
-        Apply search models
-      </Button>
+      {(canEditMembership ? profiles.length : installed.length) === 0 && (
+        <Typography.Text type="secondary">
+          Keyword-only search. Similar records requires a search model.
+        </Typography.Text>
+      )}
+      {canEditMembership && membershipChanged && (
+        <Typography.Text type="secondary">
+          Model changes may download files and rebuild parts of the search index.
+          Editing pauses while the index is prepared.
+        </Typography.Text>
+      )}
+      {dirty && (
+        <Button
+          type="primary"
+          disabled={!editable || (membershipChanged && !canEditMembership)}
+          onClick={() => onApply({ profiles, preferred: preferred || null })}
+        >
+          Apply search models
+        </Button>
+      )}
     </section>
   );
 }
