@@ -1,0 +1,10 @@
+name = "Quelaunt"
+source_note = "The Hell's Destiny quelaunt shares creature level 15 and the Monster Core creature's signature actions. The adventure variant is rare and amphibious and adds a 25-foot swim Speed and 60-foot imprecise wavesense."
+
+[[members]]
+key = "pathfinder-monster-core:G5OY8UMEOrbycZZc"
+name = "Quelaunt"
+
+[[members]]
+key = "hells-destiny-bestiary:G5OY8UMEOrbycZZc"
+name = "Quelaunt"

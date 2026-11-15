@@ -1,5 +1,5 @@
 name = "Kizrech"
-source_note = "Battle of the Thorns supplies level 9 and level 11 blocks that share the returning trident, Infernal Command, Burning Hoofprints, and Trident of Dis."
+source_note = "Battle of the Thorns supplies creature level 9 and 11 blocks. The Handmaiden's Gaze supplies a second creature level 11 block with Infernal Command, Burning Hoofprints, and Trident of Dis. Its trident has a different thrown range, and the block omits Mounted Force."
 
 [[members]]
 key = "pfs-season-7-bestiary:W2puJUeo61CLMMxQ"
@@ -8,4 +8,9 @@ name = "Kizrech"
 [[members]]
 key = "pfs-season-7-bestiary:xyT4zCZjAbnAgDLV"
 name = "Kizrech (11-12)"
+label = "Kizrech"
+
+[[members]]
+key = "pfs-season-7-bestiary:qvagIV8gqF0g3m3l"
+name = "Kizrech (7-22)"
 label = "Kizrech"

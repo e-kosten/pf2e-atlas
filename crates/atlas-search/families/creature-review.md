@@ -65,6 +65,15 @@ store creature level 3 with a typed Elite adjustment. Recheck the source
 titles and effective Elite statistics when the pin changes.
 [Published scenario](https://www.scribd.com/document/655349423/PF2-S01-20-The-Lost-Legend)
 
+**Phistophilus.** The pinned *Things Go to Hell* actor uses Unique rarity
+and the *Monster Core* actor uses Common. In the two Foundry stat blocks,
+the creature level, numerical stats, spell list, action text, and strike
+statistics match. Verify the published encounter for any scenario-specific
+changes before declaring a canonical link.
+
+- Phistophilus (`one-shot-bestiary:3QyqHIuAXE3YVLUh`) in *Things Go to Hell*
+- Phistophilus (`pathfinder-monster-core:3QyqHIuAXE3YVLUh`) in *Monster Core*
+
 ### Marcien's Shadow Doubles
 
 The [Marcien Blakros family](creatures/marcien-blakros.toml) groups the
@@ -138,7 +147,9 @@ discovery passes.
 **Grouping by ability across party tiers.** [Fleshforge Construct](creatures/fleshforge-construct.toml)
 groups by party level and names the ability in each title. Each of the six
 abilities appears on a Dreg and a Prototype. Review whether to offer an
-ability grouping across both forms.
+ability grouping across both forms. The axes model requires two dimensions
+and unique coordinates. Adding Form alongside Ability would add a grouping
+with the same members as Party levels.
 
 ### Same-publication actor pairs
 
