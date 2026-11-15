@@ -1,0 +1,10 @@
+name = "Vidileth"
+source_note = "The Dead God's Hand uses a creature level 6 vidileth and Monster Core supplies the creature level 14 stat block. Both share veiled master lore, Numbing Lights, Consume Memories, Shape Flesh, and Thoughtlance. The Monster Core block also has Delayed Suggestion."
+
+[[members]]
+key = "pathfinder-monster-core:VDm2XhfNwhgiJOxD"
+name = "Vidileth"
+
+[[members]]
+key = "the-dead-gods-hand-bestiary:VDm2XhfNwhgiJOxD"
+name = "Vidileth"

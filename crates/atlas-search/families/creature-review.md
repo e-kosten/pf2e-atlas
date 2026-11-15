@@ -65,6 +65,13 @@ store creature level 3 with a typed Elite adjustment. Recheck the source
 titles and effective Elite statistics when the pin changes.
 [Published scenario](https://www.scribd.com/document/655349423/PF2-S01-20-The-Lost-Legend)
 
+**Gosterion.** The [Phistophilus family](creatures/phistophilus.toml) links
+the *Things Go to Hell* actor to the *Monster Core* base as a named
+variant. The published encounter names Gosterion and gives him two
+escape artifacts. The pinned Foundry actor is titled Phistophilus and
+keeps the base combat stat block with Unique rarity.
+[Published adventure, Spanish edition](https://es.scribd.com/document/1070186623/Esto-Se-Va-Al-Infierno)
+
 ### Marcien's Shadow Doubles
 
 The [Marcien Blakros family](creatures/marcien-blakros.toml) groups the
@@ -134,11 +141,6 @@ party uses or overrides.
 [Hesla](creatures/hesla-the-broken-ember.toml) families include
 same-publication actors the token audit missed. Use them to check future
 discovery passes.
-
-**Grouping by ability across party tiers.** [Fleshforge Construct](creatures/fleshforge-construct.toml)
-groups by party level and names the ability in each title. Each of the six
-abilities appears on a Dreg and a Prototype. Review whether to offer an
-ability grouping across both forms.
 
 ### Same-publication actor pairs
 
