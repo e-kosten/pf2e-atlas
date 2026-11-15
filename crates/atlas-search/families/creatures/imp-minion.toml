@@ -1,0 +1,11 @@
+name = "Imp Minion"
+source_note = "Both Imp Minion actors in Enough is Enough retain 1 HP and use the Stinger strike. The creature levels are 1 and 2, and the Stinger attack bonus changes from +8 to +11."
+
+[[members]]
+key = "pfs-season-7-bestiary:BeaQYUmT1DrnFxpR"
+name = "Imp Minion"
+
+[[members]]
+key = "pfs-season-7-bestiary:xaoetADwlJqF8Hy0"
+name = "Imp Minion (3-4)"
+label = "Imp Minion"

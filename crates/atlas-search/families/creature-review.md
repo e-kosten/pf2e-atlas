@@ -82,7 +82,7 @@ the pinned Foundry source changes.
 
 ### Published adjustments and scaling
 
-**Cosmic Amoeba and Hound Echo.** Stranded on Yesterday’s Tide uses
+**Cosmic Amoeba.** Stranded on Yesterday’s Tide uses
 different blocks by encounter and party tier. Foundry stores typed Weak
 adjustments on otherwise partly unadjusted stats. Verify the effective
 levels, defenses, strike dice, and ability DCs against encounters B–D before
@@ -90,10 +90,14 @@ adding scoped overrides.
 
 - Cosmic Amoeba (`pfs-season-5-bestiary:Mmsmoh7tpsnLZWrI`)
 - Weak Cosmic Amoeba (`pfs-season-5-bestiary:c93xz68jVyaTiAI5`)
-- Hound Echo (`pfs-season-5-bestiary:JGtNz1mLf5rsvJWC`)
-- Weak Hound Echo (`pfs-season-5-bestiary:JKduEdHCeBVIYcdd`)
-- Cacophonous Hound Echo (`pfs-season-5-bestiary:vvZktgY1C8Eabs3w`)
-- Weak Cacophonous Hound Echo (`pfs-season-5-bestiary:Hysy3I3yiYsUZHxY`)
+
+**Hound Echo.** The [family](creatures/hound-echo.toml) presents the
+four records from *Stranded on Yesterday's Tide*. Foundry stores the Weak
+blocks as typed adjustments on creature levels 2 and 4. The reader and
+summary currently show those source levels, while the encounter applies Weak
+and yields the printed levels 1 and 3. The encounter's scaling can use
+ordinary and Weak blocks together.
+[Published scenario](https://www.scribd.com/document/820438906/PF2-S05-17-Stranded-on-Yesterday-s-Tide)
 
 **Congealed Magic.** Lost and Forgotten supplies ordinary and Concentrated
 blocks with typed Elite counterparts. Check the encounter’s scaling conditions
@@ -167,32 +171,23 @@ ability grouping across both forms.
 
 ### Same-publication actor pairs
 
-#### Pathfinder #186: Ghost King's Rage
-
-The Foundry skeleton has 40 fewer HP and adds Flamboyant Reposition. Verify
-the Celebrants encounter's printed instructions and whether the skeleton uses
-the Rival Corpsekiller as its base.
-
-- Rival Corpsekiller (`blood-lords-bestiary:1Hc1BLc9LIXLuBdg`) ↔ Skeleton Rival Corpsekiller (`blood-lords-bestiary:S1rfj73uV1ZUBCJ3`)
-
-#### Pathfinder Adventure Path: Hell's Destiny
-
-Vanda and the Champion share the Viper’s Fang item. Vanda is a named unique
-actor
-with a separate action that restates the item's activation and venom. Verify
-whether the adventure uses the Champion as her underlying stat block.
-
-- Vanda Spitelash (`hells-destiny-bestiary:1y6sYotLFK9UxFAo`) ↔ Champion of Asmodeus (`hells-destiny-bestiary:NZOqqzi4ThvJfpm8`)
+The [Champion of Asmodeus](creatures/champion-of-asmodeus.toml) and
+[Rival Corpsekiller](creatures/rival-corpsekiller.toml) relationships rely on
+the pinned Foundry actors. Their exact roles in the printed encounters remain
+unverified.
 
 #### Pathfinder Society Quest #15: In the Footsteps of Horror
 
-In *In the Footsteps of Horror*, both Pixies have authored Elite stats and the
-Weak Shadow Draugr retains 35 HP. Verify the published encounter and scaling
-sidebars for the exact uses before declaring adjustment overrides.
+The [Arisen Pixies family](creatures/arisen-pixies.toml) uses the reviewed
+party levels 1–2 for the Shadow pair. The two Umbral blocks share the
+signature ability and strike kit. Their exact party ranges still need
+verification.
 
-- Arisen Shadow Pixie (`pfs-season-5-bestiary:8Zj3XDNa07fjkWAq`) ↔ Elite Arisen Shadow Pixie (`pfs-season-5-bestiary:ytb75tCpHFXxryFZ`)
-- Elite Arisen Umbral Pixie (`pfs-season-5-bestiary:ep7eL4vrN4F6YCdd`) ↔ Arisen Umbral Pixie (`pfs-season-5-bestiary:umxjQH7AV65Eftfc`)
-- Shadow Draugr (`pfs-season-5-bestiary:EgAoF7pXBsHxthA0`) ↔ Weak Shadow Draugr (`pfs-season-5-bestiary:qqBaCxN4Epxe1rnF`)
+The [Shadow Draugr family](creatures/shadow-draugr.toml) retains both
+published blocks as selectable variants. Foundry gives both actors a
+greataxe, and the printed blocks use greatswords. Recheck the weapon if the
+pinned source changes.
+[Published quest](https://www.studocu.com/pt-br/document/universidade-federal-do-estado-do-rio-de-janeiro/lingua-portuguesa-na-educacao/pf2-quest-15-in-the-footsteps-of-horror-adventure-guide/149792260)
 
 #### Pathfinder Society Quest #17: Escorting a Mirage
 
@@ -247,14 +242,6 @@ Recheck these pairs when their pinned Foundry records change.
 - Elite Smokesight Deadeye Wight (`pfs-season-4-bestiary:4G6VvfIsceXfEZBB`) ↔ Smokesight Deadeye Wight (`pfs-season-4-bestiary:4r7haYeUSxjW3wtR`)
 - Elite Smokesight Wight Commander (`pfs-season-4-bestiary:KV2LmRMc9ho9mBPy`) ↔ Smokesight Wight Commander (`pfs-season-4-bestiary:Q6BTF30qgInYi2BA`)
 
-#### Pathfinder Society Scenario #4-16: Dacilane Academy's First Great Prank War
-
-The unsuffixed Pappy is level 3 and the 5–6 title is level 5. Check the
-*Dacilane Academy's First Great Prank War* encounter appendix for the
-party-level assignments.
-
-- Pappy Draighean (`pfs-season-4-bestiary:1G589gnuWGIOdrou`) ↔ Pappy Draighean (5-6) (`pfs-season-4-bestiary:ACDuWRp4JELgqmo8`)
-
 #### Pathfinder Society Scenario #4-99: Blessings of the Forest
 
 The [Animated Dagger family](creatures/animated-dagger.toml) presents both
@@ -271,29 +258,6 @@ block with evasion and 111 HP. Recheck if the pinned Foundry source changes.
 [Published scenario](https://www.scribd.com/document/870508711/PZOPFS0503E)
 
 - Krosovahn Mendesil (`pfs-season-5-bestiary:H5lFXWXFl7vKrugU`) ↔ Krosovahn Mendesil (7-8) (`pfs-season-5-bestiary:TWsApxv2Bx0n7M3i`)
-
-#### Pathfinder Society Scenario #5-10: The Crocodile's Smile
-
-The unsuffixed *Crocodile's Smile* actors have lower creature levels than the
-3–4 actors. The higher-tier Zibini also gains two named kicks. Verify the
-encounter appendix's party-level assignments.
-
-- Little Brother Zibini (`pfs-season-5-bestiary:NoatZIUfJETSq20A`) ↔ Little Brother Zibini (3-4) (`pfs-season-5-bestiary:epmml7kA0akrIGPG`)
-- Tisbah (3-4) (`pfs-season-5-bestiary:V5gA4pv3ewFxfY6L`) ↔ Tisbah (`pfs-season-5-bestiary:kLL35GP9ZczW1tKV`)
-
-#### Pathfinder Society Scenario #5-14: Poisonous Council
-
-The 5–6 Sronwa gains Surprise Attack and is two creature levels higher. Verify
-*Poisonous Council*'s encounter for the unsuffixed actor's party range.
-
-- Sronwa (`pfs-season-5-bestiary:R1S3vlOlNEEqW8kO`) ↔ Sronwa (5-6) (`pfs-season-5-bestiary:RghG76jeaTeQCT6j`)
-
-#### Pathfinder Society Scenario #6-04: An Enkindled Carnival
-
-The unsuffixed Puddles Phantom is level 4 and the 5–6 title is level 6. Verify
-*An Enkindled Carnival*'s encounter for the lower block's party range.
-
-- Puddles Phantom (`pfs-season-6-bestiary:5Txfy0wV529fleUw`) ↔ Puddles Phantom (5-6) (`pfs-season-6-bestiary:ooCLBFbCLCQWhPqD`)
 
 #### Pathfinder Society Scenario #6-09: The Power of Legends
 
@@ -316,16 +280,6 @@ The 11–12 Harbinger is creature level 9 and the unsuffixed actor is level 7.
 Verify the party uses in *The Overthrow of Ambition*.
 
 - Harbinger of Ingalor (11-12) (`pfs-season-6-bestiary:RgAi5UNl5yxAk9y2`) ↔ Harbinger of Ingalor (`pfs-season-6-bestiary:qbAQmR4WUnNF3g4Z`)
-
-#### Pathfinder Society Scenario #7-01: Intro to the Year of Battle's Spark: Enough is Enough
-
-The three 3–4 actors have higher creature levels. The Imp Minion has 1 HP in
-both records. Verify both encounter tiers in *Enough is Enough*, including
-whether the imp stat block is merely rescaled.
-
-- Bartolo Posandi (3-4) (`pfs-season-7-bestiary:lGBzkcTH3i49Bg7e`) ↔ Bartolo Posandi (`pfs-season-7-bestiary:sjMxdb8gEpK7ejBQ`)
-- Imp Minion (`pfs-season-7-bestiary:BeaQYUmT1DrnFxpR`) ↔ Imp Minion (3-4) (`pfs-season-7-bestiary:xaoetADwlJqF8Hy0`)
-- Olinda Posandi (`pfs-season-7-bestiary:GD8dO41GvkdPQTT9`) ↔ Olinda Posandi (3-4) (`pfs-season-7-bestiary:McQbKbTiy38rEEna`)
 
 #### Pathfinder Society Scenario #7-03: A Foot in the Door
 

@@ -1,0 +1,19 @@
+name = "Shadow Draugr"
+source_note = "In the Footsteps of Horror, encounter A8 for party levels 3–4, publishes distinct standard and Weak Shadow Draugr at creature levels 2 and 1. Both retain 35 HP. Each is a selectable stat block."
+
+[[members]]
+key = "pfs-season-5-bestiary:EgAoF7pXBsHxthA0"
+name = "Shadow Draugr"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-5-bestiary:qqBaCxN4Epxe1rnF"
+name = "Weak Shadow Draugr"
+label = "Weak Shadow Draugr"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
