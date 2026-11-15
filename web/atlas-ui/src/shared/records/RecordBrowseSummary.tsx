@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { RecordEditionBadge } from "./RecordEditionBadge";
 import {
   destinationHref,
@@ -29,6 +30,7 @@ export function RecordBrowseSummary({
   qualifiers?: string[];
   searchCard?: boolean;
 }) {
+  const atlasRouter = useAtlasRouter();
   const classification = [
     record.kind_label,
     record.level_label?.replace(/^(Level|Rank)\s+/, ""),
@@ -97,7 +99,7 @@ export function RecordBrowseSummary({
       onKeyDown={(event) => {
         if (event.key === "Enter" && isPrimaryActivation(event)) {
           event.preventDefault();
-          navigatePath(recordHref);
+          navigatePath(recordHref, atlasRouter);
           return;
         }
         if (event.key === " " && isPrimaryActivation(event)) {

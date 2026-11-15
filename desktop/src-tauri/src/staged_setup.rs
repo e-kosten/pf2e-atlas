@@ -111,6 +111,12 @@ impl StagedSetup {
             .permission("allow-desktop-appearance")
             .permission("allow-desktop-copy-link")
             .permission("allow-desktop-copy-availability");
+        #[cfg(windows)]
+        let permission = permission
+            .permission("allow-desktop-tabs-state")
+            .permission("allow-desktop-tabs-ack")
+            .permission("allow-desktop-tabs-close")
+            .permission("allow-desktop-tabs-exit-status");
         app.add_capability(permission).map_err(display)?;
         lock(&self.documents).insert(
             label.into(),

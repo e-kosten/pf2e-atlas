@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { DisplayChip } from "../../shared/ui/DisplayChip";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
@@ -29,6 +30,7 @@ export function ListBrowseHeader({
   editing?: boolean;
   onRetry: () => void;
 }) {
+  const atlasRouter = useAtlasRouter();
   const actionsTrigger = useRef<HTMLButtonElement>(null);
   const paused = useSavedWritesPaused();
   const errorNotice = error ? (
@@ -49,7 +51,7 @@ export function ListBrowseHeader({
             onClick={(event) => {
               if (!isPrimaryActivation(event)) return;
               event.preventDefault();
-              navigateDestination(listsDestination());
+              navigateDestination(listsDestination(), undefined, atlasRouter);
             }}
           >
             <ArrowLeft size={14} aria-hidden="true" />

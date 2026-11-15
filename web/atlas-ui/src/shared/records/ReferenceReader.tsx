@@ -1,4 +1,5 @@
-import { useRouter, useRouterState } from "@tanstack/react-router";
+import { useAtlasRouter } from "../../app/router";
+import { useRouterState } from "@tanstack/react-router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { ReferenceHelpProvider, type ReferenceHelpHandler } from "./ReferenceHelp";
 import type { RecordReferenceHandler } from "./PreparedContent";
@@ -16,7 +17,6 @@ import { recordReadingIdentity } from "./useRetainedRecord";
 import { Button, Space, Typography } from "antd";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
-import { atlasRouter } from "../../app/router";
 import { useRecordPreview } from "./useRecordPreview";
 import { RecordPreviewDrawer } from "./RecordPreviewDrawer";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -69,8 +69,9 @@ export function ReferenceReader({
   selectionActions,
   selectionActionsInIdentity = false,
 }: ReferenceReaderProps) {
+  const atlasRouter = useAtlasRouter();
   const entityRoute = useRouterState({
-    router: useRouter({ warn: false }) ?? atlasRouter,
+    router: atlasRouter,
     select: ({ matches }) => matches[matches.length - 1]?.routeId,
   });
   const preview = useRecordPreview();
@@ -257,6 +258,7 @@ export function ReferenceReader({
     reading.landing,
     reading.request,
     restorePosition,
+    atlasRouter,
   ]);
   useEffect(() => {
     if (
@@ -429,7 +431,7 @@ export function ReferenceReader({
           onClick={(event) => {
             if (!isPrimaryActivation(event)) return;
             event.preventDefault();
-            navigateDestination(fullRoute);
+            navigateDestination(fullRoute, undefined, atlasRouter);
           }}
         />
       )}

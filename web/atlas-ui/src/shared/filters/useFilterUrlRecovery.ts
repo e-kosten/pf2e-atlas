@@ -1,4 +1,4 @@
-import { atlasRouter } from "../../app/router";
+import { useAtlasRouter } from "../../app/router";
 import { useEffect, useRef } from "react";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
 
@@ -10,6 +10,7 @@ export function useFilterUrlRecovery(
   search: SearchFormState,
   onRecovered?: (search: SearchFormState) => void,
 ) {
+  const atlasRouter = useAtlasRouter();
   const handled = useRef(false);
   useEffect(() => {
     if (!search.filterWasReset) {
@@ -31,5 +32,5 @@ export function useFilterUrlRecovery(
         }),
       })
       .then(() => onRecovered?.({ ...DEFAULT_SEARCH_STATE }));
-  }, [search, onRecovered]);
+  }, [search, onRecovered, atlasRouter]);
 }

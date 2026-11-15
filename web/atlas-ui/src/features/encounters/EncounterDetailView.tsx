@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { WorkspaceContextBar } from "../../shared/layout/WorkspaceContextBar";
@@ -44,6 +45,7 @@ export function EncounterDetailView(props: EncounterDetailViewProps) {
   return <EncounterDetail key={props.route.slug} {...props} />;
 }
 function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProps) {
+  const atlasRouter = useAtlasRouter();
   const client = useQueryClient();
   const screens = Grid.useBreakpoint();
   const narrow = screens.md === false;
@@ -874,7 +876,9 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
             disabled={disabled}
             open={editEncounterOpen}
             onClose={closeEditor}
-            onDeleted={() => navigateDestination(encountersDestination())}
+            onDeleted={() =>
+              navigateDestination(encountersDestination(), undefined, atlasRouter)
+            }
           />
         )}
         {initiativeOpen && encounter.data && (

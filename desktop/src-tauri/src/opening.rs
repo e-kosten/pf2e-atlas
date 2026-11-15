@@ -137,6 +137,8 @@ pub fn with_cover<R: tauri::Runtime, M: Manager<R>>(
     } else {
         builder
     };
+    #[cfg(windows)]
+    let builder = builder.initialization_script("window.__ATLAS_WINDOWS_TABS__ = true;");
     builder
         .background_color(crate::appearance::canvas(dark))
         .initialization_script(crate::tab_links::SCRIPT)

@@ -11,8 +11,8 @@ use windows_sys::Win32::{
     UI::{
         Shell::ShellExecuteW,
         WindowsAndMessaging::{
-            IDRETRY, MB_ICONERROR, MB_ICONINFORMATION, MB_OK, MB_RETRYCANCEL, MESSAGEBOX_STYLE,
-            MessageBoxW, SW_SHOWNORMAL,
+            IDRETRY, IDYES, MB_DEFBUTTON2, MB_ICONERROR, MB_ICONINFORMATION, MB_ICONWARNING, MB_OK,
+            MB_RETRYCANCEL, MB_YESNO, MESSAGEBOX_STYLE, MessageBoxW, SW_SHOWNORMAL,
         },
     },
 };
@@ -86,6 +86,14 @@ pub fn show_cli_path() -> Result<(), String> {
 
 pub fn report(title: &str, detail: &str) {
     message(title, detail, MB_OK | MB_ICONERROR);
+}
+
+pub fn confirm_exit() -> bool {
+    message(
+        "Exit Atlas",
+        "Discard unsaved changes in all open Atlas windows?",
+        MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
+    ) == IDYES
 }
 
 pub fn offer_retry(title: &str, detail: &str) -> bool {

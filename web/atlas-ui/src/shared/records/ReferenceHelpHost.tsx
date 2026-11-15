@@ -1,5 +1,5 @@
+import { useAtlasRouter } from "../../app/router";
 import { useEffect, type ReactNode } from "react";
-import { atlasRouter } from "../../app/router";
 import {
   ReferenceHelpProvider,
   useReferenceHelpHandler,
@@ -47,6 +47,7 @@ function LocalReferenceHelpHost({
   recordActions,
   visibleOwnerRecordKey,
 }: HelpHostProps) {
+  const atlasRouter = useAtlasRouter();
   const preview = useRecordPreview();
   const { destination, closeForNavigation } = preview;
   useEffect(() => {
@@ -55,7 +56,7 @@ function LocalReferenceHelpHost({
       if (fromLocation && fromLocation.pathname !== toLocation.pathname)
         closeForNavigation();
     });
-  }, [destination, closeForNavigation]);
+  }, [destination, closeForNavigation, atlasRouter]);
   return (
     <ReferenceHelpProvider
       onHelp={preview.openHelp}

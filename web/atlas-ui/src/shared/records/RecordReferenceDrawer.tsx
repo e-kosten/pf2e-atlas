@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { destinationHref, navigateDestination } from "../../app/navigation";
 import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
@@ -51,6 +52,7 @@ export function RecordReferenceDrawer({
 }: {
   anchor: RecordPreviewAnchor | null;
 } & RecordPreviewContentProps) {
+  const atlasRouter = useAtlasRouter();
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const [closing, setClosing] = useState(false);
@@ -78,7 +80,7 @@ export function RecordReferenceDrawer({
   const href = unavailable ? undefined : destinationHref(typedRoute);
   const openFullPage = () => {
     if (unavailable) return;
-    navigateDestination(typedRoute);
+    navigateDestination(typedRoute, undefined, atlasRouter);
     (onNavigateAway ?? onClose)();
   };
   const readingRef = usePreviewReadingPosition(

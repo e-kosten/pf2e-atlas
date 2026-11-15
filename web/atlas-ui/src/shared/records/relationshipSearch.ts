@@ -1,3 +1,4 @@
+import { atlasRouter, type AtlasRouter } from "../../app/router";
 import { searchDestination } from "../../app/destinations";
 import { appendLink } from "../filters/linkPredicates";
 import { currentSearchLocation } from "../../app/searchLocation";
@@ -11,9 +12,12 @@ import {
 export function relationshipSearchRoute(
   filter: QueryPredicate,
   profile?: string | null,
+  router: AtlasRouter = atlasRouter,
 ) {
-  const route = currentSearchLocation();
-  const params = new URLSearchParams(window.location.search);
+  const route = currentSearchLocation(router);
+  const params = new URLSearchParams(
+    router === atlasRouter ? window.location.search : router.latestLocation.searchStr,
+  );
   const search =
     route !== null ? decodeSearchStateFromParams(params) : DEFAULT_SEARCH_STATE;
   const next =

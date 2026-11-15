@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { Button, Popover } from "antd";
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -79,6 +80,7 @@ function selectedText(): SelectedText | null {
 
 /** One selection action across full records, preview drawers and encounters. */
 export function SelectionSearch() {
+  const atlasRouter = useAtlasRouter();
   const [selected, setSelected] = useState<SelectedText | null>(null);
   const current = useRef(selected);
   const popup = useRef<HTMLDivElement>(null);
@@ -232,7 +234,11 @@ export function SelectionSearch() {
               if (!isPrimaryActivation(event)) return;
               event.preventDefault();
               setSelected(null);
-              void navigateDestination(destination, { dismissReadingOverlays: true });
+              void navigateDestination(
+                destination,
+                { dismissReadingOverlays: true },
+                atlasRouter,
+              );
             }}
           >
             Search Atlas

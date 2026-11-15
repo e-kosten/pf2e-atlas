@@ -1,9 +1,9 @@
+import { useAtlasRouter } from "../../app/router";
 import { isPrimaryActivation } from "../../app/navigation";
 import { Grid, Splitter } from "antd";
 import { X } from "lucide-react";
 import { PaneIconButton } from "../ui/actions/PaneAction";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { atlasRouter } from "../../app/router";
 import { ReferenceReader } from "./ReferenceReader";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { type ReferenceReading } from "./useReferenceReading";
@@ -46,6 +46,7 @@ export function BrowseReader({
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
 }) {
+  const atlasRouter = useAtlasRouter();
   const paneHeader = Boolean(renderResultsPaneHeader);
   const narrow = !Grid.useBreakpoint().lg;
   const [closedRequest, setClosedRequest] = useState<ReferenceReading["request"]>();
@@ -85,7 +86,7 @@ export function BrowseReader({
       before();
       resolved();
     };
-  }, [saved, narrow, readerOpen]);
+  }, [saved, narrow, readerOpen, atlasRouter]);
   useLayoutEffect(() => {
     if (listRef.current && (!narrow || !readerOpen))
       listRef.current.scrollTop = saved.readList();

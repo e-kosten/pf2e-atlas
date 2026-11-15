@@ -1,9 +1,9 @@
+import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LinkNotFound } from "../../app/InvalidUrl";
-import { atlasRouter } from "../../app/router";
 import { definitionDestination } from "../../app/destinations";
 import { useDefinitionDetail } from "../../shared/records/useDefinitionDetail";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
@@ -26,6 +26,7 @@ export function DefinitionView({ definitionKey }: { definitionKey: string }) {
 }
 
 function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
+  const atlasRouter = useAtlasRouter();
   const query = useDefinitionDetail(definitionKey);
   const onReference = useReferenceRecordNavigation()!;
   const client = useQueryClient();
@@ -44,7 +45,7 @@ function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
         ...referenceDestination(recordTarget, definitionKey),
         replace: true,
       });
-  }, [definitionKey, recordTarget, traitTarget]);
+  }, [atlasRouter, definitionKey, recordTarget, traitTarget]);
   const readable =
     !traitTarget &&
     destination?.kind === "definition" &&

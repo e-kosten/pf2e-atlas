@@ -1,3 +1,4 @@
+import { useDesktopTab } from "./DesktopTabContext";
 import { Popover, Tooltip } from "antd";
 import { useRouter, useRouterState } from "@tanstack/react-router";
 import { Check, Link } from "lucide-react";
@@ -72,6 +73,7 @@ export function CopyEntityLink(props: CopyEntityLinkProps) {
     <EntityCopyAction
       key={JSON.stringify([href, props.kind, props.identity])}
       {...props}
+      href={href}
     />
   );
 }
@@ -82,22 +84,27 @@ function EntityCopyAction({
   title,
   primary,
   actions,
-}: CopyEntityLinkProps) {
+  href,
+}: CopyEntityLinkProps & { href: string }) {
+  const tab = useDesktopTab();
+  const active = tab?.active ?? true;
+  const tabId = tab?.id;
+  const activation = tab?.activation;
   const attachment = useSyncExternalStore(subscribe, token);
   const desktop = Boolean(host().__TAURI__);
   const [hintOpen, setHintOpen] = useState(false);
   const [result, setResult] = useState<"copied" | "failed">();
-  const route = window.location.href;
+  const route = tab ? new URL(href, window.location.origin).href : window.location.href;
   const url = new URL(
     destinationHref(destinations[kind](identity)),
     window.location.origin,
   ).href;
 
   useEffect(() => {
-    if (!attachment || !primary) return;
-    const args = { token: attachment, route };
+    if (!attachment || !primary || !active) return;
+    const args = { token: attachment, route, tab: tabId, activation };
     const receive = (event: Event) => {
-      if (window.location.href !== route) return;
+      if (!tabId && window.location.href !== route) return;
       void invoke("desktop_copy_link", {
         ...args,
         kind,
@@ -118,7 +125,7 @@ function EntityCopyAction({
       window.removeEventListener("atlas-copy-link", receive);
       publish(false);
     };
-  }, [attachment, primary, route, kind, identity, title]);
+  }, [active, activation, attachment, primary, route, kind, identity, tabId, title]);
 
   const inMenu = Boolean(actions);
   useEffect(() => {
@@ -132,6 +139,8 @@ function EntityCopyAction({
       if (attachment) {
         await invoke("desktop_copy_link", {
           token: attachment,
+          tab: tabId,
+          activation,
           route,
           kind,
           key: identity,

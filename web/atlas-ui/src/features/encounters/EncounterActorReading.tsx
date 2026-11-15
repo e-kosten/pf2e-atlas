@@ -1,9 +1,10 @@
+import { useDesktopTab } from "../../app/DesktopTabContext";
 import { useReferenceQueryRetirement } from "../../shared/queries/useReferenceQueryRetirement";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import type { ComponentProps } from "react";
 import { Button, Spin } from "antd";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getEmbeddedReading } from "../../api/atlasApi";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
 import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
@@ -14,6 +15,8 @@ export function EncounterActorReading(
   props: ComponentProps<typeof RecordPresentation>,
 ) {
   const { reading, presentation, relationships = [] } = props;
+  const tab = useDesktopTab();
+  const client = useQueryClient();
   const identity = JSON.stringify([
     reading?.parent,
     reading?.generation,
@@ -73,7 +76,13 @@ export function EncounterActorReading(
               onClick={() => {
                 if (changed) {
                   if (reading?.reloadParent) reading.reloadParent();
-                  else window.location.reload();
+                  else if (tab) {
+                    void client.invalidateQueries({
+                      predicate: ({ queryKey }) =>
+                        queryKey[0] === "encounter" ||
+                        queryKey[0] === "encounter-route",
+                    });
+                  } else window.location.reload();
                 } else void query.refetch();
               }}
             >

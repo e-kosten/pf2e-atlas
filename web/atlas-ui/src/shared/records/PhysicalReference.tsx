@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { ReferenceValue } from "./ReferenceHelp";
 import {
   destinationHref,
@@ -36,6 +37,7 @@ export function PhysicalReference({
   onReference: RecordReferenceHandler;
   children: ReactNode;
 }) {
+  const atlasRouter = useAtlasRouter();
   const profile = useSearchProfile();
   const consumable = item.consumable;
   const spell = consumable?.spell.value;
@@ -183,7 +185,11 @@ export function PhysicalReference({
                   event.stopPropagation();
                   if (!isPrimaryActivation(event)) return;
                   event.preventDefault();
-                  navigateDestination(baseRoute, { dismissReadingOverlays: true });
+                  navigateDestination(
+                    baseRoute,
+                    { dismissReadingOverlays: true },
+                    atlasRouter,
+                  );
                 }}
               >
                 {baseType.label}

@@ -1,5 +1,5 @@
+import { useAtlasRouter } from "../../app/router";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { atlasRouter } from "../../app/router";
 import { type HistoryState } from "@tanstack/react-router";
 import {
   FILTER_URL_RESET_NOTICE,
@@ -25,7 +25,11 @@ export function SearchView({
   workspace: SearchWorkspaceState;
   historyState?: Pick<HistoryState, "atlasSearchReset" | "atlasFilterResetNotice">;
 }) {
-  usePageTitle("Search");
+  const atlasRouter = useAtlasRouter();
+  const selected = workspace.reading.detail?.record;
+  const tabTitle =
+    selected?.record_key === workspace.selectedRecordKey ? selected?.title : undefined;
+  usePageTitle("Search", tabTitle);
   useFilterUrlRecovery(workspace.search, workspace.recoverFilterUrl);
   const reset = {
     token: historyState.atlasSearchReset,

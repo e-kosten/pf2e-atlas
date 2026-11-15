@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { RecordEditionNotice } from "./RecordEditionNotice";
 import { RecordContextError } from "./recordContextError";
 import { ErrorNotice } from "../feedback/ErrorNotice";
@@ -85,6 +86,7 @@ export function RecordDetailPane({
     anchor: HTMLElement,
   ) => void;
 }) {
+  const atlasRouter = useAtlasRouter();
   const code =
     error && "appError" in error ? (error as AtlasApiError).appError?.code : undefined;
   const notFound = code === "record_not_found";
@@ -197,6 +199,8 @@ export function RecordDetailPane({
                                 searchDestination({
                                   selectedRecordKey: null,
                                 }),
+                                undefined,
+                                atlasRouter,
                               );
                             }}
                           >

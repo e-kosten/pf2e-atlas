@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { FilterControls } from "../../shared/filters/FilterPanel";
@@ -7,7 +8,6 @@ import { Alert, Grid } from "antd";
 import type { ListPageInput } from "../../app/destinations";
 import { navigateDestination, destinationHref } from "../../app/navigation";
 import { listDestination, listsDestination } from "../../app/destinations";
-import { atlasRouter } from "../../app/router";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { usePreparedReferenceSelection } from "../../shared/records/usePreparedReferenceSelection";
 import {
@@ -61,6 +61,7 @@ type ListDetailViewProps = {
   onCloseDirectEditor?: (slug: string) => void;
 };
 export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewProps) {
+  const atlasRouter = useAtlasRouter();
   const queryClient = useQueryClient();
   const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
@@ -84,7 +85,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
     const query = searchStateQueryString(next);
     previousQuery.current = query || undefined;
     setFilters(next);
-    navigateDestination(listDestination({ ...route, query }));
+    navigateDestination(listDestination({ ...route, query }), undefined, atlasRouter);
   }
   const listQuery = searchStateQueryString(filters);
   const reading = useReferenceReading(null, !filters.filterWasReset);
@@ -236,7 +237,7 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
       resetScroll: false,
       state: true,
     });
-  }, [reading.request, route, listQuery]);
+  }, [reading.request, route, listQuery, atlasRouter]);
   const addressableReading = {
     ...reading,
     select: (request: ReadingRequest | null) => {
@@ -270,6 +271,8 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
             selectedRecordKey: null,
             query: listQuery,
           }),
+          undefined,
+          atlasRouter,
         );
       }
       await invalidateSavedListQueries(queryClient, [
@@ -354,7 +357,9 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
               onCloseDirectEditor?.(slug ?? route.slug);
             }}
             afterClose={editing.clear}
-            onDeleted={() => navigateDestination(listsDestination())}
+            onDeleted={() =>
+              navigateDestination(listsDestination(), undefined, atlasRouter)
+            }
           />
         )}
         <ListRecordPicker
@@ -501,6 +506,8 @@ export function ListDetailView({ route, onCloseDirectEditor }: ListDetailViewPro
                       selectedRecordKey: recordKey,
                       query: listQuery,
                     }),
+                    undefined,
+                    atlasRouter,
                   ),
               });
             }}

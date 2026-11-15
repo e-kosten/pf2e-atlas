@@ -27,11 +27,13 @@ import type {
 import { encodeReadingAddress } from "./readingUrl";
 import { selectedNavigation, parseSearchParams } from "./urlState";
 import { AtlasApp } from "./AtlasApp";
+import { DesktopTabs } from "./DesktopTabs";
 import { atlasRouter } from "./router";
 const routerSlot = vi.hoisted(() => ({
   current: null as import("./router").AtlasRouter | null,
 }));
-vi.mock("./router", () => ({
+vi.mock("./router", async (original) => ({
+  ...(await original<typeof import("./router")>()),
   get atlasRouter() {
     return routerSlot.current;
   },
@@ -80,10 +82,58 @@ vi.mock("../api/atlasApi", async (original) => ({
 }));
 
 describe("AtlasApp routing", () => {
+  it("keeps a background reference independent of the active Search tab", async () => {
+    const view = renderDom(<DesktopTabs initialHref="/search" />, {
+      wrapper: queryClientWrapper(),
+    });
+    const search = await screen.findByRole("tab", { name: /Search/ });
+    const ipc = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", { token: "atlas-test-document" });
+    vi.stubGlobal("__TAURI_INTERNALS__", { invoke: ipc });
+    const command = (detail: unknown) =>
+      act(() =>
+        window.dispatchEvent(new CustomEvent("atlas-windows-tab-command", { detail })),
+      );
+    try {
+      command({ kind: "open", href: "/records/spells:heal", foreground: false });
+      const reference = await screen.findByRole("tab", { name: /heal/i });
+      expect(search).toHaveAttribute("aria-selected", "true");
+      expect(reference).toHaveAttribute("aria-selected", "false");
+      const initialId = reference.getAttribute("id");
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+      expect(reference).toHaveAttribute("aria-selected", "true");
+      expect(window.location.pathname).toBe("/search");
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true, shiftKey: true });
+      expect(search).toHaveAttribute("aria-selected", "true");
+      expect(reference).toHaveAttribute("id", initialId);
+      expect(ipc).toHaveBeenCalledWith(
+        "desktop_tabs_state",
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            tabs: expect.arrayContaining([
+              expect.objectContaining({ href: "/records/spells:heal" }),
+            ]),
+          }),
+        }),
+      );
+    } finally {
+      view.unmount();
+      vi.unstubAllGlobals();
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     installLocalStorage();
     Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
     window.localStorage.clear();
     window.sessionStorage.clear();
     history.replaceState(null, "", "/search");
@@ -1138,6 +1188,7 @@ describe("AtlasApp routing", () => {
       const trigger = within(preview).getByRole("button", {
         name: compatible ? "Add to list or encounter" : "Add to list",
       });
+      trigger.focus();
       fireEvent.click(trigger);
       const picker = await screen.findByRole("dialog", {
         name: compatible ? "Add to…" : "Add to list",

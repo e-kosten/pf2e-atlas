@@ -1,3 +1,4 @@
+import { useDesktopTab, useTabCloseGuard } from "../../../app/DesktopTabContext";
 import { Button, Flex, Modal, Space, type ModalProps } from "antd";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -26,12 +27,25 @@ export function AtlasModal({
   workArea,
   ...props
 }: AtlasModalProps) {
+  const tab = useDesktopTab();
+  const tabHidden = tab?.active === false;
+  const visible = !!open && !tabHidden;
+  useTabCloseGuard(() =>
+    open
+      ? props.confirmLoading
+        ? "pending"
+        : confirmDiscard?.when()
+          ? "dirty"
+          : undefined
+      : undefined,
+  );
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const draft = useRef<HTMLDivElement>(null);
   const keepEditing = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const discardQuestion = useId();
   useLayoutEffect(() => {
+    if (tabHidden) return;
     if (confirmingDiscard) {
       keepEditing.current?.focus({ preventScroll: true });
     } else if (previousFocus.current) {
@@ -45,7 +59,7 @@ export function AtlasModal({
       );
       return () => cancelAnimationFrame(frameId);
     }
-  }, [confirmingDiscard]);
+  }, [confirmingDiscard, tabHidden]);
   const requestCancel: ModalProps["onCancel"] = (event) => {
     if (props.confirmLoading) return;
     if (confirmingDiscard) {
@@ -64,11 +78,16 @@ export function AtlasModal({
   const frame = useRef<HTMLDivElement>(null);
   const placement = useModalLayout({ open: !!open, layout, workArea, frame });
   return (
-    <FeedbackOverlayActive value={!!open}>
+    <FeedbackOverlayActive value={visible}>
       <Modal
         transitionName=""
         maskTransitionName=""
         {...props}
+        getContainer={props.getContainer ?? tab?.panel}
+        keyboard={tabHidden ? false : props.keyboard}
+        focusable={
+          tabHidden ? { trap: false, focusTriggerAfterClose: false } : props.focusable
+        }
         open={open}
         onCancel={confirmDiscard ? requestCancel : onCancel}
         footer={

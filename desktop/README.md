@@ -22,10 +22,12 @@ installs the package on a clean runner, checks the bundled CLI and protocol
 registration, and uploads the installer as a build artifact.
 
 Start **PF2e Atlas** from the Start menu. Choose **Set up Atlas** to prepare a
-new workspace. Use **File → New Window** (Ctrl+N), Ctrl-click, or **Open Link in
-New Window** from an Atlas link’s context menu. The windows share a local
-service and workspace. Atlas links opened from another app select an existing
-matching window or open the destination in a new one. **Terminal and Agent
+new workspace. In the Windows tabs prototype, use **File → New Tab** (Ctrl+T),
+Ctrl-click, middle-click, or **Open Link in New Tab** from an Atlas link’s context
+menu. Ctrl+Tab and Ctrl+Shift+Tab switch tabs. Ctrl+W closes the selected tab, and
+Ctrl+N opens a separate window. Tabs and windows share the local service and
+workspace. Atlas links opened from another app select an open matching tab or
+open the destination in a foreground tab. **Terminal and Agent
 Access** in the app menu shows the path to the bundled command for PowerShell.
 
 Test installation and first run from a disposable Windows user account or VM.

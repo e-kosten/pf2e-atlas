@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import {
   referenceExternalUrl,
   referenceRecordTarget,
@@ -234,13 +235,14 @@ function ReferencePreview({
   onReload,
   reloadLabel,
 }: ExploreProps & { incoming: boolean }) {
+  const atlasRouter = useAtlasRouter();
   const { query, filter } = useReferencePreview(detail, incoming);
   const profile = useSearchProfile();
   const data = isArtifactGenerationChanged(query.error) ? undefined : query.data;
   return (
     <div className="record-explore__task">
       <ExploreSearchAction
-        route={relationshipSearchRoute(filter, profile.id)}
+        route={relationshipSearchRoute(filter, profile.id, atlasRouter)}
         summary={
           data
             ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1 ? "record" : "records"}`
@@ -467,6 +469,7 @@ function FamilyVersions({
 }
 
 function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) {
+  const atlasRouter = useAtlasRouter();
   const related = useRelated(detail);
   const [comparison, setComparison] = useState<{
     target: string;
@@ -607,7 +610,11 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
             family={detail.creature_family.version_context}
             choices={creatureVersions.map((record) => ({ record }))}
             onReference={(recordKey) =>
-              navigateDestination(recordDestination({ recordKey }))
+              navigateDestination(
+                recordDestination({ recordKey }),
+                undefined,
+                atlasRouter,
+              )
             }
             onCompare={(target) => setComparison({ target, open: true })}
           />
@@ -679,6 +686,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
 }
 
 function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreProps) {
+  const atlasRouter = useAtlasRouter();
   const seed = detail.record.record_key;
   const profile = useSearchProfile();
   const similarity = similarityFromPreferences(profile.preferences.recordSimilarity);
@@ -699,7 +707,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
         ? preferredSourceSections(profile.preferences, seedInventory.data.core.family)
         : "all";
   const currentSearch =
-    currentSearchLocation() !== null
+    currentSearchLocation(atlasRouter) !== null
       ? decodeSearchStateFromParams(
           new URLSearchParams(window.location.search),
           "search",

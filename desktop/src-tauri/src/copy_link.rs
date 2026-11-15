@@ -21,6 +21,8 @@ struct MenuState {
 struct Document {
     token: String,
     route: String,
+    tab: Option<String>,
+    activation: Option<u64>,
 }
 
 fn document(
@@ -28,19 +30,32 @@ fn document(
     token: &str,
     route: &str,
     require_current_route: bool,
+    tab: Option<&str>,
+    activation: Option<u64>,
 ) -> Result<Document, String> {
     let app = window.app_handle();
     let (base, instance) = current_product(app)?;
     let url = window.url().map_err(display)?;
+    #[cfg(windows)]
+    let current = match (tab, activation) {
+        (Some(tab), Some(activation)) => {
+            crate::windows_tabs::active_route(window, &base, tab, activation)
+        }
+        _ => None,
+    };
+    #[cfg(target_os = "macos")]
+    let current = Some(url.clone());
     if url.origin() != base.origin()
         || !staged_setup::owns_document(window, &instance, token)
-        || (require_current_route && url.as_str() != route)
+        || (require_current_route && !current.is_some_and(|url| url.as_str() == route))
     {
         return Err("This link belongs to an earlier Atlas view.".into());
     }
     Ok(Document {
         token: token.into(),
         route: route.into(),
+        tab: tab.map(str::to_string),
+        activation,
     })
 }
 
@@ -58,7 +73,16 @@ pub fn refresh(app: &AppHandle) {
             .get(window.label())
             .cloned();
         ready.is_some_and(|ready| {
-            eligible(&window) && document(&window, &ready.token, &ready.route, true).is_ok()
+            eligible(&window)
+                && document(
+                    &window,
+                    &ready.token,
+                    &ready.route,
+                    true,
+                    ready.tab.as_deref(),
+                    ready.activation,
+                )
+                .is_ok()
         })
     });
     if let Some(item) = menu_item(app) {
@@ -98,7 +122,17 @@ pub fn request(app: &AppHandle) -> Result<(), String> {
     let Some(ready) = ready else {
         return Ok(());
     };
-    if !eligible(&window) || document(&window, &ready.token, &ready.route, true).is_err() {
+    if !eligible(&window)
+        || document(
+            &window,
+            &ready.token,
+            &ready.route,
+            true,
+            ready.tab.as_deref(),
+            ready.activation,
+        )
+        .is_err()
+    {
         return Ok(());
     }
     let mut menu = lock(&desktop.copy_menu.0);
@@ -120,8 +154,20 @@ pub fn desktop_copy_availability(
     route: String,
     available: bool,
     sequence: u64,
+    tab: Option<String>,
+    activation: Option<u64>,
 ) -> Result<(), String> {
-    let current = document(&window, &token, &route, available)?;
+    // Windows may publish copy availability before its matching tab snapshot.
+    // The menu and clipboard command still require an active-route match.
+    let require_current_route = cfg!(target_os = "macos") && available;
+    let current = document(
+        &window,
+        &token,
+        &route,
+        require_current_route,
+        tab.as_deref(),
+        activation,
+    )?;
     let app = window.app_handle();
     let desktop = app.state::<Desktop>();
     let mut menu = lock(&desktop.copy_menu.0);
@@ -158,8 +204,10 @@ pub fn desktop_copy_link(
     key: String,
     title: String,
     request: Option<u64>,
+    tab: Option<String>,
+    activation: Option<u64>,
 ) -> Result<(), String> {
-    let current = document(&window, &token, &route, true)?;
+    let current = document(&window, &token, &route, true, tab.as_deref(), activation)?;
     let app = window.app_handle();
     if !eligible(&window) {
         return Err("Atlas is still opening.".into());
@@ -197,6 +245,8 @@ fn eligible(window: &WebviewWindow) -> bool {
 
 pub fn page_load(window: WebviewWindow, payload: tauri::webview::PageLoadPayload<'_>) {
     if payload.event() == tauri::webview::PageLoadEvent::Started {
+        #[cfg(windows)]
+        crate::windows_tabs::forget(window.app_handle(), window.label());
         invalidate(window.app_handle(), window.label(), true);
     }
     staged_setup::page_load(window, payload);

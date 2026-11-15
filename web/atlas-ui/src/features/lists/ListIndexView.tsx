@@ -1,6 +1,6 @@
+import { useAtlasRouter, type AtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { atlasRouter } from "../../app/router";
 import { useRouterState } from "@tanstack/react-router";
 import { listIndexSearch, type ListIndexInput } from "../../app/routeSearch";
 import {
@@ -43,6 +43,7 @@ type IndexPosition = {
 };
 const indexPositions = new WeakMap<QueryClient, Map<string, IndexPosition>>();
 export function ListIndexView(_props: ListIndexViewProps) {
+  const atlasRouter = useAtlasRouter();
   usePageTitle("Lists");
   const client = useQueryClient();
   const search = useRouterState({
@@ -110,7 +111,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
         documentScroll: window.scrollY,
       });
     return atlasRouter.subscribe("onBeforeNavigate", snapshot);
-  }, [positions, positionKey]);
+  }, [positions, positionKey, atlasRouter]);
   return (
     <EntityIndexPage
       actions={
@@ -217,6 +218,8 @@ export function ListIndexView(_props: ListIndexViewProps) {
                   slug,
                   selectedRecordKey: null,
                 }),
+                undefined,
+                atlasRouter,
               );
             }}
           />
@@ -248,6 +251,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
       />
       <IndexTable
         columns={listIndexColumns(
+          atlasRouter,
           (list, opener) => {
             opener.focus({ preventScroll: true });
 
@@ -274,6 +278,8 @@ export function ListIndexView(_props: ListIndexViewProps) {
               slug: list.slug,
               selectedRecordKey: null,
             }),
+            undefined,
+            atlasRouter,
           )
         }
         rowKey={(list) => list.list_key}
@@ -296,6 +302,7 @@ function filterLists(
   );
 }
 function listIndexColumns(
+  atlasRouter: AtlasRouter,
   onEdit: (list: SavedListSummaryView, opener: HTMLElement) => void,
   openingKey?: string,
   paused = false,
@@ -320,6 +327,8 @@ function listIndexColumns(
                 slug: list.slug,
                 selectedRecordKey: null,
               }),
+              undefined,
+              atlasRouter,
             );
           }}
           subtitle={list.slug}

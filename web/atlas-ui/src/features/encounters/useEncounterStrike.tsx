@@ -1,3 +1,4 @@
+import { useDesktopTab } from "../../app/DesktopTabContext";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -67,6 +68,7 @@ export function useEncounterStrike({
   const [launch, setLaunch] = useState<StrikeLaunch | null>(null);
   const [targetKey, setTargetKey] = useState<string>();
   const client = useQueryClient();
+  const tab = useDesktopTab();
   const preview = useQuery(
     strikeContextQuery(
       encounterRef,
@@ -146,7 +148,19 @@ export function useEncounterStrike({
           description={displayed ? "Previous checks shown." : undefined}
           action={
             generationError ? (
-              <Button onClick={() => window.location.reload()}>Reload encounter</Button>
+              <Button
+                onClick={() => {
+                  if (tab)
+                    void client.invalidateQueries({
+                      predicate: ({ queryKey }) =>
+                        queryKey[0] === "encounter" ||
+                        queryKey[0] === "encounter-route",
+                    });
+                  else window.location.reload();
+                }}
+              >
+                Reload encounter
+              </Button>
             ) : (
               <Button onClick={() => void preview.refetch()}>Retry</Button>
             )

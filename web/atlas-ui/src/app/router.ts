@@ -1,8 +1,12 @@
+import { useRouter } from "@tanstack/react-router";
 import { createRouter, type RouterHistory } from "@tanstack/react-router";
 import { routeTree } from "../routeTree.gen";
 import { parseSearchParams, stringifySearchParams } from "./urlState";
 
-export function createAtlasRouter(history?: RouterHistory) {
+export function createAtlasRouter(
+  history?: RouterHistory,
+  scrollRestoration: boolean | (() => boolean) = true,
+) {
   return createRouter({
     history,
     routeTree,
@@ -11,11 +15,15 @@ export function createAtlasRouter(history?: RouterHistory) {
     pathParamsAllowedCharacters: [":"],
     defaultPreload: false,
     defaultPendingMs: 500,
-    scrollRestoration: true,
+    scrollRestoration,
   });
 }
 
 export const atlasRouter = createAtlasRouter();
+export function useAtlasRouter() {
+  return useRouter({ warn: false }) ?? atlasRouter;
+}
+
 export type AtlasRouter = ReturnType<typeof createAtlasRouter>;
 
 declare module "@tanstack/react-router" {

@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { useCreatureScenario } from "../../shared/records/CreatureScenarioChoices";
 import {
@@ -128,6 +129,7 @@ function AddToRecordModal({
   record?: RecordSummaryView;
   onClose: () => void;
 }) {
+  const atlasRouter = useAtlasRouter();
   const paused = useSavedWritesPaused();
   const [destinationKind, setKind] = useState<DestinationKind>("list");
   const kind = encounterOnly ? "encounter" : canAddEncounter ? destinationKind : "list";
@@ -315,7 +317,7 @@ function AddToRecordModal({
               onClick={(event) => {
                 if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
-                navigateDestination(target);
+                navigateDestination(target, undefined, atlasRouter);
               }}
             >
               {destination.name}

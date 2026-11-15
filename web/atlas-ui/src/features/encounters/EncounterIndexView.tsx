@@ -1,10 +1,10 @@
+import { useAtlasRouter } from "../../app/router";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { AtlasLink } from "../../app/AtlasLink";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { encounterDestination, encountersDestination } from "../../app/destinations";
 import { useRouterState } from "@tanstack/react-router";
-import { atlasRouter } from "../../app/router";
 import { encounterIndexSearch } from "../../app/routeSearch";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,6 +32,7 @@ type EncounterIndexViewProps = {
   route: Record<string, never>;
 };
 export function EncounterIndexView(_props: EncounterIndexViewProps) {
+  const atlasRouter = useAtlasRouter();
   usePageTitle("Encounters");
   const paused = useSavedWritesPaused();
   const queryClient = useQueryClient();
@@ -110,6 +111,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
                 encounterDestination({
                   slug,
                 }),
+                undefined,
+                atlasRouter,
               );
             }}
           />
@@ -127,6 +130,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
           onChange={(view) =>
             navigateDestination(
               encountersDestination({ view: view as "active" | "archived" }),
+              undefined,
+              atlasRouter,
             )
           }
           items={[
@@ -196,6 +201,8 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
             encounterDestination({
               slug: encounter.slug,
             }),
+            undefined,
+            atlasRouter,
           )
         }
         rowKey={(encounter) => encounter.encounter_key}

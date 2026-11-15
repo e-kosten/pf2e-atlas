@@ -1,0 +1,48 @@
+.desktop-tab-host {
+  --desktop-tab-strip-height: 38px;
+}
+
+.desktop-tab-strip {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: grid;
+  align-items: end;
+  height: var(--desktop-tab-strip-height);
+  padding-inline: var(--space-control);
+  background: var(--bg);
+}
+
+.desktop-tab-strip .ant-tabs-nav {
+  margin-bottom: 0;
+}
+
+.desktop-tab-strip .ant-tabs-tab {
+  max-width: 15rem;
+}
+
+.desktop-tab-strip .ant-tabs-tab-btn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-tab-page {
+  position: relative;
+}
+
+.desktop-tab-page .atlas-app:not(.atlas-app--document) {
+  height: calc(100dvh - var(--desktop-tab-strip-height));
+}
+
+.desktop-tab-page .atlas-app:is(.atlas-app--search, :has(.list-workspace)) {
+  inset-block-start: var(--desktop-tab-strip-height);
+}
+
+.desktop-tab-page .atlas-app--document {
+  min-height: calc(100dvh - var(--desktop-tab-strip-height));
+}
+
+.desktop-tab-page[hidden] {
+  display: none;
+}
