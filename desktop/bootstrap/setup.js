@@ -324,7 +324,7 @@ function show(inspection, auto) {
     case "upgrade_required":
       status(
         "Update your workspace for this version of Atlas",
-        "This version needs to update your existing workspace before Atlas can open it. Atlas backs up your saved work first and carries over your lists, parties, and encounters.",
+        "This version needs to update your existing workspace before Atlas can open it. Atlas backs up your saved work before upgrading.",
       );
       action(
         ui.primary,
