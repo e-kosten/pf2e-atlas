@@ -103,7 +103,7 @@ impl DerivedComponents {
             relationships: retained.relationships,
             sections: hash(&section_identity)?,
             lexical: hash(&lexical)?,
-            trait_associations: hash(&evidence)?,
+            trait_associations: evidence.digest()?,
             core: hash(&(atlas_domain::CORE_SECTIONS_RECIPE, &core))?,
         };
         Ok(Self {
@@ -328,6 +328,50 @@ pub(crate) fn refresh_present(
 ) -> Result<(), IndexError> {
     visit_ids(c, &mut |id| actual(c, context, id)?.write(c, id))
 }
+/// Rewrite the schema-42 trait proof from admitted snapshots and exact
+/// persisted memberships. Other component hashes are retained verbatim.
+pub fn migrate_trait_membership_digests(c: &Connection) -> atlas_storage::StorageResult<()> {
+    migrate_trait_membership_digests_inner(c).map_err(|error| {
+        atlas_storage::StorageError::Migration(format!(
+            "{error}. Repair the reference data with a schema 42 Atlas build and retry setup"
+        ))
+    })
+}
+
+fn migrate_trait_membership_digests_inner(c: &Connection) -> Result<(), IndexError> {
+    let context = crate::read_stored_reference_context(c)?;
+    if let Some(context) = &context {
+        crate::component_upgrade::check_snapshot_contract(context)?;
+    }
+    visit_ids(c, &mut |id| {
+        ComponentDigests::read(c, id)?
+            .ok_or_else(|| IndexError::Invalid("component digest disappeared".into()))?;
+        let context = context.as_ref().ok_or_else(|| {
+            IndexError::Invalid("component digest has no publication context".into())
+        })?;
+        if crate::component_upgrade::uses_retired_snapshot_contract(context) {
+            return Ok(());
+        }
+        let key: String =
+            c.query_row("SELECT key FROM records WHERE record_id=?", [id], |row| {
+                row.get(0)
+            })?;
+        let key = key
+            .parse()
+            .map_err(|error| IndexError::Invalid(format!("component record key: {error}")))?;
+        let source = crate::persisted_inputs::read_attested_source_admission(c, context, &key)?
+            .ok_or_else(|| IndexError::Invalid("component source is absent".into()))?;
+        let mut evidence = crate::traits::TraitEvidence::default();
+        evidence.add_record(&source.record, context.audience)?;
+        evidence.validate_record(c, &key)?;
+        c.execute(
+            "UPDATE reference_component_digests SET digests_json=json_set(digests_json,'$.trait_associations',?) WHERE record_id=?",
+            params![evidence.digest()?, id],
+        )?;
+        Ok(())
+    })
+}
+
 fn visit_ids(
     c: &Connection,
     visitor: &mut dyn FnMut(i64) -> Result<(), IndexError>,
@@ -377,7 +421,6 @@ mod tests {
         for table in [
             "reference_entries",
             "trait_members",
-            "trait_references",
             "owned_ability_evidence",
         ] {
             for event in ["INSERT", "UPDATE", "DELETE"] {

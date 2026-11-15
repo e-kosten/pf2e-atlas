@@ -20,25 +20,7 @@
 }
 
 .atlas-mark__ring {
-  fill: var(--brand-mark-ring);
-}
-
-.atlas-mark__ring-inner {
-  fill: var(--brand-mark-inner);
-}
-
-.atlas-mark__ticks {
-  fill: none;
-  stroke: var(--brand-mark-tick);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-
-.atlas-mark__secondary-points {
-  fill: var(--brand-mark-secondary);
-  stroke: var(--brand-mark-outline);
-  stroke-width: 1.4;
-  stroke-linejoin: round;
+  stroke: var(--brand-mark-ring);
 }
 
 .atlas-mark__cardinal-points {

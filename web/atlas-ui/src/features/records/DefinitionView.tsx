@@ -1,3 +1,4 @@
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -66,6 +67,16 @@ function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
             error={query.error}
             onRetry={() => void query.refetch()}
             onReference={onReference}
+            identityActions={
+              readable && query.data ? (
+                <CopyEntityLink
+                  primary
+                  kind="definition"
+                  identity={query.data.definition_key}
+                  title={query.data.label}
+                />
+              ) : undefined
+            }
           />
           {readable && query.data && (
             <DefinitionAssociations

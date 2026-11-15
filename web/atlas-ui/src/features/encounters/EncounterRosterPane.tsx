@@ -45,6 +45,7 @@ export function EncounterRosterPane({
   encounterSummary,
   difficulty,
   removeError,
+  removingKey,
   loading,
   onAddRecord,
   onAddManual,
@@ -70,6 +71,7 @@ export function EncounterRosterPane({
   currentTurnParticipantKey: string | null;
   encounterSummary?: import("../../generated/atlas").EncounterSummaryView;
   difficulty?: EncounterDifficultyProps;
+  removingKey: string | null;
   removeError?: { participantKey: string; message: string };
   loading: boolean;
   onAddRecord: (request: AddEncounterRecordParticipantRequest) => Promise<boolean>;
@@ -316,6 +318,7 @@ export function EncounterRosterPane({
             <ParticipantActions
               participant={participant}
               disabled={disabled}
+              removing={removingKey === participant.participant_key}
               onSetTurn={() => onSetTurn(participant)}
               onToggleDim={() =>
                 onUpdate(participant.participant_key, {
@@ -662,12 +665,14 @@ function rosterRowClass(
 function ParticipantActions({
   participant,
   disabled,
+  removing,
   onSetTurn,
   onToggleDim,
   onRemove,
 }: {
   participant: EncounterParticipantView;
   disabled: boolean;
+  removing: boolean;
   onSetTurn: () => void;
   onToggleDim: () => Promise<unknown>;
   onRemove: () => void;
@@ -728,10 +733,13 @@ function ParticipantActions({
           type="text"
           size="small"
           danger
-          disabled={disabled}
+          disabled={disabled && !removing}
+          aria-disabled={removing || undefined}
           aria-label={`Remove ${participant.display_name}`}
           icon={<Trash2 size={14} aria-hidden="true" />}
-          onClick={onRemove}
+          onClick={() => {
+            if (!disabled && !removing) onRemove();
+          }}
         />
       </Tooltip>
     </div>

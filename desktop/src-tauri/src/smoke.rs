@@ -30,6 +30,14 @@ pub fn forces_preflight_retry() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "preflight")
 }
 
+pub fn reference_mode() -> bool {
+    std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "reference")
+}
+
+fn selector_mode() -> bool {
+    std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "selector")
+}
+
 pub fn configure(
     builder: WebviewWindowBuilder<'_, tauri::Wry, AppHandle>,
 ) -> WebviewWindowBuilder<'_, tauri::Wry, AppHandle> {
@@ -63,21 +71,29 @@ pub fn source() -> Result<Option<PathBuf>, String> {
 }
 
 pub fn start(app: &AppHandle) -> Result<(), String> {
-    if source()?.is_none() {
+    if !reference_mode() && source()?.is_none() {
         return Ok(());
     }
     if forces_retry() || forces_preflight_retry() {
         receive_link(app, FIXTURE_LINK);
     }
     let app = app.clone();
-    thread::spawn(move || match run(&app) {
-        Ok(()) => {
-            println!("Atlas native smoke passed");
-            app.exit(0);
-        }
-        Err(error) => {
-            eprintln!("Atlas native smoke failed: {error}");
-            app.exit(1);
+    thread::spawn(move || {
+        match if selector_mode() {
+            run_selector(&app)
+        } else if reference_mode() {
+            run_reference(&app)
+        } else {
+            run(&app)
+        } {
+            Ok(()) => {
+                println!("Atlas native smoke passed");
+                app.exit(0);
+            }
+            Err(error) => {
+                eprintln!("Atlas native smoke failed: {error}");
+                app.exit(1);
+            }
         }
     });
     Ok(())
@@ -150,7 +166,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
             )
         })?;
     }
-    let expected = atlas_desktop_protocol::parse_record_link(FIXTURE_LINK).map_err(display)?;
+    let expected = atlas_desktop_protocol::EntityLink::parse(FIXTURE_LINK).map_err(display)?;
     wait_for(deadline, "rendered fixture record", || {
         let opened = lock(&app.state::<Desktop>().primary).is_product();
         opened
@@ -159,7 +175,8 @@ fn run(app: &AppHandle) -> Result<(), String> {
                 .ns_window()
                 .is_ok_and(|current| current == initial_window)
             && window.url().is_ok_and(|url| {
-                atlas_desktop_protocol::parse_record_path(url.path()).as_ref() == Some(&expected)
+                atlas_desktop_protocol::EntityLink::from_path(url.path()).as_ref()
+                    == Some(&expected)
             })
             && evaluates_true(
                 &window,
@@ -168,6 +185,17 @@ fn run(app: &AppHandle) -> Result<(), String> {
             )"#,
             )
     })?;
+    wait_for(
+        deadline,
+        "loaded record copy control and enabled Edit menu",
+        || {
+            crate::copy_link::menu_item(app).is_some_and(|item| item.is_enabled().unwrap_or(false))
+                && evaluates_true(
+                    &window,
+                    r#"Boolean(document.querySelector('button[aria-label="Copy link"]'))"#,
+                )
+        },
+    )?;
     if SETUP_RUNS.load(Ordering::Relaxed) != 1 || app.webview_windows().len() != 1 {
         return Err("opening the record should use one setup run and one window".into());
     }
@@ -254,7 +282,7 @@ fn run(app: &AppHandle) -> Result<(), String> {
             &window,
             r#"(() => {
             const button = [...document.querySelectorAll('button')].find(
-                item => item.textContent.trim() === "Semantic setup in progress");
+                item => item.getAttribute("aria-label") === "Setup and Updates");
             if (!button) return false;
             button.click();
             return true;
@@ -297,7 +325,311 @@ fn run(app: &AppHandle) -> Result<(), String> {
             return false;
         })()"#,
         )
-    })
+    })?;
+    if !forces_retry() && !forces_preflight_retry() {
+        check_tabs_and_zoom(app, &window)?;
+    }
+    Ok(())
+}
+
+fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), String> {
+    let primary = primary.clone();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    crate::run_on_main(app, move |app| {
+        let result = (|| {
+            crate::native_tabs::select(&primary)?;
+            app.state::<Desktop>().zoom.change(app, "zoom-in")?;
+            crate::new_search(app, true)?;
+            let tab = app
+                .get_webview_window("atlas-0")
+                .ok_or("New Search tab unavailable")?;
+            crate::native_tabs::verify_group(&primary, &tab)?;
+            if !tab.url().is_ok_and(|url| url.path() == "/search") {
+                return Err("New tab did not open Search".into());
+            }
+            let preference = process::home()?.join("desktop-zoom");
+            if std::fs::read_to_string(preference).map_err(display)?.trim() != "110" {
+                return Err("Zoom was not saved".into());
+            }
+            receive_link(app, FIXTURE_LINK);
+            if app.webview_windows().len() != 2 {
+                return Err("Record link did not select the existing tab".into());
+            }
+            crate::native_tabs::verify_group(&tab, &primary)
+                .map_err(|error| format!("Record link did not select the existing tab: {error}"))?;
+            app.state::<Desktop>().zoom.change(app, "zoom-reset")?;
+            Ok(())
+        })();
+        let _ = sender.send(result);
+    })?;
+    receiver
+        .recv_timeout(Duration::from_secs(4))
+        .map_err(display)?
+}
+
+fn run_reference(app: &AppHandle) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let home = process::home()?.canonicalize().map_err(display)?;
+    let probe = process::probe()?;
+    let initial = process::reference_status()?;
+    if probe.status != atlas_desktop_protocol::WorkspaceStatus::Browsable
+        || !probe.workspace.starts_with(&home)
+        || initial.offer.is_none()
+    {
+        return Err("the reference smoke test requires a disposable managed workspace".into());
+    }
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary window unavailable")?;
+    wait_for(deadline, "permanent setup toolbar entry", || {
+        click_product_button(&window, "Setup and Updates", false)
+    })?;
+    wait_for(deadline, "terminal access action", || {
+        click_product_button(&window, "Enable terminal command", true)
+    })?;
+    let linked = home.join(".local/bin/atlas");
+    wait_for(deadline, "bundled terminal command linked", || {
+        linked
+            .read_link()
+            .is_ok_and(|path| process::bundled_cli().is_ok_and(|cli| path == cli))
+    })?;
+    wait_for(deadline, "terminal link status", || {
+        evaluates_true(
+            &window,
+            r#"[...document.querySelectorAll('[role=dialog] [role=status]')].some(
+            node => node.textContent.startsWith('Linked at') && node.getClientRects().length)"#,
+        )
+    })?;
+    wait_for(deadline, "reference action", || {
+        click_product_button(&window, "Check and repair reference data", true)
+    })?;
+    wait_for(deadline, "shared reference setup job", || {
+        SETUP_RUNS.load(Ordering::Relaxed) == 1 && text_visible(&window, "Cancel setup")
+    })?;
+
+    crate::run_on_main(app, |app| {
+        let _ = crate::open_product(app, "/search", None);
+    })?;
+    wait_for(deadline, "second product window", || {
+        app.webview_windows().len() == 2
+    })?;
+    let second = app
+        .webview_windows()
+        .into_values()
+        .find(|view| view.label() != PRIMARY)
+        .ok_or("second product window unavailable")?;
+    wait_for(deadline, "second window attachment", || {
+        evaluates_true(&second, "Boolean(window.__ATLAS_DESKTOP_SETUP__?.token)")
+    })?;
+    wait_for(
+        deadline,
+        "setup gear opens drawer in the second window",
+        || click_product_button(&second, "Setup and Updates", false),
+    )?;
+    wait_for(deadline, "running job appears in the second drawer", || {
+        text_visible(&second, "Cancel setup")
+    })?;
+    if app.webview_windows().len() != 2 {
+        return Err("opening setup created an extra window".into());
+    }
+    wait_for(deadline, "cancel the job from the second window", || {
+        click_product_button(&second, "Cancel setup", true)
+    })?;
+    wait_for(deadline, "cancelled setup state", || {
+        text_visible(&window, "Setup was cancelled.")
+    })?;
+    let pinned_source = std::fs::read_dir(home.join("Library/Caches/pf2e-atlas/pf2e"))
+        .map_err(display)?
+        .next()
+        .ok_or("managed fixture source missing")?
+        .map_err(display)?
+        .path();
+    std::fs::remove_file(pinned_source.join(".hold-reference")).map_err(display)?;
+    wait_for(deadline, "retry reference setup", || {
+        click_product_button(&window, "Check and repair reference data", true)
+    })?;
+    wait_for(deadline, "verified no-op", || {
+        text_visible(&window, "Reference data is already up to date.")
+    })?;
+    if process::reference_status()?.generation != initial.generation {
+        return Err("the no-op changed the committed generation".into());
+    }
+
+    let record = pinned_source.join("packs/actions/handoff.json");
+    let mut source: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&record).map_err(display)?).map_err(display)?;
+    source["name"] = "Updated Handoff Test Action".into();
+    std::fs::write(record, source.to_string()).map_err(display)?;
+    wait_for(deadline, "explicit reference refresh", || {
+        click_product_button(&window, "Check and repair reference data", true)
+    })?;
+    wait_for(deadline, "publication confirmed in both drawers", || {
+        text_visible(&window, "Reference data updated.")
+            && text_visible(&second, "Reference data updated.")
+    })?;
+    if SETUP_RUNS.load(Ordering::Relaxed) != 3
+        || process::reference_status()?.generation == initial.generation
+        || app.webview_windows().len() != 2
+    {
+        return Err(
+            "the reference refresh should publish once without replacing either window".into(),
+        );
+    }
+    wait_for(deadline, "close the setup drawer", || {
+        click_product_button(&second, "Close", true)
+    })?;
+    wait_for(
+        deadline,
+        "the product remains open after closing setup",
+        || {
+            evaluates_true(
+                &second,
+                r#"!Array.from(document.querySelectorAll('[role="dialog"]')).some(el => el.getClientRects().length)"#,
+            )
+        },
+    )?;
+    // With one product window, exercise the app-menu handler without racing
+    // macOS focus changes caused by the user or another application.
+    crate::run_on_main(app, move |_| {
+        let _ = second.close();
+    })?;
+    wait_for(deadline, "one product window remains", || {
+        app.webview_windows().len() == 1
+    })?;
+    wait_for(deadline, "close the original setup drawer", || {
+        click_product_button(&window, "Close", true)
+    })?;
+    wait_for(deadline, "original drawer closes", || {
+        evaluates_true(
+            &window,
+            r#"!Array.from(document.querySelectorAll('[role="dialog"]')).some(el => el.getClientRects().length)"#,
+        )
+    })?;
+    crate::run_on_main(app, |app| {
+        let _ = crate::show_workspace_setup(app, false);
+    })?;
+    wait_for(
+        deadline,
+        "native menu reopens the drawer with the last result",
+        || text_visible(&window, "Reference data updated."),
+    )?;
+    if app.webview_windows().len() != 1 {
+        return Err("setup menu opened an extra window".into());
+    }
+    Ok(())
+}
+
+fn run_selector(app: &AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window(PRIMARY)
+        .ok_or("primary window unavailable")?;
+    wait_for(
+        Instant::now() + Duration::from_secs(10),
+        "setup drawer entry",
+        || click_product_button(&window, "Setup and Updates", false),
+    )?;
+    check_model_selector(&window)
+}
+
+fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    window
+        .set_size(tauri::LogicalSize::new(480.0, 720.0))
+        .map_err(display)?;
+    // Supply model availability to this isolated WebView fixture without loading models.
+    wait_for(deadline, "fixture model selector", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const state = window.__ATLAS_DESKTOP_SETUP__;
+        if (!state?.reference || state.referenceLoading) return false;
+        window.__atlasSmokeSetup = state;
+        window.__ATLAS_DESKTOP_SETUP__ = {
+            ...state, reference: { ...state.reference, modelsAvailable: true, canChangeModels: true,
+                preferred: null, models: [
+                    {id: 'bge-base', label: 'BGE Base', installed: true, usable: true},
+                    {id: 'embeddinggemma', label: 'EmbeddingGemma', installed: true, usable: true}
+                ]}
+        };
+        window.dispatchEvent(new Event('atlas-desktop-setup'));
+        return true;
+    })()"#,
+        )
+    })?;
+    wait_for(deadline, "open model selector", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const field = document.querySelector('[aria-label="Default search model"]');
+        if (!field || field.disabled) return false;
+        field.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+        return true;
+    })()"#,
+        )
+    })?;
+    wait_for(deadline, "full EmbeddingGemma option in viewport", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const option = [...document.querySelectorAll('.ant-select-item-option-content')].find(
+            item => item.textContent === 'EmbeddingGemma' && item.getClientRects().length);
+        if (!option || option.clientWidth < option.scrollWidth ||
+            option.getBoundingClientRect().right > innerWidth) return false;
+        option.click();
+        return true;
+    })()"#,
+        )
+    })?;
+    wait_for(deadline, "full selected model label", || {
+        evaluates_true(
+            window,
+            r#"(() => {
+        const field = document.querySelector('[aria-label="Default search model"]');
+        const value = field?.closest('.ant-select')?.querySelector('.ant-select-content');
+        return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth;
+    })()"#,
+        )
+    })?;
+    window
+        .eval(
+            r#"window.__ATLAS_DESKTOP_SETUP__ = window.__atlasSmokeSetup;
+        delete window.__atlasSmokeSetup;
+        window.dispatchEvent(new Event('atlas-desktop-setup'));"#,
+        )
+        .map_err(display)
+}
+
+fn click_product_button(window: &WebviewWindow, text: &str, drawer: bool) -> bool {
+    let label = serde_json::json!(text);
+    let selector = if drawer {
+        "[role=dialog] button"
+    } else {
+        ".topbar button"
+    };
+    evaluates_true(
+        window,
+        &format!(
+            r#"(() => {{
+            const button = [...document.querySelectorAll("{selector}")].find(
+                item => (item.textContent.trim() === {label} || item.getAttribute("aria-label") === {label})
+                    && item.getClientRects().length > 0);
+            if (!button || button.disabled) return false;
+            button.click();
+            return true;
+        }})()"#
+        ),
+    )
+}
+
+fn text_visible(window: &WebviewWindow, text: &str) -> bool {
+    let text = serde_json::json!(text);
+    evaluates_true(
+        window,
+        &format!(
+            r#"[...document.querySelectorAll('[role="dialog"] *')].some(
+            item => item.textContent.trim() === {text} && item.getClientRects().length > 0)"#
+        ),
+    )
 }
 
 fn click_primary(window: &WebviewWindow, label: &str) -> bool {

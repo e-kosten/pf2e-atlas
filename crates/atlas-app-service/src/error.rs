@@ -110,7 +110,8 @@ impl From<LocalStateError> for AppServiceError {
             | LocalStateError::InvalidEncounterRef { .. }
             | LocalStateError::InvalidRecordKey { .. }
             | LocalStateError::InvalidListImport(_)
-            | LocalStateError::InvalidEncounterDocument(_) => AppErrorCode::InvalidRequest,
+            | LocalStateError::InvalidEncounterDocument(_)
+            | LocalStateError::InvalidWorkspaceRecovery(_) => AppErrorCode::InvalidRequest,
             LocalStateError::PartyNotFound(_) => AppErrorCode::PartyNotFound,
             LocalStateError::PartyConflict => AppErrorCode::PartyConflict,
             LocalStateError::ListNotFound(_) => AppErrorCode::SavedListNotFound,

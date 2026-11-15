@@ -128,12 +128,12 @@ function show(inspection, auto) {
           ? "The local service stopped. Reconnect to open a fresh window. Existing windows stay open."
           : browsable
             ? "Your reference data is available. Prepare the search model to use semantic search."
-            : "Atlas can open your workspace. You can refresh the Pathfinder reference data here.",
+            : "Atlas can open your workspace. Use Setup and Updates in Atlas to manage reference data.",
       );
       action(ui.primary, recovery ? "Reconnect" : "Open Atlas", launch);
       action(
         ui.secondary,
-        browsable ? "Prepare semantic search" : "Update reference data",
+        browsable ? "Prepare semantic search" : null,
         setup(
           "Updating Atlas",
           "Preparing reference data and the search model.",

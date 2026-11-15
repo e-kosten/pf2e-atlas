@@ -1,3 +1,4 @@
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import {
   useDefinitionDetail,
@@ -89,11 +90,21 @@ function RecordViewContent({
           <RecordDetailPane
             sectionLanding={route.section}
             identityActions={
-              <AddToRecordButton
-                key={route.recordKey}
-                recordKey={route.recordKey}
-                record={detail.data?.record}
-              />
+              <>
+                <AddToRecordButton
+                  key={route.recordKey}
+                  recordKey={route.recordKey}
+                  record={detail.data?.record}
+                />
+                {detail.data?.record.record_key === route.recordKey && (
+                  <CopyEntityLink
+                    kind="record"
+                    primary
+                    identity={route.recordKey}
+                    title={detail.data.record.title}
+                  />
+                )}
+              </>
             }
             readingKey={JSON.stringify([
               recordReadingIdentity(route.recordKey, route.selection),

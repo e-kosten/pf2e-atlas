@@ -399,7 +399,20 @@ impl<'a> LoadedRecordDetail<'a> {
         } else {
             Vec::new()
         };
+        let canonical_record = if whole_document && request.address.owners.is_empty() {
+            r.canonical_creature_copy(&detail.summary)?
+                .map(|canonical| {
+                    let canonical = crate::projection::localized_summary_view(&canonical, r);
+                    atlas_app_model::CanonicalRecordView {
+                        record_key: canonical.record_key,
+                        title: canonical.title,
+                    }
+                })
+        } else {
+            None
+        };
         let mut view = RecordDetailView {
+            canonical_record,
             creature_family,
             creature_overrides,
             equipment_family,

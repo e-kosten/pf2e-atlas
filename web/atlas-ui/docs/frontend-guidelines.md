@@ -169,6 +169,16 @@ under a global CSS selector or a global boolean.
   alerts for important blocked work, associate field errors with inputs, and do
   not move focus merely to announce a background failure. Color alone is insufficient.
 
+### Clipboard feedback
+
+Confirm a copy only after the clipboard write succeeds. For a dedicated icon
+button, briefly replace its icon with a checkmark and keep the button size,
+position and accessible name stable. A tooltip can show the result next to the
+control. For a copy command in an actions menu, keep the menu icon and anchor
+the confirmation tooltip to its trigger after the menu closes. Keep confirmation
+out of the action row and announce it through a polite live region. Report a
+failed write and preserve a manual copy path when one is available.
+
 ### Acceptance checks
 
 Exercise one shared failure across multiple requests and confirm one shell
@@ -484,9 +494,11 @@ shared 6px base radius. Generic controls retain Ant component/token ownership.
 Reader hosts share the document type scale in `record-reference.css`, including
 related-record content shown inside Tabs. Inline links and text inherit their
 local fact, heading or metadata size rather than Ant Typography's UI default.
-Controls and trait badges retain their own scales; do not change Ant's global
-font size to repair reader content. Verify computed label/link sizes in the
-reader and Explore, and check that badges and controls keep their intended size.
+Controls retain their own scale. Display chips for record metadata and saved-list
+tags use 12px text at weight 400 with a 20px line height. Linked chip labels
+inherit those metrics and offer a visible keyboard focus indicator in every
+host. Use the semantic rarity colors at the same weight as other chips.
+Keep kind and level as a separate semibold label alongside the title.
 
 Use a thin, subdued solid underline for navigation links embedded in rules
 prose, including sentences in lists. Strengthen the underline on hover and
@@ -1090,7 +1102,7 @@ Relevance, Random and list-only Saved order replace the attribute sequence.
 Random generates a u32 seed on selection. Keep Shuffle beside its seed input
 inside the popover, preserving the toolbar anchor when switching modes. Seed
 editing/copying also stays inside the popover. Put the Copy seed icon at the
-field’s trailing edge with a tooltip and brief Copied feedback; keep the field
+field’s trailing edge and follow [clipboard feedback](#clipboard-feedback). Keep the field
 and Shuffle on one row. Commit seed drafts on
 Enter/blur. Repeated sort URL tokens preserve rule priority; Random's seed remains
 stable through paging, reload and Back. Incoming malformed combinations are errors.
@@ -1432,6 +1444,14 @@ activity detail links still follow the service has_reference_details decision.
 No reader-mode URL adapter or alternate rendering path is retained.
 
 ### Record presentation
+
+Search and saved-list cards show source and context as text, followed by a
+wrapping row ordered rarity, edition, then traits. Their chips are static
+because the card is the navigation target. In the reader, drawer and encounter
+inspector, place the same row below the title and classification and above
+source attribution. Use definition links where supplied. Put local traits
+beside their own heading or immediately below it, and keep check traits in
+check details. Preserve the compact layouts of other record summaries.
 
 Show Rust-projected publication edition beside the record identity and in result
 metadata. Explicit pre-remaster content is labelled Legacy; unavailable source
@@ -1951,6 +1971,11 @@ npm --prefix web/atlas-ui run test:e2e
 The default server URL is http://127.0.0.1:8765 (optionally overridden with ATLAS_BROWSER_BASE_URL). Build the real frontend and CLI first, then start `atlas web --port 8765 --index <current-sample-artifact> --embedding-cache-path <verified-model-cache>` with an isolated artifact directory so its local state is temporary.
 
 The browser suite does not manufacture readiness, start a mock API, or substitute screenshot success for interactions. Its artifact must contain the current source-grounded sample records; screenshots and traces stay under ignored scratch/browser-validation.
+
+Reserve the solid destructive button palette for the final confirmation that
+commits a destructive change. Use quiet danger styling for a trigger that opens
+a confirmation, a neutral button for Cancel, and an explicit verb such as Delete
+or Discard for the final action. Error messages and badges use status tokens.
 
 Contextual feedback uses the root Ant `App` inside `ConfigProvider`. Destructive
 button and callback flows use `useConfirmDangerAction`; prepared source dialogs

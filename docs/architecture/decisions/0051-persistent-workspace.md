@@ -40,39 +40,32 @@ transaction.
 
 ### Release schema and migration admission
 
-Fresh workspaces install schema 42 directly from the domain DDL. Existing
-workspaces below 42 enter through one bridge. Storage verifies the Atlas
-application ID, schema 41 and the fingerprint of all 41 ordered ledger entries
-before admitting it. The bridge reconstructs saved lists, parties and encounters
-with explicit owner IDs. It preserves their rows, child rows, ownership
-constraints and the seeded local principal. The bridge replaces the old ledger
-with the same checkpoint entry as a fresh workspace. Later migrations append
-after that checkpoint.
+Fresh workspaces apply the frozen schema 42 baseline and the schema 43
+migration. Schema 42 is the minimum direct upgrade. The schema 42 checksum
+still binds the original domain SQL and the retired cutover inputs, including
+the schema 41 ledger fingerprint and bridge identity. Earlier builds can
+upgrade an older workspace to schema 42.
 
-Domain tests create the release schema directly. Runtime bridge tests use a small
-schema 41 workspace captured from the pinned release, and the platform embedding
-checks use workspaces produced by that release on each runner.
+Under exclusive update and access admission, storage authenticates the applied
+ledger and lends runtime the read-only pre-upgrade snapshot. Runtime uses the
+versioned workspace archive to capture saved work. It validates and stages the
+archive before atomically replacing the previous sibling archive. Only after
+capture succeeds does storage apply the SQL, backfills, validation and ledger
+updates in one transaction. Failed migration leaves the completed archive
+available for explicit restore. The upgrade path operates on the database in
+place. Developer snapshots retain their separate full SQLite capture.
 
-Migrations drain cooperating readers and writers, back up an existing workspace
-and apply schema, backfills, validation and ledger changes in one transaction.
-The checkpoint checksum binds the baseline SQL and the versioned bridge
-contract. The predecessor fingerprint covers versions, names and checksums.
-Applied timestamps are local metadata.
-A referenced-table reconstruction explicitly opts in through its immutable,
-checksum-bound backfill contract. Under exclusive admission, storage captures the
-upgrade backup and suspends foreign-key enforcement on the migration connection
-before BEGIN for the **whole pending migration batch**, including ordinary SQL
-and callbacks before or after the opted-in backfill. Every migration in that
-batch must be safe without foreign-key actions; the final key check detects
-dangling references but cannot reproduce a skipped cascade. The schema 41
-bridge uses explicit changes and preserves incoming references. Domain-owned
-preflight and reconstruction, row-count checks, ledger updates and complete
-foreign-key validation share the upgrade transaction.
-Storage restores enforcement after commit or rollback; an interrupted connection
-closes without changing subsequent connections' enforcement. This mechanism is
-reserved for reconstruction whose parent DROP would otherwise cascade into
-retained user rows. Domain policy and reconstruction SQL remain with their owner.
-The ordinary admission validator remains read-only.
+Schema 43 owns a typed preferred search model in a singleton workspace settings
+table. Runtime reads it on the same admitted snapshot as the published profiles.
+A default change updates settings alone. A model membership change publishes the
+exact requested configuration, available vectors and preference in one reference
+transaction. Ordinary publication clears a removed preference at commit.
+
+A referenced-table reconstruction can opt in through its checksum-bound
+backfill contract. Storage suspends foreign keys for the whole pending migration
+batch and runs a final foreign-key check before commit. All migrations in that
+batch must account for skipped foreign-key actions. Enforcement is restored
+after the transaction. Schema 43 keeps enforcement enabled throughout.
 
 ### Publication and recovery
 
@@ -216,6 +209,28 @@ maintenance, migrations and backups operate on the complete workspace. When
 adding saved access paths, cover the scope using a foreign owner's key or child
 ID, or a slug shared by two owners as appropriate to the operation.
 
+## Workspace recovery archives
+
+The runtime captures all saved owners, lists, parties, encounters, referenced
+identities and requested reference configuration on one authenticated read
+snapshot. Local state owns the saved data, including receipt identity and the
+condition ID allocation floor. Index owns requested reference configuration.
+The CLI stages and syncs a new archive file before publishing it. Restore
+validates the archive and applies it to an empty saved state in one transaction
+on a current-schema workspace. Generated reference data and the SQLite
+migration backup have their own storage lifecycles.
+
+The archive version starts at `1.0` and advances independently of the database
+schema. Bump the minor version for compatible additions, including new encounter
+statuses. Older readers can ignore optional data when doing so preserves saved
+behavior. Use a detectable behavioral value for new behavior that an older
+reader must reject before writing. Bump the major version for incompatible
+changes that cannot be represented safely under that contract. Translate
+historical values explicitly when their representation changes. New readers
+support archives from prior supported releases and published nightlies, across
+major versions. Keep frozen format fixtures and exercise them in offline tests
+as the format evolves.
+
 ## Development snapshots
 
 Whole-workspace developer seeds are storage-owned snapshots, not a second live
@@ -223,10 +238,8 @@ reference store. Capture holds shared update/access admission and uses SQLite
 backup to include committed WAL contents. Installation verifies a staged clone or
 copy before publishing only to an absent path under exclusive admission. It never
 migrates, replaces existing saved state, or shares writable pages with the seed.
-Migration backups and developer snapshots share one storage-owned capture and
-durable publication implementation. Callers retain their admission policy and
-explicitly choose replacement (latest migration backup) or missing-only publication
-(developer snapshot). Both outputs are closed standalone SQLite files.
+Developer snapshots use missing-only publication and produce closed standalone
+SQLite files.
 Developer manifests and tool retention belong to atlas-dev orchestration.
 
 ## Implementation evidence

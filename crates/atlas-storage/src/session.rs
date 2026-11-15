@@ -1,4 +1,4 @@
-use crate::{StorageResult, Workspace};
+use crate::{MigrationHistory, StorageError, StorageResult, Workspace};
 use crate::{locking::acquire, workspace::validate};
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use std::fs::File;
@@ -45,6 +45,11 @@ pub struct ReadSession {
     pub(crate) path: std::path::PathBuf,
 }
 impl ReadSession {
+    /// Authenticate the migration ledger on this read snapshot.
+    pub fn authenticate_history(&self, history: MigrationHistory<'_>) -> StorageResult<()> {
+        authenticate_history(&self.connection, history)
+    }
+
     pub fn path(&self) -> &std::path::Path {
         &self.path
     }
@@ -78,6 +83,11 @@ pub struct WriteSession {
     pub(crate) _admission: File,
 }
 impl WriteSession {
+    /// Authenticate the migration ledger on this write transaction.
+    pub fn authenticate_history(&self, history: MigrationHistory<'_>) -> StorageResult<()> {
+        authenticate_history(&self.connection, history)
+    }
+
     pub fn reference_revision(&self) -> StorageResult<u64> {
         Ok(self.connection.query_row(
             "SELECT reference_revision FROM workspace WHERE id=1",
@@ -97,6 +107,19 @@ impl Drop for WriteSession {
     fn drop(&mut self) {
         let _ = self.connection.execute_batch("ROLLBACK");
     }
+}
+
+fn authenticate_history(
+    connection: &Connection,
+    history: MigrationHistory<'_>,
+) -> StorageResult<()> {
+    history.validate()?;
+    let (_, actual) = crate::migration::inspect_history(connection, history)?;
+    let expected = history.target();
+    if actual != expected {
+        return Err(StorageError::Schema { expected, actual });
+    }
+    Ok(())
 }
 
 pub struct UpdateOwner {
@@ -362,7 +385,11 @@ impl UpdateOwner {
         use std::sync::{Arc, Mutex, atomic::Ordering};
 
         let creating_vector = Arc::new(Mutex::new(None::<String>));
-        let _admission = acquire(&self.workspace.path, ".access.lock", shared.is_none())?;
+        let exclusive = shared.is_none();
+        let admission = acquire(&self.workspace.path, ".access.lock", exclusive)?;
+        if exclusive {
+            tracing::info!(target: "atlas_progress", phase = "exclusive_publication", "Finalizing search index");
+        }
         let mut connection = self.workspace.connect(true, false)?;
         if let Some(shared) = &shared {
             let denied = Arc::clone(&shared.denied);
@@ -452,6 +479,11 @@ impl UpdateOwner {
             .map_err(crate::StorageError::from)?;
         tracing::info!(target: "atlas_build_diagnostic", stage = "publication_before_commit", "Committing reference update");
         transaction.commit().map_err(crate::StorageError::from)?;
+        drop(connection);
+        drop(admission);
+        if exclusive {
+            tracing::info!(target: "atlas_progress", phase = "exclusive_publication_complete", "Search index saved");
+        }
         tracing::info!(target: "atlas_build_diagnostic", stage = "publication_after_commit", "Committed reference update");
         Ok(value)
     }

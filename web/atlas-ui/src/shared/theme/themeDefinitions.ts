@@ -22,12 +22,9 @@ export interface DarkNeutralRamp {
 
 export interface BrandMarkColors {
   ring: string;
-  inner: string;
   cardinal: string;
   shade: string;
   outline: string;
-  secondary: string;
-  tick: string;
   dieRim: string;
   dieField: string;
   dieFaces: readonly [
@@ -59,6 +56,7 @@ export interface AtlasPalette {
   primaryHover: string;
   primaryActive: string;
   onPrimary: string;
+  destructive: { fill: string; hover: string; pressed: string; text: string };
   link: string;
   background: string;
   surface: string;
@@ -117,6 +115,12 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     primaryHover: "#9D4349",
     primaryActive: "#74272E",
     onPrimary: "#FFFFFF",
+    destructive: {
+      fill: "#A01F38",
+      hover: "#B02743",
+      pressed: "#7F1730",
+      text: "#FFFFFF",
+    },
     link: "#346C63",
     background: "#F6EFE3",
     surface: "#FFFCF4",
@@ -138,12 +142,9 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       text: "#8C333A",
       mark: {
         ring: "#8C333A",
-        inner: "#FFFCF4",
         cardinal: "#FFFCF4",
         shade: "#D6C6AD",
         outline: "#74272E",
-        secondary: "#346C63",
-        tick: "#74272E",
         dieRim: "#8C333A",
         dieField: "#F6EFE3",
         dieFaces: [
@@ -200,6 +201,12 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     primaryHover: "#B35844",
     primaryActive: "#963B2F",
     onPrimary: "#FFF8EF",
+    destructive: {
+      fill: "#F0A8B9",
+      hover: "#F6BBCA",
+      pressed: "#DF91A6",
+      text: "#391322",
+    },
     link: "#D6BA86",
     background: darkNeutralRamp.background,
     surface: darkNeutralRamp.surface,
@@ -225,12 +232,9 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       text: "#D6BA86",
       mark: {
         ring: "#D6BA86",
-        inner: darkNeutralRamp.background,
         cardinal: "#F3E9D7",
         shade: "#D6BA86",
         outline: "#C4B6A1",
-        secondary: "#954033",
-        tick: "#D6BA86",
         dieRim: "#7F2F24",
         dieField: "#E4D9C6",
         dieFaces: [

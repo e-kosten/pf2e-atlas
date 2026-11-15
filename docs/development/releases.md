@@ -38,7 +38,8 @@ channel; manual runs rebuild it. A single source SHA is used for CI, packaging a
 publication. Runs from other branches do not publish.
 
 Nightly first looks for successful push-to-main CI for the exact planned SHA,
-including its completed `validation complete` and advisory jobs. It waits up to
+including its completed `validation complete` check and successful lockfile
+scan within the repository tooling job. It waits up to
 30 minutes for a pending run, then falls back to fresh CI when no qualifying
 success exists. Failed, cancelled or incomplete evidence cannot authorize
 packaging. Manual dispatch accepts `force-verification` to request fresh CI.
@@ -70,6 +71,19 @@ After the integration branch merges into `main`, run `gh workflow run nightly.ym
 inspect the complete hosted run, then install the nightly on the dogfooding machine
 and check `atlas --version` and `atlas --help`. A local tooling test is not evidence
 that the hosted platform builds or live installation succeeded.
+
+The Apple Silicon full build also packages the optimized desktop app using
+its packaged CLI. The DMG is a required asset for nightly and official
+releases. The release jobs verify its uploaded digest before publishing,
+and nightly checks it again before updating the channel. Keep the original
+assembled artifact when retrying a partially published release.
+
+For an unpublished rehearsal, dispatch **release build check** on the
+candidate ref. Use the checked-in CLI version for the official-style build.
+For the nightly-style build, enable the `nightly` input and supply a nightly
+tag with the candidate's version core, timestamp, and 12-character commit
+suffix. Download the assembled artifact and test the DMG from a clean macOS
+account. See [macOS desktop installation](../installation.md#macos-desktop-app).
 
 Local release-tooling checks:
 
@@ -249,16 +263,96 @@ it.
 
 ### Publish an embedding compatibility fixture
 
-The release schema cutoff pins a published schema 41 CLI archive for each
-release target in `scripts/validation/schema-41-predecessor.json`. CI verifies
-the archive, frozen source fixture and ledger, then generates a disposable
-predecessor on that target. Both profile execution policies carry forward.
+CI uses the fixture-only release [`fixtures/embedding-compatibility/v2`](https://github.com/e-kosten/pf2e-atlas/releases/tag/fixtures/embedding-compatibility/v2).
+Each release target has a small predecessor workspace with expected search
+results and a separate set of exact prepared inputs, token counts, and stored
+vectors. The numerical samples can be replayed independently of the workspace
+schema. These fixtures qualify embedding compatibility. The product's published
+corpus seeds have their own [refresh procedure](#refresh-precomputed-corpus-embeddings).
 
-Publish a new bundle when an approved upgrade increments a profile's
-compatibility ID. Generate the
-fixture using the packaged Linux x86_64 CLI from a pinned release build check on
-main or a verified product release. Record the actual target and build used if
-generating on another platform.
+| What changed | Fixture action |
+| --- | --- |
+| Routine Atlas release, compatible dependency update, or passage layout change | Keep the existing pins when compatibility checks pass. The fixture represents the predecessor whose vectors must remain usable. |
+| A schema cutoff makes the pinned workspace unreadable | Coordinate the cutoff with a replacement workspace from a supported packaged predecessor for each affected target. Verify that its numerical contract still matches the pinned samples, and keep each numerical entry exactly as pinned. |
+| An approved change increments a model's execution compatibility ID | First qualify the transition against the old pins. Once a packaged producer with the new ID is available, publish new workspace and numerical evidence for that profile on the release targets. Keep the other profile's pins. Follow the [transition procedure](dependencies.md#review-an-embedding-dependency-update). |
+
+For a replacement, use the next fixture-only tag, such as
+`fixtures/embedding-compatibility/v3`, at the verified producer commit. Validate
+the capture and replay on each affected target. Create a prerelease draft with
+latest disabled, upload the verified payloads, publish, then download them again
+and check their SHA-256 digests before updating CI. Keep the previous release
+assets so old pins and transition checks can still be reproduced.
+
+Update `scripts/validation/embedding-fixtures-v2.json` in the activation PR.
+It maps each target and profile to independent `workspace` and `numerical`
+entries, each with the release `tag`, `asset`, `sha256`, and producer `commit`.
+Verify CI against the exact downloaded assets before merging the new pins.
+
+Run the `ci.yml` workflow manually to prepare unpublished fixture artifacts on
+all four release targets. For a schema cutoff, pick a published CLI release
+whose workspace schema the candidate supports and whose numerical contracts
+match the pinned samples. Start a checked-in producer receipt from
+[`schema-42-predecessor.json`](../../scripts/validation/schema-42-predecessor.json).
+Use the release tag and its Git commit, and copy the four CLI-only archive
+names and SHA-256 digests from `atlas-release-manifest.json`, cross-checking
+them against `SHA256SUMS`. Record the tree ID of
+`crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types` at that
+commit. Record the schema and ledger digest of a disposable index built by the
+packaged CLI. From the repository root, use the probe's existing readers to get
+those values. Keep the existing query recipe.
+
+```bash
+git rev-parse "$producer_commit:crates/atlas-ingest/tests/fixtures/foundry-source/core-record-types"
+python3 - "$disposable_index" <<'PY'
+from pathlib import Path
+import runpy
+import sys
+
+probe = runpy.run_path("scripts/validation/probe-embedding-upgrade.py")
+index = Path(sys.argv[1]).resolve()
+print("schema", probe["workspace_schema"](index))
+print("ledger_sha256", probe["predecessor_ledger"](index))
+PY
+```
+
+The probe verifies the receipt against the actual archive, fixture tree, and
+database on every target.
+
+For a workspace-only refresh, dispatch from the branch containing that receipt.
+
+```bash
+gh workflow run ci.yml --ref "$capture_branch" \
+  -f capture-embedding-fixtures=true -f capture-workspace-only=true \
+  -f fixture-producer-receipt=scripts/validation/new-producer.json
+```
+
+Each `embedding-v2-fixtures-*` workflow artifact includes the workspace,
+its digest, and `fixture-replay.json` with the producer and candidate identities,
+schema versions, and numerical receipt checked for each profile. This dispatch
+replays the replacement workspace even if the candidate can no longer open the
+published workspace. Use the publication and activation steps above once the
+replacement is ready.
+
+To reproduce the original full capture, dispatch with only
+`-f capture-embedding-fixtures=true`. The default schema-42 receipt produces
+both workspace and numerical payloads. A later full capture can take a producer
+receipt with the same execution IDs, provided the numerical input helper works
+with that producer's source. Use the separate transition procedure when a
+profile's execution ID changes.
+
+Stable and RC packaging runs the compact compatibility probe against the exact
+packaged binaries when changes since the pinned producer affect numerical
+execution. The full manual probe still reads its workspace from the legacy
+producer pin. When a cutoff or execution ID change invalidates that pin, update
+the manual probe to use a compatible legacy fixture or move it to the split
+fixtures. Changing only the policy ID cannot qualify the old archive.
+
+#### Original single-archive fixtures
+
+For a checkout that still uses the original format, generate the fixture with
+the packaged Linux x86_64 CLI from a pinned release build check on main or a
+verified product release. Record the actual target and build when generating
+on another platform.
 
 ```sh
 python3 scripts/validation/probe-embedding-upgrade.py \
@@ -274,10 +368,10 @@ profile's fixture. Inspect the archive contents and run the probe with
 `--bundle`, its reported `--sha256`, and a fresh output directory before
 publication. After publication is authorized, create a fixture-only draft under
 a new `fixtures/embedding-compatibility/v<N>` tag at the producer commit.
-Continue the revision sequence from `embedding-baseline-v1` and preserve that
-published release. Mark the new release as a
-prerelease with latest disabled. Attach the verified archive to the draft and
-then publish. Download the published bytes and rerun the probe before pinning.
+Preserve `embedding-baseline-v1` for historical reproduction. Mark the new
+release as a prerelease with latest disabled. Attach the verified archive to the
+draft and publish it. Download the published bytes and rerun the probe before
+pinning.
 
 In the CI activation PR, update the affected profile entry in
 `scripts/validation/embedding-baseline.json`. A bundle entry records `tag`,

@@ -235,10 +235,8 @@ describe("compact common choice picker", () => {
     await waitFor(() =>
       expect(row).toHaveAccessibleName("Traits: Fire, included; activate to exclude"),
     );
-    expect(row).toHaveStyle({
-      color: "var(--filter-include-text)",
-      backgroundColor: "var(--filter-include-bg)",
-    });
+    expect(row.style.color).toBe("var(--filter-include-text)");
+    expect(row.style.backgroundColor).toBe("var(--filter-include-bg)");
     expect(row).toHaveFocus();
     act(() => popup.complete?.(true));
     expect(row).toHaveFocus();
@@ -331,10 +329,8 @@ describe("compact common choice picker", () => {
     await waitFor(() =>
       expect(row).toHaveAccessibleName("Traits: Fire, excluded; activate to clear"),
     );
-    expect(row).toHaveStyle({
-      color: "var(--filter-exclude-text)",
-      backgroundColor: "var(--filter-exclude-bg)",
-    });
+    expect(row.style.color).toBe("var(--filter-exclude-text)");
+    expect(row.style.backgroundColor).toBe("var(--filter-exclude-bg)");
     expect(change).toHaveBeenLastCalledWith(
       expect.objectContaining({
         kind: "set_match",

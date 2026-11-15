@@ -74,21 +74,14 @@ fn resolve(
     } else {
         None
     };
+    let fresh = existing.is_none();
     let mut config = existing.unwrap_or_else(|| RequestedReferenceConfig {
         source_root: paths.source_root.clone(),
         manifest_path: None,
         indexing_locale: "en".into(),
         search_profiles: vec![],
     });
-    let previous_managed_pin = config.source_root.parent() == paths.managed_source_root.parent()
-        && config
-            .source_root
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| {
-                name.len() == 40 && name.bytes().all(|byte| byte.is_ascii_hexdigit())
-            });
-    if setup && previous_managed_pin {
+    if setup && crate::desktop_reference::managed_pin(paths, &config) {
         config.source_root.clone_from(&paths.managed_source_root);
     }
     if paths.source_root_explicit {
@@ -116,7 +109,7 @@ fn resolve(
             config.search_profiles.push(profile.clone());
         }
     }
-    if config.search_profiles.is_empty() && options.target.requires_embeddings() {
+    if fresh && config.search_profiles.is_empty() && options.target.requires_embeddings() {
         config.search_profiles.push(SearchProfileId::new(
             atlas_embedding::DEFAULT_SEARCH_PROFILE,
         ));

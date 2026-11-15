@@ -50,14 +50,20 @@ export async function mainVerification({
         return { verify: true, reason: `Main CI concluded ${run.conclusion}` };
       const jobs = await getJobs(run.id);
       if (!Array.isArray(jobs)) throw new Error("Invalid main CI job response");
-      const complete = ["validation complete", "advisories"].every((name) => {
-        const matching = jobs.filter((job) => job.name === name);
+      const successful = (items, name) => {
+        const matching = items.filter((item) => item.name === name);
         return (
           matching.length === 1 &&
           matching[0].status === "completed" &&
           matching[0].conclusion === "success"
         );
-      });
+      };
+      const tooling = jobs.find((job) => job.name === "repository tooling");
+      const complete =
+        successful(jobs, "validation complete") &&
+        successful(jobs, "repository tooling") &&
+        Array.isArray(tooling?.steps) &&
+        successful(tooling.steps, "Scan Cargo and npm lockfiles");
       return complete
         ? { verify: false, reason: "Reusing successful main CI", runId: run.id }
         : {

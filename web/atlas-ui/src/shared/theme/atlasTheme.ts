@@ -64,6 +64,7 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
   const token = antTheme.getDesignToken(antDesignTheme(scheme));
   return {
     "--theme-font": FONT_FAMILY,
+    "--font-size-small": `${token.fontSizeSM}px`,
     "--wordmark-font": WORDMARK_FONT_FAMILY,
     "--heading-color": palette.text,
     "--record-kind-text": palette.recordKind.text,
@@ -75,12 +76,9 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--shell-border": palette.shell.border,
     "--brand-text": palette.brand.text,
     "--brand-mark-ring": palette.brand.mark.ring,
-    "--brand-mark-inner": palette.brand.mark.inner,
     "--brand-mark-cardinal": palette.brand.mark.cardinal,
     "--brand-mark-shade": palette.brand.mark.shade,
     "--brand-mark-outline": palette.brand.mark.outline,
-    "--brand-mark-secondary": palette.brand.mark.secondary,
-    "--brand-mark-tick": palette.brand.mark.tick,
     "--brand-mark-die-rim": palette.brand.mark.dieRim,
     "--brand-mark-die-field": palette.brand.mark.dieField,
     ...Object.fromEntries(
@@ -120,6 +118,10 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--primary-hover": token.colorPrimaryHover,
     "--on-primary": palette.onPrimary,
     "--primary-active": token.colorPrimaryActive,
+    "--destructive-fill": palette.destructive.fill,
+    "--destructive-hover": palette.destructive.hover,
+    "--destructive-pressed": palette.destructive.pressed,
+    "--destructive-text": palette.destructive.text,
     "--link": token.colorLink,
     "--selection-bg": token.colorPrimaryBg,
     "--selection-text": palette.selection.text,
@@ -278,7 +280,7 @@ function themeConfig(scheme: ResolvedColorScheme, palette: AtlasPalette): ThemeC
       Button: {
         colorPrimary: palette.primary,
         primaryColor: palette.onPrimary,
-        dangerColor: palette.onPrimary,
+        dangerColor: palette.destructive.text,
         borderRadius: atlasTheme.radius.md,
         controlHeight: atlasTheme.controlHeight,
         defaultHoverColor: palette.selection.text,

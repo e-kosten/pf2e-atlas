@@ -65,6 +65,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // and Similar paths available without claiming model inference or ranking quality.
     for (token, label, markup) in [
         (
+            "construct",
+            "Construct",
+            "<p>Fixture construct trait marks animated creations.</p>",
+        ),
+        (
             "light",
             "Light",
             "<p>Fixture light trait marks bright lantern effects.</p>",

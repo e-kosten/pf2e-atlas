@@ -21,6 +21,13 @@ absolute_git_common_dir() {
 # Keep the path policy shared by commit hooks and changed-path verification.
 validation_surface_for_path() {
   case "$1" in
+    .github/workflows/ci.yml | .github/workflows/macos-desktop.yml | scripts/git-hooks/common.sh | scripts/verify-changed.sh | scripts/validation/ci-results.mjs | scripts/validation/windows-selection.py | scripts/validation/embedding-stack.py | __atlas_special_file_mode__)
+      printf 'rust web source release research skill browser corpus desktop dev tooling audit fanout\n' ;;
+    desktop/README.md) printf 'docs\n' ;;
+    desktop/bundle-release-macos.sh | desktop/compare-release-cli.mjs | desktop/verify-release-macos.mjs | desktop/smoke-macos.mjs) printf 'release\n' ;;
+    desktop/release-config*) printf 'desktop release\n' ;;
+    desktop/*) printf 'desktop\n' ;;
+    .cargo/* | rust-toolchain.toml) printf 'rust web source release research skill browser corpus desktop dev tooling audit\n' ;;
     # Package fixtures and executable research precede the prose exemption.
     dev-tools/source-contracts/*) printf 'source\n' ;;
     dev-tools/release/* | scripts/release/* | scripts/prepare-release.sh | scripts/install/*) printf 'release\n' ;;
@@ -31,17 +38,21 @@ validation_surface_for_path() {
     scripts/validation/research.sh) printf 'research tooling\n' ;;
     AGENTS.md | CONTRIBUTING.md | README.md | docs/*.md | scratch/plans/*.md | .codex/skills/*.md | skills/*.md | crates/*/README.md | dev-tools/README.md | vendor/README.md | web/atlas-ui/AGENTS.md | web/atlas-ui/README.md | web/atlas-ui/docs/*.md)
       printf 'docs\n' ;;
-    Cargo.toml | Cargo.lock | crates/*/Cargo.toml) printf 'rust browser dev audit\n' ;;
+    Cargo.toml | Cargo.lock | crates/*/Cargo.toml) printf 'rust browser dev audit desktop\n' ;;
     crates/atlas-dev/*) printf 'dev\n' ;;
     scripts/development/* | scripts/validation/* | scripts/verify*.sh | scripts/preflight.sh | scripts/git-hooks/* | .githooks/*) printf 'tooling\n' ;;
-    crates/atlas-cli/* | crates/atlas-cli-support/*) printf 'rust dev\n' ;;
-    crates/atlas-app-model/* | crates/atlas-web/api-contract.json | crates/atlas-web/openapi.json | dev-tools/openapi/* | web/atlas-ui/src/generated/http.ts) printf 'rust web browser\n' ;;
-    crates/atlas-foundry-model/*) printf 'rust source browser\n' ;;
-    crates/* | src/* | tests/* | build.rs) printf 'rust browser\n' ;;
-    web/atlas-ui/e2e/* | web/atlas-ui/playwright*.ts) printf 'browser web-format\n' ;;
+    crates/atlas-cli/*) printf 'rust desktop\n' ;;
+    crates/atlas-cli-support/*) printf 'rust dev desktop\n' ;;
+    crates/atlas-app-model/* | crates/atlas-web/api-contract.json | crates/atlas-web/openapi.json | dev-tools/openapi/* | web/atlas-ui/src/generated/http.ts) printf 'rust web browser desktop\n' ;;
+    crates/atlas-foundry-model/*) printf 'rust source browser desktop\n' ;;
+    crates/* | src/* | tests/* | build.rs) printf 'rust browser desktop\n' ;;
+    web/atlas-ui/e2e/readingUrl.ts) printf 'browser corpus web-format\n' ;;
+    web/atlas-ui/e2e/devices/* | web/atlas-ui/playwright.devices.config.ts) printf 'browser web-format\n' ;;
+    web/atlas-ui/e2e/* | web/atlas-ui/playwright.config.ts | web/atlas-ui/scripts/list-corpus-tests.mjs) printf 'corpus web-format\n' ;;
+    web/atlas-ui/*.test.* | web/atlas-ui/*.spec.* | web/atlas-ui/vitest.config.* | web/atlas-ui/scripts/test/*) printf 'web browser\n' ;;
     scripts/browser-fixture*.mjs | scripts/validate-browser*.mjs) printf 'browser tooling\n' ;;
-    web/atlas-ui/*) printf 'web browser\n' ;;
-    *) printf 'rust web source release research skill browser dev tooling audit\n' ;;
+    web/atlas-ui/*) printf 'web browser desktop\n' ;;
+    *) printf 'rust web source release research skill browser corpus desktop dev tooling audit\n' ;;
   esac
 }
 
@@ -52,6 +63,9 @@ classify_validation_paths() {
   release_touched=0
   research_touched=0
   skill_touched=0
+  corpus_touched=0
+  desktop_touched=0
+  fanout_touched=0
   browser_touched=0
   web_format_touched=0
   dev_touched=0
@@ -63,7 +77,7 @@ classify_validation_paths() {
     [ -n "$path" ] || continue
     classification_saw_path=1
     case "$path" in
-      Cargo.toml | Cargo.lock | */Cargo.toml | package.json | package-lock.json | */package.json | */package-lock.json) audit_touched=1 ;;
+      Cargo.toml | Cargo.lock | */Cargo.toml | */Cargo.lock | package.json | package-lock.json | */package.json | */package-lock.json) audit_touched=1 ;;
     esac
     for surface in $(validation_surface_for_path "$path"); do
       case "$surface" in
@@ -73,6 +87,9 @@ classify_validation_paths() {
         release) release_touched=1 ;;
         research) research_touched=1 ;;
         skill) skill_touched=1 ;;
+        corpus) corpus_touched=1 ;;
+        desktop) desktop_touched=1 ;;
+        fanout) fanout_touched=1 ;;
         browser) browser_touched=1 ;;
         web-format) web_format_touched=1 ;;
         dev) dev_touched=1 ;;
@@ -81,7 +98,7 @@ classify_validation_paths() {
       esac
     done
   done <"$1"
-  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched$skill_touched$browser_touched$dev_touched$web_format_touched$tooling_touched$audit_touched" = 00000000000 ]; then
+  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched$skill_touched$browser_touched$dev_touched$web_format_touched$tooling_touched$audit_touched$corpus_touched$desktop_touched$fanout_touched" = 00000000000000 ]; then
     docs_only=1
   fi
 }
@@ -98,8 +115,16 @@ collect_changed_paths() {
     return 1
   fi
   # Executable files, symlinks and submodules cannot use a documentation exemption.
-  awk '($1 != ":000000" && $1 != ":100644") || ($2 != "000000" && $2 != "100644") { print "__atlas_special_file_mode__" }' \
-    "$collected_paths.modes" >>"$collected_paths"
+  awk -F '\t' '
+    {
+      split($1, modes, " ")
+      old = substr(modes[1], 2)
+      new = modes[2]
+      if (old == "100755" && new == old &&
+          $2 ~ /^(scripts\/|\.githooks\/|desktop\/)/ && $2 !~ /\.md$/) next
+      if ((old != "000000" && old != "100644") ||
+          (new != "000000" && new != "100644")) print "__atlas_special_file_mode__"
+    }' "$collected_paths.modes" >>"$collected_paths"
 }
 
 staged_changes_are_docs_only() {

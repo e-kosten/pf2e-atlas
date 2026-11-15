@@ -45,7 +45,9 @@ it("keeps a noncollapsible participant visible while the roster collapses", () =
   expect(container.querySelector(".workspace-pane--results")).not.toHaveClass(
     "workspace-pane--collapsed",
   );
-  expect(container.querySelector(".workspace-grid")).toHaveStyle({
-    "--pane-columns": "44px var(--panel-gap) minmax(0, 1fr)",
-  });
+  expect(
+    container
+      .querySelector<HTMLElement>(".workspace-grid")
+      ?.style.getPropertyValue("--pane-columns"),
+  ).toBe("44px var(--panel-gap) minmax(0, 1fr)");
 });

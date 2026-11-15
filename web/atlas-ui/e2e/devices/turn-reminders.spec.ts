@@ -884,7 +884,7 @@ for (const recovery of ["Reset encounter", "Rest overnight"] as const) {
         info,
       );
       await activate(
-        page.getByRole("button", { name: "Encounter settings", exact: true }),
+        page.getByRole("button", { name: "Encounter actions", exact: true }),
         info,
       );
       await activate(page.getByRole("menuitem", { name: recovery, exact: true }), info);
@@ -907,7 +907,7 @@ for (const recovery of ["Reset encounter", "Rest overnight"] as const) {
         .toBeNull();
       await page.reload();
       await expect(
-        page.getByRole("button", { name: "Encounter settings", exact: true }),
+        page.getByRole("button", { name: "Encounter actions", exact: true }),
       ).toBeVisible();
       const reloaded = await (await page.request.get(`${path}/turn-review`)).json();
       expect(reloaded.outgoing).toBeNull();
@@ -980,7 +980,7 @@ test("manual trackers persist minute countdowns and restart after elapsing", asy
     await activate(participant, info);
     await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
     await activate(
-      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      page.getByRole("button", { name: "Encounter actions", exact: true }),
       info,
     );
     await activate(

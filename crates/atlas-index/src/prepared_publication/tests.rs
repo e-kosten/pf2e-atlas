@@ -88,6 +88,64 @@ fn published_reuse_has_no_staged_vector_copy_and_semantic_swaps_keep_exact_value
 }
 
 #[test]
+fn edited_input_stages_only_its_new_vector_and_a_noop_stages_none() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("edit.sqlite");
+    let old = crate::foundation_tests::fixture_with_description(
+        true,
+        "<h2>East</h2><p>Amber lantern.</p><h2>West</h2><p>Blue lantern.</p>",
+    );
+    let previous: std::collections::BTreeMap<_, _> = old
+        .semantic_units
+        .iter()
+        .map(|unit| (unit.input_hash.clone(), unit.vector.clone()))
+        .collect();
+    publish_input(&path, &old).unwrap();
+
+    let mut edited = crate::foundation_tests::fixture_with_description(
+        true,
+        "<h2>East</h2><p>Green lantern.</p><h2>West</h2><p>Blue lantern.</p>",
+    );
+    let mut changed = 0;
+    for unit in &mut edited.semantic_units {
+        if let Some(vector) = previous.get(&unit.input_hash) {
+            unit.vector.clone_from(vector);
+        } else {
+            unit.vector = vec![0.; 768];
+            unit.vector[42] = 1.;
+            changed += 1;
+        }
+    }
+    assert!(changed > 0 && changed < edited.semantic_units.len());
+
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    for expected_values in [changed, 0] {
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let publication = prepare_publication_in(
+            &owner,
+            TEST_WORKSPACE_SCHEMA_VERSION,
+            scratch.path(),
+            &edited,
+        )
+        .unwrap();
+        assert_eq!(
+            publication.logical_native_bytes().unwrap(),
+            (expected_values * 768 * size_of::<f32>()) as u64
+        );
+        publication.publish().unwrap();
+        for unit in &edited.semantic_units {
+            let model = edited.context.search_profile(&unit.profile_id).unwrap();
+            let actual = raw_value(&workspace, model, &descriptor(unit));
+            assert_eq!(
+                crate::read_units::vector_bytes(&actual),
+                crate::read_units::vector_bytes(&unit.vector)
+            );
+        }
+    }
+}
+
+#[test]
 fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contract() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("layout.sqlite");
@@ -114,6 +172,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
+        None,
         None,
     )
     .unwrap();
@@ -142,6 +201,7 @@ fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contr
         TEST_WORKSPACE_SCHEMA_VERSION,
         scratch.path(),
         metadata,
+        None,
         None,
     )
     .unwrap();
@@ -1322,4 +1382,83 @@ fn first_vector_publication_keeps_a_keyword_snapshot_readable() {
         semantic.context.search_profiles
     );
     crate::validate_reference(committed.connection()).unwrap();
+}
+
+#[test]
+fn exact_model_publication_commits_configuration_and_preference_with_vectors() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("models.sqlite");
+    let indexed = crate::foundation_tests::fixture(true);
+    publish_input(&path, &indexed).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let base = atlas_domain::SearchProfileId::new("bge-base");
+    let original = RequestedReferenceConfig {
+        source_root: directory.path().join("source"),
+        manifest_path: None,
+        indexing_locale: "en".into(),
+        search_profiles: vec![base.clone()],
+    };
+    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    write_requested_reference_config(&write, &original).unwrap();
+    set_preferred_search_profile(write.connection(), Some(&base)).unwrap();
+    write.commit().unwrap();
+
+    let keyword = crate::foundation_tests::fixture(false);
+    let mut change = WorkspaceModelChange {
+        previous_configuration: original.clone(),
+        previous_preference: None, // Deliberately stale.
+        configuration: RequestedReferenceConfig {
+            search_profiles: vec![],
+            ..original.clone()
+        },
+        preference: None,
+    };
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let prepare = || {
+        prepare_publication_in(
+            &owner,
+            TEST_WORKSPACE_SCHEMA_VERSION,
+            scratch.path(),
+            &keyword,
+        )
+        .unwrap()
+    };
+    assert!(prepare().publish_model_change(&change).is_err());
+    let before = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let revision = before.reference_revision().unwrap();
+    assert_eq!(
+        read_requested_reference_config(&before).unwrap(),
+        Some(original.clone())
+    );
+    assert_eq!(
+        preferred_search_profile(before.connection()).unwrap(),
+        Some(base.clone())
+    );
+    let reader = SqliteIndexReader::from_session(before).unwrap();
+    assert_eq!(reader.context().search_profiles.len(), 1);
+    drop(reader);
+
+    change.previous_preference = Some(base.clone());
+    change.preference = Some(base); // Disallowed after removing the model.
+    assert!(prepare().publish_model_change(&change).is_err());
+    let after_failure = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(after_failure.reference_revision().unwrap(), revision);
+    assert_eq!(
+        read_requested_reference_config(&after_failure).unwrap(),
+        Some(original)
+    );
+    drop(after_failure);
+
+    change.preference = None;
+    prepare().publish_model_change(&change).unwrap();
+    let after = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(after.reference_revision().unwrap(), revision + 1);
+    assert_eq!(
+        read_requested_reference_config(&after).unwrap(),
+        Some(change.configuration)
+    );
+    assert_eq!(preferred_search_profile(after.connection()).unwrap(), None);
+    let reader = SqliteIndexReader::from_session(after).unwrap();
+    assert!(reader.context().search_profiles.is_empty());
 }

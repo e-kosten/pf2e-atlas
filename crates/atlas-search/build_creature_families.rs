@@ -1,4 +1,5 @@
 use crate::creature_catalog::{CreatureCatalog, CreatureFamily};
+use crate::creature_copy_catalog::CreatureCopyDeclaration;
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
@@ -38,6 +39,40 @@ pub(super) fn bundle() -> Result<(), Box<dyn Error>> {
     let destination = PathBuf::from(std::env::var_os("OUT_DIR").ok_or("missing OUT_DIR")?)
         .join("creature_families.json");
     fs::write(destination, serde_json::to_vec(&families)?)?;
+    Ok(())
+}
+
+pub(super) fn bundle_copy_links() -> Result<(), Box<dyn Error>> {
+    let root = Path::new("families/creature-copy-links");
+    println!("cargo:rerun-if-changed={}", root.display());
+    println!("cargo:rerun-if-changed=src/creature_copy_catalog.rs");
+    let mut paths = Vec::new();
+    super::family_files(root, &mut paths)?;
+    paths.sort();
+    let mut declarations = Vec::new();
+    let mut keys = BTreeSet::new();
+    for path in paths {
+        let declaration: CreatureCopyDeclaration = super::read(&path)?;
+        if declaration.copies.is_empty() || declaration.source_note.trim().is_empty() {
+            return Err(super::invalid(&path, "expected copies and a source note").into());
+        }
+        for record in std::iter::once(&declaration.canonical).chain(&declaration.copies) {
+            if !keys.insert(record.key.clone()) {
+                return Err(super::invalid(&path, format!("repeated key {}", record.key)).into());
+            }
+            if record.name.trim().is_empty() {
+                return Err(super::invalid(
+                    &path,
+                    format!("expected exact name for {}", record.key),
+                )
+                .into());
+            }
+        }
+        declarations.push(declaration);
+    }
+    let destination = PathBuf::from(std::env::var_os("OUT_DIR").ok_or("missing OUT_DIR")?)
+        .join("creature_copy_links.json");
+    fs::write(destination, serde_json::to_vec(&declarations)?)?;
     Ok(())
 }
 

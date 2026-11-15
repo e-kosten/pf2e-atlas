@@ -5,6 +5,18 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Four-point Atlas mark
+
+PR #343 refreshes the header mark in 30 Linux references. The other 10 are
+unchanged. The updated images preserve every pixel outside the header mark
+region. All 40 frames from the capture match the resulting references under
+the ordinary Playwright comparator settings.
+
+[Linux capture 43658597649](https://github.com/e-kosten/pf2e-atlas/actions/runs/43658597649)
+used Ubuntu 24.04 x64 and Playwright 1.65.0, with the authenticated fixture
+from CI run 43656047497 at merge commit `e8cbb439b21f8182823cd2dc424ea60a08352f76`
+(PR head `41775a8b5e9ed76c46b9c4d76ad831028f62d8c5`).
+
 ## Inline table damage instructions
 
 The four turn-damage references show the table damage instructions and the
@@ -728,3 +740,16 @@ Review covered source precedence, removal fallback, retained recovery anchors,
 pending/settled previews, Quickened restrictions and turn-reminder states. All 12
 capture scenarios passed their interaction/geometry assertions. Capture alone
 is not comparison evidence; normal CI must subsequently compare these files.
+
+## Encounter actions menu
+
+PR #340 replaces the encounter header's settings cog with an ellipsis when
+the menu gains Copy link. The updated references show that intentional icon
+change. The condition editor and recovery interaction assertions remain active.
+
+The Linux references came from [focused capture 43552038781](https://github.com/e-kosten/pf2e-atlas/actions/runs/43552038781),
+using CI run 43550048669 and fixture merge commit
+c0cc04d0655f04ca434d42352b1f502bf827fb4d on Ubuntu 24.04 x64.
+The macOS references were captured from the resolved PR worktree with the
+encounter-action guard restored on macOS 27.2 arm64. Both used Playwright 1.65.0
+and all four device projects.

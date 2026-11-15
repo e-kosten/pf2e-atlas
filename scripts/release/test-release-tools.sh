@@ -69,6 +69,7 @@ done
 cp "$repo_root/scripts/install/atlas-installer.sh" "$dist/atlas-installer.sh"
 cp "$repo_root/scripts/install/atlas-installer.ps1" "$dist/atlas-installer.ps1"
 printf '{}\n' > "$dist/dist-manifest.json"
+printf 'desktop image fixture\n' > "$dist/atlas-desktop-aarch64-apple-darwin.dmg"
 
 node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v9.9.9 "$dist"
 node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" dist-manifest "$dist/dist-manifest.json"

@@ -424,7 +424,7 @@ mod compatibility_tests {
     use super::*;
 
     #[test]
-    #[ignore = "requires verified model assets for both profiles"]
+    #[ignore = "requires verified tokenizer assets for both profiles"]
     fn pinned_query_and_document_token_ids_match_the_compatibility_baseline() {
         let cache = std::env::var_os("ATLAS_TEST_MODEL_CACHE").expect("set ATLAS_TEST_MODEL_CACHE");
         let expected: std::collections::BTreeMap<String, Vec<Vec<u32>>> =
@@ -438,33 +438,22 @@ mod compatibility_tests {
             ("bge", crate::EmbeddingModelId::BgeBaseEnV15),
             ("gemma", crate::EmbeddingModelId::EmbeddingGemma300M),
         ] {
-            let embedder = TextEmbedder::load(&EmbeddingRuntimeConfig::new(model, &cache)).unwrap();
-            let spec = embedder.spec();
-            let (budget_ids, inference_ids): (Vec<_>, Vec<_>) = text
+            let tokenizer =
+                TextEmbeddingTokenizer::load(&EmbeddingRuntimeConfig::new(model, &cache)).unwrap();
+            let spec = tokenizer.spec();
+            let ids: Vec<_> = text
                 .iter()
                 .flat_map(|raw| [spec.document_input(raw), spec.query_input(raw)])
                 .map(|input| {
-                    (
-                        embedder
-                            .tokenizer()
-                            .tokenizer()
-                            .encode(input.as_str(), true)
-                            .unwrap()
-                            .get_ids()
-                            .to_vec(),
-                        embedder
-                            .library
-                            .tokenizer
-                            .encode(input.as_str(), true)
-                            .unwrap()
-                            .get_ids()
-                            .to_vec(),
-                    )
+                    tokenizer
+                        .tokenizer()
+                        .encode(input.as_str(), true)
+                        .unwrap()
+                        .get_ids()
+                        .to_vec()
                 })
-                .unzip();
-            for (name, ids) in [("budget", budget_ids), ("inference", inference_ids)] {
-                assert_eq!(ids, expected[key], "{key} {name}");
-            }
+                .collect();
+            assert_eq!(ids, expected[key], "{key}");
         }
     }
 

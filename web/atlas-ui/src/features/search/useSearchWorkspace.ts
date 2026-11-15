@@ -16,6 +16,7 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
+import type { WorkspaceSearchDefault } from "../../shared/search/SearchProfileContext";
 import { searchExecution } from "../../shared/search/searchExecution";
 import { similarityPartsQueryOptions } from "../../shared/search/similarityQueries";
 import {
@@ -147,6 +148,8 @@ type UseAtlasWorkspaceOptions = {
   automaticKeyword?: boolean;
   semanticDefault?: string;
   promoteKeyword?: (id: string) => void;
+  resolveWorkspaceDefault?: () => Promise<WorkspaceSearchDefault | undefined>;
+  adoptWorkspaceDefault?: (id: string | null) => void;
   includeSearchProfileInUrl?: boolean;
   searchPreferences?: SearchPreferences;
 };
@@ -169,6 +172,8 @@ export function useSearchWorkspace({
   automaticKeyword = false,
   semanticDefault,
   promoteKeyword,
+  resolveWorkspaceDefault,
+  adoptWorkspaceDefault,
   includeSearchProfileInUrl = true,
   searchPreferences = DEFAULT_SEARCH_PREFERENCES,
 }: UseAtlasWorkspaceOptions): SearchWorkspaceState {
@@ -726,8 +731,12 @@ export function useSearchWorkspace({
       (rerunSemantic || (intent === "submit" && automaticKeyword))
         ? semanticDefault
         : undefined;
-    const commit = async () => {
-      if (model) promoteKeyword?.(model);
+    const commit = async (
+      selected: string | null,
+      resolved?: { id: string | null },
+    ) => {
+      if (resolved) adoptWorkspaceDefault?.(resolved.id);
+      else if (model) promoteKeyword?.(model);
       dispatch({
         type: intent === "submit" ? "search.submitted" : "search.changed",
         search: next,
@@ -736,7 +745,7 @@ export function useSearchWorkspace({
         ...searchDestination({
           ...currentSearchLocation(),
           selectedRecordKey,
-          query: searchStateQueryString(next, model ?? urlProfile),
+          query: searchStateQueryString(next, selected),
           page: 1,
         }),
         replace: search.similarSeed === next.similarSeed,
@@ -744,8 +753,39 @@ export function useSearchWorkspace({
         state: true,
       });
     };
-    if (model && promoteKeyword) void retrieval.refresh(commit);
-    else void commit();
+    if (
+      intent === "submit" &&
+      next.query &&
+      !next.filterError &&
+      resolveWorkspaceDefault
+    ) {
+      const submission = seedPreparation.current;
+      const href = atlasRouter.latestLocation.href;
+      void resolveWorkspaceDefault().then((current) => {
+        if (
+          submission !== seedPreparation.current ||
+          href !== atlasRouter.latestLocation.href
+        )
+          return;
+        const apply = () => {
+          if (
+            submission !== seedPreparation.current ||
+            href !== atlasRouter.latestLocation.href
+          )
+            return;
+          if (!current) return commit(urlProfile);
+          return commit(
+            current.id === searchProfile ? urlProfile : current.id,
+            current,
+          );
+        };
+        void retrieval.applyGeneration(current?.generation, apply);
+      });
+    } else if (model && promoteKeyword) {
+      void retrieval.refresh(() => commit(model));
+    } else {
+      void commit(urlProfile);
+    }
   }
   function selectRecord(recordKey: string | null) {
     dispatch({ type: "record.selected", recordKey });
@@ -762,6 +802,14 @@ export function useSearchWorkspace({
     });
     reading.select(recordKey ? { navigation: rootNavigation(recordKey) } : null);
   }
+  const canDisplayResult =
+    canRunResultSearch ||
+    (enabled &&
+      initialRoute !== null &&
+      !failedTransport &&
+      !resetPending &&
+      !activeSearchReady &&
+      hasExecutableSearch(activeSearch));
   const errorMessage = sourcePreparationError ?? messageFromError(resultsQuery.error);
   const searchDebouncing = activeSearchExecutionToken !== searchExecutionToken;
   const resultsRefreshing =
@@ -781,7 +829,10 @@ export function useSearchWorkspace({
       !retrieval.recovering &&
       resultsQuery.data?.page.mode.kind === "text_search" &&
       resultsQuery.data.page.mode.mode === "lexical"
-        ? () => commitSearch(search, "submit", true)
+        ? () => {
+            seedPreparation.current += 1;
+            commitSearch(search, "submit", true);
+          }
         : undefined,
     applySettings: async (next, profile) => {
       seedPreparation.current += 1;
@@ -828,8 +879,8 @@ export function useSearchWorkspace({
         });
       }
     },
-    resultPage: canRunResultSearch ? resultsQuery.data?.page : undefined,
-    resultFilter: canRunResultSearch ? (resultsQuery.data?.filter ?? null) : null,
+    resultPage: canDisplayResult ? resultsQuery.data?.page : undefined,
+    resultFilter: canDisplayResult ? (resultsQuery.data?.filter ?? null) : null,
     filterEditor: filterDiscovery.filterEditor,
     refreshFilterInformation: refreshResults,
     filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,

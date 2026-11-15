@@ -18,12 +18,17 @@ pub struct TurnActionAllocation {
     pub adjustments: Vec<TurnActionAdjustment>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind")]
 pub enum TurnActionAdjustment {
+    #[serde(rename = "quickened")]
     Quickened { gained: i64 },
+    #[serde(rename = "stunned")]
     Stunned { value: Option<i64>, lost: i64 },
+    #[serde(rename = "slowed")]
     Slowed { value: i64, lost: i64, overlap: i64 },
+    #[serde(rename = "inactive")]
     Inactive { lost: i64 },
+    #[serde(rename = "stunned_during_turn")]
     StunnedDuringTurn { value: Option<i64>, lost: i64 },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

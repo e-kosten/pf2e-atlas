@@ -288,6 +288,7 @@ it("applies the full model and settings draft once and remembers general prefere
   );
   expect(remember).toHaveBeenCalledExactlyOnceWith(
     expect.objectContaining({ model: "embeddinggemma", ranking: "rrf" }),
+    "embeddinggemma",
   );
 });
 

@@ -1,4 +1,5 @@
 :root {
+  --font-size-small: 12px;
   color-scheme: light;
   --theme-font:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -21,6 +22,10 @@
   --primary-hover: #9d4349;
   --on-primary: #ffffff;
   --primary-active: #74272e;
+  --destructive-fill: #a01f38;
+  --destructive-hover: #b02743;
+  --destructive-pressed: #7f1730;
+  --destructive-text: #ffffff;
   --link: #346c63;
   --selection-bg: #eaddcb;
   --selection-text: #6e272d;
@@ -35,12 +40,9 @@
   --shell-border: #d6c6ad;
   --brand-text: #8c333a;
   --brand-mark-ring: #8c333a;
-  --brand-mark-inner: #fffcf4;
   --brand-mark-cardinal: #fffcf4;
   --brand-mark-shade: #d6c6ad;
   --brand-mark-outline: #74272e;
-  --brand-mark-secondary: #346c63;
-  --brand-mark-tick: #74272e;
   --brand-mark-die-rim: #8c333a;
   --brand-mark-die-field: #f6efe3;
   --brand-mark-die-face-0: #f6efe3;
@@ -97,22 +99,22 @@
   --panel-padding: 16px;
 }
 
-/* Keep the brand action palette on solid confirmations and the status palette on error ink. */
+/* Solid destructive confirmations have their own fills and label color. */
 .atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
     [aria-disabled="true"]
   ) {
-  background: var(--primary);
-  color: var(--on-primary);
+  background: var(--destructive-fill);
+  color: var(--destructive-text);
 }
 .atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
     [aria-disabled="true"]
   ):hover {
-  background: var(--primary-hover);
+  background: var(--destructive-hover);
 }
 .atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
     [aria-disabled="true"]
   ):active {
-  background: var(--primary-active);
+  background: var(--destructive-pressed);
 }
 
 /* These classes are supplied through Ant's public Button semantic hook. */

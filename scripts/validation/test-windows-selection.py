@@ -23,6 +23,16 @@ class WindowsSelection(unittest.TestCase):
             self.assertTrue(policy.needs_windows([path]))
         self.assertTrue(policy.needs_windows(['crates/atlas-cli/src/main.rs', 'crates/atlas-storage/src/lib.rs']))
 
+    def test_standalone_developer_routes_by_dependency(self):
+        for crate in ['atlas-dev', 'atlas-cli-support', 'atlas-search', 'atlas-runtime']:
+            self.assertTrue(policy.needs_developer([f'crates/{crate}/src/lib.rs']))
+        for crate in ['atlas-cli', 'atlas-web']:
+            self.assertFalse(policy.needs_developer([f'crates/{crate}/src/lib.rs']))
+        for path in ['Cargo.lock', '.cargo/config.toml', 'rust-toolchain.toml']:
+            self.assertTrue(policy.needs_developer([path]))
+        self.assertFalse(policy.needs_developer(['desktop/src-tauri/Cargo.toml']))
+        self.assertTrue(policy.needs_developer(['crates/unlisted/src/new.rs']))
+
     def test_workspace_aliases_target_optional_and_build_edges_follow_new_dependencies(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

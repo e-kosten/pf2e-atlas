@@ -286,6 +286,35 @@ impl CapturedBuildInputs {
         report
     }
 
+    /// Use the current-workspace owner already admitted by reference refresh.
+    pub fn refresh_reference<'a>(
+        self,
+        workspace: &atlas_storage::Workspace,
+        owner: &atlas_storage::UpdateOwner,
+        schema: u32,
+        seed_loader: Option<&'a mut crate::EmbeddingSeedLoader<'a>>,
+        check_destination: &'a dyn Fn() -> Result<(), atlas_index::IndexError>,
+        models: Option<&'a atlas_index::WorkspaceModelChange>,
+    ) -> Result<BuildArtifactReport, IngestError> {
+        if workspace.path() != owner.path()
+            || atlas_storage::Workspace::existing(&self.options.output_path)?.path() != owner.path()
+        {
+            return Err(IngestError::ArtifactWriteFailed(
+                "build destination differs from the admitted workspace".into(),
+            ));
+        }
+        let scratch = atlas_index::BuildScratch::new(owner).map_err(index_error)?;
+        finish_build(
+            workspace,
+            schema,
+            owner,
+            scratch,
+            &self,
+            Instant::now(),
+            BuildMode::ReferenceRefresh(seed_loader, check_destination, models),
+        )
+    }
+
     pub fn build_semantic_stage<'a>(
         self,
         workspace: &atlas_storage::Workspace,
@@ -443,6 +472,11 @@ enum BuildMode<'a> {
     Repair(atlas_storage::ReferenceRepair<'a>),
     KeywordStage,
     SemanticStage(Option<&'a mut crate::EmbeddingSeedLoader<'a>>),
+    ReferenceRefresh(
+        Option<&'a mut crate::EmbeddingSeedLoader<'a>>,
+        &'a dyn Fn() -> Result<(), atlas_index::IndexError>,
+        Option<&'a atlas_index::WorkspaceModelChange>,
+    ),
 }
 
 fn finish_build(
@@ -454,11 +488,24 @@ fn finish_build(
     started: Instant,
     mode: BuildMode<'_>,
 ) -> Result<BuildArtifactReport, IngestError> {
-    let staged = matches!(mode, BuildMode::KeywordStage | BuildMode::SemanticStage(_));
+    let skip_reclamation = matches!(
+        mode,
+        BuildMode::KeywordStage | BuildMode::SemanticStage(_) | BuildMode::ReferenceRefresh(..)
+    );
     let activate = matches!(mode, BuildMode::SemanticStage(_));
+    let check_destination = match &mode {
+        BuildMode::ReferenceRefresh(_, check, _) => Some(*check),
+        _ => None,
+    };
+    let model_change = match &mode {
+        BuildMode::ReferenceRefresh(_, _, models) => *models,
+        _ => None,
+    };
     let (repair, mut seed_loader, policy) = match mode {
         BuildMode::Infer | BuildMode::KeywordStage => (None, None, crate::SeedBuildPolicy::Strict),
-        BuildMode::SemanticStage(load) => (None, load, crate::SeedBuildPolicy::Strict),
+        BuildMode::SemanticStage(load) | BuildMode::ReferenceRefresh(load, _, _) => {
+            (None, load, crate::SeedBuildPolicy::Strict)
+        }
         BuildMode::Seeded(load, policy) => (None, Some(load), policy),
         BuildMode::Repair(repair) => (Some(repair), None, crate::SeedBuildPolicy::Strict),
     };
@@ -484,6 +531,14 @@ fn finish_build(
             prepared.spool,
             requested_configuration(options),
         )
+    } else if let Some(check_destination) = check_destination {
+        atlas_index::PreparedPublication::new_checked(
+            update_owner,
+            schema,
+            scratch.path(),
+            prepared.spool,
+            check_destination,
+        )
     } else {
         atlas_index::PreparedPublication::new_in(
             update_owner,
@@ -492,7 +547,7 @@ fn finish_build(
             prepared.spool,
         )
     }
-    .map_err(index_error)?;
+    .map_err(|error| publication_error(error, check_destination.is_some()))?;
     let product_record_count = publication.product_record_count();
     let mut profiles = Vec::new();
     for config in &options.search_profiles {
@@ -524,11 +579,17 @@ fn finish_build(
     progress("write_artifact", "Saving and checking search index");
     if activate {
         publication.publish_first_profiles().map_err(index_error)?;
+    } else if let Some(models) = model_change {
+        publication
+            .publish_model_change(models)
+            .map_err(|error| publication_error(error, true))?;
     } else {
-        publication.publish().map_err(index_error)?;
+        publication
+            .publish()
+            .map_err(|error| publication_error(error, check_destination.is_some()))?;
     }
     tracing::info!(target:"atlas_build_diagnostic",stage="exclusive_publication",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
-    if !rebuild && !staged {
+    if !rebuild && !skip_reclamation {
         let phase_started = Instant::now();
         let reclaimed = update_owner
             .reclaim_space(schema)
@@ -556,12 +617,19 @@ fn index_error(error: atlas_index::IndexError) -> IngestError {
     IngestError::ArtifactWriteFailed(error.to_string())
 }
 
+fn publication_error(error: atlas_index::IndexError, checked: bool) -> IngestError {
+    match error {
+        atlas_index::IndexError::Storage(error) if checked && error.is_contention() => error.into(),
+        error => index_error(error),
+    }
+}
+
 /// Tokenizer-only fixtures publish the real metadata stream and deterministic
 /// normalized numerical values. No occurrence aggregate or model inference.
 #[cfg(test)]
 pub(crate) fn publish_fixture_without_inference(
     options: &BuildArtifactOptions,
-) -> Result<(), IngestError> {
+) -> Result<Vec<atlas_embedding::NativeInputDescriptor>, IngestError> {
     let workspace = atlas_index::test_support::initialize_workspace(&options.output_path)
         .map_err(index_error)?;
     let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
@@ -573,12 +641,14 @@ pub(crate) fn publish_fixture_without_inference(
     let mut publication =
         atlas_index::PreparedPublication::new_in(&owner, schema, scratch.path(), prepared.spool)
             .map_err(index_error)?;
+    let mut inferred = Vec::new();
     crate::native_execution::stage_fixture_values(
         &mut publication,
         &prepared.native_inputs,
         options,
         prepared.document_units,
+        &mut inferred,
     )?;
     publication.publish().map_err(index_error)?;
-    Ok(())
+    Ok(inferred)
 }

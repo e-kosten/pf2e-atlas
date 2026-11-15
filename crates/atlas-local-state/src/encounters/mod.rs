@@ -1,5 +1,5 @@
 mod command_receipts;
-mod portability;
+pub(crate) mod portability;
 pub use portability::{EncounterDocument, EncounterRecordSource};
 mod manual_trackers;
 pub use manual_trackers::{ManualTracker, ManualTrackerChange, TrackerProgress};

@@ -38,7 +38,7 @@ pub use availability::{FieldAvailability, SourceFieldView};
 pub use content::{
     RecordLocalizationOccurrence, SourceContentFormat, SourceContentOutcome, SourceContentRole,
     SourceContentSelection, SourceContentStatus, owned_action_localizations,
-    prepare_record_content, root_description_localizations, trait_record_localization_references,
+    prepare_record_content, root_description_localizations,
 };
 pub use core_sections::{CoreSearchSelection, core_search_selection};
 pub use identity::{SourceIdentityError, source_record_key};

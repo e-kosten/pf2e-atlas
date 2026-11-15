@@ -1,3 +1,5 @@
+import { useRouter, useRouterState } from "@tanstack/react-router";
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { ReferenceHelpProvider, type ReferenceHelpHandler } from "./ReferenceHelp";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { PaneIconLink } from "../ui/actions/PaneAction";
@@ -67,6 +69,10 @@ export function ReferenceReader({
   selectionActions,
   selectionActionsInIdentity = false,
 }: ReferenceReaderProps) {
+  const entityRoute = useRouterState({
+    router: useRouter({ warn: false }) ?? atlasRouter,
+    select: ({ matches }) => matches[matches.length - 1]?.routeId,
+  });
   const preview = useRecordPreview();
   const { mode, tab } = useRecordExploreLocation();
   const localPositions = useBrowsePositions();
@@ -402,6 +408,18 @@ export function ReferenceReader({
   const documentActions = (
     <Space wrap size={4}>
       {detail && recordActions?.(detail.record)}
+      {active && detail && entityRoute !== "/lists/$slug/edit" && (
+        <CopyEntityLink
+          kind="record"
+          identity={detail.record.record_key}
+          title={detail.record.title}
+          primary={
+            (entityRoute === "/search/records/$recordKey" ||
+              entityRoute === "/records/$recordKey") &&
+            selectedRecordKey === detail.record.record_key
+          }
+        />
+      )}
       {fullRoute && (
         <PaneIconLink
           outlined

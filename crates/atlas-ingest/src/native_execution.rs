@@ -372,6 +372,7 @@ pub(crate) fn stage_fixture_values(
     raw_inputs: &BuildFrameStream<AttributedNativeInput>,
     options: &BuildArtifactOptions,
     semantic_units: usize,
+    inferred: &mut Vec<atlas_embedding::NativeInputDescriptor>,
 ) -> Result<(), IngestError> {
     for config in &options.search_profiles {
         NativeExecution {
@@ -380,14 +381,24 @@ pub(crate) fn stage_fixture_values(
             options,
             semantic_units,
         }
-        .execute(config, false, |publication, model, batch| {
-            let mut vector = vec![0.; model.dimensions];
-            vector[0] = 1.;
-            let values = batch
+        .execute(config, true, |publication, model, batch| {
+            let vectors: Vec<_> = batch
                 .inputs()
                 .iter()
-                .map(|input| (input, vector.as_slice()))
-                .collect::<Vec<_>>();
+                .map(|input| {
+                    inferred.push(input.descriptor());
+                    let mut vector = vec![0.; model.dimensions];
+                    let bucket = u8::from_str_radix(&input.input_sha256[..2], 16).unwrap();
+                    vector[usize::from(bucket) % model.dimensions] = 1.;
+                    vector
+                })
+                .collect();
+            let values: Vec<_> = batch
+                .inputs()
+                .iter()
+                .zip(&vectors)
+                .map(|(input, vector)| (input, vector.as_slice()))
+                .collect();
             stage_values(publication, model, &values).map_err(embedding)?;
             Ok((values.len(), 0, 1, std::time::Duration::ZERO))
         })?;
