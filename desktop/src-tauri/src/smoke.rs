@@ -336,7 +336,7 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
     let primary = primary.clone();
     let (sender, receiver) = std::sync::mpsc::channel();
     crate::run_on_main(app, move |app| {
-        let result = (|| {
+        let result: Result<(), String> = (|| {
             crate::window_host::select(&primary)?;
             app.state::<Desktop>().zoom.change(app, "zoom-in")?;
             crate::new_search(app, true)?;
@@ -364,7 +364,63 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
     })?;
     receiver
         .recv_timeout(Duration::from_secs(4))
-        .map_err(display)?
+        .map_err(display)??;
+    let check_titles = |stage, primary_title| {
+        let mut observed = Vec::new();
+        let result = wait_for(
+            Instant::now() + Duration::from_secs(4),
+            &format!("{stage} native tab labels {primary_title:?} and Search"),
+            || {
+                let (sender, receiver) = std::sync::mpsc::channel();
+                let queued = crate::run_on_main(app, move |app| {
+                    let tabs = [PRIMARY, "atlas-0"]
+                        .into_iter()
+                        .filter_map(|label| app.get_webview_window(label))
+                        .map(|window| {
+                            (
+                                crate::window_host::tab_title(&window),
+                                window
+                                    .url()
+                                    .map(|url| url.path().to_owned())
+                                    .map_err(display),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    let _ = sender.send(tabs);
+                });
+                if queued.is_ok()
+                    && let Ok(tabs) = receiver.recv_timeout(Duration::from_millis(250))
+                {
+                    observed = tabs;
+                }
+                observed.len() == 2
+                    && observed.iter().zip([primary_title, "Search"]).all(
+                        |((title, _), expected)| {
+                            title.as_ref().is_ok_and(|title| title == expected)
+                        },
+                    )
+            },
+        );
+        result.map_err(|error| format!("{error}; observed {observed:?}"))
+    };
+    check_titles("initial", "Handoff Test Action")?;
+    let primary = app
+        .get_webview_window(PRIMARY)
+        .ok_or("Primary record tab unavailable")?;
+    if !evaluates_true(
+        &primary,
+        r#"(() => {
+            const link = document.querySelector('a[href="/lists"]');
+            if (!link) return false;
+            link.click();
+            return true;
+        })()"#,
+    ) {
+        return Err("Could not open Lists inside the record tab".into());
+    }
+    check_titles("after navigation", "Lists")?;
+    primary.eval("window.history.back()").map_err(display)?;
+    check_titles("after Back", "Handoff Test Action")
 }
 
 fn run_reference(app: &AppHandle) -> Result<(), String> {

@@ -8,7 +8,7 @@ use objc2_app_kit::{
     NSColor, NSEventModifierFlags, NSWindow, NSWindowOrderingMode, NSWindowTabbingMode,
 };
 use objc2_foundation::{NSArray, NSString};
-use tauri::{WebviewWindow, window::Color};
+use tauri::{Manager, WebviewWindow, window::Color};
 
 use crate::{
     appearance::{Appearance, canvas},
@@ -48,6 +48,36 @@ pub fn system_dark() -> bool {
             ]))
             .is_some_and(|name| name == dark)
     })
+}
+
+#[tauri::command]
+pub fn desktop_native_tab_title(
+    window: WebviewWindow,
+    token: String,
+    title: String,
+) -> Result<(), String> {
+    let label = window.label().to_owned();
+    crate::run_on_main(window.app_handle(), move |app| {
+        let Ok((_, instance)) = crate::current_product(app) else {
+            return;
+        };
+        let Some(window) = app.get_webview_window(&label) else {
+            return;
+        };
+        if !crate::staged_setup::owns_document(&window, &instance, &token) {
+            return;
+        }
+        if let Err(error) = with_window(&window, |native| {
+            native.tab().setTitle(Some(&NSString::from_str(&title)));
+        }) {
+            eprintln!("Could not name Atlas tab: {error}");
+        }
+    })
+}
+
+#[cfg(debug_assertions)]
+pub fn tab_title(window: &WebviewWindow) -> Result<String, String> {
+    with_window(window, |native| native.tab().title().to_string())
 }
 
 pub fn disable_automatic_grouping() -> Result<(), String> {

@@ -30,7 +30,7 @@ plist = "1"
 rustix = { version = "1", features = ["fs", "process"] }
 semver = "1"
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSAppearance", "NSApplication", "NSButton", "NSColor", "NSGraphics", "NSMenu", "NSMenuItem", "NSEvent", "NSResponder", "NSWindow", "NSWindowTabGroup"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSAppearance", "NSApplication", "NSButton", "NSColor", "NSGraphics", "NSMenu", "NSMenuItem", "NSEvent", "NSResponder", "NSWindow", "NSWindowTab", "NSWindowTabGroup"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
 
 [target.'cfg(windows)'.dependencies]
