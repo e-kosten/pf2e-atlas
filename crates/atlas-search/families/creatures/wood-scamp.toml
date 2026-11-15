@@ -1,0 +1,15 @@
+name = "Wood Scamp"
+source_note = "Friends in Need supplies ordinary, Weak, and Elite blocks with Claw, Breathe Pollen, and Thorn Puncture."
+
+[[members]]
+key = "pfs-season-6-bestiary:AG5aG5TmtxAzIERA"
+name = "Wood Scamp (Quest 22)"
+label = "Wood Scamp"
+
+[[members]]
+key = "pfs-season-6-bestiary:qnvKhJ7BP2BWPkVo"
+name = "Weak Wood Scamp"
+
+[[members]]
+key = "pfs-season-6-bestiary:hcHtUbPVInjQ5TEb"
+name = "Elite Wood Scamp"

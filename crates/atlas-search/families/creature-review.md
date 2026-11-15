@@ -3,7 +3,9 @@
 Use these notes with the [creature family review procedure](../../../docs/development/source-research.md#creature-family-review-during-a-source-upgrade). The [family TOMLs](creatures/) record accepted relationships and their sources. Entries here record reviewed exceptions and open questions.
 
 The entries below were reviewed against Foundry PF2e revision
-`28d9d156f252d084371d994dc359509b49eadf18`. Actor names are exact Foundry titles.
+`28d9d156f252d084371d994dc359509b49eadf18`. The accepted families and remaining
+comparisons in the later same-publication pass were checked against
+`52dfeee703b887237f5e454747bcae45b136f9af`. Actor names are exact Foundry titles.
 
 ## Keep separate
 
@@ -56,14 +58,6 @@ Dollhouse* select the Upset blocks before adding encounter guidance.
 
 ### Source identity and publication
 
-**Shadow.** The shared token and Monster Core publication field combine a
-Monster Core spawn with an actor from the Season of Ghosts pack. Compare their
-roles with the generic Monster Core Shadow before assigning a family.
-
-- Shadow Spawn (`pathfinder-monster-core:clzHAfegb9Rn6DOe`)
-- Familiar Shadow (`season-of-ghosts-bestiary:IdbrdikgvRguKYNE`)
-- Shadow (`pathfinder-monster-core:VotlWUsFKdOrHWF6`)
-
 **Elite Boggard Swampseer.** The titles say PFS 1-24, while the publication and
 pack paths point to *The Lost Legend* (1-20), which describes an animal staff
 loadout. Resolve the title discrepancy and compare the published encounter
@@ -82,14 +76,12 @@ the pinned Foundry source changes.
 
 ### Published adjustments and scaling
 
-**Cosmic Amoeba.** Stranded on Yesterday’s Tide uses
-different blocks by encounter and party tier. Foundry stores typed Weak
-adjustments on otherwise partly unadjusted stats. Verify the effective
-levels, defenses, strike dice, and ability DCs against encounters B–D before
-adding scoped overrides.
-
-- Cosmic Amoeba (`pfs-season-5-bestiary:Mmsmoh7tpsnLZWrI`)
-- Weak Cosmic Amoeba (`pfs-season-5-bestiary:c93xz68jVyaTiAI5`)
+**Cosmic Amoeba.** The [family](creatures/cosmic-amoeba.toml) presents the
+two pinned records. The reader and summary show the Weak actor's stored
+creature level 1, while the encounter applies its typed Weak adjustment.
+The adventure prints the Weak block at level −1 and also has an Elite block
+without a pinned actor. Recheck effective damage and DCs before declaring an
+override.
 
 **Hound Echo.** The [family](creatures/hound-echo.toml) presents the
 four records from *Stranded on Yesterday's Tide*. Foundry stores the Weak
@@ -108,22 +100,13 @@ and effective stats before declaring the party uses and overrides.
 - Concentrated Congealed Magic (`pfs-season-6-bestiary:agYSQuaxGkFQVBus`)
 - Elite Concentrated Congealed Magic (`pfs-season-6-bestiary:tiPPgdHWXNWE7LKF`)
 
-**Commodore Sticky Fingers.** Student Exchange has an ordinary actor outside the token group and Elite versions of both the ordinary and Lively blocks. Check the published conditions for choosing Lively and Elite and compare the effective stats.
-
-- Commodore Sticky Fingers (`pfs-season-5-bestiary:76sfB4T9gkJjAJOS`)
-- Elite Commodore Sticky Fingers (`pfs-season-5-bestiary:FU2kzh3jmBopL5t9`)
-- Elite Lively Commodore Sticky Fingers (`pfs-season-5-bestiary:WcLXNcwcA1k9QtbU`)
-- Lively Commodore Sticky Fingers (`pfs-season-5-bestiary:g8vmUHZ62eNlvhDu`)
-
-**Sewer Ooze.** Student Exchange has Weak and Elite Sewer Ooze blocks at creature levels −1 and 2. Check the printed encounter for the base stat block and the conditions for using each adjustment.
-
-- Elite Sewer Ooze (PFS Q18) (`pfs-season-5-bestiary:vsWgbVO6zJIjiqAs`)
-- Weak Sewer Ooze (PFS Q18) (`pfs-season-5-bestiary:dXSti6gNOpoEYoIF`)
-
-**Sprite.** Student Exchange has Sprite and Elite Sprite at creature levels −1 and 1. Check the published base and effective stats and determine the scenario use before declaring an override.
-
-- Elite Sprite (PFS Q18) (`pfs-season-5-bestiary:zbh0oprNBaxTbsqh`)
-- Sprite (PFS Q18) (`pfs-season-5-bestiary:q9VY2Whn0rV7zJVK`)
+**Student Exchange.** [Commodore Sticky Fingers](creatures/commodore-sticky-fingers.toml),
+[Sewer Ooze](creatures/sewer-ooze.toml), and [Sprite](creatures/sprite.toml)
+show their quest blocks individually. The ordinary Sprite has 11 HP and
+different attack and Stealth bonuses from the 7 HP Monster Core Sprite.
+The quest Sewer Oozes are authored Weak and Elite blocks with different
+stats from the Monster Core block. Verify encounter scaling before defining
+an override.
 
 **Jinkin.** The [Jinkin family](creatures/jinkin.toml) presents the quest's
 ordinary and Lesser blocks. The Lesser Jinkin
@@ -131,16 +114,12 @@ ordinary and Lesser blocks. The Lesser Jinkin
 on p. 16. The balcony scaling instructions add the Lesser block in specific
 bands. Recheck Thievery if the pinned source changes.
 
-**Gluttonous Geode.** Friends in Need has a quest-specific Gluttonous Geode and a Weak Gluttonous Geode. Verify which encounter conditions call for the Weak block and compare it with the base stats.
-
-- Gluttonous Geode (Quest 22) (`pfs-season-6-bestiary:WxH0CPkr7mrYCiI0`)
-- Weak Gluttonous Geode (`pfs-season-6-bestiary:qLD4CzztZ0CMaRCj`)
-
-**Wood Scamp.** Friends in Need has ordinary, Weak, and Elite Wood Scamp actors. Verify the encounter scaling and effective stats before declaring scoped overrides.
-
-- Elite Wood Scamp (`pfs-season-6-bestiary:hcHtUbPVInjQ5TEb`)
-- Weak Wood Scamp (`pfs-season-6-bestiary:qnvKhJ7BP2BWPkVo`)
-- Wood Scamp (Quest 22) (`pfs-season-6-bestiary:AG5aG5TmtxAzIERA`)
+**Friends in Need.** [Gluttonous Geode](creatures/gluttonous-geode.toml)
+and [Wood Scamp](creatures/wood-scamp.toml) show their quest blocks
+individually. Compared with Rage of Elements, the ordinary quest Geode omits
+Petran. The ordinary quest Wood Scamp omits the climb Speed and regeneration
+text and changes its language and traits. Verify encounter scaling before
+defining an override.
 
 **Animated Flame.** Tanuki Trouble has ordinary, Weak, and Elite blocks. The Weak and Elite actors have different task-related abilities. Check the published stat blocks and usage before treating either as an override.
 
@@ -155,14 +134,11 @@ bands. Recheck Thievery if the pinned source changes.
 
 ## Discovery and grouping gaps
 
-**Missing token names.** The [Spellskein](creatures/spellskein.toml) and
-[Wizard Sponge](creatures/wizard-sponge.toml) families include same-publication
-base actors the token audit missed. Use them and the Hesla pair in *The Overthrow
-of Ambition* to check a same-publication discovery pass. Verify the adventure
-before assigning a tier to the unsuffixed Hesla.
-
-- Hesla, The Broken Ember (`pfs-season-6-bestiary:EWutX9eW7tYLpors`)
-- Hesla, The Broken Ember (11-12) (`pfs-season-6-bestiary:k6VFoe5R52PbVZJB`)
+**Missing token names.** The [Spellskein](creatures/spellskein.toml),
+[Wizard Sponge](creatures/wizard-sponge.toml), and
+[Hesla](creatures/hesla-the-broken-ember.toml) families include
+same-publication actors the token audit missed. Use them to check future
+discovery passes.
 
 **Grouping by ability across party tiers.** [Fleshforge Construct](creatures/fleshforge-construct.toml)
 groups by party level and names the ability in each title. Each of the six
@@ -202,6 +178,9 @@ declaring a scoped adjustment.
 
 #### Pathfinder Society Quest #21: Infernal Infiltration
 
+The [Silver Devil Hooligan family](creatures/silver-devil-hooligan.toml)
+presents both authored blocks.
+
 *Infernal Infiltration* prints the Elite Silver Devil Hooligan at level 1
 (p. 14), while Foundry reports level 2. The ordinary block's ranged dagger
 bonus is +9 in print and +6 in Foundry. The upper-tier Hideout replaces the
@@ -213,17 +192,17 @@ blocks if the pinned source changes.
 
 #### Pathfinder Society Scenario #1-18: Lodge of the Living God
 
-The Elite Midge is two creature levels higher. Verify the published *Lodge of
-the Living God* encounter and identify the party tiers and scaling conditions
-for the two blocks.
-
-- Glass River Midge (`pfs-season-1-bestiary:I3jGuCG3qL5ua7yE`) ↔ Elite Glass River Midge (`pfs-season-1-bestiary:xu1dm0KnEHx5vySR`)
+The [Glass River Midge family](creatures/glass-river-midge.toml) presents
+the standard and authored Elite blocks. Verify the published tier and scaling
+conditions before defining an override.
 
 #### Pathfinder Society Scenario #4-15: In Glorious Battle
 
 The [Smokesight Wights family](creatures/smokesight-wights.toml) groups the
-Hunter, Stalker, Prowler, and Captain by role and by standard or Elite stat
-block. The scaling tables determine which blocks to use in each encounter.
+Hunter, Stalker, Prowler, Captain, Deadeye, and Commander by role and by
+standard or Elite stat block. The scaling tables determine which blocks to use
+in each encounter. The [Combustive Zombie family](creatures/combustive-zombie.toml)
+presents its standard and Elite blocks separately.
 
 Recheck these pairs when their pinned Foundry records change.
 
@@ -251,6 +230,9 @@ an override if Atlas can represent those encounter conditions accurately.
 
 #### Pathfinder Society Scenario #5-03: Heidmarch Heist
 
+The [Krosovahn Mendesil family](creatures/krosovahn-mendesil.toml) shows
+both reviewed party ranges and the source creature levels.
+
 *Heidmarch Heist* (pp. 17, 22, 25) uses creature levels 5 and 7 at party
 levels 5–6 and 7–8. Both Foundry records report level 5, including the upper
 block with evasion and 111 HP. Recheck if the pinned Foundry source changes.
@@ -260,44 +242,20 @@ block with evasion and 111 HP. Recheck if the pinned Foundry source changes.
 
 #### Pathfinder Society Scenario #6-09: The Power of Legends
 
-Both Penumbra actors report creature level 11. The 11–12 block has 210 HP
-versus 170 HP. Compare both with the published *Power of Legends* blocks
-before assigning scenario uses.
+Both Penumbra actors report creature level 11 and share Drain Soul Cage,
+Void Shroud, and Siphon Life. The 11–12 block has 210 HP versus 170 HP.
+Paizo lists the scenario for levels 9–12. Verify the party assignment for
+each block in the published adventure before adding the family.
+[Paizo scenario listing](https://store.paizo.com/pfs-scenario-6-09/)
 
 - Penumbra (`pfs-season-6-bestiary:Mg8gzA54MY5DMHZk`) ↔ Penumbra (11-12) (`pfs-season-6-bestiary:cyOOXZliztAjS9YM`)
 
-#### Pathfinder Society Scenario #6-19: What Walks Again
-
-The 13–14 Husk of Deskari is creature level 17. The unsuffixed actor is level
-14. Verify the assignments in *What Walks Again*.
-
-- The Husk of Deskari (13-14) (`pfs-season-6-bestiary:7H1fqxjhk0PzUMy4`) ↔ The Husk of Deskari (`pfs-season-6-bestiary:cJMsjCIJQB2iafmk`)
-
-#### Pathfinder Society Scenario #6-20: The Overthrow of Ambition
-
-The 11–12 Harbinger is creature level 9 and the unsuffixed actor is level 7.
-Verify the party uses in *The Overthrow of Ambition*.
-
-- Harbinger of Ingalor (11-12) (`pfs-season-6-bestiary:RgAi5UNl5yxAk9y2`) ↔ Harbinger of Ingalor (`pfs-season-6-bestiary:qbAQmR4WUnNF3g4Z`)
-
 #### Pathfinder Society Scenario #7-03: A Foot in the Door
 
-The level 9 Timonithaea title says 7–9, outside the published scenario's
-party levels 5–8. Verify the encounter's assignments for both actors before
-displaying them. [Paizo scenario listing](https://store.paizo.com/pathfinder-society-scenario-7-03-a-foot-in-the-door/)
+The [Timonithaea family](creatures/timonithaea.toml) presents both blocks
+under the friendly name. The level 9 Foundry title says 7–9, outside the
+published scenario's party levels 5–8. Verify both assignments before
+declaring scenario uses.
+[Paizo scenario listing](https://store.paizo.com/pathfinder-society-scenario-7-03-a-foot-in-the-door/)
 
 - Timonithaea (7-9) (`pfs-season-7-bestiary:Idl8zxFPu9dyRA5h`) ↔ Timonithaea (`pfs-season-7-bestiary:UG5iXBqsLxRifjSW`)
-
-#### Pathfinder Society Scenario #7-05: Battle of the Thorns
-
-The unsuffixed Kizrech is level 9 and the 11–12 title is level 11. Verify the
-lower range in *Battle of the Thorns*.
-
-- Kizrech (`pfs-season-7-bestiary:W2puJUeo61CLMMxQ`) ↔ Kizrech (11-12) (`pfs-season-7-bestiary:xyT4zCZjAbnAgDLV`)
-
-#### Pathfinder Society Scenario #7-08: The Haunted Corridor
-
-The unsuffixed Lyari is level 1 and the 3–4 title is level 3. Verify the lower
-range in *The Haunted Corridor*.
-
-- Lyari Zinfeld (`pfs-season-7-bestiary:SnoWbBMVQdoAKJA9`) ↔ Lyari Zinfeld (3-4) (`pfs-season-7-bestiary:vngxFO3AQdnBivra`)

@@ -1,0 +1,14 @@
+name = "Shadow"
+source_note = "Monster Core’s Shadow creates Shadow Spawn. The Season of Ghosts Familiar Shadow shares the Shadow Hand strike, Light Vulnerability, Slink in Shadows, and Steal Shadow, and adds Infest Shadow."
+
+[[members]]
+key = "pathfinder-monster-core:VotlWUsFKdOrHWF6"
+name = "Shadow"
+
+[[members]]
+key = "pathfinder-monster-core:clzHAfegb9Rn6DOe"
+name = "Shadow Spawn"
+
+[[members]]
+key = "season-of-ghosts-bestiary:IdbrdikgvRguKYNE"
+name = "Familiar Shadow"

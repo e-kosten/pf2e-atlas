@@ -1,5 +1,5 @@
 name = "Smokesight Wights"
-source_note = "In Glorious Battle publishes the Hunter, Stalker, Prowler, and Captain with ordinary and Elite stat blocks. Encounters B and D use Hunters and Stalkers at party levels 9–10 and Prowlers at 11–12. Encounter D prints the Captain pair for party levels 9–10. The scaling sidebars determine when the Elite blocks appear."
+source_note = "In Glorious Battle publishes the Hunter, Stalker, Prowler, Captain, Deadeye, and Commander with ordinary and Elite stat blocks. Encounters B and D use Hunters and Stalkers at party levels 9–10 and Prowlers at 11–12. Encounter D prints the Captain pair for party levels 9–10. The scaling sidebars determine when the Elite blocks appear."
 
 axes = [
     { id = "role", label = "Role", alternatives_label = "Other roles", options = [
@@ -7,6 +7,8 @@ axes = [
         { id = "stalker", label = "Stalker" },
         { id = "prowler", label = "Prowler" },
         { id = "captain", label = "Captain" },
+        { id = "deadeye", label = "Deadeye" },
+        { id = "commander", label = "Commander" },
     ] },
     { id = "stat-block", label = "Stat block", alternatives_label = "Other stat blocks", options = [
         { id = "standard", label = "Standard" },
@@ -53,3 +55,23 @@ coordinates = { role = "captain", stat-block = "standard" }
 key = "pfs-season-4-bestiary:BRo5HCigb4YTjJys"
 name = "Elite Smokesight Wight Captain"
 coordinates = { role = "captain", stat-block = "elite" }
+
+[[members]]
+key = "pfs-season-4-bestiary:4r7haYeUSxjW3wtR"
+name = "Smokesight Deadeye Wight"
+coordinates = { role = "deadeye", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-4-bestiary:4G6VvfIsceXfEZBB"
+name = "Elite Smokesight Deadeye Wight"
+coordinates = { role = "deadeye", stat-block = "elite" }
+
+[[members]]
+key = "pfs-season-4-bestiary:Q6BTF30qgInYi2BA"
+name = "Smokesight Wight Commander"
+coordinates = { role = "commander", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-4-bestiary:KV2LmRMc9ho9mBPy"
+name = "Elite Smokesight Wight Commander"
+coordinates = { role = "commander", stat-block = "elite" }

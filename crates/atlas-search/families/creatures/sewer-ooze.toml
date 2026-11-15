@@ -1,0 +1,12 @@
+name = "Sewer Ooze"
+source_note = "Student Exchange supplies Weak and Elite blocks that share Pseudopod, Motion Sense, and Filth Wave."
+
+[[members]]
+key = "pfs-season-5-bestiary:dXSti6gNOpoEYoIF"
+name = "Weak Sewer Ooze (PFS Q18)"
+label = "Weak Sewer Ooze"
+
+[[members]]
+key = "pfs-season-5-bestiary:vsWgbVO6zJIjiqAs"
+name = "Elite Sewer Ooze (PFS Q18)"
+label = "Elite Sewer Ooze"

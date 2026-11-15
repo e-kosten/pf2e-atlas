@@ -1,0 +1,19 @@
+name = "Krosovahn Mendesil"
+source_note = "Heidmarch Heist (pp. 17, 22, 25) gives Krosovahn tier blocks for party levels 5–6 and 7–8. The latter adds Evasion and Gang Up. Both Foundry actors report creature level 5."
+
+[[members]]
+key = "pfs-season-5-bestiary:H5lFXWXFl7vKrugU"
+name = "Krosovahn Mendesil"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-5-bestiary:TWsApxv2Bx0n7M3i"
+name = "Krosovahn Mendesil (7-8)"
+label = "Krosovahn Mendesil"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
