@@ -540,9 +540,9 @@ function SearchModels({
       )}
       {reference.modelsAvailable && !reference.canChangeModels && (
         <Typography.Text type="secondary">
-          {!reference.managed
+          {!reference.managed || !reference.available
             ? "Use the Atlas CLI to add or remove models for this workspace."
-            : reference.available && reference.revision !== reference.target
+            : reference.revision !== reference.target
               ? "Apply the bundled reference data above to add or remove models."
               : "Check and repair the reference data before adding or removing models."}
         </Typography.Text>

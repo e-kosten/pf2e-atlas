@@ -397,7 +397,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         evaluates_true(
             &window,
             r#"[...document.querySelectorAll('[role=dialog] [role=status]')].some(
-            node => node.textContent.startsWith('Linked at') && node.getClientRects().length)"#,
+            node => node.textContent === 'The terminal command is installed.' && node.getClientRects().length)"#,
         )
     })?;
     wait_for(deadline, "reference action", || {

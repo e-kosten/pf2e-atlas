@@ -40,9 +40,12 @@
 
   function mount() {
     if (!document.documentElement) return false;
-    const dark = window.__atlasOpeningDark;
-    cover.style.colorScheme = dark ? "dark" : "light";
-    style.textContent = `${dark ? darkColors : lightColors} ${css}`;
+    // The desktop document prepaint resolves the saved product preference.
+    const scheme =
+      document.documentElement.style.colorScheme ||
+      (window.__atlasOpeningDark ? "dark" : "light");
+    cover.style.colorScheme = scheme;
+    style.textContent = `${scheme === "dark" ? darkColors : lightColors} ${css}`;
     document.documentElement.append(style, cover);
     return true;
   }

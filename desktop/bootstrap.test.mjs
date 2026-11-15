@@ -162,3 +162,41 @@ test("a Retry buffered with the handoff wins when admission settles", async () =
     f.close();
   }
 });
+
+test("the opening cover follows the resolved product scheme over the native fallback", () => {
+  const { window } = new JSDOM("", { url: target });
+  try {
+    const { document } = window;
+    const prepaint = readFileSync(
+      new URL("./src-tauri/src/tab_links.js", import.meta.url),
+      "utf8",
+    );
+    const cover = readFileSync(
+      new URL("./bootstrap/opening-handoff.js", import.meta.url),
+      "utf8",
+    ).replace(
+      "/* status markup */ null",
+      JSON.stringify("<p hidden>Opening Atlas</p>"),
+    );
+    window.localStorage.setItem("atlas-ui-color-scheme", "dark");
+    window.__atlasOpeningDark = false;
+    window.__atlasPrimaryOpening = true;
+    runInNewContext(`${prepaint}\n${cover}`, {
+      window,
+      document,
+      location: window.location,
+      localStorage: window.localStorage,
+      sessionStorage: window.sessionStorage,
+      performance: { getEntriesByType: () => [] },
+      MutationObserver: window.MutationObserver,
+      scheduleOpeningStatus() {},
+      clearTimeout,
+    });
+    assert.equal(
+      document.getElementById("atlas-opening-cover").style.colorScheme,
+      "dark",
+    );
+  } finally {
+    window.close();
+  }
+});

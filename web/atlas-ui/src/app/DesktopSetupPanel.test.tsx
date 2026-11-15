@@ -192,20 +192,27 @@ it("requests a native switch and keeps the option available after cancellation",
   expect(verification).toBeVisible();
 });
 
-it("shows installed models while leaving the preference editable for an external source", async () => {
-  attach();
-  const attachment = host.__ATLAS_DESKTOP_SETUP__ as {
-    reference: { managed: boolean; canChangeModels: boolean };
-  };
-  attachment.reference.managed = false;
-  attachment.reference.canChangeModels = false;
-  renderPanel();
-  fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
-  const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
-  expect(within(drawer).queryByRole("checkbox")).toBeNull();
-  expect(within(drawer).getByText("Installed")).toBeVisible();
-  expect(within(drawer).getByText(/Use the Atlas CLI to add or remove/)).toBeVisible();
-  expect(
-    within(drawer).getByRole("combobox", { name: "Preferred search model" }),
-  ).toBeEnabled();
-});
+it.each([
+  { managed: false, available: true },
+  { managed: true, available: false },
+])(
+  "shows CLI guidance and keeps the preference editable without a desktop model action (%j)",
+  async (reference) => {
+    attach();
+    const attachment = host.__ATLAS_DESKTOP_SETUP__ as {
+      reference: { managed: boolean; available: boolean; canChangeModels: boolean };
+    };
+    Object.assign(attachment.reference, reference, { canChangeModels: false });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+    const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+    expect(within(drawer).queryByRole("checkbox")).toBeNull();
+    expect(within(drawer).getByText("Installed")).toBeVisible();
+    expect(
+      within(drawer).getByText(/Use the Atlas CLI to add or remove/),
+    ).toBeVisible();
+    expect(
+      within(drawer).getByRole("combobox", { name: "Preferred search model" }),
+    ).toBeEnabled();
+  },
+);
