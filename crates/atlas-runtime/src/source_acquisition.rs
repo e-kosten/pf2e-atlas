@@ -6,7 +6,7 @@ use std::{
     fs,
     io::{self, Read},
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 const MAX_ARCHIVE: u64 = 512 * 1024 * 1024;
@@ -28,8 +28,9 @@ pub(crate) fn revision(
 
 pub(crate) fn validate(path: &Path) -> Result<(), String> {
     let expected = expected_digest()?;
-    let mut tree = Tree::default();
+    let mut tree = Tree::with_progress("verify_source", "Checking cached Foundry source files");
     scan(path, "", &mut tree).map_err(|error| error.to_string())?;
+    tree.report_progress();
     compare(tree, &expected)
 }
 
@@ -89,13 +90,19 @@ pub(crate) fn acquire(path: &Path) -> Result<(), String> {
         .limit(MAX_ARCHIVE)
         .reader();
     let mut archive = flate2::read::GzDecoder::new(bytes).take(MAX_TREE);
-    tracing::info!(target:"atlas_progress", phase="extract_source", "Extracting and verifying Foundry source");
     let root = format!("pf2e-{REFERENCE_SOURCE_COMMIT}");
     let tree = extract(&mut archive, &root, &staging.0).map_err(|error| error.to_string())?;
     io::copy(&mut archive, &mut io::sink()).map_err(|error| error.to_string())?;
     if archive.limit() == 0 {
         return Err(invalid_archive().to_string());
     }
+    tracing::info!(
+        target: "atlas_progress",
+        phase = "verify_source",
+        current = tree.files.len() as u64,
+        unit = "files",
+        "Verifying the Foundry source archive"
+    );
     compare(tree, &expected)?;
     match fs::rename(&staging.0, path) {
         Ok(()) => Ok(()),
@@ -141,9 +148,48 @@ struct Tree {
     files: BTreeMap<String, [u8; 32]>,
     case_insensitive_names: BTreeSet<String>,
     bytes: u64,
+    progress: Option<FileProgress>,
+}
+
+struct FileProgress {
+    phase: &'static str,
+    message: &'static str,
+    last_report: Instant,
+}
+
+impl FileProgress {
+    fn report(&mut self, files: usize) {
+        tracing::info!(
+            target: "atlas_progress",
+            phase = self.phase,
+            current = files as u64,
+            unit = "files",
+            message = self.message
+        );
+        self.last_report = Instant::now();
+    }
 }
 
 impl Tree {
+    fn with_progress(phase: &'static str, message: &'static str) -> Self {
+        let mut tree = Self {
+            progress: Some(FileProgress {
+                phase,
+                message,
+                last_report: Instant::now(),
+            }),
+            ..Self::default()
+        };
+        tree.report_progress();
+        tree
+    }
+
+    fn report_progress(&mut self) {
+        if let Some(progress) = &mut self.progress {
+            progress.report(self.files.len());
+        }
+    }
+
     fn add(&mut self, name: String, size: u64, reader: &mut impl Read) -> io::Result<()> {
         self.bytes = self.bytes.checked_add(size).ok_or_else(invalid_archive)?;
         if self.files.len() >= MAX_ENTRIES
@@ -157,6 +203,11 @@ impl Tree {
             return Err(invalid_archive());
         }
         self.files.insert(name, hash.finalize().into());
+        if let Some(progress) = &mut self.progress
+            && progress.last_report.elapsed() >= Duration::from_millis(250)
+        {
+            progress.report(self.files.len());
+        }
         Ok(())
     }
 
@@ -218,7 +269,10 @@ fn valid_component(name: &str) -> bool {
 }
 
 fn extract(reader: impl Read, root: &str, target: &Path) -> io::Result<Tree> {
-    let mut tree = Tree::default();
+    let mut tree = Tree::with_progress(
+        "extract_source",
+        "Unpacking and checking Foundry source files",
+    );
     for (index, entry) in tar::Archive::new(reader).entries()?.enumerate() {
         if index >= MAX_ENTRIES {
             return Err(invalid_archive());

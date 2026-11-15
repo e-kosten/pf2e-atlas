@@ -11,8 +11,9 @@ use atlas_local_state::workspace_recovery::{SavedWorkspace, ValidatedWorkspace, 
 use atlas_storage::{Connection, ReadSession, StorageResult};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
+#[cfg(unix)]
+use std::fs::File;
 use std::{
-    fs::File,
     io::{BufReader, BufWriter, Read, Seek, Write},
     path::{Path, PathBuf},
 };

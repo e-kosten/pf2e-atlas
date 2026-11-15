@@ -178,23 +178,26 @@ pub(crate) fn open_published(
         return Err("the asset needs a download and setup is offline".into());
     }
     let mut file = tempfile::tempfile_in(scratch).map_err(|error| error.to_string())?;
-    download_seed(pin, model.profile_id.as_str(), &mut file)?;
-    tracing::info!(target:"atlas_progress", phase="verify_embedding_seed", profile=%model.profile_id,
-        "Verifying precomputed embeddings for {}", model.profile_id);
-    EmbeddingSeed::read(file, &pin.file, scratch)
+    download_seed(pin, &model.profile_id, &mut file)?;
+    let label = profile_label(&model.profile_id);
+    EmbeddingSeed::read_with_progress(file, &pin.file, scratch, label)
         .map(Some)
         .map_err(|error| error.to_string())
 }
 
+fn profile_label(profile: &atlas_domain::SearchProfileId) -> &str {
+    atlas_embedding::search_profile(profile).map_or(profile.as_str(), |spec| spec.label)
+}
+
 fn download_seed(
     pin: &EmbeddingSeedPin,
-    profile: &str,
+    profile: &atlas_domain::SearchProfileId,
     mut file: impl Write,
 ) -> Result<(), String> {
     pin.file.validate().map_err(|error| error.to_string())?;
     let url = release_url(&pin.tag, &pin.asset)?;
-    tracing::info!(target:"atlas_progress", phase="fetch_embedding_seed", profile,
-        "Downloading precomputed embeddings for {profile}");
+    tracing::info!(target:"atlas_progress", phase="fetch_embedding_seed", profile=%profile,
+        "Downloading precomputed embeddings for {}", profile_label(profile));
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .https_only(true)
         .max_redirects(4)
@@ -225,7 +228,7 @@ pub fn download_embedding_seed(
     let path = directory.join(format!("{}.atlas-seed.gz", pin.file.sha256));
     if !path.try_exists().map_err(result)? {
         let mut staged = tempfile::NamedTempFile::new_in(directory).map_err(result)?;
-        download_seed(pin, profile.as_str(), staged.as_file_mut())?;
+        download_seed(pin, &profile, staged.as_file_mut())?;
         verify(staged.as_file())?;
         staged
             .persist_noclobber(&path)

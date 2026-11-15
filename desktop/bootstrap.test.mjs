@@ -109,6 +109,50 @@ test("armed navigation waits for acceptance, terminal work and diagnostic IPC", 
   }
 });
 
+test("setup shows completed work while the native progress bar is indeterminate", async () => {
+  const f = await fixture({ trace: false });
+  try {
+    f.take("inspect").resolve({
+      generation: 4,
+      probe: { status: "needs_setup" },
+    });
+    await setImmediate();
+    const doc = f.window.document;
+    doc.getElementById("primary").click();
+    f.take("prepare").resolve();
+    await setImmediate();
+
+    f.post({
+      type: "progress",
+      value: {
+        message: "Checking cached Foundry source files",
+        current: 42,
+        total: null,
+        unit: "files",
+      },
+    });
+    const bar = doc.getElementById("progress");
+    const count = doc.getElementById("count");
+    assert.equal(
+      doc.getElementById("phase").textContent,
+      "Checking cached Foundry source files",
+    );
+    assert.equal(bar.hasAttribute("value"), false);
+    assert.equal(count.hidden, false);
+    assert.equal(count.textContent, "42 files completed");
+
+    f.post({
+      type: "progress",
+      value: { current: 5, total: 20, unit: "passages" },
+    });
+    assert.equal(bar.value, 5);
+    assert.equal(bar.max, 20);
+    assert.equal(count.textContent, "5 of 20 passages");
+  } finally {
+    f.close();
+  }
+});
+
 test("an expired handoff restores Retry and ignores later navigation for the old attempt", async () => {
   const f = await fixture();
   try {
@@ -185,6 +229,7 @@ test("the opening cover follows the resolved product scheme over the native fall
       window,
       document,
       location: window.location,
+      navigator: { platform: "MacIntel" },
       localStorage: window.localStorage,
       sessionStorage: window.sessionStorage,
       performance: { getEntriesByType: () => [] },

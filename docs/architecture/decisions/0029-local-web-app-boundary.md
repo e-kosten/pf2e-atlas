@@ -90,7 +90,7 @@ generated API compatibility fingerprint.
 
 ## macOS desktop host
 
-The Tauri pilot bundles the matching Atlas CLI and uses the managed web
+The Tauri host on macOS and Windows bundles the matching Atlas CLI and uses the managed web
 launcher to hold a single service lease for all desktop windows. The host owns
 a pipe whose closure ends the launcher even during startup. The launcher
 authenticates the worker and checks the API contract before returning a
@@ -123,7 +123,8 @@ current-format workspace. The host owns the job across all windows and
 reconciles the committed generation after it ends. A generation change tells
 mounted product views to refresh reference queries in place. Asset repairs
 with the same generation refresh readiness. The bundled surface handles first
-launch, workspace upgrades and recovery, and owns terminal command linking.
+launch, workspace upgrades and recovery. On macOS it also owns terminal
+command linking. The Windows menu shows the installed sidecar path.
 The shared managed worker can warm the model on first attachment or after
 receiving an authenticated publication notification without adding a lease.
 
@@ -134,6 +135,10 @@ detail route. Saved lists and encounters use stable keys and existing owner-scop
 reads. The entity header supplies the current identity and title to its copy
 action. The native host checks the attached product document before writing the
 clipboard. Browsers copy the corresponding HTTP(S) detail URL.
+
+macOS uses AppKit window groups. Windows uses separate WebView2 windows
+and forwards protocol activations to the existing host process. Both use the
+same link validation and workspace service lease.
 
 ## Browser/backend compatibility
 

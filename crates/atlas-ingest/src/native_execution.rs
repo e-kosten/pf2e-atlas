@@ -63,6 +63,13 @@ fn counted_progress(model: atlas_embedding::SearchProfileSpec, current: usize, t
         current=current as u64,total=total as u64,unit="passages",profile=model.id,
         "Checking saved {} embeddings",model.label);
 }
+
+fn seed_progress(model: atlas_embedding::SearchProfileSpec, counts: Option<(usize, usize)>) {
+    tracing::info!(target:"atlas_progress",phase="match_embedding_seed", profile=model.id,
+        current=counts.map(|(current, _)| current as u64),
+        total=counts.map(|(_, total)| total as u64),unit="passages",
+        "Matching precomputed {} embeddings to passages",model.label);
+}
 fn stage_values(
     publication: &mut PreparedPublication<'_>,
     model: &SourceSearchProfileIdentity,
@@ -124,6 +131,7 @@ impl NativeExecution<'_, '_> {
         let mut first_missing = None;
         let mut runner = None;
         let batch_size = self.options.embedding_batch_size;
+        let profile = atlas_embedding::profile_for_model(config.model);
         let report = self.execute(config, true, |publication, model, batch| {
             let seed_started = std::time::Instant::now();
             let seed_error = |reason| IngestError::EmbeddingSeedUnavailable {
@@ -166,6 +174,9 @@ impl NativeExecution<'_, '_> {
                     None if policy == SeedBuildPolicy::Refresh => None,
                     None => return Err(seed_error("seed reader is unavailable".into())),
                 });
+                if seed.as_ref().is_some_and(Option::is_some) {
+                    seed_progress(profile, None);
+                }
             }
 
             let inputs = batch
@@ -180,6 +191,9 @@ impl NativeExecution<'_, '_> {
                 if !missing.is_empty() {
                     if delta.is_none() {
                         delta = Some(load_delta(load, model, scratch, asset).map_err(seed_error)?);
+                        if delta.as_ref().is_some_and(Option::is_some) {
+                            seed_progress(profile, None);
+                        }
                     }
                     if let Some(Some(delta)) = &mut delta {
                         let uncovered = missing
@@ -310,6 +324,8 @@ impl NativeExecution<'_, '_> {
         let mut max_unique_batch = 0;
         let mut max_missing_batch = 0;
         let mut max_outputs = 0;
+        let mut matched_seed = false;
+        let mut seed_reported_at = std::time::Instant::now();
         counted_progress(profile, 0, raw_inputs.len());
         loop {
             let mut inputs = Vec::with_capacity(window());
@@ -402,7 +418,8 @@ impl NativeExecution<'_, '_> {
             }
             // Report reuse-only windows. A window that needs inference reports
             // its generation progress without briefly replacing it with reuse.
-            if missing.is_empty() {
+            let mut generated = 0;
+            if missing.is_empty() && !matched_seed {
                 counted_progress(profile, consumed, raw_inputs.len());
             }
             max_missing_batch = max_missing_batch.max(missing.len());
@@ -429,11 +446,21 @@ impl NativeExecution<'_, '_> {
                 };
                 let inference_started = std::time::Instant::now();
                 let (count, seed_hits, outputs, seed_time) = infer(publication, &model, batch)?;
+                generated = count;
+                matched_seed |= seed_hits != 0;
                 inferred += count;
                 reused += seed_hits;
                 max_outputs = max_outputs.max(outputs);
                 seed_elapsed += seed_time;
                 inference_elapsed += inference_started.elapsed().saturating_sub(seed_time);
+            }
+            if matched_seed
+                && generated == 0
+                && (consumed == raw_inputs.len()
+                    || seed_reported_at.elapsed() >= std::time::Duration::from_millis(250))
+            {
+                seed_progress(profile, Some((consumed, raw_inputs.len())));
+                seed_reported_at = std::time::Instant::now();
             }
         }
         if verify_counts {

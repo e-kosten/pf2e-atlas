@@ -99,7 +99,7 @@ try {
       }
       if (selected?.has("desktop"))
         console.log(
-          "Desktop obligation: run the native macOS bundle and smoke checks described in desktop/README.md.",
+          "Desktop obligation: run the native installer or app bundle and smoke checks described in desktop/README.md.",
         );
       if (selected?.has("browser"))
         console.log(

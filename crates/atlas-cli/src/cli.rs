@@ -71,7 +71,7 @@ pub(crate) enum Command {
     #[cfg(target_os = "macos")]
     #[command(about = "Open the Atlas macOS app or a reference link")]
     Open(commands::desktop::OpenArgs),
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", all(windows, feature = "web")))]
     #[command(hide = true)]
     DesktopProbe(commands::desktop::ProbeArgs),
     #[command(about = "Discover filter fields and values")]
@@ -174,7 +174,7 @@ impl Command {
             Self::Web(args) => args.desktop_launcher && args.managed_worker.is_none(),
             #[cfg(target_os = "macos")]
             Self::Open(_) => false,
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", all(windows, feature = "web")))]
             Self::DesktopProbe(_) => true,
             Self::Filters(filters) => match &filters.command {
                 FiltersCommand::Fields(options) => options.json,
@@ -207,7 +207,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
         #[cfg(target_os = "macos")]
         Command::Open(args) => commands::desktop::open(args),
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", all(windows, feature = "web")))]
         Command::DesktopProbe(args) => commands::desktop::probe(args),
         Command::BuildInfo(args) => commands::build_info::run(args),
         Command::Roll(args) => commands::roll::run_roll(args),

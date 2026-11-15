@@ -621,11 +621,22 @@ fn run_setup(
                         SetupActionStatus::Done,
                     ));
                 }
-                Err(e) => actions.push(SetupAction::with_reason(
-                    SetupActionKind::PrepareEmbeddingModel,
-                    SetupActionStatus::Failed,
-                    e.to_string(),
-                )),
+                Err(e) => {
+                    let message = if matches!(
+                        e,
+                        atlas_embedding::EmbeddingError::ModelCacheDownloadFailed { .. }
+                    ) {
+                        tracing::warn!(error = %e, "Search model download failed");
+                        "Atlas couldn’t download a search model. Check your connection and retry setup.".into()
+                    } else {
+                        e.to_string()
+                    };
+                    actions.push(SetupAction::with_reason(
+                        SetupActionKind::PrepareEmbeddingModel,
+                        SetupActionStatus::Failed,
+                        message,
+                    ));
+                }
             }
         }
     }

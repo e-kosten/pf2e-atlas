@@ -1,24 +1,25 @@
-use std::{
-    path::PathBuf,
-    process::{Command, ExitCode},
-};
+#[cfg(target_os = "macos")]
+use std::process::Command;
+use std::{path::PathBuf, process::ExitCode};
 
 use atlas_app_model::{AppErrorCode, AppReadinessStatus};
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
-use atlas_desktop_protocol::{
-    BUNDLE_ID, EntityLink, ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus,
-};
+#[cfg(target_os = "macos")]
+use atlas_desktop_protocol::{BUNDLE_ID, EntityLink};
+use atlas_desktop_protocol::{ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus};
 use atlas_runtime::{
     AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeErrorKind, Workspace,
 };
 use clap::Args;
 
+#[cfg(target_os = "macos")]
 #[derive(Debug, Args)]
 pub(crate) struct OpenArgs {
     /// An optional pf2e-atlas v1 entity link.
     link: Option<String>,
 }
 
+#[cfg(target_os = "macos")]
 pub(crate) fn open(args: OpenArgs) -> Result<ExitCode, String> {
     let mut opener = Command::new("/usr/bin/open");
     opener.args(["-b", BUNDLE_ID]);

@@ -4,7 +4,7 @@ use tauri::{AppHandle, Manager, WebviewWindow, menu::MenuBuilder};
 use url::Url;
 
 use crate::{
-    Desktop, current_product, display, lock, native_tabs, open_product, product_view, run_on_main,
+    Desktop, current_product, display, lock, open_product, product_view, run_on_main, window_host,
 };
 
 pub const SCRIPT: &str = include_str!("tab_links.js");
@@ -48,15 +48,19 @@ pub async fn desktop_tab_link(
             request.open(app)
         };
         if let Err(error) = result {
-            native_tabs::report("Could not open Atlas link", &error);
+            window_host::report("Could not open Atlas link", &error);
         }
     })
 }
 
 fn show_menu(app: &AppHandle, request: Link) -> Result<(), String> {
     let window = request.validate(app)?;
+    #[cfg(windows)]
+    let title = "Open Link in New Window";
+    #[cfg(target_os = "macos")]
+    let title = "Open Link in New Tab";
     let menu = MenuBuilder::new(app)
-        .text(MENU_ID, "Open Link in New Tab")
+        .text(MENU_ID, title)
         .build()
         .map_err(display)?;
     *lock(&app.state::<Desktop>().context_link) = Some(request);
