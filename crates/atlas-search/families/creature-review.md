@@ -35,15 +35,13 @@ changes or the source establishes a relationship.
 
 ### Authored scaling
 
-**Anatomical Model.** Laboratory A11 on p. 22 of *The Seven Secrets of Dacilane
-Academy* prints the 3–4 Elite model at creature level 5. Foundry reports level
-4 for both the ordinary and Elite 3–4 blocks. Recheck if the pinned source
-changes.
+**Anatomical Model.** The [family](creatures/anatomical-model.toml) presents
+the three pinned actors by party levels. Laboratory A11 on p. 22 of *The
+Seven Secrets of Dacilane Academy* prints the 3–4 Elite model at creature
+level 5. Foundry reports level 4 for both the ordinary and Elite 3–4
+blocks. The printed level 3 Elite for party levels 1–2 has no pinned
+actor. Recheck when the source changes.
 [Published scenario](https://www.scribd.com/document/704766987/PF2-S02-09-the-Seven-Secrets-of-Dacilane-Academy)
-
-- Anatomical Model (1-2) (`pfs-season-2-bestiary:BXnmDgVkhD97fI1o`)
-- Anatomical Model (3-4) (`pfs-season-2-bestiary:j7K9SefeHJ16qHMl`)
-- Elite Anatomical Model (3-4) (`pfs-season-2-bestiary:ZshsztmoWjDZEqGT`)
 
 **Alystair Caskwater.** The [family](creatures/alystair-caskwater.toml) uses
 both party tiers from encounter A8 of *In the Footsteps of Horror*. Its lower
@@ -58,13 +56,14 @@ Dollhouse* select the Upset blocks before adding encounter guidance.
 
 ### Source identity and publication
 
-**Elite Boggard Swampseer.** The titles say PFS 1-24, while the publication and
-pack paths point to *The Lost Legend* (1-20), which describes an animal staff
-loadout. Resolve the title discrepancy and compare the published encounter
-blocks with the standard Boggard Swampseer before declaring the family.
-
-- Elite Boggard Swampseer (PFS 1-24, Staff) (`pfs-season-1-bestiary:1LM0AUYkZcsbtETs`)
-- Elite Boggard Swampseer (PFS 1-24, Animal Staff) (`pfs-season-1-bestiary:D2Bc4GbmiuW29310`)
+**Boggard Swampseer.** The [family](creatures/boggard-swampseer.toml) includes
+the Monster Core actor and the three *Lost Legend* actors. The publication,
+pack paths, and printed encounter A identify scenario 1-20. The Foundry
+titles say 1-24. Pages 21 and 26 document the staff loadouts. The printed
+Elite block reports creature level 4, while both Foundry Elite actors
+store creature level 3 with a typed Elite adjustment. Recheck the source
+titles and effective Elite statistics when the pin changes.
+[Published scenario](https://www.scribd.com/document/655349423/PF2-S01-20-The-Lost-Legend)
 
 ### Marcien's Shadow Doubles
 
@@ -91,14 +90,10 @@ and yields the printed levels 1 and 3. The encounter's scaling can use
 ordinary and Weak blocks together.
 [Published scenario](https://www.scribd.com/document/820438906/PF2-S05-17-Stranded-on-Yesterday-s-Tide)
 
-**Congealed Magic.** Lost and Forgotten supplies ordinary and Concentrated
-blocks with typed Elite counterparts. Check the encounter’s scaling conditions
-and effective stats before declaring the party uses and overrides.
-
-- Congealed Magic (`pfs-season-6-bestiary:gjeL6QJBoniPAm4M`)
-- Elite Congealed Magic (`pfs-season-6-bestiary:XMtgZP2i1lttMf15`)
-- Concentrated Congealed Magic (`pfs-season-6-bestiary:agYSQuaxGkFQVBus`)
-- Elite Concentrated Congealed Magic (`pfs-season-6-bestiary:tiPPgdHWXNWE7LKF`)
+**Congealed Magic.** The [family](creatures/congealed-magic.toml) presents
+ordinary and Concentrated forms with typed Elite counterparts. Summaries
+show stored creature levels 3 and 5. Verify exact encounter scaling and
+effective statistics before declaring party uses or overrides.
 
 **Student Exchange.** [Commodore Sticky Fingers](creatures/commodore-sticky-fingers.toml),
 [Sewer Ooze](creatures/sewer-ooze.toml), and [Sprite](creatures/sprite.toml)
@@ -121,16 +116,16 @@ Petran. The ordinary quest Wood Scamp omits the climb Speed and regeneration
 text and changes its language and traits. Verify encounter scaling before
 defining an override.
 
-**Animated Flame.** Tanuki Trouble has ordinary, Weak, and Elite blocks. The Weak and Elite actors have different task-related abilities. Check the published stat blocks and usage before treating either as an override.
+**Animated Flame.** The [family](creatures/animated-flame.toml) presents
+the ordinary, Weak, and Elite blocks separately. The Elite actor has
+distinct task-related abilities. Check the published use before declaring
+party ranges or an override.
 
-- Animated Flame (`pfs-season-6-bestiary:88HAT2lHPAm8bWHC`)
-- Elite Animated Flame (`pfs-season-6-bestiary:niboeMqpzuQ8yvOX`)
-- Weak Animated Flame (`pfs-season-6-bestiary:xNKBknnZ5ev5lBes`)
-
-**Animate Dream.** Prisoners of the Electric Castle has Faded and Elite Animate Dream blocks at creature levels 7 and 8. Verify the conditions selecting each block and compare their effective stats with the base before declaring an override.
-
-- Elite Animate Dream (PFS 4-11) (`pfs-season-4-bestiary:eWJwFmEasIOSGQgu`)
-- Faded Animate Dream (`pfs-season-4-bestiary:AkbAW7XeZQ67qW1R`)
+**Animate Dream.** The [family](creatures/animate-dream.toml) includes the
+Monster Core 2, Gatewalkers, Lesser, Faded, and Elite records. The two
+unqualified blocks have different resistance exceptions. Verify the
+conditions that select the Faded and Elite blocks before declaring
+party uses or overrides.
 
 ## Discovery and grouping gaps
 

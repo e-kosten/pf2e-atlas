@@ -1,0 +1,27 @@
+name = "Anatomical Model"
+source_note = "The Seven Secrets of Dacilane Academy supplies Anatomical Model blocks for party levels 1–2 and 3–4. Laboratory A11 (p. 22) gives the Elite 3–4 block creature level 5. Foundry stores both upper-tier blocks at level 4, with 58 HP for the ordinary block and 78 HP for Elite."
+
+[[members]]
+key = "pfs-season-2-bestiary:BXnmDgVkhD97fI1o"
+name = "Anatomical Model (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-2-bestiary:j7K9SefeHJ16qHMl"
+name = "Anatomical Model (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-2-bestiary:ZshsztmoWjDZEqGT"
+name = "Elite Anatomical Model (3-4)"
+label = "Elite Anatomical Model"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

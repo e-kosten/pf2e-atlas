@@ -1,0 +1,23 @@
+name = "Animate Dream"
+source_note = "All five actors share Nightmare Tendril and Endless Nightmare. Prisoners of the Electric Castle supplies Faded and Elite blocks, and Mean Streets of Shadow Absalom supplies a Lesser block. The Gatewalkers and Monster Core 2 actors share creature level 8 and 110 HP, but the Monster Core 2 resistance also lists void as an exception."
+
+[[members]]
+key = "pathfinder-monster-core-2:r3PNRpEir4BVjnCC"
+name = "Animate Dream"
+
+[[members]]
+key = "gatewalkers-bestiary:l64HY5lbpITe0WHZ"
+name = "Animate Dream"
+
+[[members]]
+key = "pfs-season-3-bestiary:eiWWhTeR8QTLKptH"
+name = "Lesser Animate Dream"
+
+[[members]]
+key = "pfs-season-4-bestiary:AkbAW7XeZQ67qW1R"
+name = "Faded Animate Dream"
+
+[[members]]
+key = "pfs-season-4-bestiary:eWJwFmEasIOSGQgu"
+name = "Elite Animate Dream (PFS 4-11)"
+label = "Elite Animate Dream"
