@@ -1,13 +1,13 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { archiveEntries } from './archives.js';
-import { archiveName, compare, isFile, object, readJson, sha256, targets, variants } from './release-data.js';
+import { archiveName, compare, isFile, macosDmg, object, readJson, sha256, targets, variants } from './release-data.js';
 
 const noticesName = 'THIRD-PARTY-NOTICES.md';
 const required = [
   ...variants.flatMap((variant) => Object.keys(targets).map((target) => archiveName(target, variant))),
   'SHA256SUMS', 'dist-manifest.json', 'atlas-installer.sh', 'atlas-installer.ps1',
-  'atlas-release-manifest.json', noticesName,
+  'atlas-release-manifest.json', noticesName, macosDmg,
 ];
 export const containsRuntimeData = (entry: string) => ['pf2e-index.sqlite', 'model.onnx', 'tokenizer.json', 'vendor/pf2e/', 'hf-models/']
   .some((part) => entry.replaceAll('\\', '/').includes(part));
@@ -52,10 +52,12 @@ export async function validateAssets(dist: string): Promise<void> {
       if (entry.isDirectory()) inspectDirectory(file);
     }
   }
-  const noticeHashes = checksums.filter((line) => line.trim().split(/\s+/)[1] === noticesName)
-    .map((line) => line.trim().split(/\s+/)[0]);
-  if (noticeHashes.length !== 1 || noticeHashes[0] !== await sha256(path.join(dist, noticesName))) {
-    throw new Error(`checksum metadata mismatch for ${noticesName}`);
+  for (const name of [noticesName, macosDmg]) {
+    const hashes = checksums.filter((line) => line.trim().split(/\s+/)[1] === name)
+      .map((line) => line.trim().split(/\s+/)[0]);
+    if (hashes.length !== 1 || hashes[0] !== await sha256(path.join(dist, name))) {
+      throw new Error(`checksum metadata mismatch for ${name}`);
+    }
   }
   inspectDirectory(dist);
   for (const name of readdirSync(dist).sort(compare)) {

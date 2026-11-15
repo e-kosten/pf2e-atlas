@@ -43,6 +43,14 @@ class Routing(unittest.TestCase):
         self.git("add", "README.md")
         self.assertEqual(self.select("HEAD", False), {"model": [], "workspace": []})
 
+    def test_isolated_desktop_workspace_does_not_select_embedding_or_upgrade(self):
+        manifest = self.root / "desktop/src-tauri/Cargo.toml"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text("[workspace]\n")
+        self.git("add", str(manifest))
+        self.assertEqual(self.select("HEAD", False), {"model": [], "workspace": []})
+        self.assertFalse(STACK["probe_depth"]("HEAD")["near_limit"])
+
     def test_embedding_implementation_change_selects_linux(self):
         for name in ("atlas-search/src/similar.rs", "atlas-runtime/src/workspace.rs"):
             with self.subTest(name=name):

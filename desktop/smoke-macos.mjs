@@ -14,7 +14,10 @@ const defaultBundle = fileURLToPath(
 const bundle = resolve(process.argv[2] ?? defaultBundle);
 
 const pin = JSON.parse(readFileSync(new URL("../dev-tools/source-contracts/source-pin.json", import.meta.url))).commit;
-for (const mode of ["normal", "retry", "preflight", "reference"]) {
+const modes = ["normal", "retry", "preflight", "reference", "selector"];
+const selected = process.argv[3];
+if (selected && !modes.includes(selected)) throw new Error("Unknown native smoke scenario");
+for (const mode of selected ? [selected] : modes) {
   run(mode);
 }
 
@@ -51,14 +54,15 @@ function run(mode) {
         traits: { value: [] },
       },
     });
-    if (mode === "reference") {
+    if (mode === "reference" || mode === "selector") {
       const seeded = spawnSync(join(bundle, "Contents/MacOS/atlas"), [
         "setup", "--offline", "--no-embeddings", "--json",
+        ...(mode === "selector" ? ["--source", source] : []),
       ], { cwd: home, env, encoding: "utf8", timeout: 8_000 });
       if (seeded.status !== 0) {
         throw new Error(`Could not seed the reference refresh fixture: ${seeded.stdout}${seeded.stderr}`);
       }
-      writeFixture(".hold-reference", true);
+      if (mode === "reference") writeFixture(".hold-reference", true);
     }
     const result = spawnSync(join(bundle, "Contents/MacOS/atlas-desktop"), {
       cwd: home,

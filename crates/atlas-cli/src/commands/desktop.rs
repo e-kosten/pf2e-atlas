@@ -6,7 +6,7 @@ use std::{
 use atlas_app_model::{AppErrorCode, AppReadinessStatus};
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
 use atlas_desktop_protocol::{
-    BUNDLE_ID, ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus, parse_record_link,
+    BUNDLE_ID, EntityLink, ReferenceStatus, VERSION, WorkspaceProbe, WorkspaceStatus,
 };
 use atlas_runtime::{
     AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions, RuntimeErrorKind, Workspace,
@@ -15,7 +15,7 @@ use clap::Args;
 
 #[derive(Debug, Args)]
 pub(crate) struct OpenArgs {
-    /// An optional pf2e-atlas v1 reference link.
+    /// An optional pf2e-atlas v1 entity link.
     link: Option<String>,
 }
 
@@ -23,7 +23,7 @@ pub(crate) fn open(args: OpenArgs) -> Result<ExitCode, String> {
     let mut opener = Command::new("/usr/bin/open");
     opener.args(["-b", BUNDLE_ID]);
     if let Some(link) = args.link {
-        parse_record_link(&link).map_err(str::to_owned)?;
+        EntityLink::parse(&link).map_err(str::to_owned)?;
         opener.arg("-u").arg(link);
     }
     if !opener

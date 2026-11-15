@@ -126,7 +126,14 @@ it("keeps Search scenario context with the source and groups the chips in order"
     kind_label: "Creature",
     level_label: "Level 9",
     publication: "Cavern of Sundered Songs",
-    rarity: { value: "unique", label: "Unique" },
+    rarity: {
+      value: "unique",
+      label: "Unique",
+      help: {
+        definition_key: "rarity:unique",
+        destination: { kind: "definition" as const, key: "rarity:unique" },
+      },
+    },
     edition: "legacy" as const,
     traits: [
       { kind: "trait", value: "beast", label: "Beast", trait_key: "trait:beast" },
@@ -151,6 +158,7 @@ it("keeps Search scenario context with the source and groups the chips in order"
   expect(
     screen.getByText("Party levels 9–10 · Cavern of Sundered Songs"),
   ).toBeVisible();
+  expect(screen.getAllByRole("link")).toHaveLength(1);
   const chips = screen.getByText("Legacy").parentElement;
   expect(Array.from(chips?.children ?? [], (chip) => chip.textContent)).toEqual([
     "Unique",

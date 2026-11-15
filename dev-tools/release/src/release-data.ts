@@ -11,6 +11,7 @@ export const targets = {
   'x86_64-pc-windows-msvc': ['windows', 'x86_64'],
 } as const;
 export const variants = ['full', 'cli-only'] as const;
+export const macosDmg = 'atlas-desktop-aarch64-apple-darwin.dmg';
 export type Variant = typeof variants[number];
 export function archiveName(target: string, variant: Variant): string {
   return `${variant === 'full' ? 'atlas-cli' : 'atlas-cli-only'}-${target}${target.includes('windows') ? '.zip' : '.tar.xz'}`;

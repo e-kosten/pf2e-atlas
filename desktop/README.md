@@ -1,4 +1,4 @@
-# Build the macOS pilot
+# Develop the macOS desktop app
 
 Build a local app from the checkout on Apple Silicon. You need the Xcode
 command-line tools, the pinned [Rust toolchain](../rust-toolchain.toml) and Node 26.
@@ -8,6 +8,8 @@ npm --prefix web/atlas-ui ci
 npm --prefix desktop ci
 sh desktop/bundle-macos.sh
 ```
+
+For the published DMG, see [macOS desktop installation](../docs/installation.md#macos-desktop-app).
 
 Open **PF2e Atlas.app** in `target/debug/bundle/macos`. Keep the bundle together
 with its CLI in `Contents/MacOS/atlas`. This build is for local testing.
@@ -38,18 +40,36 @@ and drafts open. If the reference data changed while Search was open, use
 **Refresh results** when prompted to read from the new version. For a custom
 source, use the Atlas CLI to maintain its reference data.
 
-Use **File → New Window** to open another view. All windows share the local
-workspace and service with a compatible `atlas web` session. Closing a
-window leaves the app available. Choose **Quit PF2e Atlas** to release the
-app's connection to the service.
+Use **File → New Tab** (⌘T) or **File → New Window** (⌘N) to open a fresh
+Search view. Command-click, middle-click, or choose **Open Link in New Tab**
+from an Atlas link’s context menu to open its destination in a background tab.
+All windows and tabs share the local workspace and service with a compatible
+`atlas web` session. Choose **Quit PF2e Atlas** to release the app’s connection
+to the service.
 
-Open a record, then choose **Edit → Copy Atlas Link**. Paste into a rich-text
-editor to get a linked record name, or into a plain-text field to get the
-`pf2e-atlas://v1/record/…` URL. A link continues to open its exact record even
-if the local service moves to a different port.
+Use **View → Zoom In** (⌘+), **Zoom Out** (⌘−), or **Actual Size** (⌘0) to
+scale the entire view. Atlas saves one zoom level for all windows and tabs.
+
+Use the link icon in an entity header, or choose **Edit → Copy Atlas Link**
+for the page's main entity. On a list page, the Edit menu copies the list link.
+Use the reader's icon to copy the record link. The menu item becomes available
+when the entity loads.
+
+Paste into a rich-text editor for a linked entity name or into a plain-text
+field for the `pf2e-atlas://v1/…` URL. Atlas links continue to work if the local
+service moves to a different port. Saved list and encounter links use stable
+keys and require that entity in the active workspace. In the browser, the same
+icon copies the entity's web URL.
+
+Opening an Atlas link from another app or with `atlas open '<link>'` selects an
+existing matching tab, opens a foreground tab in the most recently active Atlas
+window, or opens a window directly to the destination.
 
 For shell or agent use, **PF2e Atlas → Terminal and Agent Access** can
-add the bundled command to a bin folder you choose. If that folder is already
+link the bundled command at `~/.local/bin/atlas` from the product drawer.
+An existing executable there can be switched to the bundled command with
+native confirmation. The startup setup screen can also link to an existing
+custom bin folder. If the folder is already
 on your shell's PATH, check that `command -v atlas` resolves to the path shown
 by the app. The command continues to work when the app is closed. Use
 `atlas open` or `atlas open '<link>'` to open the app from the terminal.
@@ -61,7 +81,7 @@ command again from the new location.
 
 The debug build accepts an alternate home for Atlas subprocesses. Use an empty
 directory to exercise setup from scratch, or a disposable copy of a stopped
-workspace to test upgrades. Quit the pilot before switching between test homes.
+workspace to test upgrades. Quit the app before switching between test homes.
 
 ```sh
 test_home="$(mktemp -d)"

@@ -2,23 +2,21 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { requireSelectedJobs } from "./ci-results.mjs";
+import { requireSelectedJobs, requireSelectedSteps } from "./ci-results.mjs";
 
 const names = [
   "web-bundle",
   "browser-fixture",
   "browsers",
   "rust",
-  "windows-artifact",
+  "windows",
   "atlas-dev",
   "web-ui",
-  "source-contracts",
+  "desktop",
   "release-tools",
-  "research",
-  "skill",
   "embedding",
   "workspace",
-  "advisories",
+  "repository-tooling",
 ];
 const flags = [
   "rust",
@@ -34,6 +32,8 @@ const flags = [
   "workspace",
   "windows",
   "audit",
+  "corpus",
+  "desktop",
 ];
 const selected = () =>
   Object.fromEntries([
@@ -70,15 +70,13 @@ test("UI and browser-only changes keep real-app browser gates without full Rust"
     );
     for (const name of [
       "rust",
-      "windows-artifact",
+      "windows",
       "atlas-dev",
-      "source-contracts",
+      "desktop",
       "release-tools",
-      "research",
-      "skill",
       "embedding",
       "workspace",
-      "advisories",
+      "repository-tooling",
     ])
       jobs[name].result = "skipped";
     if (!surfaces.includes("web")) jobs["web-ui"].result = "skipped";
@@ -106,10 +104,12 @@ test("tooling-only changes require native Windows cancellation without applicati
     flags.map((key) => [key, String(key === "tooling")]),
   );
   for (const name of names)
-    jobs[name].result = name === "windows-artifact" ? "success" : "skipped";
+    jobs[name].result = ["windows", "repository-tooling"].includes(name)
+      ? "success"
+      : "skipped";
   requireSelectedJobs(jobs);
-  jobs["windows-artifact"].result = "skipped";
-  assert.throws(() => requireSelectedJobs(jobs), /windows-artifact/);
+  jobs["windows"].result = "skipped";
+  assert.throws(() => requireSelectedJobs(jobs), /windows/);
 });
 
 test("core Rust changes require browser prerequisites, but CLI-only Rust does not", () => {
@@ -123,14 +123,13 @@ test("core Rust changes require browser prerequisites, but CLI-only Rust does no
     );
     for (const name of [
       "web-ui",
-      "windows-artifact",
-      "source-contracts",
+      "atlas-dev",
+      "windows",
+      "desktop",
       "release-tools",
-      "research",
-      "skill",
       "embedding",
       "workspace",
-      "advisories",
+      "repository-tooling",
     ])
       jobs[name].result = "skipped";
     if (!browser)
@@ -173,8 +172,12 @@ test("the production CLI enforces the selected gate results", () => {
 });
 
 test("dependency and native selection are independently enforced", () => {
-  for (const surface of ["audit", "windows"]) {
-    const job = surface === "audit" ? "advisories" : "windows-artifact";
+  for (const [surface, job] of [
+    ["audit", "repository-tooling"],
+    ["corpus", "repository-tooling"],
+    ["desktop", "desktop"],
+    ["windows", "windows"],
+  ]) {
     const jobs = selected();
     jobs.changes.outputs = Object.fromEntries(
       flags.map((key) => [key, String(key === surface)]),
@@ -185,6 +188,53 @@ test("dependency and native selection are independently enforced", () => {
     for (const result of ["failure", "cancelled", "skipped"]) {
       jobs[job].result = result;
       assert.throws(() => requireSelectedJobs(jobs), new RegExp(job));
+    }
+  }
+});
+
+test("grouped checks must run exactly their selected steps", () => {
+  for (const [name, ids, chosen] of [
+    [
+      "repository-tooling",
+      [
+        "embedding-receipt",
+        "audit",
+        "skill",
+        "research",
+        "tooling",
+        "corpus",
+        "source-tests",
+        "source-generate",
+        "release",
+      ],
+      ["embedding-receipt", "audit"],
+    ],
+    [
+      "windows",
+      ["storage", "publication", "crashes", "cancellation", "release"],
+      ["release"],
+    ],
+  ]) {
+    const selection =
+      name === "windows" ? { release: "true" } : { audit: "true" };
+    const steps = Object.fromEntries(
+      ids.map((id) => [
+        id,
+        { outcome: chosen.includes(id) ? "success" : "skipped" },
+      ]),
+    );
+    requireSelectedSteps(name, selection, steps);
+    for (const id of chosen) {
+      for (const outcome of ["failure", "skipped", "cancelled", undefined]) {
+        assert.throws(
+          () =>
+            requireSelectedSteps(name, selection, {
+              ...steps,
+              [id]: outcome ? { outcome } : undefined,
+            }),
+          new RegExp(id),
+        );
+      }
     }
   }
 });

@@ -11,7 +11,7 @@ import { generateManifest } from '../src/generate-release-manifest.js';
 import { notices } from '../src/generate-notices.js';
 import { pruneManifest } from '../src/prune-dist-manifest.js';
 import { fixture, writeZip } from './release-fixtures.js';
-import { jsonText, object, readJson, repoRoot, sha256, targets, variants, archiveName, writeJson } from '../src/release-data.js';
+import { jsonText, macosDmg, object, readJson, repoRoot, sha256, targets, variants, archiveName, writeJson } from '../src/release-data.js';
 import { stageCliOnly } from '../src/stage-cli-only.js';
 import { validateAssets } from '../src/validate-release-assets.js';
 
@@ -24,6 +24,24 @@ const noticeFixturePin = { commit: 'fixture-pin', systemVersion: '1.0' };
 const noticeFixture = 'Source commit: fixture-pin (PF2e 1.0)\n';
 const command = (name: string) => fileURLToPath(new URL(`../src/cli/${name}.js`, import.meta.url));
 
+test('assembly binds the DMG and packaged CLI to the checked source and tag', async (t) => {
+  const dist = temporary(t);
+  const tag = 'v1.2.3-rc.1', commit = 'a'.repeat(40);
+  const archive = path.join(dist, archiveName('aarch64-apple-darwin', 'full'));
+  const dmg = path.join(dist, macosDmg);
+  writeFileSync(archive, 'packaged executable');
+  writeFileSync(dmg, 'mounted disk image');
+  writeJson(`${dmg}.receipt.json`, { tag, commit, archive: await sha256(archive), dmg: await sha256(dmg) });
+  const check = (release = tag) => spawnSync(process.execPath, [command('verify-desktop-receipt'), release, commit, dist], { encoding: 'utf8' });
+  assert.equal(check().status, 0);
+  assert.equal(check('v1.2.3').status, 1);
+  writeFileSync(dmg, 'substituted image');
+  assert.match(check().stderr, /does not match/);
+  writeFileSync(dmg, 'mounted disk image');
+  writeFileSync(archive, 'substituted executable');
+  assert.match(check().stderr, /does not match/);
+});
+
 test('manifest and checksums cover supported packages and release extras deterministically', async (t) => {
   const dist = temporary(t);
   const packages = [
@@ -35,7 +53,7 @@ test('manifest and checksums cover supported packages and release extras determi
   const bothPackages = variants.flatMap((variant) => packages.map((item) => ({ ...item, variant, name: archiveName(item.target, variant) })));
   for (const item of bothPackages) writeFileSync(path.join(dist, item.name), item.target);
   writeFileSync(path.join(dist, 'unrecognized.zip'), 'ignored');
-  for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'installer\n');
+  for (const name of [macosDmg, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'installer\n');
   await generateManifest('v9.9.9', dist);
   const manifestText = readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8');
   const manifest = object(readJson(path.join(dist, 'atlas-release-manifest.json')));
@@ -46,7 +64,7 @@ test('manifest and checksums cover supported packages and release extras determi
   const sums = readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8');
   const expectedSums = [
     ...expectedAssets.map((item) => `${item.sha256}  ${item.name}`),
-    ...['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md'].map((name) => `${createHash('sha256').update('installer\n').digest('hex')}  ${name}`),
+    ...[macosDmg, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md'].map((name) => `${createHash('sha256').update('installer\n').digest('hex')}  ${name}`),
     `${createHash('sha256').update(manifestText).digest('hex')}  atlas-release-manifest.json`,
   ].sort().join('\n') + '\n';
   assert.equal(sums, expectedSums);
@@ -173,10 +191,21 @@ test('asset checks reject missing metadata, bad hashes, runtime data in archives
     if (target.includes('windows')) await writeZip(file, { 'atlas/atlas.exe': 'stub', 'atlas/THIRD-PARTY-NOTICES.md': 'fixture\n' });
     else await fixture(['unix-archive', file, archiveRoot]);
   }
-  for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'fixture\n');
+  for (const name of [macosDmg, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'fixture\n');
   writeJson(path.join(dist, 'dist-manifest.json'), {});
   await generateManifest('v9.9.9', dist);
   await validateAssets(dist);
+  const dmg = path.join(dist, macosDmg);
+  rmSync(dmg);
+  await assert.rejects(validateAssets(dist), /missing required release asset: .*\.dmg/);
+  writeFileSync(dmg, 'changed');
+  await assert.rejects(validateAssets(dist), /checksum metadata mismatch for .*\.dmg/);
+  writeFileSync(dmg, 'fixture\n');
+  const sumFile = path.join(dist, 'SHA256SUMS');
+  const sums = readFileSync(sumFile, 'utf8');
+  writeFileSync(sumFile, sums + sums.split('\n').find((line) => line.endsWith(macosDmg)) + '\n');
+  await assert.rejects(validateAssets(dist), /checksum metadata mismatch for .*\.dmg/);
+  writeFileSync(sumFile, sums);
   const bad = path.join(root, 'bad');
   async function reset(): Promise<void> { rmSync(bad, { recursive: true, force: true }); cpSync(dist, bad, { recursive: true }); }
   await reset(); await fixture(['remove-target', path.join(bad, 'atlas-release-manifest.json')]);
@@ -246,7 +275,7 @@ test('asset validation requires one correctly named package per variant and lega
   for (const variant of variants) for (const target of Object.keys(targets)) {
     writeFileSync(path.join(dist, archiveName(target, variant)), 'stub');
   }
-  for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md', 'dist-manifest.json']) writeFileSync(path.join(dist, name), '{}');
+  for (const name of [macosDmg, 'atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md', 'dist-manifest.json']) writeFileSync(path.join(dist, name), '{}');
   await generateManifest('v9.9.9', dist);
   const file = path.join(dist, 'atlas-release-manifest.json');
   const manifest = object(readJson(file));

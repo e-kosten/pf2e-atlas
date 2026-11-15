@@ -7,7 +7,7 @@ target=aarch64-apple-darwin
 
 case "$(uname -s):$(uname -m)" in
     Darwin:arm64) ;;
-    *) printf '%s\n' 'The Atlas macOS pilot requires an Apple Silicon Mac.' >&2; exit 1 ;;
+    *) printf '%s\n' 'The Atlas macOS bundle requires an Apple Silicon Mac.' >&2; exit 1 ;;
 esac
 
 unset CARGO_BUILD_TARGET

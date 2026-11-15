@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { coverageArchive, coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
 import { validateAssets } from './validate-release-assets.js';
-import { object, readJson } from './release-data.js';
+import { macosDmg, object, readJson } from './release-data.js';
+import { releases, verifyReleaseSource, verifyUploadedDmg, type Release, type Run } from './release-upload.js';
+export type { Run } from './release-upload.js';
 
-const nightlyTag = /^v([0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12})$/;
+const nightlyTag = /^v([0-9]+\.[0-9]+\.[0-9]+-nightly\.([0-9]{14})\.g[0-9a-f]{12})$/;
 export function nightlyVersion(tag: string): string {
   const match = nightlyTag.exec(tag);
   if (!match || match[0] !== tag) throw new Error('Invalid nightly tag');
@@ -45,22 +47,10 @@ export function prepareNightly(root: string, tag: string): void {
   writeFileSync(lockFile, sections.join(''));
 }
 
-export type Run = (program: string, args: string[]) => string;
 export function commandRunner(root: string): Run {
   return (program, args) => execFileSync(program, args, {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024,
   }).trim();
-}
-interface Release {
-  tag_name: string;
-  target_commitish: string;
-  draft: boolean;
-  prerelease: boolean;
-  body?: string;
-  assets?: { name: string; digest?: string }[];
-}
-function releases(run: Run): Release[] {
-  return (JSON.parse(run('gh', ['api', '--paginate', '--slurp', 'repos/{owner}/{repo}/releases?per_page=100'])) as Release[][]).flat();
 }
 function temporary<T>(work: (directory: string) => T): T {
   const directory = mkdtempSync(path.join(tmpdir(), 'atlas-nightly-'));
@@ -77,7 +67,8 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
       run('gh', ['release', 'download', 'nightly', '--pattern', 'nightly-version.txt', '--dir', directory]);
       return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
     });
-    if (nightlyTag.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft)) {
+    if (nightlyTag.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft
+      && release.assets?.some((asset) => asset.name === macosDmg && /^sha256:[a-f0-9]{64}$/.test(asset.digest ?? '')))) {
       return 'build=false\n';
     }
   }
@@ -88,6 +79,44 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
   return `build=true\nsha=${sha}\ntag=${tag}\n`;
 }
 
+const releaseEndpoint = 'repos/{owner}/{repo}/releases';
+
+function nightlyDraft(run: Run, tag: string, sha: string, version: string, notes: string, existing?: Release): Release {
+  const request = existing
+    ? ['--method', 'PATCH', `${releaseEndpoint}/${existing.id}`]
+    : ['--method', 'POST', releaseEndpoint, '-f', `tag_name=${tag}`, '-f', `target_commitish=${sha}`,
+      '-f', `name=Nightly ${version}`, '-F', 'draft=true', '-F', 'prerelease=true', '-f', 'make_latest=false'];
+  const draft: Release = JSON.parse(run('gh', ['api', ...request, '-f', `body=${notes}`]));
+  if (!Number.isSafeInteger(draft.id) || draft.id <= 0 || (existing && existing.id !== draft.id)
+    || !draft.draft || !draft.prerelease) {
+    throw new Error('Expected the dated nightly draft before uploading assets');
+  }
+  verifyReleaseSource(run, draft, tag, sha, true);
+  return draft;
+}
+
+async function uploadNightlyDraft(run: Run, draft: Release, dist: string): Promise<void> {
+  const upload = new URL(draft.upload_url?.replace(/\{\?name,label\}$/, '') ?? '');
+  if (upload.origin !== 'https://uploads.github.com' || upload.username || upload.password
+    || !upload.pathname.endsWith(`/releases/${draft.id}/assets`)) {
+    throw new Error('Invalid dated nightly upload URL');
+  }
+  const assets = readdirSync(dist, { withFileTypes: true }).filter((entry) => entry.isFile())
+    .map((entry) => entry.name).sort();
+  const uploaded = assets.map((name) => {
+    const previous = draft.assets?.find((asset) => asset.name === name);
+    if (previous) run('gh', ['api', '--method', 'DELETE', `${releaseEndpoint}/assets/${previous.id}`]);
+    upload.searchParams.set('name', name);
+    const asset: NonNullable<Release['assets']>[number] = JSON.parse(run('gh', [
+      'api', '--method', 'POST', upload.href, '--header', 'Content-Type: application/octet-stream',
+      '--input', path.join(dist, name),
+    ]));
+    if (asset.name !== name) throw new Error(`Unexpected uploaded asset for ${name}`);
+    return asset;
+  });
+  await verifyUploadedDmg({ ...draft, assets: uploaded }, dist);
+}
+
 export async function publishNightly(root: string, tag: string, sha: string, dist: string, coveragePath: string,
   run = commandRunner(root), validate: (directory: string) => Promise<void> = validateAssets): Promise<void> {
   const version = nightlyVersion(tag);
@@ -96,12 +125,33 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
   if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== tag) throw new Error('Release manifest version mismatch');
   const coverage = await validateNightlyCoverage(root, dist, coveragePath, tag, sha);
   const existing = releases(run);
-  const release = existing.find((item) => item.tag_name === tag);
-  if (release && release.target_commitish !== sha) throw new Error('Existing nightly points at another commit');
+  const listed = existing.find((item) => item.tag_name === tag);
+  const channel = existing.find((item) => item.tag_name === 'nightly');
+  let alreadyCurrent = false;
+  if (channel?.assets?.some((asset) => asset.name === 'nightly-version.txt')) {
+    const current = temporary((directory) => {
+      run('gh', ['release', 'download', 'nightly', '--pattern', 'nightly-version.txt', '--dir', directory]);
+      return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
+    });
+    const currentDate = nightlyTag.exec(current)?.[2];
+    if (!currentDate) throw new Error('Invalid nightly channel pointer');
+    if (currentDate > nightlyTag.exec(tag)![2]) return;
+    alreadyCurrent = current === tag && !channel.draft;
+  }
+  // Recheck drafts by ID before mutating them. The list may lag publication too.
+  const release: Release | undefined = listed?.draft
+    ? JSON.parse(run('gh', ['api', `${releaseEndpoint}/${listed.id}`]))
+    : listed;
+  if (release) {
+    if (release.id !== listed?.id) throw new Error('Dated nightly lookup returned a different release ID');
+    verifyReleaseSource(run, release, tag, sha, true);
+  }
   const notes = [
     'Not a stable release',
     '',
     ...(coverage.notice ? [coverage.notice, ''] : []),
+    `[Download PF2e Atlas for Apple Silicon](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${macosDmg}). [First-open instructions](https://github.com/e-kosten/pf2e-atlas/blob/${sha}/docs/installation.md#macos-desktop-app).`,
+    '',
     '<details>',
     '<summary>Install instructions</summary>',
     '',
@@ -129,11 +179,14 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     `Built from main commit ${sha}.`,
     '',
   ].join('\n');
-  if (!release) {
-    run('gh', ['release', 'create', tag, '--target', sha, '--title', `Nightly ${version}`,
-      '--notes', notes, '--draft', '--prerelease', '--latest=false']);
-  } else if (release.draft) {
-    run('gh', ['release', 'edit', tag, '--notes', notes]);
+  let published: Release;
+  if (!release || release.draft) {
+    // Carry GitHub's draft ID forward even if the release list still omits it.
+    const draft = nightlyDraft(run, tag, sha, version, notes, release);
+    await uploadNightlyDraft(run, draft, dist);
+    published = JSON.parse(run('gh', ['api', '--method', 'PATCH', `${releaseEndpoint}/${draft.id}`,
+      '-F', 'draft=false', '-F', 'prerelease=true', '-f', 'make_latest=false']));
+    if (published.id !== draft.id) throw new Error('Published nightly ID differs from the draft');
   } else {
     const remote = release.assets?.find((asset) => asset.name === coverageArchive);
     if (remote?.digest !== `sha256:${coverage.archiveSha256}`) {
@@ -142,12 +195,12 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     if (coverage.notice ? !release.body?.includes(coverage.notice) : release.body?.includes(coverageHeading)) {
       throw new Error('Published nightly notes differ from the validated coverage report');
     }
+    published = release;
   }
-  if (!release || release.draft) {
-    const assets = readdirSync(dist, { withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => path.join(dist, entry.name)).sort();
-    run('gh', ['release', 'upload', tag, ...assets, '--clobber']);
-    run('gh', ['release', 'edit', tag, '--draft=false', '--prerelease', '--latest=false']);
-  }
+  if (published.draft || !published.prerelease) throw new Error('Expected a published dated nightly');
+  verifyReleaseSource(run, published, tag, sha, true);
+  await verifyUploadedDmg(published, dist);
+  if (alreadyCurrent) return;
   // Published dated assets stay immutable. Check actual downloads before advancing
   // the channel so a failed install preserves the last successful nightly.
   temporary((directory) => {
@@ -161,7 +214,7 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     if (cliVersion !== `atlas ${version}` || cliInfo.status !== 'ok' || cliInfo.data.version !== version || cliInfo.data.variant !== 'cli-only') {
       throw new Error('Downloaded CLI-only binary version or build variant mismatch');
     }
-    if (!existing.some((item) => item.tag_name === 'nightly')) {
+    if (!channel) {
       run('gh', ['release', 'create', 'nightly', '--target', sha, '--title', 'Nightly installer channel', '--notes',
         'Installers and a pointer to the newest validated nightly. Dated releases contain the binaries and source commit.',
         '--draft', '--prerelease', '--latest=false']);

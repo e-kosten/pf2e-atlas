@@ -57,6 +57,22 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
   useLayoutEffect(() => {
     applyAtlasDocumentTheme(document, resolvedColorScheme);
   }, [resolvedColorScheme]);
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("atlas-appearance-changed", {
+        detail: { appearance: colorScheme, dark: resolvedColorScheme === "dark" },
+      }),
+    );
+  }, [colorScheme, resolvedColorScheme]);
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === COLOR_SCHEME_STORAGE_KEY || event.key === null) {
+        setColorScheme(readStoredColorScheme());
+      }
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
   const updateColorScheme = (preference: ColorSchemePreference) => {
     setColorScheme(preference);
     try {

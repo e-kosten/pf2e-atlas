@@ -31,7 +31,7 @@ test("spell links keep rank through effect reading, explanations and full-page n
       };
     });
   const beforeHeader = await headerGeometry();
-  expect(beforeHeader.actions).toHaveLength(2);
+  expect(beforeHeader.actions).toHaveLength(3);
   for (const action of beforeHeader.actions) {
     expect(Math.abs(action.center - beforeHeader.kindCenter)).toBeLessThanOrEqual(1);
     expect(action.height).toBe(34);

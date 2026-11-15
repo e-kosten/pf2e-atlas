@@ -1,3 +1,4 @@
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button } from "antd";
 import { AtlasApiError, getEquipmentFamily } from "../../api/atlasApi";
@@ -41,6 +42,14 @@ export function EquipmentFamilyPage({ familyId }: { familyId: string }) {
               <>
                 <DocumentIdentityHeader
                   title={family.name}
+                  actions={
+                    <CopyEntityLink
+                      primary
+                      kind="equipment-family"
+                      identity={familyId}
+                      title={family.name}
+                    />
+                  }
                   classification="Equipment family"
                 />
                 {family.kind === "content" ? (

@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
 NPM_PROJECTS = (
+    "desktop",
     "web/atlas-ui",
     "dev-tools/source-contracts",
     "dev-tools/release",
@@ -17,6 +18,8 @@ NPM_PROJECTS = (
     "dev-tools/dice-prototype/renderer-deps",
 )
 CARGO_LOCKFILES = ("Cargo.lock", "dev-tools/dice-prototype/server/Cargo.lock")
+DESKTOP_MANIFEST = "desktop/src-tauri/Cargo.toml"
+DESKTOP_LOCKFILE = "desktop/src-tauri/Cargo.lock"
 OSV_API = "https://api.osv.dev/v1/"
 MINIMATCH_REVIEW = date(2026, 12, 4)
 
@@ -31,6 +34,19 @@ def osv(path, payload=None):
         return json.load(response)
 
 
+def desktop_cargo_dependencies():
+    metadata = json.loads(subprocess.check_output(
+        ["cargo", "metadata", "--locked", "--format-version", "1",
+         "--manifest-path", DESKTOP_MANIFEST, "--filter-platform", "aarch64-apple-darwin"],
+        cwd=ROOT, text=True, timeout=180,
+    ))
+    resolved = {node["id"] for node in metadata["resolve"]["nodes"]}
+    return [
+        entry for entry in metadata["packages"]
+        if entry["id"] in resolved and (entry["source"] or "").startswith("registry+")
+    ]
+
+
 def audit_cargo():
     entries = {}
     for path in CARGO_LOCKFILES:
@@ -38,6 +54,12 @@ def audit_cargo():
         for entry in lock["package"]:
             if entry.get("source", "").startswith("registry+"):
                 entries.setdefault((entry["name"], entry["version"]), []).append(path)
+    desktop = desktop_cargo_dependencies()
+    if not desktop:
+        raise ValueError("Apple Silicon desktop resolution returned no registry dependencies")
+    for entry in desktop:
+        entries.setdefault((entry["name"], entry["version"]), []).append(DESKTOP_LOCKFILE)
+    print(f"Resolved {len(desktop)} registry packages for the Apple Silicon desktop target.")
     queries = [{"package": {"name": name, "ecosystem": "crates.io"}, "version": version}
                for name, version in entries]
     result = osv("querybatch", {"queries": queries})["results"]

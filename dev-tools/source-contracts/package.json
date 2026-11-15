@@ -44,6 +44,6 @@
     "@types/jquery": "4.0.1",
     "@types/node": "22.20.5",
     "@types/tooltipster": "0.0.35",
-    "remeda": "2.57.0"
+    "remeda": "2.58.0"
   }
 }

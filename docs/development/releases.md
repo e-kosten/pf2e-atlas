@@ -38,7 +38,8 @@ channel; manual runs rebuild it. A single source SHA is used for CI, packaging a
 publication. Runs from other branches do not publish.
 
 Nightly first looks for successful push-to-main CI for the exact planned SHA,
-including its completed `validation complete` and advisory jobs. It waits up to
+including its completed `validation complete` check and successful lockfile
+scan within the repository tooling job. It waits up to
 30 minutes for a pending run, then falls back to fresh CI when no qualifying
 success exists. Failed, cancelled or incomplete evidence cannot authorize
 packaging. Manual dispatch accepts `force-verification` to request fresh CI.
@@ -70,6 +71,19 @@ After the integration branch merges into `main`, run `gh workflow run nightly.ym
 inspect the complete hosted run, then install the nightly on the dogfooding machine
 and check `atlas --version` and `atlas --help`. A local tooling test is not evidence
 that the hosted platform builds or live installation succeeded.
+
+The Apple Silicon full build also packages the optimized desktop app using
+its packaged CLI. The DMG is a required asset for nightly and official
+releases. The release jobs verify its uploaded digest before publishing,
+and nightly checks it again before updating the channel. Keep the original
+assembled artifact when retrying a partially published release.
+
+For an unpublished rehearsal, dispatch **release build check** on the
+candidate ref. Use the checked-in CLI version for the official-style build.
+For the nightly-style build, enable the `nightly` input and supply a nightly
+tag with the candidate's version core, timestamp, and 12-character commit
+suffix. Download the assembled artifact and test the DMG from a clean macOS
+account. See [macOS desktop installation](../installation.md#macos-desktop-app).
 
 Local release-tooling checks:
 

@@ -1,3 +1,4 @@
+import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import { LinkNotFound } from "../../app/InvalidUrl";
@@ -87,6 +88,14 @@ function TraitViewContent({ route }: { route: TraitPageInput }) {
                 <article className="record-reference" data-selection-search>
                   <DocumentIdentityHeader
                     title={query.data.label}
+                    actions={
+                      <CopyEntityLink
+                        primary
+                        kind="trait"
+                        identity={query.data.trait_key}
+                        title={query.data.label}
+                      />
+                    }
                     classification="Trait"
                   />
                   <TraitDefinition detail={query.data} onReference={onReference} />
