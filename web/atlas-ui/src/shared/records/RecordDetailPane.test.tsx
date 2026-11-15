@@ -198,7 +198,7 @@ describe("RecordDetailPane", () => {
     });
     expect(screen.getByRole("heading", { name: "Eltha" })).toBeVisible();
     const family = screen.getByRole("link", { name: "Eltha" });
-    const firstUse = screen.getByText("Party levels 9–10 (Advanced) · 11–12");
+    const firstUse = screen.getByText("Party levels: 9–10 (Advanced) · 11–12");
     expect(firstUse).toBeVisible();
     expect(
       family.compareDocumentPosition(firstUse) & Node.DOCUMENT_POSITION_FOLLOWING,

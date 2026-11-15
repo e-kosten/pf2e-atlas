@@ -234,6 +234,30 @@
   font-size: 0.9rem;
   color: var(--muted);
 }
+.record-reference__attribution {
+  container: record-attribution / inline-size;
+}
+.record-reference__context {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-control);
+  margin-top: var(--space-control);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.record-reference__context > p {
+  margin: 0;
+  min-width: 0;
+}
+@container record-attribution (max-width: 30rem) {
+  .record-reference__context {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .record-reference__context-separator {
+    display: none;
+  }
+}
 .record-reference__actions {
   display: flex;
   align-items: center;
