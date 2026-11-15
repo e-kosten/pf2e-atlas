@@ -86,7 +86,7 @@ def probe_depth(base):
         ),
         "near_limit": before != after or any(
             path.startswith(("crates/atlas-embedding/src/", ".cargo/"))
-            or path.endswith("/Cargo.toml")
+            or (path.startswith("crates/") and path.endswith("/Cargo.toml"))
             or path in {"Cargo.toml", "rust-toolchain.toml", "dist-workspace.toml",
                         ".github/workflows/release-build-check.yml",
                         "crates/atlas-ingest/src/native_execution.rs"}
@@ -124,7 +124,7 @@ def selected_checks(base, manual, reusable=False, packaged=False):
     model_paths = paths - {path for path in paths if schema_path(path)}
     full = (model_paths & watched
             or any(path.startswith((".cargo/", "crates/atlas-sqlite-vec/", "crates/atlas-embedding/"))
-                   or path.endswith("/Cargo.toml") or path == "Cargo.toml"
+                   or (path.startswith("crates/") and path.endswith("/Cargo.toml")) or path == "Cargo.toml"
                    or path == "crates/atlas-ingest/src/native_execution.rs" for path in model_paths)
             or [row for row in before["packages"] if row["name"] in native]
             != [row for row in after["packages"] if row["name"] in native]

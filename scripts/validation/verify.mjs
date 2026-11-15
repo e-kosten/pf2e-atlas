@@ -26,6 +26,8 @@ try {
     "rust",
     "web",
     "browser",
+    "corpus",
+    "desktop",
     "web-format",
     "dev",
     "source",
@@ -95,6 +97,10 @@ try {
         if (!report.issues.length)
           console.log("Selected operation prerequisites are available.");
       }
+      if (selected?.has("desktop"))
+        console.log(
+          "Desktop obligation: run the native macOS bundle and smoke checks described in desktop/README.md.",
+        );
       if (selected?.has("browser"))
         console.log(
           "Browser obligation: select relevant local specs/projects with just validate-browser; CI owns the full applicable matrix.",

@@ -15,12 +15,16 @@ const run = (values = {}) => ({
   conclusion: "success",
   ...values,
 });
-const jobs = () =>
-  ["validation complete", "advisories"].map((name) => ({
-    name,
-    status: "completed",
-    conclusion: "success",
-  }));
+const success = (name) => ({
+  name,
+  status: "completed",
+  conclusion: "success",
+});
+const audit = success("Scan Cargo and npm lockfiles");
+const jobs = () => [
+  success("validation complete"),
+  { ...success("repository tooling"), steps: [audit] },
+];
 const check = (runs, options = {}) =>
   mainVerification({
     sha,
@@ -42,7 +46,7 @@ test("only successful exact-source main-push CI and its completed gates qualify"
     assert.equal((await check([run(mismatch)])).verify, true);
   for (const conclusion of ["failure", "cancelled", "skipped", "neutral", null])
     assert.equal((await check([run({ conclusion })])).verify, true);
-  for (const name of ["validation complete", "advisories"])
+  for (const name of ["validation complete", "repository tooling"])
     for (const change of [
       { conclusion: "failure" },
       { conclusion: "skipped" },
@@ -129,5 +133,28 @@ test("manual force bypasses evidence; API errors cannot become successful reuse"
   await assert.rejects(
     check([], { listRuns: async () => ({}) }),
     /Invalid main CI/,
+  );
+});
+
+test("nightly reuse requires exactly one successful lockfile scan in the grouped job", async () => {
+  for (const steps of [
+    undefined,
+    [],
+    [audit, audit],
+    [{ ...audit, conclusion: "failure" }],
+    [{ ...audit, conclusion: "skipped" }],
+  ]) {
+    const result = await check([run()], {
+      getJobs: async () => [jobs()[0], { ...jobs()[1], steps }],
+    });
+    assert.equal(result.verify, true);
+  }
+  assert.equal(
+    (
+      await check([run()], {
+        getJobs: async () => [jobs()[0], success("advisories")],
+      })
+    ).verify,
+    true,
   );
 });
