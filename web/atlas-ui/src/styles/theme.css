@@ -22,6 +22,10 @@
   --primary-hover: #9d4349;
   --on-primary: #ffffff;
   --primary-active: #74272e;
+  --destructive-fill: #a01f38;
+  --destructive-hover: #b02743;
+  --destructive-pressed: #7f1730;
+  --destructive-text: #ffffff;
   --link: #346c63;
   --selection-bg: #eaddcb;
   --selection-text: #6e272d;
@@ -95,22 +99,22 @@
   --panel-padding: 16px;
 }
 
-/* Keep the brand action palette on solid confirmations and the status palette on error ink. */
+/* Solid destructive confirmations have their own fills and label color. */
 .atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
     [aria-disabled="true"]
   ) {
-  background: var(--primary);
-  color: var(--on-primary);
+  background: var(--destructive-fill);
+  color: var(--destructive-text);
 }
 .atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
     [aria-disabled="true"]
   ):hover {
-  background: var(--primary-hover);
+  background: var(--destructive-hover);
 }
 .atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
     [aria-disabled="true"]
   ):active {
-  background: var(--primary-active);
+  background: var(--destructive-pressed);
 }
 
 /* These classes are supplied through Ant's public Button semantic hook. */

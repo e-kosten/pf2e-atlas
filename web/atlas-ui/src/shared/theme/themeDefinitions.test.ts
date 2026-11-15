@@ -33,6 +33,19 @@ function contrast(foreground: string, background: string) {
 
 describe("shared control contrast", () => {
   for (const scheme of ["light", "dark"] as const) {
+    it(`${scheme} keeps destructive confirmation labels readable in every enabled state`, () => {
+      const { destructive, primary, primaryHover, primaryActive } =
+        resolveAtlasPalette(scheme);
+      for (const [fill, ordinaryFill] of [
+        [destructive.fill, primary],
+        [destructive.hover, primaryHover],
+        [destructive.pressed, primaryActive],
+      ]) {
+        expect(fill).not.toBe(ordinaryFill);
+        expect(contrast(destructive.text, fill)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
     it(`${scheme} keeps selected radio, quiet button, tab and segmented ink readable`, () => {
       const palette = resolveAtlasPalette(scheme);
       const config = antDesignTheme(scheme);

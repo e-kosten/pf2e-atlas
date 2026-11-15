@@ -56,6 +56,7 @@ export interface AtlasPalette {
   primaryHover: string;
   primaryActive: string;
   onPrimary: string;
+  destructive: { fill: string; hover: string; pressed: string; text: string };
   link: string;
   background: string;
   surface: string;
@@ -114,6 +115,12 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     primaryHover: "#9D4349",
     primaryActive: "#74272E",
     onPrimary: "#FFFFFF",
+    destructive: {
+      fill: "#A01F38",
+      hover: "#B02743",
+      pressed: "#7F1730",
+      text: "#FFFFFF",
+    },
     link: "#346C63",
     background: "#F6EFE3",
     surface: "#FFFCF4",
@@ -194,6 +201,12 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
     primaryHover: "#B35844",
     primaryActive: "#963B2F",
     onPrimary: "#FFF8EF",
+    destructive: {
+      fill: "#F0A8B9",
+      hover: "#F6BBCA",
+      pressed: "#DF91A6",
+      text: "#391322",
+    },
     link: "#D6BA86",
     background: darkNeutralRamp.background,
     surface: darkNeutralRamp.surface,

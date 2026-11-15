@@ -1972,6 +1972,11 @@ The default server URL is http://127.0.0.1:8765 (optionally overridden with ATLA
 
 The browser suite does not manufacture readiness, start a mock API, or substitute screenshot success for interactions. Its artifact must contain the current source-grounded sample records; screenshots and traces stay under ignored scratch/browser-validation.
 
+Reserve the solid destructive button palette for the final confirmation that
+commits a destructive change. Use quiet danger styling for a trigger that opens
+a confirmation, a neutral button for Cancel, and an explicit verb such as Delete
+or Discard for the final action. Error messages and badges use status tokens.
+
 Contextual feedback uses the root Ant `App` inside `ConfigProvider`. Destructive
 button and callback flows use `useConfirmDangerAction`; prepared source dialogs
 use contextual `Modal.useModal`. Do not use static Ant feedback methods. Style
