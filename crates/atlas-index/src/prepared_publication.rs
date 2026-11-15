@@ -92,6 +92,7 @@ impl<'owner> PreparedPublication<'owner> {
         rebuild: Option<Rebuild<'owner>>,
         check_destination: Option<&'owner dyn Fn() -> Result<(), IndexError>>,
     ) -> Result<Self, IndexError> {
+        tracing::info!(target: "atlas_progress", phase = "validate_index_inputs", "Checking prepared search data");
         let validation_started = std::time::Instant::now();
         crate::writer::validate_input(&metadata)?;
         tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,"Completed publication input validation");

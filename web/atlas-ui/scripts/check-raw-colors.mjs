@@ -1,9 +1,10 @@
 /* global URL, console, process */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 const sourceRoot = join(root, "src");
 const allowedFiles = new Set([
   "src/shared/theme/themeDefinitions.ts",
@@ -42,7 +43,7 @@ const variableDefinitions = new Set();
 const variableUses = [];
 
 for (const file of walk(sourceRoot)) {
-  const relativePath = relative(root, file);
+  const relativePath = relative(root, file).split(sep).join("/");
   const contents = readFileSync(file, "utf8");
   const definitionPattern = file.endsWith(".css")
     ? cssVariableDefinition

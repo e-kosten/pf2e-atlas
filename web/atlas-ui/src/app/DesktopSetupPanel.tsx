@@ -41,6 +41,7 @@ type DesktopAttachment = {
   token: string;
   openRequest?: number | null;
   openTerminal?: boolean;
+  terminalLinking?: boolean;
   referenceLoading?: boolean;
   reference?: ReferenceStatus | null;
   setup: {
@@ -198,7 +199,11 @@ export function DesktopSetupPanel() {
                           : "Preparing semantic search…"))}
                   </Typography.Text>
                   {percent !== undefined && (
-                    <Progress percent={percent} aria-label="Setup progress" />
+                    <Progress
+                      percent={percent}
+                      status="normal"
+                      aria-label="Setup progress"
+                    />
                   )}
                   {typeof progress?.current === "number" && progress.unit && (
                     <Typography.Text>
@@ -335,7 +340,7 @@ export function DesktopSetupPanel() {
               onApply={(selection) => void act("apply_models", selection)}
             />
           )}
-          {open && (
+          {open && attachment.terminalLinking !== false && (
             <div
               ref={terminalSection}
               tabIndex={-1}

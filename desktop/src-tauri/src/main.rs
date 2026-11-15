@@ -1,21 +1,25 @@
 #![deny(unsafe_code)]
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+mod appearance;
 mod bootstrap_jobs;
-mod native_tabs;
 mod opening;
 mod process;
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, target_os = "macos"))]
 mod smoke;
 mod staged_setup;
 #[cfg(debug_assertions)]
 mod startup_trace;
 mod tab_links;
+#[cfg(target_os = "macos")]
 mod terminal;
+#[cfg_attr(target_os = "macos", path = "native_tabs.rs")]
+#[cfg_attr(windows, path = "windows_host.rs")]
+mod window_host;
 mod zoom;
 
 use std::{
     collections::{HashSet, VecDeque},
-    path::PathBuf,
     sync::{
         Mutex, MutexGuard,
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -38,7 +42,7 @@ use url::Url;
 
 #[derive(Default)]
 struct Desktop {
-    appearance: Mutex<native_tabs::Appearance>,
+    appearance: Mutex<appearance::Appearance>,
     bootstrap_jobs: Mutex<BootstrapJobs>,
     presented_bootstrap: Mutex<HashSet<String>>,
     copy_menu: copy_link::CopyMenu,
@@ -57,6 +61,7 @@ struct Desktop {
     quitting: AtomicBool,
     recovery: AtomicBool,
     primary: Mutex<opening::PrimaryWindow>,
+    #[cfg(target_os = "macos")]
     terminal_operation: Mutex<()>,
 }
 
@@ -85,7 +90,14 @@ fn guard(window: &WebviewWindow) -> Result<(), String> {
 }
 
 fn bundled_origin(url: &Url) -> bool {
-    url.scheme() == "tauri" && url.host_str() == Some("localhost")
+    #[cfg(windows)]
+    let expected = ("http", "tauri.localhost");
+    #[cfg(target_os = "macos")]
+    let expected = ("tauri", "localhost");
+    (url.scheme(), url.host_str()) == (expected.0, Some(expected.1))
+        && url.port().is_none()
+        && url.username().is_empty()
+        && url.password().is_none()
 }
 
 fn show_bootstrap(app: &AppHandle) -> tauri::Result<()> {
@@ -93,6 +105,10 @@ fn show_bootstrap(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window(label) {
         if !lock(&app.state::<Desktop>().presented_bootstrap).contains(label) {
             return Ok(());
+        }
+        #[cfg(windows)]
+        if window.is_minimized()? {
+            window.unminimize()?;
         }
         window.show()?;
         window.set_focus()?;
@@ -107,14 +123,15 @@ fn show_bootstrap(app: &AppHandle) -> tauri::Result<()> {
         WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
             .title("Atlas Setup")
             .visible(false)
-            .background_color(native_tabs::canvas(native_tabs::system_dark()))
+            .background_color(appearance::canvas(window_host::system_dark()))
             .inner_size(600.0, 520.0)
             .min_inner_size(420.0, 420.0)
             .on_navigation(bundled_origin)
             .on_page_load(bootstrap_page_load())
             .build()?
     };
-    if let Err(error) = native_tabs::configure(&window, false) {
+    #[cfg(target_os = "macos")]
+    if let Err(error) = window_host::configure(&window, false) {
         eprintln!("Could not configure Atlas setup window: {error}");
     }
     zoom::apply(&window);
@@ -181,7 +198,7 @@ async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, St
         .generation(&label)
         .ok_or("The Atlas startup document has not loaded yet.")?;
     let result = tauri::async_runtime::spawn_blocking(move || {
-        #[cfg(debug_assertions)]
+        #[cfg(all(debug_assertions, target_os = "macos"))]
         if initial && smoke::selector_mode() {
             // Keep the opening document observable after the delayed loader appears.
             std::thread::sleep(std::time::Duration::from_millis(1_200));
@@ -504,7 +521,7 @@ fn show_pending_or_default(app: &AppHandle) {
     let result = if !pending {
         current_product(app).and_then(|(base, instance)| {
             if let Some(window) = recent_product_views(app, &base, &instance).first() {
-                native_tabs::select(window)
+                window_host::select(window)
             } else {
                 open_product(app, "/search", None).map(|_| ())
             }
@@ -596,7 +613,7 @@ fn open_product(
         .attach_window(app, &label, &base, &instance)?;
     let window = opening::with_cover(
         WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url)),
-        native_tabs::product_dark(app),
+        appearance::product_dark(app),
         false,
     )
     .on_page_load(copy_link::page_load)
@@ -621,11 +638,14 @@ fn open_product(
     .map_err(display)
     .inspect_err(|_| desktop.staged_setup.detach_window(&label))?;
     zoom::apply(&window);
-    let placement = native_tabs::configure(&window, true).and_then(|()| {
+    #[cfg(windows)]
+    let placement = window_host::select(&window);
+    #[cfg(target_os = "macos")]
+    let placement = window_host::configure(&window, true).and_then(|()| {
         if let Some((source, foreground)) = tab {
-            native_tabs::attach(source, &window, foreground)
+            window_host::attach(source, &window, foreground)
         } else {
-            native_tabs::select(&window)
+            window_host::select(&window)
         }
     });
     if let Err(error) = placement {
@@ -655,7 +675,7 @@ fn show_workspace_setup(app: &AppHandle, terminal: bool) -> Result<(), String> {
                 .staged_setup
                 .request_open(&window, &instance, false, terminal)
             {
-                return native_tabs::select(&window);
+                return window_host::select(&window);
             }
         }
         if lock(&desktop.primary).is_product() {
@@ -675,6 +695,9 @@ fn show_workspace_setup(app: &AppHandle, terminal: bool) -> Result<(), String> {
 
 fn open_external(destination: &Url) {
     if matches!(destination.scheme(), "https" | "http" | "mailto") {
+        #[cfg(windows)]
+        window_host::open_external(destination);
+        #[cfg(target_os = "macos")]
         let _ = std::process::Command::new("/usr/bin/open")
             .arg(destination.as_str())
             .spawn();
@@ -733,7 +756,7 @@ fn deliver_links(app: &AppHandle, desktop: &Desktop) -> Result<(), String> {
                 .url()
                 .is_ok_and(|url| same_product_route(&target, &url))
         }) {
-            native_tabs::select(window)?;
+            window_host::select(window)?;
         } else {
             open_product(app, &route, windows.first().map(|window| (window, true)))?;
         }
@@ -742,10 +765,10 @@ fn deliver_links(app: &AppHandle, desktop: &Desktop) -> Result<(), String> {
 }
 
 fn report_link_error(app: &AppHandle, error: &str) {
-    if native_tabs::offer_retry("Could not open Atlas link", error)
+    if window_host::offer_retry("Could not open Atlas link", error)
         && let Err(error) = drain_links(app)
     {
-        native_tabs::report("Could not open Atlas link", &error);
+        window_host::report("Could not open Atlas link", &error);
     }
 }
 
@@ -766,6 +789,7 @@ fn escape(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
+#[cfg(target_os = "macos")]
 #[tauri::command]
 async fn enable_cli(window: WebviewWindow, directory: String) -> Result<String, String> {
     guard(&window)?;
@@ -777,7 +801,7 @@ async fn enable_cli(window: WebviewWindow, directory: String) -> Result<String, 
             .map_err(|_| "A terminal command action is already in progress.")?;
         let home = process::home()?.canonicalize().map_err(display)?;
         let path = directory.trim().strip_prefix("~/").map_or_else(
-            || PathBuf::from(directory.trim()),
+            || std::path::PathBuf::from(directory.trim()),
             |relative| home.join(relative),
         );
         let bundled = terminal::Bundled::inspect()?;
@@ -809,18 +833,23 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         None::<&str>,
     )?;
     let copy = MenuItem::with_id(app, "copy-link", "Copy Atlas Link", false, None::<&str>)?;
+    #[cfg(windows)]
+    let exit = MenuItem::with_id(app, "exit", "Exit", true, None::<&str>)?;
     let atlas = SubmenuBuilder::new(app, "PF2e Atlas")
         .item(&settings)
         .item(&terminal)
-        .separator()
-        .quit()
-        .build()?;
+        .separator();
+    #[cfg(windows)]
+    let atlas = atlas.item(&exit);
+    #[cfg(target_os = "macos")]
+    let atlas = atlas.quit();
+    let atlas = atlas.build()?;
+    #[cfg(target_os = "macos")]
     let tab = MenuItem::with_id(app, "new-tab", "New Tab", true, Some("CmdOrCtrl+T"))?;
-    let file = SubmenuBuilder::new(app, "File")
-        .item(&window)
-        .item(&tab)
-        .close_window()
-        .build()?;
+    let file = SubmenuBuilder::new(app, "File").item(&window);
+    #[cfg(target_os = "macos")]
+    let file = file.item(&tab);
+    let file = file.close_window().build()?;
     let edit = SubmenuBuilder::new(app, "Edit")
         .undo()
         .redo()
@@ -833,13 +862,15 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         .item(&copy)
         .build()?;
     let zoom_in = MenuItem::with_id(app, "zoom-in", "Zoom In", true, Some("CmdOrCtrl+Equal"))?;
+    #[cfg(target_os = "macos")]
     let zoom_plus = MenuItem::with_id(app, "zoom-plus", "Zoom In (+)", true, None::<&str>)?;
     let zoom_out = MenuItem::with_id(app, "zoom-out", "Zoom Out", true, Some("CmdOrCtrl+Minus"))?;
     let zoom_reset =
         MenuItem::with_id(app, "zoom-reset", "Actual Size", true, Some("CmdOrCtrl+0"))?;
-    let view = SubmenuBuilder::new(app, "View")
-        .items(&[&zoom_in, &zoom_plus, &zoom_out, &zoom_reset])
-        .build()?;
+    let view = SubmenuBuilder::new(app, "View").item(&zoom_in);
+    #[cfg(target_os = "macos")]
+    let view = view.item(&zoom_plus);
+    let view = view.items(&[&zoom_out, &zoom_reset]).build()?;
     let window = SubmenuBuilder::new(app, "Window")
         .minimize()
         .maximize()
@@ -849,8 +880,29 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         .build()
 }
 
+fn reopen(app: &AppHandle, has_visible_windows: bool) {
+    let pending = !lock(&app.state::<Desktop>().links).is_empty();
+    if has_visible_windows && !pending {
+        return;
+    }
+    if setup_window_label(app) != opening::PRIMARY
+        && lock(&app.state::<Desktop>().launcher).is_some()
+    {
+        show_pending_or_default(app);
+    } else {
+        let _ = show_bootstrap(app);
+    }
+}
+
 fn main() {
-    let result = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(windows)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _| {
+        if args.len() == 1 {
+            let _ = run_on_main(app, |app| reopen(app, false));
+        }
+    }));
+    let result = builder
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(Desktop::default())
@@ -859,6 +911,7 @@ fn main() {
             launch,
             prepare,
             cancel_setup,
+            #[cfg(target_os = "macos")]
             enable_cli,
             staged_setup::desktop_setup_action,
             #[cfg(debug_assertions)]
@@ -866,7 +919,7 @@ fn main() {
             tab_links::desktop_tab_link,
             copy_link::desktop_copy_link,
             copy_link::desktop_copy_availability,
-            native_tabs::desktop_appearance
+            appearance::desktop_appearance
         ])
         .menu(menu)
         .on_window_event(|window, event| {
@@ -887,10 +940,19 @@ fn main() {
                     opening::bundled_document_replaced(&desktop);
                 }
                 lock(&desktop.focus_order).retain(|label| label != window.label());
+                #[cfg(windows)]
+                if app.webview_windows().iter().all(|(label, remaining)| {
+                    label == window.label()
+                        || (label == "bootstrap" && matches!(remaining.is_visible(), Ok(false)))
+                }) {
+                    app.exit(0);
+                }
             }
-            if window.label() == setup_window_label(window.app_handle())
-                && let tauri::WindowEvent::CloseRequested { api, .. } = event
-            {
+            #[cfg(target_os = "macos")]
+            let hide_on_close =
+                window.label() == "bootstrap" || window.label() == setup_window_label(app);
+            #[cfg(target_os = "macos")]
+            if hide_on_close && let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
             }
@@ -898,13 +960,22 @@ fn main() {
         .on_menu_event(|app, event| {
             let result = match event.id().as_ref() {
                 "setup" => show_workspace_setup(app, false),
+                #[cfg(target_os = "macos")]
                 "terminal-access" => show_workspace_setup(app, true),
+                #[cfg(windows)]
+                "terminal-access" => window_host::show_cli_path(),
+                #[cfg(windows)]
+                "exit" => {
+                    app.exit(0);
+                    Ok(())
+                }
                 "new" => new_search(app, false),
+                #[cfg(target_os = "macos")]
                 "new-tab" => new_search(app, true),
                 tab_links::MENU_ID => tab_links::open_context_link(app),
                 action @ ("zoom-in" | "zoom-plus" | "zoom-out" | "zoom-reset") => {
                     if let Err(error) = app.state::<Desktop>().zoom.change(app, action) {
-                        native_tabs::report("Could not update Atlas zoom", &error);
+                        window_host::report("Could not update Atlas zoom", &error);
                     }
                     Ok(())
                 }
@@ -919,8 +990,11 @@ fn main() {
         .setup(|app| {
             #[cfg(debug_assertions)]
             startup_trace::enable(app.handle())?;
-            native_tabs::disable_automatic_grouping().map_err(std::io::Error::other)?;
-            native_tabs::configure_zoom_shortcut();
+            #[cfg(target_os = "macos")]
+            {
+                window_host::disable_automatic_grouping().map_err(std::io::Error::other)?;
+                window_host::configure_zoom_shortcut();
+            }
             app.state::<Desktop>().zoom.load(app.handle());
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
@@ -937,13 +1011,14 @@ fn main() {
                 }
             }
             show_bootstrap(app.handle())?;
-            #[cfg(debug_assertions)]
+            #[cfg(all(debug_assertions, target_os = "macos"))]
             smoke::start(app.handle())?;
             Ok(())
         })
         .build(tauri::generate_context!());
     match result {
         Ok(app) => app.run(|app, event| match event {
+            #[cfg(target_os = "macos")]
             tauri::RunEvent::ExitRequested {
                 code: None, api, ..
             } => api.prevent_exit(),
@@ -953,25 +1028,17 @@ fn main() {
                 lock(&desktop.launcher).take();
                 lock(&desktop.setup_pipe).take();
             }
+            #[cfg(target_os = "macos")]
             tauri::RunEvent::Reopen {
                 has_visible_windows,
                 ..
-            } => {
-                let pending = !lock(&app.state::<Desktop>().links).is_empty();
-                if has_visible_windows && !pending {
-                    return;
-                }
-                if setup_window_label(app) != opening::PRIMARY
-                    && lock(&app.state::<Desktop>().launcher).is_some()
-                {
-                    show_pending_or_default(app);
-                } else {
-                    let _ = show_bootstrap(app);
-                }
-            }
+            } => reopen(app, has_visible_windows),
             _ => {}
         }),
         Err(error) => {
+            #[cfg(windows)]
+            window_host::report("Could not start PF2e Atlas", &display(error));
+            #[cfg(target_os = "macos")]
             eprintln!("Could not start PF2e Atlas: {error}");
             std::process::exit(1);
         }
@@ -995,7 +1062,17 @@ mod tests {
 
     #[test]
     fn native_context_and_service_origins_are_distinct() {
-        assert!(bundled_origin(&Url::parse("tauri://localhost/").unwrap()));
+        #[cfg(target_os = "macos")]
+        let bundled = "tauri://localhost/";
+        #[cfg(windows)]
+        let bundled = "http://tauri.localhost/";
+        assert!(bundled_origin(&Url::parse(bundled).unwrap()));
+        assert!(!bundled_origin(
+            &Url::parse("http://tauri.localhost:8080/").unwrap()
+        ));
+        assert!(!bundled_origin(
+            &Url::parse("http://tauri.localhost.example/").unwrap()
+        ));
         assert!(!bundled_origin(
             &Url::parse("http://127.0.0.1:3000/").unwrap()
         ));

@@ -1,4 +1,40 @@
-# Develop the macOS desktop app
+# Develop the desktop app
+
+## Windows x64
+
+Use the pinned [Rust toolchain](../rust-toolchain.toml), Node 26, and the
+Microsoft C++ v143 Build Tools with the Windows SDK and x64 redistributable.
+Build from a Windows x64
+PowerShell session after installing those [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#windows).
+
+```powershell
+npm --prefix web/atlas-ui ci
+npm --prefix desktop ci
+npm --prefix dev-tools/release ci --ignore-scripts
+./desktop/bundle-windows.ps1
+```
+
+The unsigned per-user setup executable is in
+`target/x86_64-pc-windows-msvc/release/bundle/nsis`. It includes the matching
+`atlas.exe` and the app-local Visual C++ runtime. The installer supplies
+WebView2 if needed. The Windows desktop CI workflow
+installs the package on a clean runner, checks the bundled CLI and protocol
+registration, and uploads the installer as a build artifact.
+
+Start **PF2e Atlas** from the Start menu. Choose **Set up Atlas** to prepare a
+new workspace. Use **File → New Window** (Ctrl+N), Ctrl-click, or **Open Link in
+New Window** from an Atlas link’s context menu. The windows share a local
+service and workspace. Atlas links opened from another app select an existing
+matching window or open the destination in a new one. **Terminal and Agent
+Access** in the app menu shows the path to the bundled command for PowerShell.
+
+Test installation and first run from a disposable Windows user account or VM.
+Check that setup opens Search in the same window, a second window shares saved
+state, and a copied Atlas link opens the correct destination both while the app
+is running and after it exits. Close the last product window and reopen the app
+to verify it reuses the prepared workspace.
+
+## macOS build
 
 Build a local app from the checkout on Apple Silicon. You need the Xcode
 command-line tools, the pinned [Rust toolchain](../rust-toolchain.toml) and Node 26.
@@ -51,15 +87,15 @@ and drafts open. If the reference data changed while Search was open, use
 **Refresh results** when prompted to read from the new version. For a custom
 source, use the Atlas CLI to maintain its reference data.
 
-Use **File → New Tab** (⌘T) or **File → New Window** (⌘N) to open a fresh
+On macOS, use **File → New Tab** (⌘T) or **File → New Window** (⌘N) to open a fresh
 Search view. Command-click, middle-click, or choose **Open Link in New Tab**
 from an Atlas link’s context menu to open its destination in a background tab.
 All windows and tabs share the local workspace and service with a compatible
 `atlas web` session. Choose **Quit PF2e Atlas** to release the app’s connection
 to the service.
 
-Use **View → Zoom In** (⌘+), **Zoom Out** (⌘−), or **Actual Size** (⌘0) to
-scale the entire view. Atlas saves one zoom level for all windows and tabs.
+Use **View → Zoom In**, **Zoom Out**, or **Actual Size** to scale the entire
+view. Atlas saves one zoom level for all windows and tabs.
 
 Use the link icon in an entity header, or choose **Edit → Copy Atlas Link**
 for the page's main entity. On a list page, the Edit menu copies the list link.
@@ -72,11 +108,11 @@ service moves to a different port. Saved list and encounter links use stable
 keys and require that entity in the active workspace. In the browser, the same
 icon copies the entity's web URL.
 
-Opening an Atlas link from another app or with `atlas open '<link>'` selects an
+On macOS, opening an Atlas link from another app or with `atlas open '<link>'` selects an
 existing matching tab, opens a foreground tab in the most recently active Atlas
 window, or opens a window directly to the destination.
 
-For shell or agent use, **PF2e Atlas → Terminal and Agent Access** can
+On macOS, **PF2e Atlas → Terminal and Agent Access** can
 link the bundled command at `~/.local/bin/atlas` from the product drawer.
 An existing executable there can be switched to the bundled command with
 native confirmation. The startup setup screen can also link to an existing

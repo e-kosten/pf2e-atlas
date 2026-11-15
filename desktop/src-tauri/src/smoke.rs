@@ -343,7 +343,7 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
             let tab = app
                 .get_webview_window("atlas-0")
                 .ok_or("New Search tab unavailable")?;
-            crate::native_tabs::verify_group(&primary, &tab)?;
+            crate::window_host::verify_group(&primary, &tab)?;
             if !tab.url().is_ok_and(|url| url.path() == "/search") {
                 return Err("New tab did not open Search".into());
             }
@@ -355,7 +355,7 @@ fn check_tabs_and_zoom(app: &AppHandle, primary: &WebviewWindow) -> Result<(), S
             if app.webview_windows().len() != 2 {
                 return Err("Record link did not select the existing tab".into());
             }
-            crate::native_tabs::verify_group(&tab, &primary)
+            crate::window_host::verify_group(&tab, &primary)
                 .map_err(|error| format!("Record link did not select the existing tab: {error}"))?;
             app.state::<Desktop>().zoom.change(app, "zoom-reset")?;
             Ok(())

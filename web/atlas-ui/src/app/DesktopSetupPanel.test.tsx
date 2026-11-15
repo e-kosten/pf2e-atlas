@@ -20,6 +20,7 @@ function attach(openRequest?: number) {
   host.__ATLAS_DESKTOP_SETUP__ = {
     token: "current-document",
     openRequest,
+    terminalLinking: true,
     reference: {
       revision: "1111111111111111111111111111111111111111",
       target: "2222222222222222222222222222222222222222",
@@ -61,6 +62,53 @@ function renderPanel(writesPaused = false) {
 it("exposes workspace setup only for an attached desktop document", () => {
   renderPanel();
   expect(screen.queryByRole("button", { name: "Setup and Updates" })).toBeNull();
+});
+
+it.each([
+  { current: 20, percent: "40" },
+  { current: 50, percent: "100" },
+])(
+  "shows $percent% phase progress while setup is running",
+  async ({ current, percent }) => {
+    attach(7);
+    host.__ATLAS_DESKTOP_SETUP__ = {
+      ...host.__ATLAS_DESKTOP_SETUP__,
+      setup: {
+        job: 2,
+        sequence: 5,
+        status: "running",
+        progress: {
+          message: "Preparing records for search",
+          current,
+          total: 50,
+          unit: "records",
+        },
+      },
+    };
+    renderPanel();
+    const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+    expect(within(drawer).getByText("Preparing records for search")).toBeVisible();
+    expect(within(drawer).getByText(`${current} of 50 records`)).toBeVisible();
+    const bar = within(drawer).getByRole("progressbar", { name: "Setup progress" });
+    expect(bar).toHaveAttribute("aria-valuenow", percent);
+    expect(bar).not.toHaveClass("ant-progress-status-success");
+    expect(within(drawer).getByRole("button", { name: "Cancel setup" })).toBeVisible();
+  },
+);
+
+it("omits terminal linking when the desktop host uses an installed CLI path", async () => {
+  attach(7);
+  host.__ATLAS_DESKTOP_SETUP__ = {
+    ...host.__ATLAS_DESKTOP_SETUP__,
+    terminalLinking: false,
+  };
+  renderPanel();
+  const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+  expect(within(drawer).queryByText("Terminal and agent access")).toBeNull();
+  expect(invoke).not.toHaveBeenCalledWith(
+    "desktop_setup_action",
+    expect.objectContaining({ action: "read_terminal" }),
+  );
 });
 
 it("prevents resuming while another operation holds the workspace write lock", async () => {

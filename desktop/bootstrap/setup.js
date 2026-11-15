@@ -18,6 +18,9 @@ const startupTarget = {
 };
 const workspaceTemplate = document.getElementById("workspace-template");
 const workspaceContent = workspaceTemplate.content.cloneNode(true);
+if (window.location.origin === "http://tauri.localhost") {
+  workspaceContent.getElementById("terminal").hidden = true;
+}
 const ui = Object.fromEntries(
   [
     "opening-status",

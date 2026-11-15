@@ -1,4 +1,4 @@
-#![cfg(target_os = "macos")]
+#![cfg(any(target_os = "macos", windows))]
 
 use std::process::Command;
 
@@ -10,6 +10,7 @@ fn probe_missing_workspace_is_read_only() {
         .args(["desktop-probe", "--index"])
         .arg(&index)
         .env("HOME", home.path())
+        .env("LOCALAPPDATA", home.path())
         .output()
         .unwrap();
     assert!(result.status.success(), "{result:?}");
@@ -19,6 +20,7 @@ fn probe_missing_workspace_is_read_only() {
     assert!(!index.parent().unwrap().exists());
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn open_rejects_a_non_atlas_url_before_asking_macos_to_open_it() {
     let result = Command::new(env!("CARGO_BIN_EXE_atlas"))
@@ -35,6 +37,7 @@ fn setup_stream_reports_progress_without_changing_json_result() {
     let result = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["setup", "--check", "--json", "--desktop-progress"])
         .env("HOME", home.path())
+        .env("LOCALAPPDATA", home.path())
         .output()
         .unwrap();
     assert_eq!(result.status.code(), Some(1));

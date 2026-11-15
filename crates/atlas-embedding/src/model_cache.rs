@@ -4,6 +4,7 @@ use crate::{EmbeddingError, EmbeddingModelSpec, EmbeddingRuntimeConfig};
 use std::{
     fs, io,
     path::{Path, PathBuf},
+    time::Duration,
 };
 use tracing::info;
 
@@ -220,22 +221,68 @@ fn download(file: &EmbeddingModelCacheFile) -> Result<(), EmbeddingError> {
         "https://huggingface.co/{}/resolve/{}/{}",
         file.source_repo, file.source_revision, file.source_path
     );
-    let mut response =
-        ureq::get(&url)
-            .call()
-            .map_err(|e| EmbeddingError::ModelCacheDownloadFailed {
-                url: url.clone(),
-                path: file.local_path.display().to_string(),
-                message: e.to_string(),
-            })?;
-    store_verified_download(file, &mut response.body_mut().as_reader(), &url)
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_connect(Some(Duration::from_secs(30)))
+        .timeout_per_read(Some(Duration::from_secs(60)))
+        .build()
+        .into();
+    download_from(file, &url, &agent)
+}
+
+fn download_from(
+    file: &EmbeddingModelCacheFile,
+    url: &str,
+    agent: &ureq::Agent,
+) -> Result<(), EmbeddingError> {
+    const MAX_ATTEMPTS: u32 = 3;
+    let mut attempt = 1;
+    loop {
+        let (result, retryable) = match agent.get(url).call() {
+            Ok(mut response) => {
+                let result =
+                    store_verified_download(file, &mut response.body_mut().as_reader(), url);
+                let retryable =
+                    matches!(result, Err(EmbeddingError::ModelCacheDownloadFailed { .. }));
+                (result, retryable)
+            }
+            Err(error) => {
+                let retryable = matches!(
+                    error,
+                    ureq::Error::Io(_)
+                        | ureq::Error::Timeout(_)
+                        | ureq::Error::ConnectionFailed
+                        | ureq::Error::StatusCode(408 | 500 | 502 | 503 | 504)
+                );
+                (Err(download_failed(file, url, error)), retryable)
+            }
+        };
+        if !retryable || attempt == MAX_ATTEMPTS {
+            return result;
+        }
+        info!(target: "atlas_progress", phase = "retry_embedding_model",
+            "Search model download interrupted. Retrying (attempt {} of {MAX_ATTEMPTS}).", attempt + 1);
+        std::thread::sleep(Duration::from_secs(u64::from(attempt)));
+        attempt += 1;
+    }
+}
+
+fn download_failed(
+    file: &EmbeddingModelCacheFile,
+    url: &str,
+    error: impl std::fmt::Display,
+) -> EmbeddingError {
+    EmbeddingError::ModelCacheDownloadFailed {
+        url: url.into(),
+        path: file.local_path.display().to_string(),
+        message: error.to_string(),
+    }
 }
 fn store_verified_download(
     file: &EmbeddingModelCacheFile,
     input: &mut dyn io::Read,
     url: &str,
 ) -> Result<(), EmbeddingError> {
-    use io::Seek;
+    use io::{Seek, Write};
     let parent = file
         .local_path
         .parent()
@@ -254,13 +301,22 @@ fn store_verified_download(
         }
     })?;
     let temporary_path = temporary.path().to_path_buf();
-    io::copy(input, temporary.as_file_mut()).map_err(|e| {
-        EmbeddingError::ModelCacheDownloadFailed {
-            url: url.into(),
-            path: temporary_path.display().to_string(),
-            message: e.to_string(),
-        }
-    })?;
+    let mut buffer = [0; 64 * 1024];
+    loop {
+        let bytes = match input.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(download_failed(file, url, error)),
+        };
+        temporary
+            .as_file_mut()
+            .write_all(&buffer[..bytes])
+            .map_err(|error| EmbeddingError::ModelCachePrepareFailed {
+                path: temporary_path.display().to_string(),
+                message: error.to_string(),
+            })?;
+    }
     temporary
         .as_file()
         .sync_all()
@@ -289,6 +345,63 @@ fn store_verified_download(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn disconnected_download_retries_and_publishes_only_the_verified_file() {
+        use std::{
+            io::{BufRead, BufReader, Write},
+            net::TcpListener,
+        };
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let url = format!("http://{}/model", listener.local_addr().unwrap());
+        let directory = tempfile::tempdir().unwrap();
+        let file = EmbeddingModelCacheFile {
+            source_repo: "test",
+            source_revision: "pinned",
+            source_path: "model",
+            local_path: directory.path().join("model"),
+            sha256: "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+        };
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .proxy(None)
+            .timeout_global(Some(Duration::from_secs(5)))
+            .build()
+            .into();
+        std::thread::scope(|scope| {
+            let server = scope.spawn(|| {
+                for body in ["he", "hello"] {
+                    let mut connection = (0..500)
+                        .find_map(|_| match listener.accept() {
+                            Ok((connection, _)) => Some(connection),
+                            Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                                std::thread::sleep(Duration::from_millis(10));
+                                None
+                            }
+                            Err(error) => panic!("{error}"),
+                        })
+                        .expect("request did not arrive");
+                    connection.set_nonblocking(false).unwrap();
+                    connection
+                        .set_read_timeout(Some(Duration::from_secs(5)))
+                        .unwrap();
+                    let mut request = BufReader::new(&connection);
+                    let mut line = String::new();
+                    while request.read_line(&mut line).unwrap() > 0 && !line.ends_with("\r\n\r\n") {
+                    }
+                    write!(
+                        connection,
+                        "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\n{body}"
+                    )
+                    .unwrap();
+                }
+            });
+            download_from(&file, &url, &agent).unwrap();
+            server.join().unwrap();
+        });
+        assert_eq!(fs::read(&file.local_path).unwrap(), b"hello");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
     #[test]
     fn streaming_and_in_memory_hashes_match_standard_sha256_vectors() {
         for (bytes, expected) in [

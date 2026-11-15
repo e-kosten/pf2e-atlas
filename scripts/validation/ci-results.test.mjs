@@ -13,6 +13,7 @@ const names = [
   "atlas-dev",
   "web-ui",
   "desktop",
+  "windows-desktop",
   "release-tools",
   "embedding",
   "workspace",
@@ -73,6 +74,7 @@ test("UI and browser-only changes keep real-app browser gates without full Rust"
       "windows",
       "atlas-dev",
       "desktop",
+      "windows-desktop",
       "release-tools",
       "embedding",
       "workspace",
@@ -126,6 +128,7 @@ test("core Rust changes require browser prerequisites, but CLI-only Rust does no
       "atlas-dev",
       "windows",
       "desktop",
+      "windows-desktop",
       "release-tools",
       "embedding",
       "workspace",
@@ -176,6 +179,7 @@ test("dependency and native selection are independently enforced", () => {
     ["audit", "repository-tooling"],
     ["corpus", "repository-tooling"],
     ["desktop", "desktop"],
+    ["desktop", "windows-desktop"],
     ["windows", "windows"],
   ]) {
     const jobs = selected();
@@ -183,7 +187,11 @@ test("dependency and native selection are independently enforced", () => {
       flags.map((key) => [key, String(key === surface)]),
     );
     for (const name of names)
-      jobs[name].result = name === job ? "success" : "skipped";
+      jobs[name].result =
+        name === job ||
+        (surface === "desktop" && ["desktop", "windows-desktop"].includes(name))
+          ? "success"
+          : "skipped";
     requireSelectedJobs(jobs);
     for (const result of ["failure", "cancelled", "skipped"]) {
       jobs[job].result = result;

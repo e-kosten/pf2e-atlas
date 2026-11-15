@@ -80,6 +80,7 @@ export function requireSelectedJobs(jobs) {
     ),
     "release-tools": flags.release === "true",
     desktop: flags.desktop === "true",
+    "windows-desktop": flags.desktop === "true",
     embedding: flags.embedding === "true",
     workspace: flags.workspace === "true",
   };

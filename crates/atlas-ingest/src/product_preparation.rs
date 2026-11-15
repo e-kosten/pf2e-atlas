@@ -21,6 +21,7 @@ use atlas_record::source_record::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::time::{Duration, Instant};
 
 fn index(error: atlas_index::IndexError) -> IngestError {
     IngestError::ArtifactWriteFailed(error.to_string())
@@ -66,6 +67,46 @@ pub(crate) struct AttributedNativeInput {
 }
 /// Rich source and prepared-record batches drain before the next batch is read.
 const PREPARATION_REUSE_BATCH: usize = 32;
+
+struct PreparationProgress {
+    phase: &'static str,
+    message: &'static str,
+    unit: &'static str,
+    total: usize,
+    last_report: Instant,
+}
+
+impl PreparationProgress {
+    fn start(phase: &'static str, message: &'static str, unit: &'static str, total: usize) -> Self {
+        let mut progress = Self {
+            phase,
+            message,
+            unit,
+            total,
+            last_report: Instant::now(),
+        };
+        progress.report(0);
+        progress
+    }
+
+    fn advance(&mut self, current: usize) {
+        if current == self.total || self.last_report.elapsed() >= Duration::from_millis(250) {
+            self.report(current);
+        }
+    }
+
+    fn report(&mut self, current: usize) {
+        tracing::info!(
+            target: "atlas_progress",
+            phase = self.phase,
+            message = self.message,
+            current = current as u64,
+            total = self.total as u64,
+            unit = self.unit
+        );
+        self.last_report = Instant::now();
+    }
+}
 
 /// Simultaneously owned batch payloads at a read/processing boundary. These
 /// counts exclude compact metadata and one record's processing temporaries.
@@ -203,6 +244,12 @@ pub(crate) fn prepare(
         }
     }
     let bindings = bindings.into_iter().collect::<Vec<_>>();
+    let mut file_progress = PreparationProgress::start(
+        "admit_reference_source",
+        "Reading source files",
+        "files",
+        bindings.len(),
+    );
     let mut id_counts = BTreeMap::new();
     let mut excluded = Vec::new();
     let mut report = SourceEnrichmentReport::default();
@@ -411,7 +458,9 @@ pub(crate) fn prepare(
                 envelopes[position].push(observation);
             }
         }
+        file_progress.advance(work.captured_document_reads);
     }
+    tracing::info!(target: "atlas_progress", phase = "resolve_reference_links", "Resolving reference links and aliases");
     let mut resolver = SourceReferenceIndex::default();
     let mut active = BTreeSet::new();
     let mut names = BTreeMap::new();
@@ -553,6 +602,13 @@ pub(crate) fn prepare(
     let mut context_shortened = 0usize;
     let mut reused_sections = 0usize;
     let mut document_units = 0usize;
+    let mut record_progress = PreparationProgress::start(
+        "prepare_search_records",
+        "Preparing records for search",
+        "records",
+        active.len(),
+    );
+    let mut prepared_records = 0;
     let mut batch = Vec::with_capacity(PREPARATION_REUSE_BATCH);
     let mut consume_batch =
         |batch: &mut Vec<AdmittedFrame>| -> Result<(), atlas_index::IndexError> {
@@ -670,6 +726,8 @@ pub(crate) fn prepare(
                     .observe_record(&frame.source.record)
                     .map_err(|error| atlas_index::IndexError::Invalid(error.to_string()))?;
                 spool.push_record(frame)?;
+                prepared_records += 1;
+                record_progress.advance(prepared_records);
             }
             Ok(())
         };
@@ -706,6 +764,7 @@ pub(crate) fn prepare(
     tracing::info!(target:"atlas_build_diagnostic",stage="admission_publication_overlap",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed indexed admission and final publication files");
     drop(admitted_reader);
     drop(admitted);
+    tracing::info!(target: "atlas_progress", phase = "prepare_reference_catalog", "Preparing the reference catalog");
     reference_build.publish_catalog(&mut spool, &resolver)?;
     let trait_context = spool.context().clone();
     crate::traits::prepare_traits_stream(&catalog, &trait_context, &resolver, &mut |definition| {

@@ -1,0 +1,73 @@
+name: Windows desktop
+
+on:
+  workflow_call:
+    inputs:
+      source-ref:
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    name: Windows x64 installer
+    runs-on: windows-2022
+    timeout-minutes: 75
+    env:
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+      - name: Install frontend and bundle tooling
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm --prefix web/atlas-ui ci
+          npm --prefix desktop ci
+          npm --prefix dev-tools/release ci --ignore-scripts
+      - name: Build installer and test the bundled CLI
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          node --test desktop/bootstrap.test.mjs desktop/release-config.test.mjs
+          ./desktop/bundle-windows.ps1
+          cargo test --locked --release --target x86_64-pc-windows-msvc -p atlas-cli --test desktop
+      - name: Test the native host
+        env:
+          CARGO_ENCODED_RUSTFLAGS: -Ctarget-feature=+crt-static
+        run: cargo test --locked --release --target x86_64-pc-windows-msvc --target-dir target --manifest-path desktop/src-tauri/Cargo.toml
+      - name: Check clean install, sidecar and protocol registration
+        run: |
+          $output = 'target/x86_64-pc-windows-msvc/release'
+          $installer = @(Get-ChildItem "$output/bundle/nsis" -Filter '*-setup.exe')
+          if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
+          $installDir = Join-Path $env:RUNNER_TEMP 'Atlas Desktop Test'
+          $process = Start-Process $installer[0].FullName -ArgumentList "/S /D=$installDir" -WindowStyle Hidden -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Setup failed with code $($process.ExitCode)." }
+          foreach ($file in 'atlas-desktop.exe', 'atlas.exe', 'THIRD-PARTY-NOTICES.md', 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            if (!(Test-Path -LiteralPath (Join-Path $installDir $file) -PathType Leaf)) {
+              throw "Missing installed file $file."
+            }
+          }
+          $registered = (Get-Item 'HKCU:\Software\Classes\pf2e-atlas\shell\open\command').GetValue('')
+          if ($registered -ne ('"{0}\atlas-desktop.exe" "%1"' -f $installDir)) {
+            throw "Unexpected protocol command $registered."
+          }
+          if ((Get-FileHash "$output/atlas.exe").Hash -ne (Get-FileHash "$installDir/atlas.exe").Hash) {
+            throw 'Installed sidecar differs from the matching CLI.'
+          }
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'Atlas Desktop Workspace'
+          $probe = & "$installDir/atlas.exe" desktop-probe | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $probe.data.version -ne 1 -or $probe.data.status -ne 'needs_setup') {
+            throw 'The bundled command did not recognize the empty workspace.'
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: atlas-desktop-windows-x64
+          path: target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

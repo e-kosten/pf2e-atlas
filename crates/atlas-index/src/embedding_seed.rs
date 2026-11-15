@@ -2,6 +2,7 @@
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 use atlas_embedding::NativeInputDescriptor;
 use flate2::{Compression, bufread::GzDecoder, write::GzEncoder};
@@ -34,26 +35,99 @@ impl EmbeddingSeedFile {
     }
 
     pub fn verify(&self, file: &File) -> Result<(), IndexError> {
+        self.verify_inner(file, None)
+    }
+
+    fn verify_inner(
+        &self,
+        file: &File,
+        mut progress: Option<&mut SeedProgress>,
+    ) -> Result<(), IndexError> {
         self.validate()?;
-        let measured = Self::measure(file)?;
+        let measured = Self::measure_inner(file, progress.as_deref_mut())?;
         if measured.bytes != self.bytes || measured.sha256 != self.sha256 {
             return Err(invalid(
                 "compressed size or SHA-256 does not match the release pin",
             ));
         }
+        if let Some(progress) = progress {
+            progress.report(self.bytes);
+        }
         Ok(())
     }
 
-    pub fn measure(mut file: &File) -> Result<Self, IndexError> {
+    pub fn measure(file: &File) -> Result<Self, IndexError> {
+        Self::measure_inner(file, None)
+    }
+
+    fn measure_inner(
+        mut file: &File,
+        mut progress: Option<&mut SeedProgress>,
+    ) -> Result<Self, IndexError> {
         file.rewind()?;
         let mut digest = Sha256::new();
-        let bytes = io::copy(&mut file.take(MAX_EMBEDDING_SEED_BYTES + 1), &mut digest)?;
+        let mut input = file.take(MAX_EMBEDDING_SEED_BYTES + 1);
+        let mut buffer = [0; 64 * 1024];
+        let mut bytes = 0;
+        loop {
+            let count = match input.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(count) => count,
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) => return Err(error.into()),
+            };
+            digest.update(&buffer[..count]);
+            bytes += count as u64;
+            if let Some(progress) = &mut progress {
+                progress.advance(bytes);
+            }
+        }
         let measured = Self {
             sha256: format!("{:x}", digest.finalize()),
             bytes,
         };
         measured.validate()?;
         Ok(measured)
+    }
+}
+
+struct SeedProgress {
+    phase: &'static str,
+    message: String,
+    total: u64,
+    unit: &'static str,
+    last_report: Instant,
+}
+
+impl SeedProgress {
+    fn start(phase: &'static str, message: String, total: u64, unit: &'static str) -> Self {
+        let mut progress = Self {
+            phase,
+            message,
+            total,
+            unit,
+            last_report: Instant::now(),
+        };
+        progress.report(0);
+        progress
+    }
+
+    fn advance(&mut self, current: u64) {
+        if current < self.total && self.last_report.elapsed() >= Duration::from_millis(250) {
+            self.report(current);
+        }
+    }
+
+    fn report(&mut self, current: u64) {
+        tracing::info!(
+            target: "atlas_progress",
+            phase = self.phase,
+            message = self.message.as_str(),
+            current,
+            total = self.total,
+            unit = self.unit
+        );
+        self.last_report = Instant::now();
     }
 }
 
@@ -109,11 +183,37 @@ impl EmbeddingSeed {
     /// Authenticate the compressed bytes and validate the full payload against
     /// its declared execution contract before allowing lookups.
     pub fn read(
-        mut file: File,
+        file: File,
         expected: &EmbeddingSeedFile,
         scratch: &Path,
     ) -> Result<Self, IndexError> {
-        expected.verify(&file)?;
+        Self::read_inner(file, expected, scratch, None)
+    }
+
+    pub fn read_with_progress(
+        file: File,
+        expected: &EmbeddingSeedFile,
+        scratch: &Path,
+        profile_label: &str,
+    ) -> Result<Self, IndexError> {
+        Self::read_inner(file, expected, scratch, Some(profile_label))
+    }
+
+    fn read_inner(
+        mut file: File,
+        expected: &EmbeddingSeedFile,
+        scratch: &Path,
+        profile_label: Option<&str>,
+    ) -> Result<Self, IndexError> {
+        let mut checksum_progress = profile_label.map(|label| {
+            SeedProgress::start(
+                "verify_embedding_seed",
+                format!("Checking the {label} download"),
+                expected.bytes,
+                "bytes",
+            )
+        });
+        expected.verify_inner(&file, checksum_progress.as_mut())?;
         file.rewind()?;
         let mut input = GzDecoder::new(BufReader::new(file));
         if &read_array::<8>(&mut input)? != MAGIC {
@@ -131,6 +231,14 @@ impl EmbeddingSeed {
         let mut keys = Vec::with_capacity(header.rows);
         let mut output = BufWriter::new(tempfile::tempfile_in(scratch)?);
         let mut bytes = vec![0; vector_bytes];
+        let mut unpack_progress = profile_label.map(|label| {
+            SeedProgress::start(
+                "unpack_embedding_seed",
+                format!("Unpacking and checking {label} embeddings"),
+                header.rows as u64,
+                "embeddings",
+            )
+        });
         for _ in 0..header.rows {
             let hash = read_array(&mut input)?;
             let token_count = u32::from_le_bytes(read_array(&mut input)?) as usize;
@@ -143,11 +251,17 @@ impl EmbeddingSeed {
             crate::validation::check_vector(&vector, model.dimensions)?;
             output.write_all(&bytes)?;
             keys.push((hash, token_count));
+            if let Some(progress) = &mut unpack_progress {
+                progress.advance(keys.len() as u64);
+            }
         }
         if input.read(&mut [0])? != 0 || input.into_inner().read(&mut [0])? != 0 {
             return Err(invalid("unexpected data after the final row"));
         }
         output.flush()?;
+        if let Some(progress) = &mut unpack_progress {
+            progress.report(keys.len() as u64);
+        }
         let vectors = output.into_parts().0;
         Ok(Self {
             model,
@@ -427,6 +541,80 @@ mod tests {
         let mut vector = vec![0.; model.dimensions];
         vector[0] = 1.;
         vector
+    }
+
+    #[test]
+    fn reports_pinned_bytes_then_validated_embeddings() {
+        #[derive(Clone, Default)]
+        struct Log(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+        impl Write for Log {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                self.0.lock().unwrap().write(bytes)
+            }
+
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let log = Log::default();
+        let writer = log.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .without_time()
+            .with_ansi(false)
+            .with_writer(move || writer.clone())
+            .finish();
+        let model = model();
+        let vector = vector(&model);
+        let (file, pin) = asset(model, 2, &[[1; 32], [2; 32]], &vector, &[]);
+        let scratch = tempfile::tempdir().unwrap();
+        tracing::subscriber::with_default(subscriber, || {
+            EmbeddingSeed::read_with_progress(file, &pin, scratch.path(), "BGE Base").unwrap();
+        });
+
+        let output = log.0.lock().unwrap();
+        let output = std::str::from_utf8(&output).unwrap();
+        let lines = output.lines().collect::<Vec<_>>();
+        let unpack_start = lines
+            .iter()
+            .position(|line| line.contains("Unpacking and checking BGE Base embeddings"))
+            .unwrap();
+        assert!(unpack_start >= 2 && lines.len() - unpack_start >= 2);
+        for (line, label, current, total, unit) in [
+            (
+                lines[0],
+                "Checking the BGE Base download",
+                0,
+                pin.bytes,
+                "bytes",
+            ),
+            (
+                lines[unpack_start - 1],
+                "Checking the BGE Base download",
+                pin.bytes,
+                pin.bytes,
+                "bytes",
+            ),
+            (
+                lines[unpack_start],
+                "Unpacking and checking BGE Base embeddings",
+                0,
+                2,
+                "embeddings",
+            ),
+            (
+                lines[lines.len() - 1],
+                "Unpacking and checking BGE Base embeddings",
+                2,
+                2,
+                "embeddings",
+            ),
+        ] {
+            assert!(line.contains(label), "{line}");
+            assert!(line.contains(&format!("current={current} ")), "{line}");
+            assert!(line.contains(&format!("total={total} ")), "{line}");
+            assert!(line.contains(&format!("unit=\"{unit}\"")), "{line}");
+        }
     }
 
     #[test]

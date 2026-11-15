@@ -15,9 +15,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Manager, WebviewWindow, ipc::CapabilityBuilder, webview::PageLoadEvent};
 use url::Url;
 
-use crate::{
-    Desktop, display, lock, opening, process, refresh_product, run_on_main, terminal, verified_url,
-};
+use crate::{Desktop, display, lock, opening, process, refresh_product, run_on_main, verified_url};
 
 #[derive(Default)]
 pub struct StagedSetup {
@@ -205,6 +203,7 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
         "token": token, "setup": state, "reference": reference,
         "referenceLoading": state.reference_loading, "openRequest": document.open_request,
         "openTerminal": document.open_terminal,
+        "terminalLinking": cfg!(target_os = "macos"),
     });
     // Check the current document again inside the queued WebView callback.
     let origin = serde_json::json!(document.origin.ascii_serialization());
@@ -845,7 +844,7 @@ fn open_committed(
         .body_mut()
         .read_json()
         .map_err(display)?;
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, target_os = "macos"))]
     let ready = if crate::smoke::forces_preflight_retry() {
         serde_json::json!({ "status": "blocked" })
     } else {
@@ -884,6 +883,13 @@ pub enum SetupAction {
     AcknowledgeOpen,
 }
 
+#[cfg(target_os = "macos")]
+use crate::terminal;
+#[cfg(target_os = "macos")]
+type TerminalStatus = terminal::Status;
+#[cfg(windows)]
+type TerminalStatus = ();
+
 #[tauri::command]
 pub async fn desktop_setup_action(
     window: WebviewWindow,
@@ -893,16 +899,19 @@ pub async fn desktop_setup_action(
     sequence: Option<usize>,
     open_request: Option<usize>,
     model_selection: Option<ModelSelection>,
-) -> Result<Option<terminal::Status>, String> {
+) -> Result<Option<TerminalStatus>, String> {
     if matches!(
         action,
         SetupAction::ReadTerminal | SetupAction::EnableTerminal | SetupAction::SwitchTerminal
     ) {
+        #[cfg(target_os = "macos")]
         return tauri::async_runtime::spawn_blocking(move || {
             terminal_action(window, token, action)
         })
         .await
         .map_err(display)?;
+        #[cfg(windows)]
+        return Err("Use Terminal and Agent Access in the PF2e Atlas menu.".into());
     }
     let app = window.app_handle().clone();
     let desktop = app.state::<Desktop>();
@@ -962,11 +971,12 @@ pub async fn desktop_setup_action(
     Ok(None)
 }
 
+#[cfg(target_os = "macos")]
 fn terminal_action(
     window: WebviewWindow,
     token: String,
     action: SetupAction,
-) -> Result<Option<terminal::Status>, String> {
+) -> Result<Option<TerminalStatus>, String> {
     let desktop = window.state::<Desktop>();
     let _operation = (!matches!(action, SetupAction::ReadTerminal))
         .then(|| desktop.terminal_operation.try_lock())

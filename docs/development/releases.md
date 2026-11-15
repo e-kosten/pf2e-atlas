@@ -20,6 +20,10 @@ availability checks require this helper when Rust links for the release deployme
 target with its default libraries disabled. This adds the standard Apple runtime
 helper without changing the deployment target or embedding policy.
 
+The [Windows desktop build](../../desktop/README.md#windows-x64) produces
+an unsigned per-user NSIS installer. The Windows desktop workflow uploads
+it as a CI artifact for testing.
+
 Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
 archive (`atlas-cli-only-<target>.*`). Both contain `atlas`; full is the default.
 Cargo-dist uses `precise-builds = true` to build the shipped CLI package rather

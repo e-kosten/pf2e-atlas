@@ -432,6 +432,7 @@ a gate.
 | Device browser specs/configuration | Frontend checks/bundle and affected local browser flows. CI runs the authenticated fixture and device matrix. |
 | Full-corpus browser specs/configuration | Frontend static checks and Playwright discovery. Execute tests locally against a prepared Atlas server with `npm --prefix web/atlas-ui run test:e2e`. |
 | macOS desktop host or bundle | Native Apple Silicon app build, host and CLI tests, and an empty-home bundled CLI smoke check. Release-only scripts select release tooling. Use the nonpublishing packaged DMG check for end-to-end release coverage. |
+| Windows desktop host or installer | Native Windows x64 NSIS build, host tests, clean install, bundled CLI probe and protocol registration check. Follow the [Windows desktop smoke steps](../../desktop/README.md#windows-x64) for the native UI. |
 | HTTP routes, app-model contracts, or generated client | Rust and frontend gates plus the [OpenAPI freshness check](#openapi-freshness) |
 | Foundry model | Rust and source-contract generation |
 | Source-contract tooling | Fixture tests and pinned generation |
@@ -453,13 +454,13 @@ workspace platform matrices.
 Renames include both paths. Executable mode changes and symlink edits trigger
 conservative selection. Main pushes and fresh nightly verification keep full
 workspace and tooling checks, with the existing embedding and workspace-upgrade
-selection for those events. The native macOS app bundle runs on selected PRs
+selection for those events. The native macOS bundle and Windows installer run on selected PRs
 and on manual dispatch. Nightly reuses a successful main-push run only for its
 exact planned SHA and requires the completed aggregate and lockfile scan.
 Otherwise it waits boundedly or verifies afresh.
 The `validation complete` job rejects failed or unexpectedly skipped selected jobs;
 it is the aggregate required check. Selected PR checks include the native
-macOS app bundle and dependency advisories. The native check remains available
+macOS bundle, Windows installer and dependency advisories. The native checks remain available
 for manual dispatch. The Linux repository tooling and Windows checks jobs each
 verify their selected steps. Rerunning either job repeats its applicable checks.
 CI additionally selects native Windows checks from the transitive workspace

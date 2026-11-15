@@ -21,7 +21,7 @@ absolute_git_common_dir() {
 # Keep the path policy shared by commit hooks and changed-path verification.
 validation_surface_for_path() {
   case "$1" in
-    .github/workflows/ci.yml | .github/workflows/macos-desktop.yml | scripts/git-hooks/common.sh | scripts/verify-changed.sh | scripts/validation/ci-results.mjs | scripts/validation/windows-selection.py | scripts/validation/embedding-stack.py | __atlas_special_file_mode__)
+    .github/workflows/ci.yml | .github/workflows/macos-desktop.yml | .github/workflows/windows-desktop.yml | scripts/git-hooks/common.sh | scripts/verify-changed.sh | scripts/validation/ci-results.mjs | scripts/validation/windows-selection.py | scripts/validation/embedding-stack.py | __atlas_special_file_mode__)
       printf 'rust web source release research skill browser corpus desktop dev tooling audit fanout\n' ;;
     desktop/README.md) printf 'docs\n' ;;
     desktop/bundle-release-macos.sh | desktop/compare-release-cli.mjs | desktop/verify-release-macos.mjs | desktop/smoke-macos.mjs) printf 'release\n' ;;

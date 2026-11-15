@@ -64,7 +64,7 @@ impl PrimaryWindow {
 pub fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let handle = app.clone();
     let app_for_popup = app.clone();
-    let dark = crate::native_tabs::system_dark();
+    let dark = crate::window_host::system_dark();
     let builder = with_cover(
         WebviewWindowBuilder::new(app, PRIMARY, WebviewUrl::App("index.html".into()))
             .title("PF2e Atlas")
@@ -117,7 +117,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         }
         tauri::webview::NewWindowResponse::Deny
     });
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, target_os = "macos"))]
     let builder = crate::smoke::configure(builder);
     builder.build()
 }
@@ -138,7 +138,7 @@ pub fn with_cover<R: tauri::Runtime, M: Manager<R>>(
         builder
     };
     builder
-        .background_color(crate::native_tabs::canvas(dark))
+        .background_color(crate::appearance::canvas(dark))
         .initialization_script(crate::tab_links::SCRIPT)
         .initialization_script(format!(
             "window.__atlasOpeningStarted = {started}; window.__atlasOpeningDark = {dark}; window.__atlasPrimaryOpening = {primary};"
@@ -266,7 +266,8 @@ pub fn open(app: &AppHandle, job: &BootstrapJob) -> Result<(), String> {
         crate::copy_link::refresh(app);
         if let Some(window) = app.get_webview_window(PRIMARY) {
             let _ = window.eval("window.dispatchEvent(new Event('atlas-opening-committed'))");
-            if let Err(error) = crate::native_tabs::configure(&window, true) {
+            #[cfg(target_os = "macos")]
+            if let Err(error) = crate::window_host::configure(&window, true) {
                 eprintln!("Could not configure Atlas tabs: {error}");
             }
             crate::remember_product_focus(app, PRIMARY);
@@ -342,7 +343,7 @@ fn return_to_bundled(window: &WebviewWindow, bundled: Url, error: &str) {
         }
         let detail = format!("{error}\n\nCould not return to startup: {recovery_error}");
         let _ = run_on_main(window.app_handle(), move |_| {
-            crate::native_tabs::report("Atlas couldn’t open", &detail);
+            crate::window_host::report("Atlas couldn’t open", &detail);
         });
     }
 }
@@ -354,13 +355,13 @@ fn wait_until_rendered(
     instance: &str,
     is_retry: bool,
 ) -> Result<(), String> {
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, target_os = "macos"))]
     let render_timeout = if !is_retry && crate::smoke::forces_retry() {
         Duration::from_millis(1500)
     } else {
         Duration::from_secs(30)
     };
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(all(debug_assertions, target_os = "macos")))]
     let render_timeout = {
         let _ = is_retry;
         Duration::from_secs(30)

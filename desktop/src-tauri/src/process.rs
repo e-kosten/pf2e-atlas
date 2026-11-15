@@ -22,7 +22,7 @@ pub struct Launcher {
 
 pub fn bundled_cli() -> Result<PathBuf, String> {
     let path = std::env::current_exe().map_err(display)?;
-    let cli = path.with_file_name("atlas");
+    let cli = path.with_file_name(format!("atlas{}", std::env::consts::EXE_SUFFIX));
     if !cli.is_file() {
         return Err("The matching Atlas command is missing from the app bundle.".into());
     }
@@ -35,6 +35,7 @@ pub fn home() -> Result<PathBuf, String> {
         return Ok(path.into());
     }
     std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)
         .ok_or_else(|| "Atlas could not locate your home folder.".into())
 }
@@ -42,6 +43,17 @@ pub fn home() -> Result<PathBuf, String> {
 fn command() -> Result<Command, String> {
     let mut command = Command::new(bundled_cli()?);
     command.env("HOME", home()?);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
+
+        command.creation_flags(CREATE_NO_WINDOW);
+        #[cfg(debug_assertions)]
+        if let Some(home) = std::env::var_os("ATLAS_PILOT_HOME") {
+            command.env("LOCALAPPDATA", home);
+        }
+    }
     Ok(command)
 }
 
@@ -196,11 +208,11 @@ pub fn setup(
     if build_embeddings_locally {
         command.arg("--build-embeddings-locally");
     }
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, target_os = "macos"))]
     if matches!(mode, SetupMode::Reference(_)) && crate::smoke::reference_mode() {
         crate::smoke::record_setup();
     }
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, target_os = "macos"))]
     if matches!(mode, SetupMode::Ordinary | SetupMode::Staged(_))
         && let Some(source) = crate::smoke::source()?
     {

@@ -674,6 +674,13 @@ jobs:
     if: needs.changes.outputs.desktop == 'true'
     uses: ./.github/workflows/macos-desktop.yml
 
+  windows-desktop:
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
+    uses: ./.github/workflows/windows-desktop.yml
+    with:
+      source-ref: ${{ inputs.source-ref || github.sha }}
+
   release-tools:
     needs: changes
     if: needs.changes.outputs.release == 'true'
@@ -699,7 +706,7 @@ jobs:
   validation:
     name: validation complete
     if: ${{ !cancelled() }}
-    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows, atlas-dev, web-ui, repository-tooling, release-tools, embedding, workspace, desktop]
+    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows, atlas-dev, web-ui, repository-tooling, release-tools, embedding, workspace, desktop, windows-desktop]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

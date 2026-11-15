@@ -82,13 +82,13 @@
       .catch((error) => console.error("Could not open Atlas link", error));
   }
 
+  const windows = navigator.platform === "Win32";
   window.addEventListener(
     "click",
     (event) => {
       if (
         event.button === 0 &&
-        event.metaKey &&
-        !event.ctrlKey &&
+        (windows ? event.ctrlKey && !event.metaKey : event.metaKey && !event.ctrlKey) &&
         !event.altKey &&
         !event.shiftKey
       )
