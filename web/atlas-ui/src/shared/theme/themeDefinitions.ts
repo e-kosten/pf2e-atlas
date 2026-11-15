@@ -22,12 +22,9 @@ export interface DarkNeutralRamp {
 
 export interface BrandMarkColors {
   ring: string;
-  inner: string;
   cardinal: string;
   shade: string;
   outline: string;
-  secondary: string;
-  tick: string;
   dieRim: string;
   dieField: string;
   dieFaces: readonly [
@@ -138,12 +135,9 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       text: "#8C333A",
       mark: {
         ring: "#8C333A",
-        inner: "#FFFCF4",
         cardinal: "#FFFCF4",
         shade: "#D6C6AD",
         outline: "#74272E",
-        secondary: "#346C63",
-        tick: "#74272E",
         dieRim: "#8C333A",
         dieField: "#F6EFE3",
         dieFaces: [
@@ -225,12 +219,9 @@ export const atlasPalettes: Record<ResolvedColorScheme, AtlasPalette> = {
       text: "#D6BA86",
       mark: {
         ring: "#D6BA86",
-        inner: darkNeutralRamp.background,
         cardinal: "#F3E9D7",
         shade: "#D6BA86",
         outline: "#C4B6A1",
-        secondary: "#954033",
-        tick: "#D6BA86",
         dieRim: "#7F2F24",
         dieField: "#E4D9C6",
         dieFaces: [
