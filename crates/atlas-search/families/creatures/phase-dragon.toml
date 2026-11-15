@@ -1,0 +1,57 @@
+name = "Phase Dragon"
+source_note = "Monster Core 2 supplies the young, adult, and ancient stat blocks. Draconic Codex supplies the archdragon. Each stage has standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-monster-core-2:Akp3E1BEO0pTsTWY"
+name = "Phase Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core-2:6QFK9rCUdHPlTKfv"
+name = "Phase Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core-2:IpceyxBj5kTkmQWx"
+name = "Phase Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core-2:KMU6KpI33zcE6pfE"
+name = "Phase Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core-2:NrfzOgCuPadLmKwj"
+name = "Phase Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core-2:OEa6bKFqSc11OUl4"
+name = "Phase Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:QOj4HnGuAPC4viLr"
+name = "Phase Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:L0olDEaCquOy9aL6"
+name = "Phase Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

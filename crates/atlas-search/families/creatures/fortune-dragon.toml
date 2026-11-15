@@ -1,0 +1,57 @@
+name = "Fortune Dragon"
+source_note = "Monster Core supplies the young, adult, and ancient stat blocks. Draconic Codex supplies the archdragon. Each stage has standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-monster-core:qtwhQEehDrMoWusV"
+name = "Fortune Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:BvYVgvlTcRbim4Xb"
+name = "Fortune Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:TdhUDXvkKBctIpH8"
+name = "Fortune Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:ED9YZQYMGHuN5l8E"
+name = "Fortune Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:dbElCgziDp8ysxqR"
+name = "Fortune Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:GdqPoQ2WWnuzEzbu"
+name = "Fortune Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:Ev1Gle9bZsfkN6p6"
+name = "Fortune Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:XLkoSb7OYJWTJ4fr"
+name = "Fortune Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

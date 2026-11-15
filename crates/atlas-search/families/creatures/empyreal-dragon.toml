@@ -1,0 +1,57 @@
+name = "Empyreal Dragon"
+source_note = "Monster Core supplies the young, adult, and ancient stat blocks. Draconic Codex supplies the archdragon. Each stage has standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-monster-core:6IBevff4lJOFl539"
+name = "Empyreal Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:3wzvIQuxIaJU3JVO"
+name = "Empyreal Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:i6gxQwKAPhOQZPgs"
+name = "Empyreal Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:c5RzWCW3KsMqvO4h"
+name = "Empyreal Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-monster-core:mRtBMD6vmFEdlgzA"
+name = "Empyreal Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-monster-core:osscRiyHUXzfv0yz"
+name = "Empyreal Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:DN0kbSCNacBEm9RP"
+name = "Empyreal Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:hK2ys4jpeRaW1C35"
+name = "Empyreal Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

@@ -1,0 +1,18 @@
+name = "Barbazu"
+source_note = "Bestiary supplies the standard Barbazu. Hands of the Devil supplies three encounter loadouts: the Torture Chamber uses a hellforged glaive, the Drill Field adds Drover’s Band, and the Hellforge uses a flaming hellforged glaive."
+
+[[members]]
+key = "pathfinder-bestiary:FIoRPHaHdYUPVKdT"
+name = "Barbazu"
+
+[[members]]
+key = "abomination-vaults-bestiary:4bznEiwsJvInwZwA"
+name = "Torture Chamber Barbazu"
+
+[[members]]
+key = "abomination-vaults-bestiary:A4MusxxoLxwMVZua"
+name = "Drill Field Barbazu"
+
+[[members]]
+key = "abomination-vaults-bestiary:vX4SBXIICKfrM4pF"
+name = "Hellforge Barbazu"
