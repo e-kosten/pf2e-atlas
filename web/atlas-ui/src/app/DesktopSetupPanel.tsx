@@ -1,3 +1,5 @@
+import "./desktopSetupPanel.css";
+import { useSavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import {
   Alert,
   Button,
@@ -69,6 +71,7 @@ function subscribe(callback: () => void) {
 
 export function DesktopSetupPanel() {
   const attachment = useSyncExternalStore(subscribe, readAttachment);
+  const writesPaused = useSavedWritesPaused();
   const [open, setOpen] = useState(false);
   const terminalSection = useRef<HTMLDivElement>(null);
   const focusTerminal = useRef(false);
@@ -160,6 +163,7 @@ export function DesktopSetupPanel() {
       </Tooltip>
       <AtlasDrawer
         title="Setup and Updates"
+        size="min(378px, 100vw)"
         open={open}
         afterOpenChange={(visible) => {
           if (visible && focusTerminal.current) {
@@ -172,11 +176,82 @@ export function DesktopSetupPanel() {
           setOpen(false);
         }}
       >
-        <div ref={panel}>
-          <Space orientation="vertical" size="middle">
+        <div ref={panel} className="desktop-setup">
+          {(running ||
+            setup.message ||
+            setup.can_resume ||
+            error ||
+            (setup.local_build && status === "failed")) && (
+            <section
+              className="desktop-setup__section"
+              aria-labelledby="desktop-setup-activity"
+            >
+              <h2 id="desktop-setup-activity">Setup activity</h2>
+              {running && (
+                <div className="desktop-setup__stack">
+                  <Typography.Text role="status">
+                    {status === "cancelling"
+                      ? "Cancelling setup…"
+                      : (progress?.message ??
+                        (setup.reference_job && !setup.model_job
+                          ? "Preparing reference data…"
+                          : "Preparing semantic search…"))}
+                  </Typography.Text>
+                  {percent !== undefined && (
+                    <Progress percent={percent} aria-label="Setup progress" />
+                  )}
+                  {typeof progress?.current === "number" && progress.unit && (
+                    <Typography.Text>
+                      {percent === undefined
+                        ? `${progress.current.toLocaleString()} ${progress.unit} completed`
+                        : `${progress.current.toLocaleString()} of ${progress.total?.toLocaleString()} ${progress.unit}`}
+                    </Typography.Text>
+                  )}
+                  <Button
+                    disabled={sending || status === "cancelling"}
+                    onClick={() => void act("cancel")}
+                  >
+                    Cancel setup
+                  </Button>
+                </div>
+              )}
+              {status === "idle" && setup.message && (
+                <Typography.Text role="status">{setup.message}</Typography.Text>
+              )}
+              {setup.message && status === "failed" && (
+                <Alert type="warning" title={setup.message} />
+              )}
+              {error && <Alert type="error" title={error} />}
+              {setup.can_resume && (status === "available" || status === "failed") && (
+                <Button
+                  type="primary"
+                  loading={sending}
+                  disabled={writesPaused}
+                  onClick={() => void act("resume")}
+                >
+                  {status === "failed" ? "Retry setup" : "Resume semantic setup"}
+                </Button>
+              )}
+              {setup.local_build &&
+                status === "failed" &&
+                (setup.can_resume || reference?.available || setup.model_job) &&
+                !referenceLoading && (
+                  <Button
+                    disabled={sending || writesPaused}
+                    onClick={() => void act("build_locally")}
+                  >
+                    Build embeddings locally
+                  </Button>
+                )}
+            </section>
+          )}
+          <section
+            className="desktop-setup__section"
+            aria-labelledby="desktop-setup-reference"
+          >
+            <h2 id="desktop-setup-reference">Reference data</h2>
             {reference && (
-              <Space vertical size="small">
-                <Typography.Text strong>Reference data</Typography.Text>
+              <div className="desktop-setup__stack">
                 <Typography.Text>
                   Current:{" "}
                   {pendingPin
@@ -193,7 +268,7 @@ export function DesktopSetupPanel() {
                     Use the Atlas CLI to maintain custom reference sources.
                   </Typography.Text>
                 )}
-              </Space>
+              </div>
             )}
             {!running && referenceLoading && (
               <Typography.Text role="status">
@@ -208,56 +283,6 @@ export function DesktopSetupPanel() {
                 Check reference status
               </Button>
             )}
-            {running && (
-              <>
-                <Typography.Text role="status">
-                  {status === "cancelling"
-                    ? "Cancelling setup…"
-                    : (progress?.message ??
-                      (setup.reference_job && !setup.model_job
-                        ? "Preparing reference data…"
-                        : "Preparing semantic search…"))}
-                </Typography.Text>
-                {percent !== undefined && <Progress percent={percent} />}
-                {typeof progress?.current === "number" && progress.unit && (
-                  <Typography.Text>
-                    {percent === undefined
-                      ? `${progress.current.toLocaleString()} ${progress.unit} completed`
-                      : `${progress.current.toLocaleString()} of ${progress.total?.toLocaleString()} ${progress.unit}`}
-                  </Typography.Text>
-                )}
-                <Button
-                  disabled={sending || status === "cancelling"}
-                  onClick={() => void act("cancel")}
-                >
-                  Cancel setup
-                </Button>
-              </>
-            )}
-            {status === "idle" && setup.message && (
-              <Typography.Text role="status">{setup.message}</Typography.Text>
-            )}
-            {setup.message && status === "failed" && (
-              <Alert type="warning" title={setup.message} />
-            )}
-            {error && <Alert type="error" title={error} />}
-            {setup.can_resume && (status === "available" || status === "failed") && (
-              <Button
-                type="primary"
-                loading={sending}
-                onClick={() => void act("resume")}
-              >
-                {status === "failed" ? "Retry setup" : "Resume semantic setup"}
-              </Button>
-            )}
-            {setup.local_build &&
-              status === "failed" &&
-              (setup.can_resume || reference?.available || setup.model_job) &&
-              !referenceLoading && (
-                <Button disabled={sending} onClick={() => void act("build_locally")}>
-                  Build embeddings locally
-                </Button>
-              )}
             {!running &&
               !setup.can_resume &&
               reference?.available &&
@@ -298,31 +323,31 @@ export function DesktopSetupPanel() {
                   Check and repair reference data
                 </Button>
               ))}
-            {reference?.models && (
-              <SearchModels
-                key={JSON.stringify([
-                  reference.models.map((model) => [model.id, model.installed]),
-                  reference.preferred,
-                ])}
-                reference={reference}
-                disabled={running || sending || !!referenceLoading || setup.can_resume}
-                onApply={(selection) => void act("apply_models", selection)}
+          </section>
+          {reference?.models && (
+            <SearchModels
+              key={JSON.stringify([
+                reference.models.map((model) => [model.id, model.installed]),
+                reference.preferred,
+              ])}
+              reference={reference}
+              disabled={running || sending || !!referenceLoading || setup.can_resume}
+              onApply={(selection) => void act("apply_models", selection)}
+            />
+          )}
+          {open && (
+            <div
+              ref={terminalSection}
+              tabIndex={-1}
+              aria-labelledby="desktop-setup-terminal"
+            >
+              <TerminalAccess
+                key={attachment.token}
+                token={attachment.token}
+                job={setup.job}
               />
-            )}
-            {open && (
-              <div
-                ref={terminalSection}
-                tabIndex={-1}
-                aria-label="Terminal and agent access"
-              >
-                <TerminalAccess
-                  key={attachment.token}
-                  token={attachment.token}
-                  job={setup.job}
-                />
-              </div>
-            )}
-          </Space>
+            </div>
+          )}
         </div>
       </AtlasDrawer>
     </>
@@ -390,28 +415,23 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
   }
 
   return (
-    <Space orientation="vertical" size="small">
-      <Typography.Text strong>Terminal and agent access</Typography.Text>
+    <section
+      className="desktop-setup__section"
+      aria-labelledby="desktop-setup-terminal"
+    >
+      <h2 id="desktop-setup-terminal">Terminal and agent access</h2>
       {!status && busy && (
         <Typography.Text role="status">Checking terminal command…</Typography.Text>
       )}
       {error && <Alert type="error" title={error} />}
       {status?.state === "missing" && (
-        <>
-          <Typography.Text>
-            Link Atlas {status.version} at <code>{status.path}</code>.
-          </Typography.Text>
-          <Button loading={busy} onClick={() => void change("enable_terminal")}>
-            Enable terminal command
-          </Button>
-        </>
+        <Button loading={busy} onClick={() => void change("enable_terminal")}>
+          Install terminal command
+        </Button>
       )}
       {status?.state === "replaceable" && (
         <>
-          <Typography.Text>
-            A command already exists at <code>{status.path}</code>. This app bundles
-            Atlas {status.version}.
-          </Typography.Text>
+          <Typography.Text>An Atlas command already exists here.</Typography.Text>
           <Button loading={busy} onClick={() => void change("switch_terminal")}>
             Switch to bundled CLI
           </Button>
@@ -430,11 +450,32 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
       )}
       {status?.state === "linked" && (
         <Typography.Text role="status">
-          Linked at <code>{status.path}</code>. Run <code>command -v atlas</code> to
-          check which command your shell uses.
+          The terminal command is installed.
         </Typography.Text>
       )}
-    </Space>
+      {status && (
+        <details className="desktop-setup__terminal-details">
+          <summary>Details</summary>
+          <dl>
+            <dt>Bundled version</dt>
+            <dd>{status.version}</dd>
+            {status.state !== "conflict" && (
+              <>
+                <dt>Command path</dt>
+                <dd>
+                  <code>{status.path}</code>
+                </dd>
+              </>
+            )}
+          </dl>
+          {status.state === "linked" && (
+            <Typography.Text>
+              Run <code>command -v atlas</code> to check which command your shell uses.
+            </Typography.Text>
+          )}
+        </details>
+      )}
+    </section>
   );
 }
 
@@ -454,56 +495,67 @@ function SearchModels({
   onApply: (selection: ModelSelection) => void;
 }) {
   const models = reference.models ?? [];
-  const installed = models
-    .filter((model) => model.installed)
-    .map((model) => model.id)
-    .sort();
+  const installedModels = models.filter((model) => model.installed);
+  const installed = installedModels.map((model) => model.id).sort();
   const [profiles, setProfiles] = useState(installed);
   const [preferred, setPreferred] = useState(reference.preferred ?? "");
   const membershipChanged = profiles.join(",") !== installed.join(",");
   const dirty = membershipChanged || preferred !== (reference.preferred ?? "");
   const editable = !disabled && !!reference.modelsAvailable;
+  const canEditMembership = editable && !!reference.canChangeModels;
   return (
-    <Space orientation="vertical" size="small">
-      <Typography.Text strong>Search models</Typography.Text>
-      <Checkbox.Group
-        aria-label="Installed search models"
-        value={profiles}
-        disabled={!editable || !reference.canChangeModels}
-        options={models.map((model) => ({
-          value: model.id,
-          label:
-            model.installed && !model.usable
-              ? `${model.label} (needs repair)`
-              : model.label,
-        }))}
-        onChange={(next) => {
-          const selected = next.sort();
-          setProfiles(selected);
-          if (!selected.includes(preferred)) setPreferred("");
-        }}
-      />
-      <Typography.Text>
-        {profiles.length === 0
-          ? "Keyword-only search uses no model. Similar records requires a search model."
-          : "Adding a model may download files and rebuild parts of the search index. Editing pauses while the index is prepared."}
-      </Typography.Text>
+    <section className="desktop-setup__section" aria-labelledby="desktop-setup-models">
+      <h2 id="desktop-setup-models">Search models</h2>
+      {canEditMembership ? (
+        <Checkbox.Group
+          aria-label="Installed search models"
+          className="desktop-setup__model-options"
+          value={profiles}
+          options={models.map((model) => ({
+            value: model.id,
+            label:
+              model.installed && !model.usable
+                ? `${model.label} (needs repair)`
+                : model.label,
+          }))}
+          onChange={(next) => {
+            const selected = next.sort();
+            setProfiles(selected);
+            if (!selected.includes(preferred)) setPreferred("");
+          }}
+        />
+      ) : (
+        installedModels.length > 0 && (
+          <ul className="desktop-setup__model-status">
+            {installedModels.map((model) => (
+              <li key={model.id}>
+                <span>{model.label}</span>
+                <Typography.Text type="secondary">
+                  {model.usable ? "Installed" : "Needs repair"}
+                </Typography.Text>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
       {reference.modelsAvailable && !reference.canChangeModels && (
         <Typography.Text type="secondary">
-          Installed models can be changed after the workspace uses the bundled reference
-          data.
+          {!reference.managed || !reference.available
+            ? "Use the Atlas CLI to add or remove models for this workspace."
+            : reference.revision !== reference.target
+              ? "Apply the bundled reference data above to add or remove models."
+              : "Check and repair the reference data before adding or removing models."}
         </Typography.Text>
       )}
-      <Space orientation="vertical" size="small">
-        <Typography.Text>Default search model</Typography.Text>
+      <div className="desktop-setup__stack desktop-setup__model-preference">
+        <Typography.Text>Preferred search model</Typography.Text>
         <Select
-          aria-label="Default search model"
+          aria-label="Preferred search model"
           value={preferred}
-          style={{ width: "100%", minWidth: "min(14rem, 100%)" }}
           popupMatchSelectWidth={false}
           disabled={!editable || profiles.length === 0}
           options={[
-            { value: "", label: "Automatic" },
+            { value: "", label: "Atlas default" },
             ...models
               .filter((model) => profiles.includes(model.id))
               .map((model) => ({
@@ -514,16 +566,27 @@ function SearchModels({
           ]}
           onChange={setPreferred}
         />
-      </Space>
-      <Button
-        type="primary"
-        disabled={
-          !editable || !dirty || (membershipChanged && !reference.canChangeModels)
-        }
-        onClick={() => onApply({ profiles, preferred: preferred || null })}
-      >
-        Apply search models
-      </Button>
-    </Space>
+      </div>
+      {(canEditMembership ? profiles.length : installed.length) === 0 && (
+        <Typography.Text type="secondary">
+          Keyword-only search. Similar records requires a search model.
+        </Typography.Text>
+      )}
+      {canEditMembership && membershipChanged && (
+        <Typography.Text type="secondary">
+          Model changes may download files and rebuild parts of the search index.
+          Editing pauses while the index is prepared.
+        </Typography.Text>
+      )}
+      {dirty && (
+        <Button
+          type="primary"
+          disabled={!editable || (membershipChanged && !canEditMembership)}
+          onClick={() => onApply({ profiles, preferred: preferred || null })}
+        >
+          Apply search models
+        </Button>
+      )}
+    </section>
   );
 }

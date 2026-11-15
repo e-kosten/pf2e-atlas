@@ -1,17 +1,20 @@
 #![deny(unsafe_code)]
 
+mod bootstrap_jobs;
 mod native_tabs;
 mod opening;
 mod process;
 #[cfg(debug_assertions)]
 mod smoke;
 mod staged_setup;
+#[cfg(debug_assertions)]
+mod startup_trace;
 mod tab_links;
 mod terminal;
 mod zoom;
 
 use std::{
-    collections::VecDeque,
+    collections::{HashSet, VecDeque},
     path::PathBuf,
     sync::{
         Mutex, MutexGuard,
@@ -20,6 +23,9 @@ use std::{
 };
 
 use atlas_desktop_protocol::{EntityLink, WorkspaceProbe, WorkspaceStatus, parse_record_path};
+use bootstrap_jobs::{
+    Action as BootstrapAction, Attempt, BootstrapJob, BootstrapJobs, Update as BootstrapUpdate,
+};
 mod copy_link;
 use process::Launcher;
 use serde::Serialize;
@@ -32,11 +38,15 @@ use url::Url;
 
 #[derive(Default)]
 struct Desktop {
+    appearance: Mutex<native_tabs::Appearance>,
+    bootstrap_jobs: Mutex<BootstrapJobs>,
+    presented_bootstrap: Mutex<HashSet<String>>,
     copy_menu: copy_link::CopyMenu,
     operation: Mutex<()>,
     staged_setup: staged_setup::StagedSetup,
     launcher: Mutex<Option<Launcher>>,
     setup_pipe: Mutex<Option<std::process::ChildStdin>>,
+    ordinary_setup: Mutex<Option<Attempt>>,
     cancel_requested: AtomicBool,
     links: Mutex<VecDeque<String>>,
     focus_order: Mutex<Vec<String>>,
@@ -52,6 +62,7 @@ struct Desktop {
 
 #[derive(Serialize)]
 struct Inspection {
+    generation: u64,
     probe: WorkspaceProbe,
     running: bool,
     recovery: bool,
@@ -79,28 +90,60 @@ fn bundled_origin(url: &Url) -> bool {
 
 fn show_bootstrap(app: &AppHandle) -> tauri::Result<()> {
     let label = setup_window_label(app);
-    let window = if let Some(window) = app.get_webview_window(label) {
-        window
-    } else if label == opening::PRIMARY {
+    if let Some(window) = app.get_webview_window(label) {
+        if !lock(&app.state::<Desktop>().presented_bootstrap).contains(label) {
+            return Ok(());
+        }
+        window.show()?;
+        window.set_focus()?;
+        if window.url().is_ok_and(|url| bundled_origin(&url)) {
+            let _ = window.emit("atlas-inspect", ());
+        }
+        return Ok(());
+    }
+    let window = if label == opening::PRIMARY {
         opening::build(app)?
     } else {
         WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
             .title("Atlas Setup")
+            .visible(false)
+            .background_color(native_tabs::canvas(native_tabs::system_dark()))
             .inner_size(600.0, 520.0)
             .min_inner_size(420.0, 420.0)
             .on_navigation(bundled_origin)
+            .on_page_load(bootstrap_page_load())
             .build()?
     };
     if let Err(error) = native_tabs::configure(&window, false) {
         eprintln!("Could not configure Atlas setup window: {error}");
     }
     zoom::apply(&window);
-    window.show()?;
-    window.set_focus()?;
-    if window.url().is_ok_and(|url| bundled_origin(&url)) {
-        let _ = window.emit("atlas-inspect", ());
-    }
     Ok(())
+}
+
+fn bootstrap_page_load()
+-> impl Fn(WebviewWindow, tauri::webview::PageLoadPayload<'_>) + Send + Sync + 'static {
+    move |window, payload| {
+        if payload.event() == tauri::webview::PageLoadEvent::Started {
+            let desktop = window.state::<Desktop>();
+            let bundled = bundled_origin(payload.url());
+            let mut jobs = lock(&desktop.bootstrap_jobs);
+            jobs.commit(window.label(), bundled);
+            if bundled && window.label() == opening::PRIMARY {
+                opening::bundled_document_replaced(&desktop);
+            }
+        }
+        let display = payload.event() == tauri::webview::PageLoadEvent::Finished
+            && bundled_origin(payload.url())
+            && lock(&window.state::<Desktop>().presented_bootstrap)
+                .insert(window.label().to_owned());
+        copy_link::page_load(window.clone(), payload);
+        // Wait for the bundled document and styles instead of displaying WebKit's
+        // provisional page under the native window.
+        if display && let Err(error) = window.show().and_then(|()| window.set_focus()) {
+            eprintln!("Could not present the Atlas opening view: {error}");
+        }
+    }
 }
 
 fn setup_window_label(app: &AppHandle) -> &'static str {
@@ -122,19 +165,35 @@ fn run_on_main(
 
 fn show_error(app: &AppHandle, error: String) {
     if let Some(window) = app.get_webview_window(setup_window_label(app)) {
-        let _ = window.show();
         let _ = window.emit("atlas-error", error);
     }
 }
 
 #[tauri::command]
 async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, String> {
-    guard(&window)?;
-    let initial = window.label() == opening::PRIMARY;
-    tauri::async_runtime::spawn_blocking(move || {
+    let access = guard(&window);
+    #[cfg(debug_assertions)]
+    startup_trace::received(&window, "inspect", &access);
+    access?;
+    let label = window.label().to_owned();
+    let initial = label == opening::PRIMARY;
+    let generation = lock(&app.state::<Desktop>().bootstrap_jobs)
+        .generation(&label)
+        .ok_or("The Atlas startup document has not loaded yet.")?;
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(debug_assertions)]
+        if initial && smoke::selector_mode() {
+            // Keep the opening document observable after the delayed loader appears.
+            std::thread::sleep(std::time::Duration::from_millis(1_200));
+        }
         let desktop = app.state::<Desktop>();
+        let probe = process::probe()?;
+        if lock(&desktop.bootstrap_jobs).generation(&label) != Some(generation) {
+            return Err("This inspection belongs to an earlier Atlas page.".into());
+        }
         Ok(Inspection {
-            probe: process::probe()?,
+            generation,
+            probe,
             running: lock(&desktop.launcher).is_some(),
             recovery: desktop.recovery.load(Ordering::Acquire),
             opening_error: if initial {
@@ -145,22 +204,98 @@ async fn inspect(window: WebviewWindow, app: AppHandle) -> Result<Inspection, St
         })
     })
     .await
-    .map_err(display)?
+    .map_err(display)
+    .and_then(|result| result);
+    #[cfg(debug_assertions)]
+    startup_trace::record(
+        "native-command-finished",
+        serde_json::json!({ "command": "inspect", "result": result.as_ref().ok().map(|value| &value.probe.status), "error": result.as_ref().err() }),
+    );
+    result
 }
 
 #[tauri::command]
-async fn launch(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
-    guard(&window)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let desktop = app.state::<Desktop>();
-        let _operation = desktop
-            .operation
-            .try_lock()
-            .map_err(|_| "Atlas is already working.")?;
-        launch_ready(&app, &window)
-    })
-    .await
-    .map_err(display)?
+fn launch(window: WebviewWindow, generation: u64, operation: u64) -> Result<(), String> {
+    admit_bootstrap(window, generation, operation, BootstrapAction::Launch)
+}
+
+#[tauri::command]
+fn prepare(
+    window: WebviewWindow,
+    generation: u64,
+    operation: u64,
+    build_embeddings_locally: Option<bool>,
+) -> Result<(), String> {
+    admit_bootstrap(
+        window,
+        generation,
+        operation,
+        BootstrapAction::Prepare {
+            local: build_embeddings_locally.unwrap_or_default(),
+        },
+    )
+}
+
+fn admit_bootstrap(
+    window: WebviewWindow,
+    generation: u64,
+    id: u64,
+    action: BootstrapAction,
+) -> Result<(), String> {
+    #[cfg(debug_assertions)]
+    let command = match action {
+        BootstrapAction::Launch => "launch",
+        _ => "prepare",
+    };
+    let access = guard(&window);
+    #[cfg(debug_assertions)]
+    startup_trace::received(&window, command, &access);
+    access?;
+    let accepted = lock(&window.state::<Desktop>().bootstrap_jobs).admit(
+        window.label(),
+        generation,
+        id,
+        action,
+    )?;
+    #[cfg(debug_assertions)]
+    startup_trace::record(
+        "native-command-accepted",
+        serde_json::json!({ "command": command, "operation": id, "new": accepted }),
+    );
+    if accepted {
+        let job = BootstrapJob {
+            window,
+            generation,
+            id,
+        };
+        tauri::async_runtime::spawn_blocking(move || {
+            let app = job.window.app_handle();
+            if !lock(&app.state::<Desktop>().bootstrap_jobs).owns(&job) {
+                return;
+            }
+            let result = match action {
+                BootstrapAction::Launch => launch_bootstrap(&job)
+                    .map(|()| None)
+                    .map_err(serde_json::Value::from),
+                BootstrapAction::Prepare { local } => prepare_bootstrap(app, &job, local).map(Some),
+            };
+            job.finish(match result {
+                Ok(message) => BootstrapUpdate::Completed(message),
+                Err(error) => BootstrapUpdate::Failed(error),
+            });
+        });
+    }
+    Ok(())
+}
+
+fn launch_bootstrap(job: &BootstrapJob) -> Result<(), String> {
+    let app = job.window.app_handle();
+    let desktop = app.state::<Desktop>();
+    let _operation = desktop
+        .operation
+        .try_lock()
+        .map_err(|_| "Atlas is already working.")?;
+    launch_ready(app, job)
 }
 
 fn start_launcher(app: &AppHandle) -> Result<(), String> {
@@ -193,10 +328,10 @@ fn start_launcher(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn launch_ready(app: &AppHandle, window: &WebviewWindow) -> Result<(), String> {
+fn launch_ready(app: &AppHandle, job: &BootstrapJob) -> Result<(), String> {
     start_launcher(app)?;
-    if window.label() == opening::PRIMARY {
-        return opening::open(app, window);
+    if job.window.label() == opening::PRIMARY {
+        return opening::open(app, job);
     }
     run_on_main(app, show_pending_or_default)
 }
@@ -235,91 +370,105 @@ fn on_launcher_exit(app: &AppHandle, pid: u32) {
     }
 }
 
-#[tauri::command]
-async fn prepare(
-    window: WebviewWindow,
-    app: AppHandle,
-    build_embeddings_locally: Option<bool>,
+fn prepare_bootstrap(
+    app: &AppHandle,
+    job: &BootstrapJob,
+    local: bool,
 ) -> Result<String, serde_json::Value> {
-    guard(&window)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let staged = process::probe()?.stage;
-        if let Some(stage) = staged {
-            return staged_setup::from_bootstrap(
-                app,
-                window,
-                stage,
-                build_embeddings_locally.unwrap_or_default(),
-            );
+    let staged = process::probe()?.stage;
+    if let Some(stage) = staged {
+        return staged_setup::from_bootstrap(app.clone(), job.clone(), stage, local);
+    }
+    let desktop = app.state::<Desktop>();
+    let _operation = desktop
+        .operation
+        .try_lock()
+        .map_err(|_| "Atlas is already working.")?;
+    if desktop.staged_setup.active() {
+        return Err("Atlas setup is already running.".into());
+    }
+    let probe = process::probe()?;
+    let upgrade = probe.status == WorkspaceStatus::UpgradeRequired;
+    let running = lock(&desktop.launcher).is_some();
+    if upgrade {
+        let launcher = lock(&desktop.launcher).take();
+        if let Some(launcher) = launcher {
+            launcher.release()?;
         }
-        let desktop = app.state::<Desktop>();
-        let _operation = desktop
-            .operation
-            .try_lock()
-            .map_err(|_| "Atlas is already working.")?;
-        if desktop.staged_setup.active() {
-            return Err("Atlas setup is already running.".into());
-        }
+        process::wait_for_upgrade()?;
+    }
+    {
+        let mut owner = lock(&desktop.ordinary_setup);
         desktop.cancel_requested.store(false, Ordering::Release);
-        let probe = process::probe()?;
-        let upgrade = probe.status == WorkspaceStatus::UpgradeRequired;
-        let running = lock(&desktop.launcher).is_some();
+        *owner = Some(job.attempt());
+    }
+    let progress_job = job.clone();
+    let result = process::setup(
         if upgrade {
-            let launcher = lock(&desktop.launcher).take();
-            if let Some(launcher) = launcher {
-                launcher.release()?;
+            process::SetupMode::UpgradeWorkspace
+        } else {
+            process::SetupMode::Ordinary
+        },
+        !upgrade && local,
+        move |event| {
+            progress_job.update(BootstrapUpdate::Progress(event));
+        },
+        |_| {},
+        |pipe| {
+            let mut held = lock(&desktop.setup_pipe);
+            if !desktop.cancel_requested.load(Ordering::Acquire)
+                && !desktop.quitting.load(Ordering::Acquire)
+            {
+                *held = Some(pipe);
             }
-            process::wait_for_upgrade()?;
-        }
-        let progress_window = window.clone();
-        let result = process::setup(
-            if upgrade {
-                process::SetupMode::UpgradeWorkspace
-            } else {
-                process::SetupMode::Ordinary
-            },
-            !upgrade && build_embeddings_locally.unwrap_or_default(),
-            move |event| {
-                let _ = progress_window.emit("atlas-progress", event);
-            },
-            |_| {},
-            |pipe| {
-                let mut held = lock(&desktop.setup_pipe);
-                if !desktop.cancel_requested.load(Ordering::Acquire)
-                    && !desktop.quitting.load(Ordering::Acquire)
-                {
-                    *held = Some(pipe);
-                }
-            },
-        );
+        },
+    );
+    {
+        let mut owner = lock(&desktop.ordinary_setup);
         lock(&desktop.setup_pipe).take();
-        result?;
-        if upgrade
-            && !matches!(
-                process::probe()?.status,
-                WorkspaceStatus::Ready | WorkspaceStatus::Browsable
-            )
-        {
-            return Ok("Workspace format upgraded.".into());
-        }
-        if upgrade || !running {
-            let _ = window.emit("atlas-opening", ());
-            launch_ready(&app, &window)?;
-            return Ok("Your workspace is ready.".into());
-        }
-        run_on_main(&app, |app| refresh_product(app, false))?;
-        Ok("Reference data is up to date.".into())
-    })
-    .await
-    .map_err(display)?
+        *owner = None;
+    }
+    result?;
+    if upgrade
+        && !matches!(
+            process::probe()?.status,
+            WorkspaceStatus::Ready | WorkspaceStatus::Browsable
+        )
+    {
+        return Ok("Workspace format upgraded.".into());
+    }
+    if upgrade || !running {
+        launch_ready(app, job)?;
+        return Ok("Your workspace is ready.".into());
+    }
+    run_on_main(app, |app| refresh_product(app, false))?;
+    Ok("Reference data is up to date.".into())
 }
 
 #[tauri::command]
-fn cancel_setup(window: WebviewWindow, app: AppHandle) -> Result<(), String> {
+fn cancel_setup(
+    window: WebviewWindow,
+    app: AppHandle,
+    generation: u64,
+    operation: u64,
+) -> Result<(), String> {
     guard(&window)?;
     let desktop = app.state::<Desktop>();
-    if desktop.staged_setup.active() {
-        return staged_setup::cancel(&app, None);
+    let job = BootstrapJob {
+        window,
+        generation,
+        id: operation,
+    };
+    if !lock(&desktop.bootstrap_jobs).owns_prepare(&job) {
+        return Err("This cancellation belongs to an earlier Atlas setup.".into());
+    }
+    let attempt = job.attempt();
+    if staged_setup::cancel_bootstrap(&app, attempt) {
+        return Ok(());
+    }
+    let owner = lock(&desktop.ordinary_setup);
+    if *owner != Some(attempt) {
+        return Err("This cancellation belongs to an earlier Atlas setup.".into());
     }
     desktop.cancel_requested.store(true, Ordering::Release);
     lock(&desktop.setup_pipe).take();
@@ -445,29 +594,32 @@ fn open_product(
     desktop
         .staged_setup
         .attach_window(app, &label, &base, &instance)?;
-    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
-        .initialization_script(tab_links::SCRIPT)
-        .on_page_load(copy_link::page_load)
-        .title("PF2e Atlas")
-        .visible(false)
-        .inner_size(width, height)
-        .min_inner_size(480.0, 440.0)
-        .on_navigation(move |destination| {
-            if destination.origin() == origin {
-                return true;
-            }
-            open_external(destination);
-            false
-        })
-        .on_new_window(move |destination, _| {
-            if destination.origin() != base.origin() {
-                open_external(&destination);
-            }
-            tauri::webview::NewWindowResponse::Deny
-        })
-        .build()
-        .map_err(display)
-        .inspect_err(|_| desktop.staged_setup.detach_window(&label))?;
+    let window = opening::with_cover(
+        WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url)),
+        native_tabs::product_dark(app),
+        false,
+    )
+    .on_page_load(copy_link::page_load)
+    .title("PF2e Atlas")
+    .visible(false)
+    .inner_size(width, height)
+    .min_inner_size(480.0, 440.0)
+    .on_navigation(move |destination| {
+        if destination.origin() == origin {
+            return true;
+        }
+        open_external(destination);
+        false
+    })
+    .on_new_window(move |destination, _| {
+        if destination.origin() != base.origin() {
+            open_external(&destination);
+        }
+        tauri::webview::NewWindowResponse::Deny
+    })
+    .build()
+    .map_err(display)
+    .inspect_err(|_| desktop.staged_setup.detach_window(&label))?;
     zoom::apply(&window);
     let placement = native_tabs::configure(&window, true).and_then(|()| {
         if let Some((source, foreground)) = tab {
@@ -709,6 +861,8 @@ fn main() {
             cancel_setup,
             enable_cli,
             staged_setup::desktop_setup_action,
+            #[cfg(debug_assertions)]
+            startup_trace::desktop_startup_trace,
             tab_links::desktop_tab_link,
             copy_link::desktop_copy_link,
             copy_link::desktop_copy_availability,
@@ -727,6 +881,11 @@ fn main() {
                 copy_link::invalidate(app, window.label(), true);
                 let desktop = app.state::<Desktop>();
                 desktop.staged_setup.detach_window(window.label());
+                lock(&desktop.presented_bootstrap).remove(window.label());
+                lock(&desktop.bootstrap_jobs).commit(window.label(), false);
+                if window.label() == opening::PRIMARY {
+                    opening::bundled_document_replaced(&desktop);
+                }
                 lock(&desktop.focus_order).retain(|label| label != window.label());
             }
             if window.label() == setup_window_label(window.app_handle())
@@ -758,6 +917,8 @@ fn main() {
             }
         })
         .setup(|app| {
+            #[cfg(debug_assertions)]
+            startup_trace::enable(app.handle())?;
             native_tabs::disable_automatic_grouping().map_err(std::io::Error::other)?;
             native_tabs::configure_zoom_shortcut();
             app.state::<Desktop>().zoom.load(app.handle());

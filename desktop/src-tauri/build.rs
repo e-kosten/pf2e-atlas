@@ -6,6 +6,7 @@ fn main() {
         "cancel_setup",
         "enable_cli",
         "desktop_setup_action",
+        "desktop_startup_trace",
         "desktop_tab_link",
         "desktop_appearance",
         "desktop_copy_link",

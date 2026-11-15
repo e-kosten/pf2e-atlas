@@ -1,7 +1,27 @@
-const { invoke } = window.__TAURI__.core;
+const { invoke: nativeInvoke } = window.__TAURI__.core;
+const pending = new Set();
+
+function track(promise) {
+  pending.add(promise);
+  const settled = () => pending.delete(promise);
+  promise.then(settled, settled);
+  return promise;
+}
+
+function invoke(command, args) {
+  return track(nativeInvoke(command, args));
+}
 const { listen } = window.__TAURI__.event;
+const startupTarget = {
+  kind: "WebviewWindow",
+  label: window.__TAURI__.window.getCurrentWindow().label,
+};
+const workspaceTemplate = document.getElementById("workspace-template");
+const workspaceContent = workspaceTemplate.content.cloneNode(true);
 const ui = Object.fromEntries(
   [
+    "opening-status",
+    "workspace",
     "heading",
     "description",
     "activity",
@@ -17,10 +37,36 @@ const ui = Object.fromEntries(
     "bin",
     "terminal-form",
     "terminal-result",
-  ].map((id) => [id, document.getElementById(id)]),
+  ].map((id) => [
+    id,
+    document.getElementById(id) ?? workspaceContent.getElementById(id),
+  ]),
 );
 let busy = false;
 let cancelled = false;
+let handingOff = false;
+let navigating = false;
+let inspection = 0;
+let generation;
+let nextOperation = 0;
+let active;
+let openingTimer;
+const openingStarted = window.__atlasOpeningStarted ?? Date.now();
+
+function showOpening() {
+  ui.workspace.remove();
+  if (openingTimer !== undefined || !ui["opening-status"].hidden) return;
+  openingTimer = scheduleOpeningStatus(ui["opening-status"], openingStarted);
+}
+
+function showWorkspace() {
+  clearTimeout(openingTimer);
+  openingTimer = undefined;
+  ui["opening-status"].hidden = true;
+  workspaceTemplate.before(ui.workspace);
+}
+
+showOpening();
 
 function action(button, title, handler) {
   button.hidden = !title;
@@ -34,8 +80,50 @@ function status(heading, description) {
   ui.description.textContent = description;
 }
 
-function failure(error) {
+function trace(source, error, force = false) {
+  if (!window.__atlasStartupTrace) return;
+  const entry = {
+    source,
+    operation: active?.id,
+    navigating,
+    busy,
+    handingOff,
+    message: error?.message || String(error),
+    ...(typeof error?.code === "string" ? { code: error.code } : {}),
+  };
+  // Keep a Web Inspector copy if the document loses IPC while navigating.
+  console.debug("[atlas-startup]", entry);
+  if (force || !handingOff) {
+    void invoke("desktop_startup_trace", { entry }).catch(() => {});
+  }
+}
+
+if (window.__atlasStartupTrace) {
+  const warn = console.warn.bind(console);
+  let reportedFallback = false;
+  console.warn = (message, ...args) => {
+    warn(message, ...args);
+    if (
+      !reportedFallback &&
+      typeof message === "string" &&
+      message.startsWith("IPC custom protocol failed")
+    ) {
+      reportedFallback = true;
+      trace("tauri-ipc-fallback", args[0]);
+    }
+  };
+}
+
+function failure(error, source) {
+  trace(source, error);
+  // The native host owns recovery after it starts replacing this document.
+  // A late IPC rejection or event must not repaint setup over the handoff.
+  if (navigating) return;
+  inspection++;
+  showWorkspace();
   busy = false;
+  handingOff = false;
+  active = undefined;
   ui.activity.hidden = true;
   ui.diagnostic.hidden = false;
   ui.details.textContent = error?.message || String(error);
@@ -48,9 +136,14 @@ function failure(error) {
       work("Preparing Atlas", "Retrying the download.", "prepare"),
     );
     action(ui.secondary, "Build embeddings locally", () =>
-      work("Preparing Atlas", "Generating missing embeddings on this computer.", "prepare", {
-        buildEmbeddingsLocally: true,
-      }),
+      work(
+        "Preparing Atlas",
+        "Generating missing embeddings on this computer.",
+        "prepare",
+        {
+          buildEmbeddingsLocally: true,
+        },
+      ),
     );
     return;
   }
@@ -63,14 +156,19 @@ function failure(error) {
 }
 
 async function work(heading, description, command, args) {
-  if (busy) return;
+  if (busy || handingOff || generation === undefined) return;
   busy = true;
+  const job = { id: ++nextOperation, generation, accepted: false, updates: [] };
+  active = job;
+  inspection++;
+  if (command === "launch") showOpening();
+  else showWorkspace();
   ui.diagnostic.hidden = true;
   ui.result.hidden = true;
   action(ui.primary);
   action(ui.secondary);
   status(heading, description);
-  ui.phase.textContent = description;
+  ui.phase.textContent = "";
   ui.count.hidden = true;
   ui.progress.removeAttribute("value");
   ui.activity.hidden = false;
@@ -78,30 +176,91 @@ async function work(heading, description, command, args) {
   ui.cancel.disabled = true;
   cancelled = false;
   ui.cancel.onclick = () => {
+    if (handingOff || active !== job || !job.accepted) return;
     cancelled = true;
     ui.cancel.disabled = true;
-    void invoke("cancel_setup").catch(failure);
+    void invoke("cancel_setup", { generation, operation: job.id }).catch(
+      (error) => trace("invoke:cancel_setup", error),
+    );
   };
-  let result;
   try {
-    result = await invoke(command, args);
+    await invoke(command, { ...args, generation, operation: job.id });
   } catch (error) {
-    failure(error);
+    failure(error, `invoke:${command}`);
     return;
   }
-  busy = false;
-  ui.activity.hidden = true;
-  await refresh(false);
-  if (result) {
-    ui.result.textContent = result;
-    ui.result.hidden = false;
+  if (active !== job) return;
+  job.accepted = true;
+  trace("admission-reply-observed", command, true);
+  for (const update of job.updates.splice(0)) receiveUpdate(job, update);
+}
+
+async function navigate(job, target) {
+  if (job.navigating) return;
+  job.navigating = true;
+  // A matching Retry can already be queued behind this handoff.
+  await Promise.resolve();
+  if (active !== job) return;
+  ui.cancel.hidden = true;
+  const hadSetup = ui.workspace.isConnected;
+  showOpening();
+  if (hadSetup) {
+    await Promise.race([
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+      new Promise((resolve) => setTimeout(resolve, 200)),
+    ]);
   }
+  while (active === job && pending.size) await Promise.allSettled([...pending]);
+  if (active !== job) return;
+  navigating = true;
+  location.replace(target);
+}
+
+function receiveUpdate(job, { type, value }) {
+  if (active !== job) return;
+  switch (type) {
+    case "progress":
+      if (!handingOff) showProgress(value);
+      break;
+    case "navigate":
+      handingOff = true;
+      void navigate(job, value);
+      break;
+    case "completed":
+      active = undefined;
+      busy = false;
+      ui.activity.hidden = true;
+      void refresh(false).then(() => {
+        if (value && !busy) {
+          ui.result.textContent = value;
+          ui.result.hidden = false;
+        }
+      });
+      break;
+    case "failed":
+      failure(value, "bootstrap-job");
+      break;
+    case "retry":
+      retryOpening();
+      break;
+  }
+}
+
+function retryOpening() {
+  active = undefined;
+  navigating = false;
+  handingOff = false;
+  busy = false;
+  void refresh(false);
 }
 
 const launch = () =>
   work("Opening Atlas", "Connecting to the local Atlas workspace.", "launch");
 
 function show(inspection, auto) {
+  generation = inspection.generation;
   const { probe, running, recovery, opening_error: openingError } = inspection;
   ui.diagnostic.hidden = true;
   action(ui.primary);
@@ -109,8 +268,11 @@ function show(inspection, auto) {
   const setup = (heading, copy) => () => work(heading, copy, "prepare");
   const usable = probe.status === "ready" || probe.status === "browsable";
   if (usable && openingError) {
-    failure(openingError);
-    status("Atlas couldn’t open", "Your workspace is ready. Try opening Atlas again.");
+    failure(openingError, "persisted-retry");
+    status(
+      "Atlas couldn’t open",
+      "Your workspace is ready. Try opening Atlas again.",
+    );
     action(ui.primary, "Retry opening Atlas", launch);
     return;
   }
@@ -118,6 +280,7 @@ function show(inspection, auto) {
     void launch();
     return;
   }
+  showWorkspace();
   switch (probe.status) {
     case "ready":
     case "browsable": {
@@ -181,53 +344,73 @@ function show(inspection, auto) {
       );
       break;
     default:
-      failure(probe.message);
+      failure(probe.message, `probe:${probe.status}`);
   }
 }
 
 async function refresh(auto) {
-  if (busy) return;
+  if (busy || handingOff) return;
+  const request = ++inspection;
   try {
-    show(await invoke("inspect"), auto);
+    const result = await invoke("inspect");
+    if (request === inspection) show(result, auto);
   } catch (error) {
-    failure(error);
+    if (request === inspection) failure(error, "invoke:inspect");
+    else trace("stale-invoke:inspect", error);
+  }
+}
+
+function showProgress(payload) {
+  if (!cancelled && active?.accepted) ui.cancel.disabled = false;
+  ui.phase.textContent = payload.message || "Preparing Atlas.";
+  const counted = Number.isFinite(payload.current);
+  const hasTotal =
+    counted && Number.isFinite(payload.total) && payload.total > 0;
+  if (hasTotal) {
+    ui.progress.max = payload.total;
+    ui.progress.value = payload.current;
+  } else {
+    ui.progress.removeAttribute("value");
+  }
+  ui.count.hidden = !counted || !payload.unit;
+  if (!ui.count.hidden) {
+    const current = payload.current.toLocaleString();
+    ui.count.textContent = hasTotal
+      ? `${current} of ${payload.total.toLocaleString()} ${payload.unit}`
+      : `${current} ${payload.unit} completed`;
   }
 }
 
 async function init() {
-  await listen("atlas-progress", ({ payload }) => {
-    if (!busy) return;
-    if (!cancelled) ui.cancel.disabled = false;
-    ui.phase.textContent = payload.message || "Preparing Atlas.";
-    const counted = Number.isFinite(payload.current);
-    const hasTotal =
-      counted && Number.isFinite(payload.total) && payload.total > 0;
-    if (hasTotal) {
-      ui.progress.max = payload.total;
-      ui.progress.value = payload.current;
-    } else {
-      ui.progress.removeAttribute("value");
-    }
-    ui.count.hidden = !counted || !payload.unit;
-    if (!ui.count.hidden) {
-      const current = payload.current.toLocaleString();
-      ui.count.textContent = hasTotal
-        ? `${current} of ${payload.total.toLocaleString()} ${payload.unit}`
-        : `${current} ${payload.unit} completed`;
-    }
-  });
-  await listen("atlas-error", ({ payload }) => failure(payload));
-  await listen("atlas-opening", () => {
-    if (!busy) return;
-    ui.cancel.hidden = true;
-    status("Opening Atlas", "Connecting to the local Atlas workspace.");
-    ui.phase.textContent = "Opening your workspace";
-    ui.count.hidden = true;
-    ui.progress.removeAttribute("value");
-  });
-  await listen("atlas-inspect", () => refresh(true));
+  await track(
+    listen(
+      "atlas-bootstrap-job",
+      ({ payload }) => {
+        const job = active;
+        if (
+          !job ||
+          job.generation !== payload.generation ||
+          job.id !== payload.operation
+        )
+          return;
+        if (payload.update.type === "navigate") handingOff = true;
+        if (!job.accepted) job.updates.push(payload.update);
+        else receiveUpdate(job, payload.update);
+      },
+      { target: startupTarget },
+    ),
+  );
+  await track(
+    listen("atlas-error", ({ payload }) => {
+      if (active) trace("native:atlas-error", payload);
+      else failure(payload, "native:atlas-error");
+    }),
+  );
+  window.addEventListener("atlas-opening-retry", retryOpening);
+  await track(listen("atlas-inspect", () => refresh(true)));
   ui["terminal-form"].onsubmit = async (event) => {
     event.preventDefault();
+    if (handingOff || navigating) return;
     try {
       const path = await invoke("enable_cli", { directory: ui.bin.value });
       ui["terminal-result"].textContent =
@@ -239,4 +422,4 @@ async function init() {
   await refresh(true);
 }
 
-void init().catch(failure);
+void init().catch((error) => failure(error, "bootstrap-init"));

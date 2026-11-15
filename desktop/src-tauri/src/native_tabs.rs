@@ -7,17 +7,48 @@ use objc2_app_kit::{
     NSAlert, NSAlertFirstButtonReturn, NSAppearance, NSAppearanceCustomization, NSApplication,
     NSColor, NSEventModifierFlags, NSWindow, NSWindowOrderingMode, NSWindowTabbingMode,
 };
-use objc2_foundation::NSString;
-use tauri::{Manager, WebviewWindow};
+use objc2_foundation::{NSArray, NSString};
+use tauri::{AppHandle, Manager, WebviewWindow, window::Color};
 
-use crate::{current_product, display, product_view, run_on_main};
+use crate::{Desktop, current_product, display, lock, product_view, run_on_main};
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, Copy, Default, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Appearance {
+    #[default]
     System,
     Light,
     Dark,
+}
+
+pub fn canvas(dark: bool) -> Color {
+    if dark {
+        Color(14, 13, 12, 255)
+    } else {
+        Color(246, 239, 227, 255)
+    }
+}
+
+pub fn system_dark() -> bool {
+    MainThreadMarker::new().is_some_and(|main| {
+        let dark = NSString::from_str("NSAppearanceNameDarkAqua");
+        let light = NSString::from_str("NSAppearanceNameAqua");
+        NSApplication::sharedApplication(main)
+            .effectiveAppearance()
+            .bestMatchFromAppearancesWithNames(&NSArray::from_slice(&[
+                dark.as_ref(),
+                light.as_ref(),
+            ]))
+            .is_some_and(|name| name == dark)
+    })
+}
+
+pub fn product_dark(app: &AppHandle) -> bool {
+    match *lock(&app.state::<Desktop>().appearance) {
+        Appearance::Dark => true,
+        Appearance::Light => false,
+        Appearance::System => system_dark(),
+    }
 }
 
 #[tauri::command]
@@ -44,6 +75,7 @@ pub async fn desktop_appearance(
         {
             return;
         }
+        *lock(&app.state::<Desktop>().appearance) = appearance;
         let _ = with_window(&window, |native| {
             let name = match appearance {
                 Appearance::System => None,
@@ -53,7 +85,7 @@ pub async fn desktop_appearance(
             let appearance =
                 name.and_then(|name| NSAppearance::appearanceNamed(&NSString::from_str(name)));
             native.setAppearance(appearance.as_deref());
-            let (red, green, blue) = if dark { (14, 13, 12) } else { (246, 239, 227) };
+            let Color(red, green, blue, _) = canvas(dark);
             let background = NSColor::colorWithSRGBRed_green_blue_alpha(
                 f64::from(red) / 255.0,
                 f64::from(green) / 255.0,

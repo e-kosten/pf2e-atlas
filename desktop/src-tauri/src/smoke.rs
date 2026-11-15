@@ -34,7 +34,7 @@ pub fn reference_mode() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "reference")
 }
 
-fn selector_mode() -> bool {
+pub fn selector_mode() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "selector")
 }
 
@@ -385,7 +385,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         click_product_button(&window, "Setup and Updates", false)
     })?;
     wait_for(deadline, "terminal access action", || {
-        click_product_button(&window, "Enable terminal command", true)
+        click_product_button(&window, "Install terminal command", true)
     })?;
     let linked = home.join(".local/bin/atlas");
     wait_for(deadline, "bundled terminal command linked", || {
@@ -397,7 +397,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         evaluates_true(
             &window,
             r#"[...document.querySelectorAll('[role=dialog] [role=status]')].some(
-            node => node.textContent.startsWith('Linked at') && node.getClientRects().length)"#,
+            node => node.textContent === 'The terminal command is installed.' && node.getClientRects().length)"#,
         )
     })?;
     wait_for(deadline, "reference action", || {
@@ -524,6 +524,18 @@ fn run_selector(app: &AppHandle) -> Result<(), String> {
         .get_webview_window(PRIMARY)
         .ok_or("primary window unavailable")?;
     wait_for(
+        Instant::now() + Duration::from_secs(5),
+        "delayed opening indicator without setup controls for an existing workspace",
+        || {
+            window.url().is_ok_and(|url| bundled_origin(&url))
+                && evaluates_true(
+                    &window,
+                    "Boolean(document.querySelector('#opening-status')?.getClientRects().length
+                        && !document.getElementById('workspace'))",
+                )
+        },
+    )?;
+    wait_for(
         Instant::now() + Duration::from_secs(10),
         "setup drawer entry",
         || click_product_button(&window, "Setup and Updates", false),
@@ -560,7 +572,7 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         evaluates_true(
             window,
             r#"(() => {
-        const field = document.querySelector('[aria-label="Default search model"]');
+        const field = document.querySelector('[aria-label="Preferred search model"]');
         if (!field || field.disabled) return false;
         field.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
         return true;
@@ -584,7 +596,7 @@ fn check_model_selector(window: &WebviewWindow) -> Result<(), String> {
         evaluates_true(
             window,
             r#"(() => {
-        const field = document.querySelector('[aria-label="Default search model"]');
+        const field = document.querySelector('[aria-label="Preferred search model"]');
         const value = field?.closest('.ant-select')?.querySelector('.ant-select-content');
         return value?.textContent === 'EmbeddingGemma' && value.clientWidth >= value.scrollWidth;
     })()"#,

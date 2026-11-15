@@ -1,4 +1,6 @@
 //! Desktop setup jobs and the narrow product document attachment.
+use crate::bootstrap_jobs::{Attempt, BootstrapJob, Update as BootstrapUpdate};
+
 use std::{
     collections::HashMap,
     sync::{Mutex, atomic::Ordering, mpsc},
@@ -10,9 +12,7 @@ use atlas_desktop_protocol::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{
-    AppHandle, Emitter, Manager, WebviewWindow, ipc::CapabilityBuilder, webview::PageLoadEvent,
-};
+use tauri::{AppHandle, Manager, WebviewWindow, ipc::CapabilityBuilder, webview::PageLoadEvent};
 use url::Url;
 
 use crate::{
@@ -38,6 +38,8 @@ struct Document {
 #[derive(Clone, Default, Serialize)]
 struct SetupState {
     job: usize,
+    #[serde(skip)]
+    bootstrap_attempt: Option<Attempt>,
     sequence: usize,
     status: Status,
     progress: Option<Value>,
@@ -401,15 +403,27 @@ fn store_reference(
     }
 }
 
-pub fn cancel(app: &AppHandle, expected_job: Option<usize>) -> Result<(), String> {
+fn cancel(app: &AppHandle, expected_job: usize) -> Result<(), String> {
+    if cancel_matching(app, |state| state.job == expected_job) {
+        Ok(())
+    } else {
+        Err("This setup action belongs to an earlier job.".into())
+    }
+}
+
+pub fn cancel_bootstrap(app: &AppHandle, attempt: Attempt) -> bool {
+    cancel_matching(app, |state| state.bootstrap_attempt == Some(attempt))
+}
+
+fn cancel_matching(app: &AppHandle, matches: impl FnOnce(&SetupState) -> bool) -> bool {
     let desktop = app.state::<Desktop>();
     {
         let mut state = lock(&desktop.staged_setup.state);
-        if expected_job.is_some_and(|job| job != state.job) {
-            return Err("This setup action belongs to an earlier job.".into());
+        if !matches(&state) {
+            return false;
         }
         if state.status != Status::Running {
-            return Ok(());
+            return true;
         }
         state.status = Status::Cancelling;
         state.sequence += 1;
@@ -417,11 +431,11 @@ pub fn cancel(app: &AppHandle, expected_job: Option<usize>) -> Result<(), String
         lock(&desktop.setup_pipe).take();
     }
     broadcast(app);
-    Ok(())
+    true
 }
 
 enum Start {
-    Bootstrap,
+    Bootstrap(Attempt),
     Resume {
         job: usize,
         local: bool,
@@ -445,8 +459,12 @@ fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceJob>, String> 
     if matches!(state.status, Status::Running | Status::Cancelling) {
         return Err(stale());
     }
+    let bootstrap_attempt = match &start {
+        Start::Bootstrap(attempt) => Some(*attempt),
+        _ => None,
+    };
     let reference = match start {
-        Start::Bootstrap => None,
+        Start::Bootstrap(_) => None,
         Start::Resume { job, local } => {
             if job != state.job
                 || !matches!(state.status, Status::Available | Status::Failed)
@@ -521,6 +539,7 @@ fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceJob>, String> 
     let job = state.job + 1;
     *state = SetupState {
         job,
+        bootstrap_attempt,
         sequence: state.sequence + 1,
         status: Status::Running,
         reference_job: reference.is_some(),
@@ -536,12 +555,12 @@ fn begin(app: &AppHandle, start: Start) -> Result<Option<ReferenceJob>, String> 
 
 pub fn from_bootstrap(
     app: AppHandle,
-    window: WebviewWindow,
+    job: BootstrapJob,
     stage: SetupStage,
     local: bool,
 ) -> Result<String, Value> {
-    begin(&app, Start::Bootstrap)?;
-    run(app, Some(window), Job::Staged(stage), local)?;
+    begin(&app, Start::Bootstrap(job.attempt()))?;
+    run(app, Some(job), Job::Staged(stage), local)?;
     Ok("Your workspace is ready.".into())
 }
 
@@ -558,7 +577,7 @@ enum Job {
 
 fn run(
     app: AppHandle,
-    bootstrap: Option<WebviewWindow>,
+    bootstrap: Option<BootstrapJob>,
     job: Job,
     local: bool,
 ) -> Result<(), Value> {
@@ -567,17 +586,18 @@ fn run(
     let (completed, completion) = mpsc::channel();
     let opening_task = bootstrap
         .as_ref()
-        .filter(|window| window.label() == opening::PRIMARY)
-        .map(|window| {
+        .filter(|job| job.window.label() == opening::PRIMARY)
+        .map(|job| {
             let app = app.clone();
-            let window = window.clone();
+            let job = job.clone();
             std::thread::spawn(move || {
                 for receipt in receipts {
-                    match open_committed(&app, &window, &receipt) {
+                    match open_committed(&app, &job, &receipt) {
                         Ok(true) => return Ok(true),
                         Ok(false) => continue, // A later receipt can overtake this commit.
                         Err(error) => {
-                            opening::retry_before_navigation(&app, &window, &error);
+                            eprintln!("Atlas could not open the published workspace: {error}");
+                            opening::retry_before_navigation(&app, &job, &error);
                             return Err(error);
                         }
                     }
@@ -612,8 +632,8 @@ fn run(
                     state.sequence += 1;
                 }
             }
-            if let Some(window) = &progress_window {
-                let _ = window.emit("atlas-progress", event);
+            if let Some(job) = &progress_window {
+                job.update(BootstrapUpdate::Progress(event));
             }
             broadcast(&progress_app);
         },
@@ -799,7 +819,7 @@ fn finish_reference(
 
 fn open_committed(
     app: &AppHandle,
-    window: &WebviewWindow,
+    job: &BootstrapJob,
     receipt: &SetupPublication,
 ) -> Result<bool, String> {
     let desktop = app.state::<Desktop>();
@@ -844,8 +864,7 @@ fn open_committed(
     {
         return Err("The Atlas service stopped.".into());
     }
-    let _ = window.emit("atlas-opening", ());
-    opening::open(app, window)?;
+    opening::open(app, job)?;
     Ok(true)
 }
 
@@ -914,7 +933,7 @@ pub async fn desktop_setup_action(
         }
     }
     if matches!(action, SetupAction::Cancel) {
-        return cancel(&app, Some(job)).map(|()| None);
+        return cancel(&app, job).map(|()| None);
     }
     if matches!(action, SetupAction::ReadReferenceStatus) {
         load_reference(&app, true);

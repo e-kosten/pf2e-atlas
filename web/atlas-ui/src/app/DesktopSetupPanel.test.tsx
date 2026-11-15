@@ -1,5 +1,6 @@
 import { ConfigProvider } from "antd";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { SavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import { DesktopSetupPanel } from "./DesktopSetupPanel";
 
 const host = window as Window & {
@@ -47,10 +48,12 @@ function attach(openRequest?: number) {
   );
 }
 
-function renderPanel() {
-  render(
+function renderPanel(writesPaused = false) {
+  return render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <DesktopSetupPanel />
+      <SavedWritesPaused value={writesPaused}>
+        <DesktopSetupPanel />
+      </SavedWritesPaused>
     </ConfigProvider>,
   );
 }
@@ -58,6 +61,23 @@ function renderPanel() {
 it("exposes workspace setup only for an attached desktop document", () => {
   renderPanel();
   expect(screen.queryByRole("button", { name: "Setup and Updates" })).toBeNull();
+});
+
+it("prevents resuming while another operation holds the workspace write lock", async () => {
+  attach();
+  host.__ATLAS_DESKTOP_SETUP__ = {
+    ...host.__ATLAS_DESKTOP_SETUP__,
+    setup: { job: 2, sequence: 5, status: "available", can_resume: true },
+  };
+  renderPanel(true);
+  fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+  const resume = await screen.findByRole("button", { name: "Resume semantic setup" });
+  expect(resume).toBeDisabled();
+  fireEvent.click(resume);
+  expect(invoke).not.toHaveBeenCalledWith(
+    "desktop_setup_action",
+    expect.objectContaining({ action: "resume" }),
+  );
 });
 
 it("opens a retained native menu request and confirms a different bundled pin", async () => {
@@ -92,9 +112,15 @@ it("applies keyword-only settings and links the fixed terminal command", async (
   renderPanel();
   fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
   const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+  expect(
+    within(drawer).queryByRole("button", { name: "Apply search models" }),
+  ).toBeNull();
+  expect(within(drawer).queryByText(/Editing pauses/)).toBeNull();
   const base = within(drawer).getByRole("checkbox", { name: "BGE Base" });
   expect(base).toBeChecked();
   fireEvent.click(base);
+  expect(within(drawer).getByText("Atlas default")).toBeVisible();
+  expect(within(drawer).getByText(/Editing pauses/)).toBeVisible();
   expect(
     within(drawer).getByText(/Similar records requires a search model/),
   ).toBeVisible();
@@ -114,9 +140,15 @@ it("applies keyword-only settings and links the fixed terminal command", async (
     version: "0.1.0",
   });
   fireEvent.click(
-    within(drawer).getByRole("button", { name: "Enable terminal command" }),
+    within(drawer).getByRole("button", { name: "Install terminal command" }),
   );
-  expect(await within(drawer).findByText("command -v atlas")).toBeVisible();
+  expect(
+    await within(drawer).findByText("The terminal command is installed."),
+  ).toBeVisible();
+  const verification = within(drawer).getByText("command -v atlas");
+  expect(verification).not.toBeVisible();
+  fireEvent.click(within(drawer).getByText("Details"));
+  expect(verification).toBeVisible();
   expect(invoke).toHaveBeenLastCalledWith("desktop_setup_action", {
     action: "enable_terminal",
     job: 2,
@@ -140,7 +172,7 @@ it("requests a native switch and keeps the option available after cancellation",
   const button = await within(drawer).findByRole("button", {
     name: "Switch to bundled CLI",
   });
-  expect(within(drawer).getByText(/bundles Atlas 0.1.0-rc.6/)).toBeVisible();
+  expect(within(drawer).getByText("0.1.0-rc.6")).not.toBeVisible();
   fireEvent.click(button);
   await waitFor(() => expect(button).not.toHaveClass("ant-btn-loading"));
   expect(invoke).toHaveBeenLastCalledWith("desktop_setup_action", {
@@ -151,5 +183,36 @@ it("requests a native switch and keeps the option available after cancellation",
   expect(within(drawer).queryByText("command -v atlas")).toBeNull();
   invoke.mockResolvedValueOnce({ ...existing, state: "linked" });
   fireEvent.click(button);
-  expect(await within(drawer).findByText("command -v atlas")).toBeVisible();
+  expect(
+    await within(drawer).findByText("The terminal command is installed."),
+  ).toBeVisible();
+  const verification = within(drawer).getByText("command -v atlas");
+  expect(verification).not.toBeVisible();
+  fireEvent.click(within(drawer).getByText("Details"));
+  expect(verification).toBeVisible();
 });
+
+it.each([
+  { managed: false, available: true },
+  { managed: true, available: false },
+])(
+  "shows CLI guidance and keeps the preference editable without a desktop model action (%j)",
+  async (reference) => {
+    attach();
+    const attachment = host.__ATLAS_DESKTOP_SETUP__ as {
+      reference: { managed: boolean; available: boolean; canChangeModels: boolean };
+    };
+    Object.assign(attachment.reference, reference, { canChangeModels: false });
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+    const drawer = await screen.findByRole("dialog", { name: "Setup and Updates" });
+    expect(within(drawer).queryByRole("checkbox")).toBeNull();
+    expect(within(drawer).getByText("Installed")).toBeVisible();
+    expect(
+      within(drawer).getByText(/Use the Atlas CLI to add or remove/),
+    ).toBeVisible();
+    expect(
+      within(drawer).getByRole("combobox", { name: "Preferred search model" }),
+    ).toBeEnabled();
+  },
+);

@@ -1,0 +1,57 @@
+/* Both documents use the same startup palette, even before the app theme loads. */
+:root {
+  --opening-paper: light-dark(#f6efe3, #0e0d0c);
+  --opening-accent: light-dark(#792e37, #e4a8a4);
+  --opening-muted: light-dark(#6f5747, #c7af96);
+}
+.opening {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  max-width: none;
+  margin: 0;
+  background: var(--opening-paper);
+  padding: 29px 24px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.opening p {
+  margin: 1em 0;
+  color: var(--opening-muted);
+  font:
+    14px/1.48 -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+.opening-compass {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  margin-inline: auto;
+  display: grid;
+  place-items: center;
+}
+.opening-compass .atlas-mark {
+  width: 56px;
+  height: 56px;
+}
+.opening-compass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-top-color: var(--opening-accent);
+  border-radius: 50%;
+  animation: orbit 1.15s linear infinite;
+  animation-delay: var(--opening-phase, 0ms);
+}
+@keyframes orbit {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opening-compass::after {
+    display: none;
+  }
+}
