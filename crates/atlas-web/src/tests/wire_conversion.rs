@@ -448,3 +448,65 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         "wire fixture is stale; rerun this test with ATLAS_UPDATE_WIRE_FIXTURE=1, inspect the change, then rerun without it"
     );
 }
+
+#[tokio::test]
+async fn creature_reference_exposes_only_embedded_conditions_with_authored_values() {
+    let fixture = Fixture::with_embedded_conditions();
+    let body = response(
+        &fixture,
+        Method::GET,
+        "/api/records/actors:conditionactor01",
+        None,
+    )
+    .await;
+    let actor = &body["presentation"]["body"]["value"];
+    let conditions = actor["embedded_conditions"].as_array().unwrap();
+    let labels = conditions
+        .iter()
+        .map(|condition| {
+            (
+                condition["name"].as_str().unwrap(),
+                condition["value"].as_i64(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        [
+            ("Clumsy", Some(2)),
+            ("Slowed", Some(1)),
+            ("Invisible", None),
+            ("Sickened", None),
+            ("Frightened", None),
+        ]
+    );
+    assert!(
+        conditions[2..]
+            .iter()
+            .all(|condition| condition.get("value").is_some_and(Value::is_null))
+    );
+    let selected = response(
+        &fixture,
+        Method::POST,
+        "/api/records/detail",
+        Some(json!({
+            "record_key": conditions[0]["navigation"]["record_key"],
+            "embedded_path": conditions[0]["navigation"]["embedded_path"],
+            "source_fingerprint": conditions[0]["navigation"]["source_fingerprint"]
+        })),
+    )
+    .await;
+    assert_eq!(selected["presentation"]["identity"]["title"], "Clumsy");
+    let empty = response(
+        &fixture,
+        Method::GET,
+        &format!("/api/records/{ACTOR}"),
+        None,
+    )
+    .await;
+    assert!(
+        empty["presentation"]["body"]["value"]
+            .get("embedded_conditions")
+            .is_none()
+    );
+}

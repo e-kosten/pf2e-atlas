@@ -1,9 +1,11 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { useEffect, useRef, type ReactNode } from "react";
+import { activityAnchor, landOnActivity } from "./embeddedNavigation";
 import { Typography } from "antd";
 import type {
   ActorActivityView,
+  ActorEmbeddedConditionView,
   ActorPresentationView,
   FactView,
 } from "../../generated/atlas";
@@ -20,7 +22,7 @@ import {
   type CastingAnnotations,
 } from "./ActorReference";
 import type { EmbeddedReadingContext } from "./EmbeddedAbilityReading";
-import { FactLine, hasReadingFact } from "./presentationFacts";
+import { FactLine, FactRow, hasReadingFact } from "./presentationFacts";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import "../../styles/ui/creature-reference.css";
 import {
@@ -67,7 +69,33 @@ export function CreatureReference({
       target.focus({ preventScroll: true });
     }
   }, [prefix, sectionLanding]);
-  const activities = actor.activities.value ?? [];
+  const conditions = encounter && encounterContent?.conditions;
+  const authoredConditions = encounter ? [] : (actor.embedded_conditions ?? []);
+  const conditionAnchors = new Set(
+    authoredConditions.map(({ navigation }) => activityAnchor(navigation)),
+  );
+  const landing = reading?.landing;
+  const onLandingReady = reading?.onLandingReady;
+  const conditionLanding =
+    landing && conditionAnchors.has(activityAnchor(landing)) ? landing : undefined;
+  useEffect(() => {
+    if (conditionLanding) {
+      landOnActivity(container.current, conditionLanding, onLandingReady);
+    }
+  }, [conditionLanding, onLandingReady]);
+  const overviewActor = conditionAnchors.size
+    ? {
+        ...actor,
+        activities: {
+          ...actor.activities,
+          value:
+            actor.activities.value?.filter(
+              ({ navigation }) => !conditionAnchors.has(activityAnchor(navigation)),
+            ) ?? null,
+        },
+      }
+    : actor;
+  const activities = overviewActor.activities.value ?? [];
   const hasStatistics =
     [
       actor.perception,
@@ -83,12 +111,14 @@ export function CreatureReference({
     ].some((fact) => hasReadingFact(fact as FactView<unknown>)) ||
     activities.some((activity) => activity.kind === "lore");
   const hasRules =
-    hasStatistics || hasActorActivities(actor) || Boolean(reading?.landing);
+    hasStatistics ||
+    hasActorActivities(overviewActor) ||
+    Boolean(landing && !conditionLanding);
   const hasDefenses =
+    authoredConditions.length > 0 ||
     hasReadingFact(actor.size) ||
     Boolean(encounterContent?.durability) ||
     hasActorDefenses(actor, { hideHitPoints: encounter });
-  const conditions = encounter && encounterContent?.conditions;
   const sections = [
     ...(!encounter && prose ? [["description", "Description"]] : []),
     ...(hasDefenses ? [["defenses", "Defenses"]] : []),
@@ -181,7 +211,18 @@ export function CreatureReference({
                   >
                     <FactLine label="Size" fact={actor.size} />
                     {encounterContent?.durability ?? (
-                      <ActorDefenses actor={actor} hideHitPoints={encounter} />
+                      <ActorDefenses
+                        actor={actor}
+                        hideHitPoints={encounter}
+                        conditions={
+                          authoredConditions.length > 0 && (
+                            <CreatureConditions
+                              conditions={authoredConditions}
+                              onReference={onReference}
+                            />
+                          )
+                        }
+                      />
                     )}
                   </section>
                 </div>
@@ -217,10 +258,14 @@ export function CreatureReference({
                   </section>
                 )}
                 <ActorActivities
-                  actor={actor}
+                  actor={overviewActor}
                   encounter={encounter}
                   essential
-                  reading={reading}
+                  reading={
+                    reading && conditionLanding
+                      ? { ...reading, landing: undefined }
+                      : reading
+                  }
                   onReference={onReference}
                   castingAnnotations={castingAnnotations}
                   activityRolls={activityRolls}
@@ -250,5 +295,48 @@ export function CreatureReference({
         </div>
       </div>
     </div>
+  );
+}
+
+function CreatureConditions({
+  conditions,
+  onReference,
+}: {
+  conditions: ActorEmbeddedConditionView[];
+  onReference: RecordReferenceHandler;
+}) {
+  return (
+    <FactRow label="Conditions">
+      {conditions.map((condition, index) => {
+        const { navigation } = condition;
+        const title =
+          condition.value === null
+            ? condition.name
+            : `${condition.name} ${condition.value}`;
+        return (
+          <span
+            key={activityAnchor(navigation)}
+            data-atlas-activity-anchor={activityAnchor(navigation)}
+          >
+            {index > 0 && ", "}
+            <Typography.Link
+              href={destinationHref(
+                recordDestination({
+                  recordKey: navigation.record_key,
+                  selection: navigation,
+                }),
+              )}
+              onClick={(event) => {
+                if (!isPrimaryActivation(event)) return;
+                event.preventDefault();
+                onReference(navigation.record_key, event.currentTarget, navigation);
+              }}
+            >
+              {title}
+            </Typography.Link>
+          </span>
+        );
+      })}
+    </FactRow>
   );
 }

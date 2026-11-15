@@ -827,6 +827,21 @@ impl<'a> ItemSourceView<'a> {
             _ => SourceFieldView::NotApplicable,
         }
     }
+    pub fn authored_condition_value(self) -> Option<i64> {
+        if self.condition_is_valued().value() != Some(true) {
+            return None;
+        }
+        let Self::ConditionSource(source) = self else {
+            return None;
+        };
+        SourceFieldView::from(&source.system)
+            .and_then(|system| (&system.value).into())
+            .and_then(|value| (&value.value).into())
+            .value()
+            .and_then(Number::as_i64)
+            .filter(|value| *value >= 0)
+    }
+
     pub fn deity_fonts(self) -> SourceFieldView<'a, &'static [&'static str]> {
         match self {
             Self::DeitySource(s) => SourceFieldView::from(&s.system)

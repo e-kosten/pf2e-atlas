@@ -33,7 +33,7 @@ import {
 import { EffectReferenceLink } from "./EffectReferenceLink";
 import { ActionCost } from "./ActionCost";
 import { sentenceCase } from "../ui/labels";
-import { activityAnchor } from "./embeddedNavigation";
+import { activityAnchor, landOnActivity } from "./embeddedNavigation";
 import { useSourceOwnerSelection } from "./SourceSectionSelectionContext";
 function qualifierText<T extends string | string[]>(
   fact: FactView<T>,
@@ -247,15 +247,18 @@ export function ActorDefenses({
   hideHitPoints = false,
   hidePrimaryDefenses = false,
   hideSaves = false,
+  conditions,
 }: {
   actor: ActorPresentationView;
   hideHitPoints?: boolean;
   hidePrimaryDefenses?: boolean;
   hideSaves?: boolean;
+  conditions?: ReactNode;
 }) {
   return (
     <>
-      {hasActorDefenses(actor, { hideHitPoints, hidePrimaryDefenses, hideSaves }) && (
+      {(conditions ||
+        hasActorDefenses(actor, { hideHitPoints, hidePrimaryDefenses, hideSaves })) && (
         <section className="actor-reference__defenses">
           <h3>Defenses</h3>
           <div className="record-fact-list">
@@ -305,6 +308,7 @@ export function ActorDefenses({
           {(hideHitPoints || hidePrimaryDefenses) && (
             <DefenseNote label="HP" fact={actor.defense_notes.hit_points} />
           )}
+          {conditions}
           <Iwr label="Immunities" fact={actor.immunities} />
           <Iwr label="Weaknesses" fact={actor.weaknesses} />
           <Iwr label="Resistances" fact={actor.resistances} />
@@ -972,20 +976,7 @@ export function ActorActivities({
       onLandingReady?.();
       return;
     }
-    const element = Array.from(
-      container.current?.querySelectorAll<HTMLElement>(
-        "[data-atlas-activity-anchor]",
-      ) ?? [],
-    ).find(
-      (candidate) => candidate.dataset.atlasActivityAnchor === activityAnchor(target),
-    );
-    if (element) {
-      if (!onLandingReady) element.scrollIntoView?.({ block: "start" });
-      (element.querySelector<HTMLElement>("button,a[href]") ?? element).focus({
-        preventScroll: true,
-      });
-      onLandingReady?.(element);
-    }
+    landOnActivity(container.current, target, onLandingReady);
   }, [target, targetActivity, onLandingReady]);
   const abilityReading = reading
     ? {
