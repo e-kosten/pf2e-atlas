@@ -1294,7 +1294,6 @@ fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles
             .vector
     };
     assert_eq!(identity_vector(&baseline), identity_vector(&verified));
-    let mut options = options;
     options.search_profiles.truncate(1);
     let mut additional: serde_json::Value = serde_json::from_str(&document).unwrap();
     additional["_id"] = serde_json::json!("cccccccccccccccc");
