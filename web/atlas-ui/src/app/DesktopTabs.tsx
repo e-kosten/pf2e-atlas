@@ -296,6 +296,7 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
     }
 
     function keydown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.isComposing) return;
       if (event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
         if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
           event.preventDefault();
@@ -310,6 +311,14 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
         const index = tabs.indexOf(active);
         const offset = event.shiftKey ? -1 : 1;
         select(tabs[(index + offset + tabs.length) % tabs.length].id);
+      } else if (!event.shiftKey) {
+        const key = event.key.toLowerCase();
+        if (key !== "t" && key !== "w" && key !== "n") return;
+        event.preventDefault();
+        if (event.repeat) return;
+        if (key === "t") open("/search", true);
+        else if (key === "w") close(active.id);
+        else void invoke("desktop_tabs_new_window").catch(reportCommandFailure);
       }
     }
 
@@ -318,11 +327,11 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
     };
     window.addEventListener("beforeunload", preventReload);
     window.addEventListener(commandEvent, receive);
-    window.addEventListener("keydown", keydown);
+    window.addEventListener("keydown", keydown, true);
     return () => {
       window.removeEventListener("beforeunload", preventReload);
       window.removeEventListener(commandEvent, receive);
-      window.removeEventListener("keydown", keydown);
+      window.removeEventListener("keydown", keydown, true);
     };
   }, [active, close, closeWindow, open, select, tabs]);
 

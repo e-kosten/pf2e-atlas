@@ -116,6 +116,7 @@ impl StagedSetup {
             .permission("allow-desktop-tabs-state")
             .permission("allow-desktop-tabs-ack")
             .permission("allow-desktop-tabs-close")
+            .permission("allow-desktop-tabs-new-window")
             .permission("allow-desktop-tabs-exit-status");
         app.add_capability(permission).map_err(display)?;
         lock(&self.documents).insert(

@@ -140,6 +140,58 @@ describe("AtlasApp routing", () => {
     }
   });
 
+  it(
+    "handles Windows tab and window shortcuts with the Search field focused",
+    { timeout: 15_000 },
+    async () => {
+      const ipc = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", { token: "atlas-test-document" });
+      vi.stubGlobal("__TAURI_INTERNALS__", { invoke: ipc });
+      const view = renderDom(<DesktopTabs initialHref="/search" />, {
+        wrapper: queryClientWrapper(),
+      });
+      try {
+        const input = await screen.findByRole(
+          "searchbox",
+          { name: "Search records" },
+          { timeout: 5_000 },
+        );
+        input.focus();
+        fireEvent.change(input, { target: { value: "Retained search draft" } });
+        fireEvent.keyDown(input, { key: "n", ctrlKey: true });
+        expect(ipc).toHaveBeenCalledWith("desktop_tabs_new_window", {
+          token: "atlas-test-document",
+        });
+        fireEvent.keyDown(input, { key: "t", ctrlKey: true, repeat: true });
+        expect(screen.queryByRole("tablist")).toBeNull();
+        fireEvent.keyDown(input, { key: "t", ctrlKey: true });
+        const openedSearch = await screen.findByRole(
+          "searchbox",
+          { name: "Search records" },
+          { timeout: 5_000 },
+        );
+        expect(openedSearch).not.toBe(input);
+        expect(openedSearch).toHaveValue("");
+
+        openedSearch.addEventListener("keydown", (event) => event.stopPropagation(), {
+          once: true,
+        });
+        fireEvent.keyDown(openedSearch, { key: "Tab", ctrlKey: true });
+        expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+        fireEvent.keyDown(input, { key: "Tab", ctrlKey: true, shiftKey: true });
+        expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(
+          openedSearch,
+        );
+        fireEvent.keyDown(openedSearch, { key: "w", ctrlKey: true });
+        expect(screen.queryByRole("tablist")).toBeNull();
+        expect(input).toHaveValue("Retained search draft");
+      } finally {
+        view.unmount();
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
   beforeEach(() => {
     vi.clearAllMocks();
     installLocalStorage();

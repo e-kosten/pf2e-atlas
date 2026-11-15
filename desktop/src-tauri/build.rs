@@ -14,6 +14,7 @@ fn main() {
         "desktop_tabs_state",
         "desktop_tabs_ack",
         "desktop_tabs_close",
+        "desktop_tabs_new_window",
         "desktop_tabs_exit_status",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(commands))

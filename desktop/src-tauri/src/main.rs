@@ -838,7 +838,11 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         true,
         Some("CmdOrCtrl+,"),
     )?;
+    #[cfg(target_os = "macos")]
     let window = MenuItem::with_id(app, "new", "New Window", true, Some("CmdOrCtrl+N"))?;
+    // Keep the Windows menu hints while the focused tab shell handles the shortcuts.
+    #[cfg(windows)]
+    let window = MenuItem::with_id(app, "new", "New Window\tCtrl+N", true, None::<&str>)?;
     let terminal = MenuItem::with_id(
         app,
         "terminal-access",
@@ -858,15 +862,18 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     #[cfg(target_os = "macos")]
     let atlas = atlas.quit();
     let atlas = atlas.build()?;
+    #[cfg(target_os = "macos")]
     let tab = MenuItem::with_id(app, "new-tab", "New Tab", true, Some("CmdOrCtrl+T"))?;
+    #[cfg(windows)]
+    let tab = MenuItem::with_id(app, "new-tab", "New Tab\tCtrl+T", true, None::<&str>)?;
     let file = SubmenuBuilder::new(app, "File").item(&window).item(&tab);
     #[cfg(windows)]
     let file = file.item(&MenuItem::with_id(
         app,
         "close-tab",
-        "Close Tab",
+        "Close Tab\tCtrl+W",
         true,
-        Some("Ctrl+W"),
+        None::<&str>,
     )?);
     #[cfg(target_os = "macos")]
     let file = file.close_window();
@@ -952,6 +959,8 @@ fn main() {
             windows_tabs::desktop_tabs_ack,
             #[cfg(windows)]
             windows_tabs::desktop_tabs_close,
+            #[cfg(windows)]
+            windows_tabs::desktop_tabs_new_window,
             #[cfg(windows)]
             windows_tabs::desktop_tabs_exit_status,
             copy_link::desktop_copy_link,

@@ -312,6 +312,19 @@ pub async fn desktop_tabs_close(window: WebviewWindow, token: String) -> Result<
     })
 }
 
+#[tauri::command]
+pub async fn desktop_tabs_new_window(window: WebviewWindow, token: String) -> Result<(), String> {
+    validate(&window, &token)?;
+    let app = window.app_handle().clone();
+    run_on_main(&app, move |app| {
+        if validate(&window, &token).is_ok()
+            && let Err(error) = crate::new_search(app, false)
+        {
+            window_host::report("Could not open an Atlas window", &error);
+        }
+    })
+}
+
 pub fn menu(app: &AppHandle, command: Command<'_>) -> Result<(), String> {
     let Ok((base, instance)) = current_product(app) else {
         return Ok(());
