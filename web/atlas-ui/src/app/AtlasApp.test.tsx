@@ -86,7 +86,9 @@ describe("AtlasApp routing", () => {
     const view = renderDom(<DesktopTabs initialHref="/search" />, {
       wrapper: queryClientWrapper(),
     });
-    const search = await screen.findByRole("tab", { name: /Search/ });
+    const input = await screen.findByRole("searchbox", { name: "Search records" });
+    fireEvent.change(input, { target: { value: "Retained search draft" } });
+    expect(screen.queryByRole("tablist")).toBeNull();
     const ipc = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", { token: "atlas-test-document" });
     vi.stubGlobal("__TAURI_INTERNALS__", { invoke: ipc });
@@ -96,6 +98,7 @@ describe("AtlasApp routing", () => {
       );
     try {
       command({ kind: "open", href: "/records/spells:heal", foreground: false });
+      const search = await screen.findByRole("tab", { name: /Search/ });
       const reference = await screen.findByRole("tab", { name: /heal/i });
       expect(search).toHaveAttribute("aria-selected", "true");
       expect(reference).toHaveAttribute("aria-selected", "false");
@@ -106,6 +109,9 @@ describe("AtlasApp routing", () => {
       fireEvent.keyDown(window, { key: "Tab", ctrlKey: true, shiftKey: true });
       expect(search).toHaveAttribute("aria-selected", "true");
       expect(reference).toHaveAttribute("id", initialId);
+      fireEvent.keyDown(search, { key: "ArrowRight", altKey: true, shiftKey: true });
+      expect(screen.getAllByRole("tab")).toEqual([reference, search]);
+      expect(search).toHaveAttribute("aria-selected", "true");
       expect(ipc).toHaveBeenCalledWith(
         "desktop_tabs_state",
         expect.objectContaining({
@@ -116,6 +122,14 @@ describe("AtlasApp routing", () => {
           }),
         }),
       );
+      fireEvent.click(
+        within(reference.parentElement!).getByRole("button", {
+          name: "Close tab",
+        }),
+      );
+      expect(screen.queryByRole("tablist")).toBeNull();
+      expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+      expect(input).toHaveValue("Retained search draft");
     } finally {
       view.unmount();
       vi.unstubAllGlobals();

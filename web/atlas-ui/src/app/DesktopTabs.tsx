@@ -1,12 +1,29 @@
 import { ConfigProvider, Tabs } from "antd";
+import {
+  closestCenter,
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import {
+  cloneElement,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type ComponentPropsWithRef,
+  type ReactElement,
 } from "react";
 import { createAtlasRouter } from "./router";
 import { antDesignTheme, type ResolvedColorScheme } from "../shared/theme/atlasTheme";
@@ -76,6 +93,10 @@ function closeStatus(tab: Tab) {
 export function DesktopTabs({ initialHref }: { initialHref: string }) {
   const [first] = useState(() => createTab(initialHref));
   const [tabs, setTabs] = useState([first]);
+  const showStrip = tabs.length > 1;
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
   const [selection, setSelection] = useState<{ id: string; activation: number }>({
     id: first.id,
     activation: 0,
@@ -161,6 +182,17 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
     [active.id, rememberPosition],
   );
 
+  const moveTab = (id: string, target: (tabs: Tab[], index: number) => number) => {
+    setTabs((current) => {
+      const from = current.findIndex((tab) => tab.id === id);
+      if (from < 0) return current;
+      const to = target(current, from);
+      return to < 0 || to >= current.length || from === to
+        ? current
+        : arrayMove(current, from, to);
+    });
+  };
+
   const open = useCallback(
     (href: string, foreground: boolean) => {
       const url = new URL(href, window.location.href);
@@ -190,6 +222,8 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
       if (id === active.id) {
         closeFocus.current = true;
         select(tabs[index + 1]?.id ?? tabs[index - 1].id);
+      } else if (tabs.length === 2 && strip.current?.contains(document.activeElement)) {
+        document.getElementById("atlas-main")?.focus({ preventScroll: true });
       }
       positions.current.delete(id);
       setTabs((previous) => previous.filter((tab) => tab.id !== id));
@@ -225,7 +259,10 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
       );
       if (closeFocus.current) {
         closeFocus.current = false;
-        selected?.focus({ preventScroll: true });
+        const content = position?.focus?.isConnected
+          ? position.focus
+          : document.getElementById("atlas-main");
+        (selected ?? content)?.focus({ preventScroll: true });
       } else if (!strip.current?.contains(document.activeElement)) {
         const focus = position?.focus?.isConnected ? position.focus : selected;
         focus?.focus({ preventScroll: true });
@@ -314,7 +351,7 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
 
   return (
     <ConfigProvider theme={antDesignTheme(scheme)}>
-      <div className="desktop-tab-host">
+      <div className="desktop-tab-host" data-show-tab-strip={showStrip}>
         <Tabs
           type="editable-card"
           size="small"
@@ -324,11 +361,41 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
             if (action === "add") open("/search", true);
             else if (typeof key === "string") close(key);
           }}
-          renderTabBar={(props, DefaultTabBar) => (
-            <div className="desktop-tab-strip" ref={strip}>
-              <DefaultTabBar {...props} />
-            </div>
-          )}
+          renderTabBar={(props, DefaultTabBar) =>
+            showStrip ? (
+              <div className="desktop-tab-strip" ref={strip}>
+                <DndContext
+                  sensors={dragSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={({ active, over }) => {
+                    if (over)
+                      moveTab(String(active.id), (items) =>
+                        items.findIndex((tab) => tab.id === over.id),
+                      );
+                  }}
+                >
+                  <SortableContext
+                    items={tabs.map((tab) => tab.id)}
+                    strategy={horizontalListSortingStrategy}
+                  >
+                    <DefaultTabBar {...props}>
+                      {(node) => (
+                        <SortableTab
+                          key={node.key}
+                          node={node}
+                          move={(id, offset) =>
+                            moveTab(id, (_items, from) => from + offset)
+                          }
+                        />
+                      )}
+                    </DefaultTabBar>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            ) : (
+              <></>
+            )
+          }
           items={tabs.map((tab) => ({
             key: tab.id,
             label: titles[tab.id] ?? "Atlas",
@@ -353,6 +420,54 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
       </div>
     </ConfigProvider>
   );
+}
+
+function SortableTab({
+  node,
+  move,
+}: {
+  node: ReactElement;
+  move: (id: string, offset: number) => void;
+}) {
+  const id = String(node.key);
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
+  const tab = node as ReactElement<ComponentPropsWithRef<"div">>;
+  return cloneElement(tab, {
+    ref: setNodeRef,
+    style: {
+      ...tab.props.style,
+      transform: transform ? CSS.Translate.toString({ ...transform, y: 0 }) : undefined,
+      transition,
+      zIndex: isDragging ? 1 : undefined,
+      position: "relative",
+    },
+    onPointerDown: (event) => {
+      if (event.target instanceof Element && !event.target.closest("button"))
+        listeners?.onPointerDown?.(event);
+    },
+    onKeyDownCapture: (event) => {
+      const target = event.target;
+      if (
+        !event.altKey ||
+        !event.shiftKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        !(target instanceof HTMLElement) ||
+        !target.matches('[role="tab"]') ||
+        (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      move(id, event.key === "ArrowLeft" ? -1 : 1);
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body)
+          target.focus({ preventScroll: true });
+      });
+    },
+  });
 }
 
 function TabPanel({

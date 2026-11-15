@@ -1,4 +1,8 @@
 .desktop-tab-host {
+  --desktop-tab-strip-height: 0px;
+}
+
+.desktop-tab-host[data-show-tab-strip="true"] {
   --desktop-tab-strip-height: 38px;
 }
 
@@ -19,6 +23,7 @@
 
 .desktop-tab-strip .ant-tabs-tab {
   max-width: 15rem;
+  touch-action: none;
 }
 
 .desktop-tab-strip .ant-tabs-tab-btn {

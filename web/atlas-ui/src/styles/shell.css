@@ -29,7 +29,7 @@
   position: absolute;
   inset: 8px auto auto 8px;
   z-index: 1000;
-  transform: translateY(-200%);
+  clip-path: inset(50%);
   display: block;
   padding: 8px 12px;
   border: 1px solid var(--selection-border);
@@ -38,7 +38,7 @@
   color: var(--link);
 }
 .atlas-app > .skip-link:focus-visible {
-  transform: none;
+  clip-path: none;
   outline: 2px solid var(--selection-border);
   outline-offset: 2px;
 }
