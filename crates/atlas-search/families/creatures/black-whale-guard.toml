@@ -1,0 +1,11 @@
+name = "Black Whale Guard"
+source_note = "Belly of the Black Whale (F3, p. 38) uses the ordinary guard statistics and adds Nightmare Assault."
+
+[[members]]
+key = "agents-of-edgewatch-bestiary:BLRsSDFSMbZHcGDQ"
+name = "Black Whale Guard"
+
+[[members]]
+key = "agents-of-edgewatch-bestiary:d3TzpCuRJF78xHZK"
+name = "Black Whale Guard (F3)"
+label = "Black Whale Guard (Nightmare Assault)"

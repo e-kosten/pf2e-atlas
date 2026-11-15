@@ -1,0 +1,11 @@
+name = "Water Elemental Vessel"
+source_note = "Belly of the Black Whale (I2, p. 43) refers to the standard vessel on p. 82 and adds Heal at ranks 4, 5, and 6."
+
+[[members]]
+key = "agents-of-edgewatch-bestiary:nfULZbf8OOUDdrZM"
+name = "Water Elemental Vessel"
+
+[[members]]
+key = "agents-of-edgewatch-bestiary:JhYJUNlcxiurcZcl"
+name = "Water Elemental Vessel (I2)"
+label = "Water Elemental Vessel (Heal)"

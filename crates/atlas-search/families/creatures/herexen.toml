@@ -1,0 +1,10 @@
+name = "Herexen"
+source_note = "Monster Core (p. 195) identifies the Greater Herexen as an 8th-level variant of the Herexen."
+
+[[members]]
+key = "pathfinder-monster-core:oNR29GreK0AxLucN"
+name = "Herexen"
+
+[[members]]
+key = "pathfinder-monster-core:ZlAzJNsHYz1ZtMVK"
+name = "Greater Herexen"

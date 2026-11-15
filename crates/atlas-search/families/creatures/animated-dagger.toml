@@ -1,0 +1,11 @@
+name = "Animated Dagger"
+source_note = "Blessings of the Forest, Cathedral Event 4 (pp. 45, 57), supplies the level −1 Animated Dagger and level 0 Elite Animated Dagger. The Elite block is used by the encounter's scaling rules in both party tiers."
+
+[[members]]
+key = "pfs-season-4-bestiary:548JZ6YeXsfYxVe5"
+name = "Animated Dagger"
+
+[[members]]
+key = "pfs-season-4-bestiary:16Ye7Wd2pXiUiGJo"
+name = "Animated Dagger (3-4)"
+label = "Elite Animated Dagger"

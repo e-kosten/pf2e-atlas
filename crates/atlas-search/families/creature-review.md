@@ -33,11 +33,11 @@ changes or the source establishes a relationship.
 
 ### Authored scaling
 
-**Anatomical Model.** In *The Seven Secrets of Dacilane Academy*, Foundry's
-ordinary and Elite 3–4 blocks both report creature level 4 and have no typed
-adjustment. The Elite block has 20 more HP. Verify the published level, scaling
-condition, and effective stats against the Laboratory encounter before declaring
-an override.
+**Anatomical Model.** Laboratory A11 on p. 22 of *The Seven Secrets of Dacilane
+Academy* prints the 3–4 Elite model at creature level 5. Foundry reports level
+4 for both the ordinary and Elite 3–4 blocks. Recheck if the pinned source
+changes.
+[Published scenario](https://www.scribd.com/document/704766987/PF2-S02-09-the-Seven-Secrets-of-Dacilane-Academy)
 
 - Anatomical Model (1-2) (`pfs-season-2-bestiary:BXnmDgVkhD97fI1o`)
 - Anatomical Model (3-4) (`pfs-season-2-bestiary:j7K9SefeHJ16qHMl`)
@@ -83,13 +83,11 @@ blocks with the standard Boggard Swampseer before declaring the family.
 
 ### Marcien's Shadow Doubles
 
-The [Marcien Blakros family](creatures/marcien-blakros.toml) covers the original.
-These are summoned copies. Decide whether the copies form their own family and
-how to link it to the summoner. [Lelzeshin](creatures/lelzeshin.toml) and
-[Mirrored Lelzeshin](creatures/mirrored-lelzeshin.toml) provide a second case.
-
-- Marcien Blakros (7-8) (Shadow Double) (`pfs-season-3-bestiary:PqawYWEK0iqvcBZj`)
-- Marcien Blakros (9-10) (Shadow Double) (`pfs-season-3-bestiary:xVmDwoBxjKyCihYz`)
+The [Marcien Blakros family](creatures/marcien-blakros.toml) groups the
+summoner and his copies by party tier. Encounter A3 gives the copies the
+Summoned trait. The pinned 9–10 Shadow Double
+(`pfs-season-3-bestiary:xVmDwoBxjKyCihYz`) omits that trait. Recheck if
+the pinned Foundry source changes.
 
 ### Published adjustments and scaling
 
@@ -132,10 +130,11 @@ and effective stats before declaring the party uses and overrides.
 - Elite Sprite (PFS Q18) (`pfs-season-5-bestiary:zbh0oprNBaxTbsqh`)
 - Sprite (PFS Q18) (`pfs-season-5-bestiary:q9VY2Whn0rV7zJVK`)
 
-**Jinkin.** The Dacilane Academy’s Show Must Go On supplies the Lesser Jinkin and a 1–2 Jinkin with shared Tinker and Sneak Attack. Confirm what selects the Lesser block before attaching party ranges or an adjustment.
-
-- Jinkin (Quest 20) (1-2) (`pfs-season-6-bestiary:MU8oL7P1AX4P4kKB`)
-- Lesser Jinkin (`pfs-season-6-bestiary:D7XibY38wx9AjopU`)
+**Jinkin.** The [Jinkin family](creatures/jinkin.toml) presents the quest's
+ordinary and Lesser blocks. The Lesser Jinkin
+(`pfs-season-6-bestiary:D7XibY38wx9AjopU`) has Thievery +7 in Foundry and +5
+on p. 16. The balcony scaling instructions add the Lesser block in specific
+bands. Recheck Thievery if the pinned source changes.
 
 **Gluttonous Geode.** Friends in Need has a quest-specific Gluttonous Geode and a Weak Gluttonous Geode. Verify which encounter conditions call for the Weak block and compare it with the base stats.
 
@@ -159,17 +158,23 @@ and effective stats before declaring the party uses and overrides.
 - Elite Animate Dream (PFS 4-11) (`pfs-season-4-bestiary:eWJwFmEasIOSGQgu`)
 - Faded Animate Dream (`pfs-season-4-bestiary:AkbAW7XeZQ67qW1R`)
 
-**Clacking Skull Swarm.** In Glorious Battle has Weak and Elite Clacking Skull Swarms at creature levels 9 and 11. Identify the base and verify the scenario conditions for each adjustment.
-
-- Elite Clacking Skull Swarm (`pfs-season-4-bestiary:H9z43UB0KXksVTZ6`)
-- Weak Clacking Skull Swarm (`pfs-season-4-bestiary:56GciWoZDuiqjINk`)
-
 ### Encounter identity and variants
 
-**Bosun.** Iron Ring Bosun and Vaggas the Bosun share Bosun’s Command, Pike and Strike, and the same level and HP. Check Foundation’s Price for evidence that Vaggas is a named example of this base or a distinct encounter role.
+**Vaggas and Iron Ring Bosun.** Vaggas the Bosun and Iron Ring Bosun have
+the same mechanics in Foundry and differ in rarity. Vaggas the Fanatic is a
+distinct level 1 block. Verify both encounters in *Foundation’s Price* before
+linking the two Vaggas roles or declaring the named Bosun’s base.
 
 - Iron Ring Bosun (`pfs-season-3-bestiary:FmZ8bz1ItIzxuu1D`)
 - Vaggas the Bosun (`pfs-season-3-bestiary:RZ8sWKkogng0IU8M`)
+- Vaggas the Fanatic (`pfs-season-3-bestiary:KSKDACF4qh3HJTDo`)
+
+**Skulk.** The pinned *Guardian’s Covenant* actor matches the *Bestiary 2*
+actor’s stat block. Verify the printed encounter for changes to hit points or
+other statistics before declaring a canonical link.
+
+- Skulk (PFS 3-13) (`pfs-season-3-bestiary:LqEHXPTgyVUltvS2`)
+- Skulk (`pathfinder-bestiary-2:uGXTQYuRNtgPt1Pp`)
 
 ## Discovery and grouping gaps
 
@@ -186,3 +191,187 @@ before assigning a tier to the unsuffixed Hesla.
 groups by party level and names the ability in each title. Each of the six
 abilities appears on a Dreg and a Prototype. Review whether to offer an
 ability grouping across both forms.
+
+### Same-publication actor pairs
+
+#### Pathfinder #186: Ghost King's Rage
+
+The Foundry skeleton has 40 fewer HP and adds Flamboyant Reposition. Verify
+the Celebrants encounter's printed instructions and whether the skeleton uses
+the Rival Corpsekiller as its base.
+
+- Rival Corpsekiller (`blood-lords-bestiary:1Hc1BLc9LIXLuBdg`) ↔ Skeleton Rival Corpsekiller (`blood-lords-bestiary:S1rfj73uV1ZUBCJ3`)
+
+#### Pathfinder Adventure Path: Hell's Destiny
+
+Vanda and the Champion share the Viper’s Fang item. Vanda is a named unique
+actor
+with a separate action that restates the item's activation and venom. Verify
+whether the adventure uses the Champion as her underlying stat block.
+
+- Vanda Spitelash (`hells-destiny-bestiary:1y6sYotLFK9UxFAo`) ↔ Champion of Asmodeus (`hells-destiny-bestiary:NZOqqzi4ThvJfpm8`)
+
+#### Pathfinder Society Quest #15: In the Footsteps of Horror
+
+In *In the Footsteps of Horror*, both Pixies have authored Elite stats and the
+Weak Shadow Draugr retains 35 HP. Verify the published encounter and scaling
+sidebars for the exact uses before declaring adjustment overrides.
+
+- Arisen Shadow Pixie (`pfs-season-5-bestiary:8Zj3XDNa07fjkWAq`) ↔ Elite Arisen Shadow Pixie (`pfs-season-5-bestiary:ytb75tCpHFXxryFZ`)
+- Elite Arisen Umbral Pixie (`pfs-season-5-bestiary:ep7eL4vrN4F6YCdd`) ↔ Arisen Umbral Pixie (`pfs-season-5-bestiary:umxjQH7AV65Eftfc`)
+- Shadow Draugr (`pfs-season-5-bestiary:EgAoF7pXBsHxthA0`) ↔ Weak Shadow Draugr (`pfs-season-5-bestiary:qqBaCxN4Epxe1rnF`)
+
+#### Pathfinder Society Quest #17: Escorting a Mirage
+
+In *Escorting a Mirage*, the Angry squad and the Weak or Elite actors differ
+by two creature levels. Verify the printed blocks and the conditions for
+choosing each before treating them as scoped adjustments.
+
+- Angry Mercenary Squad (`pfs-season-5-bestiary:WoITmnqltzfUlvry`) ↔ Mercenary Squad (`pfs-season-5-bestiary:l4fXYWBhDNM5FAyT`)
+- Elite Foolhardy Mercenary (`pfs-season-5-bestiary:M1POW9BD03uSF6pA`) ↔ Foolhardy Mercenary (`pfs-season-5-bestiary:RPhiMYpPORMIIDJi`)
+- Trained Vulkariki Eidolon (`pfs-season-5-bestiary:Hvrz7fywW7hmpYcJ`) ↔ Elite Trained Vulkariki Eidolon (`pfs-season-5-bestiary:vK1DxX5eTu1QKhbm`)
+- Weak "Enlightened" Div Worshipper (`pfs-season-5-bestiary:jHtXyQDDZLdytpqk`) ↔ "Enlightened" Div Worshipper (`pfs-season-5-bestiary:u74d5wQNBJLVHB7m`)
+- Weak Div Worshipper (`pfs-season-5-bestiary:LBzI86ngk7wYf7p6`) ↔ Div Worshipper (`pfs-season-5-bestiary:qvdMGFjaJe08JQW5`)
+
+#### Pathfinder Society Quest #21: Infernal Infiltration
+
+*Infernal Infiltration* prints the Elite Silver Devil Hooligan at level 1
+(p. 14), while Foundry reports level 2. The ordinary block's ranged dagger
+bonus is +9 in print and +6 in Foundry. The upper-tier Hideout replaces the
+ordinary block with Elite at 19–22 and 33+ Challenge Points. Recheck both
+blocks if the pinned source changes.
+[Published quest](https://www.scribd.com/document/1039010466/21-Infernal-Infiltration)
+
+- Elite Silver Devil Hooligan (`pfs-season-6-bestiary:MjckZs5NKL35d8QL`) ↔ Silver Devil Hooligan (`pfs-season-6-bestiary:XRecLPsSrHHFwWHI`)
+
+#### Pathfinder Society Scenario #1-18: Lodge of the Living God
+
+The Elite Midge is two creature levels higher. Verify the published *Lodge of
+the Living God* encounter and identify the party tiers and scaling conditions
+for the two blocks.
+
+- Glass River Midge (`pfs-season-1-bestiary:I3jGuCG3qL5ua7yE`) ↔ Elite Glass River Midge (`pfs-season-1-bestiary:xu1dm0KnEHx5vySR`)
+
+#### Pathfinder Society Scenario #4-15: In Glorious Battle
+
+The [Smokesight Wights family](creatures/smokesight-wights.toml) groups the
+Hunter, Stalker, Prowler, and Captain by role and by standard or Elite stat
+block. The scaling tables determine which blocks to use in each encounter.
+
+Recheck these pairs when their pinned Foundry records change.
+
+- The ordinary Combustive Zombie has 125 HP in Foundry and 175 in print
+  (pp. 31 and 36).
+- Elite Deadeye uses its base AC and saves in Foundry (AC 27, Fort +16,
+  Ref +20, Will +17). The printed Elite has AC 29 and saves +18, +22, +19
+  (p. 34).
+- Elite Commander has AC 33 in Foundry and AC 34 before raising its shield in
+  print (p. 39).
+
+[Published scenario](https://www.scribd.com/document/669037731/Pathfinder-Society-Season-4-Year-of-Boundless-Wonder-Scenario-15)
+
+- Elite Combustive Zombie (`pfs-season-4-bestiary:2N9DhnUedzp3FHhM`) ↔ Combustive Zombie (`pfs-season-4-bestiary:vA5VwmGb7xZ0WQdM`)
+- Elite Smokesight Deadeye Wight (`pfs-season-4-bestiary:4G6VvfIsceXfEZBB`) ↔ Smokesight Deadeye Wight (`pfs-season-4-bestiary:4r7haYeUSxjW3wtR`)
+- Elite Smokesight Wight Commander (`pfs-season-4-bestiary:KV2LmRMc9ho9mBPy`) ↔ Smokesight Wight Commander (`pfs-season-4-bestiary:Q6BTF30qgInYi2BA`)
+
+#### Pathfinder Society Scenario #4-16: Dacilane Academy's First Great Prank War
+
+The unsuffixed Pappy is level 3 and the 5–6 title is level 5. Check the
+*Dacilane Academy's First Great Prank War* encounter appendix for the
+party-level assignments.
+
+- Pappy Draighean (`pfs-season-4-bestiary:1G589gnuWGIOdrou`) ↔ Pappy Draighean (5-6) (`pfs-season-4-bestiary:ACDuWRp4JELgqmo8`)
+
+#### Pathfinder Society Scenario #4-99: Blessings of the Forest
+
+The [Animated Dagger family](creatures/animated-dagger.toml) presents both
+published blocks as selectable variants. Cathedral Event 4 uses the Elite
+block at party levels 1–2 and 3–4 under different Challenge Point bands. Revisit
+an override if Atlas can represent those encounter conditions accurately.
+[Published scenario](https://www.scribd.com/document/911522567/PF2-S04-99-Blessings-of-the-Forest)
+
+#### Pathfinder Society Scenario #5-03: Heidmarch Heist
+
+*Heidmarch Heist* (pp. 17, 22, 25) uses creature levels 5 and 7 at party
+levels 5–6 and 7–8. Both Foundry records report level 5, including the upper
+block with evasion and 111 HP. Recheck if the pinned Foundry source changes.
+[Published scenario](https://www.scribd.com/document/870508711/PZOPFS0503E)
+
+- Krosovahn Mendesil (`pfs-season-5-bestiary:H5lFXWXFl7vKrugU`) ↔ Krosovahn Mendesil (7-8) (`pfs-season-5-bestiary:TWsApxv2Bx0n7M3i`)
+
+#### Pathfinder Society Scenario #5-10: The Crocodile's Smile
+
+The unsuffixed *Crocodile's Smile* actors have lower creature levels than the
+3–4 actors. The higher-tier Zibini also gains two named kicks. Verify the
+encounter appendix's party-level assignments.
+
+- Little Brother Zibini (`pfs-season-5-bestiary:NoatZIUfJETSq20A`) ↔ Little Brother Zibini (3-4) (`pfs-season-5-bestiary:epmml7kA0akrIGPG`)
+- Tisbah (3-4) (`pfs-season-5-bestiary:V5gA4pv3ewFxfY6L`) ↔ Tisbah (`pfs-season-5-bestiary:kLL35GP9ZczW1tKV`)
+
+#### Pathfinder Society Scenario #5-14: Poisonous Council
+
+The 5–6 Sronwa gains Surprise Attack and is two creature levels higher. Verify
+*Poisonous Council*'s encounter for the unsuffixed actor's party range.
+
+- Sronwa (`pfs-season-5-bestiary:R1S3vlOlNEEqW8kO`) ↔ Sronwa (5-6) (`pfs-season-5-bestiary:RghG76jeaTeQCT6j`)
+
+#### Pathfinder Society Scenario #6-04: An Enkindled Carnival
+
+The unsuffixed Puddles Phantom is level 4 and the 5–6 title is level 6. Verify
+*An Enkindled Carnival*'s encounter for the lower block's party range.
+
+- Puddles Phantom (`pfs-season-6-bestiary:5Txfy0wV529fleUw`) ↔ Puddles Phantom (5-6) (`pfs-season-6-bestiary:ooCLBFbCLCQWhPqD`)
+
+#### Pathfinder Society Scenario #6-09: The Power of Legends
+
+Both Penumbra actors report creature level 11. The 11–12 block has 210 HP
+versus 170 HP. Compare both with the published *Power of Legends* blocks
+before assigning scenario uses.
+
+- Penumbra (`pfs-season-6-bestiary:Mg8gzA54MY5DMHZk`) ↔ Penumbra (11-12) (`pfs-season-6-bestiary:cyOOXZliztAjS9YM`)
+
+#### Pathfinder Society Scenario #6-19: What Walks Again
+
+The 13–14 Husk of Deskari is creature level 17. The unsuffixed actor is level
+14. Verify the assignments in *What Walks Again*.
+
+- The Husk of Deskari (13-14) (`pfs-season-6-bestiary:7H1fqxjhk0PzUMy4`) ↔ The Husk of Deskari (`pfs-season-6-bestiary:cJMsjCIJQB2iafmk`)
+
+#### Pathfinder Society Scenario #6-20: The Overthrow of Ambition
+
+The 11–12 Harbinger is creature level 9 and the unsuffixed actor is level 7.
+Verify the party uses in *The Overthrow of Ambition*.
+
+- Harbinger of Ingalor (11-12) (`pfs-season-6-bestiary:RgAi5UNl5yxAk9y2`) ↔ Harbinger of Ingalor (`pfs-season-6-bestiary:qbAQmR4WUnNF3g4Z`)
+
+#### Pathfinder Society Scenario #7-01: Intro to the Year of Battle's Spark: Enough is Enough
+
+The three 3–4 actors have higher creature levels. The Imp Minion has 1 HP in
+both records. Verify both encounter tiers in *Enough is Enough*, including
+whether the imp stat block is merely rescaled.
+
+- Bartolo Posandi (3-4) (`pfs-season-7-bestiary:lGBzkcTH3i49Bg7e`) ↔ Bartolo Posandi (`pfs-season-7-bestiary:sjMxdb8gEpK7ejBQ`)
+- Imp Minion (`pfs-season-7-bestiary:BeaQYUmT1DrnFxpR`) ↔ Imp Minion (3-4) (`pfs-season-7-bestiary:xaoetADwlJqF8Hy0`)
+- Olinda Posandi (`pfs-season-7-bestiary:GD8dO41GvkdPQTT9`) ↔ Olinda Posandi (3-4) (`pfs-season-7-bestiary:McQbKbTiy38rEEna`)
+
+#### Pathfinder Society Scenario #7-03: A Foot in the Door
+
+The level 9 Timonithaea title says 7–9, outside the published scenario's
+party levels 5–8. Verify the encounter's assignments for both actors before
+displaying them. [Paizo scenario listing](https://store.paizo.com/pathfinder-society-scenario-7-03-a-foot-in-the-door/)
+
+- Timonithaea (7-9) (`pfs-season-7-bestiary:Idl8zxFPu9dyRA5h`) ↔ Timonithaea (`pfs-season-7-bestiary:UG5iXBqsLxRifjSW`)
+
+#### Pathfinder Society Scenario #7-05: Battle of the Thorns
+
+The unsuffixed Kizrech is level 9 and the 11–12 title is level 11. Verify the
+lower range in *Battle of the Thorns*.
+
+- Kizrech (`pfs-season-7-bestiary:W2puJUeo61CLMMxQ`) ↔ Kizrech (11-12) (`pfs-season-7-bestiary:xyT4zCZjAbnAgDLV`)
+
+#### Pathfinder Society Scenario #7-08: The Haunted Corridor
+
+The unsuffixed Lyari is level 1 and the 3–4 title is level 3. Verify the lower
+range in *The Haunted Corridor*.
+
+- Lyari Zinfeld (`pfs-season-7-bestiary:SnoWbBMVQdoAKJA9`) ↔ Lyari Zinfeld (3-4) (`pfs-season-7-bestiary:vngxFO3AQdnBivra`)

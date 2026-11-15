@@ -1,0 +1,12 @@
+name = "Akki"
+source_note = "The pinned Myth-Speaker actors portray the unique tengu Akki with electricity-infused Rage at creature level 2 in The Acropolis Pyre and creature level 8 in Titanbane. The Titanbane block adds Mythic Power and carries the Hydra Spear that Akki crafted."
+
+[[members]]
+key = "myth-speaker-bestiary:ga1l2gjdrnb1ctRS"
+name = "Akki (Level 2)"
+label = "Akki"
+
+[[members]]
+key = "myth-speaker-bestiary:uqdf6Fx5Z6IWyWed"
+name = "Akki (Level 8)"
+label = "Akki"

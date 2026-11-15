@@ -1,0 +1,55 @@
+name = "Smokesight Wights"
+source_note = "In Glorious Battle publishes the Hunter, Stalker, Prowler, and Captain with ordinary and Elite stat blocks. Encounters B and D use Hunters and Stalkers at party levels 9–10 and Prowlers at 11–12. Encounter D prints the Captain pair for party levels 9–10. The scaling sidebars determine when the Elite blocks appear."
+
+axes = [
+    { id = "role", label = "Role", alternatives_label = "Other roles", options = [
+        { id = "hunter", label = "Hunter" },
+        { id = "stalker", label = "Stalker" },
+        { id = "prowler", label = "Prowler" },
+        { id = "captain", label = "Captain" },
+    ] },
+    { id = "stat-block", label = "Stat block", alternatives_label = "Other stat blocks", options = [
+        { id = "standard", label = "Standard" },
+        { id = "elite", label = "Elite" },
+    ] },
+]
+
+[[members]]
+key = "pfs-season-4-bestiary:pomHkkLGJxTvpAyA"
+name = "Smokesight Hunter Wight"
+coordinates = { role = "hunter", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-4-bestiary:UDodAGDnGkGwYsMi"
+name = "Elite Smokesight Hunter Wight"
+coordinates = { role = "hunter", stat-block = "elite" }
+
+[[members]]
+key = "pfs-season-4-bestiary:eC1Y25pgLNSpAoki"
+name = "Smokesight Stalker Wight"
+coordinates = { role = "stalker", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-4-bestiary:YjTKd7VZwCFaTWPB"
+name = "Elite Smokesight Stalker Wight"
+coordinates = { role = "stalker", stat-block = "elite" }
+
+[[members]]
+key = "pfs-season-4-bestiary:SO8aRCEXdCRJ8TIG"
+name = "Smokesight Prowler Wight"
+coordinates = { role = "prowler", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-4-bestiary:9fBLqeIyvH232sFp"
+name = "Elite Smokesight Prowler Wight"
+coordinates = { role = "prowler", stat-block = "elite" }
+
+[[members]]
+key = "pfs-season-4-bestiary:qqNfvVoquLzXsg9j"
+name = "Smokesight Wight Captain"
+coordinates = { role = "captain", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-4-bestiary:BRo5HCigb4YTjJys"
+name = "Elite Smokesight Wight Captain"
+coordinates = { role = "captain", stat-block = "elite" }

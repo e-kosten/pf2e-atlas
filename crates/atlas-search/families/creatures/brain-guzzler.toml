@@ -1,0 +1,36 @@
+name = "Brain Guzzler"
+source_note = "Once in Whispers (B3, pp. 10–11, 19, 29) uses Brain Guzzler at 5–6 and Enhanced Brain Guzzler at 7–8. The principal guzzler in Central Research has an Ulna Bow; additional guzzlers lack it."
+
+[[members]]
+key = "pfs-season-6-bestiary:7I4Q7ine33rieFen"
+name = "Brain Guzzler"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-6-bestiary:Lt5GIrcYWixW0FaA"
+name = "Brain Guzzler (Central Research)"
+label = "Brain Guzzler (Ulna Bow)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-6-bestiary:SAgX6cRaMFL9zki6"
+name = "Enhanced Brain Guzzler"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
+
+[[members]]
+key = "pfs-season-6-bestiary:q7Ar2jl4HFLwB5wF"
+name = "Enhanced Brain Guzzler (Central Research)"
+label = "Enhanced Brain Guzzler (Ulna Bow)"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]
