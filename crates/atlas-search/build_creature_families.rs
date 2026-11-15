@@ -147,6 +147,18 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
         {
             return Err(format!("invalid title for {}", member.key));
         }
+        if member.searchable_label
+            && member.label.as_ref().is_none_or(|label| {
+                atlas_domain::normalize_record_name(label).is_empty()
+                    || atlas_domain::normalize_record_name(label)
+                        == atlas_domain::normalize_record_name(&member.name)
+            })
+        {
+            return Err(format!(
+                "a searchable label needs a distinct name for {}",
+                member.key
+            ));
+        }
         let mut uses = BTreeSet::new();
         for use_ in &member.uses {
             if !super::catalog::valid_family_id(&use_.id)

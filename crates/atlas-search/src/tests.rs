@@ -169,6 +169,149 @@ fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
         .unwrap()
 }
 #[test]
+fn reviewed_creature_label_uses_the_exact_identity_pipeline() {
+    let actor = RecordKey::parse("one-shot-bestiary:3QyqHIuAXE3YVLUh").unwrap();
+    let (_artifact, mut service) = service(input(
+        vec![
+            effect("aaaaaaaaaaaaaaaa", "Gosterion", 1, ""),
+            record(
+                actor.pack().as_str(),
+                "Actor",
+                json!({"_id":actor.id().as_str(),"type":"npc","name":"Phistophilus"}),
+            ),
+        ],
+        false,
+    ));
+    let lookup = service
+        .resolve_record(ResolveRecordRequest {
+            query: " GOSTERION ",
+            filter: None,
+        })
+        .unwrap();
+    assert_eq!(lookup.len(), 2);
+    let alias = lookup.iter().find(|hit| hit.record.key == actor).unwrap();
+    assert_eq!(alias.match_kind, RecordResolutionMatchKind::Alias);
+    assert_eq!(alias.matched_text, "Gosterion");
+    assert!(alias.evidence.is_some());
+
+    let ranked = search(&mut service, "\"GOSTERION\"");
+    assert_eq!(ranked.page.total, 2);
+    assert_eq!(ranked.records.len(), 2);
+    assert_eq!(ranked.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
+    assert_eq!(ranked.records[1].record.key, actor);
+    assert!(ranked.records[1].matches.is_empty());
+    assert!(ranked.records[1].lexical_rank.is_none());
+
+    let mut request = TextSearchRequest::new("Gosterion", SearchPage::new(2, 1).unwrap());
+    request.mode = RetrievalMode::Fts;
+    let second_page = service.search_text(request).unwrap();
+    assert_eq!(second_page.page.total, 2);
+    assert_eq!(second_page.records[0].record.key, actor);
+
+    let mut request = TextSearchRequest::new("Gosterion", SearchPage::first(1).unwrap());
+    request.mode = RetrievalMode::Fts;
+    request.sort = atlas_domain::ResultSort::attribute(
+        atlas_domain::SortField::Name,
+        atlas_domain::SortDirection::Desc,
+    );
+    let sorted = service.search_text(request).unwrap();
+    assert_eq!(sorted.page.total, 2);
+    assert_eq!(sorted.records[0].record.key, actor);
+
+    let mut request = TextSearchRequest::new("Gosterion", SearchPage::first(1).unwrap());
+    request.mode = RetrievalMode::Fts;
+    request.scope = RecordScope::Keys(std::slice::from_ref(&actor));
+    request.sort = atlas_domain::ResultSort::attribute(
+        atlas_domain::SortField::Name,
+        atlas_domain::SortDirection::Asc,
+    );
+    let scoped = service.search_text(request).unwrap();
+    assert_eq!(scoped.records.len(), 1);
+    assert_eq!(scoped.records[0].record.key, actor);
+
+    let filter = atlas_domain::QueryPredicate::boolean(false);
+    let mut request = TextSearchRequest::new("Gosterion", SearchPage::default());
+    request.mode = RetrievalMode::Fts;
+    request.filter = Some(&filter);
+    assert!(service.search_text(request).unwrap().records.is_empty());
+}
+
+#[test]
+fn reviewed_label_preserves_genuine_lexical_and_semantic_matches() {
+    let actor = RecordKey::parse("one-shot-bestiary:3QyqHIuAXE3YVLUh").unwrap();
+    let mut fixture = input(
+        vec![record(
+            actor.pack().as_str(),
+            "Actor",
+            json!({
+                "_id": actor.id().as_str(), "type": "npc", "name": "Phistophilus",
+                "system": {"details": {"publicNotes": "<h2>Gosterion</h2><p>He has two artifacts.</p>"}}
+            }),
+        )],
+        true,
+    );
+    for unit in &mut fixture.semantic_units {
+        unit.vector.fill(0.0);
+        unit.vector[0] = 1.0;
+    }
+    let (_artifact, service) = service(fixture);
+    let query = service.predicate(None).unwrap();
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
+    let mut vector = vec![0.0; 768];
+    vector[0] = 1.0;
+    let rank = |mode, exclude| {
+        service
+            .rank_candidates(crate::text::CandidateRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
+                ranking: Default::default(),
+                search_profile: &profile,
+                text: "Gosterion",
+                mode,
+                query: &query,
+                scope: RecordScope::All,
+                vector: Some(&vector),
+                exclude,
+            })
+            .unwrap()
+            .0
+    };
+    let roots = rank(RetrievalMode::Hybrid, None);
+    assert_eq!(roots.len(), 1);
+    assert_eq!(roots[0].key, actor);
+    assert_eq!(roots[0].tier, 1);
+    assert!(roots[0].lexical_rank.is_some());
+    assert!(roots[0].similarity.is_some());
+    assert!(!roots[0].witnesses.is_empty());
+    let vector_only = rank(RetrievalMode::Vector, None);
+    assert_eq!(vector_only.len(), 1);
+    assert!(vector_only[0].tier > roots[0].tier);
+    let excluded = rank(RetrievalMode::Hybrid, Some(&actor));
+    assert!(excluded.iter().all(|root| root.tier > roots[0].tier));
+}
+
+#[test]
+fn reviewed_label_does_not_match_when_the_exact_source_name_changed() {
+    let (_artifact, mut service) = service(input(
+        vec![record(
+            "one-shot-bestiary",
+            "Actor",
+            json!({"_id":"3QyqHIuAXE3YVLUh","type":"npc","name":"Renamed Phistophilus"}),
+        )],
+        false,
+    ));
+    assert!(search(&mut service, "Gosterion").records.is_empty());
+    assert!(
+        service
+            .resolve_record(ResolveRecordRequest {
+                query: "Gosterion",
+                filter: None,
+            })
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn strict_identity_alias_ambiguity_and_macro_exclusion() {
     let mut fixture = input(
         vec![

@@ -198,7 +198,8 @@ impl AtlasRetrievalService {
         &self,
         request: ResolveRecordRequest<'_>,
     ) -> Result<Vec<RecordResolutionResult>, SearchError> {
-        let matches = self.index.lookup_name_or_alias(request.query)?;
+        let mut matches = self.index.lookup_name_or_alias(request.query)?;
+        matches.extend(self.reviewed_creature_label_matches(request.query)?);
         let keys = matches.iter().map(|m| m.key.clone()).collect::<Vec<_>>();
         let query = self.predicate(request.filter)?;
         let eligible = self.index.eligible_keys(
