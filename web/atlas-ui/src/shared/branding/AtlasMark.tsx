@@ -6,8 +6,14 @@ export function AtlasMark() {
       aria-hidden="true"
       focusable="false"
     >
-      <circle className="atlas-mark__ring" cx="80" cy="80" r="58" />
-      <circle className="atlas-mark__ring-inner" cx="80" cy="80" r="50" />
+      <circle
+        className="atlas-mark__ring"
+        cx="80"
+        cy="80"
+        r="54"
+        fill="none"
+        strokeWidth="8"
+      />
 
       <g className="atlas-mark__cardinal-points">
         <path d="M80 6 94.5659 70 80 66 65.4341 70Z" />

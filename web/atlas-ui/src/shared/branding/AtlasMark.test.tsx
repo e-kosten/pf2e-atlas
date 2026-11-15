@@ -18,6 +18,9 @@ describe("Atlas brand mark", () => {
     const mark = container.querySelector("svg.atlas-mark");
 
     expect(mark).toHaveAttribute("aria-hidden", "true");
+    const circles = mark?.querySelectorAll("circle");
+    expect(circles).toHaveLength(1);
+    expect(circles?.[0]).toHaveAttribute("fill", "none");
     expect(mark?.querySelectorAll(".atlas-mark__cardinal-points path")).toHaveLength(4);
     expect(mark?.querySelectorAll(".atlas-mark__die-face")).toHaveLength(10);
   });
@@ -36,6 +39,11 @@ describe("Atlas brand mark", () => {
       expect(favicon.querySelector("title")?.textContent).toBe("PF2e Atlas logo");
       expect(favicon.getAttribute("viewBox")).toBe(mark.getAttribute("viewBox"));
       expect(markGeometry(favicon)).toEqual(markGeometry(mark));
+      const ring = favicon.querySelector("circle");
+      expect(ring?.getAttribute("fill")).toBe("none");
+      expect(ring?.getAttribute("stroke-width")).toBe(
+        mark.querySelector("circle")?.getAttribute("stroke-width"),
+      );
     },
   );
 });

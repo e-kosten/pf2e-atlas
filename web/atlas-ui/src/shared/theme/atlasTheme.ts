@@ -76,7 +76,6 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--shell-border": palette.shell.border,
     "--brand-text": palette.brand.text,
     "--brand-mark-ring": palette.brand.mark.ring,
-    "--brand-mark-inner": palette.brand.mark.inner,
     "--brand-mark-cardinal": palette.brand.mark.cardinal,
     "--brand-mark-shade": palette.brand.mark.shade,
     "--brand-mark-outline": palette.brand.mark.outline,

@@ -305,7 +305,6 @@ describe("Atlas product palette", () => {
       border: ramp.border,
       contextBar: ramp.surface,
       shell: { background: ramp.shell, border: ramp.separator },
-      brand: { mark: { inner: ramp.background } },
       tooltip: { background: ramp.shell },
     });
     expect(tokens.colorBgLayout.toLowerCase()).toBe(ramp.background.toLowerCase());
@@ -313,9 +312,6 @@ describe("Atlas product palette", () => {
     expect(tokens.colorFillAlter.toLowerCase()).toBe(ramp.subtle.toLowerCase());
     expect(variables["--panel-subtle" as keyof typeof variables]).toBe(
       tokens.colorFillAlter,
-    );
-    expect(variables["--brand-mark-inner" as keyof typeof variables]).toBe(
-      ramp.background,
     );
     for (const surface of [
       ramp.shell,
