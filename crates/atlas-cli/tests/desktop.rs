@@ -2,6 +2,7 @@
 
 use std::process::Command;
 
+#[cfg(any(target_os = "macos", all(windows, feature = "web")))]
 #[test]
 fn probe_missing_workspace_is_read_only() {
     let home = tempfile::tempdir().unwrap();

@@ -18,7 +18,7 @@ pub(crate) mod similar;
 #[cfg(feature = "web")]
 pub(crate) mod web;
 
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", all(windows, feature = "web")))]
 pub(crate) mod desktop;
 
 pub(crate) mod workspace;
