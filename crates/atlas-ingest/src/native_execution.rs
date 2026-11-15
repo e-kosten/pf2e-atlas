@@ -121,6 +121,7 @@ impl NativeExecution<'_, '_> {
         let mut delta = None;
         let mut first_gap = None;
         let mut missing_inputs = HashSet::new();
+        let mut first_missing = None;
         let mut runner = None;
         let batch_size = self.options.embedding_batch_size;
         let report = self.execute(config, true, |publication, model, batch| {
@@ -133,7 +134,7 @@ impl NativeExecution<'_, '_> {
                 let loaded = load(model, scratch, SeedPart::Base).map_err(seed_error)?;
                 seed = Some(match loaded {
                     Some(mut asset) => {
-                        if policy != SeedBuildPolicy::Strict {
+                        if matches!(policy, SeedBuildPolicy::Audit | SeedBuildPolicy::Refresh) {
                             delta =
                                 Some(load_delta(load, model, scratch, &asset).map_err(seed_error)?);
                         }
@@ -215,6 +216,7 @@ impl NativeExecution<'_, '_> {
             }
             if policy == SeedBuildPolicy::Audit {
                 if first_gap.is_none() {
+                    first_missing.get_or_insert_with(|| inputs[missing[0]].input_sha256.clone());
                     missing_inputs.extend(
                         missing
                             .into_iter()
@@ -234,9 +236,20 @@ impl NativeExecution<'_, '_> {
                 .map_err(embedding)?;
             Ok((inferred, reused, runner.peak_output_vectors(), seed_elapsed))
         })?;
+        if policy == SeedBuildPolicy::Verify
+            && delta.is_none()
+            && let Some(Some(base)) = &seed
+        {
+            load_delta(load, base.model(), scratch, base).map_err(|reason| {
+                IngestError::EmbeddingSeedUnavailable {
+                    profile: report.profile_id.to_string(),
+                    reason,
+                }
+            })?;
+        }
         let gap = first_gap.or_else(|| {
-            missing_inputs.iter().min().map(|first| Gap::MissingInput {
-                first_hash: first.clone(),
+            first_missing.map(|first_hash| Gap::MissingInput {
+                first_hash,
                 reused_inputs: report.reused_inputs,
                 missing_inputs: missing_inputs.len(),
             })

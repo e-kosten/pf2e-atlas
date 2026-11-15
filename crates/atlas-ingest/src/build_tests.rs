@@ -1233,6 +1233,36 @@ fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles
     assert_eq!(verified.inferred_inputs, 0);
     assert_eq!(verified.reused_inputs, old_bge.2 + gemma.2);
 
+    let mut invalid_extra = |model: &atlas_index::SourceSearchProfileIdentity,
+                             scratch: &Path,
+                             part| {
+        match (model.profile_id.as_str(), part) {
+            ("bge-base", SeedPart::Base) => read(&old_bge, scratch),
+            ("bge-base", SeedPart::Delta) => read(&new_bge, scratch),
+            (_, SeedPart::Base) => read(&gemma, scratch),
+            (_, SeedPart::Delta) => Err("declared delta is corrupt".into()),
+        }
+    };
+    let normal = build_seed_fixture(
+        &options,
+        "lazy",
+        SeedBuildPolicy::Strict,
+        Some(&mut invalid_extra),
+    )
+    .unwrap();
+    assert_eq!(normal.inferred_inputs, 0);
+    let certification = build_seed_fixture(
+        &options,
+        "validate-extra",
+        SeedBuildPolicy::Verify,
+        Some(&mut invalid_extra),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(certification, IngestError::EmbeddingSeedUnavailable { profile, reason }
+        if profile == "embeddinggemma" && reason == "declared delta is corrupt")
+    );
+
     let mut rebuild_bge = |model: &atlas_index::SourceSearchProfileIdentity,
                            scratch: &Path,
                            part| {
