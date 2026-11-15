@@ -14,6 +14,17 @@ For the published DMG, see [macOS desktop installation](../docs/installation.md#
 Open **PF2e Atlas.app** in `target/debug/bundle/macos`. Keep the bundle together
 with its CLI in `Contents/MacOS/atlas`. This build is for local testing.
 
+For the adaptive Dock and Finder icon, build with full Xcode 26 or later selected.
+You can select it for a single build with
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer sh desktop/bundle-macos.sh`.
+A local build with Command Line Tools uses the static icon. The release DMG
+requires the adaptive icon catalog.
+
+Edit the layered artwork in [Atlas.icon](src-tauri/icons/Atlas.icon) with Icon
+Composer. Keep its compass geometry aligned with the web favicons. If the
+Default artwork changes, export it again and regenerate `Atlas.icns` for the
+static fallback.
+
 ## Use the app
 
 Choose **Set up Atlas** when the workspace is empty. The app downloads the

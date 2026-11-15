@@ -67,6 +67,7 @@ for executable in "$host" "$bundled"; do
     otool -L "$executable" | awk 'NR > 1 && $1 !~ /^(\/usr\/lib\/|\/System\/Library\/)/ { print; bad=1 } END { exit bad }'
 done
 node "$desktop/verify-release-macos.mjs" "$plist" "$work/config.json" "$host" "$bundled"
+sh "$desktop/verify-macos-icon.sh" "$app"
 test -s "$app/Contents/Resources/THIRD-PARTY-NOTICES.md"
 unexpected=$(find "$app" \( -name '*.sqlite*' -o -name '*.onnx' -o -name hf-models -o -path '*/vendor/pf2e' \) -print)
 [ -z "$unexpected" ] || { printf 'Unexpected release data:\n%s\n' "$unexpected" >&2; exit 1; }
