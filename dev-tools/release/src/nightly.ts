@@ -4,11 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { coverageArchive, coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
 import { validateAssets } from './validate-release-assets.js';
-import { macosDmg, object, readJson } from './release-data.js';
-import { releases, verifyReleaseSource, verifyUploadedDmg, type Release, type Run } from './release-upload.js';
+import { desktopAssets, macosDmg, nightlyTag, object, readJson, windowsInstaller } from './release-data.js';
+import { releases, verifyReleaseSource, verifyUploadedDesktop, type Release, type Run } from './release-upload.js';
 export type { Run } from './release-upload.js';
 
-const nightlyTag = /^v([0-9]+\.[0-9]+\.[0-9]+-nightly\.([0-9]{14})\.g[0-9a-f]{12})$/;
 export function nightlyVersion(tag: string): string {
   const match = nightlyTag.exec(tag);
   if (!match || match[0] !== tag) throw new Error('Invalid nightly tag');
@@ -68,7 +67,8 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
       return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
     });
     if (nightlyTag.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft
-      && release.assets?.some((asset) => asset.name === macosDmg && /^sha256:[a-f0-9]{64}$/.test(asset.digest ?? '')))) {
+      && desktopAssets(tag).every(({ name }) => release.assets?.some((asset) =>
+        asset.name === name && /^sha256:[a-f0-9]{64}$/.test(asset.digest ?? ''))))) {
       return 'build=false\n';
     }
   }
@@ -114,7 +114,7 @@ async function uploadNightlyDraft(run: Run, draft: Release, dist: string): Promi
     if (asset.name !== name) throw new Error(`Unexpected uploaded asset for ${name}`);
     return asset;
   });
-  await verifyUploadedDmg({ ...draft, assets: uploaded }, dist);
+  await verifyUploadedDesktop({ ...draft, assets: uploaded }, dist);
 }
 
 export async function publishNightly(root: string, tag: string, sha: string, dist: string, coveragePath: string,
@@ -152,8 +152,10 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     ...(coverage.notice ? [coverage.notice, ''] : []),
     `[Download PF2e Atlas for Apple Silicon](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${macosDmg}). [First-open instructions](https://github.com/e-kosten/pf2e-atlas/blob/${sha}/docs/installation.md#macos-desktop-app).`,
     '',
+    `[Download PF2e Atlas for Windows x64](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${windowsInstaller}). [Installation instructions](https://github.com/e-kosten/pf2e-atlas/blob/${sha}/docs/installation.md#windows-desktop-app).`,
+    '',
     '<details>',
-    '<summary>Install instructions</summary>',
+    '<summary>CLI installation instructions</summary>',
     '',
     'Install with the installer for your platform:',
     '',
@@ -199,7 +201,7 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
   }
   if (published.draft || !published.prerelease) throw new Error('Expected a published dated nightly');
   verifyReleaseSource(run, published, tag, sha, true);
-  await verifyUploadedDmg(published, dist);
+  await verifyUploadedDesktop(published, dist);
   if (alreadyCurrent) return;
   // Published dated assets stay immutable. Check actual downloads before advancing
   // the channel so a failed install preserves the last successful nightly.

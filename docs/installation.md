@@ -30,6 +30,18 @@ command your shell uses. The linked command works when the app is closed
 and follows the app when you replace it in Applications at the same path.
 To switch back, rerun the standalone installer.
 
+## Windows desktop app
+
+On Windows x64, open the dated nightly release named in
+[`nightly-version.txt`](https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt)
+and download `atlas-desktop-x86_64-pc-windows-msvc-setup.exe` from that release.
+Check its SHA-256 against `SHA256SUMS` on the same release. The installer is
+unsigned, so Windows may show a warning when you open it.
+
+Run the installer, open **PF2e Atlas** from the Start menu, and choose **Set up
+Atlas** for a new workspace. To update, close Atlas and run the installer from
+the newer nightly. When Atlas reopens, use **Setup and Updates** if prompted.
+
 ## Update Atlas
 
 Rerun the [quick-start installer](../README.md#quick-start) to update the CLI to
@@ -116,10 +128,11 @@ selects a version for the installer.
 ## Nightly builds
 
 Nightlies let you try recent changes before the next stable release. New builds
-are available after automated checks pass. The default quick-start installer uses
-the stable release; use the commands below to choose a nightly instead.
+are available after automated checks pass. For the desktop downloads, see
+[macOS](#macos-desktop-app) or [Windows](#windows-desktop-app).
 
-Install or update to the newest successful nightly on macOS/Linux:
+To install or update the CLI to the newest successful nightly on macOS/Linux,
+run the nightly installer:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
@@ -127,7 +140,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   | sh -s -- --version nightly
 ```
 
-On Windows, download the installer and select the nightly version:
+On Windows, download the CLI installer and select the nightly version:
 
 ```powershell
 $installer = Join-Path $env:TEMP 'atlas-installer.ps1'

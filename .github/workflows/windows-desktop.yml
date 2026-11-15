@@ -46,26 +46,7 @@ jobs:
           $output = 'target/x86_64-pc-windows-msvc/release'
           $installer = @(Get-ChildItem "$output/bundle/nsis" -Filter '*-setup.exe')
           if ($installer.Count -ne 1) { throw 'Expected one Windows installer.' }
-          $installDir = Join-Path $env:RUNNER_TEMP 'Atlas Desktop Test'
-          $process = Start-Process $installer[0].FullName -ArgumentList "/S /D=$installDir" -WindowStyle Hidden -PassThru -Wait
-          if ($process.ExitCode -ne 0) { throw "Setup failed with code $($process.ExitCode)." }
-          foreach ($file in 'atlas-desktop.exe', 'atlas.exe', 'THIRD-PARTY-NOTICES.md', 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
-            if (!(Test-Path -LiteralPath (Join-Path $installDir $file) -PathType Leaf)) {
-              throw "Missing installed file $file."
-            }
-          }
-          $registered = (Get-Item 'HKCU:\Software\Classes\pf2e-atlas\shell\open\command').GetValue('')
-          if ($registered -ne ('"{0}\atlas-desktop.exe" "%1"' -f $installDir)) {
-            throw "Unexpected protocol command $registered."
-          }
-          if ((Get-FileHash "$output/atlas.exe").Hash -ne (Get-FileHash "$installDir/atlas.exe").Hash) {
-            throw 'Installed sidecar differs from the matching CLI.'
-          }
-          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'Atlas Desktop Workspace'
-          $probe = & "$installDir/atlas.exe" desktop-probe | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $probe.data.version -ne 1 -or $probe.data.status -ne 'needs_setup') {
-            throw 'The bundled command did not recognize the empty workspace.'
-          }
+          ./desktop/verify-windows-installer.ps1 -Installer $installer[0].FullName -ExpectedCli "$output/atlas.exe" -ScratchDirectory $env:RUNNER_TEMP
       - uses: actions/upload-artifact@v7
         with:
           name: atlas-desktop-windows-x64

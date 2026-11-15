@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { nightlyVersion, planNightly, prepareNightly, publishNightly, type Run } from '../src/nightly.js';
-import { macosDmg } from '../src/release-data.js';
+import { macosDmg, windowsInstaller } from '../src/release-data.js';
 
 const sha = 'abcdef123456' + '0'.repeat(28);
 const tag = 'v0.1.0-nightly.20261018092300.gabcdef123456';
@@ -17,6 +17,9 @@ const archiveBytes = 'checked CLI archive';
 const archiveDigest = createHash('sha256').update(archiveBytes).digest('hex');
 const dmgBytes = 'checked DMG';
 const dmgAsset = { id: 456, name: macosDmg, digest: `sha256:${createHash('sha256').update(dmgBytes).digest('hex')}` };
+const installerBytes = 'checked Windows installer';
+const windowsAsset = { id: 457, name: windowsInstaller, digest: `sha256:${createHash('sha256').update(installerBytes).digest('hex')}` };
+const publishedAssets = [dmgAsset, windowsAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }];
 const pins = { version: 2, profiles: {
   'bge-base': {
     base: { tag: 'embedding-seed/bge-base/v1', asset: 'bge-base.gz', file: { sha256: 'b'.repeat(64), bytes: 1 } },
@@ -41,6 +44,7 @@ function fixture(t: TestContext) {
   }));
   writeFileSync(path.join(dist, coverageArchive), archiveBytes);
   writeFileSync(path.join(dist, macosDmg), dmgBytes);
+  writeFileSync(path.join(dist, windowsInstaller), installerBytes);
   const pinPath = path.join(root, 'crates/atlas-runtime/embedding-seeds.json');
   mkdirSync(path.dirname(pinPath), { recursive: true });
   writeFileSync(pinPath, JSON.stringify(pins));
@@ -69,9 +73,10 @@ test('invalid versions and inconsistent locks fail before changing either file',
 
 test('scheduled skip requires the published channel to point to this exact source', (t) => {
   const { root } = fixture(t);
-  for (const scenario of ['same', 'changed', 'draft', 'missing-channel', 'missing-pointer', 'missing-dmg', 'manual']) {
+  for (const scenario of ['same', 'changed', 'draft', 'missing-channel', 'missing-pointer', 'missing-dmg', 'missing-windows', 'manual']) {
     const dated = { tag_name: tag, target_commitish: scenario === 'changed' ? '1'.repeat(40) : sha, draft: scenario === 'draft', prerelease: true,
-      assets: scenario === 'missing-dmg' ? [] : [dmgAsset] };
+      assets: [dmgAsset, windowsAsset].filter((asset) => !(scenario === 'missing-dmg' && asset === dmgAsset)
+        && !(scenario === 'missing-windows' && asset === windowsAsset)) };
     const channel = { tag_name: 'nightly', draft: false, assets: scenario === 'missing-pointer' ? [] : [{ name: 'nightly-version.txt' }] };
     const run: Run = (program, args) => {
       if (program === 'git') return sha;
@@ -84,7 +89,7 @@ test('scheduled skip requires the published channel to point to this exact sourc
   }
 });
 
-function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean; badDmg?: boolean; channelTag?: string; staleList?: boolean; listPublishedAsDraft?: boolean } = {}) {
+function publisher(t: TestContext, options: { existing?: object[]; failInstall?: boolean; wrongVersion?: boolean; failValidation?: boolean; gap?: boolean; badCoverage?: boolean; badDesktopAsset?: string; channelTag?: string; staleList?: boolean; listPublishedAsDraft?: boolean } = {}) {
   const { root, dist } = fixture(t);
   const coverage = path.join(root, 'embedding-coverage.json');
   const covered = { status: 'covered', inferred_inputs: 0, reused_inputs: 3 };
@@ -141,7 +146,8 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
       assert.equal(endpoint, `${uploadUrl}?name=${name}`);
       assert.equal(path.dirname(input), dist);
       assert.ok(!draft.assets?.some((asset) => asset.name === name), 'duplicate draft asset');
-      const asset = name === macosDmg && !options.badDmg ? dmgAsset : { name };
+      const asset = name === options.badDesktopAsset ? { name, digest: `sha256:${'0'.repeat(64)}` } :
+        [dmgAsset, windowsAsset].find((asset) => asset.name === name) ?? { name };
       (draft.assets ??= []).push(asset);
       return JSON.stringify(asset);
     }
@@ -173,6 +179,8 @@ test('channel advances only after dated publication and successful downloaded in
   assert.ok(cliInstallation > installation && cliInstallation < channelPublication);
   const uploads = calls.filter((call) => call.slice(0, 4).join(' ') === 'gh release upload nightly');
   assert.equal(path.basename(uploads.at(-1)![4]), 'nightly-version.txt');
+  assert.ok(calls.some((call) => call[4] === `${uploadUrl}?name=${windowsInstaller}`));
+  assert.ok(calls.some((call) => call.some((arg) => arg.includes(`/releases/download/${tag}/${windowsInstaller}`))));
   for (const call of calls.filter((call) => call[1] === 'release' && ['create', 'edit'].includes(call[2]))) {
     assert.ok(call.includes('--latest=false')); assert.ok(call.includes('--prerelease'));
   }
@@ -200,17 +208,22 @@ test('validation, installation and binary-version failures preserve the channel'
 test('retry preserves published dated assets while repairing the channel', async (t) => {
   const { execute, calls } = publisher(t, { listPublishedAsDraft: true, existing: [{
     id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
-    assets: [dmgAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }],
+    assets: publishedAssets,
   }] });
   await execute();
   assert.ok(!calls.some((call) => call[1] === 'api' && call[2] === '--method'));
   assert.ok(calls.some((call) => call[2] === 'upload' && call[3] === 'nightly'));
 });
 
-test('a bad uploaded DMG keeps the release in draft and an older retry cannot change the channel', async (t) => {
-  const bad = publisher(t, { badDmg: true });
-  await assert.rejects(bad.execute, /Uploaded DMG digest mismatch/);
-  assert.ok(!bad.calls.some((call) => call.includes('draft=false')));
+test('bad desktop upload digests keep the release in draft', async (t) => {
+  for (const [name, error] of [[macosDmg, /Uploaded DMG digest mismatch/], [windowsInstaller, /Uploaded Windows installer digest mismatch/]] as const) {
+    const bad = publisher(t, { badDesktopAsset: name });
+    await assert.rejects(bad.execute, error);
+    assert.ok(!bad.calls.some((call) => call.includes('draft=false')));
+  }
+});
+
+test('older and current published retries leave the channel alone', async (t) => {
   const old = publisher(t, { existing: [{ tag_name: 'nightly', assets: [{ name: 'nightly-version.txt' }] }],
     channelTag: tag.replace('20261018092300', '20261019092300') });
   await old.execute();
@@ -218,10 +231,19 @@ test('a bad uploaded DMG keeps the release in draft and an older retry cannot ch
   const current = publisher(t, { existing: [
     { tag_name: 'nightly', draft: false, assets: [{ name: 'nightly-version.txt' }] },
     { tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
-      assets: [dmgAsset, { name: coverageArchive, digest: `sha256:${archiveDigest}` }] },
+      assets: publishedAssets },
   ], channelTag: tag });
   await current.execute();
   assert.ok(!current.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
+});
+
+test('an existing dated release without the verified Windows installer cannot advance the channel', async (t) => {
+  const retry = publisher(t, { existing: [{
+    id: datedReleaseId, tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
+    assets: publishedAssets.filter((asset) => asset !== windowsAsset),
+  }] });
+  await assert.rejects(retry.execute, /Uploaded Windows installer digest mismatch/);
+  assert.ok(!retry.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
 });
 
 test('source or manifest identity mismatches cannot publish', async (t) => {
@@ -241,7 +263,7 @@ test('nightly discloses the affected profile before install instructions', async
   const notes = create.find((argument) => argument.startsWith('body='))!;
   assert.match(notes, /\*\*EmbeddingGemma\*\*/);
   assert.match(notes, /--build-embeddings-locally/);
-  assert.ok(notes.indexOf('Embedding coverage gap') < notes.indexOf('Install instructions'));
+  assert.ok(notes.indexOf('Embedding coverage gap') < notes.indexOf('CLI installation instructions'));
 });
 
 test('bad report and missing notice on a published nightly block the channel', async (t) => {

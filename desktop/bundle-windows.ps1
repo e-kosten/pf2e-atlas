@@ -1,5 +1,12 @@
-[CmdletBinding()]
-param()
+[CmdletBinding(DefaultParameterSetName = 'Local')]
+param(
+    [Parameter(Mandatory, ParameterSetName = 'Release')]
+    [string]$PackagedCli,
+    [Parameter(Mandatory, ParameterSetName = 'Release')]
+    [string]$Version,
+    [Parameter(Mandatory, ParameterSetName = 'Release')]
+    [string]$OutputInstaller
+)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -7,6 +14,11 @@ $target = 'x86_64-pc-windows-msvc'
 if ($env:OS -ne 'Windows_NT' -or
     [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne 'X64') {
     throw 'The Atlas Windows installer requires a Windows x64 build machine.'
+}
+$release = $PSCmdlet.ParameterSetName -eq 'Release'
+if ($release) {
+    $PackagedCli = (Resolve-Path -LiteralPath $PackagedCli).Path
+    $OutputInstaller = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputInstaller)
 }
 
 function Invoke-BuildStep {
@@ -48,22 +60,36 @@ try {
     foreach ($file in 'msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
         Copy-Item -LiteralPath (Join-Path $crt $file) -Destination $runtime
     }
-    Invoke-BuildStep npm.cmd @('--prefix', 'web/atlas-ui', 'run', 'build')
+    if (!$release) {
+        Invoke-BuildStep npm.cmd @('--prefix', 'web/atlas-ui', 'run', 'build')
+    }
     Invoke-BuildStep node @('desktop/prepare-bootstrap.mjs')
     Invoke-BuildStep npm.cmd @('--prefix', 'dev-tools/release', 'run', 'notices', '--',
         '--output', (Join-Path $PSScriptRoot '.generated/THIRD-PARTY-NOTICES.md'), '--desktop')
-    Invoke-BuildStep cargo @('build', '--locked', '--release', '--target', $target, '-p', 'atlas-cli')
+    if (!$release) {
+        Invoke-BuildStep cargo @('build', '--locked', '--release', '--target', $target, '-p', 'atlas-cli')
+        $PackagedCli = Join-Path $root "target/$target/release/atlas.exe"
+    }
 
     $binaries = Join-Path $PSScriptRoot 'src-tauri/binaries'
     New-Item -ItemType Directory -Force $binaries | Out-Null
-    Copy-Item -LiteralPath "target/$target/release/atlas.exe" -Destination "$binaries/atlas-$target.exe"
+    Copy-Item -LiteralPath $PackagedCli -Destination "$binaries/atlas-$target.exe"
 
     # Apply the static CRT required by the WebView2 loader instead of the
     # workspace flags for the CLI's ONNX Runtime.
     $env:CARGO_ENCODED_RUSTFLAGS = '-Ctarget-feature=+crt-static'
     Set-Location $PSScriptRoot
-    Invoke-BuildStep './node_modules/.bin/tauri.cmd' @('build', '--target', $target,
-        '--bundles', 'nsis', '--no-sign', '--', '--locked')
+    $arguments = @('build', '--target', $target, '--bundles', 'nsis', '--no-sign')
+    if ($release) {
+        $config = Join-Path $PSScriptRoot '.generated/windows-release.json'
+        @{ version = $Version } | ConvertTo-Json -Compress | Set-Content -LiteralPath $config -Encoding ascii
+        $arguments += @('--config', $config)
+    }
+    Invoke-BuildStep './node_modules/.bin/tauri.cmd' ($arguments + @('--', '--locked'))
+    if ($release) {
+        $installer = Join-Path $env:CARGO_TARGET_DIR "$target/release/bundle/nsis/PF2e Atlas_${Version}_x64-setup.exe"
+        Copy-Item -LiteralPath $installer -Destination $OutputInstaller
+    }
 }
 finally {
     $env:CARGO_ENCODED_RUSTFLAGS = $previousRustFlags

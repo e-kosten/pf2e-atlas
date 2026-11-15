@@ -11,7 +11,7 @@ import { generateManifest } from '../src/generate-release-manifest.js';
 import { notices } from '../src/generate-notices.js';
 import { pruneManifest } from '../src/prune-dist-manifest.js';
 import { fixture, writeZip } from './release-fixtures.js';
-import { jsonText, macosDmg, object, readJson, repoRoot, sha256, targets, variants, archiveName, writeJson } from '../src/release-data.js';
+import { jsonText, macosDmg, object, readJson, repoRoot, sha256, targets, variants, archiveName, windowsInstaller, writeJson } from '../src/release-data.js';
 import { stageCliOnly } from '../src/stage-cli-only.js';
 import { validateAssets } from '../src/validate-release-assets.js';
 
@@ -40,6 +40,26 @@ test('assembly binds the DMG and packaged CLI to the checked source and tag', as
   writeFileSync(dmg, 'mounted disk image');
   writeFileSync(archive, 'substituted executable');
   assert.match(check().stderr, /does not match/);
+});
+
+test('nightly assembly binds the Windows installer to its full CLI archive', async (t) => {
+  const dist = temporary(t), commit = 'a'.repeat(40);
+  const tag = `v1.2.3-nightly.20261115092300.g${commit.slice(0, 12)}`;
+  const dmg = path.join(dist, macosDmg);
+  const macCli = path.join(dist, archiveName('aarch64-apple-darwin', 'full'));
+  const windowsCli = path.join(dist, archiveName('x86_64-pc-windows-msvc', 'full'));
+  const installer = path.join(dist, windowsInstaller);
+  for (const asset of [dmg, macCli, windowsCli, installer]) writeFileSync(asset, path.basename(asset));
+  writeJson(`${dmg}.receipt.json`, { tag, commit, archive: await sha256(macCli), dmg: await sha256(dmg) });
+  const check = () => spawnSync(process.execPath, [command('verify-desktop-receipt'), tag, commit, dist], { encoding: 'utf8' });
+  assert.notEqual(check().status, 0, 'missing Windows receipt');
+  writeJson(`${installer}.receipt.json`, { tag, commit, archive: await sha256(windowsCli), installer: await sha256(installer) });
+  assert.equal(check().status, 0);
+  writeFileSync(windowsCli, 'different Windows CLI archive');
+  assert.match(check().stderr, /Desktop build receipt for .*\.exe does not match/);
+  writeFileSync(windowsCli, path.basename(windowsCli));
+  writeFileSync(installer, 'substituted installer');
+  assert.match(check().stderr, /Desktop build receipt for .*\.exe does not match/);
 });
 
 test('manifest and checksums cover supported packages and release extras deterministically', async (t) => {
@@ -195,6 +215,17 @@ test('asset checks reject missing metadata, bad hashes, runtime data in archives
   writeJson(path.join(dist, 'dist-manifest.json'), {});
   await generateManifest('v9.9.9', dist);
   await validateAssets(dist);
+  const nightly = 'v9.9.9-nightly.20261115092300.gabcdef123456';
+  const installer = path.join(dist, windowsInstaller);
+  await generateManifest(nightly, dist);
+  await assert.rejects(validateAssets(dist), /missing required release asset: .*\.exe/);
+  writeFileSync(installer, 'verified installer');
+  await generateManifest(nightly, dist);
+  await validateAssets(dist);
+  writeFileSync(installer, 'substituted installer');
+  await assert.rejects(validateAssets(dist), /checksum metadata mismatch for .*\.exe/);
+  rmSync(installer);
+  await generateManifest('v9.9.9', dist);
   const dmg = path.join(dist, macosDmg);
   rmSync(dmg);
   await assert.rejects(validateAssets(dist), /missing required release asset: .*\.dmg/);

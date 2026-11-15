@@ -1,20 +1,25 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { archiveEntries } from './archives.js';
-import { archiveName, compare, isFile, macosDmg, object, readJson, sha256, targets, variants } from './release-data.js';
+import { archiveName, compare, desktopAssets, isFile, object, readJson, sha256, targets, variants } from './release-data.js';
 
 const noticesName = 'THIRD-PARTY-NOTICES.md';
+const manifestName = 'atlas-release-manifest.json';
 const required = [
   ...variants.flatMap((variant) => Object.keys(targets).map((target) => archiveName(target, variant))),
   'SHA256SUMS', 'dist-manifest.json', 'atlas-installer.sh', 'atlas-installer.ps1',
-  'atlas-release-manifest.json', noticesName, macosDmg,
+  noticesName,
 ];
 export const containsRuntimeData = (entry: string) => ['pf2e-index.sqlite', 'model.onnx', 'tokenizer.json', 'vendor/pf2e/', 'hf-models/']
   .some((part) => entry.replaceAll('\\', '/').includes(part));
 export async function validateAssets(dist: string): Promise<void> {
-  const missing = required.filter((name) => !isFile(path.join(dist, name)) || statSync(path.join(dist, name)).size === 0);
+  const manifestPath = path.join(dist, manifestName);
+  if (!isFile(manifestPath) || statSync(manifestPath).size === 0) throw new Error(`missing required release asset: ${manifestName}`);
+  const { assets, version } = object(readJson(manifestPath));
+  if (typeof version !== 'string') throw new Error('Expected release manifest version');
+  const desktop = desktopAssets(version).map(({ name }) => name);
+  const missing = [...required, ...desktop].filter((name) => !isFile(path.join(dist, name)) || statSync(path.join(dist, name)).size === 0);
   if (missing.length) throw new Error(missing.map((name) => `missing required release asset: ${name}`).join('\n'));
-  const assets = object(readJson(path.join(dist, 'atlas-release-manifest.json'))).assets;
   if (!Array.isArray(assets)) throw new Error('Expected release manifest assets array');
   const checksums = readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8').split(/\r?\n/);
   for (const variant of variants) {
@@ -52,7 +57,7 @@ export async function validateAssets(dist: string): Promise<void> {
       if (entry.isDirectory()) inspectDirectory(file);
     }
   }
-  for (const name of [noticesName, macosDmg]) {
+  for (const name of [noticesName, ...desktop]) {
     const hashes = checksums.filter((line) => line.trim().split(/\s+/)[1] === name)
       .map((line) => line.trim().split(/\s+/)[0]);
     if (hashes.length !== 1 || hashes[0] !== await sha256(path.join(dist, name))) {
