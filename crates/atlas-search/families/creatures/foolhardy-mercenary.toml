@@ -1,0 +1,14 @@
+name = "Foolhardy Mercenary"
+source_note = "Escorting a Mirage gives all three Foolhardy Mercenaries the same dagger and shortsword equipment. The standard and Elite blocks use dagger strikes and have AC 15. The Angry block shares the Elite's creature level 1 and 25 HP, gains a shortsword strike and Shoulder Check, and has AC 16."
+
+[[members]]
+key = "pfs-season-5-bestiary:RPhiMYpPORMIIDJi"
+name = "Foolhardy Mercenary"
+
+[[members]]
+key = "pfs-season-5-bestiary:M1POW9BD03uSF6pA"
+name = "Elite Foolhardy Mercenary"
+
+[[members]]
+key = "pfs-season-5-bestiary:4sspCrQyEVJW5wh7"
+name = "Angry Foolhardy Mercenary"

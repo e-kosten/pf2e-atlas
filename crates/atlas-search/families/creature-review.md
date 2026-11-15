@@ -191,15 +191,14 @@ pinned source changes.
 
 #### Pathfinder Society Quest #17: Escorting a Mirage
 
-In *Escorting a Mirage*, the Angry squad and the Weak or Elite actors differ
-by two creature levels. Verify the printed blocks and the conditions for
-choosing each before treating them as scoped adjustments.
-
-- Angry Mercenary Squad (`pfs-season-5-bestiary:WoITmnqltzfUlvry`) ↔ Mercenary Squad (`pfs-season-5-bestiary:l4fXYWBhDNM5FAyT`)
-- Elite Foolhardy Mercenary (`pfs-season-5-bestiary:M1POW9BD03uSF6pA`) ↔ Foolhardy Mercenary (`pfs-season-5-bestiary:RPhiMYpPORMIIDJi`)
-- Trained Vulkariki Eidolon (`pfs-season-5-bestiary:Hvrz7fywW7hmpYcJ`) ↔ Elite Trained Vulkariki Eidolon (`pfs-season-5-bestiary:vK1DxX5eTu1QKhbm`)
-- Weak "Enlightened" Div Worshipper (`pfs-season-5-bestiary:jHtXyQDDZLdytpqk`) ↔ "Enlightened" Div Worshipper (`pfs-season-5-bestiary:u74d5wQNBJLVHB7m`)
-- Weak Div Worshipper (`pfs-season-5-bestiary:LBzI86ngk7wYf7p6`) ↔ Div Worshipper (`pfs-season-5-bestiary:qvdMGFjaJe08JQW5`)
+The [Mercenary Squad](creatures/mercenary-squad.toml),
+[Foolhardy Mercenary](creatures/foolhardy-mercenary.toml),
+[Trained Vulkariki Eidolon](creatures/trained-vulkariki-eidolon.toml), and
+[Div Worshipper](creatures/div-worshipper.toml) families use the pinned
+Foundry stat blocks. The standard-to-Weak or standard-to-Elite pairs differ
+by two creature levels. The families show the authored Weak and Elite blocks
+as selectable records. Verify the encounter's scaling instructions before
+declaring a scoped adjustment.
 
 #### Pathfinder Society Quest #21: Infernal Infiltration
 

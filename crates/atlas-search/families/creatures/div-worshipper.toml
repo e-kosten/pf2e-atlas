@@ -1,0 +1,18 @@
+name = "Div Worshipper"
+source_note = "Escorting a Mirage gives all four worshippers Fanatical Frenzy, a dagger, and lesser alchemist's fire. The Enlightened pair adds a longsword. Within each pair the Weak record uses the standard actor's name as its token name and carries its own authored stats."
+
+[[members]]
+key = "pfs-season-5-bestiary:qvdMGFjaJe08JQW5"
+name = "Div Worshipper"
+
+[[members]]
+key = "pfs-season-5-bestiary:LBzI86ngk7wYf7p6"
+name = "Weak Div Worshipper"
+
+[[members]]
+key = "pfs-season-5-bestiary:u74d5wQNBJLVHB7m"
+name = '"Enlightened" Div Worshipper'
+
+[[members]]
+key = "pfs-season-5-bestiary:jHtXyQDDZLdytpqk"
+name = 'Weak "Enlightened" Div Worshipper'

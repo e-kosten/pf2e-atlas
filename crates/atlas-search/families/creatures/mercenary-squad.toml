@@ -1,0 +1,10 @@
+name = "Mercenary Squad"
+source_note = "Escorting a Mirage gives the Angry squad the standard actor's name as its token name. The squads share troop actions including Fire Crossbows! and Get 'em!, and the standard and Angry blocks are creature levels 2 and 4."
+
+[[members]]
+key = "pfs-season-5-bestiary:l4fXYWBhDNM5FAyT"
+name = "Mercenary Squad"
+
+[[members]]
+key = "pfs-season-5-bestiary:WoITmnqltzfUlvry"
+name = "Angry Mercenary Squad"
