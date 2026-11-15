@@ -385,7 +385,7 @@ fn run_reference(app: &AppHandle) -> Result<(), String> {
         click_product_button(&window, "Setup and Updates", false)
     })?;
     wait_for(deadline, "terminal access action", || {
-        click_product_button(&window, "Enable terminal command", true)
+        click_product_button(&window, "Install terminal command", true)
     })?;
     let linked = home.join(".local/bin/atlas");
     wait_for(deadline, "bundled terminal command linked", || {

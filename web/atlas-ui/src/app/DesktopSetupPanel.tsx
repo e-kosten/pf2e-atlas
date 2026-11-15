@@ -426,9 +426,11 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
       {error && <Alert type="error" title={error} />}
       {status?.state === "missing" && (
         <>
-          <Typography.Text>The Atlas command is off.</Typography.Text>
+          <Typography.Text>
+            Run Atlas from your terminal with the <code>atlas</code> command.
+          </Typography.Text>
           <Button loading={busy} onClick={() => void change("enable_terminal")}>
-            Enable terminal command
+            Install terminal command
           </Button>
         </>
       )}
@@ -452,7 +454,9 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
         />
       )}
       {status?.state === "linked" && (
-        <Typography.Text role="status">The Atlas command is enabled.</Typography.Text>
+        <Typography.Text role="status">
+          The terminal command is installed.
+        </Typography.Text>
       )}
       {status && (
         <details className="desktop-setup__terminal-details">
@@ -548,7 +552,7 @@ function SearchModels({
               : "Check and repair the reference data before adding or removing models."}
         </Typography.Text>
       )}
-      <div className="desktop-setup__stack">
+      <div className="desktop-setup__stack desktop-setup__model-preference">
         <Typography.Text>Preferred search model</Typography.Text>
         <Select
           aria-label="Preferred search model"

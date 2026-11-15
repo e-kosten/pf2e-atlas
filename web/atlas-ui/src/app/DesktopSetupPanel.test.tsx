@@ -140,10 +140,10 @@ it("applies keyword-only settings and links the fixed terminal command", async (
     version: "0.1.0",
   });
   fireEvent.click(
-    within(drawer).getByRole("button", { name: "Enable terminal command" }),
+    within(drawer).getByRole("button", { name: "Install terminal command" }),
   );
   expect(
-    await within(drawer).findByText("The Atlas command is enabled."),
+    await within(drawer).findByText("The terminal command is installed."),
   ).toBeVisible();
   const verification = within(drawer).getByText("command -v atlas");
   expect(verification).not.toBeVisible();
@@ -184,7 +184,7 @@ it("requests a native switch and keeps the option available after cancellation",
   invoke.mockResolvedValueOnce({ ...existing, state: "linked" });
   fireEvent.click(button);
   expect(
-    await within(drawer).findByText("The Atlas command is enabled."),
+    await within(drawer).findByText("The terminal command is installed."),
   ).toBeVisible();
   const verification = within(drawer).getByText("command -v atlas");
   expect(verification).not.toBeVisible();
