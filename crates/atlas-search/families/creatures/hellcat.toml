@@ -1,0 +1,10 @@
+name = "Hellcat"
+source_note = "Monster Core 2 supplies the level 7 Hellcat. The level 16 Greater Hellcat from Hell’s Destiny retains Elusive Terror, Hell Pack Mindlink and Pounce, and adds Vengeful Growl."
+
+[[members]]
+key = "pathfinder-monster-core-2:U0pKGj1yJemGAXyc"
+name = "Hellcat"
+
+[[members]]
+key = "hells-destiny-bestiary:U0pKGj1yJemGAXyc"
+name = "Greater Hellcat"

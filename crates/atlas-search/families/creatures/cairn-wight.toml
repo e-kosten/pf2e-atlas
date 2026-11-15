@@ -1,0 +1,17 @@
+name = "Cairn Wight"
+source_note = "The Lost Legend, The Secluded Siege, and Broken Tusk Moon use distinct Cairn Wight blocks. They share Drain Life, Final Spite, and the ability to create spawn. The level 4 blocks have different weapon kits."
+
+[[members]]
+key = "pfs-season-1-bestiary:2HEhlngODb1KfSwE"
+name = "Cairn Wight (PFS 1-20)"
+label = "Cairn Wight"
+
+[[members]]
+key = "pfs-season-3-bestiary:DZwKXXrlzmk5Hqyx"
+name = "Cairn Wight (PFS 3-09)"
+label = "Cairn Wight"
+
+[[members]]
+key = "quest-for-the-frozen-flame-bestiary:6yYVpWETVv3vFHvP"
+name = "Cairn Wight (G4)"
+label = "Cairn Wight"

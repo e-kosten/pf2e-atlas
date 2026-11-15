@@ -1,0 +1,10 @@
+name = "Assassin"
+source_note = "NPC Core’s Assassin and the Hell’s Destiny Thrune Assassin share Assassin’s Poison and their core strikes. The Thrune record adds Marked for Death and a Black Tendril Shot."
+
+[[members]]
+key = "pathfinder-npc-core:jOASgCgSyk3enLfP"
+name = "Assassin"
+
+[[members]]
+key = "hells-destiny-bestiary:jOASgCgSyk3enLfP"
+name = "Thrune Assassin"

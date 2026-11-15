@@ -1,0 +1,10 @@
+name = "Ugothol"
+source_note = "The Dead God’s Hand Ugothol Wretch shares the Monster Core Ugothol’s Claw, Blood Nourishment, Compression, and Sneak Attack. The level 0 wretch has a smaller kit than the level 4 generic actor."
+
+[[members]]
+key = "the-dead-gods-hand-bestiary:fRjJkktWp7s8NBN7"
+name = "Ugothol Wretch"
+
+[[members]]
+key = "pathfinder-monster-core:fRjJkktWp7s8NBN7"
+name = "Ugothol"
