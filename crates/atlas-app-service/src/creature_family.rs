@@ -7,7 +7,7 @@ use atlas_domain::SourceRecordSummary;
 use atlas_search::{
     AtlasRetrievalService, CreatureDisplay, CreatureFamilyRecords, CreatureScenarioUse,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn link_placement(
     family: &CreatureFamilyView,
@@ -126,9 +126,14 @@ fn scenario_use_label(use_: &CreatureScenarioUse, include_range: bool) -> Option
     (!labels.is_empty()).then(|| labels.join(" · "))
 }
 
+struct PartyLevelGrouping {
+    view: CreatureFamilyGroupingView,
+    complete_partition: bool,
+}
+
 fn party_level_grouping<'a>(
     records: impl IntoIterator<Item = (&'a str, Option<atlas_search::CreatureDisplay>)>,
-) -> Option<CreatureFamilyGroupingView> {
+) -> Option<PartyLevelGrouping> {
     let mut by_range = BTreeMap::<_, CreatureFamilyGroupView>::new();
     let mut general = Vec::new();
     let mut unavailable = Vec::new();
@@ -179,13 +184,12 @@ fn party_level_grouping<'a>(
     if by_range.len() < 2 {
         return None;
     }
-    // Each row already shows its party range in the flat list.
-    if !has_repeated_member
+    let complete_partition = !has_repeated_member
         && general.is_empty()
         && unavailable.is_empty()
-        && unspecified.is_none()
-        && by_range.values().all(|group| group.members.len() == 1)
-    {
+        && unspecified.is_none();
+    // Each row already shows its party range in the flat list.
+    if complete_partition && by_range.values().all(|group| group.members.len() == 1) {
         return None;
     }
     let general = (!general.is_empty()).then_some(CreatureFamilyGroupView {
@@ -198,16 +202,59 @@ fn party_level_grouping<'a>(
         members: unavailable,
         qualifiers: BTreeMap::new(),
     });
-    Some(CreatureFamilyGroupingView {
-        id: "scenario:party-levels".into(),
-        label: "Party levels".into(),
-        groups: general
-            .into_iter()
-            .chain(by_range.into_values())
-            .chain(unspecified)
-            .chain(unavailable)
-            .collect(),
+    Some(PartyLevelGrouping {
+        complete_partition,
+        view: CreatureFamilyGroupingView {
+            id: "scenario:party-levels".into(),
+            label: "Party levels".into(),
+            groups: general
+                .into_iter()
+                .chain(by_range.into_values())
+                .chain(unspecified)
+                .chain(unavailable)
+                .collect(),
+        },
     })
+}
+
+fn group_membership(grouping: &CreatureFamilyGroupingView) -> BTreeSet<BTreeSet<&str>> {
+    grouping
+        .groups
+        .iter()
+        .map(|group| group.members.iter().map(String::as_str).collect())
+        .collect()
+}
+
+fn with_party_level_grouping(
+    mut groupings: Vec<CreatureFamilyGroupingView>,
+    party_levels: Option<PartyLevelGrouping>,
+) -> Vec<CreatureFamilyGroupingView> {
+    let Some(party_levels) = party_levels else {
+        return groupings;
+    };
+    if !party_levels.complete_partition {
+        groupings.push(party_levels.view);
+        return groupings;
+    }
+
+    // Authored axes each partition the verified variants. Prefer the party
+    // ranges when they provide the same groups, keeping the first matched slot.
+    let party_membership = group_membership(&party_levels.view);
+    let mut first_match = None;
+    let mut groupings: Vec<_> = groupings
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, grouping)| {
+            if group_membership(&grouping) == party_membership {
+                first_match.get_or_insert(index);
+                None
+            } else {
+                Some(grouping)
+            }
+        })
+        .collect();
+    groupings.insert(first_match.unwrap_or(groupings.len()), party_levels.view);
+    groupings
 }
 
 pub(crate) fn family_view(
@@ -258,13 +305,16 @@ pub(crate) fn family_view(
                 })
                 .collect(),
         })
-        .chain(party_level_grouping(
+        .collect();
+    let groupings = with_party_level_grouping(
+        groupings,
+        party_level_grouping(
             versions
                 .iter()
                 .map(|record| record.record_key.as_str())
                 .zip(scenario_displays),
-        ))
-        .collect();
+        ),
+    );
     let version_context = family
         .version_slices
         .map(|context| VariantFamilyView::Concrete {
@@ -432,6 +482,98 @@ mod tests {
         );
     }
 
+    fn grouping(id: &str, groups: &[&[&str]]) -> CreatureFamilyGroupingView {
+        CreatureFamilyGroupingView {
+            id: id.into(),
+            label: id.into(),
+            groups: groups
+                .iter()
+                .map(|members| CreatureFamilyGroupView {
+                    heading: members.join(", "),
+                    members: members.iter().map(|member| (*member).into()).collect(),
+                    qualifiers: BTreeMap::new(),
+                })
+                .collect(),
+        }
+    }
+
+    fn scenario_display(range: Option<[u8; 2]>) -> CreatureDisplay {
+        CreatureDisplay {
+            label: None,
+            qualifier: None,
+            scenario_uses_unavailable: false,
+            scenario_uses: vec![CreatureScenarioUse {
+                id: "use",
+                publication: "Adventure".into(),
+                party_levels: range,
+                minimum_challenge_points: None,
+                qualifier: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn party_levels_replace_equivalent_axes_in_the_first_matching_slot() {
+        let party_levels = party_level_grouping([
+            ("lower-acid", Some(scenario_display(Some([1, 2])))),
+            ("lower-reach", Some(scenario_display(Some([1, 2])))),
+            ("upper-acid", Some(scenario_display(Some([3, 4])))),
+            ("upper-reach", Some(scenario_display(Some([3, 4])))),
+        ]);
+        let form_members: &[&[&str]] = &[
+            &["upper-reach", "upper-acid"],
+            &["lower-reach", "lower-acid"],
+        ];
+        let views = with_party_level_grouping(
+            vec![
+                grouping("form", form_members),
+                grouping(
+                    "ability",
+                    &[
+                        &["lower-acid", "upper-acid"],
+                        &["lower-reach", "upper-reach"],
+                    ],
+                ),
+                grouping("duplicate-form", form_members),
+            ],
+            party_levels,
+        );
+        assert_eq!(
+            views
+                .iter()
+                .map(|view| view.id.as_str())
+                .collect::<Vec<_>>(),
+            ["scenario:party-levels", "ability"],
+        );
+        assert_eq!(views[0].groups[0].heading, "Party levels 1–2");
+        assert_eq!(views[0].groups[0].qualifiers["lower-acid"], ["Adventure"],);
+    }
+
+    #[test]
+    fn party_levels_with_a_fallback_group_keep_the_authored_axis() {
+        let mut unavailable = scenario_display(None);
+        unavailable.scenario_uses.clear();
+        unavailable.scenario_uses_unavailable = true;
+        for fallback in [None, Some(unavailable), Some(scenario_display(None))] {
+            let party_levels = party_level_grouping([
+                ("lower", Some(scenario_display(Some([1, 2])))),
+                ("upper", Some(scenario_display(Some([3, 4])))),
+                ("fallback", fallback),
+            ]);
+            let views = with_party_level_grouping(
+                vec![grouping("form", &[&["lower"], &["upper"], &["fallback"]])],
+                party_levels,
+            );
+            assert_eq!(
+                views
+                    .iter()
+                    .map(|view| view.id.as_str())
+                    .collect::<Vec<_>>(),
+                ["form", "scenario:party-levels"],
+            );
+        }
+    }
+
     #[test]
     fn party_level_groups_repeat_actors_only_across_distinct_uses() {
         let use_ = |party_levels, minimum_challenge_points| CreatureScenarioUse {
@@ -469,7 +611,8 @@ mod tests {
             ),
         ])
         .unwrap();
-        let groups = group.groups;
+        assert!(!group.complete_partition);
+        let groups = group.view.groups;
         assert_eq!(
             groups
                 .iter()

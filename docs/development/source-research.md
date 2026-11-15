@@ -272,8 +272,11 @@ the level used by Search. Atlas projects one display title for the browser and C
 When that title differs from Foundry's, the record summary preserves the exact
 name in `source_title`. Family pages
 can group verified scenario uses by party level range, with each actor once
-per applicable range. Keep explanations of the relationship and scenario
-evidence in the source note.
+per applicable range. If every variant appears in exactly one known party
+range, **Party levels** takes the place of any authored grouping with the
+same member groups. The authored coordinates still drive sibling links in
+Explore. Keep explanations of the relationship and scenario evidence in
+the source note.
 
 An override declares a base, a Weak or Elite adjustment, a reviewed use ID,
 and an exact published target. Include a source note explaining when the

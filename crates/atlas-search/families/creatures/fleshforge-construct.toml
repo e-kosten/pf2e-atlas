@@ -1,10 +1,26 @@
 name = "Fleshforge Construct"
 source_note = "The Absalom Initiation uses a Fleshforge Dreg for party levels 1–2 and a Fleshforge Prototype for 3–4 in area A2. The two appendix blocks offer the same six additional abilities with tier-specific mechanics."
 
+axes = [
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "dreg", label = "Dreg" },
+        { id = "prototype", label = "Prototype" },
+    ] },
+    { id = "ability", label = "Ability", alternatives_label = "Other abilities", options = [
+        { id = "acid-spit", label = "Acid Spit" },
+        { id = "breath-weapon", label = "Breath Weapon" },
+        { id = "leaping-charge", label = "Leaping Charge" },
+        { id = "reach", label = "Reach" },
+        { id = "roots", label = "Roots" },
+        { id = "shield", label = "Shield" },
+    ] },
+]
+
 [[members]]
 key = "pfs-season-1-bestiary:bDKozdvVEElVQywQ"
 name = "Fleshforge Dreg (Acid Spit)"
 label = "Fleshforge Dreg (Acid Spit)"
+coordinates = { form = "dreg", ability = "acid-spit" }
 
 [[members.uses]]
 id = "party-1-2"
@@ -14,6 +30,7 @@ party_levels = [1, 2]
 key = "pfs-season-1-bestiary:t1QyIgwLORMhHNL4"
 name = "Fleshforge Dreg (Breath Weapon)"
 label = "Fleshforge Dreg (Breath Weapon)"
+coordinates = { form = "dreg", ability = "breath-weapon" }
 
 [[members.uses]]
 id = "party-1-2"
@@ -23,6 +40,7 @@ party_levels = [1, 2]
 key = "pfs-season-1-bestiary:WlJ8fVMV7gXNQ9eR"
 name = "Fleshforge Dreg (Leaping Charge)"
 label = "Fleshforge Dreg (Leaping Charge)"
+coordinates = { form = "dreg", ability = "leaping-charge" }
 
 [[members.uses]]
 id = "party-1-2"
@@ -32,6 +50,7 @@ party_levels = [1, 2]
 key = "pfs-season-1-bestiary:PXXHRzLRLB4bJ7M5"
 name = "Fleshforge Dreg (Reach)"
 label = "Fleshforge Dreg (Reach)"
+coordinates = { form = "dreg", ability = "reach" }
 
 [[members.uses]]
 id = "party-1-2"
@@ -41,6 +60,7 @@ party_levels = [1, 2]
 key = "pfs-season-1-bestiary:JEwMnYFfyxr5i6Dy"
 name = "Fleshforge Dreg (Roots)"
 label = "Fleshforge Dreg (Roots)"
+coordinates = { form = "dreg", ability = "roots" }
 
 [[members.uses]]
 id = "party-1-2"
@@ -50,6 +70,7 @@ party_levels = [1, 2]
 key = "pfs-season-1-bestiary:cuTgbvAxDEkT4XhZ"
 name = "Fleshforge Dreg (Shield)"
 label = "Fleshforge Dreg (Shield)"
+coordinates = { form = "dreg", ability = "shield" }
 
 [[members.uses]]
 id = "party-1-2"
@@ -59,6 +80,7 @@ party_levels = [1, 2]
 key = "pfs-season-1-bestiary:lzDOAywWh0mP4UeH"
 name = "Fleshforge Prototype (Acid Spit)"
 label = "Fleshforge Prototype (Acid Spit)"
+coordinates = { form = "prototype", ability = "acid-spit" }
 
 [[members.uses]]
 id = "party-3-4"
@@ -68,6 +90,7 @@ party_levels = [3, 4]
 key = "pfs-season-1-bestiary:sN5jueRXgYI9DDGH"
 name = "Fleshforge Prototype (Breath Weapon)"
 label = "Fleshforge Prototype (Breath Weapon)"
+coordinates = { form = "prototype", ability = "breath-weapon" }
 
 [[members.uses]]
 id = "party-3-4"
@@ -77,6 +100,7 @@ party_levels = [3, 4]
 key = "pfs-season-1-bestiary:QZVLjVPLl0PNo2K3"
 name = "Fleshforge Prototype (Leaping Charge)"
 label = "Fleshforge Prototype (Leaping Charge)"
+coordinates = { form = "prototype", ability = "leaping-charge" }
 
 [[members.uses]]
 id = "party-3-4"
@@ -86,6 +110,7 @@ party_levels = [3, 4]
 key = "pfs-season-1-bestiary:R8D2GrilngQIb1eI"
 name = "Fleshforge Prototype (Reach)"
 label = "Fleshforge Prototype (Reach)"
+coordinates = { form = "prototype", ability = "reach" }
 
 [[members.uses]]
 id = "party-3-4"
@@ -95,6 +120,7 @@ party_levels = [3, 4]
 key = "pfs-season-1-bestiary:toAsLLjdRwu1pT0b"
 name = "Fleshforge Prototype (Roots)"
 label = "Fleshforge Prototype (Roots)"
+coordinates = { form = "prototype", ability = "roots" }
 
 [[members.uses]]
 id = "party-3-4"
@@ -104,6 +130,7 @@ party_levels = [3, 4]
 key = "pfs-season-1-bestiary:m3YBXS3ool7PmRfX"
 name = "Fleshforge Prototype (Shield)"
 label = "Fleshforge Prototype (Shield)"
+coordinates = { form = "prototype", ability = "shield" }
 
 [[members.uses]]
 id = "party-3-4"

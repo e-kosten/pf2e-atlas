@@ -1,0 +1,12 @@
+name = "Phistophilus"
+source_note = "The Technically Correct encounter in Things Go to Hell identifies Gosterion as a unique phistophilus variant and gives him two escape artifacts. Foundry titles the adventure actor Phistophilus and uses the Monster Core combat stat block."
+
+[[members]]
+key = "pathfinder-monster-core:3QyqHIuAXE3YVLUh"
+name = "Phistophilus"
+
+[[members]]
+key = "one-shot-bestiary:3QyqHIuAXE3YVLUh"
+name = "Phistophilus"
+label = "Gosterion"
+named_base = { key = "pathfinder-monster-core:3QyqHIuAXE3YVLUh", name = "Phistophilus" }
