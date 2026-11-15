@@ -17,6 +17,9 @@ including source snapshots and cleanup boundaries.
 The [database ingest benchmark](database-ingest-revision.md) records release
 build time, peak memory, audit costs and the input ownership retrieval tradeoff.
 
+The [historical macOS setup benchmarks](macos-setup-benchmarks.md) record a clean
+first run with locally generated embeddings and a separate workspace upgrade.
+
 The [remaster information review](remaster-information.md) inventories pinned-source
 change declarations, missing legacy text, alias/pair limitations and presentation
 requirements. ADR0067 records the implemented scope.
