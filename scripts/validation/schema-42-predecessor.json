@@ -1,5 +1,6 @@
 {
-  "tag": "v0.1.0-nightly.20261112173917.g449cf4c9315c",
+  "tag": "fixtures/schema-42-predecessor/v1",
+  "version": "0.1.0-nightly.20261112173917.g449cf4c9315c",
   "commit": "449cf4c9315cbeac5213decadd2fc95bb1798c4b",
   "schema": 42,
   "ledger_sha256": "d00d7fa2e465acc9c0856f162819aa518436ed2a383fbd21b91edf6e61723a6e",

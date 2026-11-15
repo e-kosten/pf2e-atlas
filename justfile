@@ -158,7 +158,7 @@ release-install *args:
     set -eu
     set -- {{ args }}
     case "${1:-}" in
-      v[0-9]*|[0-9]*)
+      release/*|rc/*|v[0-9]*|[0-9]*)
         version="$1"
         shift
         ;;
@@ -167,8 +167,9 @@ release-install *args:
         ;;
     esac
     case "$version" in
-      v*) tag="$version" ;;
-      *) tag="v$version" ;;
+      release/*|rc/*) tag="$version" ;;
+      *-rc.*) tag="rc/v${version#v}" ;;
+      *) tag="release/v${version#v}" ;;
     esac
     curl --proto '=https' --tlsv1.2 -LsSf \
       "https://github.com/e-kosten/pf2e-atlas/releases/download/$tag/atlas-installer.sh" |

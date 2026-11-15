@@ -232,15 +232,15 @@ printf "atlas 9.9.9\n"'
     exit 1
   fi
 
-  nightly_tag="v9.9.9-nightly.20261018092300.gabcdef123456"
+  nightly_tag="nightly/20261018092300.gabcdef123456"
   printf '%s\n' "$nightly_tag" > "$dist/nightly-version.txt"
   url_log="$tmp/nightly-urls"
   PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_URL_LOG="$url_log" \
     "$repo_root/scripts/install/atlas-installer.sh" \
     --install-dir "$install_dir" --version nightly --yes >/dev/null
-  [ "$(head -n 1 "$url_log")" = "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt" ]
+  [ "$(head -n 1 "$url_log")" = "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt" ]
   expected_urls=$(printf '%s\n' \
-    'https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt' \
+    'https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/nightly-version.txt' \
     "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightly_tag/SHA256SUMS" \
     "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightly_tag/atlas-release-manifest.json" \
     "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightly_tag/atlas-cli-$host_target.tar.xz" | LC_ALL=C sort)

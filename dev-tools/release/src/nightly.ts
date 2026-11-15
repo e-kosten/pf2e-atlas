@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { coverageArchive, coverageHeading, validateNightlyCoverage } from './embedding-coverage.js';
 import { validateAssets } from './validate-release-assets.js';
-import { desktopAssets, macosDmg, nightlyTag, object, readJson, windowsInstaller } from './release-data.js';
+import { desktopAssets, macosDmg, nightlyChannel, nightlyRef, nightlyTag, object, readJson, windowsInstaller } from './release-data.js';
 import { releases, verifyReleaseSource, verifyUploadedDesktop, type Release, type Run } from './release-upload.js';
 export type { Run } from './release-upload.js';
 
@@ -56,27 +56,34 @@ function temporary<T>(work: (directory: string) => T): T {
   try { return work(directory); } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 
+function nightlyPackageTag(root: string, ref: string): string {
+  const match = nightlyRef.exec(ref);
+  if (!match || match[0] !== ref) throw new Error('Invalid nightly release tag');
+  const core = cliVersion(readFileSync(path.join(root, 'crates/atlas-cli/Cargo.toml'), 'utf8')).split('-')[0];
+  return `v${core}-nightly.${match[1]}.g${match[2]}`;
+}
+
 export function planNightly(root: string, scheduled: boolean, run = commandRunner(root), now = new Date()): string {
   const sha = run('git', ['rev-parse', 'HEAD']).trim();
   if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error('Invalid source SHA');
   const existing = releases(run);
-  const channel = existing.find((release) => release.tag_name === 'nightly' && !release.draft);
+  const channel = existing.find((release) => release.tag_name === nightlyChannel && !release.draft);
   if (scheduled && channel?.assets?.some((asset) => asset.name === 'nightly-version.txt')) {
     const tag = temporary((directory) => {
-      run('gh', ['release', 'download', 'nightly', '--pattern', 'nightly-version.txt', '--dir', directory]);
+      run('gh', ['release', 'download', nightlyChannel, '--pattern', 'nightly-version.txt', '--dir', directory]);
       return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
     });
-    if (nightlyTag.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft
+    if (nightlyRef.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft
       && desktopAssets(tag).every(({ name }) => release.assets?.some((asset) =>
         asset.name === name && /^sha256:[a-f0-9]{64}$/.test(asset.digest ?? ''))))) {
       return 'build=false\n';
     }
   }
-  const core = cliVersion(readFileSync(path.join(root, 'crates/atlas-cli/Cargo.toml'), 'utf8')).split('-')[0];
   const stamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 14);
-  const tag = `v${core}-nightly.${stamp}.g${sha.slice(0, 12)}`;
-  nightlyVersion(tag);
-  return `build=true\nsha=${sha}\ntag=${tag}\n`;
+  const tag = `nightly/${stamp}.g${sha.slice(0, 12)}`;
+  const packageTag = nightlyPackageTag(root, tag);
+  nightlyVersion(packageTag);
+  return `build=true\nsha=${sha}\ntag=${tag}\npackage-tag=${packageTag}\n`;
 }
 
 const releaseEndpoint = 'repos/{owner}/{repo}/releases';
@@ -119,23 +126,24 @@ async function uploadNightlyDraft(run: Run, draft: Release, dist: string): Promi
 
 export async function publishNightly(root: string, tag: string, sha: string, dist: string, coveragePath: string,
   run = commandRunner(root), validate: (directory: string) => Promise<void> = validateAssets): Promise<void> {
-  const version = nightlyVersion(tag);
+  const packageTag = nightlyPackageTag(root, tag);
+  const version = nightlyVersion(packageTag);
   if (!/^[0-9a-f]{40}$/.test(sha) || !tag.endsWith(`.g${sha.slice(0, 12)}`)) throw new Error('Nightly tag does not identify the source SHA');
   await validate(dist);
-  if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== tag) throw new Error('Release manifest version mismatch');
-  const coverage = await validateNightlyCoverage(root, dist, coveragePath, tag, sha);
+  if (object(readJson(path.join(dist, 'atlas-release-manifest.json'))).version !== packageTag) throw new Error('Release manifest version mismatch');
+  const coverage = await validateNightlyCoverage(root, dist, coveragePath, packageTag, sha);
   const existing = releases(run);
   const listed = existing.find((item) => item.tag_name === tag);
-  const channel = existing.find((item) => item.tag_name === 'nightly');
+  const channel = existing.find((item) => item.tag_name === nightlyChannel);
   let alreadyCurrent = false;
   if (channel?.assets?.some((asset) => asset.name === 'nightly-version.txt')) {
     const current = temporary((directory) => {
-      run('gh', ['release', 'download', 'nightly', '--pattern', 'nightly-version.txt', '--dir', directory]);
+      run('gh', ['release', 'download', nightlyChannel, '--pattern', 'nightly-version.txt', '--dir', directory]);
       return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
     });
-    const currentDate = nightlyTag.exec(current)?.[2];
+    const currentDate = nightlyRef.exec(current)?.[1];
     if (!currentDate) throw new Error('Invalid nightly channel pointer');
-    if (currentDate > nightlyTag.exec(tag)![2]) return;
+    if (currentDate > nightlyRef.exec(tag)![1]) return;
     alreadyCurrent = current === tag && !channel.draft;
   }
   // Recheck drafts by ID before mutating them. The list may lag publication too.
@@ -217,14 +225,14 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
       throw new Error('Downloaded CLI-only binary version or build variant mismatch');
     }
     if (!channel) {
-      run('gh', ['release', 'create', 'nightly', '--target', sha, '--title', 'Nightly installer channel', '--notes',
+      run('gh', ['release', 'create', nightlyChannel, '--target', sha, '--title', 'Nightly installer channel', '--notes',
         'Installers and a pointer to the newest validated nightly. Dated releases contain the binaries and source commit.',
         '--draft', '--prerelease', '--latest=false']);
     }
-    run('gh', ['release', 'upload', 'nightly', path.join(dist, 'atlas-installer.sh'), path.join(dist, 'atlas-installer.ps1'), '--clobber']);
+    run('gh', ['release', 'upload', nightlyChannel, path.join(dist, 'atlas-installer.sh'), path.join(dist, 'atlas-installer.ps1'), '--clobber']);
     const pointer = path.join(directory, 'nightly-version.txt');
     writeFileSync(pointer, tag + '\n');
-    run('gh', ['release', 'upload', 'nightly', pointer, '--clobber']);
-    run('gh', ['release', 'edit', 'nightly', '--draft=false', '--prerelease', '--latest=false']);
+    run('gh', ['release', 'upload', nightlyChannel, pointer, '--clobber']);
+    run('gh', ['release', 'edit', nightlyChannel, '--draft=false', '--prerelease', '--latest=false']);
   });
 }

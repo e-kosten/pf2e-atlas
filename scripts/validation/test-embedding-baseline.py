@@ -473,10 +473,17 @@ class PinTransition(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "approved ID transition"):
             PROBE["pinned_checks"](changed, old)
 
+    def test_schema_42_relocation_checks_only_the_new_fixture(self):
+        old = dict.fromkeys(PROBE["PROFILES"], PROBE["ORIGINAL_SCHEMA_42_PIN"])
+        current = dict.fromkeys(PROBE["PROFILES"], PROBE["SCHEMA_42_PIN"])
+        self.assertEqual(list(PROBE["pinned_checks"](current, old)), [
+            (PROBE["RELEASE_TAG"], PROBE["RELEASE_ASSET"], PROBE["RELEASE_DIGEST"]),
+        ])
+
     def test_packaged_pin_still_requires_reviewed_id_for_future_replacement(self):
         profile = "bge-base"
         old = PROBE["SCHEMA_42_PIN"]
-        new = {**PROBE["SCHEMA_29_PIN"], "tag": "embedding-baseline-v2",
+        new = {"tag": "fixtures/embedding-compatibility/v2", "asset": "embedding-compatibility-baseline.tar.gz",
                "sha256": "b" * 64, "execution_policy": "next"}
         with self.assertRaisesRegex(RuntimeError, "approved ID transition"):
             PROBE["pinned_checks"]({profile: new}, {profile: old})
@@ -485,10 +492,10 @@ class PinTransition(unittest.TestCase):
 
     def test_switch_requires_prior_transition_and_keeps_old_fixture_in_check(self):
         pin = {
-            "tag": "embedding-baseline-v1", "asset": "embedding-compatibility-baseline.tar.gz",
+            "tag": "fixtures/embedding-compatibility/v1", "asset": "embedding-compatibility-baseline.tar.gz",
             "sha256": "a" * 64, "execution_policy": "old",
         }
-        new = {**pin, "tag": "embedding-baseline-v2", "sha256": "b" * 64, "execution_policy": "new"}
+        new = {**pin, "tag": "fixtures/embedding-compatibility/v2", "sha256": "b" * 64, "execution_policy": "new"}
         current = {"bge-base": pin, "embeddinggemma": new}
         previous = dict.fromkeys(current, pin)
         with self.assertRaisesRegex(RuntimeError, "approved ID transition"):
@@ -500,7 +507,7 @@ class PinTransition(unittest.TestCase):
 
     def test_identical_bytes_can_move_to_a_new_tag_without_old_download(self):
         pin = {
-            "tag": "embedding-baseline-v1", "asset": "embedding-compatibility-baseline.tar.gz",
+            "tag": "fixtures/embedding-compatibility/v1", "asset": "embedding-compatibility-baseline.tar.gz",
             "sha256": "a" * 64, "execution_policy": "current",
         }
         restored = {**pin, "tag": "fixtures/embedding-compatibility/v2"}

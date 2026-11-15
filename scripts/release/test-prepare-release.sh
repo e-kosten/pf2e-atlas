@@ -84,32 +84,32 @@ case "$1" in
     fi
     if [ "$2" = "--verify" ]; then
       case "$3" in
-        release/v0.1.0|release/v0.1.0-rc.1)
+        release-prep/v0.1.0|release-prep/v0.1.0-rc.1)
           [ "${ATLAS_TEST_RELEASE_BRANCH_EXISTS:-0}" = 1 ] && printf 'abc123\n' && exit 0
           exit 1
           ;;
-        release/v*)
+        release-prep/v*)
           exit 1
           ;;
       esac
     fi
     case "$2" in
       HEAD|origin/main) printf 'abc123\n' ;;
-      v0.1.0^{})
+      release/v0.1.0^{})
         [ "${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\n' && exit 0
         exit 1
         ;;
-      v0.1.0)
+      release/v0.1.0)
         [ "${ATLAS_TEST_LOCAL_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\n' && exit 0
         exit 1
         ;;
-      v0.1.0-rc.1)
+      rc/v0.1.0-rc.1)
         exit 1
         ;;
-      v0.1.0-rc.*)
+      rc/v0.1.0-rc.*)
         exit 1
         ;;
-      v[0-9]*)
+      release/v[0-9]*|rc/v[0-9]*)
         exit 1
         ;;
       *) printf 'abc123\n' ;;
@@ -128,7 +128,7 @@ case "$1" in
       [ "${ATLAS_TEST_REMOTE_RELEASE_BRANCH_EXISTS:-0}" = 1 ] && printf 'abc123\trefs/heads/%s\n' "$5" && exit 0
       exit 2
     fi
-    [ "${ATLAS_TEST_REMOTE_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\trefs/tags/v0.1.0\n' && exit 0
+    [ "${ATLAS_TEST_REMOTE_TAG_EXISTS:-0}" = 1 ] && printf 'abc123\trefs/tags/release/v0.1.0\n' && exit 0
     exit 2
     ;;
   ls-files)
@@ -141,7 +141,7 @@ case "$1" in
     ;;
   tag)
     if [ "$2" = "-l" ]; then
-      [ "${ATLAS_TEST_EXISTING_RC_TAGS:-0}" = 1 ] && printf 'v0.1.0-rc.1\nv0.1.0-rc.2\n'
+      [ "${ATLAS_TEST_EXISTING_RC_TAGS:-0}" = 1 ] && printf 'rc/v0.1.0-rc.1\nrc/v0.1.0-rc.2\n'
       exit 0
     fi
     exit 0
@@ -300,7 +300,7 @@ expect_fail --publish --notes-file
 
 : > "$log"
 prompt_output=$(printf '3\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --dry-run)
-printf '%s\n' "$prompt_output" | grep -q 'Dry run: would run checks, create annotated tag v0.1.0' || {
+printf '%s\n' "$prompt_output" | grep -q 'Dry run: would run checks, create annotated tag release/v0.1.0' || {
   echo "bare numbered prompt did not select publish mode" >&2
   exit 1
 }
@@ -309,7 +309,7 @@ reset_flags
 : > "$log"
 write_fake_fzf
 prompt_output=$(ATLAS_TEST_FZF_CHOICE=publish ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_RELEASE_TEST_DISABLE_FZF=0 run_prepare --dry-run)
-printf '%s\n' "$prompt_output" | grep -q 'Dry run: would run checks, create annotated tag v0.1.0' || {
+printf '%s\n' "$prompt_output" | grep -q 'Dry run: would run checks, create annotated tag release/v0.1.0' || {
   echo "bare fzf prompt did not select publish mode" >&2
   exit 1
 }
@@ -321,7 +321,7 @@ reset_flags
 remove_fake_fzf
 
 : > "$log"
-open_pr_output=$(printf 'y\n' | ATLAS_TEST_BRANCH=release/v0.1.0 run_prepare --open-pr 2>&1) || {
+open_pr_output=$(printf 'y\n' | ATLAS_TEST_BRANCH=release-prep/v0.1.0 run_prepare --open-pr 2>&1) || {
   printf '%s\n' "$open_pr_output" >&2
   cat "$log" >&2
   exit 1
@@ -360,28 +360,28 @@ grep -q 'git commit --no-verify -m chore(release): prepare v0.1.0' "$log" || {
   echo "prepare-release --open-pr did not create the release-prep commit" >&2
   exit 1
 }
-grep -q 'git push --no-verify -u origin release/v0.1.0' "$log" || {
+grep -q 'git push --no-verify -u origin release-prep/v0.1.0' "$log" || {
   echo "prepare-release --open-pr did not push the release branch" >&2
   exit 1
 }
-grep -q 'gh pr create --base main --head release/v0.1.0 --title chore(release): prepare v0.1.0 --body Prepare v0.1.0 for release.' "$log" || {
+grep -q 'gh pr create --base main --head release-prep/v0.1.0 --title chore(release): prepare v0.1.0 --body Prepare v0.1.0 for release.' "$log" || {
   echo "prepare-release --open-pr did not create the expected PR" >&2
   exit 1
 }
 reset_flags
 
 : > "$log"
-ATLAS_TEST_BRANCH=release/v0.1.0 run_prepare --open-pr --dry-run >/dev/null
+ATLAS_TEST_BRANCH=release-prep/v0.1.0 run_prepare --open-pr --dry-run >/dev/null
 expect_log_absent 'git commit --no-verify -m chore(release): prepare v0.1.0' "prepare-release --open-pr dry-run committed"
-expect_log_absent 'git push --no-verify -u origin release/v0.1.0' "prepare-release --open-pr dry-run pushed"
+expect_log_absent 'git push --no-verify -u origin release-prep/v0.1.0' "prepare-release --open-pr dry-run pushed"
 expect_log_absent 'gh pr create' "prepare-release --open-pr dry-run created a PR"
 reset_flags
 
 ATLAS_TEST_BRANCH=dev expect_fail --open-pr
 reset_flags
-ATLAS_TEST_BRANCH=release/v0.1.0 ATLAS_TEST_STATUS=' M README.md' expect_fail --open-pr
+ATLAS_TEST_BRANCH=release-prep/v0.1.0 ATLAS_TEST_STATUS=' M README.md' expect_fail --open-pr
 reset_flags
-ATLAS_TEST_BRANCH=release/v0.1.0 ATLAS_TEST_PR_EXISTS=1 expect_fail --open-pr
+ATLAS_TEST_BRANCH=release-prep/v0.1.0 ATLAS_TEST_PR_EXISTS=1 expect_fail --open-pr
 reset_flags
 
 ATLAS_TEST_DIRTY=1 expect_fail --prepare-pr --version 0.1.0
@@ -403,7 +403,7 @@ grep -q 'git pull --ff-only origin main' "$log" || {
 }
 switch_main_line=$(first_log_line 'git switch main')
 pull_line=$(first_log_line 'git pull --ff-only origin main')
-release_branch_line=$(first_log_line 'git switch -c release/v0.1.0')
+release_branch_line=$(first_log_line 'git switch -c release-prep/v0.1.0')
 if [ "$switch_main_line" -ge "$pull_line" ] || [ "$pull_line" -ge "$release_branch_line" ]; then
   echo "prepare-release --prepare-pr ran main switch/pull/release-branch creation out of order" >&2
   exit 1
@@ -412,7 +412,7 @@ reset_flags
 
 : > "$log"
 run_prepare --prepare-pr --version 0.1.0 --dry-run >/dev/null
-expect_log_absent 'git switch -c release/v0.1.0' "prepare-release --prepare-pr dry-run created a release branch"
+expect_log_absent 'git switch -c release-prep/v0.1.0' "prepare-release --prepare-pr dry-run created a release branch"
 expect_log_absent 'cargo ' "prepare-release --prepare-pr dry-run ran cargo"
 expect_log_absent 'dist plan' "prepare-release --prepare-pr dry-run ran dist"
 expect_log_absent 'git tag -a' "prepare-release --prepare-pr dry-run created a tag"
@@ -420,7 +420,7 @@ expect_log_absent 'git push origin' "prepare-release --prepare-pr dry-run pushed
 expect_log_absent 'gh release create' "prepare-release --prepare-pr dry-run created a release"
 
 run_prepare --prepare-pr --version 0.1.0-rc.1 >/dev/null
-grep -q 'git switch -c release/v0.1.0-rc.1' "$log" || {
+grep -q 'git switch -c release-prep/v0.1.0-rc.1' "$log" || {
   echo "prepare-release --prepare-pr did not create the expected release branch" >&2
   exit 1
 }
@@ -447,7 +447,7 @@ reset_flags
 
 : > "$log"
 printf '\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --prepare-pr >/dev/null
-grep -q 'git switch -c release/v0.1.0-rc.1' "$log" || {
+grep -q 'git switch -c release-prep/v0.1.0-rc.1' "$log" || {
   echo "prepare-release --prepare-pr numbered prompt did not default to first RC candidate" >&2
   exit 1
 }
@@ -467,7 +467,7 @@ reset_flags
 ATLAS_TEST_EXISTING_RC_TAGS=1
 export ATLAS_TEST_EXISTING_RC_TAGS
 printf '\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --prepare-pr >/dev/null
-grep -q 'git switch -c release/v0.1.0-rc.3' "$log" || {
+grep -q 'git switch -c release-prep/v0.1.0-rc.3' "$log" || {
   echo "prepare-release --prepare-pr did not advance past existing RC tags" >&2
   exit 1
 }
@@ -481,11 +481,17 @@ name = "atlas-cli"
 version = "0.1.0"
 EOF_CARGO_RESET
 rm -f "$work/docs/releases/v0.1.0-rc.3.md"
+
+# A new clone still advances past retired RC tags using tracked notes.
+printf '# v0.1.0-rc.6\n' > "$work/docs/releases/v0.1.0-rc.6.md"
+printf '\n' | ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_RELEASE_TEST_DISABLE_FZF=1 run_prepare --prepare-pr --dry-run > "$work/release-choice.log"
+grep -q 'would create release-prep/v0.1.0-rc.7' "$work/release-choice.log"
+rm "$work/docs/releases/v0.1.0-rc.6.md"
 reset_flags
 
 : > "$log"
 printf '2\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --prepare-pr >/dev/null
-grep -q 'git switch -c release/v0.1.1' "$log" || {
+grep -q 'git switch -c release-prep/v0.1.1' "$log" || {
   echo "prepare-release --prepare-pr did not apply patch selection" >&2
   exit 1
 }
@@ -500,7 +506,7 @@ reset_flags
 : > "$log"
 write_fake_fzf
 ATLAS_TEST_FZF_CHOICE=0.2.0 ATLAS_RELEASE_TEST_PROMPTS=1 ATLAS_RELEASE_TEST_DISABLE_FZF=0 run_prepare --prepare-pr >/dev/null
-grep -q 'git switch -c release/v0.2.0' "$log" || {
+grep -q 'git switch -c release-prep/v0.2.0' "$log" || {
   echo "prepare-release --prepare-pr fzf prompt did not apply selected version" >&2
   exit 1
 }
@@ -563,21 +569,21 @@ cp "$tmp/Cargo.toml.good" "$work/crates/atlas-cli/Cargo.toml"
 ATLAS_TEST_BRANCH=dev ATLAS_TEST_DIRTY=1 ATLAS_TEST_FETCH_FAIL=1 run_prepare --publish --version 0.1.0 --dry-run >/dev/null 2>&1
 expect_log_absent 'cargo fmt' "prepare-release dry-run ran cargo"
 expect_log_absent 'dist plan' "prepare-release dry-run ran dist"
-expect_log_absent 'git tag -a v0.1.0' "prepare-release dry-run created a tag"
-expect_log_absent 'git push origin v0.1.0' "prepare-release dry-run pushed a tag"
-expect_log_absent 'gh release create v0.1.0' "prepare-release dry-run created a release"
+expect_log_absent 'git tag -a release/v0.1.0' "prepare-release dry-run created a tag"
+expect_log_absent 'git push origin release/v0.1.0' "prepare-release dry-run pushed a tag"
+expect_log_absent 'gh release create release/v0.1.0' "prepare-release dry-run created a release"
 reset_flags
 
 printf 'y\n' | run_prepare --publish --version 0.1.0 >/dev/null
-grep -q 'git tag -a v0.1.0 -m Release v0.1.0' "$log" || {
+grep -q 'git tag -a release/v0.1.0 -m Release release/v0.1.0' "$log" || {
   echo "prepare-release did not create the expected annotated tag" >&2
   exit 1
 }
-grep -q 'git push --no-verify origin v0.1.0' "$log" || {
+grep -q 'git push --no-verify origin release/v0.1.0' "$log" || {
   echo "prepare-release did not push the expected tag" >&2
   exit 1
 }
-grep -q 'gh release create v0.1.0 --draft --verify-tag --notes-file docs/releases/v0.1.0.md --title v0.1.0' "$log" || {
+grep -q 'gh release create release/v0.1.0 --draft --verify-tag --notes-file docs/releases/v0.1.0.md --title release/v0.1.0' "$log" || {
   echo "prepare-release did not create the expected draft release" >&2
   exit 1
 }
@@ -587,7 +593,7 @@ grep -q 'dist plan --verbose error --tag v0.1.0 --allow-dirty' "$log" || {
 }
 dist_line=$(first_log_line 'dist plan --verbose error --tag v0.1.0 --allow-dirty')
 post_check_status_line=$(last_log_line 'git status --porcelain')
-tag_line=$(first_log_line 'git tag -a v0.1.0')
+tag_line=$(first_log_line 'git tag -a release/v0.1.0')
 if [ "$dist_line" -ge "$post_check_status_line" ] || [ "$post_check_status_line" -ge "$tag_line" ]; then
   echo "prepare-release did not re-check worktree cleanliness after validation and before tagging" >&2
   exit 1
@@ -597,12 +603,12 @@ fi
 ATLAS_TEST_LOCAL_TAG_EXISTS=1
 export ATLAS_TEST_LOCAL_TAG_EXISTS
 printf 'y\ny\n' | ATLAS_RELEASE_TEST_PROMPTS=1 run_prepare --publish --version 0.1.0 >/dev/null
-grep -q 'git tag -d v0.1.0' "$log" || {
+grep -q 'git tag -d release/v0.1.0' "$log" || {
   echo "prepare-release did not delete an approved local tag before publishing" >&2
   exit 1
 }
-delete_tag_line=$(first_log_line 'git tag -d v0.1.0')
-create_tag_line=$(first_log_line 'git tag -a v0.1.0')
+delete_tag_line=$(first_log_line 'git tag -d release/v0.1.0')
+create_tag_line=$(first_log_line 'git tag -a release/v0.1.0')
 if [ "$delete_tag_line" -ge "$create_tag_line" ]; then
   echo "prepare-release recreated the publish tag before deleting the stale local tag" >&2
   exit 1
@@ -631,7 +637,7 @@ None.
 - None known.
 EOF_NOTES_023
 printf 'y\n' | run_prepare --publish >/dev/null
-grep -q 'git tag -a v0.2.3 -m Release v0.2.3' "$log" || {
+grep -q 'git tag -a release/v0.2.3 -m Release release/v0.2.3' "$log" || {
   echo "prepare-release without --version did not use the crate version" >&2
   exit 1
 }
@@ -659,7 +665,7 @@ None.
 - None known.
 EOF_RC
 printf 'y\n' | run_prepare --publish --version 0.1.0-rc.1 >/dev/null
-grep -q 'gh release create v0.1.0-rc.1 --draft --verify-tag --notes-file docs/releases/v0.1.0-rc.1.md --prerelease --latest=false --title v0.1.0-rc.1' "$log" || {
+grep -q 'gh release create rc/v0.1.0-rc.1 --draft --verify-tag --notes-file docs/releases/v0.1.0-rc.1.md --prerelease --latest=false --title rc/v0.1.0-rc.1' "$log" || {
   echo "prepare-release did not create the expected prerelease draft" >&2
   exit 1
 }

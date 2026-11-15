@@ -62,14 +62,19 @@ switch ($arch) {
   default { Fail "unsupported Windows architecture: $arch" }
 }
 
-if ($Version -eq "latest") {
+$tag = switch -CaseSensitive -Regex ($Version) {
+  '^nightly$' { 'nightly/latest'; break }
+  '^(latest$|(?:release|rc|nightly)/)' { $Version; break }
+  '-rc\.' { 'rc/v' + ($Version -creplace '^v', ''); break }
+  default { 'release/v' + ($Version -creplace '^v', '') }
+}
+if ($tag -ceq "latest") {
   $baseUrl = "https://github.com/$Repo/releases/latest/download"
-} elseif ($Version -eq "nightly") {
-  $baseUrl = "https://github.com/$Repo/releases/download/nightly"
-} elseif ($Version.StartsWith("v")) {
-  $baseUrl = "https://github.com/$Repo/releases/download/$Version"
 } else {
-  $baseUrl = "https://github.com/$Repo/releases/download/v$Version"
+  if ($tag -cnotmatch '\A(?:release/v[0-9]+\.[0-9]+\.[0-9]+|rc/v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+|nightly/(?:[0-9]{14}\.g[0-9a-f]{12}|latest))\z') {
+    Fail "invalid release version: $Version"
+  }
+  $baseUrl = "https://github.com/$Repo/releases/download/$tag"
 }
 
 $manifestUrl = "$baseUrl/atlas-release-manifest.json"
@@ -103,7 +108,7 @@ Write-Host "  target:      $target"
 Write-Host "  version:     $Version"
 Write-Host "  build:       $variant"
 if ($existingVariant -ne "none") { Write-Host "  current build: $existingVariant" }
-if ($Version -eq "nightly") {
+if ($tag -ceq "nightly/latest") {
   Write-Host "  channel:     $baseUrl/nightly-version.txt (resolved when installing)"
 } else {
   Write-Host "  manifest:    $manifestUrl"
@@ -123,11 +128,11 @@ New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("atlas-install-" + [System.Guid]::NewGuid())
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 try {
-  if ($Version -eq "nightly") {
+  if ($tag -ceq "nightly/latest") {
     $pointer = Join-Path $tmp "nightly-version.txt"
     Invoke-WebRequest -Uri "$baseUrl/nightly-version.txt" -OutFile $pointer
     $tag = (Get-Content $pointer -Raw).Trim()
-    if ($tag -cnotmatch '\Av[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12}\z') {
+    if ($tag -cnotmatch '\Anightly/[0-9]{14}\.g[0-9a-f]{12}\z') {
       Fail "invalid nightly channel pointer"
     }
     $baseUrl = "https://github.com/$Repo/releases/download/$tag"

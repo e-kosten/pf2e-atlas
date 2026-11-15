@@ -9,7 +9,9 @@ import { nightlyVersion, planNightly, prepareNightly, publishNightly, type Run }
 import { macosDmg, windowsInstaller } from '../src/release-data.js';
 
 const sha = 'abcdef123456' + '0'.repeat(28);
-const tag = 'v0.1.0-nightly.20261018092300.gabcdef123456';
+const tag = 'nightly/20261018092300.gabcdef123456';
+const packageTag = 'v0.1.0-nightly.20261018092300.gabcdef123456';
+const channel = 'nightly/latest';
 const datedReleaseId = 123;
 const releaseEndpoint = 'repos/{owner}/{repo}/releases';
 const uploadUrl = `https://uploads.github.com/repos/e-kosten/pf2e-atlas/releases/${datedReleaseId}/assets`;
@@ -40,7 +42,7 @@ function fixture(t: TestContext) {
   writeFileSync(lock, 'version = 4\n\n[[package]]\nname = "atlas-cli"\nversion = "0.1.0-rc.6"\n\n[[package]]\nname = "other"\nversion = "0.1.0-rc.6"\n');
   const dist = path.join(root, 'dist'); mkdirSync(dist);
   writeFileSync(path.join(dist, 'atlas-release-manifest.json'), JSON.stringify({
-    version: tag, assets: [{ name: coverageArchive, target: 'x86_64-unknown-linux-gnu', variant: 'cli-only', sha256: archiveDigest }],
+    version: packageTag, assets: [{ name: coverageArchive, target: 'x86_64-unknown-linux-gnu', variant: 'cli-only', sha256: archiveDigest }],
   }));
   writeFileSync(path.join(dist, coverageArchive), archiveBytes);
   writeFileSync(path.join(dist, macosDmg), dmgBytes);
@@ -54,20 +56,20 @@ function fixture(t: TestContext) {
 
 test('nightly preparation changes only CLI versions and is idempotent', (t) => {
   const { root, manifest, lock } = fixture(t);
-  prepareNightly(root, tag); prepareNightly(root, tag);
-  assert.equal(readFileSync(manifest, 'utf8'), `[package]\nname = "atlas-cli"\nversion = "${tag.slice(1)}"\n\n[dependencies.other]\nversion = "0.1.0-rc.6"\n`);
-  assert.equal(readFileSync(lock, 'utf8'), `version = 4\n\n[[package]]\nname = "atlas-cli"\nversion = "${tag.slice(1)}"\n\n[[package]]\nname = "other"\nversion = "0.1.0-rc.6"\n`);
+  prepareNightly(root, packageTag); prepareNightly(root, packageTag);
+  assert.equal(readFileSync(manifest, 'utf8'), `[package]\nname = "atlas-cli"\nversion = "${packageTag.slice(1)}"\n\n[dependencies.other]\nversion = "0.1.0-rc.6"\n`);
+  assert.equal(readFileSync(lock, 'utf8'), `version = 4\n\n[[package]]\nname = "atlas-cli"\nversion = "${packageTag.slice(1)}"\n\n[[package]]\nname = "other"\nversion = "0.1.0-rc.6"\n`);
 });
 
 test('invalid versions and inconsistent locks fail before changing either file', (t) => {
   const { root, manifest, lock } = fixture(t);
-  for (const invalid of ['nightly', 'v0.1.0', tag + '\n', tag.replace('0.1.0', '9.0.0')]) {
+  for (const invalid of ['nightly', 'v0.1.0', packageTag + '\n', packageTag.replace('0.1.0', '9.0.0')]) {
     const before = [readFileSync(manifest, 'utf8'), readFileSync(lock, 'utf8')];
     assert.throws(() => prepareNightly(root, invalid));
     assert.deepEqual([readFileSync(manifest, 'utf8'), readFileSync(lock, 'utf8')], before);
   }
   writeFileSync(lock, readFileSync(lock, 'utf8').replace('name = "atlas-cli"', 'name = "missing"'));
-  assert.throws(() => prepareNightly(root, tag), /one CLI lockfile entry/);
+  assert.throws(() => prepareNightly(root, packageTag), /one CLI lockfile entry/);
   assert.match(readFileSync(manifest, 'utf8'), /0.1.0-rc.6/);
 });
 
@@ -77,15 +79,15 @@ test('scheduled skip requires the published channel to point to this exact sourc
     const dated = { tag_name: tag, target_commitish: scenario === 'changed' ? '1'.repeat(40) : sha, draft: scenario === 'draft', prerelease: true,
       assets: [dmgAsset, windowsAsset].filter((asset) => !(scenario === 'missing-dmg' && asset === dmgAsset)
         && !(scenario === 'missing-windows' && asset === windowsAsset)) };
-    const channel = { tag_name: 'nightly', draft: false, assets: scenario === 'missing-pointer' ? [] : [{ name: 'nightly-version.txt' }] };
+    const channelRelease = { tag_name: channel, draft: false, assets: scenario === 'missing-pointer' ? [] : [{ name: 'nightly-version.txt' }] };
     const run: Run = (program, args) => {
       if (program === 'git') return sha;
-      if (args[0] === 'api') return JSON.stringify([[dated, ...(scenario === 'missing-channel' ? [] : [channel])]]);
+      if (args[0] === 'api') return JSON.stringify([[dated, ...(scenario === 'missing-channel' ? [] : [channelRelease])]]);
       if (args[1] === 'download') writeFileSync(path.join(args[args.indexOf('--dir') + 1], 'nightly-version.txt'), tag + '\n');
       return '';
     };
     const result = planNightly(root, scenario !== 'manual', run, new Date('2026-10-18T09:23:00Z'));
-    assert.equal(result, scenario === 'same' ? 'build=false\n' : `build=true\nsha=${sha}\ntag=${tag}\n`);
+    assert.equal(result, scenario === 'same' ? 'build=false\n' : `build=true\nsha=${sha}\ntag=${tag}\npackage-tag=${packageTag}\n`);
   }
 });
 
@@ -94,7 +96,7 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
   const coverage = path.join(root, 'embedding-coverage.json');
   const covered = { status: 'covered', inferred_inputs: 0, reused_inputs: 3 };
   writeFileSync(coverage, JSON.stringify({
-    version: 2, source_sha: sha, tag, archive_sha256: options.badCoverage ? '0'.repeat(64) : archiveDigest,
+    version: 2, source_sha: sha, tag: packageTag, archive_sha256: options.badCoverage ? '0'.repeat(64) : archiveDigest,
     pins, profiles: { 'bge-base': covered, embeddinggemma: options.gap
       ? { status: 'gap', reason: 'missing_input', first_hash: 'a'.repeat(64), reused_inputs: 100, missing_inputs: 1 } : covered },
   }));
@@ -151,12 +153,12 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
       (draft.assets ??= []).push(asset);
       return JSON.stringify(asset);
     }
-    if (args[0] === 'release' && args[1] === 'download' && args[2] === 'nightly' && options.channelTag) {
+    if (args[0] === 'release' && args[1] === 'download' && args[2] === channel && options.channelTag) {
       writeFileSync(path.join(args[args.indexOf('--dir') + 1], 'nightly-version.txt'), options.channelTag);
     }
     if (program === 'sh' && options.failInstall) throw new Error('install failed');
-    if (path.basename(program) === 'atlas' && args[0] === 'build-info') return JSON.stringify({ status: 'ok', data: { version: nightlyVersion(tag), variant: 'cli-only' } });
-    if (path.basename(program) === 'atlas') return options.wrongVersion ? 'atlas wrong' : `atlas ${nightlyVersion(tag)}`;
+    if (path.basename(program) === 'atlas' && args[0] === 'build-info') return JSON.stringify({ status: 'ok', data: { version: nightlyVersion(packageTag), variant: 'cli-only' } });
+    if (path.basename(program) === 'atlas') return options.wrongVersion ? 'atlas wrong' : `atlas ${nightlyVersion(packageTag)}`;
     return '';
   };
   const validate = async () => { if (options.failValidation) throw new Error('invalid assets'); };
@@ -169,7 +171,7 @@ test('channel advances only after dated publication and successful downloaded in
   const locate = (...prefix: string[]) => calls.findIndex((call) => prefix.every((value, index) => call[index] === value));
   const datedPublication = locate('gh', 'api', '--method', 'PATCH', `${releaseEndpoint}/${datedReleaseId}`);
   const installation = locate('sh');
-  const channelPublication = locate('gh', 'release', 'create', 'nightly');
+  const channelPublication = locate('gh', 'release', 'create', channel);
   assert.notEqual(datedPublication, -1, 'dated release must be published');
   assert.notEqual(installation, -1, 'downloaded installer must run');
   assert.notEqual(channelPublication, -1, 'nightly channel must be published');
@@ -177,7 +179,7 @@ test('channel advances only after dated publication and successful downloaded in
   assert.ok(installation < channelPublication);
   const cliInstallation = calls.findIndex((call) => call[0] === 'sh' && call.includes('--without-web'));
   assert.ok(cliInstallation > installation && cliInstallation < channelPublication);
-  const uploads = calls.filter((call) => call.slice(0, 4).join(' ') === 'gh release upload nightly');
+  const uploads = calls.filter((call) => call.slice(0, 4).join(' ') === `gh release upload ${channel}`);
   assert.equal(path.basename(uploads.at(-1)![4]), 'nightly-version.txt');
   assert.ok(calls.some((call) => call[4] === `${uploadUrl}?name=${windowsInstaller}`));
   assert.ok(calls.some((call) => call.some((arg) => arg.includes(`/releases/download/${tag}/${windowsInstaller}`))));
@@ -200,7 +202,7 @@ test('validation, installation and binary-version failures preserve the channel'
   for (const options of [{ failValidation: true }, { failInstall: true }, { wrongVersion: true }]) {
     const { execute, calls } = publisher(t, options);
     await assert.rejects(execute);
-    assert.ok(!calls.some((call) => call[3] === 'nightly'));
+    assert.ok(!calls.some((call) => call[3] === channel));
     if ('failValidation' in options) assert.deepEqual(calls, []);
   }
 });
@@ -212,7 +214,7 @@ test('retry preserves published dated assets while repairing the channel', async
   }] });
   await execute();
   assert.ok(!calls.some((call) => call[1] === 'api' && call[2] === '--method'));
-  assert.ok(calls.some((call) => call[2] === 'upload' && call[3] === 'nightly'));
+  assert.ok(calls.some((call) => call[2] === 'upload' && call[3] === channel));
 });
 
 test('bad desktop upload digests keep the release in draft', async (t) => {
@@ -224,12 +226,12 @@ test('bad desktop upload digests keep the release in draft', async (t) => {
 });
 
 test('older and current published retries leave the channel alone', async (t) => {
-  const old = publisher(t, { existing: [{ tag_name: 'nightly', assets: [{ name: 'nightly-version.txt' }] }],
+  const old = publisher(t, { existing: [{ tag_name: channel, assets: [{ name: 'nightly-version.txt' }] }],
     channelTag: tag.replace('20261018092300', '20261019092300') });
   await old.execute();
   assert.ok(!old.calls.some((call) => ['upload', 'edit', 'create', '--method'].includes(call[2])));
   const current = publisher(t, { existing: [
-    { tag_name: 'nightly', draft: false, assets: [{ name: 'nightly-version.txt' }] },
+    { tag_name: channel, draft: false, assets: [{ name: 'nightly-version.txt' }] },
     { tag_name: tag, target_commitish: sha, draft: false, prerelease: true,
       assets: publishedAssets },
   ], channelTag: tag });
@@ -275,5 +277,5 @@ test('bad report and missing notice on a published nightly block the channel', a
     assets: [{ name: coverageArchive, digest: `sha256:${archiveDigest}` }],
   }] });
   await assert.rejects(retry.execute, /notes differ/);
-  assert.ok(!retry.calls.some((call) => call[3] === 'nightly'));
+  assert.ok(!retry.calls.some((call) => call[3] === channel));
 });

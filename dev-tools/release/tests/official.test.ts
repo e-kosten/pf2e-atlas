@@ -14,7 +14,7 @@ const digest = 'sha256:' + createHash('sha256').update(image).digest('hex');
 function fixture(t: TestContext, tag: string, options = { draft: true, source: sha, digest }) {
   const dist = mkdtempSync(path.join(tmpdir(), 'atlas-official-test-'));
   t.after(() => rmSync(dist, { recursive: true, force: true }));
-  writeFileSync(path.join(dist, 'atlas-release-manifest.json'), JSON.stringify({ version: tag }));
+  writeFileSync(path.join(dist, 'atlas-release-manifest.json'), JSON.stringify({ version: tag.split('/')[1] }));
   writeFileSync(path.join(dist, macosDmg), image);
   const release = {
     tag_name: tag, draft: options.draft, prerelease: tag.includes('-'), body: 'Release notes',
@@ -30,7 +30,7 @@ function fixture(t: TestContext, tag: string, options = { draft: true, source: s
 }
 
 test('publishes an exact draft with correct stable and RC flags and preserves notes', async (t) => {
-  for (const tag of ['v1.2.3', 'v1.2.3-rc.2']) {
+  for (const tag of ['release/v1.2.3', 'rc/v1.2.3-rc.2']) {
     const { publish, mutations } = fixture(t, tag);
     await publish();
     const [upload, publishDraft] = mutations;
@@ -42,19 +42,19 @@ test('publishes an exact draft with correct stable and RC flags and preserves no
 });
 
 test('rejects an incorrect tag and keeps a draft private on uploaded digest mismatch', async (t) => {
-  const wrongTag = fixture(t, 'v1.2.3', { draft: true, source: 'c'.repeat(40), digest });
+  const wrongTag = fixture(t, 'release/v1.2.3', { draft: true, source: 'c'.repeat(40), digest });
   await assert.rejects(wrongTag.publish, /does not point to build commit/);
   assert.equal(wrongTag.mutations.length, 0);
-  const badUpload = fixture(t, 'v1.2.3', { draft: true, source: sha, digest: 'wrong' });
+  const badUpload = fixture(t, 'release/v1.2.3', { draft: true, source: sha, digest: 'wrong' });
   await assert.rejects(badUpload.publish, /Uploaded DMG digest mismatch/);
   assert.equal(badUpload.mutations.length, 1);
 });
 
 test('published retries verify the original DMG without mutating the release', async (t) => {
-  const existing = fixture(t, 'v1.2.3', { draft: false, source: sha, digest });
+  const existing = fixture(t, 'release/v1.2.3', { draft: false, source: sha, digest });
   await existing.publish();
   assert.equal(existing.mutations.length, 0);
-  const changed = fixture(t, 'v1.2.3', { draft: false, source: sha, digest: 'different' });
+  const changed = fixture(t, 'release/v1.2.3', { draft: false, source: sha, digest: 'different' });
   await assert.rejects(changed.publish, /Uploaded DMG digest mismatch/);
   assert.equal(changed.mutations.length, 0);
 });

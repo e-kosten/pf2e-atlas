@@ -3,8 +3,8 @@ name: release
 on:
   push:
     tags:
-      - "v*"
-      - "!v*-nightly.*"
+      - "release/v*"
+      - "rc/v*"
 
 permissions:
   contents: read
@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      package-tag: ${{ steps.version.outputs.package-tag }}
     steps:
       - uses: actions/checkout@v7
       - id: version
@@ -26,28 +27,30 @@ jobs:
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+          if [[ ! "$tag" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ && ! "$tag" =~ ^rc/v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
             echo "invalid release tag: $tag" >&2
             exit 1
           fi
-          version="${tag#v}"
+          package_tag="${tag#*/}"
+          version="${package_tag#v}"
           crate_version="$(awk -F '"' '/^version = / { print $2; exit }' crates/atlas-cli/Cargo.toml)"
           if [[ "$crate_version" != "$version" ]]; then
             echo "crate version $crate_version does not match tag $tag" >&2
             exit 1
           fi
-          notes="docs/releases/$tag.md"
+          notes="docs/releases/$package_tag.md"
           if [[ ! -s "$notes" ]]; then
             echo "missing release notes: $notes" >&2
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "package-tag=$package_tag" >> "$GITHUB_OUTPUT"
 
   package:
     needs: validate-tag
     uses: ./.github/workflows/release-build-check.yml
     with:
-      tag: ${{ needs.validate-tag.outputs.tag }}
+      tag: ${{ needs.validate-tag.outputs.package-tag }}
       source-ref: ${{ github.sha }}
 
   publish:
@@ -75,7 +78,7 @@ jobs:
       - name: Download assembled release assets
         uses: actions/download-artifact@v8
         with:
-          name: release-build-check-${{ needs.validate-tag.outputs.tag }}
+          name: release-build-check-${{ needs.validate-tag.outputs.package-tag }}
           path: target/distrib
       - name: Wait for draft release
         shell: bash

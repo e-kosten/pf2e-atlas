@@ -22,14 +22,14 @@ the nightly CLI. For a released CLI, prefer the matching skill bundled with
 For the current nightly on macOS (Apple Silicon) or Linux:
 
 ```sh
-curl -fL https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.sh -o /tmp/atlas-installer.sh
+curl -fL https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/atlas-installer.sh -o /tmp/atlas-installer.sh
 sh /tmp/atlas-installer.sh --version nightly
 ```
 
 On Windows (PowerShell):
 
 ```powershell
-Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.ps1 -OutFile "$env:TEMP/atlas-installer.ps1"
+Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/atlas-installer.ps1 -OutFile "$env:TEMP/atlas-installer.ps1"
 & "$env:TEMP/atlas-installer.ps1" -Version nightly
 ```
 

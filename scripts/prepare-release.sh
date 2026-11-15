@@ -14,7 +14,7 @@ annotated release tag and draft GitHub release after verifying that the release
 version and notes were already committed to main.
 
 Options:
-  --prepare-pr             Create release/v<version> from clean, current main
+  --prepare-pr             Create release-prep/v<version> from clean, current main
   --open-pr                Commit release-prep changes, push the branch, and open a PR
   --publish                Tag the committed release version and create a draft release
   --version <version>      Version without leading v; optional guard for open-pr/publish
@@ -60,16 +60,20 @@ validate_version() {
     v*) die "pass --version without a leading v" ;;
   esac
 
-  if ! printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'; then
+  if ! printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'; then
     die "version must look like 0.1.0 or 0.1.0-rc.1"
   fi
 }
 
 set_release_vars() {
   validate_version "$version"
-  tag="v$version"
-  [ -n "$notes_file" ] || notes_file="docs/releases/$tag.md"
-  release_branch="release/$tag"
+  package_tag="v$version"
+  case "$version" in
+    *-rc.*) tag="rc/$package_tag" ;;
+    *) tag="release/$package_tag" ;;
+  esac
+  [ -n "$notes_file" ] || notes_file="docs/releases/$package_tag.md"
+  release_branch="release-prep/$package_tag"
 }
 
 version=""
@@ -219,9 +223,15 @@ ensure_current_main_checkout() {
 next_rc_version() {
   base_version="$1"
   max_rc=0
-  for existing_tag in $(git tag -l "v$base_version-rc.*"); do
-    rc_number=$(printf '%s\n' "$existing_tag" | sed -n "s/^v$base_version-rc\\.\\([0-9][0-9]*\\)$/\\1/p")
-    if [ -n "$rc_number" ] && [ "$rc_number" -gt "$max_rc" ]; then
+  for existing in $(git tag -l "rc/v$base_version-rc.*") docs/releases/v"$base_version"-rc.*.md; do
+    case "$existing" in
+      docs/releases/*) [ -f "$existing" ] || continue ;;
+    esac
+    name=${existing##*/}
+    rc_number=${name#v"$base_version"-rc.}
+    rc_number=${rc_number%.md}
+    case "$rc_number" in ''|*[!0-9]*) continue ;; esac
+    if [ "$rc_number" -gt "$max_rc" ]; then
       max_rc="$rc_number"
     fi
   done
@@ -356,7 +366,7 @@ prepare_publish_tag() {
 write_release_notes_template() {
   mkdir -p "$(dirname "$notes_file")"
   cat > "$notes_file" <<EOF_NOTES
-# $tag
+# $package_tag
 
 ## Summary
 
@@ -423,10 +433,10 @@ update_lockfile() {
 release_branch_from_current_branch() {
   current_branch=$(git branch --show-current)
   case "$current_branch" in
-    release/v*) ;;
-    *) die "--open-pr must run from a release/v<version> branch; current branch is $current_branch" ;;
+    release-prep/v*) ;;
+    *) die "--open-pr must run from a release-prep/v<version> branch; current branch is $current_branch" ;;
   esac
-  branch_version=${current_branch#release/v}
+  branch_version=${current_branch#release-prep/v}
   validate_version "$branch_version"
   if [ -n "$version" ] && [ "$version" != "$branch_version" ]; then
     die "current release branch is for $branch_version, but --version requested $version"
@@ -513,13 +523,13 @@ if [ "$open_pr" -eq 1 ]; then
 
   run_release_pr_checks
   git add Cargo.lock crates/atlas-cli/Cargo.toml "$notes_file"
-  git commit --no-verify -m "chore(release): prepare $tag"
+  git commit --no-verify -m "chore(release): prepare $package_tag"
   git push --no-verify -u origin "$release_branch"
   gh pr create \
     --base main \
     --head "$release_branch" \
-    --title "chore(release): prepare $tag" \
-    --body "Prepare $tag for release."
+    --title "chore(release): prepare $package_tag" \
+    --body "Prepare $package_tag for release."
   exit 0
 fi
 
@@ -627,7 +637,7 @@ info "Local checks:"
 info "  npm --prefix web/atlas-ui ci"
 info "  npm --prefix web/atlas-ui run build"
 info "  scripts/verify.sh"
-info "  dist plan --verbose error --tag $tag --allow-dirty"
+info "  dist plan --verbose error --tag $package_tag --allow-dirty"
 prepare_publish_tag
 
 if [ "$dry_run" -eq 1 ]; then
@@ -647,7 +657,7 @@ fi
 run_check npm --prefix web/atlas-ui ci
 run_check npm --prefix web/atlas-ui run build
 run_check scripts/verify.sh
-run_check dist plan --verbose error --tag "$tag" --allow-dirty
+run_check dist plan --verbose error --tag "$package_tag" --allow-dirty
 ensure_clean_worktree
 
 git tag -a "$tag" -m "Release $tag"

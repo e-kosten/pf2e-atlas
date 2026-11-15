@@ -14,9 +14,19 @@ export const variants = ['full', 'cli-only'] as const;
 export const macosDmg = 'atlas-desktop-aarch64-apple-darwin.dmg';
 export const windowsInstaller = 'atlas-desktop-x86_64-pc-windows-msvc-setup.exe';
 export const nightlyTag = /^v([0-9]+\.[0-9]+\.[0-9]+-nightly\.([0-9]{14})\.g[0-9a-f]{12})$/;
+export const nightlyRef = /^nightly\/([0-9]{14})\.g([0-9a-f]{12})$/;
+export const nightlyChannel = 'nightly/latest';
+export function officialPackageTag(ref: string): string {
+  const stable = /^release\/(v\d+\.\d+\.\d+)$/.exec(ref);
+  const candidate = /^rc\/(v\d+\.\d+\.\d+-rc\.\d+)$/.exec(ref);
+  const match = stable ?? candidate;
+  if (!match || match[0] !== ref) throw new Error('Invalid stable or RC release tag');
+  return match[1];
+}
+
 export function desktopAssets(tag: string) {
   const macos = { name: macosDmg, target: 'aarch64-apple-darwin', receiptKey: 'dmg', label: 'DMG' };
-  return nightlyTag.test(tag) ? [
+  return nightlyTag.test(tag) || nightlyRef.test(tag) ? [
     macos,
     { name: windowsInstaller, target: 'x86_64-pc-windows-msvc', receiptKey: 'installer', label: 'Windows installer' },
   ] : [macos];

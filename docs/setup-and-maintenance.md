@@ -49,8 +49,11 @@ counts; JSON output includes excluded file paths and reasons under
 The current Atlas upgrades schema 42 workspaces in place. Choose **Upgrade
 workspace** in the macOS app or run `atlas setup` in the terminal. Close other
 Atlas desktop and `atlas web` sessions for that workspace first. For an older
-schema, use the [schema 42 prerelease](https://github.com/e-kosten/pf2e-atlas/releases/tag/v0.1.0-nightly.20261112173917.g449cf4c9315c)
-to reach schema 42 before switching to the current Atlas.
+schema, download the CLI archive for your platform from the
+[schema 42 predecessor release](https://github.com/e-kosten/pf2e-atlas/releases/tag/fixtures/schema-42-predecessor/v1).
+Extract it to a separate directory and run `atlas setup` (or `atlas.exe setup`
+on Windows) using that executable and the workspace path. After it reaches
+schema 42, switch to the current Atlas and run setup again.
 
 Before changing the schema, Atlas retains one saved-state archive beside the
 database at `workspace.sqlite.upgrade-archive.json`. It includes saved lists,

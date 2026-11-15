@@ -102,11 +102,21 @@ case "$os:$arch" in
 esac
 
 case "$VERSION" in
-  nightly) tag="nightly"; base_url="https://github.com/$REPO/releases/download/nightly" ;;
-  latest) tag="latest"; base_url="https://github.com/$REPO/releases/latest/download" ;;
-  v*) tag="$VERSION"; base_url="https://github.com/$REPO/releases/download/$VERSION" ;;
-  *) tag="v$VERSION"; base_url="https://github.com/$REPO/releases/download/v$VERSION" ;;
+  nightly|nightly/latest) tag="nightly/latest" ;;
+  latest|release/*|rc/*|nightly/*) tag="$VERSION" ;;
+  *-rc.*) tag="rc/v${VERSION#v}" ;;
+  *) tag="release/v${VERSION#v}" ;;
 esac
+
+if [ "$tag" = latest ]; then
+  base_url="https://github.com/$REPO/releases/latest/download"
+else
+  if ! printf '%s\n' "$tag" | LC_ALL=C grep -Eq '^(release/v[0-9]+\.[0-9]+\.[0-9]+|rc/v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+|nightly/([0-9]{14}\.g[0-9a-f]{12}|latest))$' ||
+    [ "$(printf '%s\n' "$tag" | wc -l | tr -d ' ')" != 1 ]; then
+    die "invalid release version: $VERSION"
+  fi
+  base_url="https://github.com/$REPO/releases/download/$tag"
+fi
 
 manifest_url="$base_url/atlas-release-manifest.json"
 archive=""
@@ -166,7 +176,7 @@ printf '  target:      %s\n' "$target"
 printf '  version:     %s\n' "$VERSION"
 printf '  build:       %s\n' "$VARIANT"
 [ "$existing_variant" = "none" ] || printf '  current build: %s\n' "$existing_variant"
-if [ "$VERSION" = "nightly" ]; then
+if [ "$tag" = "nightly/latest" ]; then
   printf '  channel:     %s/nightly-version.txt (resolved when installing)\n' "$base_url"
 else
   printf '  manifest:    %s\n' "$manifest_url"
@@ -218,10 +228,10 @@ download() {
   fi
 }
 
-if [ "$VERSION" = "nightly" ]; then
+if [ "$tag" = "nightly/latest" ]; then
   download "$base_url/nightly-version.txt" "$tmp/nightly-version.txt"
   tag=$(cat "$tmp/nightly-version.txt")
-  printf '%s\n' "$tag" | LC_ALL=C grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-nightly\.[0-9]{14}\.g[0-9a-f]{12}$' || die "invalid nightly channel pointer"
+  printf '%s\n' "$tag" | LC_ALL=C grep -Eq '^nightly/[0-9]{14}\.g[0-9a-f]{12}$' || die "invalid nightly channel pointer"
   [ "$(printf '%s\n' "$tag" | wc -l | tr -d ' ')" = 1 ] || die "invalid nightly channel pointer"
   base_url="https://github.com/$REPO/releases/download/$tag"
   manifest_url="$base_url/atlas-release-manifest.json"
