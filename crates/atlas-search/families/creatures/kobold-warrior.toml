@@ -1,5 +1,5 @@
 name = "Kobold Warrior"
-source_note = "The Beginner Box warrior has different Constitution and Fortitude and lacks the Monster Core warrior’s sling loadout."
+source_note = "The Beginner Box warrior has different Constitution and Fortitude and lacks the Monster Core warrior’s sling loadout. The Legacy Society variants share Scamper and Sneak Attack. Lions of Katapesh adds lesser Alchemist’s Fire. The Pathfinder Trials and Fate in the Future blocks match in Foundry, without an identified Legacy reference actor."
 
 [[members]]
 key = "pathfinder-monster-core:BIZfjoz8DZt75EDn"
@@ -8,4 +8,24 @@ name = "Kobold Warrior"
 [[members]]
 key = "menace-under-otari-bestiary:BIZfjoz8DZt75EDn"
 name = "Kobold Warrior (BB)"
+label = "Kobold Warrior"
+
+[[members]]
+key = "pfs-season-1-bestiary:dSA9TMhvF4yw20c7"
+name = "Kobold Warrior (PFS 1-11)"
+label = "Kobold Warrior"
+
+[[members]]
+key = "pfs-season-1-bestiary:i4PIffSaQO2ry5nb"
+name = "Kobold Warrior (1-14)"
+label = "Kobold Warrior"
+
+[[members]]
+key = "pfs-season-2-bestiary:KJAk6ALQk9Qkt53l"
+name = "Kobold Warrior (PFS 2-11)"
+label = "Kobold Warrior"
+
+[[members]]
+key = "pfs-season-3-bestiary:psFZ9UdpJR4rRpEy"
+name = "Kobold Warrior (PFS 3-99)"
 label = "Kobold Warrior"

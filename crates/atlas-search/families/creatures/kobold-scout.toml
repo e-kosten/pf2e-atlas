@@ -1,5 +1,5 @@
 name = "Kobold Scout"
-source_note = "The Monster Core scout gains Construct Trap and a circumstance bonus to defenses against traps. The Beginner Box scout lacks those entries."
+source_note = "The Monster Core scout gains Construct Trap and a circumstance bonus to defenses against traps. The Beginner Box scout lacks those entries. The Legacy Society scouts share Scamper and Sneak Attack. Lions of Katapesh adds lesser Alchemist’s Fire. Flames of Rebellion and Fate in the Future supply the same Foundry combat block without an identified Legacy reference actor."
 
 [[members]]
 key = "pathfinder-monster-core:PcHQDmPTztw32PhL"
@@ -8,4 +8,19 @@ name = "Kobold Scout"
 [[members]]
 key = "menace-under-otari-bestiary:PcHQDmPTztw32PhL"
 name = "Kobold Scout (BB)"
+label = "Kobold Scout"
+
+[[members]]
+key = "pfs-season-1-bestiary:5ss5AIhNdmoreHcd"
+name = "Kobold Scout (PFS 1-11)"
+label = "Kobold Scout"
+
+[[members]]
+key = "pfs-season-1-bestiary:lhSKgDzZm8FZknvG"
+name = "Kobold Scout (1-14)"
+label = "Kobold Scout"
+
+[[members]]
+key = "pfs-season-3-bestiary:l1EWODWiDlDLQx0L"
+name = "Kobold Scout (PFS 3-99)"
 label = "Kobold Scout"
