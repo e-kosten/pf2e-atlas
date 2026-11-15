@@ -85,8 +85,8 @@ impl AtlasAppService {
             let scope = connected
                 .as_ref()
                 .and_then(|scope| scope.keys.as_deref())
-                .map(RecordScope::exact)
-                .unwrap_or(RecordScope::catalog(None));
+                .map(RecordScope::Keys)
+                .unwrap_or(RecordScope::All);
             let cancelled = || projection_execution.check().is_err();
             let search_content = match &request.criteria {
                 SearchCriteria::TextSearch { search_content, .. }

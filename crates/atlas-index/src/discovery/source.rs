@@ -24,7 +24,6 @@ use std::collections::BTreeSet;
 #[derive(Debug, Clone, Default)]
 pub struct QueryFacetContext {
     pub eligible_keys: Option<Vec<RecordKey>>,
-    pub discovery_scope: crate::DiscoveryScope,
 }
 #[derive(Debug, Clone)]
 pub struct QueryValuesRequest {
@@ -56,7 +55,6 @@ pub struct QueryValueCountsRequest {
 pub struct QueryVocabularyRequest {
     pub field: String,
     pub eligible_keys: Option<Vec<RecordKey>>,
-    pub discovery_scope: crate::DiscoveryScope,
     pub text: Option<String>,
     pub offset: usize,
     pub limit: usize,
@@ -103,31 +101,14 @@ pub fn validate_value_discovery(
 fn compile_eligibility(
     query: &ValidatedQuery,
     context: &QueryFacetContext,
-    field: &str,
 ) -> Result<CompiledPredicate, IndexError> {
-    let scope = if source_field(field) {
-        crate::DiscoveryScope::Exact
-    } else {
-        context.discovery_scope
-    };
-    let (eligible, parameters) = crate::verified_duplicates::eligible_sql(
-        query,
-        context.eligible_keys.as_deref(),
-        scope,
-        None,
-    )?;
+    let (eligible, parameters) =
+        crate::read_units::eligible_sql(query, context.eligible_keys.as_deref())?;
     Ok(CompiledPredicate {
         expression: format!("r.record_id IN ({eligible})"),
         parameters,
         proofs: Vec::new(),
     })
-}
-
-fn source_field(field: &str) -> bool {
-    matches!(
-        field,
-        "publication.title" | "source.pack.id" | "source.pack.label"
-    )
 }
 
 fn field(id: &str) -> Result<&'static crate::query::catalog::Descriptor, IndexError> {
@@ -189,22 +170,14 @@ pub(crate) fn field_counts(
     };
     let b = bound_field(d, d.definition.scope.as_deref());
     let (from, _) = occurrences(d)?;
-    let mut compiled = compile_eligibility(&query, &request.context, id)?;
+    let mut compiled = compile_eligibility(&query, &request.context)?;
     let member = member
         .as_ref()
         .map(|p| compile_node(p, d.definition.scope.as_deref(), &mut compiled.parameters))
         .transpose()?
         .unwrap_or_else(|| "1".to_owned());
-    let counts = if source_field(id)
-        && request.context.discovery_scope == crate::DiscoveryScope::Catalog
-    {
-        let root = "coalesce((SELECT canonical_record_id FROM verified_duplicate_records WHERE duplicate_record_id=r.record_id),r.record_id)";
-        format!("COUNT(DISTINCT {root}),COUNT(DISTINCT {root})")
-    } else {
-        "COUNT(*),COUNT(DISTINCT r.record_id)".to_owned()
-    };
     let sql = format!(
-        "SELECT {},{counts} FROM {from} ({}) AND ({member}) GROUP BY 1",
+        "SELECT {},COUNT(*),COUNT(DISTINCT r.record_id) FROM {from} ({}) AND ({member}) GROUP BY 1",
         b.state, compiled.expression
     );
     let mut statement = connection.prepare(&sql)?;
@@ -580,27 +553,7 @@ fn count_options(
             None => query.clone(),
         };
         let keys = context.eligible_keys.as_deref();
-        let (eligible, mut parameters) = if context.discovery_scope
-            == crate::DiscoveryScope::Catalog
-        {
-            let (eligible, parameters) = crate::verified_duplicates::eligible_sql(
-                &base,
-                keys,
-                context.discovery_scope,
-                None,
-            )?;
-            if grouped_traits {
-                let state = bound_field(d, None).state;
-                (
-                    format!(
-                        "SELECT r.key FROM records r WHERE r.record_id IN ({eligible}) AND ({state})='value'"
-                    ),
-                    parameters,
-                )
-            } else {
-                (eligible, parameters)
-            }
-        } else if grouped_traits {
+        let (eligible, mut parameters) = if grouped_traits {
             let (mut eligible, parameters) =
                 crate::read_units::eligible_record_keys_sql(&base, keys)?;
             let state = bound_field(d, None).state;
@@ -635,12 +588,8 @@ fn count_options(
     let mut options = Vec::new();
     for value in values {
         let accepted = with_choice(&value)?;
-        let (eligible, parameters) = crate::verified_duplicates::eligible_sql(
-            &accepted,
-            context.eligible_keys.as_deref(),
-            context.discovery_scope,
-            None,
-        )?;
+        let (eligible, parameters) =
+            crate::read_units::eligible_sql(&accepted, context.eligible_keys.as_deref())?;
         let sql = format!("WITH matches AS ({eligible}) SELECT COUNT(*) FROM matches");
         let count =
             connection.query_row(&sql, params_from_iter(&parameters), |r| r.get::<_, u64>(0))?;
@@ -799,7 +748,7 @@ fn enumerate_values(
     context: &QueryFacetContext,
     member: Option<&QueryPredicate>,
 ) -> Result<Vec<QueryLiteral>, IndexError> {
-    let mut compiled = compile_eligibility(base, context, &d.definition.id)?;
+    let mut compiled = compile_eligibility(base, context)?;
     let (from, _) = occurrences(d)?;
     let b = bound_field(d, d.definition.scope.as_deref());
     let member = member
@@ -885,7 +834,6 @@ pub(crate) fn field_vocabulary(
     let base = validate_query(&QueryPredicate::boolean(true))?;
     let context = QueryFacetContext {
         eligible_keys: request.eligible_keys.clone(),
-        discovery_scope: request.discovery_scope,
     };
     let mut values = enumerate_values(connection, d, &base, &context, None)?;
     if let Some(text) = &request.text {

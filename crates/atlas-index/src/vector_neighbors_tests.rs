@@ -10,7 +10,6 @@ fn admitted_neighbor_hydration_does_not_reopen_native_vector_data() {
     let mut vector = vec![0.; 768];
     vector[0] = 1.;
     let request = SourceVectorCandidateRequest {
-        discovery_scope: Default::default(),
         profile: &model.profile_id,
         vector: &vector,
         query: &query,
@@ -50,7 +49,6 @@ fn native_and_rehydrated_batches_preserve_macro_empty_scope_and_request_errors()
     let mut vector = vec![0.; 768];
     vector[0] = 1.;
     let request = SourceVectorCandidateRequest {
-        discovery_scope: Default::default(),
         profile,
         vector: &vector,
         query: &query,
@@ -97,7 +95,6 @@ fn native_and_rehydrated_batches_preserve_macro_empty_scope_and_request_errors()
             ..request
         },
         SourceVectorCandidateRequest {
-            discovery_scope: Default::default(),
             profile: &unavailable,
             ..request
         },
@@ -122,7 +119,6 @@ fn retained_neighbors_do_not_bypass_incompatible_schema_admission() {
     vector[0] = 1.;
     let (_, neighbors) = reader
         .vector_candidates_with_neighbors(SourceVectorCandidateRequest {
-            discovery_scope: Default::default(),
             profile: &input.context.search_profiles[0].profile_id,
             vector: &vector,
             query: &query,
@@ -196,7 +192,6 @@ fn shared_inputs_expand_to_eligible_occurrences_and_keep_the_occurrence_budget()
     );
     let query = crate::validate_query(&atlas_domain::QueryPredicate::boolean(true)).unwrap();
     let request = SourceVectorCandidateRequest {
-        discovery_scope: Default::default(),
         profile: &model.profile_id,
         vector: &needle,
         query: &query,
@@ -219,7 +214,6 @@ fn shared_inputs_expand_to_eligible_occurrences_and_keep_the_occurrence_budget()
         hits
     );
     let configured = SourceSimilarityCandidateRequest {
-        discovery_scope: Default::default(),
         profile: request.profile,
         vector: request.vector,
         query: request.query,
@@ -262,7 +256,6 @@ fn shared_inputs_expand_to_eligible_occurrences_and_keep_the_occurrence_budget()
         hits
     );
     let configured = SourceSimilarityCandidateRequest {
-        discovery_scope: Default::default(),
         profile: eligible.profile,
         vector: eligible.vector,
         query: eligible.query,

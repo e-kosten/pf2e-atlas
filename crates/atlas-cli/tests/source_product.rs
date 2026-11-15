@@ -853,9 +853,6 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
             .contains("filter_invalid")
     );
     let db = rusqlite::Connection::open(&f.index).unwrap();
-    let ledger_count: u64 = db
-        .query_row("SELECT count(*) FROM schema_migrations", [], |r| r.get(0))
-        .unwrap();
     db.pragma_update(None, "user_version", 0).unwrap();
     drop(db);
     let o = f.command(&["index", "check", "--no-embeddings", "--json"], false);
@@ -885,7 +882,7 @@ fn unsupported_cel_and_inconsistent_workspace_schema_fail_closed() {
         db.query_row("SELECT count(*) FROM schema_migrations", [], |r| r
             .get::<_, u64>(0))
             .unwrap(),
-        ledger_count
+        1
     );
 }
 

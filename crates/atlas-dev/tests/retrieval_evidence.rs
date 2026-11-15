@@ -182,9 +182,9 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
                     mode,
                     filter: filter.as_ref().map(|f| f.predicate()),
                     scope: if keys.is_empty() {
-                        RecordScope::catalog(None)
+                        RecordScope::All
                     } else {
-                        RecordScope::exact(&keys)
+                        RecordScope::Keys(&keys)
                     },
                     page: SearchPage::new(1, 30).unwrap(),
                 })

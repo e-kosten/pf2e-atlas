@@ -191,10 +191,7 @@ impl NativeNeighborReuse {
                 text,
                 vector: VectorBits(request.vector),
                 predicate: request.query.predicate(),
-                scope: match request.discovery_scope {
-                    atlas_index::DiscoveryScope::Catalog => "catalog",
-                    atlas_index::DiscoveryScope::Exact => "exact",
-                },
+                scope: "all",
                 exclude: request.exclude,
                 content: request.content_scope,
                 k: request.limit,

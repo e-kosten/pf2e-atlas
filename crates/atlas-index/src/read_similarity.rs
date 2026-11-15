@@ -16,7 +16,6 @@ pub struct SourceSimilarityUnit {
 }
 #[derive(Clone, Copy)]
 pub struct SourceSimilarityCandidateRequest<'a> {
-    pub discovery_scope: crate::DiscoveryScope,
     pub profile: &'a SearchProfileId,
     pub vector: &'a [f32],
     pub query: &'a crate::ValidatedQuery,

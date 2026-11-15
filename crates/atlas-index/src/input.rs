@@ -75,8 +75,6 @@ impl SourceSearchProfileIdentity {
 #[serde(deny_unknown_fields)]
 pub struct SourceArtifactBuildContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub verified_duplicate_sha256: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reference_preparation: Option<crate::ReferencePreparation>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub selected_sections_recipe: String,
@@ -202,7 +200,6 @@ pub struct IndexBuildInput {
     pub packs: Vec<IndexBuildPack>,
     pub context: SourceArtifactBuildContext,
     pub aliases: Vec<SourceAliasInput>,
-    pub verified_duplicates: Vec<crate::VerifiedDuplicateInput>,
     pub remaster_context: Vec<atlas_record::remaster::RecordRemasterContext>,
     pub remaster_pairs: Vec<SourceRemasterPairInput>,
     pub lexical_units: Vec<SourceLexicalUnitInput>,

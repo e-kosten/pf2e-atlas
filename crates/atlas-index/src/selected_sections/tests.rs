@@ -249,7 +249,6 @@ fn published_passages_and_neighbor_hydration_reject_unavailable_sections_and_ide
         let reader = open_reader(&path).unwrap();
         let query = validate_query(&QueryPredicate::boolean(true)).unwrap();
         let request = SourceVectorCandidateRequest {
-            discovery_scope: Default::default(),
             profile: &input.context.search_profiles[0].profile_id,
             vector: &input.semantic_units[0].vector,
             query: &query,
@@ -298,7 +297,6 @@ fn published_passages_and_neighbor_hydration_reject_unavailable_sections_and_ide
         assert!(
             reader
                 .similarity_candidates(SourceSimilarityCandidateRequest {
-                    discovery_scope: Default::default(),
                     profile: request.profile,
                     vector: request.vector,
                     query: &query,

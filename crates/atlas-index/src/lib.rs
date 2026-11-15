@@ -173,7 +173,3 @@ mod embedding_values_tests;
 mod publication_crash_tests;
 
 mod remaster;
-mod verified_duplicates;
-pub use verified_duplicates::{
-    DiscoveryScope, VERIFIED_DUPLICATE_ALIAS_EVIDENCE, VerifiedDuplicateInput,
-};

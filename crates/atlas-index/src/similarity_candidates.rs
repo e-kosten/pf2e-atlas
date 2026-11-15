@@ -50,7 +50,6 @@ impl SqliteIndexReader {
         request: SourceSimilarityCandidateRequest<'_>,
     ) -> Result<Option<CandidatePlan>, IndexError> {
         let SourceSimilarityCandidateRequest {
-            discovery_scope,
             profile,
             vector,
             query,
@@ -74,8 +73,11 @@ impl SqliteIndexReader {
         crate::validation::check_vector(vector, model.dimensions)?;
         self.require_vectors()?;
         let table = crate::schema::native_vector_table(model)?;
-        let (eligible, mut values) =
-            crate::verified_duplicates::eligible_sql(query, keys, discovery_scope, exclude)?;
+        let (mut eligible, mut values) = crate::read_units::eligible_sql(query, keys)?;
+        if let Some(exclude) = exclude {
+            eligible.push_str(&format!(" AND r.key<>?{}", values.len() + 1));
+            values.push(Value::Text(exclude.to_string()));
+        }
         values.push(Value::Text(profile.to_string()));
         let p = values.len();
         let role = match comparison_key {

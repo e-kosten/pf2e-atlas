@@ -50,7 +50,7 @@ pub(super) fn run(
                 generation: &manifest.artifact_generation,
             },
             variant,
-            RecordScope::catalog(None),
+            RecordScope::All,
             1,
         )?;
         let count = options
@@ -65,7 +65,7 @@ pub(super) fn run(
                     generation: &manifest.artifact_generation,
                 },
                 variant,
-                RecordScope::catalog(None),
+                RecordScope::All,
                 count,
             )?)
         } else {

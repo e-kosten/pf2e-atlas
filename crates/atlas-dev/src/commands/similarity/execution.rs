@@ -159,7 +159,7 @@ pub(super) fn captures(
                 scenario.id,
                 profile,
                 variant.id,
-                if scope.keys().is_none() {
+                if matches!(scope, RecordScope::All) {
                     "production"
                 } else {
                     "controlled"
@@ -236,7 +236,7 @@ pub(super) fn production(
             generation,
         },
         variants,
-        RecordScope::catalog(None),
+        RecordScope::All,
         repetitions,
     )?;
     let mut union = BTreeSet::new();
@@ -310,7 +310,7 @@ pub(super) fn oracle(
             generation,
         },
         variants,
-        RecordScope::exact(keys),
+        RecordScope::Keys(keys),
         1,
     )?;
     let matrix = exact(service, scenario, profile, variants, keys, generation)?;
