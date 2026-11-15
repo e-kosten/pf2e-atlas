@@ -1,0 +1,11 @@
+name = "Quickling"
+source_note = "Bestiary 2 and The King in Thorns supply level 3 quicklings with 25 HP and the same strikes and signature abilities. The adventure adds 10 HP per quickling in some encounter scaling bands."
+
+[[members]]
+key = "pathfinder-bestiary-2:uQBfbNaIHdt0l2QB"
+name = "Quickling"
+
+[[members]]
+key = "pfs-season-2-bestiary:sOTeRfQ6NB3CtqBX"
+name = "Quickling (PFS 2-00)"
+label = "Quickling"

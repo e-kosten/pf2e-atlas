@@ -33,27 +33,12 @@ changes or the source establishes a relationship.
 
 ### Reviewed cross-publication comparisons
 
-- **Quickling.** The Bestiary 2 (`pathfinder-bestiary-2:uQBfbNaIHdt0l2QB`)
-  and *The King in Thorns* (`pfs-season-2-bestiary:sOTeRfQ6NB3CtqBX`)
-  Foundry actors match in gameplay fields. The printed encounter raises HP
-  for some groups. Keep separate and revisit if the source supplies an
-  authored scenario variant or Atlas can express that encounter condition.
-- **Nuglub.** The PFS 2-00 (`pfs-season-2-bestiary:q5ObT0toaicC2OyP`)
-  and PFS 3-18 (`pfs-season-3-bestiary:dj61OwkpKzv9ctsN`) Foundry actors
-  agree on alignment. PFS 2-00 prints CN and the Bestiary 2 and PFS 3-18
-  blocks use CE. Keep PFS 2-00 separate and retain the existing PFS 3-18
-  canonical link. Revisit if the source clarifies the discrepancy.
-- **Human Bandit.** The *Lost on Spirit Road* actor
+- **Human Bandit.** The *Lost on the Spirit Road* actor
   (`pfs-season-1-bestiary:Gs2zYE86QGrDzCrv`) shares a generic role with
   both *A Curious Claim* blocks (`pfs-season-1-bestiary:aWiBgV5B9sIO7UtN`
   and `pfs-season-1-bestiary:mWzScgUiWAGEb0RE`). Their strikes and abilities
   differ. Keep separate unless a source or a distinctive stat-block match
   establishes a relationship.
-- **Jinkin.** PFS 1-17 (`pfs-season-1-bestiary:ul23A9ZfCMCUwADK`) and
-  PFS 2-00 (`pfs-season-2-bestiary:TX7WPf5f7lq3AufA`) differ in a Crafting
-  predicate (`trap` versus `action:craft:trap`). Hold the canonical link
-  until equivalence and a target are grounded in source evidence. The
-  reviewed Quest 19 family has its own ordinary and Lesser blocks.
 
 ## Deferred decisions
 
@@ -80,6 +65,26 @@ the Foundry actor names. Keep both moods selectable. Add selection guidance
 if the printed encounter in *The Winter Queen's Dollhouse* is available.
 
 ### Source identity and publication
+
+**Quickling.** The [family](creatures/quickling.toml) retains both the
+Bestiary 2 and *The King in Thorns* actors as selectable members. Their
+Foundry stats match. The printed encounter adds 10 HP at 10–11 and 14–15
+Challenge Points. Revisit the scenario guidance if Foundry supplies an
+authored variant or Atlas can represent that encounter condition.
+
+**Nuglub.** The [family](creatures/nuglub.toml) includes both scenario
+records and Bestiary 2. Foundry encodes the same alignment for both
+scenario actors. *The King in Thorns* prints CN, while Bestiary 2 and
+*Dacilane Academy's Delightful Disaster* print CE. The existing canonical
+link applies to the Dacilane actor. Revisit if the source resolves the
+alignment discrepancy.
+
+**Jinkin.** The [family](creatures/jinkin.toml) includes the Monster Core
+actor, the two older scenario actors, and the ordinary and Lesser blocks
+from Quest 20. The older actors have the same Crafting bonus for traps,
+with predicates `trap` and `action:craft:trap`. Monster Core has AC 15
+instead of AC 17. Revisit canonical links if the source establishes an
+equivalent target for either scenario actor.
 
 **Boggard Swampseer.** The [family](creatures/boggard-swampseer.toml) includes
 the Monster Core actor and the three *Lost Legend* actors. The publication,
@@ -140,8 +145,8 @@ The quest Sewer Oozes are authored Weak and Elite blocks with different
 stats from the Monster Core block. Keep the quest blocks selectable until
 the *Student Exchange* encounter confirms which blocks can substitute.
 
-**Jinkin.** The [Jinkin family](creatures/jinkin.toml) presents the quest's
-ordinary and Lesser blocks. The Lesser Jinkin
+**Lesser Jinkin.** The [Jinkin family](creatures/jinkin.toml) presents the
+Quest 20 ordinary and Lesser blocks. The Lesser Jinkin
 (`pfs-season-6-bestiary:D7XibY38wx9AjopU`) has Thievery +7 in Foundry and +5
 on p. 16. The balcony scaling instructions add the Lesser block in specific
 bands. Recheck Thievery if the pinned source changes.

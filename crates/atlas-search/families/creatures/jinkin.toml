@@ -1,5 +1,19 @@
 name = "Jinkin"
-source_note = "The Dacilane Academy's Show Must Go On, Balcony (p. 16), prints the level 1 Jinkin and level −1 Lesser Jinkin. It identifies the latter as a Weak variant and adds it under specific encounter scaling conditions."
+source_note = "Monster Core and the two older Society blocks share Shortsword, Sneak Attack, and Tinker. The Society blocks have AC 17 and 19 HP and differ in the Foundry predicate for their Crafting bonus for traps. Quest 20, The Dacilane Academy's Show Must Go On, prints the level 1 Jinkin and level −1 Lesser Jinkin in the Balcony encounter (p. 16) and adds the Lesser under specific scaling conditions."
+
+[[members]]
+key = "pathfinder-monster-core:lFDYJOIp2knQ0IRY"
+name = "Jinkin"
+
+[[members]]
+key = "pfs-season-1-bestiary:ul23A9ZfCMCUwADK"
+name = "Jinkin (PFS 1-17)"
+label = "Jinkin"
+
+[[members]]
+key = "pfs-season-2-bestiary:TX7WPf5f7lq3AufA"
+name = "Jinkin (PFS 2-00)"
+label = "Jinkin"
 
 [[members]]
 key = "pfs-season-6-bestiary:MU8oL7P1AX4P4kKB"
