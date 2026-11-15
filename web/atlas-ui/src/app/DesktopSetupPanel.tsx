@@ -425,14 +425,9 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
       )}
       {error && <Alert type="error" title={error} />}
       {status?.state === "missing" && (
-        <>
-          <Typography.Text>
-            Run Atlas from your terminal with the <code>atlas</code> command.
-          </Typography.Text>
-          <Button loading={busy} onClick={() => void change("enable_terminal")}>
-            Install terminal command
-          </Button>
-        </>
+        <Button loading={busy} onClick={() => void change("enable_terminal")}>
+          Install terminal command
+        </Button>
       )}
       {status?.state === "replaceable" && (
         <>
