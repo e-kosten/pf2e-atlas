@@ -1409,11 +1409,6 @@ export interface ArmyReferenceView {
   weaknesses: FactViewVecIwrEntryView;
 }
 
-export interface CanonicalRecordView {
-  record_key: string;
-  title: string;
-}
-
 export interface CheckDetailsView {
   traits: RecordBadgeView[];
 }
@@ -2031,8 +2026,6 @@ export interface CreatureFamilyGroupingView {
   label: string;
 }
 
-export type CreatureFamilyViewNamedBases = {[key: string]: string};
-
 /**
  * Publication era does not imply that a record has a replacement or is unusable.
  */
@@ -2094,10 +2087,14 @@ export interface CreatureFamilyView {
   groupings?: CreatureFamilyGroupingView[];
   id: string;
   name: string;
-  named_bases: CreatureFamilyViewNamedBases;
   named_creatures: RecordSummaryView[];
   version_context?: VariantFamilyView;
   versions: RecordSummaryView[];
+}
+
+export interface CreatureLinkPlacementView {
+  hide_family: boolean;
+  version_record_keys: string[];
 }
 
 export interface CreatureOverrideView {
@@ -4455,6 +4452,16 @@ export type MatchPreviewView = {
   kind: 'table';
 };
 
+export interface RecordTitleLinkView {
+  record_key: string;
+  title: string;
+}
+
+export interface NamedCreatureLinksView {
+  base?: RecordTitleLinkView;
+  named: RecordTitleLinkView[];
+}
+
 export interface PartyMemberView {
   level?: number;
   member_key: string;
@@ -4739,12 +4746,14 @@ export type RelatedCategoryViewRemasterSourceContextView = {
 
 export interface RecordDetailView {
   artifact_generation: string;
-  canonical_record?: CanonicalRecordView;
+  canonical_record?: RecordTitleLinkView;
   creature_family?: CreatureFamilyView;
+  creature_link_placement?: CreatureLinkPlacementView;
   creature_overrides?: CreatureOverrideView[];
   /** Default adjustment for adding this root creature to an encounter. */
   encounter_adjustment?: EncounterParticipantVariantView;
   equipment_family?: EquipmentFamilyReferenceView;
+  named_creature_links?: NamedCreatureLinksView;
   presentation: RecordPresentationView;
   record: RecordSummaryView;
   relationships: RecordRelationshipView[];

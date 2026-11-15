@@ -233,13 +233,17 @@ have their own `named_base`.
 
 The creature family files in [the retrieval catalog](../../crates/atlas-search/families/creatures)
 use one stable ID per TOML file. Verify each exact actor key and expected title
-against the candidate source. A named creature declares the exact base actor
-it connects to.
+against the candidate source. Set a named member's `named_base = { key = "...", name = "..." }`
+to connect it to an exact base actor. Atlas shows the link in both record readers.
+The base may be in any family or have no family. A named member whose base is
+in the same family appears under **Named creatures** on that family page.
 
 1. Run the [creature audit](developer-commands.md#review-creature-families) against
    the Foundry revision under review. Compare by exact actor key. A shared token
-   name within a publication is a discovery signal. Verify the actual actor
-   records and adventure evidence before declaring a relationship.
+   name within a publication is a discovery signal. Compare the actor records,
+   including signature abilities, strikes, and equipment. Matching stat blocks
+   can establish a named-base relationship. Consult the adventure for claims
+   about which stat block to use in a specific encounter.
 2. Check the [family TOMLs](../../crates/atlas-search/families/creatures) and
    [review notes](../../crates/atlas-search/families/creature-review.md). A group
    whose actors all belong to one verified family is covered. Carry forward

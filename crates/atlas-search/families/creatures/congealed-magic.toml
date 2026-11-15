@@ -1,0 +1,33 @@
+name = "Congealed Magic"
+source_note = "Lost and Forgotten supplies two forms and an Elite actor for each. The ordinary form uses Split and Tag Team. The Concentrated form has Bound in Death, Flesh-dissolving Acid, and Shadow Curse. Both Elite actors carry Foundry's typed Elite adjustment."
+
+axes = [
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "ordinary", label = "Ordinary" },
+        { id = "concentrated", label = "Concentrated" },
+    ] },
+    { id = "stat-block", label = "Stat block", alternatives_label = "Other stat blocks", options = [
+        { id = "standard", label = "Standard" },
+        { id = "elite", label = "Elite" },
+    ] },
+]
+
+[[members]]
+key = "pfs-season-6-bestiary:gjeL6QJBoniPAm4M"
+name = "Congealed Magic"
+coordinates = { form = "ordinary", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-6-bestiary:XMtgZP2i1lttMf15"
+name = "Elite Congealed Magic"
+coordinates = { form = "ordinary", stat-block = "elite" }
+
+[[members]]
+key = "pfs-season-6-bestiary:agYSQuaxGkFQVBus"
+name = "Concentrated Congealed Magic"
+coordinates = { form = "concentrated", stat-block = "standard" }
+
+[[members]]
+key = "pfs-season-6-bestiary:tiPPgdHWXNWE7LKF"
+name = "Elite Concentrated Congealed Magic"
+coordinates = { form = "concentrated", stat-block = "elite" }

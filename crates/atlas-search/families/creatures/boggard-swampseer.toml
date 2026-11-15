@@ -1,0 +1,21 @@
+name = "Boggard Swampseer"
+source_note = "The Monster Core and Lost Legend swampseers share Destructive Croak, Drowning Drone, Terrifying Croak, and Tongue Grab. The Lost Legend supplies an ordinary Animal Staff block and two typed Elite actors, one with an Animal Staff and one with a plain Staff. The Foundry titles say PFS 1-24 and the pack path and publication identify The Lost Legend (1-20)."
+
+[[members]]
+key = "pathfinder-monster-core:F2Xhn4rqPAj55w3O"
+name = "Boggard Swampseer"
+
+[[members]]
+key = "pfs-season-1-bestiary:zJhgmaI99nePKSaY"
+name = "Boggard Swampseer (PFS 1-24)"
+label = "Boggard Swampseer (Animal Staff)"
+
+[[members]]
+key = "pfs-season-1-bestiary:D2Bc4GbmiuW29310"
+name = "Elite Boggard Swampseer (PFS 1-24, Animal Staff)"
+label = "Elite Boggard Swampseer (Animal Staff)"
+
+[[members]]
+key = "pfs-season-1-bestiary:1LM0AUYkZcsbtETs"
+name = "Elite Boggard Swampseer (PFS 1-24, Staff)"
+label = "Elite Boggard Swampseer (Staff)"

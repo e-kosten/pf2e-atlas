@@ -1,0 +1,11 @@
+name = "Timonithaea"
+source_note = "A Foot in the Door supplies level 7 and level 9 blocks with the same Aqueous Fist, Water Orb, and Timonithaea’s Calling. The level 9 actor title gives a range that exceeds the scenario’s published levels."
+
+[[members]]
+key = "pfs-season-7-bestiary:UG5iXBqsLxRifjSW"
+name = "Timonithaea"
+
+[[members]]
+key = "pfs-season-7-bestiary:Idl8zxFPu9dyRA5h"
+name = "Timonithaea (7-9)"
+label = "Timonithaea"

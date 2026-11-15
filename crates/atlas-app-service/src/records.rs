@@ -386,7 +386,6 @@ impl<'a> LoadedRecordDetail<'a> {
         };
         let creature_family = if request.address.owners.is_empty() {
             r.creature_family_for(&detail.summary)?
-                .map(|family| crate::creature_family::family_view(r, family))
         } else {
             None
         };
@@ -399,20 +398,46 @@ impl<'a> LoadedRecordDetail<'a> {
         } else {
             Vec::new()
         };
+        let title_link = |summary: &atlas_domain::SourceRecordSummary| {
+            let record = crate::projection::localized_summary_view(summary, r);
+            atlas_app_model::RecordTitleLinkView {
+                record_key: record.record_key,
+                title: record.title,
+            }
+        };
         let canonical_record = if whole_document && request.address.owners.is_empty() {
             r.canonical_creature_copy(&detail.summary)?
-                .map(|canonical| {
-                    let canonical = crate::projection::localized_summary_view(&canonical, r);
-                    atlas_app_model::CanonicalRecordView {
-                        record_key: canonical.record_key,
-                        title: canonical.title,
-                    }
-                })
+                .as_ref()
+                .map(title_link)
         } else {
             None
         };
+        let named_creature_links = if request.address.owners.is_empty() {
+            let links = r.named_creature_links(&detail.summary)?;
+            (links.base.is_some() || !links.named.is_empty()).then(|| {
+                atlas_app_model::NamedCreatureLinksView {
+                    base: links.base.as_ref().map(title_link),
+                    named: links.named.iter().map(title_link).collect(),
+                }
+            })
+        } else {
+            None
+        };
+        let (creature_family, creature_link_placement) = match creature_family {
+            Some(family) => {
+                let declared_member_count = family.declared_member_count;
+                let family = crate::creature_family::family_view(r, family);
+                let placement = named_creature_links.as_ref().and_then(|links| {
+                    crate::creature_family::link_placement(&family, declared_member_count, links)
+                });
+                (Some(family), placement)
+            }
+            None => (None, None),
+        };
         let mut view = RecordDetailView {
             canonical_record,
+            named_creature_links,
+            creature_link_placement,
             creature_family,
             creature_overrides,
             equipment_family,

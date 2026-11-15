@@ -8,7 +8,7 @@ name = "Flesh Golem"
 [[members]]
 key = "agents-of-edgewatch-bestiary:MQnhyCM9LInNYtl0"
 name = "Carvey"
-named_base = "pathfinder-bestiary:sNFBOw4z9KagWUHe"
+named_base = { key = "pathfinder-bestiary:sNFBOw4z9KagWUHe", name = "Flesh Golem" }
 
 [[members]]
 key = "pfs-season-1-bestiary:f9jyVOOKEvRkvIY4"

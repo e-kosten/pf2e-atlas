@@ -1,0 +1,27 @@
+name = "Arisen Pixies"
+source_note = "In the Footsteps of Horror gives all four actors Shadowed Illumination and the same claw, rapier, and Shadow Spark strike names. The level 1–2 A7 encounter lists the Shadow pair. The Foundry titles and stat blocks identify the Umbral pair as a related form."
+
+[[members]]
+key = "pfs-season-5-bestiary:8Zj3XDNa07fjkWAq"
+name = "Arisen Shadow Pixie"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-5-bestiary:ytb75tCpHFXxryFZ"
+name = "Elite Arisen Shadow Pixie"
+label = "Elite Arisen Shadow Pixie"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-5-bestiary:umxjQH7AV65Eftfc"
+name = "Arisen Umbral Pixie"
+
+[[members]]
+key = "pfs-season-5-bestiary:ep7eL4vrN4F6YCdd"
+name = "Elite Arisen Umbral Pixie"

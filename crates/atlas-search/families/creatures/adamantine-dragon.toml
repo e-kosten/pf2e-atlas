@@ -59,4 +59,4 @@ coordinates = { age = "archdragon", form = "spellcaster" }
 [[members]]
 key = "one-shot-bestiary:QB0wbfOVhiZqJtYP"
 name = "Zikritrax"
-named_base = "pathfinder-monster-core:hybmXlTxljL9L1dW"
+named_base = { key = "pathfinder-monster-core:hybmXlTxljL9L1dW", name = "Adamantine Dragon (Adult)" }

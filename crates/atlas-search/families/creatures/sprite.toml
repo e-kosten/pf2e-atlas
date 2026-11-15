@@ -1,0 +1,12 @@
+name = "Sprite"
+source_note = "Student Exchange supplies ordinary and Elite sprites with Luminous Spark and Luminous Fire. The ordinary block wields a rapier and the Elite block wields a dagger."
+
+[[members]]
+key = "pfs-season-5-bestiary:q9VY2Whn0rV7zJVK"
+name = "Sprite (PFS Q18)"
+label = "Sprite"
+
+[[members]]
+key = "pfs-season-5-bestiary:zbh0oprNBaxTbsqh"
+name = "Elite Sprite (PFS Q18)"
+label = "Elite Sprite"

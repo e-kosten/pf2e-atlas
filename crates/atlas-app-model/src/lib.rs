@@ -223,12 +223,13 @@ pub use presentation::{
 };
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
-    CanonicalRecordView, ContentLocationView, CreatureDisplayView, CreatureFamilyGroupView,
-    CreatureFamilyGroupingView, CreatureFamilyView, CreatureOverrideView, CreatureScenarioUseView,
-    EffectReferenceLabelView, RecordAddress, RecordBadgeView, RecordDetailRequest,
-    RecordDetailView, RecordEditionView, RecordNavigationView, RecordRefResolutionView,
-    RecordReferenceDestinationView, RecordRelationshipView, RecordResolutionAmbiguousView,
-    RecordResolutionCandidateView, RecordSelection, RecordSummaryView,
+    ContentLocationView, CreatureDisplayView, CreatureFamilyGroupView, CreatureFamilyGroupingView,
+    CreatureFamilyView, CreatureLinkPlacementView, CreatureOverrideView, CreatureScenarioUseView,
+    EffectReferenceLabelView, NamedCreatureLinksView, RecordAddress, RecordBadgeView,
+    RecordDetailRequest, RecordDetailView, RecordEditionView, RecordNavigationView,
+    RecordRefResolutionView, RecordReferenceDestinationView, RecordRelationshipView,
+    RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSelection,
+    RecordSummaryView, RecordTitleLinkView,
 };
 pub use search::{
     ConnectionScopeUnavailableReason, ConnectionScopeView, MatchPreviewView,

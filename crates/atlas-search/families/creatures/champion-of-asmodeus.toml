@@ -1,0 +1,11 @@
+name = "Champion of Asmodeus"
+source_note = "Hell's Destiny gives Vanda Spitelash the Champion of Asmodeus token name, level, defenses, strikes, and champion abilities. Vanda adds a separate Viper's Fang action for the item both records carry."
+
+[[members]]
+key = "hells-destiny-bestiary:NZOqqzi4ThvJfpm8"
+name = "Champion of Asmodeus"
+
+[[members]]
+key = "hells-destiny-bestiary:1y6sYotLFK9UxFAo"
+name = "Vanda Spitelash"
+named_base = { key = "hells-destiny-bestiary:NZOqqzi4ThvJfpm8", name = "Champion of Asmodeus" }

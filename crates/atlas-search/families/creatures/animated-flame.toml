@@ -1,0 +1,14 @@
+name = "Animated Flame"
+source_note = "Tanuki Trouble supplies three distinct stat blocks. The ordinary and Weak actors share Ram, Panic of Failure Foreseen, and Price of Failure. The Elite actor uses Headbutt, Failed Task, and Failing Task. All three share Flame Breath and heal while touching fire."
+
+[[members]]
+key = "pfs-season-6-bestiary:88HAT2lHPAm8bWHC"
+name = "Animated Flame"
+
+[[members]]
+key = "pfs-season-6-bestiary:xNKBknnZ5ev5lBes"
+name = "Weak Animated Flame"
+
+[[members]]
+key = "pfs-season-6-bestiary:niboeMqpzuQ8yvOX"
+name = "Elite Animated Flame"

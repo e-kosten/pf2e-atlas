@@ -1,0 +1,10 @@
+remaster = false
+source_note = "The Guardian's Covenant Skulk and the Bestiary 2 Skulk have identical stat blocks in the pinned Foundry source. Both are Legacy records."
+
+[canonical]
+key = "pathfinder-bestiary-2:uGXTQYuRNtgPt1Pp"
+name = "Skulk"
+
+[[copies]]
+key = "pfs-season-3-bestiary:LqEHXPTgyVUltvS2"
+name = "Skulk (PFS 3-13)"

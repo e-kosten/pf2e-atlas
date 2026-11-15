@@ -1,13 +1,41 @@
 use crate::{AppServiceResult, AtlasAppService, ReadExecutionContext};
 use atlas_app_model::{
     CreatureDisplayView, CreatureFamilyGroupView, CreatureFamilyGroupingView, CreatureFamilyView,
-    CreatureScenarioUseView, VariantFamilyView,
+    CreatureLinkPlacementView, CreatureScenarioUseView, NamedCreatureLinksView, VariantFamilyView,
 };
 use atlas_domain::SourceRecordSummary;
 use atlas_search::{
     AtlasRetrievalService, CreatureDisplay, CreatureFamilyRecords, CreatureScenarioUse,
 };
 use std::collections::BTreeMap;
+
+pub(crate) fn link_placement(
+    family: &CreatureFamilyView,
+    declared_member_count: usize,
+    links: &NamedCreatureLinksView,
+) -> Option<CreatureLinkPlacementView> {
+    let internal: Vec<_> = links
+        .base
+        .iter()
+        .chain(&links.named)
+        .filter(|link| {
+            family
+                .versions
+                .iter()
+                .chain(&family.named_creatures)
+                .any(|member| member.record_key == link.record_key)
+        })
+        .map(|link| link.record_key.clone())
+        .collect();
+    if internal.is_empty() {
+        return None;
+    }
+    let hide_family = declared_member_count == 2;
+    Some(CreatureLinkPlacementView {
+        hide_family,
+        version_record_keys: if hide_family { Vec::new() } else { internal },
+    })
+}
 
 pub(crate) fn creature_display(
     record: &SourceRecordSummary,
@@ -188,7 +216,6 @@ pub(crate) fn family_view(
 ) -> CreatureFamilyView {
     let mut versions = Vec::new();
     let mut named_creatures = Vec::new();
-    let mut named_bases = BTreeMap::new();
     let mut scenario_displays = Vec::new();
     for member in family.members {
         let mut record = crate::projection::localized_summary_view(&member.summary, retrieval);
@@ -208,8 +235,7 @@ pub(crate) fn family_view(
                 });
             display.qualifiers.insert(0, qualifier);
         }
-        if let Some(base) = member.named_base {
-            named_bases.insert(record.record_key.clone(), base.to_string());
+        if member.named_base.is_some() {
             named_creatures.push(record);
         } else {
             scenario_displays.push(atlas_search::creature_display(&member.summary, || None));
@@ -259,7 +285,6 @@ pub(crate) fn family_view(
         name: family.name.into(),
         versions,
         named_creatures,
-        named_bases,
         groupings,
         all_variants_by_default: family.all_variants_by_default,
         version_context,
@@ -307,6 +332,50 @@ pub(crate) fn overrides(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn link_placement_uses_the_declared_family_size_and_verified_targets() {
+        use serde_json::json;
+
+        let family: CreatureFamilyView = serde_json::from_value(json!({
+            "id": "example", "name": "Example",
+            "versions": [{
+                "record_key": "bestiary:base", "title": "Base", "kind": "creature",
+                "kind_label": "Creature", "traits": []
+            }],
+            "named_creatures": [{
+                "record_key": "bestiary:named", "title": "Named", "kind": "creature",
+                "kind_label": "Creature", "traits": []
+            }]
+        }))
+        .unwrap();
+        let links = |keys: &[&str]| NamedCreatureLinksView {
+            base: None,
+            named: keys
+                .iter()
+                .map(|key| atlas_app_model::RecordTitleLinkView {
+                    record_key: (*key).into(),
+                    title: (*key).into(),
+                })
+                .collect(),
+        };
+        let external_only = links(&["bestiary:external"]);
+        assert!(link_placement(&family, 2, &external_only).is_none());
+        let mixed = links(&["bestiary:named", "bestiary:external"]);
+        let simple = link_placement(&family, 2, &mixed).unwrap();
+        assert!(simple.hide_family);
+        assert!(simple.version_record_keys.is_empty());
+        let richer = link_placement(&family, 3, &mixed).unwrap();
+        assert!(!richer.hide_family);
+        assert_eq!(richer.version_record_keys, ["bestiary:named"]);
+        assert_eq!(
+            serde_json::from_value::<CreatureLinkPlacementView>(
+                serde_json::to_value(&richer).unwrap(),
+            )
+            .unwrap(),
+            richer,
+        );
+    }
 
     #[test]
     fn scenario_context_labels_keep_each_qualifier_with_its_party_range() {

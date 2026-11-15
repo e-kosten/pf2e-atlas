@@ -1,0 +1,35 @@
+name = "Alystair Caskwater"
+source_note = "In the Footsteps of Horror, encounter A8 uses ordinary and Vengeful forms at both party tiers. At levels 1–2, Vengeful appears at 14–15 Challenge Points or at 16–18 with at least five players. At levels 3–4, Vengeful appears at 28 or more Challenge Points."
+
+[[members]]
+key = "pfs-season-5-bestiary:L55H4HofGvCM02au"
+name = "Alystair Caskwater (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-5-bestiary:nMMRUST4ow0kcbTy"
+name = "Vengeful Alystair Caskwater (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-5-bestiary:4JnqGDbDbDziIVgI"
+name = "Alystair Caskwater (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-5-bestiary:SJ39wba6n3d5bvIh"
+name = "Vengeful Alystair Caskwater (3-4)"
+
+[[members.uses]]
+id = "party-3-4-cp-28"
+party_levels = [3, 4]
+minimum_challenge_points = 28

@@ -1,0 +1,10 @@
+name = "Trained Vulkariki Eidolon"
+source_note = "Escorting a Mirage gives the Elite eidolon the standard actor's name as its token name. Both use Vulkariki Athletics and Vulkariki Tricks. The standard and Elite records are creature levels 1 and 3."
+
+[[members]]
+key = "pfs-season-5-bestiary:Hvrz7fywW7hmpYcJ"
+name = "Trained Vulkariki Eidolon"
+
+[[members]]
+key = "pfs-season-5-bestiary:vK1DxX5eTu1QKhbm"
+name = "Elite Trained Vulkariki Eidolon"
