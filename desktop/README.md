@@ -105,6 +105,9 @@ standalone commands. See the
 [desktop service boundary](../docs/architecture/decisions/0029-local-web-app-boundary.md#macos-desktop-host)
 for ownership and transport details.
 
+Run the bootstrap and bundle configuration tests with
+`node --test desktop/bootstrap.test.mjs desktop/release-config.test.mjs`.
+
 From a macOS desktop session, run `node desktop/smoke-macos.mjs` against the
 built debug bundle. The smoke test creates a fresh temporary workspace and uses
 one local fixture record. It verifies setup opens Search in the same native
