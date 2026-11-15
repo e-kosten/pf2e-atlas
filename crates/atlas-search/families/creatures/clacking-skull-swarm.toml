@@ -1,0 +1,14 @@
+name = "Clacking Skull Swarm"
+source_note = "In Glorious Battle, encounter A (pp. 22–23, 31–32), identifies the level 10 Bestiary 3 swarm as the base for its level 9 Weak and level 11 Elite stat blocks."
+
+[[members]]
+key = "pathfinder-bestiary-3:5WAy9PYWu1PuQKXg"
+name = "Clacking Skull Swarm"
+
+[[members]]
+key = "pfs-season-4-bestiary:56GciWoZDuiqjINk"
+name = "Weak Clacking Skull Swarm"
+
+[[members]]
+key = "pfs-season-4-bestiary:H9z43UB0KXksVTZ6"
+name = "Elite Clacking Skull Swarm"

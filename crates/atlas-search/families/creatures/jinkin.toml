@@ -1,0 +1,11 @@
+name = "Jinkin"
+source_note = "The Dacilane Academy's Show Must Go On, Balcony (p. 16), prints the level 1 Jinkin and level −1 Lesser Jinkin. It identifies the latter as a Weak variant and adds it under specific encounter scaling conditions."
+
+[[members]]
+key = "pfs-season-6-bestiary:MU8oL7P1AX4P4kKB"
+name = "Jinkin (Quest 20) (1-2)"
+label = "Jinkin"
+
+[[members]]
+key = "pfs-season-6-bestiary:D7XibY38wx9AjopU"
+name = "Lesser Jinkin"

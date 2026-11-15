@@ -33,11 +33,11 @@ changes or the source establishes a relationship.
 
 ### Authored scaling
 
-**Anatomical Model.** In *The Seven Secrets of Dacilane Academy*, Foundry's
-ordinary and Elite 3–4 blocks both report creature level 4 and have no typed
-adjustment. The Elite block has 20 more HP. Verify the published level, scaling
-condition, and effective stats against the Laboratory encounter before declaring
-an override.
+**Anatomical Model.** Laboratory A11 on p. 22 of *The Seven Secrets of Dacilane
+Academy* prints the 3–4 Elite model at creature level 5. Foundry reports level
+4 for both the ordinary and Elite 3–4 blocks. Recheck if the pinned source
+changes.
+[Published scenario](https://www.scribd.com/document/704766987/PF2-S02-09-the-Seven-Secrets-of-Dacilane-Academy)
 
 - Anatomical Model (1-2) (`pfs-season-2-bestiary:BXnmDgVkhD97fI1o`)
 - Anatomical Model (3-4) (`pfs-season-2-bestiary:j7K9SefeHJ16qHMl`)
@@ -130,10 +130,11 @@ and effective stats before declaring the party uses and overrides.
 - Elite Sprite (PFS Q18) (`pfs-season-5-bestiary:zbh0oprNBaxTbsqh`)
 - Sprite (PFS Q18) (`pfs-season-5-bestiary:q9VY2Whn0rV7zJVK`)
 
-**Jinkin.** The Dacilane Academy’s Show Must Go On supplies the Lesser Jinkin and a 1–2 Jinkin with shared Tinker and Sneak Attack. Confirm what selects the Lesser block before attaching party ranges or an adjustment.
-
-- Jinkin (Quest 20) (1-2) (`pfs-season-6-bestiary:MU8oL7P1AX4P4kKB`)
-- Lesser Jinkin (`pfs-season-6-bestiary:D7XibY38wx9AjopU`)
+**Jinkin.** The [Jinkin family](creatures/jinkin.toml) presents the quest's
+ordinary and Lesser blocks. The Lesser Jinkin
+(`pfs-season-6-bestiary:D7XibY38wx9AjopU`) has Thievery +7 in Foundry and +5
+on p. 16. The balcony scaling instructions add the Lesser block in specific
+bands. Recheck Thievery if the pinned source changes.
 
 **Gluttonous Geode.** Friends in Need has a quest-specific Gluttonous Geode and a Weak Gluttonous Geode. Verify which encounter conditions call for the Weak block and compare it with the base stats.
 
@@ -156,11 +157,6 @@ and effective stats before declaring the party uses and overrides.
 
 - Elite Animate Dream (PFS 4-11) (`pfs-season-4-bestiary:eWJwFmEasIOSGQgu`)
 - Faded Animate Dream (`pfs-season-4-bestiary:AkbAW7XeZQ67qW1R`)
-
-**Clacking Skull Swarm.** In Glorious Battle has Weak and Elite Clacking Skull Swarms at creature levels 9 and 11. Identify the base and verify the scenario conditions for each adjustment.
-
-- Elite Clacking Skull Swarm (`pfs-season-4-bestiary:H9z43UB0KXksVTZ6`)
-- Weak Clacking Skull Swarm (`pfs-season-4-bestiary:56GciWoZDuiqjINk`)
 
 ### Encounter identity and variants
 
@@ -239,9 +235,12 @@ choosing each before treating them as scoped adjustments.
 
 #### Pathfinder Society Quest #21: Infernal Infiltration
 
-The Silver Devil Hooligan and its level 2 Elite form carry authored stats.
-Verify *Infernal Infiltration*'s encounter and scaling sidebar for the exact
-override scope.
+*Infernal Infiltration* prints the Elite Silver Devil Hooligan at level 1
+(p. 14), while Foundry reports level 2. The ordinary block's ranged dagger
+bonus is +9 in print and +6 in Foundry. The upper-tier Hideout replaces the
+ordinary block with Elite at 19–22 and 33+ Challenge Points. Recheck both
+blocks if the pinned source changes.
+[Published quest](https://www.scribd.com/document/1039010466/21-Infernal-Infiltration)
 
 - Elite Silver Devil Hooligan (`pfs-season-6-bestiary:MjckZs5NKL35d8QL`) ↔ Silver Devil Hooligan (`pfs-season-6-bestiary:XRecLPsSrHHFwWHI`)
 
@@ -331,15 +330,6 @@ before assigning scenario uses.
 
 - Penumbra (`pfs-season-6-bestiary:Mg8gzA54MY5DMHZk`) ↔ Penumbra (11-12) (`pfs-season-6-bestiary:cyOOXZliztAjS9YM`)
 
-#### Pathfinder Society Scenario #6-12: The Burning of Greensteeples
-
-Both Maralictors have a 5–6 actor two creature levels higher than the
-unsuffixed one. Verify *The Burning of Greensteeples* encounter appendix for
-both party ranges.
-
-- Maralictor Marius Salutio (`pfs-season-6-bestiary:Tx53uPtEt55FwP1U`) ↔ Maralictor Marius Salutio (5-6) (`pfs-season-6-bestiary:kSpMlrZrl3VxOOwm`)
-- Maralictor Petra Fidena (`pfs-season-6-bestiary:08AsM66FZV6yII9l`) ↔ Maralictor Petra Fidena (5-6) (`pfs-season-6-bestiary:9ypN5dFE6uYKeoLQ`)
-
 #### Pathfinder Society Scenario #6-19: What Walks Again
 
 The 13–14 Husk of Deskari is creature level 17. The unsuffixed actor is level
@@ -366,8 +356,9 @@ whether the imp stat block is merely rescaled.
 
 #### Pathfinder Society Scenario #7-03: A Foot in the Door
 
-The level 9 Timonithaea title says 7–9. Verify the actual upper party range in
-*A Foot in the Door* before displaying it.
+The level 9 Timonithaea title says 7–9, outside the published scenario's
+party levels 5–8. Verify the encounter's assignments for both actors before
+displaying them. [Paizo scenario listing](https://store.paizo.com/pathfinder-society-scenario-7-03-a-foot-in-the-door/)
 
 - Timonithaea (7-9) (`pfs-season-7-bestiary:Idl8zxFPu9dyRA5h`) ↔ Timonithaea (`pfs-season-7-bestiary:UG5iXBqsLxRifjSW`)
 

@@ -1,0 +1,18 @@
+name = "Maralictor Petra Fidena"
+source_note = "The Burning of Greensteeples, encounter C1, assigns the level 4 Petra to party levels 3–4 and the level 6 Petra to party levels 5–6."
+
+[[members]]
+key = "pfs-season-6-bestiary:08AsM66FZV6yII9l"
+name = "Maralictor Petra Fidena"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-6-bestiary:9ypN5dFE6uYKeoLQ"
+name = "Maralictor Petra Fidena (5-6)"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
