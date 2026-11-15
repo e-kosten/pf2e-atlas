@@ -1,0 +1,15 @@
+remaster = false
+source_note = """
+Dacilane Academy's Delightful Disaster uses Bestiary 2's Nuglub in encounter A7
+(p. 24, citing Bestiary 2 p. 135). Its scaling changes creature counts.
+The published stat blocks match. The scenario actor lacks one Foundry
+theater-of-the-mind toggle for Prone, and retains the published Sneak Attack rule.
+"""
+
+[canonical]
+key = "pathfinder-bestiary-2:bpwaqRoO1wYo15T5"
+name = "Nuglub"
+
+[[copies]]
+key = "pfs-season-3-bestiary:dj61OwkpKzv9ctsN"
+name = "Nuglub (PFS 3-18)"
