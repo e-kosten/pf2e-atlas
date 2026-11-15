@@ -1,0 +1,34 @@
+name = "The Warden"
+source_note = "The Winter Queen's Dollhouse supplies ordinary and Upset Warden actors. The Foundry actor names specify both forms for party levels 1–2 and 3–4."
+
+[[members]]
+key = "pfs-season-5-bestiary:7Ox34TV7Py1pZr9o"
+name = "The Warden (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-5-bestiary:8IJilQMumSAPhsqP"
+name = "The Upset Warden (1-2)"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-5-bestiary:1kqDiAAQGH26eAC7"
+name = "The Warden (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]
+
+[[members]]
+key = "pfs-season-5-bestiary:Z9ofpt7xRr9o47Ya"
+name = "The Upset Warden (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

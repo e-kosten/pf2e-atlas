@@ -47,6 +47,23 @@ pub(super) fn render_record(
             ),
         );
     }
+    if let Some(links) = &record.named_creature_links {
+        if let Some(base) = &links.base {
+            line(
+                &mut out,
+                format!("Base creature · {} ({})", base.title, base.record_key),
+            );
+        }
+        if !links.named.is_empty() {
+            let names = links
+                .named
+                .iter()
+                .map(|link| format!("{} ({})", link.title, link.record_key))
+                .collect::<Vec<_>>()
+                .join(", ");
+            line(&mut out, format!("Named creatures · {names}"));
+        }
+    }
     if record.selected.field.is_some() {
         for field in &presentation.content {
             content_field(&mut out, field, width, true)?;

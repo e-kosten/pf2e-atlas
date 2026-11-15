@@ -117,6 +117,7 @@ export function RecordDetailPane({
                     equipmentFamily={detail?.equipment_family}
                     creatureFamily={detail?.creature_family}
                     canonicalRecord={detail?.canonical_record}
+                    namedCreatureLinks={detail?.named_creature_links}
                     root={detail?.record}
                     selection={detail?.selected}
                     relationships={detail?.relationships}

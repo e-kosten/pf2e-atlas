@@ -43,25 +43,16 @@ changes.
 - Anatomical Model (3-4) (`pfs-season-2-bestiary:j7K9SefeHJ16qHMl`)
 - Elite Anatomical Model (3-4) (`pfs-season-2-bestiary:ZshsztmoWjDZEqGT`)
 
-**Alystair Caskwater.** *In the Footsteps of Horror* supplies ordinary and
-Vengeful blocks in both subtiers. At 3–4 the Vengeful block substitutes at 28 or
-more Challenge Points. Verify the level 1–2 scaling table before declaring the
-combined family and scenario uses.
+**Alystair Caskwater.** The [family](creatures/alystair-caskwater.toml) uses
+both party tiers from encounter A8 of *In the Footsteps of Horror*. Its lower
+Vengeful block (`pfs-season-5-bestiary:nMMRUST4ow0kcbTy`) still needs comparison
+with the printed stat block. The lower substitution depends on Challenge
+Points and party size, so the family shows the party tier for that block.
+[Published quest](https://www.studocu.com/pt-br/document/universidade-federal-do-estado-do-rio-de-janeiro/lingua-portuguesa-na-educacao/pf2-quest-15-in-the-footsteps-of-horror-adventure-guide/149792260)
 
-- Alystair Caskwater (1-2) (`pfs-season-5-bestiary:L55H4HofGvCM02au`)
-- Alystair Caskwater (3-4) (`pfs-season-5-bestiary:4JnqGDbDbDziIVgI`)
-- Vengeful Alystair Caskwater (1-2) (`pfs-season-5-bestiary:nMMRUST4ow0kcbTy`)
-- Vengeful Alystair Caskwater (3-4) (`pfs-season-5-bestiary:SJ39wba6n3d5bvIh`)
-
-**The Warden.** The ordinary and Upset records from *The Winter Queen's
-Dollhouse* share spell lists within each tier. Each Upset block is one creature
-level higher. Confirm the published conditions for switching blocks and whether
-the quest calls for an adjustment.
-
-- The Warden (1-2) (`pfs-season-5-bestiary:7Ox34TV7Py1pZr9o`)
-- The Warden (3-4) (`pfs-season-5-bestiary:1kqDiAAQGH26eAC7`)
-- The Upset Warden (1-2) (`pfs-season-5-bestiary:8IJilQMumSAPhsqP`)
-- The Upset Warden (3-4) (`pfs-season-5-bestiary:Z9ofpt7xRr9o47Ya`)
+**The Warden.** The [family](creatures/the-warden.toml) uses the tiers in
+the Foundry actor names. Verify which conditions in *The Winter Queen's
+Dollhouse* select the Upset blocks before adding encounter guidance.
 
 ### Source identity and publication
 
@@ -157,24 +148,6 @@ bands. Recheck Thievery if the pinned source changes.
 
 - Elite Animate Dream (PFS 4-11) (`pfs-season-4-bestiary:eWJwFmEasIOSGQgu`)
 - Faded Animate Dream (`pfs-season-4-bestiary:AkbAW7XeZQ67qW1R`)
-
-### Encounter identity and variants
-
-**Vaggas and Iron Ring Bosun.** Vaggas the Bosun and Iron Ring Bosun have
-the same mechanics in Foundry and differ in rarity. Vaggas the Fanatic is a
-distinct level 1 block. Verify both encounters in *Foundation’s Price* before
-linking the two Vaggas roles or declaring the named Bosun’s base.
-
-- Iron Ring Bosun (`pfs-season-3-bestiary:FmZ8bz1ItIzxuu1D`)
-- Vaggas the Bosun (`pfs-season-3-bestiary:RZ8sWKkogng0IU8M`)
-- Vaggas the Fanatic (`pfs-season-3-bestiary:KSKDACF4qh3HJTDo`)
-
-**Skulk.** The pinned *Guardian’s Covenant* actor matches the *Bestiary 2*
-actor’s stat block. Verify the printed encounter for changes to hit points or
-other statistics before declaring a canonical link.
-
-- Skulk (PFS 3-13) (`pfs-season-3-bestiary:LqEHXPTgyVUltvS2`)
-- Skulk (`pathfinder-bestiary-2:uGXTQYuRNtgPt1Pp`)
 
 ## Discovery and grouping gaps
 

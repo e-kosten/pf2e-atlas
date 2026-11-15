@@ -91,6 +91,33 @@ describe("RecordReferenceDrawer", () => {
     expect(onReference).toHaveBeenCalledWith("bestiary:original", link);
   });
 
+  it("opens named creatures from a base record with no family", () => {
+    const detail = detailFixture("scenario:bosun", "Iron Ring Bosun");
+    detail.named_creature_links = {
+      named: [{ record_key: "scenario:vaggas", title: "Vaggas the Bosun" }],
+    };
+    const router = createAtlasRouter(createMemoryHistory({ initialEntries: ["/"] }));
+    const onReference = vi.fn();
+    render(
+      <RouterTestContext router={router}>
+        <RecordReferenceDrawer
+          destination={{ kind: "record", navigation: detail.selected }}
+          anchor={document.createElement("button")}
+          detail={detail}
+          loading={false}
+          onClose={vi.fn()}
+          onReference={onReference}
+        />
+      </RouterTestContext>,
+    );
+
+    expect(screen.getByText(/Named creatures/)).toBeVisible();
+    const link = screen.getByRole("link", { name: "Vaggas the Bosun" });
+    expect(link).toHaveAttribute("href", "/records/scenario:vaggas");
+    fireEvent.click(link);
+    expect(onReference).toHaveBeenCalledWith("scenario:vaggas", link);
+  });
+
   it("opens the pending Drawer immediately, delays its spinner and retains its heading when content arrives", async () => {
     const anchor = document.createElement("button");
     document.body.append(anchor);

@@ -25,7 +25,8 @@ import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
 import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
-  CanonicalRecordView,
+  NamedCreatureLinksView,
+  RecordTitleLinkView,
   PreparedContentFieldView,
   RecordNavigationView,
   RecordPresentationView,
@@ -162,12 +163,45 @@ export function recordClassification(presentation: RecordPresentationView) {
   return presentation.classification;
 }
 type IdentityActions = ReactNode | ((secondaryActions: ReactNode) => ReactNode);
+function RecordIdentityLinks({
+  label,
+  records,
+  onReference,
+}: {
+  label: string;
+  records: RecordTitleLinkView[];
+  onReference?: RecordReferenceHandler;
+}) {
+  return (
+    <p className="record-reference__family">
+      {label} <span aria-hidden="true">·</span>{" "}
+      {records.map((record, index) => (
+        <Fragment key={record.record_key}>
+          {index > 0 && ", "}
+          <AtlasLink
+            {...recordDestination({ recordKey: record.record_key })}
+            onClick={(event) => {
+              if (onReference && isPrimaryActivation(event)) {
+                event.preventDefault();
+                onReference(record.record_key, event.currentTarget);
+              }
+            }}
+          >
+            {record.title}
+          </AtlasLink>
+        </Fragment>
+      ))}
+    </p>
+  );
+}
+
 export function RecordIdentity({
   identity,
   equipmentFamily,
   creatureFamily,
   canonicalRecord,
-  onCanonicalNavigate,
+  namedCreatureLinks,
+  onIdentityReference,
   onEquipmentFamilyNavigate,
   classification,
   rankControl,
@@ -188,8 +222,9 @@ export function RecordIdentity({
   identity?: RecordSummaryView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
-  canonicalRecord?: CanonicalRecordView;
-  onCanonicalNavigate?: RecordReferenceHandler;
+  canonicalRecord?: RecordTitleLinkView;
+  namedCreatureLinks?: NamedCreatureLinksView;
+  onIdentityReference?: RecordReferenceHandler;
   onEquipmentFamilyNavigate?: () => void;
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
@@ -266,58 +301,31 @@ export function RecordIdentity({
             </p>
           )}
           {canonicalRecord && (
-            <p className="record-reference__family">
-              Canonical record <span aria-hidden="true">·</span>{" "}
-              <AtlasLink
-                {...recordDestination({ recordKey: canonicalRecord.record_key })}
-                onClick={(event) => {
-                  if (onCanonicalNavigate && isPrimaryActivation(event)) {
-                    event.preventDefault();
-                    onCanonicalNavigate(
-                      canonicalRecord.record_key,
-                      event.currentTarget,
-                    );
-                  }
-                }}
-              >
-                {canonicalRecord.title}
-              </AtlasLink>
-            </p>
+            <RecordIdentityLinks
+              label="Canonical record"
+              records={[canonicalRecord]}
+              onReference={onIdentityReference}
+            />
+          )}
+          {namedCreatureLinks?.base && (
+            <RecordIdentityLinks
+              label="Base creature"
+              records={[namedCreatureLinks.base]}
+              onReference={onIdentityReference}
+            />
+          )}
+          {namedCreatureLinks && namedCreatureLinks.named.length > 0 && (
+            <RecordIdentityLinks
+              label="Named creatures"
+              records={namedCreatureLinks.named}
+              onReference={onIdentityReference}
+            />
           )}
           {scenario?.scenario_context && (
             <p className="record-reference__scenario">
               {[...scenario.qualifiers, scenario.scenario_context].join(" · ")}
             </p>
           )}
-          {creatureFamily &&
-            creatureFamily.named_creatures.length > 0 &&
-            (() => {
-              const current = root?.record_key ?? identity?.record_key;
-              const base = current ? creatureFamily.named_bases[current] : undefined;
-              const connected = base
-                ? creatureFamily.versions.filter((record) => record.record_key === base)
-                : creatureFamily.named_creatures.filter(
-                    (record) =>
-                      creatureFamily.named_bases[record.record_key] === current,
-                  );
-              if (!connected.length) return null;
-              return (
-                <p className="record-reference__family">
-                  {base ? "Creature" : "Named creatures"}{" "}
-                  <span aria-hidden="true">·</span>{" "}
-                  {connected.map((member, index) => (
-                    <Fragment key={member.record_key}>
-                      {index > 0 && ", "}
-                      <AtlasLink
-                        {...recordDestination({ recordKey: member.record_key })}
-                      >
-                        {member.title}
-                      </AtlasLink>
-                    </Fragment>
-                  ))}
-                </p>
-              );
-            })()}
           {showSource && (
             <p className="muted record-reference__source">
               Source: <span>{source}</span>
@@ -367,7 +375,8 @@ export function RecordPresentationIdentity({
   equipmentFamily,
   creatureFamily,
   canonicalRecord,
-  onCanonicalNavigate,
+  namedCreatureLinks,
+  onIdentityReference,
   onEquipmentFamilyNavigate,
   root,
   selection,
@@ -384,8 +393,9 @@ export function RecordPresentationIdentity({
   presentation?: RecordPresentationView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
-  canonicalRecord?: CanonicalRecordView;
-  onCanonicalNavigate?: RecordReferenceHandler;
+  canonicalRecord?: RecordTitleLinkView;
+  namedCreatureLinks?: NamedCreatureLinksView;
+  onIdentityReference?: RecordReferenceHandler;
   onEquipmentFamilyNavigate?: () => void;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
@@ -445,7 +455,8 @@ export function RecordPresentationIdentity({
       equipmentFamily={equipmentFamily}
       creatureFamily={creatureFamily}
       canonicalRecord={canonicalRecord}
-      onCanonicalNavigate={onCanonicalNavigate}
+      namedCreatureLinks={namedCreatureLinks}
+      onIdentityReference={onIdentityReference}
       onEquipmentFamilyNavigate={onEquipmentFamilyNavigate}
       badgeExplanations={
         identityChanges?.length

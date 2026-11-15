@@ -1131,21 +1131,6 @@
         ],
         "type": "object"
       },
-      "CanonicalRecordView": {
-        "properties": {
-          "record_key": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "record_key",
-          "title"
-        ],
-        "type": "object"
-      },
       "CastingEntryContextView": {
         "properties": {
           "parent": {
@@ -3570,15 +3555,6 @@
           "name": {
             "type": "string"
           },
-          "named_bases": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "propertyNames": {
-              "type": "string"
-            },
-            "type": "object"
-          },
           "named_creatures": {
             "items": {
               "$ref": "#/components/schemas/RecordSummaryView"
@@ -3599,8 +3575,7 @@
           "id",
           "name",
           "versions",
-          "named_creatures",
-          "named_bases"
+          "named_creatures"
         ],
         "type": "object"
       },
@@ -10704,6 +10679,23 @@
         ],
         "type": "string"
       },
+      "NamedCreatureLinksView": {
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/RecordTitleLinkView"
+          },
+          "named": {
+            "items": {
+              "$ref": "#/components/schemas/RecordTitleLinkView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "named"
+        ],
+        "type": "object"
+      },
       "NumberAdjustmentView": {
         "properties": {
           "applied": {
@@ -13951,7 +13943,7 @@
             "type": "string"
           },
           "canonical_record": {
-            "$ref": "#/components/schemas/CanonicalRecordView"
+            "$ref": "#/components/schemas/RecordTitleLinkView"
           },
           "creature_family": {
             "$ref": "#/components/schemas/CreatureFamilyView"
@@ -13968,6 +13960,9 @@
           },
           "equipment_family": {
             "$ref": "#/components/schemas/EquipmentFamilyReferenceView"
+          },
+          "named_creature_links": {
+            "$ref": "#/components/schemas/NamedCreatureLinksView"
           },
           "presentation": {
             "$ref": "#/components/schemas/RecordPresentationView"
@@ -14528,6 +14523,21 @@
           "traits",
           "publication",
           "pack"
+        ],
+        "type": "object"
+      },
+      "RecordTitleLinkView": {
+        "properties": {
+          "record_key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_key",
+          "title"
         ],
         "type": "object"
       },

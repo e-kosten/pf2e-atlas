@@ -8,7 +8,7 @@ name = "Tooth Fairy"
 [[members]]
 key = "pfs-season-6-bestiary:VwytDjcbWViZhMxX"
 name = "Plaguetooth"
-named_base = "pathfinder-monster-core:q95mjOkL678a1Wnt"
+named_base = { key = "pathfinder-monster-core:q95mjOkL678a1Wnt", name = "Tooth Fairy" }
 
 [[members.uses]]
 id = "party-1-2"
@@ -18,7 +18,7 @@ qualifier = "except at 10–11 or 14–15 Challenge Points"
 [[members]]
 key = "pfs-season-6-bestiary:M4NSaP7zb8ABBYA0"
 name = "Mischievous Plaguetooth"
-named_base = "pathfinder-monster-core:q95mjOkL678a1Wnt"
+named_base = { key = "pathfinder-monster-core:q95mjOkL678a1Wnt", name = "Tooth Fairy" }
 
 [[members.uses]]
 id = "party-1-2-scaling"

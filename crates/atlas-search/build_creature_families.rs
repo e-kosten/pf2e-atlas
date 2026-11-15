@@ -36,9 +36,40 @@ pub(super) fn bundle() -> Result<(), Box<dyn Error>> {
             return Err(super::invalid(&path, "duplicate family ID").into());
         }
     }
+    validate_named_bases(&families)?;
     let destination = PathBuf::from(std::env::var_os("OUT_DIR").ok_or("missing OUT_DIR")?)
         .join("creature_families.json");
     fs::write(destination, serde_json::to_vec(&families)?)?;
+    Ok(())
+}
+
+fn validate_named_bases(families: &CreatureCatalog) -> Result<(), Box<dyn Error>> {
+    let members: BTreeMap<_, _> = families
+        .values()
+        .flat_map(|family| &family.members)
+        .map(|member| (&member.key, member))
+        .collect();
+    let mut base_names = BTreeMap::new();
+    for member in members.values() {
+        let Some(base) = &member.named_base else {
+            continue;
+        };
+        if base.name.trim().is_empty()
+            || base.key == member.key
+            || members
+                .get(&base.key)
+                .is_some_and(|target| target.named_base.is_some() || target.name != base.name)
+            || base_names
+                .insert(&base.key, &base.name)
+                .is_some_and(|name| name != &base.name)
+        {
+            return Err(format!(
+                "invalid named-creature base {} for {}",
+                base.key, member.key
+            )
+            .into());
+        }
+    }
     Ok(())
 }
 
@@ -83,7 +114,7 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
         || family
             .members
             .iter()
-            .all(|member| member.named_base.is_some())
+            .all(|member| family.local_named_base(member).is_some())
     {
         return Err("a family needs a name, a source note and at least two members".into());
     }
@@ -91,7 +122,7 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
         family
             .members
             .iter()
-            .filter(|member| member.named_base.is_none())
+            .filter(|member| family.local_named_base(member).is_none())
             .map(|member| (&member.key, &member.coordinates)),
     )?;
     let members: BTreeMap<_, _> = family
@@ -100,7 +131,7 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
         .map(|member| (&member.key, member))
         .collect();
     for member in &family.members {
-        if (member.named_base.is_some() && !member.coordinates.is_empty())
+        if (family.local_named_base(member).is_some() && !member.coordinates.is_empty())
             || (!member.coordinates.is_empty() && member.qualifier.is_some())
         {
             return Err(format!(
@@ -115,17 +146,6 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
                 .is_some_and(|label| label.trim().is_empty())
         {
             return Err(format!("invalid title for {}", member.key));
-        }
-        if let Some(base) = &member.named_base
-            && (base == &member.key
-                || members
-                    .get(base)
-                    .is_none_or(|target| target.named_base.is_some()))
-        {
-            return Err(format!(
-                "unknown or invalid named-creature base for {}",
-                member.key
-            ));
         }
         let mut uses = BTreeSet::new();
         for use_ in &member.uses {
@@ -154,8 +174,8 @@ fn validate(family: &CreatureFamily) -> Result<(), String> {
                 entry.scenario_use
             ));
         };
-        if base.named_base.is_some()
-            || target.named_base.is_some()
+        if family.local_named_base(base).is_some()
+            || family.local_named_base(target).is_some()
             || entry.base == entry.target
             || entry.source_note.trim().is_empty()
             || !target.uses.iter().any(|use_| {

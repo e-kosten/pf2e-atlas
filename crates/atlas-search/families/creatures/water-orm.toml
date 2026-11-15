@@ -8,4 +8,4 @@ name = "Water Orm"
 [[members]]
 key = "bastion-of-blasphemies-bestiary:ZNSDataoZlnuv8eP"
 name = "Voldrak"
-named_base = "pathfinder-monster-core-2:ZdQfNuQQjytFzuyd"
+named_base = { key = "pathfinder-monster-core-2:ZdQfNuQQjytFzuyd", name = "Water Orm" }

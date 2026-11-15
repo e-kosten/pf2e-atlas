@@ -61,7 +61,6 @@ pub struct CreatureFamilyView {
     pub name: String,
     pub versions: Vec<RecordSummaryView>,
     pub named_creatures: Vec<RecordSummaryView>,
-    pub named_bases: std::collections::BTreeMap<String, String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[cfg_attr(feature = "openapi", schema(required = false))]
     pub groupings: Vec<CreatureFamilyGroupingView>,
@@ -194,9 +193,18 @@ impl RecordDetailRequest {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CanonicalRecordView {
+pub struct RecordTitleLinkView {
     pub record_key: String,
     pub title: String,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NamedCreatureLinksView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub base: Option<RecordTitleLinkView>,
+    pub named: Vec<RecordTitleLinkView>,
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -204,7 +212,10 @@ pub struct CanonicalRecordView {
 pub struct RecordDetailView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
-    pub canonical_record: Option<CanonicalRecordView>,
+    pub canonical_record: Option<RecordTitleLinkView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub named_creature_links: Option<NamedCreatureLinksView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub creature_family: Option<CreatureFamilyView>,

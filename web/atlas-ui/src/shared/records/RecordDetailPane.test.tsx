@@ -185,7 +185,6 @@ describe("RecordDetailPane", () => {
       name: "Eltha",
       versions: [identity],
       named_creatures: [],
-      named_bases: {},
     };
     detail.presentation = {
       classification: "Creature 11",

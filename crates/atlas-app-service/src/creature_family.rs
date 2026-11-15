@@ -188,7 +188,6 @@ pub(crate) fn family_view(
 ) -> CreatureFamilyView {
     let mut versions = Vec::new();
     let mut named_creatures = Vec::new();
-    let mut named_bases = BTreeMap::new();
     let mut scenario_displays = Vec::new();
     for member in family.members {
         let mut record = crate::projection::localized_summary_view(&member.summary, retrieval);
@@ -208,8 +207,7 @@ pub(crate) fn family_view(
                 });
             display.qualifiers.insert(0, qualifier);
         }
-        if let Some(base) = member.named_base {
-            named_bases.insert(record.record_key.clone(), base.to_string());
+        if member.named_base.is_some() {
             named_creatures.push(record);
         } else {
             scenario_displays.push(atlas_search::creature_display(&member.summary, || None));
@@ -259,7 +257,6 @@ pub(crate) fn family_view(
         name: family.name.into(),
         versions,
         named_creatures,
-        named_bases,
         groupings,
         all_variants_by_default: family.all_variants_by_default,
         version_context,

@@ -9,7 +9,9 @@ use serde::Serialize;
 pub(super) struct RecordResponse<'a> {
     pub artifact_generation: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub canonical_record: Option<&'a atlas_app_model::CanonicalRecordView>,
+    pub canonical_record: Option<&'a atlas_app_model::RecordTitleLinkView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub named_creature_links: Option<&'a atlas_app_model::NamedCreatureLinksView>,
     /// Identity of the selected content, including effective rank-preview facts.
     pub identity: &'a RecordSummaryView,
     /// Embedded selections retain their containing record without repeating root identity.
@@ -41,6 +43,7 @@ impl<'a> From<&'a RecordDetailView> for RecordResponse<'a> {
         Self {
             artifact_generation: &detail.artifact_generation,
             canonical_record: detail.canonical_record.as_ref(),
+            named_creature_links: detail.named_creature_links.as_ref(),
             identity: &detail.presentation.identity,
             parent: (!detail.selected.owners.is_empty()).then_some(&detail.record),
             selected: &detail.selected,

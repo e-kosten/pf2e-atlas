@@ -8,4 +8,4 @@ name = "Pixie"
 [[members]]
 key = "extinction-curse-bestiary:2Ey2VZ3aQlN4FGHJ"
 name = "Pin Tingwheely"
-named_base = "pathfinder-monster-core:Ehtm5k9iBYTvSUcZ"
+named_base = { key = "pathfinder-monster-core:Ehtm5k9iBYTvSUcZ", name = "Pixie" }

@@ -1,0 +1,11 @@
+name = "Vaggas"
+source_note = "Foundation's Price supplies two named roles for Vaggas, the level 1 Fanatic and the level 3 Bosun. The pinned Vaggas the Bosun and Iron Ring Bosun records match apart from actor ID, name, and rarity."
+
+[[members]]
+key = "pfs-season-3-bestiary:KSKDACF4qh3HJTDo"
+name = "Vaggas the Fanatic"
+
+[[members]]
+key = "pfs-season-3-bestiary:RZ8sWKkogng0IU8M"
+name = "Vaggas the Bosun"
+named_base = { key = "pfs-season-3-bestiary:FmZ8bz1ItIzxuu1D", name = "Iron Ring Bosun" }

@@ -30,9 +30,26 @@ pub(super) struct Member {
     pub qualifier: Option<String>,
     #[serde(default)]
     pub coordinates: Coordinates,
-    pub named_base: Option<RecordKey>,
+    pub named_base: Option<NamedCreatureBase>,
     #[serde(default)]
     pub uses: Vec<ScenarioUse>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct NamedCreatureBase {
+    pub key: RecordKey,
+    pub name: String,
+}
+
+impl CreatureFamily {
+    pub(super) fn local_named_base<'a>(&self, member: &'a Member) -> Option<&'a RecordKey> {
+        let base = member.named_base.as_ref()?;
+        self.members
+            .iter()
+            .any(|candidate| candidate.key == base.key)
+            .then_some(&base.key)
+    }
 }
 
 #[derive(Clone, Deserialize, Serialize)]

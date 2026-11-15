@@ -35,6 +35,12 @@ pub struct CreatureFamilyRecord {
     coordinates: &'static Coordinates,
 }
 
+#[derive(Default)]
+pub struct NamedCreatureLinks {
+    pub base: Option<SourceRecordSummary>,
+    pub named: Vec<SourceRecordSummary>,
+}
+
 pub struct CreatureDisplay {
     pub label: Option<String>,
     pub qualifier: Option<&'static str>,
@@ -76,9 +82,13 @@ fn member_for(key: &RecordKey) -> Option<(&'static str, &'static CreatureFamily,
 }
 
 fn matches(member: &Member, summary: &SourceRecordSummary) -> bool {
-    member.key == summary.key
+    matches_creature(&member.key, &member.name, summary)
+}
+
+fn matches_creature(key: &RecordKey, name: &str, summary: &SourceRecordSummary) -> bool {
+    *key == summary.key
         && summary.record_kind.as_value() == Some(&RecordKind::Creature)
-        && summary.name.as_value() == Some(&member.name)
+        && summary.name.as_value().is_some_and(|actual| actual == name)
 }
 
 pub fn creature_display(
@@ -147,6 +157,47 @@ fn select_use<'a>(member: &'a Member, selected: Option<&str>) -> Option<&'a Scen
 }
 
 impl AtlasRetrievalService {
+    pub fn named_creature_links(
+        &self,
+        summary: &SourceRecordSummary,
+    ) -> Result<NamedCreatureLinks, SearchError> {
+        let Some(catalog) = catalog() else {
+            return Ok(NamedCreatureLinks::default());
+        };
+        self.read_named_creature_links(catalog, summary)
+    }
+
+    fn read_named_creature_links(
+        &self,
+        catalog: &CreatureCatalog,
+        summary: &SourceRecordSummary,
+    ) -> Result<NamedCreatureLinks, SearchError> {
+        let mut links = NamedCreatureLinks::default();
+        if summary.record_kind.as_value() != Some(&RecordKind::Creature) {
+            return Ok(links);
+        }
+        for member in catalog.values().flat_map(|family| &family.members) {
+            let Some(base) = &member.named_base else {
+                continue;
+            };
+            if matches(member, summary) {
+                links.base = self
+                    .index
+                    .read_summary(&base.key)?
+                    .filter(|record| matches_creature(&base.key, &base.name, record));
+            }
+            if matches_creature(&base.key, &base.name, summary)
+                && let Some(named) = self
+                    .index
+                    .read_summary(&member.key)?
+                    .filter(|record| matches(member, record))
+            {
+                links.named.push(named);
+            }
+        }
+        Ok(links)
+    }
+
     pub fn creature_display(
         &self,
         summary: &SourceRecordSummary,
@@ -210,7 +261,7 @@ impl AtlasRetrievalService {
                     .find(|member| matches(member, &summary))?;
                 Some(CreatureFamilyRecord {
                     summary,
-                    named_base: member.named_base.as_ref(),
+                    named_base: family.local_named_base(member),
                     qualifier: if member.coordinates.is_empty() {
                         member.qualifier.clone()
                     } else {
@@ -312,6 +363,125 @@ impl AtlasRetrievalService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_named_base_outside_the_family_projects_both_links_when_verified() {
+        use crate::test_support::{open_source_fixture, record};
+        use serde_json::json;
+
+        let named = RecordKey::parse("pfs-season-3-bestiary:RZ8sWKkogng0IU8M").unwrap();
+        let base = RecordKey::parse("pfs-season-3-bestiary:FmZ8bz1ItIzxuu1D").unwrap();
+        let fanatic = RecordKey::parse("pfs-season-3-bestiary:KSKDACF4qh3HJTDo").unwrap();
+        let actor = |key: &RecordKey, name: &str| {
+            record(
+                key.pack().as_str(),
+                "Actor",
+                json!({"_id": key.id().as_str(), "type": "npc", "name": name}),
+            )
+        };
+        for (base_name, named_name) in [
+            (Some("Iron Ring Bosun"), "Vaggas the Bosun"),
+            (None, "Vaggas the Bosun"),
+            (Some("Renamed base"), "Vaggas the Bosun"),
+            (Some("Iron Ring Bosun"), "Renamed Vaggas"),
+        ] {
+            let mut rows = vec![
+                actor(&named, named_name),
+                actor(&fanatic, "Vaggas the Fanatic"),
+            ];
+            if let Some(name) = base_name {
+                rows.push(actor(&base, name));
+            }
+            let (retrieval, _fixture) = open_source_fixture(rows, false).unwrap();
+            let named_summary = retrieval.index.read_summary(&named).unwrap().unwrap();
+            let links = retrieval.named_creature_links(&named_summary).unwrap();
+            let verified = base_name == Some("Iron Ring Bosun") && named_name == "Vaggas the Bosun";
+            assert_eq!(
+                links.base.as_ref().map(|summary| &summary.key),
+                verified.then_some(&base)
+            );
+            assert!(links.named.is_empty());
+            if let Some(base_summary) = retrieval.index.read_summary(&base).unwrap() {
+                assert!(
+                    retrieval
+                        .creature_family_for(&base_summary)
+                        .unwrap()
+                        .is_none()
+                );
+                let links = retrieval.named_creature_links(&base_summary).unwrap();
+                assert_eq!(
+                    links.named.first().map(|summary| &summary.key),
+                    verified.then_some(&named)
+                );
+                assert!(links.base.is_none());
+            }
+            if named_name == "Vaggas the Bosun" {
+                let family = retrieval
+                    .creature_family_for(&named_summary)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(family.members.len(), 2);
+                assert!(
+                    family
+                        .members
+                        .iter()
+                        .all(|member| member.named_base.is_none())
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_base_lists_verified_named_records_from_different_families() {
+        use crate::test_support::{open_source_fixture, record};
+        use serde_json::json;
+
+        let base = json!({"key": "actors:aaaaaaaaaaaaaaaa", "name": "Base"});
+        let named_base = base.clone();
+        let catalog: CreatureCatalog = serde_json::from_value(json!({
+            "generic-creatures": {"name": "Generic creatures", "source_note": "Fixture",
+                "members": [base, {"key": "actors:dddddddddddddddd", "name": "Other"}]},
+            "first-family": {"name": "First", "source_note": "Fixture",
+                "members": [{"key": "actors:bbbbbbbbbbbbbbbb", "name": "First", "named_base": named_base},
+                    {"key": "actors:eeeeeeeeeeeeeeee", "name": "Fifth"}]},
+            "second-family": {"name": "Second", "source_note": "Fixture",
+                "members": [{"key": "actors:cccccccccccccccc", "name": "Second", "named_base": named_base},
+                    {"key": "actors:ffffffffffffffff", "name": "Sixth"}]}
+        }))
+        .unwrap();
+        let actors = [
+            ("aaaaaaaaaaaaaaaa", "Base"),
+            ("bbbbbbbbbbbbbbbb", "First"),
+            ("cccccccccccccccc", "Second"),
+        ]
+        .map(|(id, name)| {
+            record(
+                "actors",
+                "Actor",
+                json!({"_id": id, "type": "npc", "name": name}),
+            )
+        });
+        let (retrieval, _fixture) = open_source_fixture(Vec::from(actors), false).unwrap();
+        let base_key = RecordKey::parse("actors:aaaaaaaaaaaaaaaa").unwrap();
+        let summary = retrieval.index.read_summary(&base_key).unwrap().unwrap();
+        let links = retrieval
+            .read_named_creature_links(&catalog, &summary)
+            .unwrap();
+        assert_eq!(
+            links
+                .named
+                .iter()
+                .map(|summary| summary.name.as_value().unwrap().as_str())
+                .collect::<Vec<_>>(),
+            ["First", "Second"],
+        );
+        for named in links.named {
+            let links = retrieval
+                .read_named_creature_links(&catalog, &named)
+                .unwrap();
+            assert_eq!(links.base.unwrap().key, base_key);
+        }
+    }
 
     #[test]
     fn a_missing_adventure_title_keeps_the_scenario_override_unavailable() {
