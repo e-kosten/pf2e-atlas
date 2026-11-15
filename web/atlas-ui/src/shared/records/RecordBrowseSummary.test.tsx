@@ -30,9 +30,9 @@ it("uses the selected-text role instead of the primary action color", () => {
     />,
   );
 
-  expect(screen.getByRole("link", { name: /Selected creature/ })).toHaveStyle({
-    color: "var(--selection-text)",
-  });
+  expect(screen.getByRole("link", { name: /Selected creature/ }).style.color).toBe(
+    "var(--selection-text)",
+  );
 });
 
 it("shows compact scenario context on ungrouped rows and scopes grouped rows", () => {

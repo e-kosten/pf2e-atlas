@@ -1082,7 +1082,9 @@ describe("encounter views", () => {
         ),
       );
       expect(screen.queryByRole("dialog", { name: `Remove ${name}?` })).toBeNull();
-      expect(remove).toBeDisabled();
+      expect(remove).toHaveAttribute("aria-disabled", "true");
+      expect(remove).toHaveFocus();
+      fireEvent.click(remove);
       expect(remove).toBeInTheDocument();
       await act(async () => complete());
       await waitFor(() => expect(remove).not.toBeInTheDocument());
