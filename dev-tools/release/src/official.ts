@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { macosDmg, object, officialPackageTag, readJson } from './release-data.js';
+import { macosDmg, object, officialPackageTag, readJson, windowsInstaller } from './release-data.js';
 import { releases, verifyReleaseSource, verifyUploadedDesktop, type Run } from './release-upload.js';
 
 export async function publishOfficial(tag: string, sha: string, dist: string, run: Run): Promise<void> {
@@ -27,8 +27,11 @@ export async function publishOfficial(tag: string, sha: string, dist: string, ru
   if (!uploaded.draft) throw new Error('Expected an official draft after uploading assets');
   await verifyUploadedDesktop(uploaded, dist);
   const notes = uploaded.body ?? '';
-  const download = `[Download PF2e Atlas for Apple Silicon](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${macosDmg}). [First-open instructions](https://github.com/e-kosten/pf2e-atlas/blob/${sha}/docs/installation.md#macos-desktop-app).`;
+  const downloads = [
+    `[Download PF2e Atlas for Apple Silicon](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${macosDmg}). [First-open instructions](https://github.com/e-kosten/pf2e-atlas/blob/${sha}/docs/installation.md#macos-desktop-app).`,
+    `[Download PF2e Atlas for Windows x64](https://github.com/e-kosten/pf2e-atlas/releases/download/${tag}/${windowsInstaller}). [Installation instructions](https://github.com/e-kosten/pf2e-atlas/blob/${sha}/docs/installation.md#windows-desktop-app).`,
+  ].filter((line) => !notes.includes(line));
   const edit = ['release', 'edit', tag, '--draft=false', `--prerelease=${prerelease}`, `--latest=${!prerelease}`];
-  if (!notes.includes(download)) edit.push('--notes', `${notes.trimEnd()}\n\n${download}\n`);
+  if (downloads.length) edit.push('--notes', `${notes.trimEnd()}\n\n${downloads.join('\n\n')}\n`);
   run('gh', edit);
 }

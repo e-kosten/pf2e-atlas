@@ -18,7 +18,7 @@ export async function generateManifest(tag: string, dist: string): Promise<void>
     }
   }
   writeJson(path.join(dist, 'atlas-release-manifest.json'), { version: tag, assets });
-  const desktop = desktopAssets(tag).map(({ name }) => name);
+  const desktop = desktopAssets.map(({ name }) => name);
   for (const name of [...desktop, 'atlas-installer.sh', 'atlas-installer.ps1', 'atlas-release-manifest.json', 'THIRD-PARTY-NOTICES.md']) {
     const file = path.join(dist, name);
     if (isFile(file)) sums.push(`${await sha256(file)}  ${name}`);

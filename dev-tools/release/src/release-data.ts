@@ -24,13 +24,10 @@ export function officialPackageTag(ref: string): string {
   return match[1];
 }
 
-export function desktopAssets(tag: string) {
-  const macos = { name: macosDmg, target: 'aarch64-apple-darwin', receiptKey: 'dmg', label: 'DMG' };
-  return nightlyTag.test(tag) || nightlyRef.test(tag) ? [
-    macos,
-    { name: windowsInstaller, target: 'x86_64-pc-windows-msvc', receiptKey: 'installer', label: 'Windows installer' },
-  ] : [macos];
-}
+export const desktopAssets = [
+  { name: macosDmg, target: 'aarch64-apple-darwin', receiptKey: 'dmg', label: 'DMG' },
+  { name: windowsInstaller, target: 'x86_64-pc-windows-msvc', receiptKey: 'installer', label: 'Windows installer' },
+] as const;
 export type Variant = typeof variants[number];
 export function archiveName(target: string, variant: Variant): string {
   return `${variant === 'full' ? 'atlas-cli' : 'atlas-cli-only'}-${target}${target.includes('windows') ? '.zip' : '.tar.xz'}`;

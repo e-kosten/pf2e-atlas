@@ -22,7 +22,7 @@ helper without changing the deployment target or embedding policy.
 
 The [Windows desktop build](../../desktop/README.md#windows-x64) produces
 an unsigned per-user NSIS installer. The Windows desktop workflow uploads a
-test build as a CI artifact. Nightly packaging builds the published installer
+test build as a CI artifact. Release packaging builds the published installer
 from the full Windows CLI archive for that exact release.
 
 Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
@@ -78,22 +78,24 @@ inspect the complete hosted run, then install the nightly on the dogfooding mach
 and check `atlas --version` and `atlas --help`. A local tooling test is not evidence
 that the hosted platform builds or live installation succeeded.
 
-The Apple Silicon full build also packages the optimized desktop app using
-its packaged CLI. The DMG is a required asset for nightly and official
-releases. The Windows x64 full build packages and smoke-tests the nightly
-desktop installer. Assembly checks the desktop build receipts against the
-matching CLI archive and installer bytes. Nightly verifies both uploaded
-desktop digests before publishing and again before advancing the channel.
-Keep the original assembled artifact when retrying a partially published release.
+### Desktop packaging and rehearsal
+
+Stable releases, release candidates, and nightlies require both the Apple Silicon
+DMG and the Windows x64 desktop installer. The full builds package and smoke-test
+each desktop app with its matching CLI archive. Assembly validates the desktop
+receipts against the archives and installer bytes. Both publication paths verify
+the uploaded desktop digests before publishing. Nightly checks them again before
+advancing the channel. Keep the original assembled artifact when retrying a
+partially published release.
 
 For an unpublished rehearsal, dispatch **release build check** on the
 candidate ref. Use the checked-in CLI version for the official-style build.
 For a nightly rehearsal, enable the `nightly` input and supply a package tag
 with the candidate’s version core, UTC timestamp, and 12-character commit suffix,
-such as `v0.1.0-nightly.20261018092300.gabcdef123456`. Download the assembled artifact and test the
-[DMG](../installation.md#macos-desktop-app) and, for a nightly rehearsal, the
-[Windows installer](../installation.md#windows-desktop-app) from disposable
-accounts.
+such as `v0.1.0-nightly.20261018092300.gabcdef123456`. Download the assembled
+artifact and test both desktop builds from disposable accounts.
+[macOS installation](../installation.md#macos-desktop-app) ·
+[Windows installation](../installation.md#windows-desktop-app)
 
 Local release-tooling checks:
 

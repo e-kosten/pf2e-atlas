@@ -74,7 +74,7 @@ export function planNightly(root: string, scheduled: boolean, run = commandRunne
       return readFileSync(path.join(directory, 'nightly-version.txt'), 'utf8').trim();
     });
     if (nightlyRef.test(tag) && existing.some((release) => release.tag_name === tag && release.target_commitish === sha && release.prerelease && !release.draft
-      && desktopAssets(tag).every(({ name }) => release.assets?.some((asset) =>
+      && desktopAssets.every(({ name }) => release.assets?.some((asset) =>
         asset.name === name && /^sha256:[a-f0-9]{64}$/.test(asset.digest ?? ''))))) {
       return 'build=false\n';
     }

@@ -398,11 +398,13 @@ jobs:
         if: always() && contains(fromJSON(needs.prepare.outputs.embedding-targets), matrix.target)
         with:
           name: packaged-embedding-${{ matrix.target }}-${{ matrix.variant }}
+          overwrite: true
           path: ${{ runner.temp }}/packaged-embedding/bundle-*/*.json
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v7
         with:
           name: package-${{ matrix.target }}-${{ matrix.variant }}
+          overwrite: true
           path: |
             target/distrib/atlas-cli*-${{ matrix.target }}.*
             target/distrib/cli-only-${{ matrix.target }}.json
@@ -426,8 +428,8 @@ jobs:
             target/distrib/atlas-desktop-aarch64-apple-darwin.dmg
             target/distrib/atlas-desktop-aarch64-apple-darwin.dmg.receipt.json
           if-no-files-found: error
-      - name: Build and verify nightly Windows desktop installer
-        if: inputs.nightly && matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full'
+      - name: Build and verify Windows desktop installer
+        if: matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full'
         shell: pwsh
         env:
           TAG: ${{ needs.prepare.outputs.tag }}
@@ -446,11 +448,12 @@ jobs:
             archive = (Get-FileHash target/distrib/atlas-cli-x86_64-pc-windows-msvc.zip).Hash.ToLowerInvariant()
             installer = (Get-FileHash $installer).Hash.ToLowerInvariant()
           } | ConvertTo-Json | Set-Content -LiteralPath "$installer.receipt.json" -Encoding ascii
-      - name: Upload nightly Windows desktop installer
-        if: inputs.nightly && matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full'
+      - name: Upload Windows desktop installer
+        if: matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full'
         uses: actions/upload-artifact@v7
         with:
           name: package-windows-desktop
+          overwrite: true
           path: |
             target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe
             target/distrib/atlas-desktop-x86_64-pc-windows-msvc-setup.exe.receipt.json
