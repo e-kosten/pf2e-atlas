@@ -242,13 +242,11 @@ block with evasion and 111 HP. Recheck if the pinned Foundry source changes.
 
 #### Pathfinder Society Scenario #6-09: The Power of Legends
 
-Both Penumbra actors report creature level 11 and share Drain Soul Cage,
-Void Shroud, and Siphon Life. The 11–12 block has 210 HP versus 170 HP.
-Paizo lists the scenario for levels 9–12. Verify the party assignment for
-each block in the published adventure before adding the family.
+The [Penumbra family](creatures/penumbra.toml) uses the 11–12 range from
+the stronger Foundry actor's title and infers 9–10 for the unsuffixed
+block from the adventure's full 9–12 range. Check the inferred assignment
+against the printed encounter when available.
 [Paizo scenario listing](https://store.paizo.com/pfs-scenario-6-09/)
-
-- Penumbra (`pfs-season-6-bestiary:Mg8gzA54MY5DMHZk`) ↔ Penumbra (11-12) (`pfs-season-6-bestiary:cyOOXZliztAjS9YM`)
 
 #### Pathfinder Society Scenario #7-03: A Foot in the Door
 

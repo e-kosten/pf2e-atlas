@@ -1,0 +1,18 @@
+name = "Penumbra"
+source_note = "The Power of Legends covers party levels 9–12. Foundry labels the 210 HP block 11–12, so 9–10 is inferred for the unsuffixed 170 HP block. Both actors report creature level 11 and share their spell list, Drain Soul Cage, Void Shroud, and Siphon Life."
+
+[[members]]
+key = "pfs-season-6-bestiary:Mg8gzA54MY5DMHZk"
+name = "Penumbra"
+
+[[members.uses]]
+id = "party-9-10"
+party_levels = [9, 10]
+
+[[members]]
+key = "pfs-season-6-bestiary:cyOOXZliztAjS9YM"
+name = "Penumbra (11-12)"
+
+[[members.uses]]
+id = "party-11-12"
+party_levels = [11, 12]
