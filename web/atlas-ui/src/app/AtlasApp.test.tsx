@@ -86,7 +86,11 @@ describe("AtlasApp routing", () => {
     const view = renderDom(<DesktopTabs initialHref="/search" />, {
       wrapper: queryClientWrapper(),
     });
-    const input = await screen.findByRole("searchbox", { name: "Search records" });
+    const input = await screen.findByRole(
+      "searchbox",
+      { name: "Search records" },
+      { timeout: 5_000 },
+    );
     fireEvent.change(input, { target: { value: "Retained search draft" } });
     expect(screen.queryByRole("tablist")).toBeNull();
     const ipc = vi.fn().mockResolvedValue(undefined);

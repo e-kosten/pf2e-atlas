@@ -1,32 +1,17 @@
-import { ConfigProvider, Tabs } from "antd";
-import {
-  closestCenter,
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  horizontalListSortingStrategy,
-  SortableContext,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { ConfigProvider } from "antd";
+import { arrayMove } from "@dnd-kit/sortable";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import {
-  cloneElement,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type ComponentPropsWithRef,
-  type ReactElement,
 } from "react";
 import { createAtlasRouter } from "./router";
 import { antDesignTheme, type ResolvedColorScheme } from "../shared/theme/atlasTheme";
+import { DesktopTabBar, desktopTabButtonId, desktopTabPanelId } from "./DesktopTabBar";
 import {
   DesktopTabContext,
   type DesktopTabRuntime,
@@ -94,9 +79,6 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
   const [first] = useState(() => createTab(initialHref));
   const [tabs, setTabs] = useState([first]);
   const showStrip = tabs.length > 1;
-  const dragSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
   const [selection, setSelection] = useState<{ id: string; activation: number }>({
     id: first.id,
     activation: 0,
@@ -207,17 +189,17 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
   const close = useCallback(
     (id: string) => {
       const index = tabs.findIndex((tab) => tab.id === id);
-      if (index < 0) return;
+      if (index < 0) return false;
       const status = closeStatus(tabs[index]);
       if (status === "pending") {
         window.alert("Wait for the save to finish before closing this tab.");
-        return;
+        return false;
       }
       if (status === "dirty" && !window.confirm("Discard unsaved changes in this tab?"))
-        return;
+        return false;
       if (tabs.length === 1) {
         void invoke("desktop_tabs_close").catch(reportCommandFailure);
-        return;
+        return true;
       }
       if (id === active.id) {
         closeFocus.current = true;
@@ -232,6 +214,7 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
         delete next[id];
         return next;
       });
+      return true;
     },
     [active.id, select, tabs],
   );
@@ -352,134 +335,48 @@ export function DesktopTabs({ initialHref }: { initialHref: string }) {
   return (
     <ConfigProvider theme={antDesignTheme(scheme)}>
       <div className="desktop-tab-host" data-show-tab-strip={showStrip}>
-        <Tabs
-          type="editable-card"
-          size="small"
-          activeKey={active.id}
-          onChange={select}
-          onEdit={(key, action) => {
-            if (action === "add") open("/search", true);
-            else if (typeof key === "string") close(key);
-          }}
-          renderTabBar={(props, DefaultTabBar) =>
-            showStrip ? (
-              <div className="desktop-tab-strip" ref={strip}>
-                <DndContext
-                  sensors={dragSensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={({ active, over }) => {
-                    if (over)
-                      moveTab(String(active.id), (items) =>
-                        items.findIndex((tab) => tab.id === over.id),
-                      );
-                  }}
-                >
-                  <SortableContext
-                    items={tabs.map((tab) => tab.id)}
-                    strategy={horizontalListSortingStrategy}
-                  >
-                    <DefaultTabBar {...props}>
-                      {(node) => (
-                        <SortableTab
-                          key={node.key}
-                          node={node}
-                          move={(id, offset) =>
-                            moveTab(id, (_items, from) => from + offset)
-                          }
-                        />
-                      )}
-                    </DefaultTabBar>
-                  </SortableContext>
-                </DndContext>
-              </div>
-            ) : (
-              <></>
-            )
-          }
-          items={tabs.map((tab) => ({
-            key: tab.id,
-            label: titles[tab.id] ?? "Atlas",
-            forceRender: true,
-            children: (
-              <TabPanel
-                tab={tab}
-                active={tab === active}
-                activation={selection.activation}
-                title={title}
-                theme={setScheme}
-              />
-            ),
-          }))}
-          locale={{
-            addAriaLabel: "New tab",
-            removeAriaLabel: "Close tab",
-            dropdownAriaLabel: "More tabs",
-          }}
-          aria-label="Atlas tabs"
-        />
+        {showStrip && (
+          <div className="desktop-tab-strip" ref={strip}>
+            <DesktopTabBar
+              tabs={tabs.map(({ id }) => ({ id, title: titles[id] ?? "Atlas" }))}
+              activeId={active.id}
+              select={select}
+              close={close}
+              open={() => open("/search", true)}
+              moveBy={(id, offset) => moveTab(id, (_items, from) => from + offset)}
+              moveTo={(id, target) =>
+                moveTab(id, (items) => items.findIndex((tab) => tab.id === target))
+              }
+            />
+          </div>
+        )}
+        {tabs.map((tab) => (
+          <TabPanel
+            key={tab.id}
+            tab={tab}
+            active={tab === active}
+            tabbed={showStrip}
+            activation={selection.activation}
+            title={title}
+            theme={setScheme}
+          />
+        ))}
       </div>
     </ConfigProvider>
   );
 }
 
-function SortableTab({
-  node,
-  move,
-}: {
-  node: ReactElement;
-  move: (id: string, offset: number) => void;
-}) {
-  const id = String(node.key);
-  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id,
-  });
-  const tab = node as ReactElement<ComponentPropsWithRef<"div">>;
-  return cloneElement(tab, {
-    ref: setNodeRef,
-    style: {
-      ...tab.props.style,
-      transform: transform ? CSS.Translate.toString({ ...transform, y: 0 }) : undefined,
-      // Ant Design's card transition would ease each pointer-driven transform.
-      transition: transition ?? "none",
-      zIndex: isDragging ? 1 : undefined,
-      position: "relative",
-    },
-    onPointerDown: (event) => {
-      if (event.target instanceof Element && !event.target.closest("button"))
-        listeners?.onPointerDown?.(event);
-    },
-    onKeyDownCapture: (event) => {
-      const target = event.target;
-      if (
-        !event.altKey ||
-        !event.shiftKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        !(target instanceof HTMLElement) ||
-        !target.matches('[role="tab"]') ||
-        (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
-      )
-        return;
-      event.preventDefault();
-      event.stopPropagation();
-      move(id, event.key === "ArrowLeft" ? -1 : 1);
-      requestAnimationFrame(() => {
-        if (document.activeElement === document.body)
-          target.focus({ preventScroll: true });
-      });
-    },
-  });
-}
-
 function TabPanel({
   tab,
   active,
+  tabbed,
   activation,
   title,
   theme,
 }: {
   tab: Tab;
   active: boolean;
+  tabbed: boolean;
   activation: number;
   title: (id: string, name: string) => void;
   theme: (scheme: ResolvedColorScheme) => void;
@@ -513,7 +410,15 @@ function TabPanel({
   );
 
   return (
-    <section ref={panel} hidden={!active} inert={!active} className="desktop-tab-page">
+    <section
+      ref={panel}
+      id={desktopTabPanelId(tab.id)}
+      role={tabbed ? "tabpanel" : undefined}
+      aria-labelledby={tabbed ? desktopTabButtonId(tab.id) : undefined}
+      hidden={!active}
+      inert={!active}
+      className="desktop-tab-page"
+    >
       <DesktopTabContext.Provider value={runtime}>
         <ConfigProvider getPopupContainer={portal}>
           <RouterProvider router={tab.router} />

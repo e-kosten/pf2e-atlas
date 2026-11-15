@@ -18,19 +18,83 @@
   background: var(--bg);
 }
 
-.desktop-tab-strip .ant-tabs-nav {
-  margin-bottom: 0;
+.desktop-tab-bar {
+  display: flex;
+  align-items: stretch;
+  box-shadow: inset 0 -1px var(--line);
 }
 
-.desktop-tab-strip .ant-tabs-tab {
+.desktop-tab-viewport {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.desktop-tab-row {
+  display: flex;
+  gap: 2px;
+  width: max-content;
+  /* Translated tabs must not extend the native scroll range during a drag. */
+  overflow: clip;
+}
+
+.desktop-tab-card {
+  position: relative;
+  display: flex;
+  align-items: center;
   max-width: 15rem;
-  touch-action: none;
+  padding-inline-end: var(--space-micro);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--panel-subtle);
+  color: var(--text);
 }
 
-.desktop-tab-strip .ant-tabs-tab-btn {
+.desktop-tab-card[data-selected="true"] {
+  background: var(--panel);
+  color: var(--selection-text);
+}
+
+.desktop-tab-label {
+  min-width: 0;
+  min-height: 32px;
+  padding: var(--space-micro) var(--space-control) var(--space-micro)
+    var(--space-control);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.desktop-tab-label:hover {
+  color: var(--selection-text);
+}
+
+.desktop-tab-label:focus-visible,
+.desktop-tab-card .ant-btn:focus-visible {
+  outline: 2px solid var(--selection-border);
+  outline-offset: -2px;
+}
+
+.desktop-tab-action {
+  display: flex;
+  flex: none;
+  padding-inline-start: 2px;
+}
+
+.desktop-tab-action .ant-btn {
+  width: 34px;
+  height: 100%;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: none;
 }
 
 .desktop-tab-page {
