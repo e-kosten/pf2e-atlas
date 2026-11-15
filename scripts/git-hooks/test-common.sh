@@ -370,7 +370,8 @@ printf 'UI, browser, standalone developer and core Rust dispatch regressions pas
 # Validate the real diff path, including deleted source of a rename and file modes.
 git -C "$fixture" add .
 git -C "$fixture" commit --quiet -m 'test: fixture baseline'
-git -C "$fixture" mv crates/example/src/lib.rs docs-only.md
+mkdir -p "$fixture/docs"
+git -C "$fixture" mv crates/example/src/lib.rs docs/removed-example.md
 git -C "$fixture" commit --quiet -m 'test: rename source to prose'
 (cd "$fixture"; scripts/verify-changed.sh --range HEAD~1...HEAD --list) >"$check_output"
 grep -q '^rust=true$' "$check_output"
