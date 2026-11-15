@@ -181,6 +181,19 @@ Release notes use this template:
 
 The helper creates an annotated tag and a draft GitHub release. The tag-triggered release workflow uses cargo-dist to build platform archives, then uploads Atlas installer scripts, checksums, cargo-dist metadata, the Atlas release manifest, and third-party notices. The draft is published only after the required asset set validates. If the workflow fails, the release remains draft.
 
+If a tag was pushed and draft creation failed, use the tag and commit printed
+by the helper:
+
+```sh
+scripts/prepare-release.sh --recover-draft TAG COMMIT --dry-run
+scripts/prepare-release.sh --recover-draft TAG COMMIT
+```
+
+Recovery reads the version and release notes from that commit, so it also works
+after `main` advances. Fetch the named tag from origin if the commit is missing
+locally. If the tag-triggered workflow already failed waiting for the draft,
+rerun its failed jobs after the draft exists.
+
 cargo-dist is configured in `dist-workspace.toml`. The Atlas release workflow intentionally keeps repo-owned installers instead of cargo-dist-generated installers so install/update prompts, install locations, PATH guidance, and runtime-data policy remain under Atlas control.
 
 The shared build check downloads the pinned cargo-dist archives in its prepare

@@ -123,7 +123,21 @@ case "$1" in
     [ "${ATLAS_TEST_DIRTY:-0}" = 1 ] && printf ' M file\n'
     exit 0
     ;;
+  show)
+    case "$2" in
+      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:crates/atlas-cli/Cargo.toml)
+        printf '[package]\nversion = "0.1.0"\n' ;;
+      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:docs/releases/v0.1.0.md)
+        printf '# Tagged release notes\n' ;;
+      *) exit 1 ;;
+    esac
+    ;;
   ls-remote)
+    if [ "$3" = origin ]; then
+      printf 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\t%s\n' "$4"
+      printf '%s\t%s\n' "${ATLAS_TEST_RECOVERY_SHA:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}" "$5"
+      exit 0
+    fi
     if [ "$2" = "--exit-code" ] && [ "$3" = "--heads" ]; then
       [ "${ATLAS_TEST_REMOTE_RELEASE_BRANCH_EXISTS:-0}" = 1 ] && printf 'abc123\trefs/heads/%s\n' "$5" && exit 0
       exit 2
@@ -173,7 +187,19 @@ case "$1 $2" in
     [ "${ATLAS_TEST_RELEASE_EXISTS:-0}" = 1 ] && exit 0
     exit 1
     ;;
-  "release create") exit 0 ;;
+  "api --paginate")
+    case "${ATLAS_TEST_RELEASE_STATE:-missing}" in
+      missing) exit 0 ;;
+      draft) printf 'true\n' ;;
+      published) printf 'false\n' ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  "release create")
+    [ "${ATLAS_TEST_DRAFT_FAIL:-0}" -eq 0 ] || exit 1
+    case "$*" in *"--notes-file - "*) cat >> "$ATLAS_TEST_COMMAND_LOG" ;; esac
+    exit 0
+    ;;
 esac
 EOF_GH
 chmod +x "$fake_bin/gh"
@@ -669,5 +695,35 @@ grep -q 'gh release create rc/v0.1.0-rc.1 --draft --verify-tag --notes-file docs
   echo "prepare-release did not create the expected prerelease draft" >&2
   exit 1
 }
+
+# Recover the tagged version even after the working checkout has moved to an RC.
+: > "$log"
+if output=$(ATLAS_TEST_DRAFT_FAIL=1 run_prepare --publish --yes 2>&1); then
+  echo "publish accepted a draft creation failure" >&2
+  exit 1
+fi
+printf '%s\n' "$output" | grep -Fq 'retry with --recover-draft rc/v0.1.0-rc.1 abc123'
+[ "$(first_log_line 'git push --no-verify origin rc/v0.1.0-rc.1')" -lt "$(first_log_line 'gh release create rc/v0.1.0-rc.1')" ]
+
+release_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+: > "$log"
+run_prepare --recover-draft release/v0.1.0 "$release_sha" --dry-run >/dev/null
+expect_log_absent 'gh release create' 'dry-run recovery created a release'
+
+: > "$log"
+run_prepare --recover-draft release/v0.1.0 "$release_sha" --yes >/dev/null
+grep -Fq '# Tagged release notes' "$log"
+grep -Fq 'gh release create release/v0.1.0 --draft --verify-tag --notes-file -' "$log"
+expect_log_absent 'git pull' 'recovery changed main'
+expect_log_absent 'git push' 'recovery pushed a tag'
+
+: > "$log"
+ATLAS_TEST_RELEASE_STATE=draft run_prepare --recover-draft release/v0.1.0 "$release_sha" --yes >/dev/null
+ATLAS_TEST_RELEASE_STATE=published expect_fail --recover-draft release/v0.1.0 "$release_sha" --yes
+ATLAS_TEST_RELEASE_STATE=unreachable expect_fail --recover-draft release/v0.1.0 "$release_sha" --yes
+ATLAS_TEST_RECOVERY_SHA=cccccccccccccccccccccccccccccccccccccccc \
+  expect_fail --recover-draft release/v0.1.0 "$release_sha" --yes
+expect_fail --recover-draft rc/v0.1.0 "$release_sha" --yes
+expect_log_absent 'gh release create' 'recovery tried to create a release after a failed check'
 
 printf 'prepare-release smoke tests passed\n'

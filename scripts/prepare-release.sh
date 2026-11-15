@@ -7,6 +7,7 @@ Usage:
   scripts/prepare-release.sh --prepare-pr [--version <X.Y.Z[-rc.N]>] [options]
   scripts/prepare-release.sh --open-pr [--version <X.Y.Z[-rc.N]>] [options]
   scripts/prepare-release.sh --publish [--version <X.Y.Z[-rc.N]>] [options]
+  scripts/prepare-release.sh --recover-draft <tag> <commit> [--yes] [--dry-run]
   scripts/prepare-release.sh
 
 Prepares a release PR branch, opens the release-preparation PR, or creates an
@@ -17,6 +18,8 @@ Options:
   --prepare-pr             Create release-prep/v<version> from clean, current main
   --open-pr                Commit release-prep changes, push the branch, and open a PR
   --publish                Tag the committed release version and create a draft release
+  --recover-draft <tag> <commit>
+                           Create a missing draft for an already-pushed release tag
   --version <version>      Version without leading v; optional guard for open-pr/publish
   --notes-file <path>      Release notes file, default docs/releases/v<version>.md
   --yes                    Do not prompt before tagging/releasing
@@ -83,6 +86,8 @@ dry_run=0
 prepare_pr=0
 open_pr=0
 publish=0
+recovery_tag=""
+recovery_commit=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -97,6 +102,14 @@ while [ "$#" -gt 0 ]; do
     --publish)
       publish=1
       shift
+      ;;
+    --recover-draft)
+      [ "$#" -ge 3 ] || die "--recover-draft requires a tag and commit"
+      [ -z "$recovery_tag" ] || die "pass --recover-draft only once"
+      recovery_tag="$2"
+      recovery_commit="$3"
+      [ -n "$recovery_tag" ] || die "--recover-draft requires a tag"
+      shift 3
       ;;
     --version)
       [ "$#" -ge 2 ] || die "--version requires a value"
@@ -125,6 +138,67 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+create_release_draft() {
+  if [ "$tag" = "rc/$package_tag" ]; then
+    gh release create "$tag" --draft --verify-tag --notes-file "$1" --prerelease --latest=false --title "$tag"
+  else
+    gh release create "$tag" --draft --verify-tag --notes-file "$1" --title "$tag"
+  fi
+}
+
+recover_release_draft() {
+  [ "$((prepare_pr + open_pr + publish))" -eq 0 ] && [ -z "$version$notes_file" ] ||
+    die "--recover-draft cannot be combined with another mode, --version, or --notes-file"
+  version="${recovery_tag#*/v}"
+  set_release_vars
+  [ "$tag" = "$recovery_tag" ] || die "invalid official release tag: $recovery_tag"
+  printf '%s\n' "$recovery_commit" | grep -Eq '^[0-9a-f]{40}$' &&
+    [ "${#recovery_commit}" -eq 40 ] || die "pass the full release commit SHA"
+  ref="refs/tags/$tag"
+  refs=$(git ls-remote --exit-code origin "$ref" "$ref^{}") ||
+    die "could not resolve remote release tag $tag"
+  remote_commit=$(printf '%s\n' "$refs" | awk -v ref="$ref" '
+    $2 == ref { direct = $1 }
+    $2 == ref "^{}" { peeled = $1 }
+    END { print (peeled != "" ? peeled : direct) }
+  ')
+  [ "$remote_commit" = "$recovery_commit" ] ||
+    die "remote tag $tag resolves to $remote_commit, expected $recovery_commit"
+  tagged_manifest=$(git show "$recovery_commit:crates/atlas-cli/Cargo.toml") ||
+    die "could not read the tagged commit locally; fetch $tag from origin and retry"
+  tagged_version=$(printf '%s\n' "$tagged_manifest" | awk -F '"' '/^version = / { print $2; exit }')
+  [ "$tagged_version" = "$version" ] || die "tagged crate version $tagged_version does not match $tag"
+  notes=$(git show "$recovery_commit:$notes_file") || die "release notes are missing from the tagged commit"
+  [ -n "$notes" ] || die "release notes in the tagged commit are empty"
+
+  release_state=$(gh api --paginate 'repos/{owner}/{repo}/releases?per_page=100' \
+    --jq ".[] | select(.tag_name == \"$tag\") | .draft") ||
+    die "could not determine whether a GitHub release exists for $tag"
+  case "$release_state" in
+    true) info "Draft release $tag already exists. If its release workflow has failed, rerun the failed jobs."; return ;;
+    false) die "release $tag is already published" ;;
+    '') ;;
+    *) die "unexpected GitHub release state for $tag" ;;
+  esac
+  info "Recover draft release $tag from $recovery_commit"
+  [ "$dry_run" -eq 0 ] || return 0
+  if [ "$yes" -ne 1 ]; then
+    printf 'Create the missing draft release? [y/N] '
+    read answer
+    case "$answer" in
+      y|Y|yes|YES) ;;
+      *) die "draft recovery cancelled" ;;
+    esac
+  fi
+  printf '%s\n' "$notes" | create_release_draft - || die "could not create draft release $tag"
+  info "Created draft release $tag. If its release workflow has failed, rerun the failed jobs."
+}
+
+if [ -n "$recovery_tag" ]; then
+  recover_release_draft
+  exit 0
+fi
 
 selected_modes=$((prepare_pr + open_pr + publish))
 if [ "$selected_modes" -gt 1 ]; then
@@ -663,10 +737,8 @@ ensure_clean_worktree
 git tag -a "$tag" -m "Release $tag"
 git push --no-verify origin "$tag"
 
-if [ "$is_prerelease" -eq 1 ]; then
-  gh release create "$tag" --draft --verify-tag --notes-file "$notes_file" --prerelease --latest=false --title "$tag"
-else
-  gh release create "$tag" --draft --verify-tag --notes-file "$notes_file" --title "$tag"
+if ! create_release_draft "$notes_file"; then
+  die "tag $tag was pushed but draft creation failed; retry with --recover-draft $tag $head_sha"
 fi
 
 info "Created draft release $tag. GitHub Actions will upload assets and publish it after validation."
