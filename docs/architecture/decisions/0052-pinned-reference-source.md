@@ -52,8 +52,8 @@ relaxed union admission. See ADR0034, ADR0041 and ADR0051.
 
 ## PF2e 8.6.1 replacement
 
-The current pin is PF2e 8.6.1 at
-`28d9d156f252d084371d994dc359509b49eadf18`. Its generated model replaces the
+The PF2e 8.6.1 pin was
+`28d9d156f252d084371d994dc359509b49eadf18`. Its generated model replaced the
 6.12.4 model. Index recognizes the exact preceding snapshot contract only as a
 source-replacement candidate. It never decodes that contract with the current
 model, and ordinary readers reject it until preparation and publication succeed.
@@ -67,3 +67,10 @@ and saved state intact. Maintenance recovery for this replacement checks storage
 integrity without admitting retired snapshots to product readers; the next explicit
 setup must still complete the replacement. This is a rebuild path, not a second
 runtime model or a snapshot conversion layer.
+
+## PF2e 8.7.0 replacement
+
+PF2e 8.7.0 at `52dfeee703b887237f5e454747bcae45b136f9af` follows the
+same reference replacement path. Index accepts the exact 8.6.1 source
+contract for rebuilding the existing workspace. Saved state and compatible
+embedding values survive the rebuild.

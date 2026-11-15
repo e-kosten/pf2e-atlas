@@ -937,7 +937,14 @@ Each row contains a 32-byte input hash, little-endian u32 token count and
 the model's little-endian f32 vector. Input hashes are unique and strictly
 increasing. Asset revisions and format versions are independent.
 
-Setup authenticates the compressed file before parsing, checks structure and
+A version 2 pin manifest selects an immutable base and at most one cumulative
+delta per profile. The delta pin names the base SHA-256, and its rows must be
+disjoint from those of the base under a compatible numerical contract. The
+maintainer refresh accepts older flat manifests as base-only pins. Normal setup
+loads the delta when an input misses the base. Release and refresh verification
+authenticate every declared asset.
+
+Setup authenticates each compressed file before parsing, checks structure and
 numerical values, and uses bounded private build scratch for lookup. The current
 prepared input's exact hash and token count must match under a compatible
 numerical contract. The build tries local reuse first. Seed values enter private

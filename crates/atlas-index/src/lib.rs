@@ -14,7 +14,7 @@ mod discovery;
 mod embedding_seed;
 pub use embedding_seed::{
     EmbeddingSeed, EmbeddingSeedFile, EmbeddingSeedHeader, MAX_EMBEDDING_SEED_BYTES, SeedSelection,
-    export_embedding_seed,
+    export_embedding_seed, export_embedding_seed_delta,
 };
 mod embedding_values;
 mod native_allocation;

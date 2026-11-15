@@ -8,8 +8,8 @@ use std::{
 
 use atlas_domain::SearchProfileId;
 use atlas_runtime::{
-    EmbeddingSeedPin, LocalEmbeddingSeed, RuntimeSetupOptions, download_embedding_seed,
-    parse_embedding_seed_pins,
+    EmbeddingSeedDeltaPin, EmbeddingSeedPin, LocalEmbeddingSeed, RuntimeSetupOptions,
+    download_embedding_seed, parse_embedding_seed_pins,
 };
 use clap::Args;
 use serde_json::{Value, json};
@@ -51,7 +51,11 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
         return Err("refresh requires a clean tracked candidate checkout".into());
     }
     let pins = parse_embedding_seed_pins(&git(&["show", &format!("{baseline}:{PINS}")])?)?;
-    if pins.len() != PROFILES.len() || PROFILES.iter().any(|profile| !pins.contains_key(*profile)) {
+    if pins.profiles.len() != PROFILES.len()
+        || PROFILES
+            .iter()
+            .any(|profile| !pins.profiles.contains_key(*profile))
+    {
         return Err("the baseline ref must pin both supported profiles".into());
     }
     let revision_overrides = revision_overrides(&args.next_revision)?;
@@ -78,11 +82,19 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
     let mut files = Vec::new();
     for profile in PROFILES {
         let id = SearchProfileId::new(profile);
-        if !rebuild.contains(&id) {
-            files.push(
-                download_embedding_seed(id, &pins[profile], &downloads)
-                    .map_err(|error| format!("{profile}: {error}"))?,
-            );
+        if rebuild.contains(&id) {
+            continue;
+        }
+        let pins = &pins.profiles[profile];
+        files.push(
+            download_embedding_seed(id.clone(), &pins.base, &downloads)
+                .map_err(|error| format!("{profile}: {error}"))?,
+        );
+        if let Some(delta) = &pins.delta {
+            let mut file = download_embedding_seed(id, &delta.asset, &downloads)
+                .map_err(|error| format!("{profile} delta: {error}"))?;
+            file.base_sha256 = Some(delta.base_sha256.clone());
+            files.push(file);
         }
     }
     let producer = attempt.path().join("producer.sqlite");
@@ -95,33 +107,98 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
     require_profiles(&built)?;
     let mut replacements = BTreeMap::new();
     let mut proposed_pins = pins.clone();
+    let producer_index = producer_runtime
+        .open_index()
+        .map_err(|error| error.to_string())?;
     for profile in &built.profiles {
         let id = profile.profile_id.as_str();
+        let profile_pins = proposed_pins
+            .profiles
+            .get_mut(id)
+            .ok_or("unexpected refresh profile")?;
+        let roll_base = rebuild.contains(&profile.profile_id);
+
         if profile.inferred_inputs == 0 {
             if revision_overrides.contains_key(id) {
                 return Err(format!(
                     "{id} is already covered and needs no revision override"
                 ));
             }
+            if profile_pins.delta.is_some() {
+                let base = local_base(&files, id)?.open(attempt.path())?;
+                if base
+                    .count_uncovered(&producer_index)
+                    .map_err(|error| error.to_string())?
+                    == 0
+                {
+                    profile_pins.delta = None;
+                    files.retain(|entry| {
+                        entry.profile != profile.profile_id || entry.base_sha256.is_none()
+                    });
+                }
+            }
             continue;
         }
-        let version = next_revision(id, &pins[id].tag, &revision_overrides)?;
-        let filename = format!("{id}-seed-v{version}.atlas-seed.gz");
+
+        let base_sha256 = (!roll_base).then(|| profile_pins.base.file.sha256.clone());
+        let (tag_prefix, filename_prefix, prior_tag) = if roll_base {
+            (
+                format!("embedding-seed/{id}/v"),
+                format!("{id}-seed-v"),
+                Some(profile_pins.base.tag.as_str()),
+            )
+        } else {
+            (
+                format!("embedding-seed/{id}/delta/v"),
+                format!("{id}-seed-delta-v"),
+                profile_pins
+                    .delta
+                    .as_ref()
+                    .map(|delta| delta.asset.tag.as_str()),
+            )
+        };
+        let version = next_revision(id, &tag_prefix, prior_tag, &revision_overrides)?;
+        let filename = format!("{filename_prefix}{version}.atlas-seed.gz");
         let path = result.join(&filename);
-        let (file, header) = export_from(&producer_runtime, id, candidate.clone(), &path)?;
-        files.retain(|entry| entry.profile != profile.profile_id);
+        let base = if roll_base {
+            None
+        } else {
+            Some(local_base(&files, id)?.open(attempt.path())?)
+        };
+        let (file, header) = export_from(
+            &producer_runtime,
+            id,
+            candidate.clone(),
+            base.as_ref(),
+            &path,
+        )?;
+        files.retain(|entry| {
+            entry.profile != profile.profile_id || (!roll_base && entry.base_sha256.is_none())
+        });
         files.push(LocalEmbeddingSeed {
             profile: profile.profile_id.clone(),
             path,
             file: file.clone(),
+            base_sha256: base_sha256.clone(),
         });
         let pin = EmbeddingSeedPin {
-            tag: format!("embedding-seed/{id}/v{version}"),
+            tag: format!("{tag_prefix}{version}"),
             asset: filename,
             file,
         };
-        replacements.insert(id.to_owned(), json!({ "pin": &pin, "header": header }));
-        proposed_pins.insert(id.to_owned(), pin);
+        replacements.insert(
+            id.to_owned(),
+            json!({"pin": &pin, "base_sha256": &base_sha256, "header": header}),
+        );
+        if let Some(base_sha256) = base_sha256 {
+            profile_pins.delta = Some(EmbeddingSeedDeltaPin {
+                base_sha256,
+                asset: pin,
+            });
+        } else {
+            profile_pins.base = pin;
+            profile_pins.delta = None;
+        }
     }
 
     let proof = attempt.path().join("verification.sqlite");
@@ -134,9 +211,6 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
         }
     }
 
-    let producer_index = producer_runtime
-        .open_index()
-        .map_err(|error| error.to_string())?;
     let receipt = json!({
         "candidate": candidate,
         "baseline": baseline,
@@ -149,7 +223,7 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
         "replacements": replacements,
         "verification": verified.profiles,
     });
-    if !replacements.is_empty() {
+    if proposed_pins != pins {
         write_json(&result.join("proposed-pins.json"), &proposed_pins)?;
     }
     write_json(&result.join("receipt.json"), &receipt)?;
@@ -159,6 +233,16 @@ pub(super) fn run(args: RefreshArgs) -> Result<ExitCode, String> {
         json!({"result": result_path, "replacements": replacements})
     );
     Ok(ExitCode::SUCCESS)
+}
+
+fn local_base<'a>(
+    files: &'a [LocalEmbeddingSeed],
+    profile: &str,
+) -> Result<&'a LocalEmbeddingSeed, String> {
+    files
+        .iter()
+        .find(|entry| entry.profile.as_str() == profile && entry.base_sha256.is_none())
+        .ok_or_else(|| format!("missing local base for {profile}"))
 }
 
 fn require_profiles(build: &atlas_runtime::SetupBuildReport) -> Result<(), String> {
@@ -245,14 +329,18 @@ fn revision_overrides(values: &[String]) -> Result<BTreeMap<String, u32>, String
 
 fn next_revision(
     profile: &str,
-    tag: &str,
+    prefix: &str,
+    prior_tag: Option<&str>,
     overrides: &BTreeMap<String, u32>,
 ) -> Result<u32, String> {
-    let current = tag
-        .strip_prefix(&format!("embedding-seed/{profile}/v"))
-        .and_then(|version| version.parse::<u32>().ok())
-        .filter(|version| *version > 0)
-        .ok_or_else(|| format!("invalid baseline revision for {profile}: {tag}"))?;
+    let current = if let Some(tag) = prior_tag {
+        tag.strip_prefix(prefix)
+            .and_then(|version| version.parse::<u32>().ok())
+            .filter(|version| *version > 0)
+            .ok_or_else(|| format!("invalid baseline revision for {profile}: {tag}"))?
+    } else {
+        0
+    };
     let proposed = overrides
         .get(profile)
         .copied()

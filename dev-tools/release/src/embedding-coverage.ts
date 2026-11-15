@@ -18,11 +18,13 @@ export async function validateNightlyCoverage(
 ): Promise<{ archiveSha256: string; notice: string }> {
   const report = object(readJson(receipt));
   exactKeys(report, ['version', 'source_sha', 'tag', 'archive_sha256', 'pins', 'profiles']);
-  if (report.version !== 1 || report.tag !== tag || report.source_sha !== sourceSha) {
+  if (report.version !== 2 || report.tag !== tag || report.source_sha !== sourceSha) {
     throw new Error('Embedding coverage report refers to a different nightly');
   }
   const pins = object(report.pins);
-  exactKeys(pins, profiles);
+  exactKeys(pins, ['version', 'profiles']);
+  if (pins.version !== 2) throw new Error('Unsupported embedding seed pin manifest version');
+  exactKeys(object(pins.profiles), profiles);
   if (jsonText(pins) !== jsonText(readJson(path.join(root, 'crates/atlas-runtime/embedding-seeds.json')))) {
     throw new Error('Embedding coverage report pins differ from the candidate pins');
   }
@@ -48,9 +50,13 @@ export async function validateNightlyCoverage(
       }
     } else if (row.status === 'gap') {
       if (row.reason === 'missing_input') {
-        exactKeys(row, ['status', 'reason', 'first_hash']);
+        exactKeys(row, ['status', 'reason', 'first_hash', 'reused_inputs', 'missing_inputs']);
         if (typeof row.first_hash !== 'string' || !/^[0-9a-f]{64}$/.test(row.first_hash)) {
           throw new Error(`Invalid missing input hash for ${profile}`);
+        }
+        if (typeof row.reused_inputs !== 'number' || !Number.isSafeInteger(row.reused_inputs) || row.reused_inputs < 0
+            || typeof row.missing_inputs !== 'number' || !Number.isSafeInteger(row.missing_inputs) || row.missing_inputs <= 0) {
+          throw new Error(`Invalid embedding gap counts for ${profile}`);
         }
       } else if (row.reason === 'reviewed_model_transition') {
         exactKeys(row, ['status', 'reason']);

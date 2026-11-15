@@ -188,7 +188,7 @@ generation verifies exact record targets before emitting metadata. Reviewed
 family wrappers are explicit record mappings, including Golem Antimagic and
 Wind-Up. Record destinations use their ordinary prepared content.
 
-The current census reconciles 784 traits and 603 other metadata rows. Four rows are explicit exclusions: shared SF2e Hover/No Breath and
+The current census reconciles 787 traits and 603 other metadata rows. Four rows are explicit exclusions: shared SF2e Hover/No Breath and
 the runtime/default vision/hearing labels. Label-only values keep their exact
 filter tokens without acquiring invented definitions. Deity domain identifiers
 follow the authored lowercase catalog keys, including `airapocryphal`; the runtime
@@ -451,7 +451,7 @@ npm --prefix dev-tools/source-contracts run generate -- --source scratch/pf2e --
 set -o pipefail
 node dev-tools/source-contracts/dist/src/cli/sample-items.js --source scratch/pf2e | \
   target/debug/examples/item_generation_probe \
-    .cache/source-contracts/28d9d156f252d084371d994dc359509b49eadf18/extraction/generation-input.json \
+    .cache/source-contracts/52dfeee703b887237f5e454747bcae45b136f9af/extraction/generation-input.json \
     > scratch/item-corpus-report.json
 ```
 
@@ -542,7 +542,7 @@ npm --prefix dev-tools/source-contracts run extract -- \
   --source scratch/pf2e --out scratch/source-extraction
 ```
 
-Use the dependencies appropriate to the source version being inspected. The lockfile here pins TypeScript 5.9.3 and the declaration dependencies used to investigate PF2e 8.6.1 at `28d9d156f252d084371d994dc359509b49eadf18`. Do not replace an existing upstream dependency installation with a symlink. Inspect dependencies when changing the source pin.
+Use the dependencies appropriate to the source version being inspected. The lockfile here pins TypeScript 6.0.3 and the declaration dependencies used for PF2e 8.7.0 at `52dfeee703b887237f5e454747bcae45b136f9af`. Do not replace an existing upstream dependency installation with a symlink. Inspect dependencies when changing the source pin.
 
 Output files are `type-graph.json`, `trait-catalog.json` and `summary.json`. Output belongs outside the source input directories. The command prints the summary. `--strict` exits 1 when either extraction is incomplete, after writing the available discovery output and diagnostics. Without it, partial discovery exits 0 with `complete: false`. Invalid arguments, unreadable required inputs and fatal errors exit 1.
 

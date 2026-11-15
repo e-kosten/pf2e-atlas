@@ -39,11 +39,11 @@ test('fresh generation input stores nodes once and resolves every reference', ()
   assert.throws(()=>validateInput(interleaved),/group each module/);
 });
 
-test('reference metadata reconciles the full census without changing the checked DTO contract', async () => {
+test('reference metadata reconciles the full census for the checked DTO contract', async () => {
   const catalog = input.referenceCatalog!;
   assert.ok(catalog);
   assert.equal(catalog.definitions.length, 603);
-  assert.equal(input.traitDefinitions!.length, 784);
+  assert.equal(input.traitDefinitions!.length, 787);
   const included = catalog.definitions.filter(definition => !definition.excluded);
   const rows = (namespace: string) => included.filter(definition => definition.namespace === namespace);
   assert.equal(rows('language').length, 119);

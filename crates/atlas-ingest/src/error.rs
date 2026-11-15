@@ -12,6 +12,8 @@ pub struct EmbeddingCoverageGap {
 pub enum EmbeddingCoverageGapKind {
     MissingInput {
         first_hash: String,
+        reused_inputs: usize,
+        missing_inputs: usize,
     },
     IncompatibleModel {
         previous: Box<atlas_index::SourceSearchProfileIdentity>,

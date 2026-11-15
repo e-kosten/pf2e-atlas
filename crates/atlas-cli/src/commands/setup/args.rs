@@ -129,6 +129,8 @@ pub(crate) struct SetupRunOptions {
     pub(crate) build_embeddings_locally: bool,
     #[arg(long, hide = true, requires = "json", conflicts_with_all = ["check", "build_embeddings_locally", "no_embeddings"])]
     pub(crate) audit_embedding_coverage: bool,
+    #[arg(long, hide = true, requires = "json", conflicts_with_all = ["check", "build_embeddings_locally", "no_embeddings", "audit_embedding_coverage"])]
+    pub(crate) certify_embedding_coverage: bool,
     #[arg(long="search-profile",value_parser=crate::cli::args::parse_search_profile,conflicts_with="no_embeddings",help="Add bge-base or embeddinggemma; repeat for both; omission preserves configured profiles (fresh default: bge-base)")]
     pub(crate) search_profiles: Vec<SearchProfileId>,
     #[arg(
@@ -137,6 +139,12 @@ pub(crate) struct SetupRunOptions {
         help = "Embedding generation batch size for full setup"
     )]
     pub(crate) embedding_batch_size: usize,
+}
+
+impl SetupRunOptions {
+    pub(crate) fn checks_embedding_coverage(&self) -> bool {
+        self.audit_embedding_coverage || self.certify_embedding_coverage
+    }
 }
 
 #[derive(Debug, Args)]

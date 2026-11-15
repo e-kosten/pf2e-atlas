@@ -17,9 +17,17 @@ const archiveBytes = 'checked CLI archive';
 const archiveDigest = createHash('sha256').update(archiveBytes).digest('hex');
 const dmgBytes = 'checked DMG';
 const dmgAsset = { id: 456, name: macosDmg, digest: `sha256:${createHash('sha256').update(dmgBytes).digest('hex')}` };
-const pins = Object.fromEntries(['bge-base', 'embeddinggemma'].map((profile) => [profile, {
-  tag: `embedding-seed/${profile}/v1`, asset: `${profile}.gz`, file: { sha256: 'b'.repeat(64), bytes: 1 },
-}]));
+const pins = { version: 2, profiles: {
+  'bge-base': {
+    base: { tag: 'embedding-seed/bge-base/v1', asset: 'bge-base.gz', file: { sha256: 'b'.repeat(64), bytes: 1 } },
+    delta: { base_sha256: 'b'.repeat(64), asset: {
+      tag: 'embedding-seed/bge-base/delta/v1', asset: 'bge-base-delta.gz', file: { sha256: 'd'.repeat(64), bytes: 1 },
+    } },
+  },
+  embeddinggemma: {
+    base: { tag: 'embedding-seed/embeddinggemma/v1', asset: 'embeddinggemma.gz', file: { sha256: 'e'.repeat(64), bytes: 1 } },
+  },
+} };
 function fixture(t: TestContext) {
   const root = mkdtempSync(path.join(tmpdir(), 'atlas-nightly-test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -81,9 +89,9 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
   const coverage = path.join(root, 'embedding-coverage.json');
   const covered = { status: 'covered', inferred_inputs: 0, reused_inputs: 3 };
   writeFileSync(coverage, JSON.stringify({
-    version: 1, source_sha: sha, tag, archive_sha256: options.badCoverage ? '0'.repeat(64) : archiveDigest,
+    version: 2, source_sha: sha, tag, archive_sha256: options.badCoverage ? '0'.repeat(64) : archiveDigest,
     pins, profiles: { 'bge-base': covered, embeddinggemma: options.gap
-      ? { status: 'gap', reason: 'missing_input', first_hash: 'a'.repeat(64) } : covered },
+      ? { status: 'gap', reason: 'missing_input', first_hash: 'a'.repeat(64), reused_inputs: 100, missing_inputs: 1 } : covered },
   }));
   const calls: string[][] = [];
   const releases = [...options.existing ?? []] as { tag_name: string; target_commitish?: string; draft?: boolean; prerelease?: boolean; assets?: { id?: number; name?: string }[] }[];
