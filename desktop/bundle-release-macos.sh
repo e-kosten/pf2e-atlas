@@ -39,7 +39,7 @@ node "$desktop/prepare-bootstrap.mjs"
 unset CARGO_BUILD_TARGET
 export CARGO_TARGET_DIR="$root/target"
 cd "$desktop"
-./node_modules/.bin/tauri build --target aarch64-apple-darwin --bundles app \
+PATH="$desktop/macos-tools:$PATH" ./node_modules/.bin/tauri build --target aarch64-apple-darwin --bundles app \
     --config "$work/config.json" -- --locked
 
 # Create the drag-to-Applications layout without needing a Finder session.
