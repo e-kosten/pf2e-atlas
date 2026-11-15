@@ -60,16 +60,10 @@ pub(super) fn bundle_copy_links() -> Result<(), Box<dyn Error>> {
             if !keys.insert(record.key.clone()) {
                 return Err(super::invalid(&path, format!("repeated key {}", record.key)).into());
             }
-            if record.name.trim().is_empty()
-                || record.sha256.len() != 64
-                || !record
-                    .sha256
-                    .bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-            {
+            if record.name.trim().is_empty() {
                 return Err(super::invalid(
                     &path,
-                    format!("expected exact name and SHA-256 for {}", record.key),
+                    format!("expected exact name for {}", record.key),
                 )
                 .into());
             }

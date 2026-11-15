@@ -32,7 +32,6 @@ fn matches(expected: &CreatureCopyRecord, summary: &SourceRecordSummary, remaste
             .as_value()
             .is_some_and(|kind| kind == "npc")
         && summary.publication_remaster.as_value() == Some(&remaster)
-        && summary.content_hash == expected.sha256
 }
 
 impl AtlasRetrievalService {
@@ -63,27 +62,28 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn copy_link_requires_both_exact_reviewed_source_hashes() {
+    fn copy_link_requires_both_exact_reviewed_record_names() {
         let declaration = &catalog().unwrap()[0];
         let copy = &declaration.copies[0];
         let canonical = &declaration.canonical;
-        let fixture = |entry: &CreatureCopyRecord, drift: bool| {
-            let mut input = record(
+        let fixture = |entry: &CreatureCopyRecord, renamed: bool| {
+            let name = if renamed {
+                "Renamed actor"
+            } else {
+                &entry.name
+            };
+            record(
                 entry.key.pack().as_str(),
                 "Actor",
                 json!({
                     "_id": entry.key.id().as_str(),
-                    "name": entry.name,
+                    "name": name,
                     "type": "npc",
-                    "system": {"details": {"publication": {
+                    "system": {"details": {"publicNotes": "<p>Updated source text.</p>", "publication": {
                         "title": "Fixture", "remaster": declaration.remaster, "license": "OGL"
                     }}}
                 }),
-            );
-            if !drift {
-                input.content_hash.clone_from(&entry.sha256);
-            }
-            input
+            )
         };
         for (missing_canonical, changed_copy, changed_canonical) in [
             (false, false, false),

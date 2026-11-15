@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct CreatureCopyRecord {
     pub key: RecordKey,
     pub name: String,
-    pub sha256: String,
 }
 
 #[derive(Deserialize, Serialize)]

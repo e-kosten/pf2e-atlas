@@ -286,9 +286,9 @@ encounter-specific rules, record the relationship in the
 [creature copy catalog](../../crates/atlas-search/families/creature-copy-links).
 Compare the complete source actors and read the copy's published encounter and
 scaling instructions. Follow [Eloko's declaration](../../crates/atlas-search/families/creature-copy-links/eloko.toml)
-for the exact keys, titles, edition, raw SHA-256 hashes and source note.
+for the exact keys, titles, edition, and source note.
 
 Atlas checks those facts against the indexed source summaries when opening the
-copy. If either record changes or disappears, the link is omitted. Review the
-source evidence again before refreshing a hash. Both records retain their exact
-identity in discovery and saved references.
+copy. If either record is renamed or disappears, Atlas omits the link. Source
+text updates can keep the link as long as the declared identity still matches.
+Both records retain their exact identity in discovery and saved references.
