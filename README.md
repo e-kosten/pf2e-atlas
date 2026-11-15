@@ -13,16 +13,25 @@ encounters. Atlas also includes a command-line interface and a bundled skill tha
 lets AI agents search and reference PF2e content while helping you prepare.
 
 Reference content comes from the [Foundry PF2e project](https://github.com/foundryvtt/pf2e).
-The supported reference release is **8.6.1**; setup downloads the pinned source for you.
+The supported reference release is **8.7.0**; setup downloads the pinned source for you.
 
 ## Quick Start
 
 **1. Install Atlas.** On macOS or Linux:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh | sh
+(
+  set -eu
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' EXIT
+  curl --proto '=https' --tlsv1.2 -LsSf \
+    https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh -o "$installer"
+  test -s "$installer"
+  sh "$installer"
+)
 ```
+
+Before the first stable release, use the [nightly installer](docs/installation.md#nightly-builds).
 
 On Windows, use PowerShell:
 

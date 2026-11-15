@@ -35,6 +35,9 @@ try {
     if (-not $IsWindows) {
       @'
 #!/bin/sh
+if [ '__VARIANT__' = rollback ]; then
+  case "$0" in */extract/*) ;; *) exit 7 ;; esac
+fi
 case "$1" in
   --version) printf 'atlas 9.9.9\n' ;;
   build-info)
@@ -42,7 +45,7 @@ case "$1" in
     printf '{"status":"ok","data":{"version":"9.9.9","variant":"__VARIANT__"}}\n' ;;
   *) exit 2 ;;
 esac
-'@.Replace('__VARIANT__', $Variant) | Set-Content -Path (Join-Path $root "atlas.exe") -NoNewline
+'@.Replace('__VARIANT__', $Variant).Replace('variant":"rollback"', 'variant":"full"') | Set-Content -Path (Join-Path $root "atlas.exe") -NoNewline
       chmod +x (Join-Path $root "atlas.exe")
     } else {
     if (-not (Test-Path (Join-Path $appDir "bin"))) {
@@ -58,11 +61,14 @@ esac
 </Project>
 '@ | Set-Content -Path (Join-Path $appDir "atlas-stub.csproj")
       @'
+if ("__VARIANT__" == "rollback" && !AppContext.BaseDirectory.Contains(@"\extract\", StringComparison.OrdinalIgnoreCase)) {
+    Environment.Exit(7);
+}
 if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("atlas 9.9.9"); }
 else if (args.Length > 0 && args[0] == "build-info" && "__VARIANT__" != "legacy") {
   Console.WriteLine("{\"status\":\"ok\",\"data\":{\"version\":\"9.9.9\",\"variant\":\"__VARIANT__\"}}");
 } else { Environment.Exit(2); }
-'@.Replace('__VARIANT__', $Variant) | Set-Content -Path (Join-Path $appDir "Program.cs")
+'@.Replace('__VARIANT__', $Variant).Replace('variant\":\"rollback\"', 'variant\":\"full\"') | Set-Content -Path (Join-Path $appDir "Program.cs")
       dotnet publish $appDir --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true --output (Join-Path $appDir "out") | Out-Null
     }
     Copy-Item (Join-Path $appDir "out/atlas-stub.exe") (Join-Path $root "atlas.exe")
@@ -255,27 +261,31 @@ function Expand-Archive {
   $rollbackDist = Join-Path $tmp "rollback-dist"
   Copy-Item $dist $rollbackDist -Recurse
   $archive = "atlas-cli-x86_64-pc-windows-msvc.zip"
-  $badRoot = Join-Path $tmp "bad-atlas"
-  New-Item -ItemType Directory -Force -Path $badRoot | Out-Null
-  Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $badRoot "LICENSE")
-  Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $badRoot "README.md")
-  Copy-Item $notices (Join-Path $badRoot "THIRD-PARTY-NOTICES.md")
-  "not an executable" | Set-Content -Path (Join-Path $badRoot "atlas.exe")
-  Compress-Archive -Path $badRoot -DestinationPath (Join-Path $rollbackDist $archive) -Force
+  New-WindowsArchive "x86_64-pc-windows-msvc" rollback $rollbackDist
   node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $rollbackDist
   $env:ATLAS_FAKE_RELEASE_DIR = $rollbackDist
-  $failed = $false
-  try {
-    pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
-  } catch {
-    $failed = $true
+  $freshDir = Join-Path $tmp "fresh-rollback"
+  $previousHash = (Get-FileHash (Join-Path $installDir "atlas.exe")).Hash
+  foreach ($destination in @($installDir, $freshDir)) {
+    $env:ATLAS_TEST_INSTALL_DIR = $destination
+    $previousNativePreference = $PSNativeCommandUseErrorActionPreference
+    $PSNativeCommandUseErrorActionPreference = $false
+    try {
+      $output = pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") 2>&1 | Out-String
+      if ($LASTEXITCODE -ne 1 -or $output -notmatch 'Manual install fallback' -or
+          $output -notmatch 'installed atlas\.exe failed its' -or $output -match 'Installed atlas to') {
+        throw "PowerShell installer did not report post-move validation failure: $output"
+      }
+    } finally {
+      $PSNativeCommandUseErrorActionPreference = $previousNativePreference
+    }
   }
-  if (-not $failed) {
-    throw "PowerShell installer accepted a binary that failed version validation"
-  }
+  $env:ATLAS_TEST_INSTALL_DIR = $installDir
   $installedVersion = & (Join-Path $installDir "atlas.exe") --version
-  if ($installedVersion.Trim() -ne "atlas 9.9.9") {
-    throw "PowerShell installer did not restore previous binary after validation failure"
+  if ($installedVersion.Trim() -ne "atlas 9.9.9" -or
+      (Get-FileHash (Join-Path $installDir "atlas.exe")).Hash -ne $previousHash -or
+      (Test-Path (Join-Path $freshDir "atlas.exe"))) {
+    throw "PowerShell installer left a failed executable after validation failure"
   }
 
   $badDist = Join-Path $tmp "bad-dist"

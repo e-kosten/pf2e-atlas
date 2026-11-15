@@ -134,7 +134,7 @@ IFS=$old_ifs
 
 existing="none"
 existing_version="unknown"
-if [ -e "$install_path" ]; then
+if [ -e "$install_path" ] || [ -L "$install_path" ]; then
   existing="at-destination"
   existing_version=$("$install_path" --version 2>/dev/null || printf 'unknown')
 fi
@@ -213,7 +213,9 @@ mkdir -p "$INSTALL_DIR" || die "could not create install dir: $INSTALL_DIR"
 [ -w "$INSTALL_DIR" ] || die "install dir is not writable: $INSTALL_DIR"
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-install.XXXXXX")
+tmp_dest=""
 cleanup() {
+  [ -z "$tmp_dest" ] || rm -f "$tmp_dest"
   rm -rf "$tmp"
 }
 trap cleanup EXIT INT TERM
@@ -329,7 +331,7 @@ classify_change() {
   fi
 }
 
-if [ -e "$install_path" ]; then
+if [ -e "$install_path" ] || [ -L "$install_path" ]; then
   change=$(classify_change "$existing_version" "$new_version")
   printf '  action:      replace existing atlas (%s)\n' "$change"
   if [ "$YES" != "1" ]; then
@@ -349,14 +351,18 @@ tmp_dest="$INSTALL_DIR/.atlas.install.$$"
 backup=""
 cp "$new_binary" "$tmp_dest" || die "failed to stage atlas binary"
 chmod +x "$tmp_dest"
-if [ -e "$install_path" ]; then
+if [ -e "$install_path" ] || [ -L "$install_path" ]; then
   backup="$INSTALL_DIR/.atlas.backup.$$"
-  cp "$install_path" "$backup" || die "failed to back up existing atlas"
+  cp -P "$install_path" "$backup" || die "failed to back up existing atlas"
 fi
 if mv "$tmp_dest" "$install_path"; then
   if ! "$install_path" --version >/dev/null 2>&1; then
-    [ -n "$backup" ] && mv "$backup" "$install_path"
-    die "installed atlas failed version check; restored previous binary if one existed"
+    if [ -n "$backup" ]; then
+      mv -f "$backup" "$install_path" || die "could not restore the previous command; backup: $backup"
+      die "installed atlas failed its version check; restored the previous command"
+    fi
+    rm -f "$install_path" || die "could not remove the failed command: $install_path"
+    die "installed atlas failed its version check; removed the failed command"
   fi
 else
   [ -n "$backup" ] && rm -f "$backup"

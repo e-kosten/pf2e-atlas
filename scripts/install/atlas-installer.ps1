@@ -15,7 +15,6 @@ $Repo = if ($env:ATLAS_REPO) { $env:ATLAS_REPO } else { "e-kosten/pf2e-atlas" }
 if ($env:ATLAS_YES -eq "1") { $Yes = $true }
 
 function Fail($Message) {
-  Write-Error $Message
   Write-Host ""
   Write-Host "Manual install fallback:"
   Write-Host "  1. Open https://github.com/$Repo/releases"
@@ -33,7 +32,7 @@ function Fail($Message) {
     Write-Host "  npm --prefix web/atlas-ui run build"
     Write-Host "  cargo install --path crates/atlas-cli --locked"
   }
-  exit 1
+  Write-Error $Message -ErrorAction Stop
 }
 
 if ($WithoutWeb -and $WithWeb) { Fail "-WithWeb and -WithoutWeb cannot be combined" }
@@ -217,14 +216,27 @@ try {
     $backup = Join-Path $InstallDir ".atlas.backup.$PID.exe"
     Copy-Item $installPath $backup -Force
   }
+  $placed = $false
   try {
     Move-Item $tmpDest $installPath -Force
+    $placed = $true
     & $installPath --version | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "installed atlas.exe failed its version check" }
   } catch {
-    if ($backup -and (Test-Path $backup)) { Move-Item $backup $installPath -Force }
-    Fail "failed to replace or validate atlas.exe; close running atlas processes and rerun"
+    $failure = $_
+    try {
+      if ($placed -and $backup) { Move-Item $backup $installPath -Force }
+      elseif ($placed) { Remove-Item -LiteralPath $installPath -Force }
+      elseif ($backup) { Remove-Item -LiteralPath $backup -Force }
+    } catch {
+      $recovery = if ($backup -and (Test-Path $backup)) { " Backup: $backup." } else { "" }
+      Fail "failed to recover after an installation error: $($_.Exception.Message).$recovery"
+    }
+    Fail "failed to replace or validate atlas.exe: $($failure.Exception.Message)"
+  } finally {
+    Remove-Item -LiteralPath $tmpDest -Force -ErrorAction SilentlyContinue
   }
-  if ($backup -and (Test-Path $backup)) { Remove-Item $backup -Force }
+  if ($backup -and (Test-Path $backup)) { Remove-Item -LiteralPath $backup -Force }
 } finally {
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
 }
