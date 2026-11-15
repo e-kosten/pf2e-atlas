@@ -25,6 +25,7 @@ import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
 import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
+  CreatureLinkPlacementView,
   NamedCreatureLinksView,
   RecordTitleLinkView,
   PreparedContentFieldView,
@@ -167,10 +168,12 @@ function RecordIdentityLinks({
   label,
   records,
   onReference,
+  contextFor,
 }: {
   label: string;
   records: RecordTitleLinkView[];
   onReference?: RecordReferenceHandler;
+  contextFor?: (recordKey: string) => string | undefined;
 }) {
   return (
     <p className="record-reference__family">
@@ -187,7 +190,9 @@ function RecordIdentityLinks({
               }
             }}
           >
-            {record.title}
+            {[record.title, contextFor?.(record.record_key)]
+              .filter(Boolean)
+              .join(" · ")}
           </AtlasLink>
         </Fragment>
       ))}
@@ -195,10 +200,45 @@ function RecordIdentityLinks({
   );
 }
 
+export function NamedCreatureLinkRows({
+  links,
+  include,
+  onReference,
+  contextFor,
+}: {
+  links?: NamedCreatureLinksView;
+  include: (recordKey: string) => boolean;
+  onReference?: RecordReferenceHandler;
+  contextFor?: (recordKey: string) => string | undefined;
+}) {
+  const base = links?.base;
+  const named = links?.named.filter((record) => include(record.record_key)) ?? [];
+  return (
+    <>
+      {base && include(base.record_key) && (
+        <RecordIdentityLinks
+          label="Base creature"
+          records={[base]}
+          onReference={onReference}
+        />
+      )}
+      {named.length > 0 && (
+        <RecordIdentityLinks
+          label="Named creatures"
+          records={named}
+          onReference={onReference}
+          contextFor={contextFor}
+        />
+      )}
+    </>
+  );
+}
+
 export function RecordIdentity({
   identity,
   equipmentFamily,
   creatureFamily,
+  creatureLinkPlacement,
   canonicalRecord,
   namedCreatureLinks,
   onIdentityReference,
@@ -222,6 +262,7 @@ export function RecordIdentity({
   identity?: RecordSummaryView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
+  creatureLinkPlacement?: CreatureLinkPlacementView;
   canonicalRecord?: RecordTitleLinkView;
   namedCreatureLinks?: NamedCreatureLinksView;
   onIdentityReference?: RecordReferenceHandler;
@@ -285,7 +326,8 @@ export function RecordIdentity({
       }
       attribution={
         <>
-          {(equipmentFamily || creatureFamily) && (
+          {(equipmentFamily ||
+            (creatureFamily && !creatureLinkPlacement?.hide_family)) && (
             <p className="record-reference__family">
               Family <span aria-hidden="true">·</span>{" "}
               <AtlasLink
@@ -307,20 +349,11 @@ export function RecordIdentity({
               onReference={onIdentityReference}
             />
           )}
-          {namedCreatureLinks?.base && (
-            <RecordIdentityLinks
-              label="Base creature"
-              records={[namedCreatureLinks.base]}
-              onReference={onIdentityReference}
-            />
-          )}
-          {namedCreatureLinks && namedCreatureLinks.named.length > 0 && (
-            <RecordIdentityLinks
-              label="Named creatures"
-              records={namedCreatureLinks.named}
-              onReference={onIdentityReference}
-            />
-          )}
+          <NamedCreatureLinkRows
+            links={namedCreatureLinks}
+            include={(key) => !creatureLinkPlacement?.version_record_keys.includes(key)}
+            onReference={onIdentityReference}
+          />
           {scenario?.scenario_context && (
             <p className="record-reference__scenario">
               {[...scenario.qualifiers, scenario.scenario_context].join(" · ")}
@@ -374,6 +407,7 @@ export function RecordPresentationIdentity({
   presentation,
   equipmentFamily,
   creatureFamily,
+  creatureLinkPlacement,
   canonicalRecord,
   namedCreatureLinks,
   onIdentityReference,
@@ -393,6 +427,7 @@ export function RecordPresentationIdentity({
   presentation?: RecordPresentationView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
+  creatureLinkPlacement?: CreatureLinkPlacementView;
   canonicalRecord?: RecordTitleLinkView;
   namedCreatureLinks?: NamedCreatureLinksView;
   onIdentityReference?: RecordReferenceHandler;
@@ -454,6 +489,7 @@ export function RecordPresentationIdentity({
       identity={presentation?.identity}
       equipmentFamily={equipmentFamily}
       creatureFamily={creatureFamily}
+      creatureLinkPlacement={creatureLinkPlacement}
       canonicalRecord={canonicalRecord}
       namedCreatureLinks={namedCreatureLinks}
       onIdentityReference={onIdentityReference}

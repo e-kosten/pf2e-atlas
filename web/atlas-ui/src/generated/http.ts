@@ -2092,6 +2092,11 @@ export interface CreatureFamilyView {
   versions: RecordSummaryView[];
 }
 
+export interface CreatureLinkPlacementView {
+  hide_family: boolean;
+  version_record_keys: string[];
+}
+
 export interface CreatureOverrideView {
   adjustment: EncounterParticipantVariantView;
   record_key: string;
@@ -4743,6 +4748,7 @@ export interface RecordDetailView {
   artifact_generation: string;
   canonical_record?: RecordTitleLinkView;
   creature_family?: CreatureFamilyView;
+  creature_link_placement?: CreatureLinkPlacementView;
   creature_overrides?: CreatureOverrideView[];
   /** Default adjustment for adding this root creature to an encounter. */
   encounter_adjustment?: EncounterParticipantVariantView;

@@ -15,6 +15,7 @@ pub use crate::creature_catalog::CreatureAdjustment;
 pub struct CreatureFamilyRecords {
     pub id: &'static str,
     pub name: &'static str,
+    pub declared_member_count: usize,
     pub members: Vec<CreatureFamilyRecord>,
     pub groupings: Vec<FamilyGrouping>,
     pub all_variants_by_default: bool,
@@ -316,6 +317,7 @@ impl AtlasRetrievalService {
         Ok(Some(CreatureFamilyRecords {
             id,
             name: &family.name,
+            declared_member_count: family.members.len(),
             members,
             groupings,
             all_variants_by_default: family.all_variants_by_default,

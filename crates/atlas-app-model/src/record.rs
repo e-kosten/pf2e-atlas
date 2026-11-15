@@ -209,6 +209,13 @@ pub struct NamedCreatureLinksView {
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreatureLinkPlacementView {
+    pub hide_family: bool,
+    pub version_record_keys: Vec<String>,
+}
+
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecordDetailView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
@@ -216,6 +223,9 @@ pub struct RecordDetailView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub named_creature_links: Option<NamedCreatureLinksView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "openapi", schema(nullable = false))]
+    pub creature_link_placement: Option<CreatureLinkPlacementView>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "openapi", schema(nullable = false))]
     pub creature_family: Option<CreatureFamilyView>,

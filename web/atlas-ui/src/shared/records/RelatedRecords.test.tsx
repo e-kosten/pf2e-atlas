@@ -885,6 +885,28 @@ it.each([
   expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
 });
 
+it("shows a named creature base in Versions before related records load", async () => {
+  api.getRelatedRecords.mockReturnValue(new Promise(() => {}));
+  const detail = detailFixture("actors:carvey", "Carvey");
+  detail.named_creature_links = {
+    base: { record_key: "actors:golem", title: "Flesh Golem" },
+    named: [],
+  };
+  detail.creature_link_placement = {
+    hide_family: false,
+    version_record_keys: ["actors:golem"],
+  };
+  const onReference = renderRelated(detail);
+  openRelated();
+  expect(
+    await screen.findByRole("tab", { name: "Versions", selected: true }),
+  ).toBeVisible();
+  const link = screen.getByRole("link", { name: "Flesh Golem" });
+  expect(link).toHaveAttribute("href", "/records/actors:golem");
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith("actors:golem", link);
+});
+
 it("lands on the first Explore tab when Versions is available and preserves an explicit tab", async () => {
   let resolve!: (value: ReturnType<typeof relatedFixture>) => void;
   api.getRelatedRecords.mockReturnValue(

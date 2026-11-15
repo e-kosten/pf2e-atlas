@@ -171,6 +171,7 @@ export function RecordReferenceDrawer({
               presentation={detail?.presentation}
               equipmentFamily={detail?.equipment_family}
               creatureFamily={detail?.creature_family}
+              creatureLinkPlacement={detail?.creature_link_placement}
               canonicalRecord={detail?.canonical_record}
               namedCreatureLinks={detail?.named_creature_links}
               onIdentityReference={onReference}

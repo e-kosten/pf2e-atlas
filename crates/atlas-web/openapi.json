@@ -3579,6 +3579,24 @@
         ],
         "type": "object"
       },
+      "CreatureLinkPlacementView": {
+        "properties": {
+          "hide_family": {
+            "type": "boolean"
+          },
+          "version_record_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "hide_family",
+          "version_record_keys"
+        ],
+        "type": "object"
+      },
       "CreatureOverrideView": {
         "properties": {
           "adjustment": {
@@ -13947,6 +13965,9 @@
           },
           "creature_family": {
             "$ref": "#/components/schemas/CreatureFamilyView"
+          },
+          "creature_link_placement": {
+            "$ref": "#/components/schemas/CreatureLinkPlacementView"
           },
           "creature_overrides": {
             "items": {

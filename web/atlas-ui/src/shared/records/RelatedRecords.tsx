@@ -50,6 +50,7 @@ import {
   type RemasterReferencePart,
 } from "./RemasterInformation";
 import { RecordDetailPane } from "./RecordDetailPane";
+import { NamedCreatureLinkRows } from "./RecordPresentation";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { relationshipSearchRoute } from "./relationshipSearch";
@@ -100,7 +101,10 @@ export function RelatedRecords(props: ExploreProps) {
   const creatureVersions =
     !namedCreature &&
     creatureFamily?.versions.some((record) => record.record_key !== currentCreature);
-  const versions = creatureVersions || related.data?.show_versions;
+  const versions =
+    creatureVersions ||
+    Boolean(props.detail.creature_link_placement?.version_record_keys.length) ||
+    related.data?.show_versions;
   useEffect(() => {
     if (
       mode === "explore" &&
@@ -512,6 +516,10 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
     ? []
     : (creatureFamily?.versions.filter((record) => record.record_key !== current) ??
       []);
+  const versionLinkKeys = detail.creature_link_placement?.version_record_keys ?? [];
+  const namedVersionLinks = (detail.named_creature_links?.named ?? []).filter((link) =>
+    versionLinkKeys.includes(link.record_key),
+  );
 
   const verified = variants?.kind === "content" && variants.content.verified;
   const variantLabels = new Map(
@@ -568,6 +576,29 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
         onReload={() => void related.refetch()}
         referenceActions={compareReferences}
         showExplanations={false}
+      />
+      <NamedCreatureLinkRows
+        links={detail.named_creature_links}
+        include={(key) => versionLinkKeys.includes(key)}
+        onReference={onReference}
+        contextFor={(key) => {
+          const link = namedVersionLinks.find((entry) => entry.record_key === key);
+          if (
+            !link ||
+            !namedVersionLinks.some(
+              (entry) => entry !== link && entry.title === link.title,
+            )
+          )
+            return undefined;
+          const record = creatureFamily?.named_creatures.find(
+            (entry) => entry.record_key === key,
+          );
+          return (
+            record?.creature_display?.scenario_context ??
+            record?.level_label ??
+            undefined
+          );
+        }}
       />
       {creatureVersions.length > 0 && detail.creature_family?.version_context && (
         <>
