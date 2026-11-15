@@ -111,6 +111,8 @@ impl StagedSetup {
             .permission("allow-desktop-appearance")
             .permission("allow-desktop-copy-link")
             .permission("allow-desktop-copy-availability");
+        #[cfg(target_os = "macos")]
+        let permission = permission.permission("allow-desktop-native-tab-title");
         #[cfg(windows)]
         let permission = permission
             .permission("allow-desktop-tabs-state")
@@ -211,6 +213,7 @@ fn deliver(window: &WebviewWindow, document: &Document, state: &SetupState) {
         "referenceLoading": state.reference_loading, "openRequest": document.open_request,
         "openTerminal": document.open_terminal,
         "terminalLinking": cfg!(target_os = "macos"),
+        "nativeTabTitles": cfg!(target_os = "macos"),
     });
     // Check the current document again inside the queued WebView callback.
     let origin = serde_json::json!(document.origin.ascii_serialization());

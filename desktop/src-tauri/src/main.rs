@@ -953,6 +953,8 @@ fn main() {
             #[cfg(debug_assertions)]
             startup_trace::desktop_startup_trace,
             tab_links::desktop_tab_link,
+            #[cfg(target_os = "macos")]
+            window_host::desktop_native_tab_title,
             #[cfg(windows)]
             windows_tabs::desktop_tabs_state,
             #[cfg(windows)]
