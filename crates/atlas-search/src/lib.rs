@@ -2,6 +2,8 @@
 mod bestiary_glossary;
 mod configurable_similarity;
 mod creature_catalog;
+mod creature_copy_catalog;
+mod creature_copy_links;
 mod family_axes;
 #[path = "family_axes/projection.rs"]
 mod family_axis_projection;

@@ -1131,6 +1131,21 @@
         ],
         "type": "object"
       },
+      "CanonicalRecordView": {
+        "properties": {
+          "record_key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_key",
+          "title"
+        ],
+        "type": "object"
+      },
       "CastingEntryContextView": {
         "properties": {
           "parent": {
@@ -13934,6 +13949,9 @@
         "properties": {
           "artifact_generation": {
             "type": "string"
+          },
+          "canonical_record": {
+            "$ref": "#/components/schemas/CanonicalRecordView"
           },
           "creature_family": {
             "$ref": "#/components/schemas/CreatureFamilyView"

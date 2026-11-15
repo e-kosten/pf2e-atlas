@@ -4,15 +4,12 @@
   --ink: #302018;
   --quiet: var(--opening-muted);
   --line: #d5c5ae;
-  --accent: var(--opening-accent);
-  --on-accent: #fff8ec;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --ink: #f6ead5;
     --line: #554333;
-    --on-accent: #301413;
   }
 }
 * {
@@ -83,11 +80,31 @@ input {
   font-size: 13px;
 }
 button {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--setup-primary);
+  color: var(--setup-on-primary);
   border: 1px solid transparent;
 }
-button.quiet,
+button:enabled:hover {
+  background: var(--setup-primary-hover);
+}
+button:enabled:active {
+  background: var(--setup-primary-active);
+}
+button.quiet {
+  background: var(--setup-secondary-bg);
+  color: var(--setup-secondary-text);
+  border-color: var(--setup-secondary-border);
+}
+button.quiet:enabled:is(:hover, :active) {
+  color: var(--setup-interaction-text);
+  border-color: var(--setup-interaction-border);
+}
+button.quiet:enabled:hover {
+  background: var(--setup-interaction-hover);
+}
+button.quiet:enabled:active {
+  background: var(--setup-interaction-active);
+}
 input {
   background: transparent;
   color: var(--ink);
@@ -99,12 +116,12 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--setup-interaction-border);
   outline-offset: 3px;
 }
 progress {
   width: 100%;
-  accent-color: var(--accent);
+  accent-color: var(--setup-primary);
 }
 #phase {
   margin-top: 6px;
@@ -144,6 +161,6 @@ summary {
   overflow: clip;
 }
 #details::selection {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--setup-interaction-hover);
+  color: var(--setup-interaction-text);
 }

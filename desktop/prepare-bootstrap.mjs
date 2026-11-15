@@ -28,8 +28,9 @@ const target = new URL(".generated/bootstrap/", import.meta.url);
 const bootstrap = new URL("bootstrap/", import.meta.url);
 mkdirSync(target, { recursive: true });
 
-function brandColors(scheme, selector = ":root") {
-  const { text, mark } = atlasPalettes[scheme].brand;
+function themeColors(scheme, selector = ":root") {
+  const palette = atlasPalettes[scheme];
+  const { text, mark } = palette.brand;
   const { dieFaces, ...colors } = mark;
   const variables = Object.entries(colors).map(
     ([key, value]) =>
@@ -38,6 +39,23 @@ function brandColors(scheme, selector = ":root") {
   dieFaces.forEach((value, index) =>
     variables.push(`--brand-mark-die-face-${index}: ${value};`),
   );
+  const { selection } = palette;
+  const setupColors = {
+    primary: palette.primary,
+    "primary-hover": palette.primaryHover,
+    "primary-active": palette.primaryActive,
+    "on-primary": palette.onPrimary,
+    "secondary-bg": palette.surface,
+    "secondary-text": palette.text,
+    "secondary-border": palette.border,
+    "interaction-text": selection.text,
+    "interaction-hover": selection.background,
+    "interaction-active": selection.hover,
+    "interaction-border": selection.border,
+  };
+  for (const [role, color] of Object.entries(setupColors)) {
+    variables.push(`--setup-${role}: ${color};`);
+  }
   return `${selector} { --brand-text: ${text}; ${variables.join(" ")} }`;
 }
 
@@ -49,8 +67,8 @@ const styles = readFileSync(
 writeFileSync(
   new URL("branding.css", target),
   [
-    brandColors("light"),
-    `@media (prefers-color-scheme: dark) { ${brandColors("dark")} }`,
+    themeColors("light"),
+    `@media (prefers-color-scheme: dark) { ${themeColors("dark")} }`,
     styles,
   ].join("\n"),
 );
@@ -91,11 +109,11 @@ const openingScript = readFileSync(
   )
   .replace(
     "/* light colors */ null",
-    JSON.stringify(brandColors("light", "#atlas-opening-cover")),
+    JSON.stringify(themeColors("light", "#atlas-opening-cover")),
   )
   .replace(
     "/* dark colors */ null",
-    JSON.stringify(brandColors("dark", "#atlas-opening-cover")),
+    JSON.stringify(themeColors("dark", "#atlas-opening-cover")),
   );
 const openingStatusScript = readFileSync(
   new URL("opening-status.js", bootstrap),

@@ -36,9 +36,10 @@ jobs:
           sh desktop/bundle-macos.sh
           cargo test --locked --manifest-path desktop/src-tauri/Cargo.toml --target-dir target
           cargo test --locked -p atlas-cli --test desktop
-      - name: Check the bundled command in an empty home
+      - name: Check the adaptive icon and bundled command
         run: |
           app='target/debug/bundle/macos/PF2e Atlas.app'
+          sh desktop/verify-macos-icon.sh "$app"
           cli="$app/Contents/MacOS/atlas"
           file "$app/Contents/MacOS/atlas-desktop" "$cli" | tee binaries
           test "$(grep -c 'Mach-O 64-bit executable arm64' binaries)" = 2

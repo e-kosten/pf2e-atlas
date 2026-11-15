@@ -1,0 +1,24 @@
+name = "Roru"
+source_note = "Blessings of the Forest identifies Serraleth as a named roru based on the Lost Mammoth Valley stat block. Cathedral Event 5 assigns her level 7 and level 9 stat blocks to party levels 5–6 and 7–8, respectively (pp. 71, 85)."
+
+[[members]]
+key = "quest-for-the-frozen-flame-bestiary:ovrQ2R9HJJhC1Yij"
+name = "Roru"
+
+[[members]]
+key = "pfs-season-4-bestiary:7Bon2mCIl8psUpUR"
+name = "Serraleth"
+named_base = "quest-for-the-frozen-flame-bestiary:ovrQ2R9HJJhC1Yij"
+
+[[members.uses]]
+id = "party-5-6"
+party_levels = [5, 6]
+
+[[members]]
+key = "pfs-season-4-bestiary:PIxgIqgDs3he4VV6"
+name = "Serraleth (7-8)"
+named_base = "quest-for-the-frozen-flame-bestiary:ovrQ2R9HJJhC1Yij"
+
+[[members.uses]]
+id = "party-7-8"
+party_levels = [7, 8]

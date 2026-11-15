@@ -1,0 +1,46 @@
+name = "Black Dragon"
+source_note = "Bestiary supplies young, adult, and ancient stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Age", alternatives_label = "Other ages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-bestiary:v0GZ6zDWhD1Y3xs9"
+name = "Black Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:kR1wGS61ubIpH8A6"
+name = "Black Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:irrXrWxJ0LYSUCQB"
+name = "Black Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:AQwxOoYBwDUAwvfh"
+name = "Black Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:Lvdykf6wfqzZBlZd"
+name = "Black Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:pYNMxg5z2nRFmkMM"
+name = "Black Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }

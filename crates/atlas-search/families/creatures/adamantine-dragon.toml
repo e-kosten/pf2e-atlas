@@ -1,13 +1,14 @@
 name = "Adamantine Dragon"
-source_note = "Monster Core supplies young, adult, and ancient stat blocks, each with a separate spellcaster form."
+source_note = "Monster Core supplies the young, adult, and ancient stat blocks. Draconic Codex supplies the archdragon. Each stage has standard and spellcaster forms. The Scourge of Sheerleaf supplies Zikritrax, a named adult with the standard form’s abilities."
 
 all_variants_by_default = true
 
 axes = [
-    { id = "age", label = "Age", alternatives_label = "Other ages", options = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
         { id = "young", label = "Young" },
         { id = "adult", label = "Adult" },
         { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
     ] },
     { id = "form", label = "Form", alternatives_label = "Other forms", options = [
         { id = "standard", label = "Standard" },
@@ -44,3 +45,18 @@ coordinates = { age = "ancient", form = "standard" }
 key = "pathfinder-monster-core:ptaN3MY80GiE6PHW"
 name = "Adamantine Dragon (Ancient, Spellcaster)"
 coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:t2FgPxukbje8sWEh"
+name = "Adamantine Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:IG23I5XqPXeICaOH"
+name = "Adamantine Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }
+
+[[members]]
+key = "one-shot-bestiary:QB0wbfOVhiZqJtYP"
+name = "Zikritrax"
+named_base = "pathfinder-monster-core:hybmXlTxljL9L1dW"

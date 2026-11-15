@@ -464,6 +464,11 @@ function EncounterDetail({ route, onCloseDirectEditor }: EncounterDetailViewProp
               <EncounterRosterPane
                 encounterSummary={encounterSummary ?? undefined}
                 difficulty={difficulty}
+                removingKey={
+                  mutations.pending && mutations.errorKind === "remove"
+                    ? removalKey
+                    : null
+                }
                 removeError={
                   mutations.errorKind === "remove" &&
                   mutations.errorMessage &&

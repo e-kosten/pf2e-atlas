@@ -1,0 +1,57 @@
+name = "Executor Dragon"
+source_note = "Draconic Codex supplies young, adult, ancient, and archdragon stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "lost-omens-bestiary:LYONUjVe1PQNvg62"
+name = "Executor Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:1jOAKYSysCAbVP98"
+name = "Executor Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:kzV42aOEEXGE96zx"
+name = "Executor Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:R25ksc1yCPMiqqRH"
+name = "Executor Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:m5jgzb7JyWOjnmpQ"
+name = "Executor Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:aZlQ7bCTAopncJUR"
+name = "Executor Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:SPSJBTVSUzH5lf5a"
+name = "Executor Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:4Mmg7MFdNbhdq1DT"
+name = "Executor Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

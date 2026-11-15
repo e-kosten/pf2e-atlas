@@ -16,7 +16,7 @@
     "active": true,
     "targets": ["app"],
     "externalBin": ["binaries/atlas"],
-    "icon": ["icons/icon.png"]
+    "icon": ["icons/icon.png", "icons/Atlas.icns", "icons/Atlas.icon"]
   },
   "plugins": {
     "deep-link": { "desktop": { "schemes": ["pf2e-atlas"] } }

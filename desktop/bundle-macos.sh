@@ -19,4 +19,4 @@ cargo build --locked -p atlas-cli
 mkdir -p "$desktop/src-tauri/binaries"
 cp "$root/target/debug/atlas" "$desktop/src-tauri/binaries/atlas-$target"
 cd "$desktop"
-./node_modules/.bin/tauri build --debug --bundles app --no-sign -- --locked
+PATH="$desktop/macos-tools:$PATH" ./node_modules/.bin/tauri build --debug --bundles app --no-sign -- --locked

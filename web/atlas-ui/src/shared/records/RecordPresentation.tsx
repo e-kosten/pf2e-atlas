@@ -25,6 +25,7 @@ import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
 import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
+  CanonicalRecordView,
   PreparedContentFieldView,
   RecordNavigationView,
   RecordPresentationView,
@@ -165,6 +166,8 @@ export function RecordIdentity({
   identity,
   equipmentFamily,
   creatureFamily,
+  canonicalRecord,
+  onCanonicalNavigate,
   onEquipmentFamilyNavigate,
   classification,
   rankControl,
@@ -185,6 +188,8 @@ export function RecordIdentity({
   identity?: RecordSummaryView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
+  canonicalRecord?: CanonicalRecordView;
+  onCanonicalNavigate?: RecordReferenceHandler;
   onEquipmentFamilyNavigate?: () => void;
   stacked?: boolean;
   headingRef?: Ref<HTMLHeadingElement>;
@@ -257,6 +262,25 @@ export function RecordIdentity({
                 }}
               >
                 {creatureFamily?.name ?? equipmentFamily?.name}
+              </AtlasLink>
+            </p>
+          )}
+          {canonicalRecord && (
+            <p className="record-reference__family">
+              Canonical record <span aria-hidden="true">·</span>{" "}
+              <AtlasLink
+                {...recordDestination({ recordKey: canonicalRecord.record_key })}
+                onClick={(event) => {
+                  if (onCanonicalNavigate && isPrimaryActivation(event)) {
+                    event.preventDefault();
+                    onCanonicalNavigate(
+                      canonicalRecord.record_key,
+                      event.currentTarget,
+                    );
+                  }
+                }}
+              >
+                {canonicalRecord.title}
               </AtlasLink>
             </p>
           )}
@@ -342,6 +366,8 @@ export function RecordPresentationIdentity({
   presentation,
   equipmentFamily,
   creatureFamily,
+  canonicalRecord,
+  onCanonicalNavigate,
   onEquipmentFamilyNavigate,
   root,
   selection,
@@ -358,6 +384,8 @@ export function RecordPresentationIdentity({
   presentation?: RecordPresentationView;
   equipmentFamily?: EquipmentFamilyReferenceView;
   creatureFamily?: CreatureFamilyView;
+  canonicalRecord?: CanonicalRecordView;
+  onCanonicalNavigate?: RecordReferenceHandler;
   onEquipmentFamilyNavigate?: () => void;
   root?: RecordSummaryView;
   selection?: RecordNavigationView;
@@ -416,6 +444,8 @@ export function RecordPresentationIdentity({
       identity={presentation?.identity}
       equipmentFamily={equipmentFamily}
       creatureFamily={creatureFamily}
+      canonicalRecord={canonicalRecord}
+      onCanonicalNavigate={onCanonicalNavigate}
       onEquipmentFamilyNavigate={onEquipmentFamilyNavigate}
       badgeExplanations={
         identityChanges?.length

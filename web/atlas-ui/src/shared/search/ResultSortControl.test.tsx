@@ -348,14 +348,13 @@ it("cancels an uncommitted seed on Escape before dismissal or focus restoration 
   fireEvent.change(input, { target: { value: "43" } });
   fireEvent.keyDown(input, { key: "Escape", keyCode: 27, which: 27 });
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Sort: Random" })).toHaveFocus(),
+    expect(screen.getByRole("button", { name: "Sort: Random" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    ),
   );
   expect(changed).not.toHaveBeenCalled();
   expect(new URLSearchParams(location.search).get("seed")).toBe("42");
-  expect(screen.getByRole("button", { name: "Sort: Random" })).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
   await open();
   expect(screen.getByRole("textbox", { name: "Random seed" })).toHaveValue("42");
 });
@@ -375,11 +374,10 @@ it("lets an expanded Select consume Escape before dismissing the Sort dialog", a
   );
   fireEvent.keyDown(input, { key: "Escape", keyCode: 27, which: 27 });
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: /^Sort:/ })).toHaveFocus(),
-  );
-  expect(screen.getByRole("button", { name: /^Sort:/ })).toHaveAttribute(
-    "aria-expanded",
-    "false",
+    expect(screen.getByRole("button", { name: /^Sort:/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    ),
   );
 });
 

@@ -1,0 +1,57 @@
+name = "Time Dragon"
+source_note = "Draconic Codex supplies young, adult, ancient, and archdragon stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Stage", alternatives_label = "Other stages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+        { id = "archdragon", label = "Archdragon" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "lost-omens-bestiary:wfv5PSZ6fETEzxVO"
+name = "Time Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:aAmil47M9m8R9rr7"
+name = "Time Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:jEc2J8hy0Z33XKhk"
+name = "Time Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:fXqXN5dkm33a6AW0"
+name = "Time Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:W8NKXp3oYF7YnACo"
+name = "Time Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:SafUSmFfdQRmAyLi"
+name = "Time Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }
+
+[[members]]
+key = "lost-omens-bestiary:OWI2qrDvTu8S4BfE"
+name = "Time Archdragon"
+coordinates = { age = "archdragon", form = "standard" }
+
+[[members]]
+key = "lost-omens-bestiary:9XM9f6ukMdzRi0vi"
+name = "Time Archdragon (Spellcaster)"
+coordinates = { age = "archdragon", form = "spellcaster" }

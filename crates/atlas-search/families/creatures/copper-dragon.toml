@@ -1,0 +1,46 @@
+name = "Copper Dragon"
+source_note = "Bestiary supplies young, adult, and ancient stat blocks, each with standard and spellcaster forms."
+
+all_variants_by_default = true
+
+axes = [
+    { id = "age", label = "Age", alternatives_label = "Other ages", options = [
+        { id = "young", label = "Young" },
+        { id = "adult", label = "Adult" },
+        { id = "ancient", label = "Ancient" },
+    ] },
+    { id = "form", label = "Form", alternatives_label = "Other forms", options = [
+        { id = "standard", label = "Standard" },
+        { id = "spellcaster", label = "Spellcaster" },
+    ] },
+]
+
+[[members]]
+key = "pathfinder-bestiary:3W2PMV6IbVdouOB1"
+name = "Copper Dragon (Young)"
+coordinates = { age = "young", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:pzG7Od1aHj0DkTzS"
+name = "Copper Dragon (Young, Spellcaster)"
+coordinates = { age = "young", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:Fzn4jHusVeyytgfx"
+name = "Copper Dragon (Adult)"
+coordinates = { age = "adult", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:ouOt6d8xUFk8NhJ9"
+name = "Copper Dragon (Adult, Spellcaster)"
+coordinates = { age = "adult", form = "spellcaster" }
+
+[[members]]
+key = "pathfinder-bestiary:B9KJUdZre51J3E3e"
+name = "Copper Dragon (Ancient)"
+coordinates = { age = "ancient", form = "standard" }
+
+[[members]]
+key = "pathfinder-bestiary:qGvK4f8Clc6dOwLU"
+name = "Copper Dragon (Ancient, Spellcaster)"
+coordinates = { age = "ancient", form = "spellcaster" }

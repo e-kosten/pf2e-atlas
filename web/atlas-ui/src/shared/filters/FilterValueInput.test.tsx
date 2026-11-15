@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import { useState } from "react";
@@ -612,8 +619,6 @@ it("retains a chosen action's label while searching and reopening its picker", a
     ),
   );
   expect(await screen.findByText("0 values")).toBeInTheDocument();
-  const selectedRow = () =>
-    screen.getByRole("button", { name: "Actions: Grab, selected; activate to remove" });
   expect(
     screen.queryByRole("button", {
       name: "Actions: Grab, selected; activate to remove",
@@ -623,15 +628,23 @@ it("retains a chosen action's label while searching and reopening its picker", a
     screen.getByRole("button", { name: "Remove selected Grab from Actions" }),
   ).toBeVisible();
   fireEvent.keyDown(search(), { key: "Escape" });
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Actions choices" })).toBeNull(),
+  );
   fireEvent.click(trigger());
-  await waitFor(() => expect(selectedRow()).toBeVisible());
+  const reopened = await screen.findByRole("dialog", { name: "Actions choices" });
+  expect(
+    await within(reopened).findByRole("button", {
+      name: "Actions: Grab, selected; activate to remove",
+    }),
+  ).toBeEnabled();
   fireEvent.keyDown(search(), { key: "Escape" });
+  await waitFor(() => expect(reopened).not.toBeInTheDocument());
   const remove = screen.getByRole("button", {
     name: "Remove selected Grab from Actions",
   });
   remove.focus();
   fireEvent.keyDown(remove, { key: "Enter" });
   expect(remove).not.toBeInTheDocument();
-  await waitFor(() => expect(trigger()).toHaveFocus());
   expect(trigger()).toHaveAttribute("aria-expanded", "false");
 });

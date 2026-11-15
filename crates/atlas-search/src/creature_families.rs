@@ -388,14 +388,14 @@ mod tests {
         use serde_json::json;
 
         let family = &catalog().unwrap()["adamantine-dragon"];
-        let seed = &family.members[3].key;
+        let seed = RecordKey::parse("pathfinder-monster-core:Bgfu9IQfK1DyaXmt").unwrap();
+        let renamed_key = RecordKey::parse("pathfinder-monster-core:KdUMMd6ol83JpP62").unwrap();
         let build = |renamed: bool| {
             let records = family
                 .members
                 .iter()
-                .enumerate()
-                .map(|(index, member)| {
-                    let name = if renamed && index == 4 {
+                .map(|member| {
+                    let name = if renamed && member.key == renamed_key {
                         "Renamed dragon"
                     } else {
                         &member.name
@@ -430,22 +430,37 @@ mod tests {
                 .iter()
                 .map(|grouping| grouping.label.as_str())
                 .collect::<Vec<_>>(),
-            ["Age", "Form"]
+            ["Stage", "Form"]
         );
         assert_eq!(group.groupings[0].groups[1].members, expected(&[2, 3]));
-        assert_eq!(group.groupings[1].groups[1].members, expected(&[1, 3, 5]));
+        assert_eq!(group.groupings[0].groups[3].heading, "Archdragon");
+        assert_eq!(group.groupings[0].groups[3].members, expected(&[6, 7]));
+        assert_eq!(
+            group.groupings[1].groups[1].members,
+            expected(&[1, 3, 5, 7])
+        );
         assert_eq!(
             group
                 .members
                 .iter()
                 .map(|member| member.summary.key.clone())
                 .collect::<Vec<_>>(),
-            expected(&[0, 1, 2, 3, 4, 5])
+            expected(&[0, 1, 2, 3, 4, 5, 6, 7, 8])
         );
+        let named = &group.members[8];
+        assert_eq!(
+            named.summary.key,
+            RecordKey::parse("one-shot-bestiary:QB0wbfOVhiZqJtYP").unwrap()
+        );
+        assert_eq!(
+            named.named_base,
+            Some(&RecordKey::parse("pathfinder-monster-core:hybmXlTxljL9L1dW").unwrap())
+        );
+        assert!(named.coordinates.is_empty());
         let check_slices = |retrieval: &AtlasRetrievalService, others: &[usize]| {
             let summary = retrieval
                 .get_records(GetRecordsRequest {
-                    record_keys: std::slice::from_ref(seed),
+                    record_keys: std::slice::from_ref(&seed),
                 })
                 .unwrap()
                 .records
@@ -457,14 +472,14 @@ mod tests {
                 .unwrap()
                 .version_slices
                 .unwrap();
-            assert_eq!(slices.slices[0].heading, "Other ages");
-            assert_eq!(slices.slices[0].members, expected(&[1, 5]));
+            assert_eq!(slices.slices[0].heading, "Other stages");
+            assert_eq!(slices.slices[0].members, expected(&[1, 5, 7]));
             assert_eq!(slices.slices[1].heading, "Other forms");
             assert_eq!(slices.slices[1].members, expected(&[2]));
             assert_eq!(slices.other_combinations, expected(others));
         };
-        check_slices(&retrieval, &[0, 4]);
+        check_slices(&retrieval, &[0, 4, 6]);
         let (partial, _fixture) = build(true);
-        check_slices(&partial, &[0]);
+        check_slices(&partial, &[0, 6]);
     }
 }
