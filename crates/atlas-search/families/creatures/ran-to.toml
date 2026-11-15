@@ -1,0 +1,17 @@
+name = "Ran-to"
+source_note = "Despair on Danger Island and Ready? Fight! use this Lightkeeper at creature levels 14 and 16. King of the Mountain (Glass Lighthouse, H5) uses the level 20 block and gives the same fighter power over gravity."
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:XN2uksGMgndh1jSP"
+name = "Ran-to (Level 14)"
+label = "Ran-to"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:9WcpNMJJqF3cLTqT"
+name = "Ran-to (Level 16)"
+label = "Ran-to"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:qW8stNdPqQwibYQz"
+name = "Ran-to (Level 20)"
+label = "Ran-to"

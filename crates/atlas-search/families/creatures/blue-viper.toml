@@ -1,0 +1,17 @@
+name = "Blue Viper"
+source_note = "Despair on Danger Island and Ready? Fight! use this Lightkeeper at creature levels 14 and 16. King of the Mountain (Glass Lighthouse, H5) uses the level 20 block and gives the same fighter power over time."
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:RKkIczqYUJkij0Oh"
+name = "Blue Viper (Level 14)"
+label = "Blue Viper"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:SF6OlCfNiHvtJQjw"
+name = "Blue Viper (Level 16)"
+label = "Blue Viper"
+
+[[members]]
+key = "fists-of-the-ruby-phoenix-bestiary:se8SrwtuaamXIEo5"
+name = "Blue Viper (Level 20)"
+label = "Blue Viper"
