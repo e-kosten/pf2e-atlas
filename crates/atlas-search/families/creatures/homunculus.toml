@@ -1,0 +1,10 @@
+name = "Homunculus"
+source_note = "Monster Core describes the soulbound homunculus as a creation variant with speech and no master link."
+
+[[members]]
+key = "pathfinder-monster-core:9wNjq9BirBoxyJVH"
+name = "Homunculus"
+
+[[members]]
+key = "pathfinder-monster-core:qDTbixJDMopR0ixh"
+name = "Soulbound Homunculus"

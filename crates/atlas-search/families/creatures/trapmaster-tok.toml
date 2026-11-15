@@ -1,0 +1,18 @@
+name = "Trapmaster Tok"
+source_note = "Sewer Dragon Crisis (F, pp. 16, 22, 30) uses creature levels 3 and 5 at party levels 1–2 and 3–4."
+
+[[members]]
+key = "pfs-season-5-bestiary:IxxXcBWC9DeOmMxL"
+name = "Trapmaster Tok"
+
+[[members.uses]]
+id = "party-1-2"
+party_levels = [1, 2]
+
+[[members]]
+key = "pfs-season-5-bestiary:jB6tZ23QDSO4iCoK"
+name = "Trapmaster Tok (3-4)"
+
+[[members.uses]]
+id = "party-3-4"
+party_levels = [3, 4]

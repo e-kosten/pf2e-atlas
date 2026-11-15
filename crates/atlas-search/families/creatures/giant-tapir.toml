@@ -1,0 +1,10 @@
+name = "Giant Tapir"
+source_note = "Broken Tusk Moon (p. 17) uses the giant tapir from p. 87 and limits its Stride to 10 feet while poison barbs remain lodged in its hooves."
+
+[[members]]
+key = "quest-for-the-frozen-flame-bestiary:tgUdk3pTQ6yHHLTH"
+name = "Giant Tapir"
+
+[[members]]
+key = "quest-for-the-frozen-flame-bestiary:iEOeCyL10neiaShj"
+name = "Giant Tapir (Snared)"
