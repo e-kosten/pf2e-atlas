@@ -1,5 +1,5 @@
 name = "Sewer Ooze"
-source_note = "Student Exchange supplies Weak and Elite blocks that share Pseudopod, Motion Sense, and Filth Wave."
+source_note = "Student Exchange supplies Weak and Elite blocks that share Pseudopod, Motion Sense, and Filth Wave. The Beginner Box stat block has fewer listed immunities than Monster Core and gives different Filth Wave text."
 
 [[members]]
 key = "pfs-season-5-bestiary:dXSti6gNOpoEYoIF"
@@ -10,3 +10,12 @@ label = "Weak Sewer Ooze"
 key = "pfs-season-5-bestiary:vsWgbVO6zJIjiqAs"
 name = "Elite Sewer Ooze (PFS Q18)"
 label = "Elite Sewer Ooze"
+
+[[members]]
+key = "pathfinder-monster-core:9InGpxq5xbbHaL9f"
+name = "Sewer Ooze"
+
+[[members]]
+key = "menace-under-otari-bestiary:9InGpxq5xbbHaL9f"
+name = "Sewer Ooze (BB)"
+label = "Sewer Ooze"

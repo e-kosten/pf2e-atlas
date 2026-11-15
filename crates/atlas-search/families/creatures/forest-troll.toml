@@ -1,0 +1,11 @@
+name = "Forest Troll"
+source_note = "Both blocks have Easily Misled, Regeneration, and Rend. Monster Core adds Chase Prey and Furious Flailing."
+
+[[members]]
+key = "pathfinder-monster-core:htK4dElL6YvFCLkz"
+name = "Forest Troll"
+
+[[members]]
+key = "menace-under-otari-bestiary:htK4dElL6YvFCLkz"
+name = "Forest Troll (BB)"
+label = "Forest Troll"

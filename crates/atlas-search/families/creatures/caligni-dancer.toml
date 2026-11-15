@@ -1,0 +1,11 @@
+name = "Caligni Dancer"
+source_note = "The Beginner Box dancer wields a mace. Monster Core supplies a baton and adds Dancer’s Curse, Distracting Frolic, and occult spells."
+
+[[members]]
+key = "pathfinder-monster-core:SZCf0IZkf36plwVd"
+name = "Caligni Dancer"
+
+[[members]]
+key = "menace-under-otari-bestiary:SZCf0IZkf36plwVd"
+name = "Caligni Dancer (BB)"
+label = "Caligni Dancer"

@@ -1,0 +1,11 @@
+name = "Xulgath Leader"
+source_note = "The Beginner Box leader uses Swipe. The Monster Core leader uses Weakening Strike with its greataxe."
+
+[[members]]
+key = "pathfinder-monster-core:7w1w7VTnIWMBdFux"
+name = "Xulgath Leader"
+
+[[members]]
+key = "menace-under-otari-bestiary:7w1w7VTnIWMBdFux"
+name = "Xulgath Leader (BB)"
+label = "Xulgath Leader"

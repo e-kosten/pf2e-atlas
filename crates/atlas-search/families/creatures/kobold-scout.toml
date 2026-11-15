@@ -1,0 +1,11 @@
+name = "Kobold Scout"
+source_note = "The Monster Core scout gains Construct Trap and a circumstance bonus to defenses against traps. The Beginner Box scout lacks those entries."
+
+[[members]]
+key = "pathfinder-monster-core:PcHQDmPTztw32PhL"
+name = "Kobold Scout"
+
+[[members]]
+key = "menace-under-otari-bestiary:PcHQDmPTztw32PhL"
+name = "Kobold Scout (BB)"
+label = "Kobold Scout"

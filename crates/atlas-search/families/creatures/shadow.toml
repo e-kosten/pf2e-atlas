@@ -1,5 +1,5 @@
 name = "Shadow"
-source_note = "Monster Core’s Shadow creates Shadow Spawn. The Season of Ghosts Familiar Shadow shares the Shadow Hand strike, Light Vulnerability, Slink in Shadows, and Steal Shadow, and adds Infest Shadow."
+source_note = "Monster Core’s Shadow creates Shadow Spawn. The Season of Ghosts Familiar Shadow shares the Shadow Hand strike, Light Vulnerability, Slink in Shadows, and Steal Shadow, and adds Infest Shadow. The Beginner Box Shadow shares Steal Shadow and Light Vulnerability with the Monster Core block. It uses different resistance exceptions and lacks the Shadow Spawn ability."
 
 [[members]]
 key = "pathfinder-monster-core:VotlWUsFKdOrHWF6"
@@ -12,3 +12,8 @@ name = "Shadow Spawn"
 [[members]]
 key = "season-of-ghosts-bestiary:IdbrdikgvRguKYNE"
 name = "Familiar Shadow"
+
+[[members]]
+key = "menace-under-otari-bestiary:VotlWUsFKdOrHWF6"
+name = "Shadow (BB)"
+label = "Shadow"

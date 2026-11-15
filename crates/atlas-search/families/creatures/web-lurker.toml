@@ -1,0 +1,11 @@
+name = "Web Lurker"
+source_note = "The Monster Core block adds Spring upon Prey and tremorsense for creatures touching its web."
+
+[[members]]
+key = "pathfinder-bestiary:ZMr28tFTA5NUcBTi"
+name = "Web Lurker"
+
+[[members]]
+key = "menace-under-otari-bestiary:ZMr28tFTA5NUcBTi"
+name = "Web Lurker (BB)"
+label = "Web Lurker"

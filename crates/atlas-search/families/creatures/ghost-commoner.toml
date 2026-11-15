@@ -1,0 +1,11 @@
+name = "Ghost Commoner"
+source_note = "The Beginner Box ghost lists Incorporeal among its abilities. Monster Core supplies Void Healing, Dwelling Lore, and additional undead immunities."
+
+[[members]]
+key = "pathfinder-monster-core:N98ug9jQHqeFoK1N"
+name = "Ghost Commoner"
+
+[[members]]
+key = "menace-under-otari-bestiary:N98ug9jQHqeFoK1N"
+name = "Ghost Commoner (BB)"
+label = "Ghost Commoner"

@@ -1,0 +1,11 @@
+name = "Drow Priestess"
+source_note = "The Beginner Box uses a smaller divine spell list and lighter armor. The Monster Core priestess carries lethargy poison and has additional save bonuses."
+
+[[members]]
+key = "pathfinder-bestiary:FaBHkmFGuEIqIYM1"
+name = "Drow Priestess"
+
+[[members]]
+key = "menace-under-otari-bestiary:FaBHkmFGuEIqIYM1"
+name = "Drow Priestess (BB)"
+label = "Drow Priestess"

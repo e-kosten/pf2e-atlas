@@ -1,0 +1,11 @@
+name = "Leopard"
+source_note = "The Beginner Box leopard lacks the Monster Core block’s imprecise scent. Their Maul and Pounce rules also differ."
+
+[[members]]
+key = "pathfinder-monster-core:kB7FNn3vosp6cqQg"
+name = "Leopard"
+
+[[members]]
+key = "menace-under-otari-bestiary:kB7FNn3vosp6cqQg"
+name = "Leopard (BB)"
+label = "Leopard"

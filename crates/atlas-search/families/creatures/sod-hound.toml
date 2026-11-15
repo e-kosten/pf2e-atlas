@@ -1,0 +1,11 @@
+name = "Sod Hound"
+source_note = "Both have Earth Glide, but Monster Core also lists a burrow Speed and immunity to paralysis."
+
+[[members]]
+key = "pathfinder-monster-core:VQPzDz3xnCQGFOGL"
+name = "Sod Hound"
+
+[[members]]
+key = "menace-under-otari-bestiary:VQPzDz3xnCQGFOGL"
+name = "Sod Hound (BB)"
+label = "Sod Hound"

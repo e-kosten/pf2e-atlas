@@ -1,0 +1,11 @@
+name = "Brine Shark"
+source_note = "The Beginner Box Deep Plunge uses a fixed distance. The Monster Core version scales it to swim Speed and lists immunity to paralysis."
+
+[[members]]
+key = "pathfinder-monster-core:H7z7VHzlHlEFev1r"
+name = "Brine Shark"
+
+[[members]]
+key = "menace-under-otari-bestiary:H7z7VHzlHlEFev1r"
+name = "Brine Shark (BB)"
+label = "Brine Shark"

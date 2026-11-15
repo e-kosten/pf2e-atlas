@@ -1,0 +1,11 @@
+name = "Hell Hound"
+source_note = "Both blocks have Hellfire Breath and Pack Attack. Monster Core adds imprecise scent to the Beginner Box senses."
+
+[[members]]
+key = "pathfinder-monster-core:RTviEfjYnsXa0wkT"
+name = "Hell Hound"
+
+[[members]]
+key = "menace-under-otari-bestiary:RTviEfjYnsXa0wkT"
+name = "Hell Hound (BB)"
+label = "Hell Hound"

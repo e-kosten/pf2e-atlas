@@ -1,0 +1,11 @@
+name = "Wolf"
+source_note = "Both wolves have Pack Attack and Knockdown. The Monster Core block has imprecise scent, while the Beginner Box block lists low-light vision only."
+
+[[members]]
+key = "pathfinder-monster-core:BN5Lb6IsQ9Wyu3rL"
+name = "Wolf"
+
+[[members]]
+key = "menace-under-otari-bestiary:BN5Lb6IsQ9Wyu3rL"
+name = "Wolf (BB)"
+label = "Wolf"

@@ -1,0 +1,11 @@
+name = "Caligni Hunter"
+source_note = "The Monster Core hunter has Double Slice, Encircling Command, and more innate magic than the Beginner Box block."
+
+[[members]]
+key = "pathfinder-monster-core:AcUb8s5fiktYw8Fx"
+name = "Caligni Hunter"
+
+[[members]]
+key = "menace-under-otari-bestiary:AcUb8s5fiktYw8Fx"
+name = "Caligni Hunter (BB)"
+label = "Caligni Hunter"

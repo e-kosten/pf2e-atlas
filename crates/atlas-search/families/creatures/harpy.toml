@@ -1,0 +1,11 @@
+name = "Harpy"
+source_note = "The Beginner Box harpy has a higher Charisma modifier. Monster Core adds Wind’s Whispers and Putrid Plague."
+
+[[members]]
+key = "pathfinder-monster-core:uBNm3R9wbLTPrM9i"
+name = "Harpy"
+
+[[members]]
+key = "menace-under-otari-bestiary:uBNm3R9wbLTPrM9i"
+name = "Harpy (BB)"
+label = "Harpy"

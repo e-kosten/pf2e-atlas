@@ -1,0 +1,11 @@
+name = "Giant Viper"
+source_note = "The Beginner Box giant viper has Coiled Opportunity. Monster Core has Coiled Strike and adds scent."
+
+[[members]]
+key = "pathfinder-monster-core:AJ5LuNMVPLCydryP"
+name = "Giant Viper"
+
+[[members]]
+key = "menace-under-otari-bestiary:AJ5LuNMVPLCydryP"
+name = "Giant Viper (BB)"
+label = "Giant Viper"

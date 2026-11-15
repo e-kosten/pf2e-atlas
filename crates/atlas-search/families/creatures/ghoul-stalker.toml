@@ -1,0 +1,11 @@
+name = "Ghoul Stalker"
+source_note = "The Beginner Box ghoul has Sneak Attack. The Monster Core block has Ghoul Whispers, Grave Knowledge, and Void Healing."
+
+[[members]]
+key = "pathfinder-monster-core:iLkQt8A99nQWUI8k"
+name = "Ghoul Stalker"
+
+[[members]]
+key = "menace-under-otari-bestiary:iLkQt8A99nQWUI8k"
+name = "Ghoul Stalker (BB)"
+label = "Ghoul Stalker"

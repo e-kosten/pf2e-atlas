@@ -1,0 +1,11 @@
+name = "Caligni Skulker"
+source_note = "Monster Core provides Tumble Behind and greater darkvision. The Beginner Box block uses a simpler action list."
+
+[[members]]
+key = "pathfinder-monster-core:9YPFqikAmURwcTEO"
+name = "Caligni Skulker"
+
+[[members]]
+key = "menace-under-otari-bestiary:9YPFqikAmURwcTEO"
+name = "Caligni Skulker (BB)"
+label = "Caligni Skulker"

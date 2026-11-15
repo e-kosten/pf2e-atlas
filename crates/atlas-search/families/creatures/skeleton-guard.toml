@@ -1,0 +1,11 @@
+name = "Skeleton Guard"
+source_note = "Both blocks have a scimitar and shortbow. The Monster Core block lists Void Healing and additional undead immunities."
+
+[[members]]
+key = "pathfinder-monster-core:trchDxbDR2TiPMxT"
+name = "Skeleton Guard"
+
+[[members]]
+key = "menace-under-otari-bestiary:trchDxbDR2TiPMxT"
+name = "Skeleton Guard (BB)"
+label = "Skeleton Guard"

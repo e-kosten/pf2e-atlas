@@ -1,0 +1,11 @@
+name = "Kobold Warrior"
+source_note = "The Beginner Box warrior has different Constitution and Fortitude and lacks the Monster Core warrior’s sling loadout."
+
+[[members]]
+key = "pathfinder-monster-core:BIZfjoz8DZt75EDn"
+name = "Kobold Warrior"
+
+[[members]]
+key = "menace-under-otari-bestiary:BIZfjoz8DZt75EDn"
+name = "Kobold Warrior (BB)"
+label = "Kobold Warrior"

@@ -1,5 +1,14 @@
 name = "Cinder Rat"
-source_note = "Guardian’s Covenant supplies the Ashgrip and Leadroar cinder rats. Ashgrip has Grab and Constrict, and Leadroar has a Breath Weapon."
+source_note = "Guardian’s Covenant supplies the Ashgrip and Leadroar cinder rats. Ashgrip has Grab and Constrict, and Leadroar has a Breath Weapon. The Beginner Box and Monster Core blocks have Fetid Fumes. Monster Core also lists a water weakness and immunity to paralysis."
+
+[[members]]
+key = "pathfinder-monster-core:xN5J9S485LxFZMkL"
+name = "Cinder Rat"
+
+[[members]]
+key = "menace-under-otari-bestiary:xN5J9S485LxFZMkL"
+name = "Cinder Rat (BB)"
+label = "Cinder Rat"
 
 [[members]]
 key = "pfs-season-3-bestiary:S9v8OCktGEL0k6sC"

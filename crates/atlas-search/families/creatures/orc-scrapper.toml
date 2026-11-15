@@ -1,0 +1,11 @@
+name = "Orc Scrapper"
+source_note = "The Beginner Box scrapper wears hide armor and wields a battle axe. The Monster Core block uses shoddy breastplate and an orc knuckle dagger."
+
+[[members]]
+key = "pathfinder-monster-core:YReM6QbqwUz3UTP7"
+name = "Orc Scrapper"
+
+[[members]]
+key = "menace-under-otari-bestiary:YReM6QbqwUz3UTP7"
+name = "Orc Scrapper (BB)"
+label = "Orc Scrapper"
