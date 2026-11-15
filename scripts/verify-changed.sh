@@ -133,6 +133,7 @@ research_touched=0
 skill_touched=0
 corpus_touched=0
 desktop_touched=0
+windows_desktop_touched=0
 fanout_touched=0
 browser_touched=0
 web_format_touched=0
@@ -150,6 +151,7 @@ if [ "$mode" = all ]; then
   skill_touched=1
   corpus_touched=1
   desktop_touched=1
+  windows_desktop_touched=1
   browser_touched=1
   dev_touched=1
   tooling_touched=1
@@ -161,7 +163,7 @@ else
 fi
 
 if [ "$list" -eq 1 ]; then
-  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "corpus:$corpus_touched" "desktop:$desktop_touched" "fanout:$fanout_touched" "browser:$browser_touched" "dev:$dev_touched" "tooling:$tooling_touched" "audit:$audit_touched" "web-format:$web_format_touched"; do
+  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "corpus:$corpus_touched" "desktop:$desktop_touched" "windows-desktop:$windows_desktop_touched" "fanout:$fanout_touched" "browser:$browser_touched" "dev:$dev_touched" "tooling:$tooling_touched" "audit:$audit_touched" "web-format:$web_format_touched"; do
     value=false
     [ "${entry#*:}" -eq 0 ] || value=true
     printf '%s=%s\n' "${entry%%:*}" "$value"
@@ -175,7 +177,7 @@ if [ "$docs_only" -eq 1 ]; then
 fi
 
 selected=
-for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "corpus:$corpus_touched" "desktop:$desktop_touched" "browser:$browser_touched" "web-format:$web_format_touched" "dev:$dev_touched" "tooling:$tooling_touched" "audit:$audit_touched"; do
+for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "corpus:$corpus_touched" "desktop:$desktop_touched" "windows-desktop:$windows_desktop_touched" "browser:$browser_touched" "web-format:$web_format_touched" "dev:$dev_touched" "tooling:$tooling_touched" "audit:$audit_touched"; do
   [ "${entry#*:}" -eq 0 ] || selected="$selected ${entry%%:*}"
 done
 if [ -n "$inspect" ]; then

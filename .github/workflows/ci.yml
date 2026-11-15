@@ -48,6 +48,7 @@ jobs:
       rust: ${{ steps.select.outputs.rust }}
       corpus: ${{ steps.select.outputs.corpus }}
       desktop: ${{ steps.select.outputs.desktop }}
+      windows-desktop: ${{ steps.select.outputs.windows-desktop }}
       windows: ${{ steps.select.outputs.windows }}
       audit: ${{ steps.select.outputs.audit }}
       web: ${{ steps.select.outputs.web }}
@@ -130,7 +131,7 @@ jobs:
           fi
           echo "windows=$windows" >> selected-checks
           if [[ "$EVENT" != pull_request ]]; then
-            sed -i 's/^desktop=true$/desktop=false/' selected-checks
+            sed -i -e 's/^desktop=true$/desktop=false/' -e 's/^windows-desktop=true$/windows-desktop=false/' selected-checks
           elif grep -qx 'rust=true' selected-checks && grep -qx 'dev=false' selected-checks; then
             dev="$(python3 scripts/validation/windows-selection.py --developer --base "$BASE_SHA")"
             sed -i "s/^dev=false$/dev=$dev/" selected-checks
@@ -477,18 +478,18 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
         if: needs.changes.outputs.windows == 'true'
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        if: needs.changes.outputs.windows == 'true'
+        with:
+          cache-workspace-crates: false
       - name: Verify bounded storage sessions and file release
         id: storage
         if: needs.changes.outputs.windows == 'true'
         run: cargo test -p atlas-storage --locked
-      - name: Verify artifact coherence and publication
+      - name: Verify artifact coherence, publication and crash recovery
         id: publication
         if: needs.changes.outputs.windows == 'true'
-        run: cargo test -p atlas-index --lib --locked foundation_tests
-      - name: Verify atomic publication and vector repacking after process crashes
-        id: crashes
-        if: needs.changes.outputs.windows == 'true'
-        run: cargo test -p atlas-index --lib --locked publication_crash_tests
+        run: cargo test -p atlas-index --lib --locked -- foundation_tests publication_crash_tests
 
       - uses: actions/setup-node@v7
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' && (needs.changes.outputs.tooling == 'true' || needs.changes.outputs.release == 'true') }}
@@ -676,7 +677,7 @@ jobs:
 
   windows-desktop:
     needs: changes
-    if: needs.changes.outputs.desktop == 'true'
+    if: needs.changes.outputs.windows-desktop == 'true'
     uses: ./.github/workflows/windows-desktop.yml
     with:
       source-ref: ${{ inputs.source-ref || github.sha }}

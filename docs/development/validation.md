@@ -447,7 +447,7 @@ a gate.
 | Unknown paths or workflow infrastructure | All surfaces |
 
 `--list` exposes the shared decisions: `rust`, `web`, `web-format`, `browser`,
-`dev`, `source`, `release`, `research`, `skill`, `tooling` and `audit`, plus `desktop`, `corpus`, and `fanout`. PR CI uses this
+`dev`, `source`, `release`, `research`, `skill`, `tooling` and `audit`, plus `desktop`, `windows-desktop`, `corpus`, and `fanout`. PR CI uses this
 classifier, then resolves the standalone developer and Windows crate dependencies.
 Changes to fan-out exercise all PR surfaces and the compact embedding and offline
 workspace platform matrices.
@@ -468,7 +468,7 @@ dependencies of storage, index and runtime (including development, build, target
 and optional edges). Cargo manifests/lockfile, toolchain and unknown global inputs
 retain the native gate. CLI, web and app-service changes outside that closure do
 not rerun storage tests; validation tooling still requires native cancellation.
-CI selection and local script stages report decisions/timings in the job summary.
+CI selection and local script stages report decisions and timings in the job summary.
 
 `node scripts/validation/tooling.mjs` is the independently bootstrapped tooling gate:
 hook/classifier smoke checks plus all maintained `scripts/*.test.mjs`, development
@@ -493,6 +493,32 @@ Tracked git hooks live in `.githooks/`:
 - Run the applicable local gates explicitly before marking a PR ready for merge, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
 
 Formatting checks read files in the working tree; whitespace checks read the staged diff. Review partial staging carefully so local evidence corresponds to the committed candidate. Hooks do not replace code review or CI.
+
+### Windows installer timing
+
+On pull requests, `windows-desktop` selects the native installer check for
+desktop host and sidecar integration, installer inputs, and shared build
+configuration. Ordinary product Rust and frontend changes retain their own
+checks. `desktop` selects the macOS bundle independently. Nightly packaging
+checks the Windows installer with the production build profile.
+
+The PR installer uses release optimization level 1 and runs the native host and
+CLI tests and the clean-install smoke check. Its workflow caches dependencies
+for the CLI and the Tauri host in separate target directories. From the same
+ref, compare settings with the standalone workflow and read the two Cargo reports
+in the `windows-desktop-cargo-timings-attempt-N` artifact. Compare total job time as
+well, including cache restore and save.
+
+```sh
+gh workflow run windows-desktop.yml --ref REF -f cold=true
+gh workflow run windows-desktop.yml --ref REF -f pr-profile=true -f cold=true
+gh workflow run windows-desktop.yml --ref REF -f pr-profile=true
+```
+
+Replace `REF` with a branch or tag. Repeat the third run to measure a cache hit
+after a successful cache save. Run that command with `--ref main` to warm the
+cache shared by new PRs after a toolchain, dependency, or cache-key change.
+GitHub scopes caches written by a PR to that PR.
 
 ## Database changes
 

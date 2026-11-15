@@ -291,16 +291,30 @@ for entry in \
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
   : >"$log"
   (cd "$fixture"; scripts/verify-changed.sh --paths-file paths-input --list) >"$check_output"
-  actual=$(sed -e '/^corpus=/d' -e '/^desktop=/d' -e '/^fanout=/d' -e 's/.*=true/1/' -e 's/.*=false/0/' "$check_output" | tr -d '\n')
+  actual=$(sed -e '/^corpus=/d' -e '/^desktop=/d' -e '/^windows-desktop=/d' -e '/^fanout=/d' -e 's/.*=true/1/' -e 's/.*=false/0/' "$check_output" | tr -d '\n')
   [ "$actual" = "$expected" ] || { echo "wrong selection for $changed_path: $actual" >&2; exit 1; }
 done
 for entry in \
-  'desktop/src-tauri/src/main.rs:desktop' \
-  'desktop/src-tauri/Cargo.toml:audit desktop' \
-  'desktop/src-tauri/Cargo.lock:audit desktop' \
-  'desktop/package-lock.json:audit desktop' \
+  'desktop/src-tauri/src/main.rs:desktop windows-desktop' \
+  'desktop/src-tauri/Cargo.toml:audit desktop windows-desktop' \
+  'desktop/src-tauri/Cargo.lock:audit desktop windows-desktop' \
+  'desktop/package-lock.json:audit desktop windows-desktop' \
+  'desktop/bundle-windows.ps1:desktop windows-desktop' \
+  'desktop/bundle-macos.sh:desktop' \
   'desktop/bundle-release-macos.sh:release' \
-  'desktop/release-config.mjs:desktop release' \
+  'desktop/release-config.mjs:desktop release windows-desktop' \
+  'crates/atlas-cli/src/commands/web/managed.rs:desktop rust windows-desktop' \
+  'crates/atlas-desktop-protocol/src/lib.rs:browser desktop rust windows-desktop' \
+  'crates/atlas-search/src/lib.rs:browser desktop rust' \
+  'crates/atlas-web/src/assets.rs:browser desktop rust windows-desktop' \
+  'dev-tools/source-contracts/source-pin.json:source windows-desktop' \
+  'dev-tools/release/.npmrc:release windows-desktop' \
+  'dev-tools/release/src/cli/generate-notices.ts:release windows-desktop' \
+  'web/atlas-ui/apiContract.ts:browser desktop web windows-desktop' \
+  'web/atlas-ui/src/app/DesktopTabs.tsx:browser desktop web windows-desktop' \
+  'web/atlas-ui/src/features/search/SearchView.tsx:browser desktop web' \
+  'web/atlas-ui/src/shared/branding/AtlasMark.tsx:browser desktop web windows-desktop' \
+  'web/atlas-ui/public/third-party-notices.txt:browser desktop web windows-desktop' \
   'web/atlas-ui/playwright.config.ts:corpus web-format' \
   'web/atlas-ui/e2e/journeys.spec.ts:corpus web-format' \
   'web/atlas-ui/e2e/devices/journeys.spec.ts:browser web-format' \
@@ -360,10 +374,20 @@ git -C "$fixture" mv crates/example/src/lib.rs docs-only.md
 git -C "$fixture" commit --quiet -m 'test: rename source to prose'
 (cd "$fixture"; scripts/verify-changed.sh --range HEAD~1...HEAD --list) >"$check_output"
 grep -q '^rust=true$' "$check_output"
+grep -q '^windows-desktop=false$' "$check_output"
+mkdir -p "$fixture/desktop"
+printf 'installer fixture\n' >"$fixture/desktop/bundle-windows.ps1"
+git -C "$fixture" add desktop/bundle-windows.ps1
+git -C "$fixture" commit --quiet -m 'test: add Windows installer fixture'
+git -C "$fixture" mv desktop/bundle-windows.ps1 CONTRIBUTING.md
+git -C "$fixture" commit --quiet -m 'test: rename Windows installer to prose'
+(cd "$fixture"; scripts/verify-changed.sh --range HEAD~1...HEAD --list) >"$check_output"
+grep -q '^windows-desktop=true$' "$check_output"
 chmod +x "$fixture/README.md"
 git -C "$fixture" add README.md
 (cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
-[ "$(grep -c '=true$' "$check_output")" -eq 13 ]
+[ "$(grep -c '=true$' "$check_output")" -eq 14 ]
+grep -q '^windows-desktop=true$' "$check_output"
 
 # The real research runner rejects missing verifiers and propagates failures.
 cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"

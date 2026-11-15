@@ -5,7 +5,10 @@ param(
     [Parameter(Mandatory, ParameterSetName = 'Release')]
     [string]$Version,
     [Parameter(Mandatory, ParameterSetName = 'Release')]
-    [string]$OutputInstaller
+    [string]$OutputInstaller,
+
+    [string]$HostTargetDirectory,
+    [switch]$CargoTimings
 )
 
 $ErrorActionPreference = 'Stop'
@@ -66,8 +69,10 @@ try {
     Invoke-BuildStep node @('desktop/prepare-bootstrap.mjs')
     Invoke-BuildStep npm.cmd @('--prefix', 'dev-tools/release', 'run', 'notices', '--',
         '--output', (Join-Path $PSScriptRoot '.generated/THIRD-PARTY-NOTICES.md'), '--desktop')
+    $cargoOptions = @('--locked')
+    if ($CargoTimings) { $cargoOptions += '--timings' }
     if (!$release) {
-        Invoke-BuildStep cargo @('build', '--locked', '--release', '--target', $target, '-p', 'atlas-cli')
+        Invoke-BuildStep cargo (@('build', '--release', '--target', $target, '-p', 'atlas-cli') + $cargoOptions)
         $PackagedCli = Join-Path $root "target/$target/release/atlas.exe"
     }
 
@@ -78,6 +83,9 @@ try {
     # Apply the static CRT required by the WebView2 loader instead of the
     # workspace flags for the CLI's ONNX Runtime.
     $env:CARGO_ENCODED_RUSTFLAGS = '-Ctarget-feature=+crt-static'
+    if ($HostTargetDirectory) {
+        $env:CARGO_TARGET_DIR = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($HostTargetDirectory)
+    }
     Set-Location $PSScriptRoot
     $arguments = @('build', '--target', $target, '--bundles', 'nsis', '--no-sign')
     if ($release) {
@@ -85,7 +93,7 @@ try {
         @{ version = $Version } | ConvertTo-Json -Compress | Set-Content -LiteralPath $config -Encoding ascii
         $arguments += @('--config', $config)
     }
-    Invoke-BuildStep './node_modules/.bin/tauri.cmd' ($arguments + @('--', '--locked'))
+    Invoke-BuildStep './node_modules/.bin/tauri.cmd' ($arguments + @('--') + $cargoOptions)
     if ($release) {
         $installer = Join-Path $env:CARGO_TARGET_DIR "$target/release/bundle/nsis/PF2e Atlas_${Version}_x64-setup.exe"
         Copy-Item -LiteralPath $installer -Destination $OutputInstaller

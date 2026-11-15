@@ -22,7 +22,6 @@ export function requireSelectedSteps(group, flags, steps) {
     windows: {
       storage: selected(flags, "windows"),
       publication: selected(flags, "windows"),
-      crashes: selected(flags, "windows"),
       cancellation: selected(flags, "tooling"),
       release: selected(flags, "release"),
     },
@@ -56,6 +55,7 @@ export function requireSelectedJobs(jobs) {
     "audit",
     "corpus",
     "desktop",
+    "windows-desktop",
   ]) {
     assert(["true", "false"].includes(flags[key]), key);
   }
@@ -80,7 +80,7 @@ export function requireSelectedJobs(jobs) {
     ),
     "release-tools": flags.release === "true",
     desktop: flags.desktop === "true",
-    "windows-desktop": flags.desktop === "true",
+    "windows-desktop": flags["windows-desktop"] === "true",
     embedding: flags.embedding === "true",
     workspace: flags.workspace === "true",
   };

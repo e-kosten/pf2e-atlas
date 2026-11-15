@@ -22,14 +22,19 @@ absolute_git_common_dir() {
 validation_surface_for_path() {
   case "$1" in
     .github/workflows/ci.yml | .github/workflows/macos-desktop.yml | .github/workflows/windows-desktop.yml | scripts/git-hooks/common.sh | scripts/verify-changed.sh | scripts/validation/ci-results.mjs | scripts/validation/windows-selection.py | scripts/validation/embedding-stack.py | __atlas_special_file_mode__)
-      printf 'rust web source release research skill browser corpus desktop dev tooling audit fanout\n' ;;
+      printf 'rust web source release research skill browser corpus desktop windows-desktop dev tooling audit fanout\n' ;;
     desktop/README.md) printf 'docs\n' ;;
     desktop/bundle-release-macos.sh | desktop/compare-release-cli.mjs | desktop/verify-release-macos.mjs | desktop/smoke-macos.mjs) printf 'release\n' ;;
-    desktop/release-config*) printf 'desktop release\n' ;;
-    desktop/*) printf 'desktop\n' ;;
-    .cargo/* | rust-toolchain.toml) printf 'rust web source release research skill browser corpus desktop dev tooling audit\n' ;;
+    desktop/release-config*) printf 'desktop windows-desktop release\n' ;;
+    desktop/bundle-macos.sh | desktop/verify-macos-icon.sh | desktop/macos-tools/* | desktop/src-tauri/icons/Atlas.icns | desktop/src-tauri/icons/Atlas.icon/* | desktop/src-tauri/tauri.macos.conf.json)
+      printf 'desktop\n' ;;
+    desktop/*) printf 'desktop windows-desktop\n' ;;
+    .cargo/* | rust-toolchain.toml) printf 'rust web source release research skill browser corpus desktop windows-desktop dev tooling audit\n' ;;
     # Package fixtures and executable research precede the prose exemption.
+    dev-tools/source-contracts/source-pin.json) printf 'source windows-desktop\n' ;;
     dev-tools/source-contracts/*) printf 'source\n' ;;
+    dev-tools/release/.npmrc | dev-tools/release/package*.json | dev-tools/release/tsconfig.json | dev-tools/release/src/*)
+      printf 'release windows-desktop\n' ;;
     dev-tools/release/* | scripts/release/* | scripts/prepare-release.sh | scripts/install/*) printf 'release\n' ;;
     skills/pf2e-atlas-cli/*) printf 'skill\n' ;;
     docs/research/evaluations/*) printf 'research\n' ;;
@@ -38,12 +43,21 @@ validation_surface_for_path() {
     scripts/validation/research.sh) printf 'research tooling\n' ;;
     AGENTS.md | CONTRIBUTING.md | README.md | docs/*.md | scratch/plans/*.md | .codex/skills/*.md | skills/*.md | crates/*/README.md | dev-tools/README.md | vendor/README.md | web/atlas-ui/AGENTS.md | web/atlas-ui/README.md | web/atlas-ui/docs/*.md)
       printf 'docs\n' ;;
-    Cargo.toml | Cargo.lock | crates/*/Cargo.toml) printf 'rust browser dev audit desktop\n' ;;
+    Cargo.toml | Cargo.lock | crates/*/Cargo.toml) printf 'rust browser dev audit desktop windows-desktop\n' ;;
     crates/atlas-dev/*) printf 'dev\n' ;;
     scripts/development/* | scripts/validation/* | scripts/verify*.sh | scripts/preflight.sh | scripts/git-hooks/* | .githooks/*) printf 'tooling\n' ;;
+    crates/atlas-cli/build.rs | crates/atlas-cli/src/cli.rs | crates/atlas-cli/src/main.rs | \
+    crates/atlas-cli/src/commands/mod.rs | crates/atlas-cli/src/commands/desktop* | \
+    crates/atlas-cli/src/commands/setup* | crates/atlas-cli/src/commands/web* | crates/atlas-cli/tests/desktop.rs)
+      printf 'rust desktop windows-desktop\n' ;;
     crates/atlas-cli/*) printf 'rust desktop\n' ;;
-    crates/atlas-cli-support/*) printf 'rust dev desktop\n' ;;
-    crates/atlas-app-model/* | crates/atlas-web/api-contract.json | crates/atlas-web/openapi.json | dev-tools/openapi/* | web/atlas-ui/src/generated/http.ts) printf 'rust web browser desktop\n' ;;
+    crates/atlas-cli-support/*) printf 'rust dev desktop windows-desktop\n' ;;
+    crates/atlas-app-model/* | crates/atlas-web/api-contract.json | crates/atlas-web/openapi.json | dev-tools/openapi/* | web/atlas-ui/src/generated/http.ts)
+      printf 'rust web browser desktop windows-desktop\n' ;;
+    crates/atlas-desktop-protocol/* | crates/atlas-web/build*.rs | crates/atlas-web/src/assets.rs | \
+    crates/atlas-runtime/src/desktop_reference* | crates/atlas-runtime/src/setup* | \
+    crates/atlas-runtime/src/runtime.rs | crates/atlas-runtime/src/paths*)
+      printf 'rust browser desktop windows-desktop\n' ;;
     crates/atlas-foundry-model/*) printf 'rust source browser desktop\n' ;;
     crates/* | src/* | tests/* | build.rs) printf 'rust browser desktop\n' ;;
     web/atlas-ui/e2e/readingUrl.ts) printf 'browser corpus web-format\n' ;;
@@ -51,8 +65,17 @@ validation_surface_for_path() {
     web/atlas-ui/e2e/* | web/atlas-ui/playwright.config.ts | web/atlas-ui/scripts/list-corpus-tests.mjs) printf 'corpus web-format\n' ;;
     web/atlas-ui/*.test.* | web/atlas-ui/*.spec.* | web/atlas-ui/vitest.config.* | web/atlas-ui/scripts/test/*) printf 'web browser\n' ;;
     scripts/browser-fixture*.mjs | scripts/validate-browser*.mjs) printf 'browser tooling\n' ;;
-    web/atlas-ui/*) printf 'web browser desktop\n' ;;
-    *) printf 'rust web source release research skill browser corpus desktop dev tooling audit\n' ;;
+    # Desktop bootstrap imports the shared mark/theme. Keep desktop IPC and
+    # its app entry points covered alongside changes to the frontend build.
+    web/atlas-ui/src/app/Desktop* | web/atlas-ui/src/app/desktop*.css | web/atlas-ui/src/app/CopyEntityLink* | \
+    web/atlas-ui/src/app/AtlasApp.tsx | web/atlas-ui/src/app/AppShell.tsx | web/atlas-ui/src/app/AtlasLayout.tsx | \
+    web/atlas-ui/src/app/router.ts | web/atlas-ui/src/main.tsx | \
+    web/atlas-ui/src/shared/branding/AtlasMark.tsx | web/atlas-ui/src/shared/theme/themeDefinitions.ts | \
+    web/atlas-ui/src/styles/ui/atlas-mark.css | web/atlas-ui/public/third-party-notices.txt)
+      printf 'web browser desktop windows-desktop\n' ;;
+    web/atlas-ui/src/* | web/atlas-ui/public/*) printf 'web browser desktop\n' ;;
+    web/atlas-ui/*) printf 'web browser desktop windows-desktop\n' ;;
+    *) printf 'rust web source release research skill browser corpus desktop windows-desktop dev tooling audit\n' ;;
   esac
 }
 
@@ -65,6 +88,7 @@ classify_validation_paths() {
   skill_touched=0
   corpus_touched=0
   desktop_touched=0
+  windows_desktop_touched=0
   fanout_touched=0
   browser_touched=0
   web_format_touched=0
@@ -89,6 +113,7 @@ classify_validation_paths() {
         skill) skill_touched=1 ;;
         corpus) corpus_touched=1 ;;
         desktop) desktop_touched=1 ;;
+        windows-desktop) windows_desktop_touched=1 ;;
         fanout) fanout_touched=1 ;;
         browser) browser_touched=1 ;;
         web-format) web_format_touched=1 ;;
@@ -98,7 +123,7 @@ classify_validation_paths() {
       esac
     done
   done <"$1"
-  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched$skill_touched$browser_touched$dev_touched$web_format_touched$tooling_touched$audit_touched$corpus_touched$desktop_touched$fanout_touched" = 00000000000000 ]; then
+  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched$skill_touched$browser_touched$dev_touched$web_format_touched$tooling_touched$audit_touched$corpus_touched$desktop_touched$windows_desktop_touched$fanout_touched" = 000000000000000 ]; then
     docs_only=1
   fi
 }

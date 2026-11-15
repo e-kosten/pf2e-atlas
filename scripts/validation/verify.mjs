@@ -28,6 +28,7 @@ try {
     "browser",
     "corpus",
     "desktop",
+    "windows-desktop",
     "web-format",
     "dev",
     "source",
@@ -99,7 +100,11 @@ try {
       }
       if (selected?.has("desktop"))
         console.log(
-          "Desktop obligation: run the native installer or app bundle and smoke checks described in desktop/README.md.",
+          "macOS desktop obligation: run the native app bundle and smoke checks described in desktop/README.md.",
+        );
+      if (selected?.has("windows-desktop"))
+        console.log(
+          "Windows desktop obligation: run the native installer and smoke checks described in desktop/README.md.",
         );
       if (selected?.has("browser"))
         console.log(
