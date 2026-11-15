@@ -83,13 +83,11 @@ blocks with the standard Boggard Swampseer before declaring the family.
 
 ### Marcien's Shadow Doubles
 
-The [Marcien Blakros family](creatures/marcien-blakros.toml) covers the original.
-These are summoned copies. Decide whether the copies form their own family and
-how to link it to the summoner. [Lelzeshin](creatures/lelzeshin.toml) and
-[Mirrored Lelzeshin](creatures/mirrored-lelzeshin.toml) provide a second case.
-
-- Marcien Blakros (7-8) (Shadow Double) (`pfs-season-3-bestiary:PqawYWEK0iqvcBZj`)
-- Marcien Blakros (9-10) (Shadow Double) (`pfs-season-3-bestiary:xVmDwoBxjKyCihYz`)
+The [Marcien Blakros family](creatures/marcien-blakros.toml) groups the
+summoner and his copies by party tier. Encounter A3 gives the copies the
+Summoned trait. The pinned 9–10 Shadow Double
+(`pfs-season-3-bestiary:xVmDwoBxjKyCihYz`) omits that trait. Recheck if
+the pinned Foundry source changes.
 
 ### Published adjustments and scaling
 
@@ -166,10 +164,21 @@ and effective stats before declaring the party uses and overrides.
 
 ### Encounter identity and variants
 
-**Bosun.** Iron Ring Bosun and Vaggas the Bosun share Bosun’s Command, Pike and Strike, and the same level and HP. Check Foundation’s Price for evidence that Vaggas is a named example of this base or a distinct encounter role.
+**Vaggas and Iron Ring Bosun.** Vaggas the Bosun and Iron Ring Bosun have
+the same mechanics in Foundry and differ in rarity. Vaggas the Fanatic is a
+distinct level 1 block. Verify both encounters in *Foundation’s Price* before
+linking the two Vaggas roles or declaring the named Bosun’s base.
 
 - Iron Ring Bosun (`pfs-season-3-bestiary:FmZ8bz1ItIzxuu1D`)
 - Vaggas the Bosun (`pfs-season-3-bestiary:RZ8sWKkogng0IU8M`)
+- Vaggas the Fanatic (`pfs-season-3-bestiary:KSKDACF4qh3HJTDo`)
+
+**Skulk.** The pinned *Guardian’s Covenant* actor matches the *Bestiary 2*
+actor’s stat block. Verify the printed encounter for changes to hit points or
+other statistics before declaring a canonical link.
+
+- Skulk (PFS 3-13) (`pfs-season-3-bestiary:LqEHXPTgyVUltvS2`)
+- Skulk (`pathfinder-bestiary-2:uGXTQYuRNtgPt1Pp`)
 
 ## Discovery and grouping gaps
 
@@ -246,19 +255,24 @@ for the two blocks.
 
 #### Pathfinder Society Scenario #4-15: In Glorious Battle
 
-The *In Glorious Battle* appendices present Elite replacements in encounter
-scaling tables. For example, encounter A (p. 31) replaces Combustive Zombies
-with Elites at 23+ Challenge Points, and encounter B uses different wight
-roles by party tier. Map each role and exact replacement across encounters
-before declaring overrides.
+The [Smokesight Wights family](creatures/smokesight-wights.toml) groups the
+Hunter, Stalker, Prowler, and Captain by role and by standard or Elite stat
+block. The scaling tables determine which blocks to use in each encounter.
+
+Recheck these pairs when their pinned Foundry records change.
+
+- The ordinary Combustive Zombie has 125 HP in Foundry and 175 in print
+  (pp. 31 and 36).
+- Elite Deadeye uses its base AC and saves in Foundry (AC 27, Fort +16,
+  Ref +20, Will +17). The printed Elite has AC 29 and saves +18, +22, +19
+  (p. 34).
+- Elite Commander has AC 33 in Foundry and AC 34 before raising its shield in
+  print (p. 39).
+
 [Published scenario](https://www.scribd.com/document/669037731/Pathfinder-Society-Season-4-Year-of-Boundless-Wonder-Scenario-15)
 
 - Elite Combustive Zombie (`pfs-season-4-bestiary:2N9DhnUedzp3FHhM`) ↔ Combustive Zombie (`pfs-season-4-bestiary:vA5VwmGb7xZ0WQdM`)
 - Elite Smokesight Deadeye Wight (`pfs-season-4-bestiary:4G6VvfIsceXfEZBB`) ↔ Smokesight Deadeye Wight (`pfs-season-4-bestiary:4r7haYeUSxjW3wtR`)
-- Elite Smokesight Hunter Wight (`pfs-season-4-bestiary:UDodAGDnGkGwYsMi`) ↔ Smokesight Hunter Wight (`pfs-season-4-bestiary:pomHkkLGJxTvpAyA`)
-- Elite Smokesight Prowler Wight (`pfs-season-4-bestiary:9fBLqeIyvH232sFp`) ↔ Smokesight Prowler Wight (`pfs-season-4-bestiary:SO8aRCEXdCRJ8TIG`)
-- Elite Smokesight Stalker Wight (`pfs-season-4-bestiary:YjTKd7VZwCFaTWPB`) ↔ Smokesight Stalker Wight (`pfs-season-4-bestiary:eC1Y25pgLNSpAoki`)
-- Elite Smokesight Wight Captain (`pfs-season-4-bestiary:BRo5HCigb4YTjJys`) ↔ Smokesight Wight Captain (`pfs-season-4-bestiary:qqNfvVoquLzXsg9j`)
 - Elite Smokesight Wight Commander (`pfs-season-4-bestiary:KV2LmRMc9ho9mBPy`) ↔ Smokesight Wight Commander (`pfs-season-4-bestiary:Q6BTF30qgInYi2BA`)
 
 #### Pathfinder Society Scenario #4-16: Dacilane Academy's First Great Prank War
@@ -271,21 +285,17 @@ party-level assignments.
 
 #### Pathfinder Society Scenario #4-99: Blessings of the Forest
 
-Cathedral Event 4 in *Blessings of the Forest* (pp. 45, 57) prints a level −1
-base dagger and a level 0 Elite dagger. The latter appears in conditional
-Challenge Point bands, including 20–32 at party levels 3–4. Model bounded
-conditions before declaring an override for the Foundry actor titled `Animated
-Dagger (3-4)`.
+The [Animated Dagger family](creatures/animated-dagger.toml) presents both
+published blocks as selectable variants. Cathedral Event 4 uses the Elite
+block at party levels 1–2 and 3–4 under different Challenge Point bands. Revisit
+an override if Atlas can represent those encounter conditions accurately.
 [Published scenario](https://www.scribd.com/document/911522567/PF2-S04-99-Blessings-of-the-Forest)
-
-- Animated Dagger (3-4) (`pfs-season-4-bestiary:16Ye7Wd2pXiUiGJo`) ↔ Animated Dagger (`pfs-season-4-bestiary:548JZ6YeXsfYxVe5`)
 
 #### Pathfinder Society Scenario #5-03: Heidmarch Heist
 
 *Heidmarch Heist* (pp. 17, 22, 25) uses creature levels 5 and 7 at party
 levels 5–6 and 7–8. Both Foundry records report level 5, including the upper
-block with evasion and 111 HP. Recheck after a source correction so Atlas can
-show the correct creature level.
+block with evasion and 111 HP. Recheck if the pinned Foundry source changes.
 [Published scenario](https://www.scribd.com/document/870508711/PZOPFS0503E)
 
 - Krosovahn Mendesil (`pfs-season-5-bestiary:H5lFXWXFl7vKrugU`) ↔ Krosovahn Mendesil (7-8) (`pfs-season-5-bestiary:TWsApxv2Bx0n7M3i`)

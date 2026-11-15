@@ -104,6 +104,7 @@ fn party_level_grouping<'a>(
     let mut by_range = BTreeMap::<_, CreatureFamilyGroupView>::new();
     let mut general = Vec::new();
     let mut unavailable = Vec::new();
+    let mut has_repeated_member = false;
     for (key, display) in records {
         if display
             .as_ref()
@@ -127,6 +128,7 @@ fn party_level_grouping<'a>(
                 labels.push(context);
             }
         }
+        has_repeated_member |= ranges.len() > 1;
         for (range, mut labels) in ranges {
             let group = by_range
                 .entry(range)
@@ -147,6 +149,15 @@ fn party_level_grouping<'a>(
     }
     let unspecified = by_range.remove(&None);
     if by_range.len() < 2 {
+        return None;
+    }
+    // Each row already shows its party range in the flat list.
+    if !has_repeated_member
+        && general.is_empty()
+        && unavailable.is_empty()
+        && unspecified.is_none()
+        && by_range.values().all(|group| group.members.len() == 1)
+    {
         return None;
     }
     let general = (!general.is_empty()).then_some(CreatureFamilyGroupView {
@@ -326,6 +337,29 @@ mod tests {
         assert_eq!(
             scenario_context(&uses, &labels).as_deref(),
             Some("Party levels 9–10 (Advanced) · 11–12 (28+ Challenge Points)"),
+        );
+    }
+
+    #[test]
+    fn party_level_grouping_omits_a_distinct_single_record_per_range() {
+        let display = |party_levels| CreatureDisplay {
+            label: None,
+            qualifier: None,
+            scenario_uses_unavailable: false,
+            scenario_uses: vec![CreatureScenarioUse {
+                id: "use",
+                publication: "Mean Streets".into(),
+                party_levels: Some(party_levels),
+                minimum_challenge_points: None,
+                qualifier: None,
+            }],
+        };
+        assert!(
+            party_level_grouping([
+                ("lower", Some(display([7, 8]))),
+                ("upper", Some(display([9, 10]))),
+            ])
+            .is_none()
         );
     }
 
