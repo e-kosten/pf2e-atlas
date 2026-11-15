@@ -91,6 +91,9 @@ entry's origin information as source context without substituting its rules for
 the selected content. [ADR0067](architecture/decisions/0067-remaster-relationships.md)
 owns relationship authority and consumer policy.
 
+A verified creature copy shows a **Canonical record** link in its reader and
+reference drawer. Each publication keeps its own Search entry and exact address.
+
 ## Product UI Copy
 
 These rules apply to all user-visible copy, including text projected by Rust into

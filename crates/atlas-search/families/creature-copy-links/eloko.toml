@@ -1,0 +1,14 @@
+remaster = false
+source_note = """
+Echoes of Desperation, encounter C (p. 25), uses the unchanged Mwangi Expanse Eloko.
+Its scaling sidebar changes when the Eloko is fielded and adjusts other creatures.
+The authored actor rules, descriptions, and edition match.
+"""
+
+[canonical]
+key = "lost-omens-bestiary:rVnJUXPgAPCeW1tS"
+name = "Eloko"
+
+[[copies]]
+key = "pfs-season-3-bestiary:ISBNLUY6Ilu0Jl28"
+name = "Eloko (PFS 3-03)"

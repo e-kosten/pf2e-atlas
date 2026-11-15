@@ -38,6 +38,15 @@ pub(super) fn render_record(
     if detail == TerminalDetail::Summary {
         return Ok(out);
     }
+    if let Some(canonical) = &record.canonical_record {
+        line(
+            &mut out,
+            format!(
+                "Canonical record · {} ({})",
+                canonical.title, canonical.record_key
+            ),
+        );
+    }
     if record.selected.field.is_some() {
         for field in &presentation.content {
             content_field(&mut out, field, width, true)?;
