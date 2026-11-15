@@ -439,7 +439,8 @@ function SortableTab({
     style: {
       ...tab.props.style,
       transform: transform ? CSS.Translate.toString({ ...transform, y: 0 }) : undefined,
-      transition,
+      // Ant Design's card transition would ease each pointer-driven transform.
+      transition: transition ?? "none",
       zIndex: isDragging ? 1 : undefined,
       position: "relative",
     },
