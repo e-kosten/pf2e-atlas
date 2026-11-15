@@ -1,3 +1,4 @@
+import { useDesktopTab } from "./DesktopTabContext";
 import { DesktopSetupPanel } from "./DesktopSetupPanel";
 import { Link, useRouter, type LinkOptions } from "@tanstack/react-router";
 import { AtlasLink } from "./AtlasLink";
@@ -65,6 +66,8 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const router = useRouter();
+  const tab = useDesktopTab();
+  const mainId = tab && !tab.active ? "atlas-main-" + tab.id : "atlas-main";
   const contentRef = useRef<HTMLDivElement>(null);
   const [themeOpen, setThemeOpen] = useState(false);
   const themeTrigger = useRef<HTMLButtonElement>(null);
@@ -155,7 +158,7 @@ export function AppShell({
     >
       <Typography.Link
         className="skip-link"
-        href="#atlas-main"
+        href={"#" + mainId}
         onClick={() => contentRef.current?.focus()}
       >
         Skip to main content
@@ -295,12 +298,7 @@ export function AppShell({
           />
         )}
       </GlobalFeedback>
-      <div
-        className="atlas-app__content"
-        id="atlas-main"
-        ref={contentRef}
-        tabIndex={-1}
-      >
+      <div className="atlas-app__content" id={mainId} ref={contentRef} tabIndex={-1}>
         {children}
       </div>
     </div>

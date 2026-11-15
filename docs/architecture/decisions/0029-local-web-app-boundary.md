@@ -136,9 +136,13 @@ reads. The entity header supplies the current identity and title to its copy
 action. The native host checks the attached product document before writing the
 clipboard. Browsers copy the corresponding HTTP(S) detail URL.
 
-macOS uses AppKit window groups. Windows uses separate WebView2 windows
-and forwards protocol activations to the existing host process. Both use the
-same link validation and workspace service lease.
+macOS uses AppKit window groups. The Windows tabs prototype uses one WebView2
+per product window and forwards protocol activations to the existing host
+process. Each Windows tab has a window-independent identity and a TanStack
+memory history over the shared route tree. The React tab shell owns live tab
+state. The host validates tab snapshots against the attached product document
+and uses them for native commands and acknowledged protocol-link delivery.
+Both platforms use the same workspace service lease.
 
 ## Browser/backend compatibility
 

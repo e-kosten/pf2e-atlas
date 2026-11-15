@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { createContext, useContext, Fragment, type ReactNode } from "react";
 import { AtlasLink } from "../../app/AtlasLink";
 import type { RecordReferenceHandler } from "./PreparedContent";
@@ -82,6 +83,7 @@ export function useReferenceRecordNavigation() {
 }
 
 export function useReferenceHelpNavigation() {
+  const atlasRouter = useAtlasRouter();
   const host = useContext(HelpContext);
   return (
     help: ReferenceHelpView,
@@ -94,7 +96,11 @@ export function useReferenceHelpNavigation() {
         host.onHelp(help, anchor, generation ?? host.generation, returnToOwner);
       else host.onHelp(help, anchor, generation ?? host.generation);
     } else
-      navigateDestination(referenceDestination(help.destination, help.definition_key));
+      navigateDestination(
+        referenceDestination(help.destination, help.definition_key),
+        undefined,
+        atlasRouter,
+      );
   };
 }
 

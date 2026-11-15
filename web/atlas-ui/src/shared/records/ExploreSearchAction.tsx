@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { Button } from "antd";
 import { Search } from "lucide-react";
 import type { ReactNode } from "react";
@@ -20,6 +21,7 @@ export function ExploreSearchAction({
   summary?: ReactNode;
   disabled?: boolean;
 }) {
+  const atlasRouter = useAtlasRouter();
   return (
     <div className="record-explore__search-toolbar">
       {summary && <span className="record-explore__search-summary">{summary}</span>}
@@ -31,7 +33,7 @@ export function ExploreSearchAction({
         onClick={(event) => {
           if (!isPrimaryActivation(event)) return;
           event.preventDefault();
-          navigateDestination(route);
+          navigateDestination(route, undefined, atlasRouter);
         }}
       >
         {children}

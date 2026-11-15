@@ -1,0 +1,118 @@
+.desktop-tab-host {
+  --desktop-tab-strip-height: 0px;
+}
+
+.desktop-tab-host[data-show-tab-strip="true"] {
+  --desktop-tab-strip-height: 38px;
+}
+
+.desktop-tab-strip {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  height: var(--desktop-tab-strip-height);
+  padding-inline: var(--space-control);
+  background: var(--bg);
+}
+
+.desktop-tab-bar {
+  display: flex;
+  align-items: stretch;
+  box-shadow: inset 0 -1px var(--line);
+}
+
+.desktop-tab-viewport {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.desktop-tab-row {
+  display: flex;
+  gap: 2px;
+  width: max-content;
+  /* Translated tabs must not extend the native scroll range during a drag. */
+  overflow: clip;
+}
+
+.desktop-tab-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 15rem;
+  padding-inline-end: var(--space-micro);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--panel-subtle);
+  color: var(--text);
+}
+
+.desktop-tab-card[data-selected="true"] {
+  background: var(--panel);
+  color: var(--selection-text);
+}
+
+.desktop-tab-label {
+  min-width: 0;
+  min-height: 32px;
+  padding: var(--space-micro) var(--space-control) var(--space-micro)
+    var(--space-control);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-tab-label:hover {
+  color: var(--selection-text);
+}
+
+.desktop-tab-label:focus-visible,
+.desktop-tab-card .ant-btn:focus-visible {
+  outline: 2px solid var(--selection-border);
+  outline-offset: -2px;
+}
+
+.desktop-tab-action {
+  display: flex;
+  flex: none;
+  padding-inline-start: 2px;
+}
+
+.desktop-tab-action .ant-btn {
+  width: 34px;
+  height: 100%;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: none;
+}
+
+.desktop-tab-page {
+  position: relative;
+}
+
+.desktop-tab-page .atlas-app:not(.atlas-app--document) {
+  height: calc(100dvh - var(--desktop-tab-strip-height));
+}
+
+.desktop-tab-page .atlas-app:is(.atlas-app--search, :has(.list-workspace)) {
+  inset-block-start: var(--desktop-tab-strip-height);
+}
+
+.desktop-tab-page .atlas-app--document {
+  min-height: calc(100dvh - var(--desktop-tab-strip-height));
+}
+
+.desktop-tab-page[hidden] {
+  display: none;
+}

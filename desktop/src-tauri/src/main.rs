@@ -16,6 +16,8 @@ mod terminal;
 #[cfg_attr(target_os = "macos", path = "native_tabs.rs")]
 #[cfg_attr(windows, path = "windows_host.rs")]
 mod window_host;
+#[cfg(windows)]
+mod windows_tabs;
 mod zoom;
 
 use std::{
@@ -46,6 +48,8 @@ struct Desktop {
     bootstrap_jobs: Mutex<BootstrapJobs>,
     presented_bootstrap: Mutex<HashSet<String>>,
     copy_menu: copy_link::CopyMenu,
+    #[cfg(windows)]
+    windows_tabs: windows_tabs::WindowsTabs,
     operation: Mutex<()>,
     staged_setup: staged_setup::StagedSetup,
     launcher: Mutex<Option<Launcher>>,
@@ -743,6 +747,7 @@ fn drain_links(app: &AppHandle) -> Result<(), String> {
     result
 }
 
+#[cfg(target_os = "macos")]
 fn deliver_links(app: &AppHandle, desktop: &Desktop) -> Result<(), String> {
     loop {
         let Some(route) = lock(&desktop.links).front().cloned() else {
@@ -762,6 +767,15 @@ fn deliver_links(app: &AppHandle, desktop: &Desktop) -> Result<(), String> {
         }
         lock(&desktop.links).pop_front();
     }
+}
+
+#[cfg(windows)]
+fn deliver_links(app: &AppHandle, desktop: &Desktop) -> Result<(), String> {
+    let route = lock(&desktop.links).front().cloned();
+    if let Some(route) = route {
+        windows_tabs::deliver(app, &route)?;
+    }
+    Ok(())
 }
 
 fn report_link_error(app: &AppHandle, error: &str) {
@@ -824,7 +838,11 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
         true,
         Some("CmdOrCtrl+,"),
     )?;
+    #[cfg(target_os = "macos")]
     let window = MenuItem::with_id(app, "new", "New Window", true, Some("CmdOrCtrl+N"))?;
+    // Keep the Windows menu hints while the focused tab shell handles the shortcuts.
+    #[cfg(windows)]
+    let window = MenuItem::with_id(app, "new", "New Window\tCtrl+N", true, None::<&str>)?;
     let terminal = MenuItem::with_id(
         app,
         "terminal-access",
@@ -846,10 +864,28 @@ fn menu(app: &AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     let atlas = atlas.build()?;
     #[cfg(target_os = "macos")]
     let tab = MenuItem::with_id(app, "new-tab", "New Tab", true, Some("CmdOrCtrl+T"))?;
-    let file = SubmenuBuilder::new(app, "File").item(&window);
+    #[cfg(windows)]
+    let tab = MenuItem::with_id(app, "new-tab", "New Tab\tCtrl+T", true, None::<&str>)?;
+    let file = SubmenuBuilder::new(app, "File").item(&window).item(&tab);
+    #[cfg(windows)]
+    let file = file.item(&MenuItem::with_id(
+        app,
+        "close-tab",
+        "Close Tab\tCtrl+W",
+        true,
+        None::<&str>,
+    )?);
     #[cfg(target_os = "macos")]
-    let file = file.item(&tab);
-    let file = file.close_window().build()?;
+    let file = file.close_window();
+    #[cfg(windows)]
+    let file = file.item(&MenuItem::with_id(
+        app,
+        "close-window",
+        "Close Window",
+        true,
+        None::<&str>,
+    )?);
+    let file = file.build()?;
     let edit = SubmenuBuilder::new(app, "Edit")
         .undo()
         .redo()
@@ -917,6 +953,16 @@ fn main() {
             #[cfg(debug_assertions)]
             startup_trace::desktop_startup_trace,
             tab_links::desktop_tab_link,
+            #[cfg(windows)]
+            windows_tabs::desktop_tabs_state,
+            #[cfg(windows)]
+            windows_tabs::desktop_tabs_ack,
+            #[cfg(windows)]
+            windows_tabs::desktop_tabs_close,
+            #[cfg(windows)]
+            windows_tabs::desktop_tabs_new_window,
+            #[cfg(windows)]
+            windows_tabs::desktop_tabs_exit_status,
             copy_link::desktop_copy_link,
             copy_link::desktop_copy_availability,
             appearance::desktop_appearance
@@ -932,6 +978,8 @@ fn main() {
             }
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 copy_link::invalidate(app, window.label(), true);
+                #[cfg(windows)]
+                let interrupted_delivery = windows_tabs::forget(app, window.label());
                 let desktop = app.state::<Desktop>();
                 desktop.staged_setup.detach_window(window.label());
                 lock(&desktop.presented_bootstrap).remove(window.label());
@@ -946,6 +994,18 @@ fn main() {
                         || (label == "bootstrap" && matches!(remaining.is_visible(), Ok(false)))
                 }) {
                     app.exit(0);
+                } else if interrupted_delivery && let Err(error) = drain_links(app) {
+                    report_link_error(app, &error);
+                }
+            }
+            #[cfg(windows)]
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && let Some(view) = app.get_webview_window(window.label())
+                && windows_tabs::ready(&view)
+            {
+                api.prevent_close();
+                if let Err(error) = windows_tabs::send(&view, windows_tabs::Command::CloseWindow) {
+                    window_host::report("Could not close Atlas window", &error);
                 }
             }
             #[cfg(target_os = "macos")]
@@ -965,13 +1025,23 @@ fn main() {
                 #[cfg(windows)]
                 "terminal-access" => window_host::show_cli_path(),
                 #[cfg(windows)]
-                "exit" => {
-                    app.exit(0);
-                    Ok(())
-                }
+                "exit" => windows_tabs::exit(app),
                 "new" => new_search(app, false),
                 #[cfg(target_os = "macos")]
                 "new-tab" => new_search(app, true),
+                #[cfg(windows)]
+                "new-tab" => windows_tabs::menu(
+                    app,
+                    windows_tabs::Command::Open {
+                        href: "/search",
+                        foreground: true,
+                        delivery: None,
+                    },
+                ),
+                #[cfg(windows)]
+                "close-tab" => windows_tabs::menu(app, windows_tabs::Command::CloseTab),
+                #[cfg(windows)]
+                "close-window" => windows_tabs::menu(app, windows_tabs::Command::CloseWindow),
                 tab_links::MENU_ID => tab_links::open_context_link(app),
                 action @ ("zoom-in" | "zoom-plus" | "zoom-out" | "zoom-reset") => {
                     if let Err(error) = app.state::<Desktop>().zoom.change(app, action) {

@@ -3,9 +3,7 @@
 use tauri::{AppHandle, Manager, WebviewWindow, menu::MenuBuilder};
 use url::Url;
 
-use crate::{
-    Desktop, current_product, display, lock, open_product, product_view, run_on_main, window_host,
-};
+use crate::{Desktop, current_product, display, lock, product_view, run_on_main, window_host};
 
 pub const SCRIPT: &str = include_str!("tab_links.js");
 pub const MENU_ID: &str = "open-link-in-new-tab";
@@ -26,7 +24,18 @@ impl Link {
 
     fn open(self, app: &AppHandle) -> Result<(), String> {
         let source = self.validate(app)?;
-        open_product(app, self.destination.as_str(), Some((&source, false))).map(|_| ())
+        #[cfg(target_os = "macos")]
+        return crate::open_product(app, self.destination.as_str(), Some((&source, false)))
+            .map(|_| ());
+        #[cfg(windows)]
+        crate::windows_tabs::send(
+            &source,
+            crate::windows_tabs::Command::Open {
+                href: self.destination.as_str(),
+                foreground: false,
+                delivery: None,
+            },
+        )
     }
 }
 
@@ -55,9 +64,6 @@ pub async fn desktop_tab_link(
 
 fn show_menu(app: &AppHandle, request: Link) -> Result<(), String> {
     let window = request.validate(app)?;
-    #[cfg(windows)]
-    let title = "Open Link in New Window";
-    #[cfg(target_os = "macos")]
     let title = "Open Link in New Tab";
     let menu = MenuBuilder::new(app)
         .text(MENU_ID, title)
@@ -72,7 +78,7 @@ pub fn open_context_link(app: &AppHandle) -> Result<(), String> {
     request.map_or(Ok(()), |request| request.open(app))
 }
 
-fn product_link(base: &Url, destination: &Url) -> bool {
+pub(crate) fn product_link(base: &Url, destination: &Url) -> bool {
     if destination.origin() != base.origin()
         || !destination.username().is_empty()
         || destination.password().is_some()

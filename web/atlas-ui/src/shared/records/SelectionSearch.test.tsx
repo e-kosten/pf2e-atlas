@@ -96,6 +96,7 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
       },
     }),
     { dismissReadingOverlays: true },
+    expect.anything(),
   );
   expect(screen.queryByRole("link", { name: "Search Atlas" })).not.toBeInTheDocument();
 });

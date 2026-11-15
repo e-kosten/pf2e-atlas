@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { CopyEntityLink } from "../../app/CopyEntityLink";
 import { useReferenceRecordNavigation } from "../../shared/records/ReferenceHelp";
 import {
@@ -13,7 +14,6 @@ import {
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Button } from "antd";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
-import { atlasRouter } from "../../app/router";
 import type { RecordPageInput } from "../../app/destinations";
 import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
@@ -49,6 +49,7 @@ function RecordViewContent({
   route,
   detail,
 }: RecordViewProps & { detail: ReturnType<typeof useRecordDetail> }) {
+  const atlasRouter = useAtlasRouter();
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const onReference = useReferenceRecordNavigation()!;
   const client = useQueryClient();

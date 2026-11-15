@@ -3,7 +3,7 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { currentSearchLocation } from "../../app/searchLocation";
-import { atlasRouter } from "../../app/router";
+import { atlasRouter, type AtlasRouter } from "../../app/router";
 import type { QueryFieldDefinition, QueryPredicate } from "../../generated/atlas";
 import {
   commonCondition,
@@ -120,17 +120,18 @@ export type WorkspaceInteractionEvent =
     };
 export function initialWorkspaceInteractionState(
   preferences: SearchPreferences = DEFAULT_SEARCH_PREFERENCES,
+  router: AtlasRouter = atlasRouter,
 ): WorkspaceInteractionState {
   let search = decodeSearchStateFromParams(
-    new URLSearchParams(atlasRouter.latestLocation.searchStr),
+    new URLSearchParams(router.latestLocation.searchStr),
     "search",
     preferences,
   );
-  const route = currentSearchLocation();
+  const route = currentSearchLocation(router);
   if (
-    atlasRouter.latestLocation.pathname === "/search" &&
-    !atlasRouter.latestLocation.searchStr &&
-    !atlasRouter.latestLocation.state.atlasSearchReset
+    router.latestLocation.pathname === "/search" &&
+    !router.latestLocation.searchStr &&
+    !router.latestLocation.state.atlasSearchReset
   )
     search = { ...search, filter: preferredKindPredicate() };
   return {

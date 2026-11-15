@@ -1,5 +1,5 @@
 import type React from "react";
-import { atlasRouter } from "./router";
+import { atlasRouter, type AtlasRouter } from "./router";
 import * as destinations from "./destinations";
 import { recordDestination } from "./destinations";
 import {
@@ -19,9 +19,10 @@ export function destinationHref(destination: Destination) {
 export function navigateDestination(
   destination: Destination,
   options: { dismissReadingOverlays?: boolean } = {},
+  router: AtlasRouter = atlasRouter,
 ) {
-  const next = atlasRouter.buildLocation(destination);
-  const nextRecordKey = atlasRouter
+  const next = router.buildLocation(destination);
+  const nextRecordKey = router
     .matchRoutes(next.pathname, next.search)
     .flatMap((match) =>
       "recordKey" in match.params ? [match.params.recordKey] : [],
@@ -29,8 +30,8 @@ export function navigateDestination(
   const selection = nextRecordKey
     ? selectedNavigation(next.search, nextRecordKey)
     : undefined;
-  const current = atlasRouter.latestLocation;
-  const currentRecordKey = atlasRouter.state.matches.flatMap((match) =>
+  const current = router.latestLocation;
+  const currentRecordKey = router.state.matches.flatMap((match) =>
     "recordKey" in match.params ? [match.params.recordKey] : [],
   )[0];
   const selected = currentRecordKey
@@ -44,7 +45,7 @@ export function navigateDestination(
         ? { recordKey: selection.record_key, href: current.href }
         : undefined
     : undefined;
-  return atlasRouter.navigate({
+  return router.navigate({
     ...destination,
     state: {
       atlasOwnerOrigin: origin,
@@ -55,8 +56,12 @@ export function navigateDestination(
   });
 }
 
-export function ownerReturnHref(parent: string, landing: RecordNavigationView): string {
-  const current = atlasRouter.latestLocation;
+export function ownerReturnHref(
+  parent: string,
+  landing: RecordNavigationView,
+  router: AtlasRouter = atlasRouter,
+): string {
+  const current = router.latestLocation;
   const fallback = destinationHref(recordDestination({ recordKey: parent, landing }));
   const origin = current.state.atlasOwnerOrigin;
   function wholeParentUrl(href: string, requireRoot: boolean): URL | undefined {
@@ -64,7 +69,7 @@ export function ownerReturnHref(parent: string, landing: RecordNavigationView): 
       const url = new URL(href, window.location.origin);
       if (url.origin !== window.location.origin) return undefined;
       const search = parseSearchParams(url.search);
-      const parentMatch = atlasRouter
+      const parentMatch = router
         .matchRoutes(url.pathname, search)
         .some(
           (match) => "recordKey" in match.params && match.params.recordKey === parent,
@@ -94,12 +99,12 @@ export function ownerReturnHref(parent: string, landing: RecordNavigationView): 
   return url.pathname + url.search;
 }
 
-export function navigatePath(path: string) {
+export function navigatePath(path: string, router: AtlasRouter = atlasRouter) {
   const url = new URL(path, window.location.origin);
   if (url.origin !== window.location.origin) return;
   // Raw native destinations have already been projected by the shared reader.
   validateReadingSearch(parseSearchParams(url.search));
-  return atlasRouter.navigate({ href: url.pathname + url.search + url.hash });
+  return router.navigate({ href: url.pathname + url.search + url.hash });
 }
 
 /** Local reading actions leave modified/native link activations to the browser. */

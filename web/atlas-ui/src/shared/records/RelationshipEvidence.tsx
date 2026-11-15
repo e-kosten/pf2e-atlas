@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { referenceRecordTarget } from "./recordReferenceDestination";
 import { useReferenceRecordNavigation } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
@@ -197,6 +198,7 @@ function EvidenceLink({
   title: string;
   onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
+  const atlasRouter = useAtlasRouter();
   const reference = useReferenceRecordNavigation();
   const route = recordDestination({
     recordKey: selection.record_key,
@@ -211,7 +213,7 @@ function EvidenceLink({
         if (onNavigate) onNavigate(selection, event.currentTarget);
         else if (reference)
           reference(selection.record_key, event.currentTarget, selection);
-        else navigateDestination(route);
+        else navigateDestination(route, undefined, atlasRouter);
       }}
     >
       {title}

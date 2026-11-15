@@ -27,11 +27,13 @@ import type {
 import { encodeReadingAddress } from "./readingUrl";
 import { selectedNavigation, parseSearchParams } from "./urlState";
 import { AtlasApp } from "./AtlasApp";
+import { DesktopTabs } from "./DesktopTabs";
 import { atlasRouter } from "./router";
 const routerSlot = vi.hoisted(() => ({
   current: null as import("./router").AtlasRouter | null,
 }));
-vi.mock("./router", () => ({
+vi.mock("./router", async (original) => ({
+  ...(await original<typeof import("./router")>()),
   get atlasRouter() {
     return routerSlot.current;
   },
@@ -80,10 +82,128 @@ vi.mock("../api/atlasApi", async (original) => ({
 }));
 
 describe("AtlasApp routing", () => {
+  it("keeps a background reference independent of the active Search tab", async () => {
+    const view = renderDom(<DesktopTabs initialHref="/search" />, {
+      wrapper: queryClientWrapper(),
+    });
+    const input = await screen.findByRole(
+      "searchbox",
+      { name: "Search records" },
+      { timeout: 5_000 },
+    );
+    fireEvent.change(input, { target: { value: "Retained search draft" } });
+    expect(screen.queryByRole("tablist")).toBeNull();
+    const ipc = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", { token: "atlas-test-document" });
+    vi.stubGlobal("__TAURI_INTERNALS__", { invoke: ipc });
+    const command = (detail: unknown) =>
+      act(() =>
+        window.dispatchEvent(new CustomEvent("atlas-windows-tab-command", { detail })),
+      );
+    try {
+      command({ kind: "open", href: "/records/spells:heal", foreground: false });
+      const search = await screen.findByRole("tab", { name: /Search/ });
+      const reference = await screen.findByRole("tab", { name: /heal/i });
+      expect(search).toHaveAttribute("aria-selected", "true");
+      expect(reference).toHaveAttribute("aria-selected", "false");
+      const initialId = reference.getAttribute("id");
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
+      expect(reference).toHaveAttribute("aria-selected", "true");
+      expect(window.location.pathname).toBe("/search");
+      fireEvent.keyDown(window, { key: "Tab", ctrlKey: true, shiftKey: true });
+      expect(search).toHaveAttribute("aria-selected", "true");
+      expect(reference).toHaveAttribute("id", initialId);
+      fireEvent.keyDown(search, { key: "ArrowRight", altKey: true, shiftKey: true });
+      expect(screen.getAllByRole("tab")).toEqual([reference, search]);
+      expect(search).toHaveAttribute("aria-selected", "true");
+      expect(ipc).toHaveBeenCalledWith(
+        "desktop_tabs_state",
+        expect.objectContaining({
+          snapshot: expect.objectContaining({
+            tabs: expect.arrayContaining([
+              expect.objectContaining({ href: "/records/spells:heal" }),
+            ]),
+          }),
+        }),
+      );
+      fireEvent.click(
+        within(reference.parentElement!).getByRole("button", {
+          name: "Close tab",
+        }),
+      );
+      expect(screen.queryByRole("tablist")).toBeNull();
+      expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+      expect(input).toHaveValue("Retained search draft");
+    } finally {
+      view.unmount();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it(
+    "handles Windows tab and window shortcuts with the Search field focused",
+    { timeout: 15_000 },
+    async () => {
+      const ipc = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal("__ATLAS_DESKTOP_SETUP__", { token: "atlas-test-document" });
+      vi.stubGlobal("__TAURI_INTERNALS__", { invoke: ipc });
+      const view = renderDom(<DesktopTabs initialHref="/search" />, {
+        wrapper: queryClientWrapper(),
+      });
+      try {
+        const input = await screen.findByRole(
+          "searchbox",
+          { name: "Search records" },
+          { timeout: 5_000 },
+        );
+        input.focus();
+        fireEvent.change(input, { target: { value: "Retained search draft" } });
+        fireEvent.keyDown(input, { key: "n", ctrlKey: true });
+        expect(ipc).toHaveBeenCalledWith("desktop_tabs_new_window", {
+          token: "atlas-test-document",
+        });
+        fireEvent.keyDown(input, { key: "t", ctrlKey: true, repeat: true });
+        expect(screen.queryByRole("tablist")).toBeNull();
+        fireEvent.keyDown(input, { key: "t", ctrlKey: true });
+        const openedSearch = await screen.findByRole(
+          "searchbox",
+          { name: "Search records" },
+          { timeout: 5_000 },
+        );
+        expect(openedSearch).not.toBe(input);
+        expect(openedSearch).toHaveValue("");
+
+        openedSearch.addEventListener("keydown", (event) => event.stopPropagation(), {
+          once: true,
+        });
+        fireEvent.keyDown(openedSearch, { key: "Tab", ctrlKey: true });
+        expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(input);
+        fireEvent.keyDown(input, { key: "Tab", ctrlKey: true, shiftKey: true });
+        expect(screen.getByRole("searchbox", { name: "Search records" })).toBe(
+          openedSearch,
+        );
+        fireEvent.keyDown(openedSearch, { key: "w", ctrlKey: true });
+        expect(screen.queryByRole("tablist")).toBeNull();
+        expect(input).toHaveValue("Retained search draft");
+      } finally {
+        view.unmount();
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
   beforeEach(() => {
     vi.clearAllMocks();
     installLocalStorage();
     Element.prototype.scrollIntoView = vi.fn();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
     window.localStorage.clear();
     window.sessionStorage.clear();
     history.replaceState(null, "", "/search");
@@ -1138,6 +1258,7 @@ describe("AtlasApp routing", () => {
       const trigger = within(preview).getByRole("button", {
         name: compatible ? "Add to list or encounter" : "Add to list",
       });
+      trigger.focus();
       fireEvent.click(trigger);
       const picker = await screen.findByRole("dialog", {
         name: compatible ? "Add to…" : "Add to list",

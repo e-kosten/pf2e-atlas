@@ -1,3 +1,5 @@
+import { useDesktopTab } from "./DesktopTabContext";
+import { useAtlasRouter } from "./router";
 import { ConfigProvider, App } from "antd";
 import {
   Activity,
@@ -49,21 +51,27 @@ const SearchView = lazy(() =>
 );
 
 export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
+  const tab = useDesktopTab();
+  const active = tab?.active ?? true;
   const [colorScheme, setColorScheme] =
     useState<ColorSchemePreference>(readStoredColorScheme);
   const systemColorScheme = useSystemColorScheme();
   const resolvedColorScheme =
     colorScheme === "system" ? systemColorScheme : colorScheme;
+  const reportTheme = tab?.theme;
   useLayoutEffect(() => {
+    if (!active) return;
     applyAtlasDocumentTheme(document, resolvedColorScheme);
-  }, [resolvedColorScheme]);
+    reportTheme?.(resolvedColorScheme);
+  }, [active, reportTheme, resolvedColorScheme]);
   useEffect(() => {
+    if (!active) return;
     window.dispatchEvent(
       new CustomEvent("atlas-appearance-changed", {
         detail: { appearance: colorScheme, dark: resolvedColorScheme === "dark" },
       }),
     );
-  }, [colorScheme, resolvedColorScheme]);
+  }, [active, colorScheme, resolvedColorScheme]);
   useEffect(() => {
     const sync = (event: StorageEvent) => {
       if (event.key === COLOR_SCHEME_STORAGE_KEY || event.key === null) {
@@ -77,6 +85,10 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
     setColorScheme(preference);
     try {
       localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, preference);
+      if (tab)
+        window.dispatchEvent(
+          new StorageEvent("storage", { key: COLOR_SCHEME_STORAGE_KEY }),
+        );
     } catch {
       // Browser preferences are optional, including when storage is unavailable.
     }
@@ -130,6 +142,8 @@ function AtlasWorkspace({
   resolvedColorScheme: ResolvedColorScheme;
   routeError?: ReactNode;
 }) {
+  const atlasRouter = useAtlasRouter();
+  const active = useDesktopTab()?.active ?? true;
   const section = useRouterState({
     select: (state) =>
       [...state.matches].reverse().find((match) => match.staticData.section)?.staticData
@@ -140,15 +154,16 @@ function AtlasWorkspace({
     route: SearchPageInput;
     location: typeof location;
   } | null>(() => {
-    const route = currentSearchLocation();
+    const route = currentSearchLocation(atlasRouter);
     return !routeError && route ? { route, location } : null;
   });
   if (!routeError && searchReturn?.location !== location) {
-    const route = currentSearchLocation();
+    const route = currentSearchLocation(atlasRouter);
     if (route) setSearchReturn({ route, location });
   }
   const queryClient = useQueryClient();
   useEffect(() => {
+    if (!active) return;
     const refreshReference = (event: Event) => {
       const semanticOnly = event instanceof CustomEvent && event.detail === "semantic";
       void queryClient.invalidateQueries({
@@ -160,10 +175,11 @@ function AtlasWorkspace({
     window.addEventListener("atlas-reference-updated", refreshReference);
     return () =>
       window.removeEventListener("atlas-reference-updated", refreshReference);
-  }, [queryClient]);
+  }, [active, queryClient]);
   const readiness = useQuery({
     queryKey: ["readiness"],
     queryFn: getReadiness,
+    enabled: active,
     refetchInterval: (query) => (query.state.data?.saved_writes_paused ? 1500 : false),
   });
   const searchProfile = useSearchProfileSelection(readiness.data, () =>

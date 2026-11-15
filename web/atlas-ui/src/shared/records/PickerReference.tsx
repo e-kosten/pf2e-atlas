@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { LeftOutlined } from "@ant-design/icons";
 import { Button } from "antd";
 import { AtlasLink } from "../../app/AtlasLink";
@@ -16,6 +17,7 @@ export function PickerReference({
   preview: ReturnType<typeof useRecordPreview>;
   label: string;
 }) {
+  const atlasRouter = useAtlasRouter();
   const { destination, detail, definition, readingHistory, landing } = preview;
   const { ref: contentRef, onLandingReady } = usePreviewReadingPosition(
     definition ?? detail,
@@ -48,7 +50,7 @@ export function PickerReference({
           onClick={(event) => {
             if (!isPrimaryActivation(event)) return;
             event.preventDefault();
-            navigateDestination(route, { dismissReadingOverlays: true });
+            navigateDestination(route, { dismissReadingOverlays: true }, atlasRouter);
           }}
         >
           Open full reference

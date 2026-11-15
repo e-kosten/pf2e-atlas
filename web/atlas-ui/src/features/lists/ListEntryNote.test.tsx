@@ -10,6 +10,11 @@ import {
 import { App, ConfigProvider } from "antd";
 import type { ReactNode } from "react";
 import { AtlasApiError } from "../../api/apiError";
+import {
+  DesktopTabContext,
+  type DesktopTabRuntime,
+  type TabCloseGuard,
+} from "../../app/DesktopTabContext";
 import { ListEntryNoteEditor, useListEntryNote } from "./ListEntryNote";
 
 function ListEntryNote({
@@ -37,14 +42,18 @@ const entry = {
   title: "One",
   note: "A useful ally",
 };
-function setup(initialNote?: typeof entry) {
+function setup(initialNote?: typeof entry, tab: DesktopTabRuntime | null = null) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <ConfigProvider theme={{ token: { motion: false } }}>
       <App>
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        <QueryClientProvider client={client}>
+          <DesktopTabContext.Provider value={tab}>
+            {children}
+          </DesktopTabContext.Provider>
+        </QueryClientProvider>
       </App>
     </ConfigProvider>
   );
@@ -96,6 +105,39 @@ it("shows Note and Edit, preserves drafts through refresh and hidden reference r
   );
   expect(screen.getByText("A newer saved note")).toBeVisible();
   expect(api.updateSavedListItemNote).not.toHaveBeenCalled();
+});
+
+it("protects a changed note and its pending save from closing the desktop tab", async () => {
+  const guards = new Set<TabCloseGuard>();
+  const status = () => Array.from(guards, (guard) => guard()).filter(Boolean);
+  let finishSave!: (value: typeof entry) => void;
+  api.updateSavedListItemNote.mockReturnValue(
+    new Promise((resolve) => {
+      finishSave = resolve;
+    }),
+  );
+  setup(undefined, {
+    id: "desktop-tab",
+    active: true,
+    activation: 0,
+    panel: () => document.body,
+    title: vi.fn(),
+    theme: vi.fn(),
+    guard: (guard) => {
+      guards.add(guard);
+      return () => guards.delete(guard);
+    },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+  expect(status()).toEqual([]);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Draft note" } });
+  expect(status()).toContain("dirty");
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(status()).toContain("pending"));
+  const saved = { ...entry, note: "Draft note" };
+  api.getSavedListItemNote.mockResolvedValue(saved);
+  await act(async () => finishSave(saved));
+  await waitFor(() => expect(status()).toEqual([]));
 });
 
 it("retains the draft on failure, retries, and clears a blank note without losing focus", async () => {

@@ -1,8 +1,9 @@
+import { useAtlasRouter } from "../../../app/router";
 import { useEffect, useEffectEvent } from "react";
-import { atlasRouter } from "../../../app/router";
 
 /** An explicit reading departure closes overlays, including for the same href. */
 export function useDismissOnReadingNavigation(open: boolean, dismiss: () => void) {
+  const atlasRouter = useAtlasRouter();
   const onNavigate = useEffectEvent(dismiss);
   useEffect(() => {
     if (!open) return;
@@ -10,5 +11,5 @@ export function useDismissOnReadingNavigation(open: boolean, dismiss: () => void
       const intent = toLocation.state.atlasReadingDismissal;
       if (intent && intent !== fromLocation?.state.atlasReadingDismissal) onNavigate();
     });
-  }, [open]);
+  }, [atlasRouter, open]);
 }

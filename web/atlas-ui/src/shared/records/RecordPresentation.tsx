@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { Fragment } from "react";
 import { RecordIdentityBadges } from "./RecordIdentityBadges";
 import {
@@ -287,6 +288,7 @@ export function RecordIdentity({
     anchor: HTMLElement,
   ) => void;
 }) {
+  const atlasRouter = useAtlasRouter();
   const source = identity?.publication?.trim();
   const scenario = identity?.creature_display;
   const scenarioContext = scenario?.scenario_context;
@@ -396,7 +398,11 @@ export function RecordIdentity({
             className="record-reference__owner"
             icon={<ChevronLeft size={14} aria-hidden="true" />}
             aria-label={`Return to ${root.title}`}
-            href={ownerReturnHref(root.record_key, activityAddress(selection))}
+            href={ownerReturnHref(
+              root.record_key,
+              activityAddress(selection),
+              atlasRouter,
+            )}
             onClick={(event) => {
               if (!isPrimaryActivation(event)) return;
               event.preventDefault();
@@ -408,7 +414,12 @@ export function RecordIdentity({
                 );
               else
                 navigatePath(
-                  ownerReturnHref(root.record_key, activityAddress(selection)),
+                  ownerReturnHref(
+                    root.record_key,
+                    activityAddress(selection),
+                    atlasRouter,
+                  ),
+                  atlasRouter,
                 );
             }}
           >

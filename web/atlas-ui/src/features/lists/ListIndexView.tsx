@@ -1,6 +1,7 @@
+import { useAtlasRouter, type AtlasRouter } from "../../app/router";
+import { useDesktopTab } from "../../app/DesktopTabContext";
 import { useSavedWritesPaused } from "../../shared/feedback/SavedWritesPaused";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { atlasRouter } from "../../app/router";
 import { useRouterState } from "@tanstack/react-router";
 import { listIndexSearch, type ListIndexInput } from "../../app/routeSearch";
 import {
@@ -41,8 +42,13 @@ type IndexPosition = {
   scroll: number;
   documentScroll: number;
 };
-const indexPositions = new WeakMap<QueryClient, Map<string, IndexPosition>>();
+const indexPositions = new WeakMap<
+  QueryClient,
+  WeakMap<AtlasRouter, Map<string, IndexPosition>>
+>();
 export function ListIndexView(_props: ListIndexViewProps) {
+  const atlasRouter = useAtlasRouter();
+  const active = useDesktopTab()?.active ?? true;
   usePageTitle("Lists");
   const client = useQueryClient();
   const search = useRouterState({
@@ -59,13 +65,18 @@ export function ListIndexView(_props: ListIndexViewProps) {
   }, [state.query]);
   const positionKey = JSON.stringify(state);
   const positions = useMemo(() => {
-    let saved = indexPositions.get(client);
+    let byRouter = indexPositions.get(client);
+    if (!byRouter) {
+      byRouter = new WeakMap();
+      indexPositions.set(client, byRouter);
+    }
+    let saved = byRouter.get(atlasRouter);
     if (!saved) {
       saved = new Map();
-      indexPositions.set(client, saved);
+      byRouter.set(atlasRouter, saved);
     }
     return saved;
-  }, [client]);
+  }, [atlasRouter, client]);
   const scrollRef = useRef<HTMLElement>(null);
   const restored = useRef<string | null>(null);
   function changeState(next: ListIndexInput) {
@@ -90,7 +101,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const tagOptions = useMemo(() => savedListTagOptions(allLists), [allLists]);
   const filteredLists = useMemo(() => filterLists(allLists, state), [allLists, state]);
   useLayoutEffect(() => {
-    if (lists.data && scrollRef.current && restored.current !== positionKey) {
+    if (active && lists.data && scrollRef.current && restored.current !== positionKey) {
       const saved = positions.get(positionKey) ?? { scroll: 0, documentScroll: 0 };
       const restore = () => {
         if (scrollRef.current) scrollRef.current.scrollTop = saved.scroll;
@@ -102,15 +113,16 @@ export function ListIndexView(_props: ListIndexViewProps) {
       restored.current = positionKey;
       return () => cancelAnimationFrame(frame);
     }
-  }, [lists.data, positions, positionKey]);
+  }, [active, lists.data, positions, positionKey]);
   useLayoutEffect(() => {
+    if (!active) return;
     const snapshot = () =>
       positions.set(positionKey, {
         scroll: scrollRef.current?.scrollTop ?? 0,
         documentScroll: window.scrollY,
       });
     return atlasRouter.subscribe("onBeforeNavigate", snapshot);
-  }, [positions, positionKey]);
+  }, [active, positions, positionKey, atlasRouter]);
   return (
     <EntityIndexPage
       actions={
@@ -129,6 +141,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
       }
       scrollRef={scrollRef}
       onScroll={(event) => {
+        if (!active) return;
         positions.set(positionKey, {
           scroll: event.currentTarget.scrollTop,
           documentScroll: window.scrollY,
@@ -217,6 +230,8 @@ export function ListIndexView(_props: ListIndexViewProps) {
                   slug,
                   selectedRecordKey: null,
                 }),
+                undefined,
+                atlasRouter,
               );
             }}
           />
@@ -248,6 +263,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
       />
       <IndexTable
         columns={listIndexColumns(
+          atlasRouter,
           (list, opener) => {
             opener.focus({ preventScroll: true });
 
@@ -274,6 +290,8 @@ export function ListIndexView(_props: ListIndexViewProps) {
               slug: list.slug,
               selectedRecordKey: null,
             }),
+            undefined,
+            atlasRouter,
           )
         }
         rowKey={(list) => list.list_key}
@@ -296,6 +314,7 @@ function filterLists(
   );
 }
 function listIndexColumns(
+  atlasRouter: AtlasRouter,
   onEdit: (list: SavedListSummaryView, opener: HTMLElement) => void,
   openingKey?: string,
   paused = false,
@@ -320,6 +339,8 @@ function listIndexColumns(
                 slug: list.slug,
                 selectedRecordKey: null,
               }),
+              undefined,
+              atlasRouter,
             );
           }}
           subtitle={list.slug}

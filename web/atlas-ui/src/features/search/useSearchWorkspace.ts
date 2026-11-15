@@ -1,3 +1,4 @@
+import { useAtlasRouter } from "../../app/router";
 import { userErrorMessage, isSharedFailure } from "../../shared/feedback/errorMessages";
 import {
   failedFilterTransport,
@@ -69,7 +70,6 @@ import {
   rememberKindPreference,
   workspaceInteractionReducer,
 } from "./workspaceState";
-import { atlasRouter } from "../../app/router";
 import { useRouterState } from "@tanstack/react-router";
 import { currentSearchLocation } from "../../app/searchLocation";
 import {
@@ -177,6 +177,7 @@ export function useSearchWorkspace({
   includeSearchProfileInUrl = true,
   searchPreferences = DEFAULT_SEARCH_PREFERENCES,
 }: UseAtlasWorkspaceOptions): SearchWorkspaceState {
+  const atlasRouter = useAtlasRouter();
   // Unresolved metadata is distinct from deliberate single-profile URL omission.
   // This literal comes from the existing selection owner and never enables reads.
   const urlProfile =
@@ -188,7 +189,7 @@ export function useSearchWorkspace({
   const [interaction, dispatch] = useReducer(
     workspaceInteractionReducer,
     searchPreferences,
-    initialWorkspaceInteractionState,
+    (preferences) => initialWorkspaceInteractionState(preferences, atlasRouter),
   );
   const { search, selectedRecordKey, activeSearch } = interaction;
   const queryClient = useQueryClient();
@@ -218,7 +219,7 @@ export function useSearchWorkspace({
       previousProfile.current !== null &&
       atlasRouter.latestLocation.search.search_profile !== searchProfile;
     previousProfile.current = searchProfile;
-    if (enabled && shouldReset && currentSearchLocation())
+    if (enabled && shouldReset && currentSearchLocation(atlasRouter))
       void atlasRouter.navigate({
         to: ".",
         hash: true,
@@ -227,8 +228,8 @@ export function useSearchWorkspace({
         resetScroll: false,
         state: true,
       });
-  }, [enabled, searchProfile]);
-  const initialRoute = currentSearchLocation();
+  }, [atlasRouter, enabled, searchProfile]);
+  const initialRoute = currentSearchLocation(atlasRouter);
   const failedTransport =
     initialRoute !== null &&
     failedFilterTransport("search", atlasRouter.latestLocation.search);
@@ -303,9 +304,9 @@ export function useSearchWorkspace({
   const positions = useBrowsePositions();
   const restoreLocation = useEffectEvent(() => {
     if (!enabled) return;
-    const route = currentSearchLocation();
+    const route = currentSearchLocation(atlasRouter);
     if (!route) return;
-    const restored = initialWorkspaceInteractionState(searchPreferences);
+    const restored = initialWorkspaceInteractionState(searchPreferences, atlasRouter);
     const incomingCriteria = urlCriteria(atlasRouter.latestLocation.searchStr);
     const resetChanged =
       previousReset.current !== atlasRouter.latestLocation.state.atlasSearchReset;
@@ -469,7 +470,7 @@ export function useSearchWorkspace({
   );
   useEffect(() => {
     const response = resultsQuery.data?.page;
-    const route = currentSearchLocation();
+    const route = currentSearchLocation(atlasRouter);
 
     if (
       !canRunResultSearch ||
@@ -514,6 +515,7 @@ export function useSearchWorkspace({
     pageNumber,
     requestProfile,
     urlProfile,
+    atlasRouter,
   ]);
   const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
   function refreshResults() {
@@ -535,7 +537,7 @@ export function useSearchWorkspace({
       if (current !== pending.incoming && current === pending.previous) return;
       pendingUrlReading.current = null;
     }
-    const view = currentSearchLocation();
+    const view = currentSearchLocation(atlasRouter);
     if (
       !enabled ||
       !reading.detail ||
@@ -578,6 +580,7 @@ export function useSearchWorkspace({
     search,
     urlProfile,
     pageNumber,
+    atlasRouter,
   ]);
 
   useEffect(() => {
@@ -587,7 +590,7 @@ export function useSearchWorkspace({
       failedTransport ||
       resetPending ||
       (urlProfile === null && !keywordSearch) ||
-      !currentSearchLocation()
+      !currentSearchLocation(atlasRouter)
     )
       return;
     if ((atlasRouter.latestLocation.search.search_profile ?? null) === urlProfile)
@@ -607,6 +610,7 @@ export function useSearchWorkspace({
     search.filterWasReset,
     failedTransport,
     resetPending,
+    atlasRouter,
   ]);
 
   const filterDiscoveryContext = buildFilterDiscoveryContext(
@@ -743,7 +747,7 @@ export function useSearchWorkspace({
       });
       await atlasRouter.navigate({
         ...searchDestination({
-          ...currentSearchLocation(),
+          ...currentSearchLocation(atlasRouter),
           selectedRecordKey,
           query: searchStateQueryString(next, selected),
           page: 1,
@@ -844,7 +848,7 @@ export function useSearchWorkspace({
         dispatch({ type: "search.settingsApplied", search: committed });
         void atlasRouter.navigate({
           ...searchDestination({
-            ...currentSearchLocation(),
+            ...currentSearchLocation(atlasRouter),
             selectedRecordKey,
             query: searchStateQueryString(committed, profile),
             selection: reading.detail
@@ -872,7 +876,10 @@ export function useSearchWorkspace({
     setPageNumber: (nextPage) => {
       if (!resultsPaused && !retrieval.recovering && nextPage !== pageNumber) {
         void atlasRouter.navigate({
-          ...searchDestination({ ...currentSearchLocation(), page: nextPage }),
+          ...searchDestination({
+            ...currentSearchLocation(atlasRouter),
+            page: nextPage,
+          }),
           replace: false,
           resetScroll: false,
           state: true,

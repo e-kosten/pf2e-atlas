@@ -1,3 +1,4 @@
+import { useDesktopTab } from "./DesktopTabContext";
 import "./desktopSetupPanel.css";
 import { useSavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import {
@@ -85,7 +86,8 @@ export function DesktopSetupPanel() {
   const setup = attachment?.setup;
   const token = attachment?.token;
   const job = setup?.job;
-  const openRequest = attachment?.openRequest;
+  const active = useDesktopTab()?.active ?? true;
+  const openRequest = active ? attachment?.openRequest : undefined;
   if (openRequest != null && openRequest !== lastOpenRequest) {
     setLastOpenRequest(openRequest);
     setConfirmation(undefined);
