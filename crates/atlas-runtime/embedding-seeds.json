@@ -1,18 +1,47 @@
 {
-  "bge-base": {
-    "tag": "embedding-seed/bge-base/v1",
-    "asset": "bge-base-seed-v1.atlas-seed.gz",
-    "file": {
-      "bytes": 464072105,
-      "sha256": "816b9871c302147df08e66f1c7bccbb5f76d6838f404671c00b47a360182c79c"
-    }
-  },
-  "embeddinggemma": {
-    "tag": "embedding-seed/embeddinggemma/v1",
-    "asset": "embeddinggemma-seed-v1.atlas-seed.gz",
-    "file": {
-      "bytes": 464309534,
-      "sha256": "7b3895c6bc23a2138dea12619024bf51d8d153cdad326e695e0392b080e508aa"
+  "version": 2,
+  "profiles": {
+    "bge-base": {
+      "base": {
+        "tag": "embedding-seed/bge-base/v1",
+        "asset": "bge-base-seed-v1.atlas-seed.gz",
+        "file": {
+          "sha256": "816b9871c302147df08e66f1c7bccbb5f76d6838f404671c00b47a360182c79c",
+          "bytes": 464072105
+        }
+      },
+      "delta": {
+        "base_sha256": "816b9871c302147df08e66f1c7bccbb5f76d6838f404671c00b47a360182c79c",
+        "asset": {
+          "tag": "embedding-seed/bge-base/delta/v1",
+          "asset": "bge-base-seed-delta-v1.atlas-seed.gz",
+          "file": {
+            "sha256": "0ef7274c91fff273fc5423e930686a6f84b0b0d01f7032768be7d44e4832a24a",
+            "bytes": 10676738
+          }
+        }
+      }
+    },
+    "embeddinggemma": {
+      "base": {
+        "tag": "embedding-seed/embeddinggemma/v1",
+        "asset": "embeddinggemma-seed-v1.atlas-seed.gz",
+        "file": {
+          "sha256": "7b3895c6bc23a2138dea12619024bf51d8d153cdad326e695e0392b080e508aa",
+          "bytes": 464309534
+        }
+      },
+      "delta": {
+        "base_sha256": "7b3895c6bc23a2138dea12619024bf51d8d153cdad326e695e0392b080e508aa",
+        "asset": {
+          "tag": "embedding-seed/embeddinggemma/delta/v1",
+          "asset": "embeddinggemma-seed-delta-v1.atlas-seed.gz",
+          "file": {
+            "sha256": "9c4e7e1739b52f3d66ae7733f037cfa63a219035ebe56d4b60a47eb19d77165d",
+            "bytes": 10681638
+          }
+        }
+      }
     }
   }
 }

@@ -18,6 +18,10 @@ on:
         default: false
   workflow_dispatch:
     inputs:
+      strict-embedding-coverage:
+        description: Require both published seed sets to cover clean setup with zero corpus inference
+        type: boolean
+        default: false
       nightly:
         description: Rehearse nightly version preparation without publishing
         type: boolean
@@ -60,7 +64,12 @@ jobs:
         shell: bash
         env:
           NIGHTLY: ${{ inputs.nightly }}
+          STRICT_EMBEDDING_COVERAGE: ${{ inputs.strict-embedding-coverage }}
         run: |
+          if [[ "$NIGHTLY" == true && "$STRICT_EMBEDDING_COVERAGE" == true ]]; then
+            echo "Select nightly rehearsal or strict embedding coverage." >&2
+            exit 1
+          fi
           if [[ "$NIGHTLY" == true ]]; then
             echo 'targets=[]' >> "$GITHUB_OUTPUT"
           else
@@ -304,6 +313,7 @@ jobs:
           PACKAGE_TAG: ${{ needs.prepare.outputs.tag }}
           EVENT: ${{ github.event_name }}
           SOURCE_REF: ${{ inputs.source-ref }}
+          STRICT_EMBEDDING_COVERAGE: ${{ inputs.strict-embedding-coverage }}
         run: |
           set -euo pipefail
           binary=$(find target/package-smoke -type f -name atlas -print -quit)
@@ -313,7 +323,7 @@ jobs:
             args+=(--advisory --source-sha "$(git rev-parse HEAD)" --tag "$PACKAGE_TAG"
               --archive target/distrib/atlas-cli-only-x86_64-unknown-linux-gnu.tar.xz
               --report "$RUNNER_TEMP/embedding-coverage.json")
-          elif [[ -z "$SOURCE_REF" && ( "$EVENT" == workflow_dispatch || "$EVENT" == push ) ]]; then
+          elif [[ "$STRICT_EMBEDDING_COVERAGE" != true && -z "$SOURCE_REF" && ( "$EVENT" == workflow_dispatch || "$EVENT" == push ) ]]; then
             args+=(--advisory)
           fi
           python3 scripts/release/check-embedding-seeds.py "$binary" "${args[@]}" | tee -a "$GITHUB_STEP_SUMMARY"

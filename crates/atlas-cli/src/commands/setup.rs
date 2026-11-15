@@ -28,7 +28,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
             || args.run.no_embeddings
             || args.run.offline
             || args.run.force_rebuild
-            || args.run.audit_embedding_coverage
+            || args.run.checks_embedding_coverage()
             || args.run.build_embeddings_locally
             || args.run.locale.is_some()
             || !args.run.search_profiles.is_empty()
@@ -54,7 +54,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
             || args.run.no_embeddings
             || args.run.offline
             || args.run.force_rebuild
-            || args.run.audit_embedding_coverage
+            || args.run.checks_embedding_coverage()
             || args.run.locale.is_some()
             || !args.run.search_profiles.is_empty()
             || offer.len() != 64
@@ -136,7 +136,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
             || (args.paths.source.is_some() && !fixture)
             || args.paths.index.is_some()
             || args.paths.embedding_cache_path.is_some()
-            || args.run.audit_embedding_coverage
+            || args.run.checks_embedding_coverage()
             || (args.run.offline && !fixture))
     {
         return invalid_setup_input(json, "invalid staged desktop setup options".into());
@@ -147,7 +147,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
                 || args.run.no_embeddings
                 || args.run.offline
                 || args.run.force_rebuild
-                || args.run.audit_embedding_coverage
+                || args.run.checks_embedding_coverage()
                 || args.run.build_embeddings_locally
                 || !args.run.search_profiles.is_empty()
             {
@@ -220,6 +220,7 @@ fn run_setup_install(
     fixture: bool,
     json: bool,
 ) -> Result<ExitCode, String> {
+    let checks_embedding_coverage = options.checks_embedding_coverage();
     let setup_options = RuntimeSetupOptions {
         target: if options.no_embeddings {
             SetupTarget::Records
@@ -263,8 +264,8 @@ fn run_setup_install(
             #[cfg(not(feature = "web"))]
             let _ = publication;
         })
-    } else if options.audit_embedding_coverage {
-        runtime.audit_embedding_seed(setup_options)?
+    } else if checks_embedding_coverage {
+        runtime.audit_embedding_seed(setup_options, options.certify_embedding_coverage)?
     } else {
         runtime.ensure_setup(setup_options)
     };
@@ -272,7 +273,7 @@ fn run_setup_install(
     if desktop_stage.is_some() && report.ready {
         super::web::managed::notify_semantic_publication(&runtime);
     }
-    finish_setup_report(&report, json, options.audit_embedding_coverage)
+    finish_setup_report(&report, json, checks_embedding_coverage)
 }
 
 fn finish_setup_report(

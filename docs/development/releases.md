@@ -207,14 +207,16 @@ Local validation covers Rust checks, `dist plan`, release-helper dry runs, insta
 ### Refresh precomputed corpus embeddings
 
 Official releases, including release candidates, require clean managed English
-setup with both public seeds and zero corpus inference on the packaged Linux x64
+setup with both public seed sets and zero corpus inference on the packaged Linux x64
 CLI. The same check runs locally with
 `python3 scripts/release/check-embedding-seeds.py /path/to/atlas`.
 
 Full-corpus coverage runs during release packaging. Ordinary PR validation can
 pass while a staged migration still needs refreshed assets. To check a change
 early, run the nonpublishing **release build check** workflow on its branch or
-run the local checker with `--advisory` to report known gaps.
+run the local checker with `--advisory` to report known gaps. Enable
+`strict-embedding-coverage` when dispatching the workflow with nightly rehearsal
+off to certify public pins on the packaged Linux x64 CLI.
 A shared nightly can publish a known gap if other checks pass. Its release notes
 name the affected profiles and show **Build embeddings locally** and
 `atlas setup --build-embeddings-locally`. That explicit choice can take an hour
@@ -234,31 +236,36 @@ For example, use `origin/main` when it carries the desired pins.
 just embedding-seed-refresh --baseline-ref origin/main --output scratch/seed-refresh
 ```
 
-The command builds the candidate from the current clean checkout, downloads the
-previous seeds, and reuses compatible vectors in a disposable workspace. It
-computes missing vectors and exports only the affected profiles. Use
-`--rebuild-profile "profile=reviewed reason"` for a reviewed numerical contract
-change. The receipt records the reason and the prior pin. In a second fresh
-workspace the command checks both profiles with zero inference, using new files
-where produced and the prior assets elsewhere. It compares semantic search
-results against the producer. Review
+The command builds the candidate from the current clean checkout and downloads
+the previous base and cumulative delta for each model. It reuses compatible
+vectors in a disposable workspace and computes only missing vectors. For each
+affected model, it exports one replacement delta with every current input the
+base lacks. A model that is already covered keeps its pins. When its base alone
+covers the corpus, the proposal can drop the delta pin.
+
+Use `--rebuild-profile "profile=reviewed reason"` to roll over a base for an
+incompatible numerical contract or a large cumulative delta. The receipt records
+the reason and prior pins. In a second fresh workspace the command authenticates
+all declared files, verifies both profiles with zero inference, and compares
+semantic search against the producer. Review
 `result/receipt.json` and, if it exists, `result/proposed-pins.json`. A fully
 covered refresh reports an empty `replacements` object, writes the receipt and
 keeps the existing pins. A refresh with a new BGE input and full Gemma coverage
-proposes only a BGE replacement.
+proposes only a BGE delta.
 After a failed run, rerun in the same output directory to reuse verified
 downloads. Completed outputs are kept for review.
 
-Once authorized, publish each replacement as a seed-only prerelease under
-`embedding-seed/<profile>/v<N>`, such as `embedding-seed/bge-base/v2`. Retain the
-old releases for previous app versions and keep latest disabled. If a proposed
+Once authorized, publish each replacement as a seed-only prerelease. Deltas use
+`embedding-seed/<profile>/delta/v<N>`. Base rollovers use
+`embedding-seed/<profile>/v<N>`. Retain the old releases for previous app
+versions and keep latest disabled. If a proposed
 tag already exists, rerun with `--next-revision <profile>=<number>` and a new
 output directory. Verify the actual uploaded bytes and anonymous URLs before
 applying the proposed pin change to `crates/atlas-runtime/embedding-seeds.json`.
 Apply only the replacements from the proposal and keep any independently updated
 pins, since the proposal starts from the reviewed baseline ref.
 Use the literal slash tag in the pin. The final packaged check uses both
-embedded pins, and a missing vector blocks the next official release that needs
+embedded pin sets, and a missing vector blocks the next official release that needs
 it.
 
 ### Publish an embedding compatibility fixture

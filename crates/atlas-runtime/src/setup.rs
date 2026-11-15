@@ -788,14 +788,15 @@ fn run_setup(
         } else {
             progress("build_index", "Building search index");
             let mut load = |model: &atlas_index::SourceSearchProfileIdentity,
-                            scratch: &std::path::Path| {
+                            scratch: &std::path::Path,
+                            part| {
                 if refresh.is_some() && !use_seeds && !options.build_embeddings_locally {
                     return Err(
                         "No precomputed embeddings are available for this indexing configuration"
                             .into(),
                     );
                 }
-                seed_source(model, scratch, options.offline)
+                seed_source(model, scratch, options.offline, part)
             };
             let result = (|| -> Result<BuildArtifactReport, atlas_ingest::IngestError> {
                 let inputs = captured.take().ok_or_else(|| {

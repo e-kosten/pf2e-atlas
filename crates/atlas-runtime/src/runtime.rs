@@ -212,22 +212,32 @@ impl AtlasRuntime {
         files: &[crate::LocalEmbeddingSeed],
     ) -> Result<(crate::SetupBuildReport, Vec<atlas_domain::SearchProfileId>), String> {
         let mut loaded = Vec::new();
+        let mut loaded_assets = 0;
         let report = setup::ensure_setup_with_seed_policy(
             &self.paths,
             RuntimeSetupOptions {
-                search_profiles: files.iter().map(|entry| entry.profile.clone()).collect(),
+                search_profiles: files
+                    .iter()
+                    .filter(|entry| entry.base_sha256.is_none())
+                    .map(|entry| entry.profile.clone())
+                    .collect(),
                 offline: true,
                 ..Default::default()
             },
-            &mut |model, scratch, _| {
-                let seed = crate::embedding_seeds::open_local(files, model, scratch)?;
-                loaded.push(model.profile_id.clone());
-                Ok(Some(seed))
+            &mut |model, scratch, _, part| {
+                let seed = crate::embedding_seeds::open_local(files, model, scratch, part)?;
+                if seed.is_some() {
+                    loaded_assets += 1;
+                    if part == atlas_ingest::SeedPart::Base {
+                        loaded.push(model.profile_id.clone());
+                    }
+                }
+                Ok(seed)
             },
-            atlas_ingest::SeedBuildPolicy::Strict,
+            atlas_ingest::SeedBuildPolicy::Verify,
         );
         let build = completed_seed_build(report)?;
-        if build.inferred_inputs != 0 || loaded.len() != files.len() {
+        if build.inferred_inputs != 0 || loaded_assets != files.len() {
             return Err(
                 "verification did not consume every supplied seed with zero corpus inference"
                     .into(),
@@ -239,8 +249,10 @@ impl AtlasRuntime {
     pub fn audit_embedding_seed(
         &self,
         options: RuntimeSetupOptions,
+        strict: bool,
     ) -> Result<RuntimeSetupReport, String> {
-        if options.search_profiles.len() != 1
+        if (!strict && options.search_profiles.len() != 1)
+            || (strict && options.search_profiles.is_empty())
             || self
                 .paths
                 .index_path
@@ -248,7 +260,7 @@ impl AtlasRuntime {
                 .map_err(|error| error.to_string())?
         {
             return Err(
-                "embedding coverage audit requires exactly one profile and a fresh workspace"
+                "embedding coverage checks require explicitly selected profiles and a fresh workspace (one profile for advisory)"
                     .into(),
             );
         }
@@ -256,7 +268,11 @@ impl AtlasRuntime {
             &self.paths,
             options,
             &mut crate::embedding_seeds::open_published,
-            atlas_ingest::SeedBuildPolicy::Audit,
+            if strict {
+                atlas_ingest::SeedBuildPolicy::Verify
+            } else {
+                atlas_ingest::SeedBuildPolicy::Audit
+            },
         ))
     }
 
@@ -270,11 +286,11 @@ impl AtlasRuntime {
         completed_seed_build(setup::ensure_setup_with_seed_policy(
             &self.paths,
             options,
-            &mut |model, scratch, _| {
+            &mut |model, scratch, _, part| {
                 if rebuild.contains(&model.profile_id) {
                     return Ok(None);
                 }
-                crate::embedding_seeds::open_local(files, model, scratch).map(Some)
+                crate::embedding_seeds::open_local(files, model, scratch, part)
             },
             atlas_ingest::SeedBuildPolicy::Refresh,
         ))

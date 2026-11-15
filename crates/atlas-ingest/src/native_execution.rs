@@ -4,18 +4,46 @@ use atlas_embedding::{
     NativeInferenceRunner, PreparedEmbeddingBatch, PreparedNativeInput, TextEmbeddingTokenizer,
 };
 use atlas_index::{
-    BuildFrameStream, PreparedPublication, SemanticOccurrence, SourceSearchProfileIdentity,
+    BuildFrameStream, EmbeddingSeed, PreparedPublication, SemanticOccurrence,
+    SourceSearchProfileIdentity,
 };
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::Path,
+};
 
-pub type EmbeddingSeedLoader<'a> = dyn FnMut(&SourceSearchProfileIdentity, &Path) -> Result<Option<atlas_index::EmbeddingSeed>, String>
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SeedPart {
+    Base,
+    Delta,
+}
+
+pub type EmbeddingSeedLoader<'a> = dyn FnMut(&SourceSearchProfileIdentity, &Path, SeedPart) -> Result<Option<EmbeddingSeed>, String>
     + 'a;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SeedBuildPolicy {
     Strict,
+    Verify,
     Refresh,
     Audit,
+}
+
+fn load_delta(
+    load: &mut EmbeddingSeedLoader<'_>,
+    model: &SourceSearchProfileIdentity,
+    scratch: &Path,
+    base: &EmbeddingSeed,
+) -> Result<Option<EmbeddingSeed>, String> {
+    let Some(mut delta) = load(model, scratch, SeedPart::Delta)? else {
+        return Ok(None);
+    };
+    base.validate_delta(&delta)
+        .map_err(|error| error.to_string())?;
+    if !delta.try_bind(base.model()) {
+        return Err("delta model identity differs from its base".into());
+    }
+    Ok(Some(delta))
 }
 
 fn index(error: atlas_index::IndexError) -> IngestError {
@@ -90,7 +118,10 @@ impl NativeExecution<'_, '_> {
     ) -> Result<crate::ProfileBuildReport, IngestError> {
         use crate::EmbeddingCoverageGapKind as Gap;
         let mut seed = None;
+        let mut delta = None;
         let mut first_gap = None;
+        let mut missing_inputs = HashSet::new();
+        let mut first_missing = None;
         let mut runner = None;
         let batch_size = self.options.embedding_batch_size;
         let report = self.execute(config, true, |publication, model, batch| {
@@ -100,10 +131,22 @@ impl NativeExecution<'_, '_> {
                 reason,
             };
             if seed.is_none() {
-                let loaded = load(model, scratch).map_err(seed_error)?;
+                let loaded = load(model, scratch, SeedPart::Base).map_err(seed_error)?;
                 seed = Some(match loaded {
                     Some(mut asset) => {
+                        if matches!(policy, SeedBuildPolicy::Audit | SeedBuildPolicy::Refresh) {
+                            delta =
+                                Some(load_delta(load, model, scratch, &asset).map_err(seed_error)?);
+                        }
                         if asset.try_bind(model) {
+                            if let Some(Some(delta)) = &mut delta
+                                && !delta.try_bind(model)
+                            {
+                                return Err(seed_error(
+                                    "delta model identity differs from the requested profile"
+                                        .into(),
+                                ));
+                            }
                             Some(asset)
                         } else if policy == SeedBuildPolicy::Audit
                             && asset.model().profile_id == model.profile_id
@@ -131,10 +174,29 @@ impl NativeExecution<'_, '_> {
                 .map(PreparedNativeInput::descriptor)
                 .collect::<Vec<_>>();
             let (reused, missing) = if let Some(Some(asset)) = &mut seed {
-                let (selection, missing) = asset
+                let (mut selection, mut missing) = asset
                     .partition(&inputs)
                     .map_err(|error| seed_error(error.to_string()))?;
-                if policy == SeedBuildPolicy::Strict
+                if !missing.is_empty() {
+                    if delta.is_none() {
+                        delta = Some(load_delta(load, model, scratch, asset).map_err(seed_error)?);
+                    }
+                    if let Some(Some(delta)) = &mut delta {
+                        let uncovered = missing
+                            .iter()
+                            .map(|&position| inputs[position].clone())
+                            .collect::<Vec<_>>();
+                        let (selected_delta, still_missing) = delta
+                            .partition(&uncovered)
+                            .map_err(|error| seed_error(error.to_string()))?;
+                        selection.extend(selected_delta).map_err(index)?;
+                        missing = still_missing
+                            .into_iter()
+                            .map(|position| missing[position])
+                            .collect();
+                    }
+                }
+                if matches!(policy, SeedBuildPolicy::Strict | SeedBuildPolicy::Verify)
                     && let Some(&first) = missing.first()
                 {
                     let error = atlas_index::IndexError::Operation(format!(
@@ -153,9 +215,14 @@ impl NativeExecution<'_, '_> {
                 return Ok((0, reused, 0, seed_elapsed));
             }
             if policy == SeedBuildPolicy::Audit {
-                first_gap.get_or_insert_with(|| Gap::MissingInput {
-                    first_hash: inputs[missing[0]].input_sha256.clone(),
-                });
+                if first_gap.is_none() {
+                    first_missing.get_or_insert_with(|| inputs[missing[0]].input_sha256.clone());
+                    missing_inputs.extend(
+                        missing
+                            .into_iter()
+                            .map(|position| inputs[position].input_sha256.clone()),
+                    );
+                }
                 return Ok((0, reused, 0, seed_elapsed));
             }
             let batch = batch.into_subset(&missing).map_err(embedding)?;
@@ -169,7 +236,25 @@ impl NativeExecution<'_, '_> {
                 .map_err(embedding)?;
             Ok((inferred, reused, runner.peak_output_vectors(), seed_elapsed))
         })?;
-        if let Some(kind) = first_gap {
+        if policy == SeedBuildPolicy::Verify
+            && delta.is_none()
+            && let Some(Some(base)) = &seed
+        {
+            load_delta(load, base.model(), scratch, base).map_err(|reason| {
+                IngestError::EmbeddingSeedUnavailable {
+                    profile: report.profile_id.to_string(),
+                    reason,
+                }
+            })?;
+        }
+        let gap = first_gap.or_else(|| {
+            first_missing.map(|first_hash| Gap::MissingInput {
+                first_hash,
+                reused_inputs: report.reused_inputs,
+                missing_inputs: missing_inputs.len(),
+            })
+        });
+        if let Some(kind) = gap {
             return Err(IngestError::EmbeddingCoverageGap(Box::new(
                 crate::EmbeddingCoverageGap {
                     profile: report.profile_id,

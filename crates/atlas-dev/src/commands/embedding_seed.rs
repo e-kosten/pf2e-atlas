@@ -9,7 +9,9 @@ use std::{
 };
 
 use atlas_domain::SearchProfileId;
-use atlas_index::{EmbeddingSeedFile, export_embedding_seed};
+use atlas_index::{
+    EmbeddingSeed, EmbeddingSeedFile, export_embedding_seed, export_embedding_seed_delta,
+};
 use atlas_runtime::{AtlasPathOverrides, AtlasRuntime, AtlasRuntimeOptions};
 use clap::{Args, Subcommand};
 use serde_json::json;
@@ -44,6 +46,9 @@ enum SeedCommand {
         /// Repeat for each profile. Format: PROFILE,SHA256,PATH.
         #[arg(long, required = true)]
         seed: Vec<String>,
+        /// Optional cumulative delta. Format: PROFILE,BASE_SHA256,SHA256,PATH.
+        #[arg(long)]
+        delta: Vec<String>,
         /// Exercise adding a profile to a disposable workspace instead of certifying full coverage.
         #[arg(long)]
         add_to_existing: bool,
@@ -75,8 +80,9 @@ pub(crate) fn run(args: SeedArgs) -> Result<ExitCode, String> {
             index,
             embedding_cache_path,
             seed,
+            delta,
             add_to_existing,
-        } => verify(index, embedding_cache_path, &seed, add_to_existing),
+        } => verify(index, embedding_cache_path, &seed, &delta, add_to_existing),
     }
 }
 
@@ -87,7 +93,7 @@ fn export(
     output: &Path,
 ) -> Result<ExitCode, String> {
     let runtime = runtime(index, None)?;
-    let (file, header) = export_from(&runtime, profile, producer_commit, output)?;
+    let (file, header) = export_from(&runtime, profile, producer_commit, None, output)?;
     println!(
         "{}",
         json!({ "file": file, "header": header, "path": output })
@@ -99,6 +105,7 @@ fn export_from(
     runtime: &AtlasRuntime,
     profile: &str,
     producer_commit: String,
+    base: Option<&EmbeddingSeed>,
     output: &Path,
 ) -> Result<(EmbeddingSeedFile, atlas_index::EmbeddingSeedHeader), String> {
     let result = |error: atlas_index::IndexError| error.to_string();
@@ -123,12 +130,11 @@ fn export_from(
         .unwrap_or_else(|| Path::new("."));
     let mut staged =
         tempfile::NamedTempFile::new_in(directory).map_err(|error| error.to_string())?;
-    let header = export_embedding_seed(
-        &workspace,
-        model,
-        producer_commit,
-        BufWriter::new(staged.as_file_mut()),
-    )
+    let writer = BufWriter::new(staged.as_file_mut());
+    let header = match base {
+        Some(base) => export_embedding_seed_delta(&workspace, model, producer_commit, base, writer),
+        None => export_embedding_seed(&workspace, model, producer_commit, writer),
+    }
     .map_err(result)?;
     let file = EmbeddingSeedFile::measure(staged.as_file()).map_err(result)?;
     staged
@@ -141,6 +147,7 @@ fn verify(
     index: PathBuf,
     model_cache: Option<PathBuf>,
     seeds: &[String],
+    deltas: &[String],
     add_to_existing: bool,
 ) -> Result<ExitCode, String> {
     if index.try_exists().map_err(|error| error.to_string())? != add_to_existing {
@@ -164,19 +171,35 @@ fn verify(
         {
             return Err(format!("duplicate seed for {profile}"));
         }
-        let path = PathBuf::from(path);
-        let bytes = File::open(&path)
-            .and_then(|file| file.metadata())
-            .map_err(|error| error.to_string())?
-            .len();
-        files.push(atlas_runtime::LocalEmbeddingSeed {
+        files.push(local_file(profile, None, sha256, path)?);
+    }
+    for delta in deltas {
+        let mut parts = delta.splitn(4, ',');
+        let (Some(profile), Some(base_sha256), Some(sha256), Some(path)) =
+            (parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            return Err("--delta requires PROFILE,BASE_SHA256,SHA256,PATH".into());
+        };
+        let profile = SearchProfileId::new(profile);
+        if !files.iter().any(|entry| {
+            entry.profile == profile
+                && entry.base_sha256.is_none()
+                && entry.file.sha256 == base_sha256
+        }) {
+            return Err(format!("delta for {profile} requires its exact base"));
+        }
+        if files
+            .iter()
+            .any(|entry| entry.profile == profile && entry.base_sha256.is_some())
+        {
+            return Err(format!("duplicate delta for {profile}"));
+        }
+        files.push(local_file(
             profile,
+            Some(base_sha256.to_owned()),
+            sha256,
             path,
-            file: EmbeddingSeedFile {
-                sha256: sha256.into(),
-                bytes,
-            },
-        });
+        )?);
     }
     let runtime = runtime(index, model_cache)?;
     let started = Instant::now();
@@ -194,4 +217,26 @@ fn verify(
         })
     );
     Ok(ExitCode::SUCCESS)
+}
+
+fn local_file(
+    profile: SearchProfileId,
+    base_sha256: Option<String>,
+    sha256: &str,
+    path: &str,
+) -> Result<atlas_runtime::LocalEmbeddingSeed, String> {
+    let path = PathBuf::from(path);
+    let bytes = File::open(&path)
+        .and_then(|file| file.metadata())
+        .map_err(|error| error.to_string())?
+        .len();
+    Ok(atlas_runtime::LocalEmbeddingSeed {
+        profile,
+        path,
+        base_sha256,
+        file: EmbeddingSeedFile {
+            sha256: sha256.into(),
+            bytes,
+        },
+    })
 }

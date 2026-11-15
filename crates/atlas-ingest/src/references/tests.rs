@@ -62,7 +62,7 @@ impl Fixture {
         ] {
             fs::create_dir_all(source.join(path)).unwrap();
         }
-        fs::write(source.join("module.json"), serde_json::json!({"id":package,"version":"8.6.1","packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"},{"name":"bestiary-ability-glossary-srd","label":"Abilities","type":"Item","path":"packs/general"}]}).to_string()).unwrap();
+        fs::write(source.join("module.json"), serde_json::json!({"id":package,"version":atlas_foundry_model::generated::REFERENCE_SOURCE_VERSION,"packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"},{"name":"bestiary-ability-glossary-srd","label":"Abilities","type":"Item","path":"packs/general"}]}).to_string()).unwrap();
         fs::write(
             source.join("static/lang/en.json"),
             serde_json::json!({

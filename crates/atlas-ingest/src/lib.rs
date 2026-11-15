@@ -7,7 +7,7 @@ mod build_tests;
 mod error;
 mod index_build_input;
 mod native_execution;
-pub use native_execution::{EmbeddingSeedLoader, SeedBuildPolicy};
+pub use native_execution::{EmbeddingSeedLoader, SeedBuildPolicy, SeedPart};
 #[cfg(test)]
 mod passage_benchmark;
 mod product_preparation;

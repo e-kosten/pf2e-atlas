@@ -94,11 +94,14 @@ pub fn classify_reference_upgrade(c: &Connection) -> Result<ReferenceUpgrade, In
     Ok(upgrade_plan(c)?.0)
 }
 
-// This predecessor is replaced from source and has no decoder in this build.
+// These exact predecessors are replaced from source.
 pub(crate) fn uses_retired_snapshot_contract(context: &SourceArtifactBuildContext) -> bool {
     context.snapshot_version == 1
-        && context.source_contract
-            == "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8"
+        && matches!(
+            context.source_contract.as_str(),
+            "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8"
+                | "c1ee148d16a58ace19114544105ccd50c625ba356d5a79fffd40f49165b68d3b"
+        )
 }
 
 pub(crate) fn check_snapshot_contract(

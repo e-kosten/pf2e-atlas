@@ -1022,12 +1022,12 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
         embedding_batch_size: 16,
     })
     .unwrap();
-    assert_eq!(report.record_count, 29894);
-    assert_eq!(report.product_record_count, 29813);
+    assert_eq!(report.record_count, 30_417);
+    assert_eq!(report.product_record_count, 30_336);
     assert_eq!(report.source_report.quarantined_files, 0);
     assert!(report.source_report.identity_unavailable.is_empty());
     let validation = atlas_index::validate_artifact(&report.output_path).unwrap();
-    assert_eq!(validation.checked_snapshots, 29894);
+    assert_eq!(validation.checked_snapshots, 30_417);
     let reader = atlas_index::test_support::open_reader(&report.output_path).unwrap();
     fs::write(evidence.join("full-lexical-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":report.record_count,"product_records":report.product_record_count,"source_report":report.source_report,"validation":validation,"duration_ms":report.build_duration_ms,"source_fingerprint":report.source_fingerprint,"context":reader.context()})).unwrap()).unwrap();
     eprintln!(
@@ -1078,7 +1078,7 @@ fn complete_artifact_snapshots_equal_independently_reloaded_source_models() {
             roots += 1;
         }
     }
-    assert_eq!(roots, 29894);
+    assert_eq!(roots, 30_417);
     assert_eq!(macros, 81);
     assert_eq!(reader.statistics().unwrap().records, roots);
     fs::write(
@@ -1098,7 +1098,9 @@ fn complete_artifact_snapshots_equal_independently_reloaded_source_models() {
 #[ignore = "requires both verified local embedding models; run explicitly"]
 fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles() {
     use atlas_embedding::EmbeddingModelId::{BgeBaseEnV15, EmbeddingGemma300M};
-    use atlas_index::{EmbeddingSeed, EmbeddingSeedFile, export_embedding_seed};
+    use atlas_index::{
+        EmbeddingSeed, EmbeddingSeedFile, export_embedding_seed, export_embedding_seed_delta,
+    };
     use std::fs::File;
 
     let fixture = Fixture::new();
@@ -1153,7 +1155,10 @@ fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles
             .map(Some)
             .map_err(|error| error.to_string())
     };
-    let mut prior = |model: &atlas_index::SourceSearchProfileIdentity, scratch: &Path| {
+    let mut prior = |model: &atlas_index::SourceSearchProfileIdentity, scratch: &Path, part| {
+        if part == SeedPart::Delta {
+            return Ok(None);
+        }
         let asset = if model.profile_id.as_str() == "bge-base" {
             &old_bge
         } else {
@@ -1187,15 +1192,36 @@ fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles
     assert_eq!(refreshed.profiles[0].reused_inputs + 1, old_bge.2);
     assert_eq!(refreshed.profiles[1].inferred_inputs, 0);
     assert_eq!(refreshed.profiles[1].reused_inputs, gemma.2);
-    let new_bge = export(&refreshed, "bge-base", "new-bge.gz");
-    assert_eq!(new_bge.2, old_bge.2);
-    let mut replacements = |model: &atlas_index::SourceSearchProfileIdentity, scratch: &Path| {
-        let asset = if model.profile_id.as_str() == "bge-base" {
-            &new_bge
-        } else {
-            &gemma
-        };
-        read(asset, scratch)
+    let base = read(&old_bge, &fixture.0).unwrap().unwrap();
+    let export_delta = |source: &BuildArtifactReport, name: &str| {
+        let path = fixture.0.join(name);
+        let index = atlas_index::test_support::open_reader(&source.output_path).unwrap();
+        let model = index
+            .context()
+            .search_profile(&base.model().profile_id)
+            .unwrap();
+        let header = export_embedding_seed_delta(
+            &index,
+            model,
+            revision.into(),
+            &base,
+            File::create(&path).unwrap(),
+        )
+        .unwrap();
+        let pin = EmbeddingSeedFile::measure(&File::open(&path).unwrap()).unwrap();
+        (path, pin, header.rows)
+    };
+    let new_bge = export_delta(&refreshed, "new-bge.gz");
+    assert_eq!(new_bge.2, 1);
+    let mut replacements = |model: &atlas_index::SourceSearchProfileIdentity,
+                            scratch: &Path,
+                            part| {
+        match (model.profile_id.as_str(), part) {
+            ("bge-base", SeedPart::Base) => read(&old_bge, scratch),
+            ("bge-base", SeedPart::Delta) => read(&new_bge, scratch),
+            (_, SeedPart::Base) => read(&gemma, scratch),
+            (_, SeedPart::Delta) => Ok(None),
+        }
     };
     let verified = build_seed_fixture(
         &options,
@@ -1205,16 +1231,46 @@ fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles
     )
     .unwrap();
     assert_eq!(verified.inferred_inputs, 0);
-    assert_eq!(verified.reused_inputs, new_bge.2 + gemma.2);
+    assert_eq!(verified.reused_inputs, old_bge.2 + gemma.2);
 
-    let mut rebuild_bge =
-        |model: &atlas_index::SourceSearchProfileIdentity, scratch: &Path| match model
-            .profile_id
-            .as_str()
-        {
-            "bge-base" => Ok(None),
-            _ => read(&gemma, scratch),
-        };
+    let mut invalid_extra = |model: &atlas_index::SourceSearchProfileIdentity,
+                             scratch: &Path,
+                             part| {
+        match (model.profile_id.as_str(), part) {
+            ("bge-base", SeedPart::Base) => read(&old_bge, scratch),
+            ("bge-base", SeedPart::Delta) => read(&new_bge, scratch),
+            (_, SeedPart::Base) => read(&gemma, scratch),
+            (_, SeedPart::Delta) => Err("declared delta is corrupt".into()),
+        }
+    };
+    let normal = build_seed_fixture(
+        &options,
+        "lazy",
+        SeedBuildPolicy::Strict,
+        Some(&mut invalid_extra),
+    )
+    .unwrap();
+    assert_eq!(normal.inferred_inputs, 0);
+    let certification = build_seed_fixture(
+        &options,
+        "validate-extra",
+        SeedBuildPolicy::Verify,
+        Some(&mut invalid_extra),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(certification, IngestError::EmbeddingSeedUnavailable { profile, reason }
+        if profile == "embeddinggemma" && reason == "declared delta is corrupt")
+    );
+
+    let mut rebuild_bge = |model: &atlas_index::SourceSearchProfileIdentity,
+                           scratch: &Path,
+                           part| {
+        match (model.profile_id.as_str(), part) {
+            ("bge-base", _) | (_, SeedPart::Delta) => Ok(None),
+            (_, SeedPart::Base) => read(&gemma, scratch),
+        }
+    };
     let rebuilt = build_seed_fixture(
         &options,
         "rebuild-bge",
@@ -1222,7 +1278,7 @@ fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles
         Some(&mut rebuild_bge),
     )
     .unwrap();
-    assert_eq!(rebuilt.profiles[0].inferred_inputs, new_bge.2);
+    assert_eq!(rebuilt.profiles[0].inferred_inputs, old_bge.2);
     assert_eq!(rebuilt.profiles[0].reused_inputs, 0);
     assert_eq!(rebuilt.profiles[1].inferred_inputs, 0);
     assert_eq!(rebuilt.profiles[1].reused_inputs, gemma.2);
@@ -1238,6 +1294,50 @@ fn published_seed_refresh_infers_only_the_missing_row_and_verifies_both_profiles
             .vector
     };
     assert_eq!(identity_vector(&baseline), identity_vector(&verified));
+    options.search_profiles.truncate(1);
+    let mut additional: serde_json::Value = serde_json::from_str(&document).unwrap();
+    additional["_id"] = serde_json::json!("cccccccccccccccc");
+    additional["system"]["description"]["value"] =
+        serde_json::json!("<p>A new passage for the second refresh.</p>");
+    fs::write(
+        fixture.0.join("packs/items/additional.json"),
+        additional.to_string(),
+    )
+    .unwrap();
+    let second = build_seed_fixture(
+        &options,
+        "second-refresh",
+        SeedBuildPolicy::Refresh,
+        Some(&mut replacements),
+    )
+    .unwrap();
+    assert_eq!(second.reused_inputs, old_bge.2);
+    assert!(second.inferred_inputs > 0);
+    let cumulative = export_delta(&second, "cumulative-bge.gz");
+    assert_eq!(cumulative.2, new_bge.2 + second.inferred_inputs);
+    let mut cumulative_seeds =
+        |_: &atlas_index::SourceSearchProfileIdentity, scratch: &Path, part| {
+            read(
+                if part == SeedPart::Base {
+                    &old_bge
+                } else {
+                    &cumulative
+                },
+                scratch,
+            )
+        };
+    let second_proof = build_seed_fixture(
+        &options,
+        "second-proof",
+        SeedBuildPolicy::Verify,
+        Some(&mut cumulative_seeds),
+    )
+    .unwrap();
+    assert_eq!(second_proof.inferred_inputs, 0);
+    assert_eq!(
+        second_proof.reused_inputs,
+        old_bge.2 + second.inferred_inputs
+    );
 }
 
 #[test]
@@ -1847,7 +1947,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         embedding_batch_size: 16,
     };
     let prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
-    assert_eq!(prepared.spool.record_count(), 29894);
+    assert_eq!(prepared.spool.record_count(), 30_417);
     let mut identities = std::collections::BTreeSet::new();
     let mut bytes = 0;
     let mut tokens = 0;
@@ -1893,7 +1993,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         })
         .unwrap();
     assert_eq!(document_units, prepared.document_units);
-    assert_eq!(identities.len(), 29813);
+    assert_eq!(identities.len(), 30_336);
     let mut signatures = crate::passage_benchmark::signatures(&prepared);
     let mut aliases = std::collections::BTreeMap::<_, Vec<String>>::new();
     prepared

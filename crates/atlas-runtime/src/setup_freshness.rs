@@ -58,7 +58,9 @@ mod tests {
         std::fs::write(source.join("static/lang/en.json"), "{}").unwrap();
         std::fs::write(
             source.join("module.json"),
-            r#"{"id":"pf2e","version":"8.6.1","packs":[]}"#,
+            serde_json::json!({
+                "id": "pf2e", "version": atlas_foundry_model::generated::REFERENCE_SOURCE_VERSION, "packs": []
+            }).to_string(),
         )
         .unwrap();
         let options = || BuildArtifactOptions {

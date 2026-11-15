@@ -17,7 +17,7 @@ const MAX_ROWS: usize = 512 * 1024;
 const MAX_VECTOR_BYTES: usize = 4096;
 pub const MAX_EMBEDDING_SEED_BYTES: u64 = 1024 * 1024 * 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EmbeddingSeedFile {
     pub sha256: String,
@@ -100,8 +100,8 @@ pub struct EmbeddingSeed {
 }
 
 /// Authenticated vectors selected for exact inputs from a particular seed.
-pub struct SeedSelection<'a> {
-    pub(crate) model: &'a SourceSearchProfileIdentity,
+pub struct SeedSelection {
+    pub(crate) model: SourceSearchProfileIdentity,
     pub(crate) values: Vec<(NativeInput, Vec<u8>)>,
 }
 
@@ -169,11 +169,43 @@ impl EmbeddingSeed {
         true
     }
 
+    pub fn validate_delta(&self, delta: &Self) -> Result<(), IndexError> {
+        if !self.model.vector_compatible_with(&delta.model) {
+            return Err(invalid("delta model identity differs from its base"));
+        }
+        for (hash, _) in &delta.keys {
+            if self
+                .keys
+                .binary_search_by_key(hash, |(key, _)| *key)
+                .is_ok()
+            {
+                return Err(invalid("base and delta contain the same input hash"));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn count_uncovered(&self, index: &SqliteIndexReader) -> Result<usize, IndexError> {
+        let model = index.context().search_profile(&self.model.profile_id)?;
+        if !model.vector_compatible_with(&self.model) {
+            return Err(invalid("export model identity differs from the base"));
+        }
+        let db = index.workspace_session().connection();
+        let mut inputs = db.prepare(SEED_INPUTS)?;
+        let mut rows = inputs.query([model.profile_id.as_str()])?;
+        let mut missing = 0;
+        while let Some(row) = rows.next()? {
+            let input = NativeInput::from_hash(model, row.get(0)?, row.get(1)?)?;
+            missing += usize::from(self.ordinal(&input)?.is_none());
+        }
+        Ok(missing)
+    }
+
     /// Collect missing positions and validate every matching input in this window.
     pub fn partition(
         &mut self,
         inputs: &[NativeInputDescriptor],
-    ) -> Result<(SeedSelection<'_>, Vec<usize>), IndexError> {
+    ) -> Result<(SeedSelection, Vec<usize>), IndexError> {
         if inputs.len() > crate::NATIVE_VALUE_BATCH_LIMIT {
             return Err(invalid("selection batch exceeds the native value limit"));
         }
@@ -189,14 +221,14 @@ impl EmbeddingSeed {
         }
         Ok((
             SeedSelection {
-                model: &self.model,
+                model: self.model.clone(),
                 values,
             },
             missing,
         ))
     }
 
-    fn lookup(&mut self, input: &NativeInput) -> Result<Option<Vec<u8>>, IndexError> {
+    fn ordinal(&self, input: &NativeInput) -> Result<Option<usize>, IndexError> {
         let Ok(ordinal) = self
             .keys
             .binary_search_by_key(input.hash(), |(key, _)| *key)
@@ -206,6 +238,13 @@ impl EmbeddingSeed {
         if self.keys[ordinal].1 != input.token_count() {
             return Err(invalid("native token count differs for a matching input"));
         }
+        Ok(Some(ordinal))
+    }
+
+    fn lookup(&mut self, input: &NativeInput) -> Result<Option<Vec<u8>>, IndexError> {
+        let Some(ordinal) = self.ordinal(input)? else {
+            return Ok(None);
+        };
         self.vectors
             .seek(SeekFrom::Start(ordinal as u64 * self.vector_bytes as u64))?;
         let mut bytes = vec![0; self.vector_bytes];
@@ -214,11 +253,47 @@ impl EmbeddingSeed {
     }
 }
 
+impl SeedSelection {
+    pub fn extend(&mut self, selection: Self) -> Result<(), IndexError> {
+        if self.model != selection.model {
+            return Err(invalid(
+                "cannot combine selections from different model identities",
+            ));
+        }
+        self.values.extend(selection.values);
+        Ok(())
+    }
+}
+
+const SEED_INPUTS: &str = "SELECT input_hash, token_count, input_id FROM embedding_inputs
+     WHERE model_id=(SELECT model_id FROM search_profiles WHERE profile_id=?)
+       AND published_hash IS NOT NULL ORDER BY input_hash";
+
 /// Export published native values only, under the index's admitted read snapshot.
 pub fn export_embedding_seed(
     index: &SqliteIndexReader,
     model: &SourceSearchProfileIdentity,
     producer_commit: String,
+    output: impl Write,
+) -> Result<EmbeddingSeedHeader, IndexError> {
+    export_seed(index, model, producer_commit, None, output)
+}
+
+pub fn export_embedding_seed_delta(
+    index: &SqliteIndexReader,
+    model: &SourceSearchProfileIdentity,
+    producer_commit: String,
+    base: &EmbeddingSeed,
+    output: impl Write,
+) -> Result<EmbeddingSeedHeader, IndexError> {
+    export_seed(index, model, producer_commit, Some(base), output)
+}
+
+fn export_seed(
+    index: &SqliteIndexReader,
+    model: &SourceSearchProfileIdentity,
+    producer_commit: String,
+    base: Option<&EmbeddingSeed>,
     output: impl Write,
 ) -> Result<EmbeddingSeedHeader, IndexError> {
     let context = index.context();
@@ -235,16 +310,20 @@ pub fn export_embedding_seed(
     let db = index.workspace_session().connection();
     let model_key = NativeModelKey::new(0, model)?;
     let binding = NativeModel::bind(db, &model_key, false)?;
-    let model_id: i64 = db.query_row(
-        "SELECT model_id FROM search_profiles WHERE profile_id=?",
-        [model.profile_id.as_str()],
-        |row| row.get(0),
-    )?;
-    let rows = db.query_row(
-        "SELECT count(*) FROM embedding_inputs WHERE model_id=? AND published_hash IS NOT NULL",
-        [model_id],
-        |row| row.get(0),
-    )?;
+    let rows = if let Some(base) = base {
+        if base.model().profile_id != model.profile_id {
+            return Err(invalid("export model identity differs from the base"));
+        }
+        base.count_uncovered(index)?
+    } else {
+        db.query_row(
+            "SELECT count(*) FROM embedding_inputs
+             WHERE model_id=(SELECT model_id FROM search_profiles WHERE profile_id=?)
+               AND published_hash IS NOT NULL",
+            [model.profile_id.as_str()],
+            |row| row.get(0),
+        )?
+    };
     let header = EmbeddingSeedHeader {
         producer_commit,
         source_revision: source_revision.clone(),
@@ -269,14 +348,16 @@ pub fn export_embedding_seed(
     output.write_all(MAGIC)?;
     output.write_all(&(metadata.len() as u32).to_le_bytes())?;
     output.write_all(&metadata)?;
-    let mut statement = db.prepare(
-        "SELECT input_hash, token_count, input_id FROM embedding_inputs
-         WHERE model_id=? AND published_hash IS NOT NULL ORDER BY input_hash",
-    )?;
-    let mut rows = statement.query([model_id])?;
+    let mut statement = db.prepare(SEED_INPUTS)?;
+    let mut rows = statement.query([model.profile_id.as_str()])?;
     while let Some(row) = rows.next()? {
         let hash = row.get::<_, [u8; 32]>(0)?;
         let input = NativeInput::from_hash(model, hash, row.get(1)?)?;
+        if let Some(base) = base
+            && base.ordinal(&input)?.is_some()
+        {
+            continue;
+        }
         let vector = binding.read(row.get(2)?)?;
         output.write_all(input.hash())?;
         output.write_all(&(input.token_count() as u32).to_le_bytes())?;
@@ -397,6 +478,23 @@ mod tests {
         );
         descriptors[1].token_count = 13;
         assert!(seed.partition(&descriptors).is_err());
+    }
+
+    #[test]
+    fn cumulative_delta_requires_disjoint_inputs_and_compatible_model() {
+        let model = model();
+        let vector = vector(&model);
+        let scratch = tempfile::tempdir().unwrap();
+        let read = |model, hash| {
+            let (file, pin) = asset(model, 1, &[hash], &vector, &[]);
+            EmbeddingSeed::read(file, &pin, scratch.path()).unwrap()
+        };
+        let base = read(model.clone(), [1; 32]);
+        assert!(base.validate_delta(&read(model.clone(), [2; 32])).is_ok());
+        assert!(base.validate_delta(&read(model.clone(), [1; 32])).is_err());
+        let mut incompatible = model;
+        incompatible.execution_policy.push_str("-other");
+        assert!(base.validate_delta(&read(incompatible, [2; 32])).is_err());
     }
 
     #[test]

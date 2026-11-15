@@ -38,9 +38,11 @@ See [dependency maintenance](../../development/dependencies.md).
 ## Precomputed corpus embeddings
 
 Pin and publish corpus data independently for each model. For managed English
-setup, supply a verified asset after local reuse misses and before requiring
-explicit local inference. A private maintainer refresh reuses matching authenticated inputs from the
-previous published seed and infers only missing values. Official release
+setup, use a verified base and optional cumulative delta after local reuse
+misses and before requiring explicit local inference. The maintainer refresh
+reuses matching authenticated inputs from both files and infers missing values.
+A replacement delta contains the candidate's complete set of inputs absent from
+its pinned base. Official release
 validation uses a clean workspace and the packaged candidate to prove complete
 coverage. Nightly packaging and nonpublishing package checks report only fully
 diagnosed gaps as advisory. Nightly publication carries that report with its exact

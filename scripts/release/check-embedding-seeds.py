@@ -28,8 +28,7 @@ def setup(binary, index, profiles, *, audit=False):
     args = ["setup", "--path-mode", "global", "--index", str(index)]
     for profile in profiles:
         args.extend(["--search-profile", profile])
-    if audit:
-        args.append("--audit-embedding-coverage")
+    args.append("--audit-embedding-coverage" if audit else "--certify-embedding-coverage")
     return run(binary, *args)
 
 
@@ -62,9 +61,13 @@ def classify_gap(profile, pin, code, data, transitions):
     if gap.get("profile") != profile:
         raise RuntimeError(f"coverage gap names a different profile: {gap}")
     kind = gap.get("kind")
-    if (kind == "missing_input" and set(gap) == {"kind", "profile", "first_hash"}
-            and re.fullmatch(r"[0-9a-f]{64}", gap.get("first_hash", ""))):
-        return {"status": "gap", "reason": "missing_input", "first_hash": gap["first_hash"]}
+    if (kind == "missing_input"
+            and set(gap) == {"kind", "profile", "first_hash", "reused_inputs", "missing_inputs"}
+            and re.fullmatch(r"[0-9a-f]{64}", gap.get("first_hash", ""))
+            and type(gap["reused_inputs"]) is int and gap["reused_inputs"] >= 0
+            and type(gap["missing_inputs"]) is int and gap["missing_inputs"] > 0):
+        return {"status": "gap", "reason": "missing_input", "first_hash": gap["first_hash"],
+                "reused_inputs": gap["reused_inputs"], "missing_inputs": gap["missing_inputs"]}
     if kind == "incompatible_model" and set(gap) == {"kind", "profile", "previous", "expected"}:
         expected = {"pin": pin, "previous": gap["previous"], "expected": gap["expected"]}
         if transitions.get(profile) == expected:
@@ -72,9 +75,10 @@ def classify_gap(profile, pin, code, data, transitions):
     raise RuntimeError(f"unreviewed or invalid embedding coverage gap for {profile}: {gap}")
 
 
-def check_strict(binary, directory):
+def check_strict(binary, directory, pins):
     index = directory / "workspace.sqlite"
     code, data = setup(binary, index, PROFILES)
+    check_pins(data, pins)
     if code:
         raise RuntimeError(f"clean setup failed: {data}")
     coverage = covered(data, PROFILES)
@@ -83,16 +87,20 @@ def check_strict(binary, directory):
     return coverage
 
 
+def check_pins(data, pins):
+    if data.get("embedding_seed_pins") != pins:
+        raise RuntimeError("candidate executable's embedding seed pins differ from the checkout")
+
+
 def check_advisory(binary, directory, pins, transitions):
     result = {}
     for profile in PROFILES:
         with tempfile.TemporaryDirectory(prefix=f"{profile}-", dir=directory) as workspace:
             index = Path(workspace) / "workspace.sqlite"
             code, data = setup(binary, index, (profile,), audit=True)
-            if data.get("embedding_seed_pins") != pins:
-                raise RuntimeError("candidate executable's embedding seed pins differ from the checkout")
+            check_pins(data, pins)
             if code:
-                result[profile] = classify_gap(profile, pins[profile], code, data, transitions)
+                result[profile] = classify_gap(profile, pins["profiles"][profile], code, data, transitions)
                 continue
             coverage = covered(data, (profile,))[profile]
             search(binary, index, profile)
@@ -125,15 +133,17 @@ def main():
     binary = str(args.binary.resolve(strict=True))
     with tempfile.TemporaryDirectory(prefix="atlas-release-seeds-") as directory:
         directory = Path(directory)
+        pins = json.loads(PINS.read_text(encoding="utf-8"))
+        if pins.get("version") != 2 or set(pins["profiles"]) != set(PROFILES):
+            raise RuntimeError("invalid embedding seed pin manifest")
         if args.advisory:
-            pins = json.loads(PINS.read_text(encoding="utf-8"))
             transitions = json.loads(TRANSITIONS.read_text(encoding="utf-8"))
-            if set(pins) != set(PROFILES) or not set(transitions).issubset(PROFILES):
-                raise RuntimeError("invalid embedding seed pins or transition profiles")
+            if not set(transitions).issubset(PROFILES):
+                raise RuntimeError("invalid embedding seed transition profiles")
             coverage = check_advisory(binary, directory, pins, transitions)
             if args.report:
                 report = {
-                    "version": 1,
+                    "version": 2,
                     "source_sha": args.source_sha,
                     "tag": args.tag,
                     "archive_sha256": file_digest(args.archive),
@@ -143,7 +153,7 @@ def main():
                 args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
             coverage = {"source_sha": actual_sha, "pins": pins, "profiles": coverage}
         else:
-            coverage = check_strict(binary, directory)
+            coverage = check_strict(binary, directory, pins)
         print(json.dumps(coverage, indent=2))
 
 

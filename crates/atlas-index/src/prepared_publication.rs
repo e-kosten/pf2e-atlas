@@ -320,10 +320,10 @@ impl<'owner> PreparedPublication<'owner> {
     pub fn stage_seeded(
         &mut self,
         model: &SourceSearchProfileIdentity,
-        selection: crate::SeedSelection<'_>,
+        selection: crate::SeedSelection,
     ) -> Result<(), IndexError> {
         let ordinal = self.model_key(model)?;
-        if selection.model != model {
+        if &selection.model != model {
             return Err(invalid("seed profile differs from publication"));
         }
         let selected_tx = rusqlite::Transaction::new_unchecked(

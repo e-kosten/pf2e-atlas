@@ -149,9 +149,10 @@ records coverage for runs that retain both prior assets. See the
 [release runbook](releases.md#refresh-precomputed-corpus-embeddings) for upload
 and pinning.
 
-The nightly package check writes a separate version 1 JSON receipt with
+The nightly package check writes a separate version 2 JSON receipt with
 `source_sha`, `tag`, `archive_sha256`, both `pins` and both `profiles`.
 A covered profile reports reuse and inference counts. A gap reports
-`missing_input` with its first hash or `reviewed_model_transition`.
+`missing_input` with its first hash and distinct reused and missing input
+counts, or `reviewed_model_transition`.
 The publisher matches the receipt to the candidate pins and the actual
 Linux x64 CLI-only archive before it uses the result in release notes.

@@ -15,7 +15,7 @@ class CoverageTest(unittest.TestCase):
     def test_only_verified_gaps_are_advisory(self):
         profile = "bge-base"
         pin = {"tag": "embedding-seed/bge-base/v1"}
-        missing = {"kind": "missing_input", "profile": profile, "first_hash": "a" * 64}
+        missing = {"kind": "missing_input", "profile": profile, "first_hash": "a" * 64, "missing_inputs": 1, "reused_inputs": 12}
         data = {"ready": False, "embedding_coverage_gap": missing}
         classify = CHECK["classify_gap"]
         self.assertEqual(classify(profile, pin, 3, data, {})["status"], "gap")
@@ -43,8 +43,8 @@ class CoverageTest(unittest.TestCase):
                 classify(profile, pin, 3, data, evidence)
 
     def test_a_gap_does_not_mask_the_other_profile_failure(self):
-        pins = dict.fromkeys(CHECK["PROFILES"], {"tag": "seed"})
-        gap = {"kind": "missing_input", "profile": "bge-base", "first_hash": "a" * 64}
+        pins = {"version": 2, "profiles": dict.fromkeys(CHECK["PROFILES"], {"base": {"tag": "seed"}})}
+        gap = {"kind": "missing_input", "profile": "bge-base", "first_hash": "a" * 64, "missing_inputs": 1, "reused_inputs": 12}
         setup = CHECK["check_advisory"].__globals__
         calls = [
             (3, {"ready": False, "embedding_seed_pins": pins, "embedding_coverage_gap": gap}),

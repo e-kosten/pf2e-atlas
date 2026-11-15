@@ -1,136 +1,6 @@
 {
   "format": "atlas-source-union-order/v1",
   "unions": {
-    "0626f730bdef98e94f9a1652a78a7a6004cea05aa594176afe0206f9f47d77e6": {
-      "name": "ItemSourcePF2e",
-      "members": [
-        {
-          "key": "4e9814a6b34b434e462d369ce7ff382ee7d3819c68c1d3adf5f782fc3c6918de",
-          "ordinal": 1,
-          "serdeVariant": "AbilitySource"
-        },
-        {
-          "key": "e5ad5337124056dad0671b7639a344e9f061b83e204ee29f38746e7f9dca4617",
-          "ordinal": 2,
-          "serdeVariant": "AfflictionSource"
-        },
-        {
-          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
-          "ordinal": 3,
-          "serdeVariant": "AmmoSource"
-        },
-        {
-          "key": "9708a92f085b90cb2fc48bfa8f1b954a8d23d1f60a6b53b5a5237b60c57ea4dd",
-          "ordinal": 4,
-          "serdeVariant": "AncestrySource"
-        },
-        {
-          "key": "f2b465f95a0cacfc84ef33d89b2ce0f4a58f593c1a740b598e0efde8760e617c",
-          "ordinal": 5,
-          "serdeVariant": "ArmorSource"
-        },
-        {
-          "key": "9f09df7ed26b4e749c8ce112fc32b57fb6c3d110fc4cbdcd9ff8c906f3a4514d",
-          "ordinal": 6,
-          "serdeVariant": "BackgroundSource"
-        },
-        {
-          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
-          "ordinal": 7,
-          "serdeVariant": "BookSource"
-        },
-        {
-          "key": "df3b5c1cd41bcb4e9c075c2746346cb07d3854a0641da55e34ff66f5ba21c60b",
-          "ordinal": 8,
-          "serdeVariant": "CampaignFeatureSource"
-        },
-        {
-          "key": "a66f4fa96d92f1333a0bf25328d7db20bf7144c982955765d635421cfbe1a939",
-          "ordinal": 9,
-          "serdeVariant": "ClassSource"
-        },
-        {
-          "key": "46f03e603d82d3a9d96a0267fdd5097253c00e0e2dbc962c845aa4d3a6d5d3cf",
-          "ordinal": 10,
-          "serdeVariant": "ConditionSource"
-        },
-        {
-          "key": "cc237fb2e7396e8d8bb14da14b59cdc1b47632870544278705f119d211e33847",
-          "ordinal": 11,
-          "serdeVariant": "ConsumableSource"
-        },
-        {
-          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
-          "ordinal": 12,
-          "serdeVariant": "ContainerSource"
-        },
-        {
-          "key": "02185bb33b98aa517ea8f9f6e655775ea53b15927043245ada2b56a5d467f8b0",
-          "ordinal": 13,
-          "serdeVariant": "DeitySource"
-        },
-        {
-          "key": "5c2e3ca38da454f27d033543112990ef4b609477bb2dfd3533940ffe1b5100fc",
-          "ordinal": 14,
-          "serdeVariant": "EffectSource"
-        },
-        {
-          "key": "0b4ad314c9ef484bf3233ef94b1c3bffbea4f5030f7009a806d89e7e17c15e6d",
-          "ordinal": 15,
-          "serdeVariant": "EquipmentSource"
-        },
-        {
-          "key": "f363c359cbe211666b0b8a0de0e1383355fa25a3bcb31cad7e52fe0653319592",
-          "ordinal": 16,
-          "serdeVariant": "FeatSource"
-        },
-        {
-          "key": "aeeddb74bfdfa92c77eb30f7cced0834673238c305a6fb04e3a3254c0794a023",
-          "ordinal": 17,
-          "serdeVariant": "HeritageSource"
-        },
-        {
-          "key": "e8759b36b58983ac5c30e7df54a042e93d21eada2855505026ca6d3bd6af1f0f",
-          "ordinal": 18,
-          "serdeVariant": "KitSource"
-        },
-        {
-          "key": "34c48f70a03c7b44b9e548c0330cf6e4023b17f2e3c070de59a89edb7fcaf8e0",
-          "ordinal": 19,
-          "serdeVariant": "LoreSource"
-        },
-        {
-          "key": "a137736c0be678a5b75580a3668d36c8ec5408867aec9e0d5597d49997bc05f5",
-          "ordinal": 20,
-          "serdeVariant": "MeleeSource"
-        },
-        {
-          "key": "cc678a274eec4771d480fb80f5f4225f08d28b8753dba0aadbac8516e563fa19",
-          "ordinal": 21,
-          "serdeVariant": "ShieldSource"
-        },
-        {
-          "key": "18d3b551477607798f061bfaa3c726ca3bbdd5352d827b9ce2802e269fbb95d2",
-          "ordinal": 22,
-          "serdeVariant": "SpellSource"
-        },
-        {
-          "key": "ebadf9675e31a2a1ae468a20205708355673097ba04ce4c73a2ae54cb009edd1",
-          "ordinal": 23,
-          "serdeVariant": "SpellcastingEntrySource"
-        },
-        {
-          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
-          "ordinal": 24,
-          "serdeVariant": "TreasureSource"
-        },
-        {
-          "key": "5b6700298997189b4cb3fef8b1500db182aef56c1bb0ea0d13c79fed81a92fce",
-          "ordinal": 25,
-          "serdeVariant": "WeaponSource"
-        }
-      ]
-    },
     "0a0249575b7c8524f5bd396e605476053b1e69a2b77300a10b9973b3efb62152": {
       "members": [
         {
@@ -147,51 +17,6 @@
           "key": "3bfc6c2d94cefe55a10cb3a3addcf49fc0831c83275a2c3a2a109702f69109a3",
           "ordinal": 3,
           "serdeVariant": "Boolean"
-        }
-      ]
-    },
-    "10ca7061207ab22577f710066e30aff0eae314e6111a99b930c4f645769a9f75": {
-      "name": "ActorSourcePF2e",
-      "members": [
-        {
-          "key": "8aed7387e69af87095b43fc5432e8778b119e01bc552c17413ba2b1c388cb2d0",
-          "ordinal": 1,
-          "serdeVariant": "ArmySource"
-        },
-        {
-          "key": "7d7a4bf26f81cd2344592d06d6200dbdf86c2930fa3f48a6ea865c7a014b02c0",
-          "ordinal": 2,
-          "serdeVariant": "CharacterSource"
-        },
-        {
-          "key": "e357393dd2ebe0dcf5f1c678e75eb71878d6e3bc346b0c1a51f20c87e84d7945",
-          "ordinal": 3,
-          "serdeVariant": "FamiliarSource"
-        },
-        {
-          "key": "7265e049cf8bb864a343c643554f12ab45f3a9f403d60993a69b8387861dd62e",
-          "ordinal": 4,
-          "serdeVariant": "HazardSource"
-        },
-        {
-          "key": "c68db5e2b4f2f29365e3d315424dad59d1a3c2edb0876da5e062256014e6afa4",
-          "ordinal": 5,
-          "serdeVariant": "LootSource"
-        },
-        {
-          "key": "4c93d6c3f2c5b799cb92d3acc473628451885c5a29379e0902d71243206eeaf0",
-          "ordinal": 6,
-          "serdeVariant": "NPCSource"
-        },
-        {
-          "key": "8d8436c114b51f20871936d2147103c928a23501cb74cbc12fce85c493edc664",
-          "ordinal": 7,
-          "serdeVariant": "PartySource"
-        },
-        {
-          "key": "a0f1aafa906bd796297380435ccbbb522b77ffe7ac0b74c499375c48074c0dac",
-          "ordinal": 8,
-          "serdeVariant": "VehicleSource"
         }
       ]
     },
@@ -741,6 +566,43 @@
         }
       ]
     },
+    "2a2e9725dbaafeac6c45842a6a2314d364458e85b20593e48bfbe5df715945ce": {
+      "name": "ActorSourcePF2e",
+      "members": [
+        {
+          "key": "d332ceee42a30f2dc18ef61bcc45b1b1d255ec62eeca34a3cec87a21e89fcd93",
+          "ordinal": 1
+        },
+        {
+          "key": "855811102d7141aa6acc1b64b920480fc4aef012a2c89447eda278cc228af7c7",
+          "ordinal": 2
+        },
+        {
+          "key": "25104df457b9ddf66ce4a3b229c4f4923a393db186a3b2cb36abd576532e582c",
+          "ordinal": 3
+        },
+        {
+          "key": "879450771a1653fc3cec9ebb677681e41262f5b5b12790322cfc5d674e1f71f6",
+          "ordinal": 4
+        },
+        {
+          "key": "74b048b5ea225f13544bf2bdd23508f8740c47305249e1aaf7da1ca15da3a2f7",
+          "ordinal": 5
+        },
+        {
+          "key": "e51a8dfa7a4b9678896586743180a13dbaad11882d02f94f389eae200e082cc9",
+          "ordinal": 6
+        },
+        {
+          "key": "a32e02409bbce149326a553339b03523d61deceba44f19d9dfabe63a55476c75",
+          "ordinal": 7
+        },
+        {
+          "key": "26d95f314a2464cc931a9814e81afdc1e217e1c884e3192f14da6dd530ca3ae1",
+          "ordinal": 8
+        }
+      ]
+    },
     "2f6d65b2c98193e82c76079efaa7e4e9399d10932aed73ebb1575d8d2c6e9960": {
       "members": [
         {
@@ -781,6 +643,51 @@
           "key": "bda59c4dedcfaee35bcea871ccee6406f0218d58300bbcdfc12bb1c6df51af57",
           "ordinal": 3,
           "serdeVariant": "SourceFromSchemaEffectBadgeCounterSchema"
+        }
+      ]
+    },
+    "37243abf2cf8e3586dd8230e5e2c0c54b7b5474d5d64927935a87c8c49bcdd10": {
+      "name": "ActorSourcePF2e",
+      "members": [
+        {
+          "key": "10de4292a38cf86de698e084a09b5d3cf2a485371e4f7bff011b3a0872684891",
+          "ordinal": 1,
+          "serdeVariant": "ArmySource"
+        },
+        {
+          "key": "f5f9aa20cc9d7016cd8c2d2557395a309a2462804be0d547e8ee5659db844177",
+          "ordinal": 2,
+          "serdeVariant": "CharacterSource"
+        },
+        {
+          "key": "e1bd11180043b102b8727a16a9e7b2b0cb9236a9406e9f45fa9e293ae1538fb3",
+          "ordinal": 3,
+          "serdeVariant": "FamiliarSource"
+        },
+        {
+          "key": "40a28c74dcf5b19e52210d92130c9e221ce391f79cae3fedf7c443d932246046",
+          "ordinal": 4,
+          "serdeVariant": "HazardSource"
+        },
+        {
+          "key": "464152afb0a6605a73c252a8d8faf6001143b6b35a3afb43002c5dd72a2a3a05",
+          "ordinal": 5,
+          "serdeVariant": "LootSource"
+        },
+        {
+          "key": "a198b7589af040dfcc321a2aa8856bd1c7a8dd62aa726b8d5b8fcd99d8aaa8e8",
+          "ordinal": 6,
+          "serdeVariant": "NPCSource"
+        },
+        {
+          "key": "64c14e814c77e61a1b7b32a7fdbb9002d7a05c0286874d07d1bc8579ac13625a",
+          "ordinal": 7,
+          "serdeVariant": "PartySource"
+        },
+        {
+          "key": "0b77229bb1c5e5a9d27d8854fb60d1c2c79f6c34d9695fa831f3be933af1c86b",
+          "ordinal": 8,
+          "serdeVariant": "VehicleSource"
         }
       ]
     },
@@ -855,6 +762,30 @@
         {
           "key": "a51bf7729f7b0977c30e62c700bee2c90d40090427cc046420ff7ddce134f7bc",
           "ordinal": 14
+        }
+      ]
+    },
+    "3f2a379769da6ee7100060ea1104b737ba78f76049fcf0c93c27a45722322c3b": {
+      "members": [
+        {
+          "key": "90a7861f2822385a9ff634a269e7a85c999352457798276185ff1fa13d1a4bd8",
+          "ordinal": 1,
+          "serdeVariant": "ItemTraitsItemTrait"
+        },
+        {
+          "key": "2bda1a255c101be1fd86ec89096de70c7278138db7a58819349916670bbe56e6",
+          "ordinal": 2,
+          "serdeVariant": "ItemTraitsNoRarityItemTrait"
+        },
+        {
+          "key": "c059d22e2c97892b41a10c696494d628dddbce331fd49e525300c2ab6a5d769e",
+          "ordinal": 3,
+          "serdeVariant": "OtherTagsOnly"
+        },
+        {
+          "key": "fb4847ee5b259ad707ef1ec5bed17f65fa74ec38e4ce676d09735e1b826d831b",
+          "ordinal": 4,
+          "serdeVariant": "RarityTraitAndOtherTags"
         }
       ]
     },
@@ -964,6 +895,111 @@
         }
       ]
     },
+    "4d326e351893d5cfe1030b11fea73bd714966e34af6f7de2a6c1fe979a0367e0": {
+      "name": "ItemSourcePF2e",
+      "members": [
+        {
+          "key": "4e9814a6b34b434e462d369ce7ff382ee7d3819c68c1d3adf5f782fc3c6918de",
+          "ordinal": 1
+        },
+        {
+          "key": "de78f1689fec5ceb33d43d650700b03a96bf7548570e091311f51d09fe42b00b",
+          "ordinal": 2
+        },
+        {
+          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
+          "ordinal": 3
+        },
+        {
+          "key": "9708a92f085b90cb2fc48bfa8f1b954a8d23d1f60a6b53b5a5237b60c57ea4dd",
+          "ordinal": 4
+        },
+        {
+          "key": "18b77e5757df1e399c16d65c7e960d519c2e118886ff5062c72ed2b0090f27df",
+          "ordinal": 5
+        },
+        {
+          "key": "9f09df7ed26b4e749c8ce112fc32b57fb6c3d110fc4cbdcd9ff8c906f3a4514d",
+          "ordinal": 6
+        },
+        {
+          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
+          "ordinal": 7
+        },
+        {
+          "key": "df3b5c1cd41bcb4e9c075c2746346cb07d3854a0641da55e34ff66f5ba21c60b",
+          "ordinal": 8
+        },
+        {
+          "key": "a66f4fa96d92f1333a0bf25328d7db20bf7144c982955765d635421cfbe1a939",
+          "ordinal": 9
+        },
+        {
+          "key": "0420c54f026ed61954e854fa7bc3a268daf9e815e8281503fd861e4dc3898a24",
+          "ordinal": 10
+        },
+        {
+          "key": "21542495189815c894756bda2132da1e4c490c6ae6542d314045b68dd215a8d7",
+          "ordinal": 11
+        },
+        {
+          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
+          "ordinal": 12
+        },
+        {
+          "key": "02185bb33b98aa517ea8f9f6e655775ea53b15927043245ada2b56a5d467f8b0",
+          "ordinal": 13
+        },
+        {
+          "key": "5c2e3ca38da454f27d033543112990ef4b609477bb2dfd3533940ffe1b5100fc",
+          "ordinal": 14
+        },
+        {
+          "key": "75a5d0ab0e13cba175b27e432570ede30e4469f865baf3f49a44b37e10febc62",
+          "ordinal": 15
+        },
+        {
+          "key": "f363c359cbe211666b0b8a0de0e1383355fa25a3bcb31cad7e52fe0653319592",
+          "ordinal": 16
+        },
+        {
+          "key": "aeeddb74bfdfa92c77eb30f7cced0834673238c305a6fb04e3a3254c0794a023",
+          "ordinal": 17
+        },
+        {
+          "key": "e8759b36b58983ac5c30e7df54a042e93d21eada2855505026ca6d3bd6af1f0f",
+          "ordinal": 18
+        },
+        {
+          "key": "34c48f70a03c7b44b9e548c0330cf6e4023b17f2e3c070de59a89edb7fcaf8e0",
+          "ordinal": 19
+        },
+        {
+          "key": "db33a3ef63efd1043948ace5c33aa5d9a79ce90389ee2c37d0a47d596999e24e",
+          "ordinal": 20
+        },
+        {
+          "key": "7e4a9f56c1a60658cb37a6e41102e2500c8d888bbfb21ef94df635dd6a358378",
+          "ordinal": 21
+        },
+        {
+          "key": "017443cbfd339796330b13258527cbb4e46850742c165049167f14eb630b5481",
+          "ordinal": 22
+        },
+        {
+          "key": "ebadf9675e31a2a1ae468a20205708355673097ba04ce4c73a2ae54cb009edd1",
+          "ordinal": 23
+        },
+        {
+          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
+          "ordinal": 24
+        },
+        {
+          "key": "0fba00faf23c652f7dcf8c269924ee61e2f9f86607ea07770bd1c4f2ce3c258a",
+          "ordinal": 25
+        }
+      ]
+    },
     "4f4cfefa43875d75d44adc46337566e56807c5948b5040fac89edf61f45ccbab": {
       "members": [
         {
@@ -989,6 +1025,136 @@
           "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
           "ordinal": 2,
           "serdeVariant": "Alternative2"
+        }
+      ]
+    },
+    "634890a93eb21759ce5bb64a297268aba9cfab5167c553cbb46b22e513334536": {
+      "name": "ItemSourcePF2e",
+      "members": [
+        {
+          "key": "4e9814a6b34b434e462d369ce7ff382ee7d3819c68c1d3adf5f782fc3c6918de",
+          "ordinal": 1,
+          "serdeVariant": "AbilitySource"
+        },
+        {
+          "key": "de78f1689fec5ceb33d43d650700b03a96bf7548570e091311f51d09fe42b00b",
+          "ordinal": 2,
+          "serdeVariant": "AfflictionSource"
+        },
+        {
+          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
+          "ordinal": 3,
+          "serdeVariant": "AmmoSource"
+        },
+        {
+          "key": "9708a92f085b90cb2fc48bfa8f1b954a8d23d1f60a6b53b5a5237b60c57ea4dd",
+          "ordinal": 4,
+          "serdeVariant": "AncestrySource"
+        },
+        {
+          "key": "f2b465f95a0cacfc84ef33d89b2ce0f4a58f593c1a740b598e0efde8760e617c",
+          "ordinal": 5,
+          "serdeVariant": "ArmorSource"
+        },
+        {
+          "key": "9f09df7ed26b4e749c8ce112fc32b57fb6c3d110fc4cbdcd9ff8c906f3a4514d",
+          "ordinal": 6,
+          "serdeVariant": "BackgroundSource"
+        },
+        {
+          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
+          "ordinal": 7,
+          "serdeVariant": "BookSource"
+        },
+        {
+          "key": "df3b5c1cd41bcb4e9c075c2746346cb07d3854a0641da55e34ff66f5ba21c60b",
+          "ordinal": 8,
+          "serdeVariant": "CampaignFeatureSource"
+        },
+        {
+          "key": "a66f4fa96d92f1333a0bf25328d7db20bf7144c982955765d635421cfbe1a939",
+          "ordinal": 9,
+          "serdeVariant": "ClassSource"
+        },
+        {
+          "key": "0420c54f026ed61954e854fa7bc3a268daf9e815e8281503fd861e4dc3898a24",
+          "ordinal": 10,
+          "serdeVariant": "ConditionSource"
+        },
+        {
+          "key": "cc237fb2e7396e8d8bb14da14b59cdc1b47632870544278705f119d211e33847",
+          "ordinal": 11,
+          "serdeVariant": "ConsumableSource"
+        },
+        {
+          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
+          "ordinal": 12,
+          "serdeVariant": "ContainerSource"
+        },
+        {
+          "key": "02185bb33b98aa517ea8f9f6e655775ea53b15927043245ada2b56a5d467f8b0",
+          "ordinal": 13,
+          "serdeVariant": "DeitySource"
+        },
+        {
+          "key": "5c2e3ca38da454f27d033543112990ef4b609477bb2dfd3533940ffe1b5100fc",
+          "ordinal": 14,
+          "serdeVariant": "EffectSource"
+        },
+        {
+          "key": "0b4ad314c9ef484bf3233ef94b1c3bffbea4f5030f7009a806d89e7e17c15e6d",
+          "ordinal": 15,
+          "serdeVariant": "EquipmentSource"
+        },
+        {
+          "key": "f363c359cbe211666b0b8a0de0e1383355fa25a3bcb31cad7e52fe0653319592",
+          "ordinal": 16,
+          "serdeVariant": "FeatSource"
+        },
+        {
+          "key": "aeeddb74bfdfa92c77eb30f7cced0834673238c305a6fb04e3a3254c0794a023",
+          "ordinal": 17,
+          "serdeVariant": "HeritageSource"
+        },
+        {
+          "key": "e8759b36b58983ac5c30e7df54a042e93d21eada2855505026ca6d3bd6af1f0f",
+          "ordinal": 18,
+          "serdeVariant": "KitSource"
+        },
+        {
+          "key": "34c48f70a03c7b44b9e548c0330cf6e4023b17f2e3c070de59a89edb7fcaf8e0",
+          "ordinal": 19,
+          "serdeVariant": "LoreSource"
+        },
+        {
+          "key": "db33a3ef63efd1043948ace5c33aa5d9a79ce90389ee2c37d0a47d596999e24e",
+          "ordinal": 20,
+          "serdeVariant": "MeleeSource"
+        },
+        {
+          "key": "cc678a274eec4771d480fb80f5f4225f08d28b8753dba0aadbac8516e563fa19",
+          "ordinal": 21,
+          "serdeVariant": "ShieldSource"
+        },
+        {
+          "key": "18d3b551477607798f061bfaa3c726ca3bbdd5352d827b9ce2802e269fbb95d2",
+          "ordinal": 22,
+          "serdeVariant": "SpellSource"
+        },
+        {
+          "key": "ebadf9675e31a2a1ae468a20205708355673097ba04ce4c73a2ae54cb009edd1",
+          "ordinal": 23,
+          "serdeVariant": "SpellcastingEntrySource"
+        },
+        {
+          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
+          "ordinal": 24,
+          "serdeVariant": "TreasureSource"
+        },
+        {
+          "key": "5b6700298997189b4cb3fef8b1500db182aef56c1bb0ea0d13c79fed81a92fce",
+          "ordinal": 25,
+          "serdeVariant": "WeaponSource"
         }
       ]
     },
@@ -1421,30 +1587,6 @@
           "key": "41ecc76d8716d201d54ce7c12684f2bddfdab3ced5d02984c203a1ab808e4b76",
           "ordinal": 2,
           "serdeVariant": "SourceFromSchemaBattleFormRuleOverrideSchemaWeaknessesEntryOmitExceptionsEntryAlternative2SourceFromSchema"
-        }
-      ]
-    },
-    "96375cacaf09cdafb72827f55fe92b709770c4947cc8b2cd794932bdb2126969": {
-      "members": [
-        {
-          "key": "70701ff34fd45830820fc8dd2daf6778f2dacb0917bdfaddebc96fcf46f9bc07",
-          "ordinal": 1,
-          "serdeVariant": "ItemTraitsItemTrait"
-        },
-        {
-          "key": "ff058ab000255837f2f00e1c6ab4b151e99dee45fedbcb97e794ffa95e8db52c",
-          "ordinal": 2,
-          "serdeVariant": "ItemTraitsNoRarityItemTrait"
-        },
-        {
-          "key": "c059d22e2c97892b41a10c696494d628dddbce331fd49e525300c2ab6a5d769e",
-          "ordinal": 3,
-          "serdeVariant": "OtherTagsOnly"
-        },
-        {
-          "key": "fb4847ee5b259ad707ef1ec5bed17f65fa74ec38e4ce676d09735e1b826d831b",
-          "ordinal": 4,
-          "serdeVariant": "RarityTraitAndOtherTags"
         }
       ]
     },
@@ -3097,148 +3239,6 @@
         {
           "key": "41ecc76d8716d201d54ce7c12684f2bddfdab3ced5d02984c203a1ab808e4b76",
           "ordinal": 107
-        }
-      ]
-    },
-    "fed79cb57fb56dbca21f06473fe7b08cf9f68892e1c1deeb7c6488b3ac635ac6": {
-      "name": "ActorSourcePF2e",
-      "members": [
-        {
-          "key": "24e32f9ffd39b11efde4feea657115db1b91820b11830a24e08cf3e0ac2f9e0f",
-          "ordinal": 1
-        },
-        {
-          "key": "63687673c9530e0b5da612ee557121077ac83097e48b258db0e744256f1f1b52",
-          "ordinal": 2
-        },
-        {
-          "key": "17d8bd28e5928e20c64b1a57b0e54501d51038c096be5c1d887c2cbe9100eb15",
-          "ordinal": 3
-        },
-        {
-          "key": "9d8eac49bd24af3f01b51238a63764169b0e871b3b852efddd844b2de22e0ce4",
-          "ordinal": 4
-        },
-        {
-          "key": "d86005bb56be3858a608e4404c8a71bdb303acb5fee66ad98bf722cbf243a6a9",
-          "ordinal": 5
-        },
-        {
-          "key": "93da5a9bd8f79c4dc664eeffe51cdc2837a2a05cfdaff0697c7d4a77fde17ad7",
-          "ordinal": 6
-        },
-        {
-          "key": "ae9e003384902b9be61cb2fa7d5e603edf16df83ea3fda0a2bcbdfaf9b5a8d8b",
-          "ordinal": 7
-        },
-        {
-          "key": "b3cc5ac538d8c014fe6af099bce94c0881a28b898b8d8fb2ee3003d46529714c",
-          "ordinal": 8
-        }
-      ]
-    },
-    "ff0b7cee869cb63986494b1542310f203c3e2642151c207e58b87c892c5c2e2c": {
-      "name": "ItemSourcePF2e",
-      "members": [
-        {
-          "key": "4e9814a6b34b434e462d369ce7ff382ee7d3819c68c1d3adf5f782fc3c6918de",
-          "ordinal": 1
-        },
-        {
-          "key": "e5ad5337124056dad0671b7639a344e9f061b83e204ee29f38746e7f9dca4617",
-          "ordinal": 2
-        },
-        {
-          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
-          "ordinal": 3
-        },
-        {
-          "key": "9708a92f085b90cb2fc48bfa8f1b954a8d23d1f60a6b53b5a5237b60c57ea4dd",
-          "ordinal": 4
-        },
-        {
-          "key": "18b77e5757df1e399c16d65c7e960d519c2e118886ff5062c72ed2b0090f27df",
-          "ordinal": 5
-        },
-        {
-          "key": "9f09df7ed26b4e749c8ce112fc32b57fb6c3d110fc4cbdcd9ff8c906f3a4514d",
-          "ordinal": 6
-        },
-        {
-          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
-          "ordinal": 7
-        },
-        {
-          "key": "df3b5c1cd41bcb4e9c075c2746346cb07d3854a0641da55e34ff66f5ba21c60b",
-          "ordinal": 8
-        },
-        {
-          "key": "a66f4fa96d92f1333a0bf25328d7db20bf7144c982955765d635421cfbe1a939",
-          "ordinal": 9
-        },
-        {
-          "key": "46f03e603d82d3a9d96a0267fdd5097253c00e0e2dbc962c845aa4d3a6d5d3cf",
-          "ordinal": 10
-        },
-        {
-          "key": "21542495189815c894756bda2132da1e4c490c6ae6542d314045b68dd215a8d7",
-          "ordinal": 11
-        },
-        {
-          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
-          "ordinal": 12
-        },
-        {
-          "key": "02185bb33b98aa517ea8f9f6e655775ea53b15927043245ada2b56a5d467f8b0",
-          "ordinal": 13
-        },
-        {
-          "key": "5c2e3ca38da454f27d033543112990ef4b609477bb2dfd3533940ffe1b5100fc",
-          "ordinal": 14
-        },
-        {
-          "key": "75a5d0ab0e13cba175b27e432570ede30e4469f865baf3f49a44b37e10febc62",
-          "ordinal": 15
-        },
-        {
-          "key": "f363c359cbe211666b0b8a0de0e1383355fa25a3bcb31cad7e52fe0653319592",
-          "ordinal": 16
-        },
-        {
-          "key": "aeeddb74bfdfa92c77eb30f7cced0834673238c305a6fb04e3a3254c0794a023",
-          "ordinal": 17
-        },
-        {
-          "key": "e8759b36b58983ac5c30e7df54a042e93d21eada2855505026ca6d3bd6af1f0f",
-          "ordinal": 18
-        },
-        {
-          "key": "34c48f70a03c7b44b9e548c0330cf6e4023b17f2e3c070de59a89edb7fcaf8e0",
-          "ordinal": 19
-        },
-        {
-          "key": "a137736c0be678a5b75580a3668d36c8ec5408867aec9e0d5597d49997bc05f5",
-          "ordinal": 20
-        },
-        {
-          "key": "7e4a9f56c1a60658cb37a6e41102e2500c8d888bbfb21ef94df635dd6a358378",
-          "ordinal": 21
-        },
-        {
-          "key": "017443cbfd339796330b13258527cbb4e46850742c165049167f14eb630b5481",
-          "ordinal": 22
-        },
-        {
-          "key": "ebadf9675e31a2a1ae468a20205708355673097ba04ce4c73a2ae54cb009edd1",
-          "ordinal": 23
-        },
-        {
-          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
-          "ordinal": 24
-        },
-        {
-          "key": "0fba00faf23c652f7dcf8c269924ee61e2f9f86607ea07770bd1c4f2ce3c258a",
-          "ordinal": 25
         }
       ]
     }

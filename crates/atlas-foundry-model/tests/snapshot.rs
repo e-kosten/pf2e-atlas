@@ -246,7 +246,7 @@ fn nesting_guard_rejects_excessive_payloads_but_ignores_escaped_text() {
 }
 
 #[test]
-fn predecessor_compiler_snapshots_preserve_every_divine_font_alternative() {
+fn replaced_source_contract_preserves_every_divine_font_alternative_on_readmission() {
     #[derive(serde::Deserialize)]
     struct Producer {
         snapshot_version: u32,
@@ -271,15 +271,14 @@ fn predecessor_compiler_snapshots_preserve_every_divine_font_alternative() {
         fixtures.producer.snapshot_version,
         atlas_foundry_model::SNAPSHOT_VERSION
     );
-    assert_eq!(
-        fixtures.producer.source_contract,
-        atlas_foundry_model::SOURCE_CONTRACT_ID
-    );
     assert_eq!(fixtures.cases.len(), 4);
     for case in fixtures.cases {
-        let stored = case.snapshot.get().as_bytes();
-        let restored = decode_snapshot(stored)
-            .unwrap_or_else(|error| panic!("{} predecessor snapshot: {error}", case.name));
+        let stored = case.snapshot.get();
+        assert!(matches!(
+            decode_snapshot(stored.as_bytes()),
+            Err(SnapshotError::SourceContractMismatch(identity))
+                if identity == fixtures.producer.source_contract
+        ));
         let current = admit_document_source(
             "Item",
             SourceContext::new("fixture", "fixture.json", "$"),
@@ -292,16 +291,15 @@ fn predecessor_compiler_snapshots_preserve_every_divine_font_alternative() {
             case.name,
             current.diagnostics
         );
-        assert_eq!(
-            Some(&restored),
-            current.model.as_ref(),
-            "{} changed meaning",
-            case.name
+        let expected = stored.replacen(
+            &fixtures.producer.source_contract,
+            atlas_foundry_model::SOURCE_CONTRACT_ID,
+            1,
         );
         assert_eq!(
-            encode_snapshot(&restored).unwrap().as_slice(),
-            stored,
-            "{} was retagged",
+            encode_snapshot(&current.model.unwrap()).unwrap().as_slice(),
+            expected.as_bytes(),
+            "{} changed persisted model",
             case.name
         );
     }

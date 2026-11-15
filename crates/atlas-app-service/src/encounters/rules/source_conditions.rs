@@ -188,7 +188,9 @@ pub(in crate::encounters) fn source_conditions(
                 Slug::Unfriendly => ConditionRule::Unfriendly,
                 Slug::Unnoticed => ConditionRule::Unnoticed,
                 Slug::Wounded => ConditionRule::Wounded,
-                Slug::Malevolence => continue,
+                Slug::Malevolence | Slug::Glitching | Slug::Suppressed | Slug::Untethered => {
+                    continue;
+                }
             };
             let value = if rule.definition().has_value {
                 system
