@@ -278,3 +278,17 @@ the source, verify that both records belong to the same adventure and check
 their usage conditions. Test the target's source adjustment and
 effective stats, including published records whose stats already include the
 adjustment.
+
+## Review canonical creature links
+
+When a publication repeats a creature without changing its stat block or its
+encounter-specific rules, record the relationship in the
+[creature copy catalog](../../crates/atlas-search/families/creature-copy-links).
+Compare the complete source actors and read the copy's published encounter and
+scaling instructions. Follow [Eloko's declaration](../../crates/atlas-search/families/creature-copy-links/eloko.toml)
+for the exact keys, titles, edition, raw SHA-256 hashes and source note.
+
+Atlas checks those facts against the indexed source summaries when opening the
+copy. If either record changes or disappears, the link is omitted. Review the
+source evidence again before refreshing a hash. Both records retain their exact
+identity in discovery and saved references.

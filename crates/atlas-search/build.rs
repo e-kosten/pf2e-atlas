@@ -9,6 +9,8 @@ mod family_axis_validation;
 
 #[path = "src/creature_catalog.rs"]
 mod creature_catalog;
+#[path = "src/creature_copy_catalog.rs"]
+mod creature_copy_catalog;
 
 #[path = "src/variants/catalog.rs"]
 mod catalog;
@@ -66,7 +68,10 @@ impl ExclusionSide {
 }
 
 fn main() {
-    if let Err(error) = bundle().and_then(|()| build_creature_families::bundle()) {
+    if let Err(error) = bundle()
+        .and_then(|()| build_creature_families::bundle())
+        .and_then(|()| build_creature_families::bundle_copy_links())
+    {
         eprintln!("family catalog: {error}");
         std::process::exit(1);
     }

@@ -64,6 +64,33 @@ describe("RecordReferenceDrawer", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
+  it("opens the canonical record through drawer navigation and keeps its full-page link", () => {
+    const detail = detailFixture("scenario:copy", "Eloko (Scenario)");
+    detail.canonical_record = { record_key: "bestiary:original", title: "Eloko" };
+    const router = createAtlasRouter(createMemoryHistory({ initialEntries: ["/"] }));
+    const onReference = vi.fn();
+    render(
+      <RouterTestContext router={router}>
+        <RecordReferenceDrawer
+          destination={{ kind: "record", navigation: detail.selected }}
+          anchor={document.createElement("button")}
+          detail={detail}
+          loading={false}
+          onClose={vi.fn()}
+          onReference={onReference}
+        />
+      </RouterTestContext>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Eloko (Scenario)" })).toBeVisible();
+    const link = screen.getByRole("link", { name: "Eloko" });
+    expect(link).toHaveAttribute("href", "/records/bestiary:original");
+    fireEvent.click(link, { metaKey: true });
+    expect(onReference).not.toHaveBeenCalled();
+    fireEvent.click(link);
+    expect(onReference).toHaveBeenCalledWith("bestiary:original", link);
+  });
+
   it("opens the pending Drawer immediately, delays its spinner and retains its heading when content arrives", async () => {
     const anchor = document.createElement("button");
     document.body.append(anchor);
