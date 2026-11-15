@@ -147,9 +147,42 @@ done
 [ -n "$dest" ] || exit 2
 [ -n "$url" ] || exit 2
 if [ -n "${ATLAS_URL_LOG:-}" ]; then printf '%s\n' "$url" >> "$ATLAS_URL_LOG"; fi
+case "${ATLAS_TEST_BOOTSTRAP:-}" in
+  failed) exit 22 ;;
+  empty) : > "$dest"; exit 0 ;;
+esac
 cp "$ATLAS_FAKE_RELEASE_DIR/$(basename "$url")" "$dest"
 EOF_CURL
   chmod +x "$fake_bin/curl"
+
+  quick_start="$tmp/quick-start.sh"
+  awk '/^```bash$/ { code = 1; next } code && /^```$/ { exit } code { print }' \
+    "$repo_root/README.md" > "$quick_start"
+  [ -s "$quick_start" ]
+  for bootstrap_failure in failed empty; do
+    if PATH="$fake_bin:$PATH" ATLAS_TEST_BOOTSTRAP="$bootstrap_failure" sh "$quick_start"; then
+      echo "quick start accepted a $bootstrap_failure installer download" >&2
+      exit 1
+    fi
+  done
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_INSTALL_DIR="$tmp/quick-start-install" \
+    sh "$quick_start" >/dev/null
+  [ "$("$tmp/quick-start-install/atlas" --version)" = "atlas 9.9.9" ]
+
+  explicit_start="$tmp/explicit-start.sh"
+  explicit_tag=rc/v9.9.9-rc.1
+  awk '/^```bash$/ { code = ""; next }
+       /^```$/ { if (code ~ /--version VERSION/) { print code; exit }; next }
+       { code = code $0 "\n" }' "$repo_root/docs/installation.md" |
+    sed "s|VERSION|$explicit_tag|g" > "$explicit_start"
+  [ -s "$explicit_start" ]
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" ATLAS_INSTALL_DIR="$tmp/explicit-install" \
+    ATLAS_URL_LOG="$tmp/explicit-urls" sh "$explicit_start" >/dev/null
+  [ "$(wc -l < "$tmp/explicit-urls" | tr -d ' ')" -eq 4 ]
+  if grep -vF "/releases/download/$explicit_tag/" "$tmp/explicit-urls"; then
+    echo "explicit installer bootstrap did not forward the release tag" >&2
+    exit 1
+  fi
 
   dry_run_dir="$tmp/dry-run-install"
   PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
@@ -261,21 +294,41 @@ printf "atlas 9.9.9\n"'
 
   rollback_dist="$tmp/rollback-dist"
   cp -R "$dist" "$rollback_dist"
-  make_unix_archive_in "$rollback_dist" "$host_target" "#!/bin/sh
-exit 42"
+  cat > "$tmp/rollback-binary" <<'ROLLBACK_BINARY'
+#!/bin/sh
+case "$0" in */extract/*) ;; *) exit 42 ;; esac
+case "$1" in
+  --version) printf 'atlas 9.9.10\n' ;;
+  build-info) printf '{\n  "variant": "full"\n}\n' ;;
+esac
+ROLLBACK_BINARY
+  make_unix_archive_in "$rollback_dist" "$host_target" "$(cat "$tmp/rollback-binary")"
   node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v9.9.9 "$rollback_dist" >/dev/null
-  if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$rollback_dist" \
-    "$repo_root/scripts/install/atlas-installer.sh" \
-    --install-dir "$install_dir" --version v9.9.9 --yes >/dev/null 2>&1
-  then
-    echo "installer accepted a binary that failed version validation" >&2
-    exit 1
-  fi
-  installed_version=$("$install_dir/atlas" --version)
-  [ "$installed_version" = "atlas 9.9.9" ] || {
-    echo "installer did not restore previous binary after validation failure" >&2
-    exit 1
-  }
+  bundled_cli="$tmp/bundled-atlas"
+  mv "$install_dir/atlas" "$bundled_cli"
+  ln -s "$bundled_cli" "$install_dir/atlas"
+  fresh_dir="$tmp/fresh-rollback"
+  dangling_dir="$tmp/dangling-rollback"
+  mkdir "$dangling_dir"
+  ln -s "$tmp/missing-bundled-atlas" "$dangling_dir/atlas"
+  for destination in "$install_dir" "$fresh_dir" "$dangling_dir"; do
+    status=0
+    PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$rollback_dist" \
+      "$repo_root/scripts/install/atlas-installer.sh" \
+      --install-dir "$destination" --version v9.9.9 --yes >"$tmp/rollback.log" 2>&1 || status=$?
+    if [ "$status" -ne 1 ] ||
+      ! grep -q 'installed atlas failed its version check' "$tmp/rollback.log" ||
+      grep -q 'Installed atlas to' "$tmp/rollback.log"
+    then
+      cat "$tmp/rollback.log" >&2
+      echo "installer did not report post-move validation failure" >&2
+      exit 1
+    fi
+  done
+  [ "$(readlink "$install_dir/atlas")" = "$bundled_cli" ]
+  [ "$("$bundled_cli" --version)" = "atlas 9.9.9" ]
+  [ ! -e "$fresh_dir/atlas" ]
+  [ "$(readlink "$dangling_dir/atlas")" = "$tmp/missing-bundled-atlas" ]
 
   bad_dist="$tmp/bad-dist"
   cp -R "$dist" "$bad_dist"

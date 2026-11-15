@@ -56,9 +56,15 @@ Fresh installations include the CLI, agent tooling and web UI. To install only
 the CLI and agent tooling on macOS/Linux:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh \
-  | sh -s -- --without-web
+(
+  set -eu
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' EXIT
+  curl --proto '=https' --tlsv1.2 -LsSf \
+    https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh -o "$installer"
+  test -s "$installer"
+  sh "$installer" --without-web
+)
 ```
 
 On Windows:
@@ -118,8 +124,15 @@ To install a specific version, use that release's installer URL (replace `VERSIO
 with a published release tag such as `release/v1.2.3` or `rc/v1.2.3-rc.1`):
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/download/VERSION/atlas-installer.sh | sh -s -- --version VERSION
+(
+  set -eu
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' EXIT
+  curl --proto '=https' --tlsv1.2 -LsSf \
+    https://github.com/e-kosten/pf2e-atlas/releases/download/VERSION/atlas-installer.sh -o "$installer"
+  test -s "$installer"
+  sh "$installer" --version VERSION
+)
 ```
 
 For a release candidate, use its specific release tag; the default installer
@@ -136,9 +149,15 @@ To install or update the CLI to the newest successful nightly on macOS/Linux,
 run the nightly installer:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/atlas-installer.sh \
-  | sh -s -- --version nightly
+(
+  set -eu
+  installer=$(mktemp)
+  trap 'rm -f "$installer"' EXIT
+  curl --proto '=https' --tlsv1.2 -LsSf \
+    https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/latest/atlas-installer.sh -o "$installer"
+  test -s "$installer"
+  sh "$installer" --version nightly
+)
 ```
 
 On Windows, download the CLI installer and select the nightly version:
