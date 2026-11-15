@@ -102,8 +102,12 @@ the shared API.
 The bundled setup page reads a versioned, source-free readiness report and invokes
 the existing CLI setup path after an explicit user action. Progress comes from
 runtime events, and the runtime continues to own setup exclusion, workspace
-maintenance and published state. The primary desktop window navigates from
-bundled setup to the verified service and waits for the product shell to render.
+maintenance and published state. The bundled document submits startup work through an idempotent, document-scoped
+admission request. The host reports progress and authorizes the exact verified
+destination through targeted events. The bundled document drains its outstanding
+IPC replies before navigating, so replacing that document cannot cause the
+launch or prepare command to replay. The host admits the matching navigation and
+waits for the product shell to render.
 The host retains the requested destination and returns to setup with a retry
 action if the initial render fails. Retry uses the published workspace.
 Fresh managed setup opens the primary window on a verified keyword publication

@@ -1,0 +1,46 @@
+.desktop-setup {
+  display: grid;
+  overflow-wrap: anywhere;
+}
+
+.desktop-setup__section {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding-block: 20px;
+  min-width: 0;
+}
+
+.desktop-setup > :not(:first-child) {
+  border-block-start: 1px solid var(--line);
+}
+
+.desktop-setup > :first-child,
+.desktop-setup > :first-child > .desktop-setup__section {
+  padding-block-start: 0;
+}
+
+.desktop-setup > :last-child,
+.desktop-setup > :last-child > .desktop-setup__section {
+  padding-block-end: 0;
+}
+
+.desktop-setup__section h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.desktop-setup__stack,
+.desktop-setup__section .desktop-setup__model-options {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.desktop-setup__section button {
+  height: auto;
+  min-height: var(--control-height);
+  white-space: normal;
+}

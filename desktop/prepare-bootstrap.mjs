@@ -28,7 +28,7 @@ const target = new URL(".generated/bootstrap/", import.meta.url);
 const bootstrap = new URL("bootstrap/", import.meta.url);
 mkdirSync(target, { recursive: true });
 
-function brandColors(scheme) {
+function brandColors(scheme, selector = ":root") {
   const { text, mark } = atlasPalettes[scheme].brand;
   const { dieFaces, ...colors } = mark;
   const variables = Object.entries(colors).map(
@@ -38,7 +38,7 @@ function brandColors(scheme) {
   dieFaces.forEach((value, index) =>
     variables.push(`--brand-mark-die-face-${index}: ${value};`),
   );
-  return `:root { --brand-text: ${text}; ${variables.join(" ")} }`;
+  return `${selector} { --brand-text: ${text}; ${variables.join(" ")} }`;
 }
 
 const font = "@fontsource-variable/lora/files/lora-latin-wght-normal.woff2";
@@ -59,11 +59,49 @@ copyFileSync(
   new URL("node_modules/@fontsource-variable/lora/LICENSE", web),
   new URL("lora-license.txt", target),
 );
-for (const file of ["setup.css", "setup.js"]) {
+for (const file of [
+  "opening.css",
+  "opening-status.js",
+  "setup.css",
+  "setup.js",
+]) {
   copyFileSync(new URL(file, bootstrap), new URL(file, target));
 }
-const html = readFileSync(new URL("index.html", bootstrap), "utf8").replace(
-  "<!-- atlas-mark -->",
-  renderToStaticMarkup(createElement(AtlasMark)),
-);
+const mark = renderToStaticMarkup(createElement(AtlasMark));
+const openingStatus = `<div id="opening-status" hidden>
+  <div class="opening-compass" aria-hidden="true">${mark}</div>
+  <p role="status">Opening Atlas…</p>
+</div>`;
+const html = readFileSync(new URL("index.html", bootstrap), "utf8")
+  .replace("<!-- opening-status -->", openingStatus)
+  .replace("<!-- atlas-mark -->", mark);
 writeFileSync(new URL("index.html", target), html);
+const openingScript = readFileSync(
+  new URL("opening-handoff.js", bootstrap),
+  "utf8",
+)
+  .replace("/* status markup */ null", JSON.stringify(openingStatus))
+  .replace(
+    "/* opening styles */ null",
+    JSON.stringify(readFileSync(new URL("opening.css", bootstrap), "utf8")),
+  )
+  .replace(
+    "/* mark styles */ null",
+    JSON.stringify(styles.slice(styles.indexOf(".atlas-mark {"))),
+  )
+  .replace(
+    "/* light colors */ null",
+    JSON.stringify(brandColors("light", "#atlas-opening-cover")),
+  )
+  .replace(
+    "/* dark colors */ null",
+    JSON.stringify(brandColors("dark", "#atlas-opening-cover")),
+  );
+const openingStatusScript = readFileSync(
+  new URL("opening-status.js", bootstrap),
+  "utf8",
+);
+writeFileSync(
+  new URL("opening-handoff.js", target),
+  `${openingStatusScript}\n${openingScript}`,
+);

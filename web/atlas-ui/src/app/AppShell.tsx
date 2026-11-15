@@ -237,7 +237,7 @@ export function AppShell({
           banner
           type="info"
           role="status"
-          title="Preparing semantic search. Editing will be available when setup finishes."
+          title="Editing is temporarily paused while Atlas updates the workspace."
         />
       )}
       <GlobalFeedback>

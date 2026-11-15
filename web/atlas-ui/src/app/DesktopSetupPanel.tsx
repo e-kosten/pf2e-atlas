@@ -1,3 +1,5 @@
+import "./desktopSetupPanel.css";
+import { useSavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import {
   Alert,
   Button,
@@ -69,6 +71,7 @@ function subscribe(callback: () => void) {
 
 export function DesktopSetupPanel() {
   const attachment = useSyncExternalStore(subscribe, readAttachment);
+  const writesPaused = useSavedWritesPaused();
   const [open, setOpen] = useState(false);
   const terminalSection = useRef<HTMLDivElement>(null);
   const focusTerminal = useRef(false);
@@ -172,11 +175,82 @@ export function DesktopSetupPanel() {
           setOpen(false);
         }}
       >
-        <div ref={panel}>
-          <Space orientation="vertical" size="middle">
+        <div ref={panel} className="desktop-setup">
+          {(running ||
+            setup.message ||
+            setup.can_resume ||
+            error ||
+            (setup.local_build && status === "failed")) && (
+            <section
+              className="desktop-setup__section"
+              aria-labelledby="desktop-setup-activity"
+            >
+              <h2 id="desktop-setup-activity">Setup activity</h2>
+              {running && (
+                <div className="desktop-setup__stack">
+                  <Typography.Text role="status">
+                    {status === "cancelling"
+                      ? "Cancelling setup…"
+                      : (progress?.message ??
+                        (setup.reference_job && !setup.model_job
+                          ? "Preparing reference data…"
+                          : "Preparing semantic search…"))}
+                  </Typography.Text>
+                  {percent !== undefined && (
+                    <Progress percent={percent} aria-label="Setup progress" />
+                  )}
+                  {typeof progress?.current === "number" && progress.unit && (
+                    <Typography.Text>
+                      {percent === undefined
+                        ? `${progress.current.toLocaleString()} ${progress.unit} completed`
+                        : `${progress.current.toLocaleString()} of ${progress.total?.toLocaleString()} ${progress.unit}`}
+                    </Typography.Text>
+                  )}
+                  <Button
+                    disabled={sending || status === "cancelling"}
+                    onClick={() => void act("cancel")}
+                  >
+                    Cancel setup
+                  </Button>
+                </div>
+              )}
+              {status === "idle" && setup.message && (
+                <Typography.Text role="status">{setup.message}</Typography.Text>
+              )}
+              {setup.message && status === "failed" && (
+                <Alert type="warning" title={setup.message} />
+              )}
+              {error && <Alert type="error" title={error} />}
+              {setup.can_resume && (status === "available" || status === "failed") && (
+                <Button
+                  type="primary"
+                  loading={sending}
+                  disabled={writesPaused}
+                  onClick={() => void act("resume")}
+                >
+                  {status === "failed" ? "Retry setup" : "Resume semantic setup"}
+                </Button>
+              )}
+              {setup.local_build &&
+                status === "failed" &&
+                (setup.can_resume || reference?.available || setup.model_job) &&
+                !referenceLoading && (
+                  <Button
+                    disabled={sending || writesPaused}
+                    onClick={() => void act("build_locally")}
+                  >
+                    Build embeddings locally
+                  </Button>
+                )}
+            </section>
+          )}
+          <section
+            className="desktop-setup__section"
+            aria-labelledby="desktop-setup-reference"
+          >
+            <h2 id="desktop-setup-reference">Reference data</h2>
             {reference && (
-              <Space vertical size="small">
-                <Typography.Text strong>Reference data</Typography.Text>
+              <div className="desktop-setup__stack">
                 <Typography.Text>
                   Current:{" "}
                   {pendingPin
@@ -193,7 +267,7 @@ export function DesktopSetupPanel() {
                     Use the Atlas CLI to maintain custom reference sources.
                   </Typography.Text>
                 )}
-              </Space>
+              </div>
             )}
             {!running && referenceLoading && (
               <Typography.Text role="status">
@@ -208,56 +282,6 @@ export function DesktopSetupPanel() {
                 Check reference status
               </Button>
             )}
-            {running && (
-              <>
-                <Typography.Text role="status">
-                  {status === "cancelling"
-                    ? "Cancelling setup…"
-                    : (progress?.message ??
-                      (setup.reference_job && !setup.model_job
-                        ? "Preparing reference data…"
-                        : "Preparing semantic search…"))}
-                </Typography.Text>
-                {percent !== undefined && <Progress percent={percent} />}
-                {typeof progress?.current === "number" && progress.unit && (
-                  <Typography.Text>
-                    {percent === undefined
-                      ? `${progress.current.toLocaleString()} ${progress.unit} completed`
-                      : `${progress.current.toLocaleString()} of ${progress.total?.toLocaleString()} ${progress.unit}`}
-                  </Typography.Text>
-                )}
-                <Button
-                  disabled={sending || status === "cancelling"}
-                  onClick={() => void act("cancel")}
-                >
-                  Cancel setup
-                </Button>
-              </>
-            )}
-            {status === "idle" && setup.message && (
-              <Typography.Text role="status">{setup.message}</Typography.Text>
-            )}
-            {setup.message && status === "failed" && (
-              <Alert type="warning" title={setup.message} />
-            )}
-            {error && <Alert type="error" title={error} />}
-            {setup.can_resume && (status === "available" || status === "failed") && (
-              <Button
-                type="primary"
-                loading={sending}
-                onClick={() => void act("resume")}
-              >
-                {status === "failed" ? "Retry setup" : "Resume semantic setup"}
-              </Button>
-            )}
-            {setup.local_build &&
-              status === "failed" &&
-              (setup.can_resume || reference?.available || setup.model_job) &&
-              !referenceLoading && (
-                <Button disabled={sending} onClick={() => void act("build_locally")}>
-                  Build embeddings locally
-                </Button>
-              )}
             {!running &&
               !setup.can_resume &&
               reference?.available &&
@@ -298,31 +322,31 @@ export function DesktopSetupPanel() {
                   Check and repair reference data
                 </Button>
               ))}
-            {reference?.models && (
-              <SearchModels
-                key={JSON.stringify([
-                  reference.models.map((model) => [model.id, model.installed]),
-                  reference.preferred,
-                ])}
-                reference={reference}
-                disabled={running || sending || !!referenceLoading || setup.can_resume}
-                onApply={(selection) => void act("apply_models", selection)}
+          </section>
+          {reference?.models && (
+            <SearchModels
+              key={JSON.stringify([
+                reference.models.map((model) => [model.id, model.installed]),
+                reference.preferred,
+              ])}
+              reference={reference}
+              disabled={running || sending || !!referenceLoading || setup.can_resume}
+              onApply={(selection) => void act("apply_models", selection)}
+            />
+          )}
+          {open && (
+            <div
+              ref={terminalSection}
+              tabIndex={-1}
+              aria-labelledby="desktop-setup-terminal"
+            >
+              <TerminalAccess
+                key={attachment.token}
+                token={attachment.token}
+                job={setup.job}
               />
-            )}
-            {open && (
-              <div
-                ref={terminalSection}
-                tabIndex={-1}
-                aria-label="Terminal and agent access"
-              >
-                <TerminalAccess
-                  key={attachment.token}
-                  token={attachment.token}
-                  job={setup.job}
-                />
-              </div>
-            )}
-          </Space>
+            </div>
+          )}
         </div>
       </AtlasDrawer>
     </>
@@ -390,8 +414,11 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
   }
 
   return (
-    <Space orientation="vertical" size="small">
-      <Typography.Text strong>Terminal and agent access</Typography.Text>
+    <section
+      className="desktop-setup__section"
+      aria-labelledby="desktop-setup-terminal"
+    >
+      <h2 id="desktop-setup-terminal">Terminal and agent access</h2>
       {!status && busy && (
         <Typography.Text role="status">Checking terminal command…</Typography.Text>
       )}
@@ -434,7 +461,7 @@ function TerminalAccess({ token, job }: { token: string; job: number }) {
           check which command your shell uses.
         </Typography.Text>
       )}
-    </Space>
+    </section>
   );
 }
 
@@ -464,10 +491,11 @@ function SearchModels({
   const dirty = membershipChanged || preferred !== (reference.preferred ?? "");
   const editable = !disabled && !!reference.modelsAvailable;
   return (
-    <Space orientation="vertical" size="small">
-      <Typography.Text strong>Search models</Typography.Text>
+    <section className="desktop-setup__section" aria-labelledby="desktop-setup-models">
+      <h2 id="desktop-setup-models">Search models</h2>
       <Checkbox.Group
         aria-label="Installed search models"
+        className="desktop-setup__model-options"
         value={profiles}
         disabled={!editable || !reference.canChangeModels}
         options={models.map((model) => ({
@@ -494,12 +522,11 @@ function SearchModels({
           data.
         </Typography.Text>
       )}
-      <Space orientation="vertical" size="small">
+      <div className="desktop-setup__stack">
         <Typography.Text>Default search model</Typography.Text>
         <Select
           aria-label="Default search model"
           value={preferred}
-          style={{ width: "100%", minWidth: "min(14rem, 100%)" }}
           popupMatchSelectWidth={false}
           disabled={!editable || profiles.length === 0}
           options={[
@@ -514,7 +541,7 @@ function SearchModels({
           ]}
           onChange={setPreferred}
         />
-      </Space>
+      </div>
       <Button
         type="primary"
         disabled={
@@ -524,6 +551,6 @@ function SearchModels({
       >
         Apply search models
       </Button>
-    </Space>
+    </section>
   );
 }

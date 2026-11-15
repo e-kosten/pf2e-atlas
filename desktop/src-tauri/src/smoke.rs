@@ -34,7 +34,7 @@ pub fn reference_mode() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "reference")
 }
 
-fn selector_mode() -> bool {
+pub fn selector_mode() -> bool {
     std::env::var_os("ATLAS_PILOT_SMOKE").is_some_and(|mode| mode == "selector")
 }
 
@@ -523,6 +523,18 @@ fn run_selector(app: &AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window(PRIMARY)
         .ok_or("primary window unavailable")?;
+    wait_for(
+        Instant::now() + Duration::from_secs(5),
+        "delayed opening indicator without setup controls for an existing workspace",
+        || {
+            window.url().is_ok_and(|url| bundled_origin(&url))
+                && evaluates_true(
+                    &window,
+                    "Boolean(document.querySelector('#opening-status')?.getClientRects().length
+                        && !document.getElementById('workspace'))",
+                )
+        },
+    )?;
     wait_for(
         Instant::now() + Duration::from_secs(10),
         "setup drawer entry",

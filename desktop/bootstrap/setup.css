@@ -1,20 +1,17 @@
 :root {
   color-scheme: light dark;
-  --paper: #f7f0e4;
+  --paper: var(--opening-paper);
   --ink: #302018;
-  --quiet: #6f5747;
+  --quiet: var(--opening-muted);
   --line: #d5c5ae;
-  --accent: #792e37;
+  --accent: var(--opening-accent);
   --on-accent: #fff8ec;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #211c17;
     --ink: #f6ead5;
-    --quiet: #c7af96;
     --line: #554333;
-    --accent: #e4a8a4;
     --on-accent: #301413;
   }
 }
@@ -24,15 +21,24 @@
 [hidden] {
   display: none !important;
 }
+html {
+  background: var(--paper);
+}
 body {
   margin: 0;
-  background: var(--paper);
   color: var(--ink);
 }
 main {
   padding: 29px clamp(24px, 7vw, 46px);
   max-width: 720px;
   margin: auto;
+}
+body:has(#workspace) .opening {
+  display: none;
+}
+#workspace {
+  padding-inline: clamp(24px, 5vw, 40px);
+  padding-block-start: clamp(32px, 8vh, 76px);
 }
 header {
   display: flex;
@@ -130,4 +136,14 @@ summary {
 }
 #diagnostic {
   margin-top: 15px;
+}
+
+#details {
+  width: fit-content;
+  max-width: 100%;
+  overflow: clip;
+}
+#details::selection {
+  background: var(--accent);
+  color: var(--on-accent);
 }

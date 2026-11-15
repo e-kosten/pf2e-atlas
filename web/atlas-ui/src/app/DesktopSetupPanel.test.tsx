@@ -1,5 +1,6 @@
 import { ConfigProvider } from "antd";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { SavedWritesPaused } from "../shared/feedback/SavedWritesPaused";
 import { DesktopSetupPanel } from "./DesktopSetupPanel";
 
 const host = window as Window & {
@@ -47,10 +48,12 @@ function attach(openRequest?: number) {
   );
 }
 
-function renderPanel() {
-  render(
+function renderPanel(writesPaused = false) {
+  return render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <DesktopSetupPanel />
+      <SavedWritesPaused value={writesPaused}>
+        <DesktopSetupPanel />
+      </SavedWritesPaused>
     </ConfigProvider>,
   );
 }
@@ -58,6 +61,23 @@ function renderPanel() {
 it("exposes workspace setup only for an attached desktop document", () => {
   renderPanel();
   expect(screen.queryByRole("button", { name: "Setup and Updates" })).toBeNull();
+});
+
+it("prevents resuming while another operation holds the workspace write lock", async () => {
+  attach();
+  host.__ATLAS_DESKTOP_SETUP__ = {
+    ...host.__ATLAS_DESKTOP_SETUP__,
+    setup: { job: 2, sequence: 5, status: "available", can_resume: true },
+  };
+  renderPanel(true);
+  fireEvent.click(screen.getByRole("button", { name: "Setup and Updates" }));
+  const resume = await screen.findByRole("button", { name: "Resume semantic setup" });
+  expect(resume).toBeDisabled();
+  fireEvent.click(resume);
+  expect(invoke).not.toHaveBeenCalledWith(
+    "desktop_setup_action",
+    expect.objectContaining({ action: "resume" }),
+  );
 });
 
 it("opens a retained native menu request and confirms a different bundled pin", async () => {
